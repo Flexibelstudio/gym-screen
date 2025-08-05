@@ -32,11 +32,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [authLoading, setAuthLoading] = useState(true);
     const [impersonationState, setImpersonationState] = useState<{ role: UserRole, isStudioMode: boolean } | null>(() => {
         try {
-            const storedImpersonation = sessionStorage.getItem(IMPERSONATION_KEY);
+            // Use localStorage for more persistent state across sessions
+            const storedImpersonation = localStorage.getItem(IMPERSONATION_KEY);
             return storedImpersonation ? JSON.parse(storedImpersonation) : null;
         } catch (error) {
-            console.error("Failed to parse impersonation state from sessionStorage", error);
-            sessionStorage.removeItem(IMPERSONATION_KEY);
+            console.error("Failed to parse impersonation state from localStorage", error);
+            localStorage.removeItem(IMPERSONATION_KEY);
             return null;
         }
     });
@@ -104,6 +105,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // --- END OFFLINE SIMULATION LOGIC ---
 
 
+    const stopImpersonation = useCallback(() => {
+        localStorage.removeItem(IMPERSONATION_KEY);
+        setImpersonationState(null);
+    }, []);
+
     const handleSignIn = useCallback(async (email: string, password: string) => {
         await signIn(email, password);
     }, []);
@@ -113,19 +119,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const handleSignOut = useCallback(async () => {
+        stopImpersonation(); // Clear impersonation state on sign out
         await firebaseSignOut();
         setCurrentUser(null);
         setUserData(null);
-    }, []);
+    }, [stopImpersonation]);
 
     const startImpersonation = useCallback((impersonation: { role: UserRole, isStudioMode: boolean }) => {
-        sessionStorage.setItem(IMPERSONATION_KEY, JSON.stringify(impersonation));
+        localStorage.setItem(IMPERSONATION_KEY, JSON.stringify(impersonation));
         setImpersonationState(impersonation);
-    }, []);
-
-    const stopImpersonation = useCallback(() => {
-        sessionStorage.removeItem(IMPERSONATION_KEY);
-        setImpersonationState(null);
     }, []);
 
     const { role, isStudioMode } = useMemo(() => {
