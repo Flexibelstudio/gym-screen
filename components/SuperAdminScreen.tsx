@@ -1,0 +1,840 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { StudioConfig, Studio, Organization, CustomPage, CustomCategoryWithPrompt, Page, UserData, UserRole, EquipmentItem } from '../types';
+import { ToggleSwitch } from './icons';
+import { getAdminsForOrganization, setAdminRole } from '../services/firebaseService';
+
+type AdminTab = 'drift' | 'utrustning' | 'organisation' | 'admin';
+
+interface SuperAdminScreenProps {
+    organization: Organization;
+    adminRole: 'superadmin' | 'admin';
+    userRole: UserRole;
+    onPassProgramNavigation: (mode: 'create' | 'generate' | 'parse' | 'manage') => void;
+    onSaveGlobalConfig: (organizationId: string, newConfig: StudioConfig) => Promise<void>;
+    onEditStudioConfig: (studio: Studio) => void;
+    onCreateStudio: (organizationId: string, name: string) => Promise<void>;
+    onUpdateStudio: (organizationId: string, studioId: string, name: string) => Promise<void>;
+    onDeleteStudio: (organizationId: string, studioId: string) => Promise<void>;
+    onUpdatePasswords: (organizationId: string, passwords: Organization['passwords']) => Promise<void>;
+    onUpdateLogo: (organizationId: string, logoUrl: string) => Promise<void>;
+    onUpdatePrimaryColor: (organizationId: string, color: string) => Promise<void>;
+    onUpdateOrganization: (organizationId: string, name: string, subdomain: string) => Promise<void>;
+    onUpdateCustomPages: (organizationId: string, pages: CustomPage[]) => Promise<void>;
+    onSwitchToStudioView: (studio: Studio) => void;
+    onEditCustomPage: (page: CustomPage | null) => void;
+    onDeleteCustomPage: (pageId: string) => Promise<void>;
+}
+
+const TabButton: React.FC<{
+    tabId: AdminTab;
+    activeTab: AdminTab;
+    setActiveTab: (tabId: AdminTab) => void;
+    children: React.ReactNode;
+}> = ({ tabId, activeTab, setActiveTab, children }) => {
+    const isActive = activeTab === tabId;
+    return (
+        <button
+            onClick={() => setActiveTab(tabId)}
+            className={`px-4 py-3 text-lg font-semibold transition-colors focus:outline-none ${isActive
+                ? 'text-primary border-b-2 border-primary'
+                : 'text-gray-500 dark:text-gray-400 hover:text-primary'
+                }`}
+            role="tab"
+            aria-selected={isActive}
+        >
+            {children}
+        </button>
+    );
+};
+
+const PassProgramModule: React.FC<{
+    onNavigate: (mode: 'create' | 'generate' | 'parse' | 'manage') => void;
+}> = ({ onNavigate }) => {
+    const [mode, setMode] = useState<'create' | 'generate' | 'parse' | 'manage'>('create');
+
+    const TabButton: React.FC<{
+        tabId: 'create' | 'generate' | 'parse' | 'manage';
+        children: React.ReactNode;
+    }> = ({ tabId, children }) => (
+        <button
+            onClick={() => setMode(tabId)}
+            className={`flex-1 py-3 text-base font-semibold transition-colors ${mode === tabId ? 'text-primary border-b-2 border-primary' : 'text-gray-500 dark:text-gray-400 hover:text-primary'}`}
+        >
+            {children}
+        </button>
+    );
+
+    const content = {
+        create: {
+            title: "Bygg ett eget pass",
+            description: "Klicka nedan för att öppna passbyggaren och skapa ett helt nytt, skräddarsytt pass från grunden.",
+            buttonText: "Skapa nytt pass"
+        },
+        generate: {
+            title: "Skapa med AI",
+            description: "Använd AI för att snabbt skapa ett pass baserat på dina instruktioner och valda mallar.",
+            buttonText: "Öppna AI-generatorn"
+        },
+        parse: {
+            title: "Klistra in & Tolka Pass",
+            description: "Klistra in text från en annan källa så försöker AI:n att strukturera det till ett komplett pass.",
+            buttonText: "Börja klistra in"
+        },
+        manage: {
+            title: "Hantera Pass",
+            description: "Se och redigera alla dina sparade utkast och publicerade studiopass.",
+            buttonText: "Hantera alla pass"
+        }
+    };
+
+    const currentContent = content[mode];
+
+    return (
+        <div className="bg-slate-800 rounded-xl border border-gray-700">
+            <div className="flex border-b border-gray-700 px-2">
+                <TabButton tabId="create">Skapa Nytt</TabButton>
+                <TabButton tabId="generate">Skapa med AI</TabButton>
+                <TabButton tabId="parse">Klistra in Pass</TabButton>
+                <TabButton tabId="manage">Hantera Pass</TabButton>
+            </div>
+            <div className="p-8 text-center animate-fade-in">
+                <h3 className="text-2xl font-bold text-white">{currentContent.title}</h3>
+                <p className="text-gray-400 mt-2 max-w-lg mx-auto">
+                    {currentContent.description}
+                </p>
+                <button onClick={() => onNavigate(mode)} className="mt-6 bg-primary hover:brightness-95 text-white font-bold py-3 px-8 rounded-lg text-lg transition-colors shadow-md">
+                    {currentContent.buttonText}
+                </button>
+            </div>
+        </div>
+    );
+};
+
+// Props for components that manage parts of the global config
+interface ConfigProps {
+    config: StudioConfig;
+    isSavingConfig: boolean;
+    isConfigDirty: boolean;
+    handleUpdateConfigField: <K extends keyof StudioConfig>(key: K, value: StudioConfig[K]) => void;
+    handleSaveConfig: () => Promise<void>;
+}
+
+export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
+    const { organization, onSaveGlobalConfig } = props;
+    const [activeTab, setActiveTab] = useState<AdminTab>('drift');
+
+    // Lifted state for the entire global config
+    const [config, setConfig] = useState<StudioConfig>(organization.globalConfig);
+    const [isSavingConfig, setIsSavingConfig] = useState(false);
+
+    useEffect(() => {
+        setConfig(organization.globalConfig);
+    }, [organization]);
+
+    const handleUpdateConfigField = <K extends keyof StudioConfig>(key: K, value: StudioConfig[K]) => {
+        setConfig(prevConfig => ({ ...prevConfig, [key]: value }));
+    };
+
+    const handleSaveConfig = async () => {
+        setIsSavingConfig(true);
+        try {
+            await onSaveGlobalConfig(organization.id, config);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsSavingConfig(false);
+        }
+    };
+
+    const isConfigDirty = JSON.stringify(config) !== JSON.stringify(organization.globalConfig);
+
+    const configProps: ConfigProps = {
+        config,
+        isSavingConfig,
+        isConfigDirty,
+        handleUpdateConfigField,
+        handleSaveConfig
+    };
+
+
+    return (
+        <div className="w-full max-w-4xl mx-auto space-y-8 animate-fade-in pb-12">
+            {/* Identity Header */}
+            <div className="text-center mb-4 min-h-[64px] flex items-center justify-center">
+                {organization.logoUrl ? (
+                    <img src={organization.logoUrl} alt={`${organization.name} logotyp`} className="max-h-16 object-contain" />
+                ) : (
+                    <h1 className="text-5xl font-extrabold text-gray-900 dark:text-white tracking-tight">{organization.name}</h1>
+                )}
+            </div>
+
+            <div className="mb-6 flex border-b border-gray-700" role="tablist">
+                <TabButton tabId="drift" activeTab={activeTab} setActiveTab={setActiveTab}>
+                    Drift & Innehåll
+                </TabButton>
+                <TabButton tabId="utrustning" activeTab={activeTab} setActiveTab={setActiveTab}>
+                    Utrustning
+                </TabButton>
+                <TabButton tabId="organisation" activeTab={activeTab} setActiveTab={setActiveTab}>
+                    Organisation & Varumärke
+                </TabButton>
+                <TabButton tabId="admin" activeTab={activeTab} setActiveTab={setActiveTab}>
+                    Administration
+                </TabButton>
+            </div>
+
+            <div className="space-y-8">
+                {activeTab === 'drift' && <DriftContent {...props} {...configProps} />}
+                {activeTab === 'utrustning' && <UtrustningContent {...props} {...configProps} />}
+                {activeTab === 'organisation' && <OrganisationContent {...props} />}
+                {activeTab === 'admin' && <AdminContent {...props} />}
+            </div>
+        </div>
+    );
+};
+
+
+// --- Content Components for each Tab ---
+
+const DriftContent: React.FC<SuperAdminScreenProps & ConfigProps> = ({ organization, onEditStudioConfig, onCreateStudio, onUpdateStudio, onDeleteStudio, onPassProgramNavigation, onUpdateCustomPages, onSwitchToStudioView, onEditCustomPage, onDeleteCustomPage, config, isSavingConfig, isConfigDirty, handleUpdateConfigField, handleSaveConfig }) => {
+    const [newStudioName, setNewStudioName] = useState('');
+    const [isCreatingStudio, setIsCreatingStudio] = useState(false);
+    const [editingStudioId, setEditingStudioId] = useState<string | null>(null);
+    const [editingStudioName, setEditingStudioName] = useState('');
+    const [isSavingStudio, setIsSavingStudio] = useState(false);
+
+    const handleCreateStudio = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if(!newStudioName.trim()) return;
+        setIsCreatingStudio(true);
+        try {
+            await onCreateStudio(organization.id, newStudioName.trim());
+            setNewStudioName('');
+        } catch(error) {
+            console.error(error);
+        } finally {
+            setIsCreatingStudio(false);
+        }
+    };
+
+    const handleEditStudio = (studio: Studio) => {
+        setEditingStudioId(studio.id);
+        setEditingStudioName(studio.name);
+    };
+
+    const handleCancelEditStudio = () => {
+        setEditingStudioId(null);
+        setEditingStudioName('');
+    };
+
+    const handleSaveStudio = async () => {
+        if (!editingStudioId || !editingStudioName.trim()) return;
+        setIsSavingStudio(true);
+        try {
+            await onUpdateStudio(organization.id, editingStudioId, editingStudioName.trim());
+            handleCancelEditStudio();
+        } catch (error) {
+            console.error("Error saving studio name:", error);
+            alert("Kunde inte spara studionamnet.");
+        } finally {
+            setIsSavingStudio(false);
+        }
+    };
+
+    const handleDeleteStudio = (studio: Studio) => {
+        if (window.confirm(`Är du säker på att du vill ta bort studion "${studio.name}"? Detta kan inte ångras.`)) {
+            onDeleteStudio(organization.id, studio.id);
+        }
+    };
+    
+    return (
+        <>
+             <div className="bg-gray-800 p-6 rounded-lg space-y-4 border border-gray-700">
+                <h3 className="text-2xl font-bold text-white border-b border-gray-700 pb-3 mb-4">Egna Infosidor</h3>
+                <p className="text-sm text-gray-400">Skapa och hantera informationssidor som visas som knappar för coacher.</p>
+                <div className="space-y-3">
+                    {organization.customPages && organization.customPages.map(page => (
+                        <div key={page.id} className="bg-gray-900/50 p-4 rounded-lg flex justify-between items-center border border-gray-700">
+                            <p className="font-semibold text-white">{page.title}</p>
+                            <div className="flex gap-2">
+                                <button onClick={() => onEditCustomPage(page)} className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg">Redigera</button>
+                                <button onClick={() => onDeleteCustomPage(page.id)} className="bg-red-600 hover:bg-red-500 text-white font-semibold py-2 px-4 rounded-lg">Ta bort</button>
+                            </div>
+                        </div>
+                    ))}
+                     {(!organization.customPages || organization.customPages.length === 0) && <p className="text-gray-400 text-center py-4">Inga infosidor har skapats ännu.</p>}
+                </div>
+                <div className="pt-4 flex justify-start items-center">
+                    <button onClick={() => onEditCustomPage(null)} className="bg-primary hover:brightness-95 text-white font-bold py-2 px-5 rounded-lg">
+                        Lägg till ny sida
+                    </button>
+                </div>
+            </div>
+
+            <div className="bg-gray-800 p-6 rounded-lg space-y-6 border border-gray-700">
+                <h3 className="text-2xl font-bold text-white border-b border-gray-700 pb-3 mb-4">Globala Inställningar (Standard för nya studios)</h3>
+                
+                <div className="flex justify-end sticky top-4 z-10">
+                    <button onClick={handleSaveConfig} disabled={!isConfigDirty || isSavingConfig} className="bg-primary hover:brightness-95 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50 shadow-lg">
+                        {isSavingConfig ? 'Sparar...' : 'Spara Globala Inställningar'}
+                    </button>
+                </div>
+
+                <div className="space-y-4">
+                    <h4 className="font-semibold text-gray-300">Valbara Moduler</h4>
+                    <ToggleSwitch label="Aktivera 'Dagens Boost'" checked={config.enableBoost} onChange={(c) => handleUpdateConfigField('enableBoost', c)} />
+                    <ToggleSwitch label="Aktivera 'Uppvärmning'" checked={config.enableWarmup} onChange={(c) => handleUpdateConfigField('enableWarmup', c)} />
+                    <ToggleSwitch label="Aktivera 'Andningsguide'" checked={config.enableBreathingGuide} onChange={(c) => handleUpdateConfigField('enableBreathingGuide', c)} />
+                </div>
+                <div className="space-y-2">
+                    <h4 className="font-semibold text-gray-300">Anpassade Passkategorier & AI-Prompts</h4>
+                     <CategoryPromptManager
+                        categories={config.customCategories}
+                        onCategoriesChange={(cats) => handleUpdateConfigField('customCategories', cats)}
+                        isSaving={isSavingConfig}
+                     />
+                </div>
+            </div>
+            
+            <PassProgramModule onNavigate={onPassProgramNavigation} />
+
+            <div className="bg-gray-800 p-6 rounded-lg space-y-4 border border-gray-700">
+                <h3 className="text-2xl font-bold text-white border-b border-gray-700 pb-3 mb-4">Studios</h3>
+                <div className="space-y-3">
+                    {organization.studios.map(studio => {
+                        if (studio.id === editingStudioId) {
+                            return (
+                                <div key={studio.id} className="bg-gray-700 p-4 rounded-lg border border-primary flex flex-wrap justify-between items-center gap-4">
+                                    <input
+                                        value={editingStudioName}
+                                        onChange={(e) => setEditingStudioName(e.target.value)}
+                                        className="flex-grow bg-black text-white p-2 rounded-md border border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"
+                                        autoFocus
+                                        onKeyDown={(e) => e.key === 'Enter' && handleSaveStudio()}
+                                    />
+                                    <div className="flex gap-2">
+                                        <button onClick={handleSaveStudio} disabled={isSavingStudio} className="bg-primary hover:brightness-95 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50">
+                                            {isSavingStudio ? 'Sparar...' : 'Spara'}
+                                        </button>
+                                        <button onClick={handleCancelEditStudio} className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg">Avbryt</button>
+                                    </div>
+                                </div>
+                            )
+                        }
+                        
+                        return (
+                            <div key={studio.id} className="bg-gray-900/50 p-4 rounded-lg flex flex-wrap justify-between items-center gap-4 border border-gray-700">
+                                <p className="text-lg font-semibold text-white">{studio.name}</p>
+                                <div className="flex gap-2">
+                                    <button onClick={() => onEditStudioConfig(studio)} className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg">Anpassa</button>
+                                    <button onClick={() => handleEditStudio(studio)} className="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg">Redigera</button>
+                                    <button onClick={() => handleDeleteStudio(studio)} className="bg-red-600 hover:bg-red-500 text-white font-semibold py-2 px-4 rounded-lg">Radera</button>
+                                </div>
+                            </div>
+                        )
+                    })}
+                    {organization.studios.length === 0 && <p className="text-gray-400 text-center py-4">Inga studios har skapats ännu.</p>}
+                </div>
+                <form onSubmit={handleCreateStudio} className="pt-6 border-t border-gray-700 flex gap-4">
+                    <input type="text" value={newStudioName} onChange={(e) => setNewStudioName(e.target.value)} placeholder="Namn på ny studio" className="w-full bg-black text-white p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none transition" disabled={isCreatingStudio}/>
+                    <button type="submit" disabled={!newStudioName.trim() || isCreatingStudio} className="bg-primary hover:brightness-95 text-white font-bold py-3 px-6 rounded-lg transition-colors disabled:bg-gray-500 whitespace-nowrap">
+                        {isCreatingStudio ? 'Skapar...' : 'Skapa Studio'}
+                    </button>
+                </form>
+            </div>
+            
+            <div className="bg-gray-800 p-6 rounded-lg space-y-4 border border-gray-700">
+                <h3 className="text-2xl font-bold text-white border-b border-gray-700 pb-3 mb-4">Växla till Studiovy</h3>
+                <p className="text-sm text-gray-400">Testa appen ur en medlems perspektiv genom att temporärt byta till en specifik studiovy. Du kan enkelt återvända till adminläget från "För Coacher"-menyn.</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {organization.studios.map(studio => (
+                        <button
+                            key={studio.id}
+                            onClick={() => onSwitchToStudioView(studio)}
+                            className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-4 px-6 rounded-lg transition-colors text-lg"
+                        >
+                            {studio.name}
+                        </button>
+                    ))}
+                </div>
+                 {organization.studios.length === 0 && <p className="text-gray-400 text-center py-4">Inga studios har skapats ännu för att kunna förhandsgranska.</p>}
+            </div>
+        </>
+    );
+};
+
+const UtrustningContent: React.FC<SuperAdminScreenProps & ConfigProps> = ({ config, isSavingConfig, isConfigDirty, handleUpdateConfigField, handleSaveConfig }) => {
+    return (
+        <div className="bg-gray-800 p-6 rounded-lg space-y-6 border border-gray-700">
+            <div className="flex justify-between items-center border-b border-gray-700 pb-3 mb-4">
+                <h3 className="text-2xl font-bold text-white">Global Utrustningslista (Standard för alla studios)</h3>
+                <button onClick={handleSaveConfig} disabled={!isConfigDirty || isSavingConfig} className="bg-primary hover:brightness-95 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50 shadow-lg">
+                    {isSavingConfig ? 'Sparar...' : 'Spara ändringar'}
+                </button>
+            </div>
+            <GlobalEquipmentManager
+                equipment={config.equipmentInventory || []}
+                onEquipmentChange={(equip) => handleUpdateConfigField('equipmentInventory', equip)}
+                isSaving={isSavingConfig}
+            />
+        </div>
+    );
+};
+
+const OrganisationContent: React.FC<SuperAdminScreenProps> = ({ organization, onUpdateLogo, onUpdatePrimaryColor, onUpdatePasswords, userRole, onUpdateOrganization }) => {
+    const [passwords, setPasswords] = useState<Organization['passwords']>(organization.passwords);
+    const [isSavingPasswords, setIsSavingPasswords] = useState(false);
+    const [showCoachPassword, setShowCoachPassword] = useState(false);
+    
+    const [name, setName] = useState(organization.name);
+    const [subdomain, setSubdomain] = useState(organization.subdomain);
+    const [isSavingOrgInfo, setIsSavingOrgInfo] = useState(false);
+
+    const [logoPreview, setLogoPreview] = useState<string | null>(organization.logoUrl || null);
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [isSavingLogo, setIsSavingLogo] = useState(false);
+    const [primaryColor, setPrimaryColor] = useState(organization.primaryColor || '#14b8a6');
+    const [isSavingColor, setIsSavingColor] = useState(false);
+    
+    const isSystemOwner = userRole === 'systemowner';
+
+    useEffect(() => {
+        setPasswords(organization.passwords);
+        setLogoPreview(organization.logoUrl || null);
+        setPrimaryColor(organization.primaryColor || '#14b8a6');
+        setLogoFile(null);
+        setName(organization.name);
+        setSubdomain(organization.subdomain);
+    }, [organization]);
+
+    const handlePasswordChange = (level: 'coach', value: string) => {
+        setPasswords(prev => ({ ...prev, [level]: value }));
+    };
+
+    const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setLogoFile(file);
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setLogoPreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleSaveLogo = async () => {
+        if (!logoPreview || !logoFile) return;
+        setIsSavingLogo(true);
+        try {
+            await onUpdateLogo(organization.id, logoPreview);
+            setLogoFile(null);
+        } catch (error) {
+            console.error("Failed to save logo", error);
+        } finally {
+            setIsSavingLogo(false);
+        }
+    };
+
+    const handleSaveColor = async () => {
+        setIsSavingColor(true);
+        try {
+            await onUpdatePrimaryColor(organization.id, primaryColor);
+        } catch (error) {
+            console.error("Failed to save color", error);
+        } finally {
+            setIsSavingColor(false);
+        }
+    };
+
+    const handleSavePasswords = async () => {
+        setIsSavingPasswords(true);
+        try {
+            await onUpdatePasswords(organization.id, passwords);
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsSavingPasswords(false);
+        }
+    };
+    
+    const handleSaveOrgInfo = async () => {
+        if (!isOrgInfoDirty) return;
+        setIsSavingOrgInfo(true);
+        try {
+            await onUpdateOrganization(organization.id, name, subdomain);
+        } catch (error) {
+            // Error is handled/alerted by the calling component in App.tsx
+        } finally {
+            setIsSavingOrgInfo(false);
+        }
+    };
+
+    const isPasswordsDirty = JSON.stringify(passwords) !== JSON.stringify(organization.passwords);
+    const isLogoDirty = !!logoFile;
+    const isColorDirty = primaryColor !== (organization.primaryColor || '#14b8a6');
+    const isOrgInfoDirty = name !== organization.name || subdomain !== organization.subdomain;
+
+    return (
+        <>
+            <div className="bg-gray-800 p-6 rounded-lg space-y-4 border border-gray-700">
+                <h3 className="text-2xl font-bold text-white border-b border-gray-700 pb-3 mb-4">Organisationsinformation</h3>
+                 <div className="space-y-4">
+                    <div>
+                        <label htmlFor="org-name" className="block text-sm font-medium text-gray-300 mb-1">Organisationsnamn</label>
+                        <input
+                           id="org-name"
+                           type="text"
+                           value={name}
+                           onChange={e => setName(e.target.value)}
+                           readOnly={!isSystemOwner}
+                           className={`w-full p-3 rounded-md border transition-colors ${isSystemOwner ? 'bg-black text-white border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none' : 'bg-black text-gray-400 border-gray-600 cursor-not-allowed'}`}
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="org-subdomain" className="block text-sm font-medium text-gray-300 mb-1">Subdomän</label>
+                        <div className="flex items-center">
+                            <input
+                               id="org-subdomain"
+                               type="text"
+                               value={subdomain}
+                               onChange={e => setSubdomain(e.target.value)}
+                               readOnly={!isSystemOwner}
+                               className={`w-full p-3 rounded-l-md border-y border-l transition-colors ${isSystemOwner ? 'bg-black text-white border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none' : 'bg-black text-gray-400 border-gray-600 cursor-not-allowed'}`}
+                            />
+                            <span className="px-3 py-3 bg-gray-700 text-gray-400 rounded-r-md border-y border-r border-gray-600">.flexibel.app</span>
+                        </div>
+                    </div>
+                </div>
+                <div className="pt-4 flex justify-end">
+                     {isSystemOwner ? (
+                        <button onClick={handleSaveOrgInfo} disabled={!isOrgInfoDirty || isSavingOrgInfo} className="bg-primary hover:brightness-95 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50">
+                            {isSavingOrgInfo ? 'Sparar...' : 'Spara ändringar'}
+                        </button>
+                    ) : (
+                        <p className="text-xs text-gray-400">Endast en Systemägare kan ändra namn och subdomän.</p>
+                    )}
+                </div>
+            </div>
+
+            <div className="bg-gray-800 p-6 rounded-lg space-y-6 border border-gray-700">
+                <h3 className="text-2xl font-bold text-white border-b border-gray-700 pb-3 mb-4">Profilering & Varumärke</h3>
+                
+                {/* Live Preview Section */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Förhandsvisning på Hemskärmen</label>
+                    <div className="bg-black rounded-lg p-8 border border-gray-700 text-center">
+                        <div className="mb-8 flex justify-center h-20 items-center">
+                            {logoPreview ? (
+                                <img src={logoPreview} alt="Organisationslogotyp förhandsgranskning" className="max-h-20 max-w-xs object-contain" />
+                            ) : (
+                                <p className="text-gray-500">Ingen logotyp vald</p>
+                            )}
+                        </div>
+                        <h2 className="text-3xl text-white mb-2 font-bold">Hej på er, kämpar!</h2>
+                        <p className="text-xl text-primary mb-2">“Dags att svettas lite. 😉”</p>
+                    </div>
+                </div>
+                
+                {/* Upload and Save Section */}
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-300">Byt logotyp</label>
+                        <p className="text-xs text-gray-400 mt-1 mb-2">För bästa resultat, ladda upp en logotyp med transparent bakgrund (PNG) och utan onödiga marginaler runt om.</p>
+                        <input 
+                            type="file" 
+                            accept="image/*,.svg"
+                            onChange={handleLogoFileChange} 
+                            className="text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-600 file:text-white hover:file:bg-gray-500"
+                        />
+                    </div>
+                    <div className="flex justify-end">
+                        <button 
+                            onClick={handleSaveLogo} 
+                            disabled={!isLogoDirty || isSavingLogo} 
+                            className="bg-primary hover:brightness-95 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50"
+                        >
+                            {isSavingLogo ? 'Sparar...' : 'Spara ny logotyp'}
+                        </button>
+                    </div>
+                </div>
+
+                <hr className="border-gray-700" />
+                
+                {/* Primary Color Section (existing) */}
+                <div className="space-y-2">
+                    <label htmlFor="primary-color" className="block text-sm font-medium text-gray-300">Primärfärg</label>
+                    <div className="flex items-center gap-4">
+                        <input type="color" id="primary-color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="w-12 h-12 p-1 bg-transparent border-none rounded-lg cursor-pointer"/>
+                        <input type="text" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="bg-black text-white p-2 rounded-md border border-gray-600 font-mono"/>
+                        <button onClick={handleSaveColor} disabled={!isColorDirty || isSavingColor} className="bg-primary hover:brightness-95 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50 ml-auto">
+                                {isSavingColor ? 'Sparar...' : 'Spara Färg'}
+                        </button>
+                    </div>
+                    <p className="text-xs text-gray-500">Denna färg kommer att användas för knappar och andra primära element.</p>
+                </div>
+            </div>
+
+            <div className="bg-gray-800 p-6 rounded-lg space-y-4 border border-gray-700">
+                <h3 className="text-2xl font-bold text-white border-b border-gray-700 pb-3 mb-4">Lösenordshantering</h3>
+                <div className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-300 mb-1">Coach-lösenord</label>
+                        <div className="flex items-center">
+                            <input value={passwords.coach} onChange={(e) => handlePasswordChange('coach', e.target.value)} type={showCoachPassword ? "text" : "password"} className="w-full bg-black text-white p-3 rounded-l-md border-y border-l border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"/>
+                            <button onClick={() => setShowCoachPassword(!showCoachPassword)} className="px-4 py-3 bg-gray-700 rounded-r-md border-y border-r border-gray-600 text-gray-300">
+                                {showCoachPassword ? 'Dölj' : 'Visa'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                 <div className="pt-4 flex justify-end">
+                    <button onClick={handleSavePasswords} disabled={!isPasswordsDirty || isSavingPasswords} className="bg-primary hover:brightness-95 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50">
+                        {isSavingPasswords ? 'Sparar...' : 'Spara Lösenord'}
+                    </button>
+                </div>
+            </div>
+        </>
+    );
+};
+
+const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
+    const [admins, setAdmins] = useState<UserData[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [newAdminEmail, setNewAdminEmail] = useState('');
+    const [newAdminRole, setNewAdminRole] = useState<'superadmin' | 'admin'>('admin');
+    
+    useEffect(() => {
+        const fetchAdmins = async () => {
+            setIsLoading(true);
+            try {
+                const fetchedAdmins = await getAdminsForOrganization(organization.id);
+                setAdmins(fetchedAdmins);
+            } catch (error) {
+                console.error("Failed to fetch admins:", error);
+                alert("Kunde inte hämta administratörer.");
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchAdmins();
+    }, [organization.id]);
+    
+    const handleInviteAdmin = (e: React.FormEvent) => {
+        e.preventDefault();
+        alert(`Inbjudningsfunktion är ej implementerad.\nSkulle bjudit in: ${newAdminEmail} med rollen ${newAdminRole}.`);
+        // Here you would typically call a cloud function
+        // e.g., inviteAdmin(organization.id, newAdminEmail, newAdminRole);
+    };
+
+    const handleChangeRole = async (uid: string, currentRole: 'superadmin' | 'admin') => {
+        const targetRole = currentRole === 'superadmin' ? 'admin' : 'superadmin';
+        if (window.confirm(`Är du säker på att du vill ändra rollen för denna administratör till ${targetRole}?`)) {
+            try {
+                await setAdminRole(uid, targetRole);
+                setAdmins(prevAdmins => prevAdmins.map(admin => 
+                    admin.uid === uid ? { ...admin, adminRole: targetRole } : admin
+                ));
+            } catch (error) {
+                 alert(`Kunde inte ändra roll: ${error}`);
+            }
+        }
+    };
+    
+    const handleRemoveAdmin = (email: string) => {
+        alert(`Borttagningsfunktion är ej implementerad.\nSkulle tagit bort: ${email}.`);
+        // This would be a destructive action, likely a cloud function call.
+    };
+
+    return (
+        <div className="bg-gray-800 p-6 rounded-lg space-y-4 border border-gray-700">
+            <h3 className="text-2xl font-bold text-white border-b border-gray-700 pb-3 mb-4">Hantera Administratörer</h3>
+
+            <div className="space-y-3">
+                <h4 className="font-semibold text-gray-300">Nuvarande administratörer</h4>
+                {isLoading ? (
+                    <p className="text-gray-400">Laddar administratörer...</p>
+                ) : admins.length > 0 ? (
+                     admins.map(admin => (
+                        <div key={admin.uid} className="bg-gray-900/50 p-3 rounded-lg flex flex-wrap justify-between items-center gap-4 border border-gray-700">
+                            <div>
+                               <p className="font-semibold text-white">{admin.email}</p>
+                               <p className={`text-xs px-2 py-0.5 mt-1 rounded-full inline-block ${admin.adminRole === 'superadmin' ? 'bg-purple-600 text-white' : 'bg-gray-600 text-gray-300'}`}>
+                                 {admin.adminRole === 'superadmin' ? 'Superadmin' : 'Admin'}
+                               </p>
+                            </div>
+                            <div className="flex gap-2">
+                               <button onClick={() => handleChangeRole(admin.uid, admin.adminRole || 'admin')} className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-3 text-sm rounded-lg">
+                                    Ändra Roll
+                               </button>
+                               <button onClick={() => handleRemoveAdmin(admin.email)} className="bg-red-600 hover:bg-red-500 text-white font-semibold py-2 px-3 text-sm rounded-lg">
+                                    Ta bort
+                               </button>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <p className="text-gray-400">Inga administratörer hittades för denna organisation.</p>
+                )}
+            </div>
+
+            <form onSubmit={handleInviteAdmin} className="pt-6 border-t border-gray-700 space-y-3">
+                <h4 className="font-semibold text-gray-300">Bjud in ny administratör</h4>
+                <div className="flex flex-col sm:flex-row gap-4">
+                    <input 
+                        type="email"
+                        value={newAdminEmail}
+                        onChange={e => setNewAdminEmail(e.target.value)}
+                        placeholder="E-postadress"
+                        className="w-full bg-black text-white p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"
+                        required
+                    />
+                    <select
+                        value={newAdminRole}
+                        onChange={e => setNewAdminRole(e.target.value as 'superadmin' | 'admin')}
+                        className="w-full sm:w-auto bg-black text-white p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"
+                    >
+                        <option value="admin">Admin</option>
+                        <option value="superadmin">Superadmin</option>
+                    </select>
+                </div>
+                 <button type="submit" className="w-full sm:w-auto bg-primary hover:brightness-95 text-white font-bold py-3 px-6 rounded-lg">
+                    Skicka inbjudan
+                </button>
+            </form>
+        </div>
+    );
+};
+
+// --- Sub-component for managing categories with prompts ---
+interface CategoryPromptManagerProps {
+    categories: CustomCategoryWithPrompt[];
+    onCategoriesChange: (categories: CustomCategoryWithPrompt[]) => void;
+    isSaving: boolean;
+}
+const CategoryPromptManager: React.FC<CategoryPromptManagerProps> = ({ categories, onCategoriesChange, isSaving }) => {
+
+    const handleUpdateCategory = (id: string, field: 'name' | 'prompt', value: string) => {
+        const newCategories = categories.map(cat => 
+            cat.id === id ? { ...cat, [field]: value } : cat
+        );
+        onCategoriesChange(newCategories);
+    };
+
+    const handleAddCategory = () => {
+        const newCategory: CustomCategoryWithPrompt = {
+            id: `cat-${Date.now()}`,
+            name: 'Ny Passkategori',
+            prompt: 'Skriv AI-prompten för denna kategori här.',
+        };
+        onCategoriesChange([...categories, newCategory]);
+    };
+
+    const handleRemoveCategory = (id: string) => {
+        if (window.confirm("Är du säker på att du vill ta bort denna passkategori?")) {
+            onCategoriesChange(categories.filter(cat => cat.id !== id));
+        }
+    };
+
+    return (
+        <div className="space-y-4">
+            <p className="text-sm text-gray-400">
+                Dessa passkategorier visas som knappar på hemskärmen och i AI-passbyggaren. Varje kategori måste ha en AI-prompt.
+            </p>
+            {categories.map(cat => (
+                <div key={cat.id} className="bg-black/50 p-4 rounded-lg border border-gray-600 space-y-3">
+                    <div className="flex justify-between items-center gap-4">
+                        <input
+                            type="text"
+                            value={cat.name}
+                            onChange={(e) => handleUpdateCategory(cat.id, 'name', e.target.value)}
+                            placeholder="Namn på passkategori"
+                            className="w-full bg-gray-900 text-white p-2 rounded-md border border-gray-500 focus:ring-2 focus:ring-primary focus:outline-none transition font-semibold"
+                            disabled={isSaving}
+                        />
+                        <button onClick={() => handleRemoveCategory(cat.id)} className="text-red-500 hover:text-red-400 font-semibold flex-shrink-0">
+                            Ta bort
+                        </button>
+                    </div>
+                    <textarea
+                        value={cat.prompt}
+                        onChange={(e) => handleUpdateCategory(cat.id, 'prompt', e.target.value)}
+                        placeholder="AI-instruktioner för denna passkategori..."
+                        className="w-full h-32 bg-gray-900 text-white p-2 rounded-md border border-gray-500 focus:ring-2 focus:ring-primary focus:outline-none transition text-sm"
+                        disabled={isSaving}
+                    />
+                </div>
+            ))}
+             <button onClick={handleAddCategory} disabled={isSaving} className="w-full mt-4 bg-primary/20 hover:bg-primary/40 text-primary font-bold py-2 px-4 rounded-lg transition-colors border-2 border-dashed border-primary/50">
+                Lägg till ny passkategori
+            </button>
+        </div>
+    );
+};
+
+// --- Sub-component for managing global equipment ---
+interface GlobalEquipmentManagerProps {
+    equipment: EquipmentItem[];
+    onEquipmentChange: (equipment: EquipmentItem[]) => void;
+    isSaving: boolean;
+}
+const GlobalEquipmentManager: React.FC<GlobalEquipmentManagerProps> = ({ equipment, onEquipmentChange, isSaving }) => {
+
+    const handleUpdateEquipment = (id: string, field: 'name' | 'quantity', value: string | number) => {
+        const newEquipment = equipment.map(item => 
+            item.id === id ? { ...item, [field]: value } : item
+        );
+        onEquipmentChange(newEquipment);
+    };
+
+    const handleAddEquipment = () => {
+        const newItem: EquipmentItem = {
+            id: `equip-${Date.now()}`,
+            name: 'Nytt Redskap',
+            quantity: 1,
+        };
+        onEquipmentChange([...equipment, newItem]);
+    };
+
+    const handleRemoveEquipment = (id: string) => {
+        if (window.confirm("Är du säker på att du vill ta bort detta redskap från den globala listan?")) {
+            onEquipmentChange(equipment.filter(item => item.id !== id));
+        }
+    };
+
+    return (
+        <div className="space-y-4">
+            <p className="text-sm text-gray-400">
+                Detta är standardutrustningen som finns i alla era studios. Enskilda studios kan sedan anpassa denna lista.
+            </p>
+            {equipment.map(item => (
+                <div key={item.id} className="bg-black/50 p-4 rounded-lg border border-gray-600">
+                    <div className="flex justify-between items-center gap-4">
+                        <input
+                            type="text"
+                            value={item.name}
+                            onChange={(e) => handleUpdateEquipment(item.id, 'name', e.target.value)}
+                            placeholder="Namn på redskap"
+                            className="w-full bg-gray-900 text-white p-2 rounded-md border border-gray-500 focus:ring-2 focus:ring-primary focus:outline-none transition font-semibold"
+                            disabled={isSaving}
+                        />
+                         <input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => handleUpdateEquipment(item.id, 'quantity', parseInt(e.target.value, 10) || 0)}
+                            className="w-24 bg-gray-900 text-white p-2 rounded-md border border-gray-500 focus:ring-2 focus:ring-primary focus:outline-none transition text-center"
+                            disabled={isSaving}
+                            min="0"
+                        />
+                        <button onClick={() => handleRemoveEquipment(item.id)} className="text-red-500 hover:text-red-400 font-semibold flex-shrink-0">
+                            Ta bort
+                        </button>
+                    </div>
+                </div>
+            ))}
+            <button onClick={handleAddEquipment} disabled={isSaving} className="w-full mt-4 bg-primary/20 hover:bg-primary/40 text-primary font-bold py-2 px-4 rounded-lg transition-colors border-2 border-dashed border-primary/50">
+                Lägg till nytt redskap
+            </button>
+        </div>
+    );
+};
