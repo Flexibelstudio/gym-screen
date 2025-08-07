@@ -412,7 +412,7 @@ useEffect(() => {
     const workoutToSave: Workout = { 
         ...workout, 
         organizationId: selectedOrganization.id,
-        createdAt: isNew ? (workout.createdAt || Date.now()) : workout.createdAt,
+        createdAt: workout.createdAt || Date.now(),
         isFavorite: workout.isFavorite || false,
     };
   
@@ -652,21 +652,21 @@ useEffect(() => {
   const handleUpdateBlockSettings = (blockId: string, newSettings: Partial<TimerSettings>) => {
     if (!activeWorkout || !selectedOrganization) return;
 
-    let updatedWorkout: Workout | null = null;
-    const updatedBlocks = activeWorkout.blocks.map(b => 
-      b.id === blockId ? { ...b, settings: { ...b.settings, ...newSettings } } : b
-    );
-    updatedWorkout = { ...activeWorkout, blocks: updatedBlocks };
+    const updatedWorkout: Workout = { 
+      ...activeWorkout, 
+      blocks: activeWorkout.blocks.map(b => 
+        b.id === blockId ? { ...b, settings: { ...b.settings, ...newSettings } } : b
+      )
+    };
     
+    // Optimistically update UI
     setActiveWorkout(updatedWorkout);
 
     if (sessionRole !== 'member') {
-      const finalWorkout = updatedWorkout;
-      setWorkouts(workouts.map(w => w.id === finalWorkout.id ? finalWorkout : w));
-      // Persist this change
-      saveWorkout(finalWorkout).catch(e => {
-          console.error("Failed to save block settings", e);
-          alert("Kunde inte spara blockinställningar.");
+      // Use the centralized function to handle DB save and state updates.
+      // This will ensure createdAt is handled correctly.
+      persistWorkoutStateAndDb(updatedWorkout).catch(e => {
+          console.error("Failed to save updated block settings:", e);
       });
     }
   };
