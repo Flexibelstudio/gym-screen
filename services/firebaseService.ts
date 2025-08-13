@@ -5,18 +5,15 @@ import 'firebase/compat/firestore';
 import { Studio, StudioConfig, Organization, CustomPage, UserData, Workout } from '../types';
 import { MOCK_ORGANIZATIONS, MOCK_SYSTEM_OWNER, MOCK_ORG_ADMIN } from '../data/mockData';
 
-// =========================================================================
-//  DEV TOGGLE: Set to 'true' to force offline mode for development.
-//  This will enable the developer toolbar for simulating user roles.
-//  Set to 'false' for normal online operation (production mode).
-// =========================================================================
-const FORCE_OFFLINE_FOR_DEV = false;
-// =========================================================================
+// Determine if running in offline/dev mode.
+// Netlify and other production environments typically set NODE_ENV to 'production'.
+// Any other value (like 'development' or undefined) results in offline mode.
+export const isOffline = process.env.NODE_ENV !== 'production';
+
 
 let app: firebase.app.App | null = null;
 let auth: firebase.auth.Auth | null = null;
 let db: firebase.firestore.Firestore | null = null;
-export let isOffline = false;
 
 // Create config from environment variables for security and flexibility.
 const firebaseConfig = {
@@ -28,35 +25,31 @@ const firebaseConfig = {
   appId: process.env.FIREBASE_APP_ID
 };
 
-try {
-  if (FORCE_OFFLINE_FOR_DEV) {
-    throw new Error("Forcing offline mode for development via toggle.");
-  }
-  
-  // Verify that all Firebase config values are provided via environment variables.
-  const allConfigValuesPresent = Object.values(firebaseConfig).every(val => val && typeof val === 'string' && val.length > 0);
-  if (!allConfigValuesPresent) {
-      throw new Error("Firebase configuration from environment variables is incomplete or missing.");
-  }
+if (isOffline) {
+    console.warn("RUNNING IN OFFLINE (DEVELOPMENT) MODE. No data will be sent to Firebase.");
+} else {
+    try {
+        // Verify that all Firebase config values are provided via environment variables for production.
+        const allConfigValuesPresent = Object.values(firebaseConfig).every(val => val && typeof val === 'string' && val.length > 0);
+        if (!allConfigValuesPresent) {
+            throw new Error("Firebase configuration from environment variables is incomplete or missing. Cannot run in online mode.");
+        }
 
-  // Check if Firebase is already initialized to prevent errors.
-  if (!firebase.apps.length) {
-    app = firebase.initializeApp(firebaseConfig);
-  } else {
-    app = firebase.app(); // Use existing app
-  }
-  
-  auth = firebase.auth();
-  db = firebase.firestore();
-  console.log("Firebase initialized successfully. Running in ONLINE mode.");
-} catch (error) {
-  if (FORCE_OFFLINE_FOR_DEV) {
-      console.warn("RUNNING IN OFFLINE MODE (forced for development).");
-  } else {
-      console.warn("Firebase initialization failed. Falling back to OFFLINE mode.", error);
-  }
-  isOffline = true;
+        // Check if Firebase is already initialized to prevent errors.
+        if (!firebase.apps.length) {
+            app = firebase.initializeApp(firebaseConfig);
+        } else {
+            app = firebase.app(); // Use existing app
+        }
+        
+        auth = firebase.auth();
+        db = firebase.firestore();
+        console.log("Firebase initialized successfully. Running in ONLINE (PRODUCTION) mode.");
+    } catch (error) {
+        console.error("CRITICAL: Firebase initialization failed in production mode. The app will not function correctly.", error);
+    }
 }
+
 
 // --- Auth Functions ---
 export const onAuthChange = (callback: (user: firebase.User | null) => void) => {
