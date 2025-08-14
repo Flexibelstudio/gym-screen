@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Page, MenuItem, CustomPage, UserRole } from '../types';
 import { useStudio } from '../context/StudioContext';
@@ -35,7 +36,6 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
                   signOut();
               }
           },
-          colorClass: 'bg-red-700 hover:bg-red-600'
       });
   }
 
@@ -45,14 +45,13 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
       adminMenuItems.unshift({ 
           title: 'Återgå till Admin', 
           action: onReturnToAdmin!,
-          colorClass: 'bg-purple-700 hover:bg-purple-600' 
+          colorClass: 'bg-gray-600 hover:bg-gray-500' 
       });
   } else {
       if (role === 'organizationadmin') {
           adminMenuItems.unshift({ 
               title: 'Organisationsadmin', 
               action: () => navigateTo(Page.SuperAdmin),
-              colorClass: 'bg-purple-700 hover:bg-purple-600' 
           });
       }
 
@@ -60,7 +59,6 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
            adminMenuItems.unshift({ 
               title: 'Systemägare', 
               action: () => navigateTo(Page.SystemOwner), 
-              colorClass: 'bg-yellow-600 hover:bg-yellow-500'
           });
       }
   }

@@ -349,10 +349,6 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
 
   return (
     <div className="w-full max-w-4xl mx-auto text-center">
-      <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 dark:text-white mb-4">
-        Pass & Program
-      </h1>
-      
       <div className="bg-gray-100 dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
         <div className="animate-fade-in">
           {renderContent()}
