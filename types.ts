@@ -3,7 +3,7 @@ export type UserRole = 'member' | 'coach' | 'organizationadmin' | 'systemowner';
 export interface UserData {
   uid: string;
   email: string;
-  role: 'organizationadmin' | 'systemowner';
+  role: 'coach' | 'organizationadmin' | 'systemowner';
   organizationId?: string; // Which organization they belong to
   adminRole?: 'superadmin' | 'admin'; // NEW: granular role for org admins
 }

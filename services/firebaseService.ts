@@ -326,6 +326,24 @@ export const getAdminsForOrganization = async (organizationId: string): Promise<
     return querySnapshot.docs.map(d => ({ uid: d.id, ...d.data() }) as UserData);
 };
 
+export const getCoachesForOrganization = async (organizationId: string): Promise<UserData[]> => {
+    if (isOffline || !db) {
+        // Add a mock coach for offline mode
+        return Promise.resolve([
+             { uid: 'offline_coach_1', email: 'coach@flexibel.app', role: 'coach', organizationId: 'org_flexibel_mock' }
+        ]);
+    }
+    const usersRef = db.collection('users');
+    const q = usersRef.where("organizationId", "==", organizationId).where("role", "==", "coach");
+    
+    const querySnapshot = await q.get();
+    if (querySnapshot.empty) {
+      return [];
+    }
+    return querySnapshot.docs.map(d => ({ uid: d.id, ...d.data() }) as UserData);
+};
+
+
 export const setAdminRole = async (uid: string, adminRole: 'superadmin' | 'admin'): Promise<void> => {
     if (isOffline || !db) {
         return offlineWarning('setAdminRole');

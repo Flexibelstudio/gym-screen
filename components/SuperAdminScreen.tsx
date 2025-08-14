@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StudioConfig, Studio, Organization, CustomPage, CustomCategoryWithPrompt, Page, UserData, UserRole, EquipmentItem } from '../types';
 import { ToggleSwitch } from './icons';
-import { getAdminsForOrganization, setAdminRole } from '../services/firebaseService';
+import { getAdminsForOrganization, setAdminRole, getCoachesForOrganization } from '../services/firebaseService';
 
 type AdminTab = 'drift' | 'utrustning' | 'organisation' | 'admin';
 
@@ -606,34 +606,39 @@ const OrganisationContent: React.FC<SuperAdminScreenProps> = ({ organization, on
 
 const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
     const [admins, setAdmins] = useState<UserData[]>([]);
+    const [coaches, setCoaches] = useState<UserData[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [newAdminEmail, setNewAdminEmail] = useState('');
-    const [newAdminRole, setNewAdminRole] = useState<'superadmin' | 'admin'>('admin');
+    const [newUserEmail, setNewUserEmail] = useState('');
+    const [newUserRole, setNewUserRole] = useState<'coach' | 'admin'>('coach');
     
     useEffect(() => {
-        const fetchAdmins = async () => {
+        const fetchData = async () => {
             setIsLoading(true);
             try {
-                const fetchedAdmins = await getAdminsForOrganization(organization.id);
+                const [fetchedAdmins, fetchedCoaches] = await Promise.all([
+                    getAdminsForOrganization(organization.id),
+                    getCoachesForOrganization(organization.id)
+                ]);
                 setAdmins(fetchedAdmins);
+                setCoaches(fetchedCoaches);
             } catch (error) {
-                console.error("Failed to fetch admins:", error);
-                alert("Kunde inte hämta administratörer.");
+                console.error("Failed to fetch users:", error);
+                alert("Kunde inte hämta användare.");
             } finally {
                 setIsLoading(false);
             }
         };
-        fetchAdmins();
+        fetchData();
     }, [organization.id]);
     
-    const handleInviteAdmin = (e: React.FormEvent) => {
+    const handleInviteUser = (e: React.FormEvent) => {
         e.preventDefault();
-        alert(`Inbjudningsfunktion är ej implementerad.\nSkulle bjudit in: ${newAdminEmail} med rollen ${newAdminRole}.`);
-        // Here you would typically call a cloud function
-        // e.g., inviteAdmin(organization.id, newAdminEmail, newAdminRole);
+        alert(`Inbjudningsfunktion är ej implementerad.\nSkulle bjudit in: ${newUserEmail} med rollen ${newUserRole}.`);
+        // Here you would typically call a cloud function that handles user creation and invitation.
+        // e.g., inviteUser(organization.id, newUserEmail, newUserRole);
     };
 
-    const handleChangeRole = async (uid: string, currentRole: 'superadmin' | 'admin') => {
+    const handleChangeAdminRole = async (uid: string, currentRole: 'superadmin' | 'admin') => {
         const targetRole = currentRole === 'superadmin' ? 'admin' : 'superadmin';
         if (window.confirm(`Är du säker på att du vill ändra rollen för denna administratör till ${targetRole}?`)) {
             try {
@@ -647,17 +652,18 @@ const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
         }
     };
     
-    const handleRemoveAdmin = (email: string) => {
+    const handleRemoveUser = (email: string) => {
         alert(`Borttagningsfunktion är ej implementerad.\nSkulle tagit bort: ${email}.`);
         // This would be a destructive action, likely a cloud function call.
     };
 
     return (
-        <div className="bg-gray-800 p-6 rounded-lg space-y-4 border border-gray-700">
-            <h3 className="text-2xl font-bold text-white border-b border-gray-700 pb-3 mb-4">Hantera Administratörer</h3>
+        <div className="bg-gray-800 p-6 rounded-lg space-y-6 border border-gray-700">
+            <h3 className="text-2xl font-bold text-white border-b border-gray-700 pb-3 mb-4">Hantera Användare</h3>
 
+            {/* Admins List */}
             <div className="space-y-3">
-                <h4 className="font-semibold text-gray-300">Nuvarande administratörer</h4>
+                <h4 className="font-semibold text-gray-300">Administratörer</h4>
                 {isLoading ? (
                     <p className="text-gray-400">Laddar administratörer...</p>
                 ) : admins.length > 0 ? (
@@ -670,10 +676,10 @@ const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
                                </p>
                             </div>
                             <div className="flex gap-2">
-                               <button onClick={() => handleChangeRole(admin.uid, admin.adminRole || 'admin')} className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-3 text-sm rounded-lg">
+                               <button onClick={() => handleChangeAdminRole(admin.uid, admin.adminRole || 'admin')} className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-3 text-sm rounded-lg">
                                     Ändra Roll
                                </button>
-                               <button onClick={() => handleRemoveAdmin(admin.email)} className="bg-red-600 hover:bg-red-500 text-white font-semibold py-2 px-3 text-sm rounded-lg">
+                               <button onClick={() => handleRemoveUser(admin.email)} className="bg-red-600 hover:bg-red-500 text-white font-semibold py-2 px-3 text-sm rounded-lg">
                                     Ta bort
                                </button>
                             </div>
@@ -683,25 +689,52 @@ const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
                     <p className="text-gray-400">Inga administratörer hittades för denna organisation.</p>
                 )}
             </div>
+            
+            {/* Coaches List */}
+            <div className="space-y-3 pt-4 border-t border-gray-700">
+                <h4 className="font-semibold text-gray-300">Coacher</h4>
+                {isLoading ? (
+                    <p className="text-gray-400">Laddar coacher...</p>
+                ) : coaches.length > 0 ? (
+                     coaches.map(coach => (
+                        <div key={coach.uid} className="bg-gray-900/50 p-3 rounded-lg flex flex-wrap justify-between items-center gap-4 border border-gray-700">
+                            <div>
+                               <p className="font-semibold text-white">{coach.email}</p>
+                               <p className="text-xs px-2 py-0.5 mt-1 rounded-full inline-block bg-teal-600 text-white">
+                                 Coach
+                               </p>
+                            </div>
+                            <div className="flex gap-2">
+                               <button onClick={() => handleRemoveUser(coach.email)} className="bg-red-600 hover:bg-red-500 text-white font-semibold py-2 px-3 text-sm rounded-lg">
+                                    Ta bort
+                               </button>
+                            </div>
+                        </div>
+                    ))
+                ) : (
+                    <p className="text-gray-400">Inga coacher hittades för denna organisation.</p>
+                )}
+            </div>
 
-            <form onSubmit={handleInviteAdmin} className="pt-6 border-t border-gray-700 space-y-3">
-                <h4 className="font-semibold text-gray-300">Bjud in ny administratör</h4>
+            {/* Invite Form */}
+            <form onSubmit={handleInviteUser} className="pt-6 border-t border-gray-700 space-y-3">
+                <h4 className="font-semibold text-gray-300">Bjud in ny användare</h4>
                 <div className="flex flex-col sm:flex-row gap-4">
                     <input 
                         type="email"
-                        value={newAdminEmail}
-                        onChange={e => setNewAdminEmail(e.target.value)}
+                        value={newUserEmail}
+                        onChange={e => setNewUserEmail(e.target.value)}
                         placeholder="E-postadress"
                         className="w-full bg-black text-white p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"
                         required
                     />
                     <select
-                        value={newAdminRole}
-                        onChange={e => setNewAdminRole(e.target.value as 'superadmin' | 'admin')}
+                        value={newUserRole}
+                        onChange={e => setNewUserRole(e.target.value as 'coach' | 'admin')}
                         className="w-full sm:w-auto bg-black text-white p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"
                     >
+                        <option value="coach">Coach</option>
                         <option value="admin">Admin</option>
-                        <option value="superadmin">Superadmin</option>
                     </select>
                 </div>
                  <button type="submit" className="w-full sm:w-auto bg-primary hover:brightness-95 text-white font-bold py-3 px-6 rounded-lg">
