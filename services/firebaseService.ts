@@ -1,6 +1,7 @@
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
+import 'firebase/compat/functions';
 import { firebaseConfig } from './firebaseConfig';
 
 import { Studio, StudioConfig, Organization, CustomPage, UserData, Workout } from '../types';
@@ -15,6 +16,7 @@ export const isOffline = process.env.NODE_ENV !== 'production';
 let app: firebase.app.App | null = null;
 let auth: firebase.auth.Auth | null = null;
 let db: firebase.firestore.Firestore | null = null;
+let functions: firebase.functions.Functions | null = null;
 
 if (isOffline) {
     console.warn("RUNNING IN OFFLINE (DEVELOPMENT) MODE. No data will be sent to Firebase.");
@@ -29,6 +31,7 @@ if (isOffline) {
         
         auth = firebase.auth();
         db = firebase.firestore();
+        functions = firebase.functions();
         console.log("Firebase initialized successfully. Running in ONLINE (PRODUCTION) mode.");
     } catch (error) {
         console.error("CRITICAL: Firebase initialization failed in production mode. The app will not function correctly.", error);
@@ -349,6 +352,24 @@ export const setAdminRole = async (uid: string, adminRole: 'superadmin' | 'admin
         return offlineWarning('setAdminRole');
     }
     await db.collection('users').doc(uid).update({ adminRole });
+};
+
+export const inviteUser = async (organizationId: string, email: string, role: 'coach' | 'admin'): Promise<{success: boolean, message: string}> => {
+    if (isOffline || !functions) {
+        await offlineWarning('inviteUser');
+        console.log(`(Offline) Simulating invitation for ${email} with role ${role} for org ${organizationId}`);
+        return { success: true, message: `(Offline) Inbjudan skickad till ${email}.` };
+    }
+
+    try {
+        const inviteUserFunction = functions.httpsCallable('inviteUser');
+        const result = await inviteUserFunction({ organizationId, email, role });
+        return result.data as {success: boolean, message: string};
+    } catch (error) {
+        console.error("Error calling inviteUser function:", error);
+        const err = error as any;
+        return { success: false, message: err.message || "Ett okänt serverfel inträffade." };
+    }
 };
 
 // --- WORKOUTS ---

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { StudioConfig, Studio, Organization, CustomPage, CustomCategoryWithPrompt, Page, UserData, UserRole, EquipmentItem } from '../types';
 import { ToggleSwitch } from './icons';
-import { getAdminsForOrganization, setAdminRole, getCoachesForOrganization } from '../services/firebaseService';
+import { getAdminsForOrganization, setAdminRole, getCoachesForOrganization, inviteUser } from '../services/firebaseService';
 
 type AdminTab = 'drift' | 'utrustning' | 'organisation' | 'admin';
 
@@ -610,7 +610,10 @@ const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [newUserEmail, setNewUserEmail] = useState('');
     const [newUserRole, setNewUserRole] = useState<'coach' | 'admin'>('coach');
-    
+    const [isInviting, setIsInviting] = useState(false);
+    const [inviteError, setInviteError] = useState('');
+    const [inviteSuccess, setInviteSuccess] = useState('');
+
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true);
@@ -631,11 +634,27 @@ const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
         fetchData();
     }, [organization.id]);
     
-    const handleInviteUser = (e: React.FormEvent) => {
+    const handleInviteUser = async (e: React.FormEvent) => {
         e.preventDefault();
-        alert(`Inbjudningsfunktion är ej implementerad.\nSkulle bjudit in: ${newUserEmail} med rollen ${newUserRole}.`);
-        // Here you would typically call a cloud function that handles user creation and invitation.
-        // e.g., inviteUser(organization.id, newUserEmail, newUserRole);
+        if (!newUserEmail.trim()) return;
+
+        setIsInviting(true);
+        setInviteError('');
+        setInviteSuccess('');
+
+        try {
+            const result = await inviteUser(organization.id, newUserEmail, newUserRole);
+            if (result.success) {
+                setInviteSuccess(result.message || `Inbjudan skickad till ${newUserEmail}!`);
+                setNewUserEmail('');
+            } else {
+                setInviteError(result.message || 'Ett oväntat fel inträffade.');
+            }
+        } catch (error) {
+            setInviteError(error instanceof Error ? error.message : 'Ett klientfel inträffade.');
+        } finally {
+            setIsInviting(false);
+        }
     };
 
     const handleChangeAdminRole = async (uid: string, currentRole: 'superadmin' | 'admin') => {
@@ -727,19 +746,23 @@ const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
                         placeholder="E-postadress"
                         className="w-full bg-black text-white p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"
                         required
+                        disabled={isInviting}
                     />
                     <select
                         value={newUserRole}
                         onChange={e => setNewUserRole(e.target.value as 'coach' | 'admin')}
                         className="w-full sm:w-auto bg-black text-white p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"
+                        disabled={isInviting}
                     >
                         <option value="coach">Coach</option>
                         <option value="admin">Admin</option>
                     </select>
                 </div>
-                 <button type="submit" className="w-full sm:w-auto bg-primary hover:brightness-95 text-white font-bold py-3 px-6 rounded-lg">
-                    Skicka inbjudan
+                 <button type="submit" disabled={isInviting || !newUserEmail.trim()} className="w-full sm:w-auto bg-primary hover:brightness-95 text-white font-bold py-3 px-6 rounded-lg disabled:opacity-50">
+                    {isInviting ? 'Skickar...' : 'Skicka inbjudan'}
                 </button>
+                 {inviteSuccess && <p className="text-green-400 text-sm mt-2">{inviteSuccess}</p>}
+                 {inviteError && <p className="text-red-400 text-sm mt-2">{inviteError}</p>}
             </form>
         </div>
     );
