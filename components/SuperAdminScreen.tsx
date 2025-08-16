@@ -775,13 +775,47 @@ interface CategoryPromptManagerProps {
     isSaving: boolean;
 }
 const CategoryPromptManager: React.FC<CategoryPromptManagerProps> = ({ categories, onCategoriesChange, isSaving }) => {
+    const [expandedPrompts, setExpandedPrompts] = useState<Record<string, boolean>>({});
+    const [editingState, setEditingState] = useState<Record<string, string>>({}); // { catId: 'edited name' }
+
+    const togglePrompt = (id: string) => {
+        setExpandedPrompts(prev => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    // Edit state handlers
+    const handleStartEditing = (cat: CustomCategoryWithPrompt) => {
+        setEditingState(prev => ({ ...prev, [cat.id]: cat.name }));
+    };
+
+    const handleCancelEditing = (id: string) => {
+        setEditingState(prev => {
+            const newState = { ...prev };
+            delete newState[id];
+            return newState;
+        });
+    };
+
+    const handleEditingChange = (id: string, value: string) => {
+        setEditingState(prev => ({ ...prev, [id]: value }));
+    };
 
     const handleUpdateCategory = (id: string, field: 'name' | 'prompt', value: string) => {
-        const newCategories = categories.map(cat => 
+        const newCategories = categories.map(cat =>
             cat.id === id ? { ...cat, [field]: value } : cat
         );
         onCategoriesChange(newCategories);
     };
+    
+    const handleSaveName = (id: string) => {
+        const newName = editingState[id];
+        if (newName === undefined || newName.trim() === '') {
+            alert("Kategorinamnet kan inte vara tomt.");
+            return;
+        }
+        handleUpdateCategory(id, 'name', newName);
+        handleCancelEditing(id); // Exit editing mode
+    };
+
 
     const handleAddCategory = () => {
         const newCategory: CustomCategoryWithPrompt = {
@@ -803,30 +837,57 @@ const CategoryPromptManager: React.FC<CategoryPromptManagerProps> = ({ categorie
             <p className="text-sm text-gray-400">
                 Dessa passkategorier visas som knappar på hemskärmen och i AI-passbyggaren. Varje kategori måste ha en AI-prompt.
             </p>
-            {categories.map(cat => (
-                <div key={cat.id} className="bg-black/50 p-4 rounded-lg border border-gray-600 space-y-3">
-                    <div className="flex justify-between items-center gap-4">
-                        <input
-                            type="text"
-                            value={cat.name}
-                            onChange={(e) => handleUpdateCategory(cat.id, 'name', e.target.value)}
-                            placeholder="Namn på passkategori"
-                            className="w-full bg-gray-900 text-white p-2 rounded-md border border-gray-500 focus:ring-2 focus:ring-primary focus:outline-none transition font-semibold"
-                            disabled={isSaving}
-                        />
-                        <button onClick={() => handleRemoveCategory(cat.id)} className="text-red-500 hover:text-red-400 font-semibold flex-shrink-0">
-                            Ta bort
-                        </button>
+            {categories.map(cat => {
+                const isExpanded = !!expandedPrompts[cat.id];
+                const isEditing = editingState.hasOwnProperty(cat.id);
+                return (
+                    <div key={cat.id} className="bg-black/50 p-4 rounded-lg border border-gray-600">
+                        <div className="flex justify-between items-center gap-4">
+                            <div className="flex-grow">
+                                {isEditing ? (
+                                    <input
+                                        type="text"
+                                        value={editingState[cat.id]}
+                                        onChange={(e) => handleEditingChange(cat.id, e.target.value)}
+                                        placeholder="Namn på Passkategori"
+                                        className="w-full bg-gray-900 text-white p-2 rounded-md border border-gray-500 ring-2 ring-primary focus:outline-none transition font-semibold"
+                                        disabled={isSaving}
+                                        autoFocus
+                                        onKeyDown={(e) => e.key === 'Enter' && handleSaveName(cat.id)}
+                                    />
+                                ) : (
+                                    <p className="p-2 font-semibold text-white">{cat.name}</p>
+                                )}
+                            </div>
+                            <div className="flex-shrink-0 flex items-center gap-3">
+                                {isEditing ? (
+                                    <>
+                                        <button onClick={() => handleSaveName(cat.id)} className="text-sm text-primary hover:text-green-400 transition-colors whitespace-nowrap font-semibold">Spara</button>
+                                        <button onClick={() => handleCancelEditing(cat.id)} className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">Avbryt</button>
+                                    </>
+                                ) : (
+                                    <button onClick={() => handleStartEditing(cat)} className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">Redigera</button>
+                                )}
+                                <button onClick={() => togglePrompt(cat.id)} className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">
+                                    {isExpanded ? 'Dölj prompt' : 'Visa prompt'}
+                                </button>
+                                <button onClick={() => handleRemoveCategory(cat.id)} className="text-red-500 hover:text-red-400 font-semibold text-sm">
+                                    Ta bort
+                                </button>
+                            </div>
+                        </div>
+                        {isExpanded && (
+                            <textarea
+                                value={cat.prompt}
+                                onChange={(e) => handleUpdateCategory(cat.id, 'prompt', e.target.value)}
+                                placeholder="AI-instruktioner för denna passkategori..."
+                                className="w-full h-32 bg-gray-900 text-white p-2 rounded-md border border-gray-500 focus:ring-2 focus:ring-primary focus:outline-none transition text-sm mt-3 animate-fade-in"
+                                disabled={isSaving}
+                            />
+                        )}
                     </div>
-                    <textarea
-                        value={cat.prompt}
-                        onChange={(e) => handleUpdateCategory(cat.id, 'prompt', e.target.value)}
-                        placeholder="AI-instruktioner för denna passkategori..."
-                        className="w-full h-32 bg-gray-900 text-white p-2 rounded-md border border-gray-500 focus:ring-2 focus:ring-primary focus:outline-none transition text-sm"
-                        disabled={isSaving}
-                    />
-                </div>
-            ))}
+                )
+            })}
              <button onClick={handleAddCategory} disabled={isSaving} className="w-full mt-4 bg-primary/20 hover:bg-primary/40 text-primary font-bold py-2 px-4 rounded-lg transition-colors border-2 border-dashed border-primary/50">
                 Lägg till ny passkategori
             </button>

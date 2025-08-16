@@ -1,81 +1,82 @@
-const functions = require("firebase-functions");
-const {onCall} = require("firebase-functions/v2/https");
+// functions/index.js
+const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 
 admin.initializeApp();
 
-exports.inviteUser = onCall(async (request) => {
-  // 1. Kontrollera att den som anropar är en autentiserad admin
+exports.inviteUser = onCall({region: "us-central1"}, async (request) => {
+  // 1) Auth-koll
   if (!request.auth) {
-    throw new functions.https.HttpsError(
-        "unauthenticated",
-        "Du måste vara inloggad för att kunna bjuda in användare.",
+    throw new HttpsError(
+      "unauthenticated",
+      "Du måste vara inloggad för att kunna bjuda in användare.",
     );
   }
 
   const callingUser = await admin.auth().getUser(request.auth.uid);
-  const userRole = callingUser.customClaims.role;
+  const userRole = callingUser.customClaims?.role;
 
   if (userRole !== "systemowner" && userRole !== "organizationadmin") {
-    throw new functions.https.HttpsError(
-        "permission-denied",
-        "Du har inte behörighet att bjuda in användare.",
+    throw new HttpsError(
+      "permission-denied",
+      "Du har inte behörighet att bely in användare.",
     );
   }
 
-  // 2. Validera indata
-  const {email, role, organizationId} = request.data;
+  // 2) Validera indata
+  const {email, role, organizationId} = request.data || {};
   if (!email || !role || !organizationId) {
-    throw new functions.https.HttpsError(
-        "invalid-argument",
-        "E-post, roll och organisation är obligatoriska.",
+    throw new HttpsError(
+      "invalid-argument",
+      "E-post, roll och organisation är obligatoriska.",
     );
   }
 
   try {
-    // 3. Skapa användarkontot
+    // 3) Skapa användare
     const userRecord = await admin.auth().createUser({
-      email: email,
-      emailVerified: false, // De verifierar via lösenordsåterställning
+      email,
+      emailVerified: false,
     });
 
-    // 4. Sätt anpassade roller (custom claims)
+    // 4) Sätt claims
     const finalRole = role === "admin" ? "organizationadmin" : "coach";
     await admin.auth().setCustomUserClaims(userRecord.uid, {
       role: finalRole,
-      organizationId: organizationId,
-      // eslint-disable-next-line max-len
-      adminRole: role === "admin" ? "admin" : null, // Sätt 'admin' som standard, kan göras till 'superadmin' manuellt
+      organizationId,
+      adminRole: role === "admin" ? "admin" : undefined,
     });
 
-    // 5. Skapa användardokument i Firestore
+    // 5) Firestore-dokument
     await admin.firestore().collection("users").doc(userRecord.uid).set({
-      email: email,
+      email,
       role: finalRole,
-      organizationId: organizationId,
-      adminRole: role === "admin" ? "admin" : null,
+      organizationId,
+      adminRole: role === "admin" ? "admin" : undefined,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // 6. Skicka länk för att sätta lösenord
-    const link = await admin.auth().generatePasswordResetLink(email);
-    // (Valfritt men rekommenderat: Skicka länken i ett snyggt mail)
+    // 6) Länk för lösenord
+    const link = await admin.auth().generatePasswordResetLink(
+      email, /* {
+        url: "https://din-app.web.app/welcome",
+      } */
+    );
 
-    // eslint-disable-next-line max-len
-    console.log(`Successfully invited ${email} as ${role}. Password reset link: ${link}`);
+    console.log(
+      `Successfully invited ${email} as ${finalRole}. Password reset link: ${link}`,
+    );
 
     return {
       success: true,
-      // eslint-disable-next-line max-len
-      message: `Inbjudan har skickats till ${email}. Användaren kan sätta sitt lösenord via en länk som bör skickas manuellt.`,
+      message: `Inbjudan skapad för ${email}. Skicka lösenordslänken till användaren.`,
+      link,
     };
   } catch (error) {
-    console.error("Error creating new user:", error);
-    // Returnera ett mer användarvänligt felmeddelande
+    console.error("Error inviting user:", error);
     if (error.code === "auth/email-already-exists") {
-      throw new functions.https.HttpsError("already-exists",
-          "E-postadressen är redan registrerad.");
+      throw new HttpsError("already-exists", "E-postadressen är redan registrerad.");
     }
-    throw new functions.https.HttpsError("internal",
-        "Ett okänt serverfel inträffade.");
+    throw new HttpsError("internal", "Ett okänt serverfel inträffade.");
   }
 });
