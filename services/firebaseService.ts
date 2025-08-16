@@ -2,7 +2,7 @@ import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
 import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getFunctions, httpsCallable, Functions } from 'firebase/functions';
+import { getFunctions, httpsCallable } from 'firebase/functions';
 import { firebaseConfig } from './firebaseConfig';
 
 import { Studio, StudioConfig, Organization, CustomPage, UserData, Workout } from '../types';
@@ -17,7 +17,6 @@ export const isOffline = process.env.NODE_ENV !== 'production';
 let app: firebase.app.App | null = null;
 let auth: firebase.auth.Auth | null = null;
 let db: firebase.firestore.Firestore | null = null;
-let functionsV9: Functions | null = null;
 
 if (isOffline) {
     console.warn("RUNNING IN OFFLINE (DEVELOPMENT) MODE. No data will be sent to Firebase.");
@@ -32,10 +31,11 @@ if (isOffline) {
         
         auth = firebase.auth();
         db = firebase.firestore();
-
-        // Initialize modular functions service
-        const modularApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-        functionsV9 = getFunctions(modularApp, 'us-central1');
+        
+        // Ensure modular app is also initialized for v9 services
+        if (!getApps().length) {
+            initializeApp(firebaseConfig);
+        }
         
         console.log("Firebase initialized successfully. Running in ONLINE (PRODUCTION) mode.");
     } catch (error) {
@@ -360,20 +360,30 @@ export const setAdminRole = async (uid: string, adminRole: 'superadmin' | 'admin
 };
 
 export const inviteUser = async (organizationId: string, email: string, role: 'coach' | 'admin'): Promise<{success: boolean, message: string, link?: string}> => {
-    if (isOffline || !functionsV9) {
+    if (isOffline) {
         await offlineWarning('inviteUser');
         console.log(`(Offline) Simulating invitation for ${email} with role ${role} for org ${organizationId}`);
         return { success: true, message: `(Offline) Inbjudan skickad till ${email}.` };
     }
 
+    // Self-contained modular initialization for robustness
     try {
-        const inviteUserFunction = httpsCallable(functionsV9, 'inviteUser');
+        const modularApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+        const functions = getFunctions(modularApp, 'us-central1');
+        const inviteUserFunction = httpsCallable(functions, 'inviteUser');
+        
         const result = await inviteUserFunction({ organizationId, email, role });
         return result.data as {success: boolean, message: string, link?: string};
     } catch (error) {
         console.error("Error calling inviteUser function:", error);
         const err = error as any;
-        return { success: false, message: err.message || "Ett okänt serverfel inträffade." };
+        // The error object from httpsCallable has 'code' and 'message' properties
+        const message = err.message || "Ett okänt serverfel inträffade.";
+        // Check for specific Firebase functions error codes
+        if (err.code === 'unauthenticated') {
+            return { success: false, message: "Du måste vara inloggad för att kunna bjuda in." };
+        }
+        return { success: false, message: message };
     }
 };
 
