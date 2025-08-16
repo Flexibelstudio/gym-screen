@@ -82,6 +82,7 @@ exports.inviteUser = onCall({
     if (error.code === "auth/email-already-exists") {
       throw new HttpsError("already-exists", "E-postadressen är redan registrerad.");
     }
-    throw new HttpsError("internal", "Ett okänt serverfel inträffade.");
+    // Corrected typo in the error message
+    throw new HttpsError("internal", "Ett okänt serverfel inträffade när användaren skulle bjudas in.");
   }
 });

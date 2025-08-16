@@ -647,7 +647,7 @@ const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
             if (result.success) {
                 let successMsg = result.message || `Inbjudan skickad till ${newUserEmail}!`;
                 if (result.link) {
-                    successMsg += `\n\Lösenordslänk som ska skickas till användaren:\n${result.link}`;
+                    successMsg += `\nLösenordslänk som ska skickas till användaren:\n${result.link}`;
                 }
                 setInviteSuccess(successMsg);
                 setNewUserEmail('');
