@@ -4,7 +4,16 @@ const admin = require("firebase-admin");
 
 admin.initializeApp();
 
-exports.inviteUser = onCall({region: "us-central1"}, async (request) => {
+exports.inviteUser = onCall({
+  region: "us-central1",
+  // Explicitly set CORS policy to allow requests from your web app's origins.
+  cors: [
+    "https://screen.flexibelfrisk.se", // Custom domain from error screenshot
+    "https://gym-screen.web.app", // Default Firebase Hosting URL
+    "https://gym-screen.firebaseapp.com", // Older Firebase Hosting URL
+    /localhost:\d+$/, // Regex to allow any localhost port for development
+  ],
+}, async (request) => {
   // 1) Auth-koll
   if (!request.auth) {
     throw new HttpsError(
@@ -19,7 +28,7 @@ exports.inviteUser = onCall({region: "us-central1"}, async (request) => {
   if (userRole !== "systemowner" && userRole !== "organizationadmin") {
     throw new HttpsError(
       "permission-denied",
-      "Du har inte behörighet att bely in användare.",
+      "Du har inte behörighet att bjuda in användare.",
     );
   }
 
@@ -57,11 +66,7 @@ exports.inviteUser = onCall({region: "us-central1"}, async (request) => {
     });
 
     // 6) Länk för lösenord
-    const link = await admin.auth().generatePasswordResetLink(
-      email, /* {
-        url: "https://din-app.web.app/welcome",
-      } */
-    );
+    const link = await admin.auth().generatePasswordResetLink(email);
 
     console.log(
       `Successfully invited ${email} as ${finalRole}. Password reset link: ${link}`,
@@ -69,7 +74,7 @@ exports.inviteUser = onCall({region: "us-central1"}, async (request) => {
 
     return {
       success: true,
-      message: `Inbjudan skapad för ${email}. Skicka lösenordslänken till användaren.`,
+      message: `Inbjudan skapad för ${email}.`,
       link,
     };
   } catch (error) {

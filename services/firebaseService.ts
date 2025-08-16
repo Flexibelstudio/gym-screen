@@ -354,7 +354,7 @@ export const setAdminRole = async (uid: string, adminRole: 'superadmin' | 'admin
     await db.collection('users').doc(uid).update({ adminRole });
 };
 
-export const inviteUser = async (organizationId: string, email: string, role: 'coach' | 'admin'): Promise<{success: boolean, message: string}> => {
+export const inviteUser = async (organizationId: string, email: string, role: 'coach' | 'admin'): Promise<{success: boolean, message: string, link?: string}> => {
     if (isOffline || !functions) {
         await offlineWarning('inviteUser');
         console.log(`(Offline) Simulating invitation for ${email} with role ${role} for org ${organizationId}`);
@@ -364,7 +364,7 @@ export const inviteUser = async (organizationId: string, email: string, role: 'c
     try {
         const inviteUserFunction = functions.httpsCallable('inviteUser');
         const result = await inviteUserFunction({ organizationId, email, role });
-        return result.data as {success: boolean, message: string};
+        return result.data as {success: boolean, message: string, link?: string};
     } catch (error) {
         console.error("Error calling inviteUser function:", error);
         const err = error as any;

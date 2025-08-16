@@ -645,7 +645,11 @@ const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
         try {
             const result = await inviteUser(organization.id, newUserEmail, newUserRole);
             if (result.success) {
-                setInviteSuccess(result.message || `Inbjudan skickad till ${newUserEmail}!`);
+                let successMsg = result.message || `Inbjudan skickad till ${newUserEmail}!`;
+                if (result.link) {
+                    successMsg += `\n\Lösenordslänk som ska skickas till användaren:\n${result.link}`;
+                }
+                setInviteSuccess(successMsg);
                 setNewUserEmail('');
             } else {
                 setInviteError(result.message || 'Ett oväntat fel inträffade.');
@@ -761,7 +765,7 @@ const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
                  <button type="submit" disabled={isInviting || !newUserEmail.trim()} className="w-full sm:w-auto bg-primary hover:brightness-95 text-white font-bold py-3 px-6 rounded-lg disabled:opacity-50">
                     {isInviting ? 'Skickar...' : 'Skicka inbjudan'}
                 </button>
-                 {inviteSuccess && <p className="text-green-400 text-sm mt-2">{inviteSuccess}</p>}
+                 {inviteSuccess && <textarea readOnly value={inviteSuccess} className="w-full h-24 p-2 mt-2 text-sm text-green-300 bg-black rounded-md border border-gray-600 font-mono" />}
                  {inviteError && <p className="text-red-400 text-sm mt-2">{inviteError}</p>}
             </form>
         </div>
