@@ -8,7 +8,7 @@ exports.inviteUser = onCall({
   region: "us-central1",
   // Explicitly set CORS policy to allow requests from your web app's origins.
   cors: [
-    "https://screen.flexibelfrisk.se", // Custom domain from error screenshot
+    "https://screen.flexibelfriskvardhalsa.se", // Corrected domain
     "https://gym-screen.web.app", // Default Firebase Hosting URL
     "https://gym-screen.firebaseapp.com", // Older Firebase Hosting URL
     /localhost:\d+$/, // Regex to allow any localhost port for development
@@ -18,7 +18,7 @@ exports.inviteUser = onCall({
   if (!request.auth) {
     throw new HttpsError(
       "unauthenticated",
-      "Du måste vara inloggad för att kunna bjuda in användare.",
+      "Du måste vara inloggad för att kunna bjuna in användare.",
     );
   }
 
@@ -28,7 +28,7 @@ exports.inviteUser = onCall({
   if (userRole !== "systemowner" && userRole !== "organizationadmin") {
     throw new HttpsError(
       "permission-denied",
-      "Du har inte behörighet att bjuda in användare.",
+      "Du har inte behörighet att bjuna in användare.",
     );
   }
 
