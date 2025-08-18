@@ -612,7 +612,10 @@ const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
     const [newUserRole, setNewUserRole] = useState<'coach' | 'admin'>('coach');
     const [isInviting, setIsInviting] = useState(false);
     const [inviteError, setInviteError] = useState('');
-    const [inviteSuccess, setInviteSuccess] = useState('');
+    const [inviteSuccessMessage, setInviteSuccessMessage] = useState('');
+    const [inviteLink, setInviteLink] = useState('');
+    const [copyButtonText, setCopyButtonText] = useState('Kopiera länk');
+
 
     useEffect(() => {
         const fetchData = async () => {
@@ -640,17 +643,18 @@ const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
 
         setIsInviting(true);
         setInviteError('');
-        setInviteSuccess('');
+        setInviteSuccessMessage('');
+        setInviteLink('');
 
         try {
             const result = await inviteUser(organization.id, newUserEmail, newUserRole);
             if (result.success) {
-                let successMsg = result.message || `Inbjudan skickad till ${newUserEmail}!`;
+                setInviteSuccessMessage(result.message || `Inbjudan skapad för ${newUserEmail}!`);
                 if (result.link) {
-                    successMsg += `\nLösenordslänk som ska skickas till användaren:\n${result.link}`;
+                    setInviteLink(result.link);
                 }
-                setInviteSuccess(successMsg);
                 setNewUserEmail('');
+                setNewUserRole('coach');
             } else {
                 setInviteError(result.message || 'Ett oväntat fel inträffade.');
             }
@@ -659,6 +663,17 @@ const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
         } finally {
             setIsInviting(false);
         }
+    };
+
+    const handleCopyLink = () => {
+        if (!inviteLink) return;
+        navigator.clipboard.writeText(inviteLink).then(() => {
+            setCopyButtonText('Kopierad!');
+            setTimeout(() => setCopyButtonText('Kopiera länk'), 2000);
+        }, (err) => {
+            console.error('Could not copy text: ', err);
+            alert('Kunde inte kopiera länken.');
+        });
     };
 
     const handleChangeAdminRole = async (uid: string, currentRole: 'superadmin' | 'admin') => {
@@ -740,34 +755,67 @@ const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
             </div>
 
             {/* Invite Form */}
-            <form onSubmit={handleInviteUser} className="pt-6 border-t border-gray-700 space-y-3">
+            <div className="pt-6 border-t border-gray-700 space-y-3">
                 <h4 className="font-semibold text-gray-300">Bjud in ny användare</h4>
-                <div className="flex flex-col sm:flex-row gap-4">
-                    <input 
-                        type="email"
-                        value={newUserEmail}
-                        onChange={e => setNewUserEmail(e.target.value)}
-                        placeholder="E-postadress"
-                        className="w-full bg-black text-white p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"
-                        required
-                        disabled={isInviting}
-                    />
-                    <select
-                        value={newUserRole}
-                        onChange={e => setNewUserRole(e.target.value as 'coach' | 'admin')}
-                        className="w-full sm:w-auto bg-black text-white p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"
-                        disabled={isInviting}
-                    >
-                        <option value="coach">Coach</option>
-                        <option value="admin">Admin</option>
-                    </select>
-                </div>
-                 <button type="submit" disabled={isInviting || !newUserEmail.trim()} className="w-full sm:w-auto bg-primary hover:brightness-95 text-white font-bold py-3 px-6 rounded-lg disabled:opacity-50">
-                    {isInviting ? 'Skickar...' : 'Skicka inbjudan'}
-                </button>
-                 {inviteSuccess && <textarea readOnly value={inviteSuccess} className="w-full h-24 p-2 mt-2 text-sm text-green-300 bg-black rounded-md border border-gray-600 font-mono" />}
-                 {inviteError && <p className="text-red-400 text-sm mt-2">{inviteError}</p>}
-            </form>
+                 <form onSubmit={handleInviteUser} className="space-y-3">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <input 
+                            type="email"
+                            value={newUserEmail}
+                            onChange={e => setNewUserEmail(e.target.value)}
+                            placeholder="E-postadress"
+                            className="w-full bg-black text-white p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"
+                            required
+                            disabled={isInviting}
+                        />
+                        <select
+                            value={newUserRole}
+                            onChange={e => setNewUserRole(e.target.value as 'coach' | 'admin')}
+                            className="w-full sm:w-auto bg-black text-white p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"
+                            disabled={isInviting}
+                        >
+                            <option value="coach">Coach</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                     <button type="submit" disabled={isInviting || !newUserEmail.trim()} className="w-full sm:w-auto bg-primary hover:brightness-95 text-white font-bold py-3 px-6 rounded-lg disabled:opacity-50">
+                        {isInviting ? 'Skickar...' : 'Skicka inbjudan'}
+                    </button>
+                </form>
+                
+                 {(inviteSuccessMessage || inviteError) && (
+                    <div className="mt-4 p-4 rounded-lg border bg-black/50 border-gray-600">
+                        {inviteError && <p className="text-red-400 text-sm">{inviteError}</p>}
+                        {inviteSuccessMessage && (
+                            <div className="space-y-3">
+                                <p className="text-green-400 font-semibold">{inviteSuccessMessage}</p>
+                                {inviteLink && (
+                                    <div>
+                                        <p className="text-sm text-gray-300 mb-2">
+                                            VIKTIGT: Kopiera engångslänken nedan och skicka den manuellt till användaren (t.ex. via SMS eller Teams).
+                                        </p>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                readOnly
+                                                value={inviteLink}
+                                                className="w-full p-2 bg-gray-900 text-gray-400 rounded-md border border-gray-700 font-mono text-sm"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={handleCopyLink}
+                                                className="bg-primary hover:brightness-95 text-white font-semibold py-2 px-4 rounded-lg whitespace-nowrap"
+                                            >
+                                                {copyButtonText}
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
