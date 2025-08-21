@@ -1,4 +1,5 @@
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Page, Workout, MenuItem, StudioConfig, Passkategori } from '../types';
 import { welcomeMessages } from '../data/welcomeMessages';

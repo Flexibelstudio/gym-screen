@@ -1158,6 +1158,15 @@ useEffect(() => {
       {isMusicPlayerVisible && player && playerState && selectedStudio && (
         <MusicPlayerBar player={player!} playerState={playerState} studioId={selectedStudio.id} />
       )}
+       {isStudioMode && page === Page.Home && studioConfig.checkInImageEnabled && studioConfig.checkInImageUrl && (
+          <div className="fixed bottom-4 right-4 z-10">
+              <img
+                src={studioConfig.checkInImageUrl}
+                alt="QR-kod för incheckning"
+                className={`w-32 h-32 md:w-40 md:h-40 object-contain drop-shadow-lg ${theme === 'light' ? 'invert' : ''}`}
+              />
+          </div>
+      )}
        {!isFullScreenPage && <Footer />}
     </div>
   );
