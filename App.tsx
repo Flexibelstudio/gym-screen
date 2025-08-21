@@ -1039,6 +1039,7 @@ useEffect(() => {
                   organization={selectedOrganization}
                   adminRole={userData?.adminRole || 'admin'}
                   userRole={role}
+                  theme={theme}
                   onPassProgramNavigation={handlePassProgramNavigation}
                   onSaveGlobalConfig={handleSaveGlobalConfig}
                   onEditStudioConfig={(studio) => { selectStudio(studio); navigateTo(Page.AdminConfig); }}

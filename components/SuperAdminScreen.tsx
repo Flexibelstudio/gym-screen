@@ -55,7 +55,7 @@ const ImageUploader: React.FC<{
 
   return (
     <div className="space-y-2">
-      <label className="block text-sm font-medium text-gray-400">{label}</label>
+      <label className="block text-sm font-medium text-gray-600 dark:text-gray-400">{label}</label>
       {imageUrl ? (
         <div className="relative group">
           <img src={imageUrl} alt="Förhandsvisning" className="w-48 h-48 object-cover rounded-md" />
@@ -76,7 +76,7 @@ const ImageUploader: React.FC<{
           onDrop={handleDrop}
           onClick={() => fileInputRef.current?.click()}
           className={`relative flex flex-col items-center justify-center p-4 w-48 h-48 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-            isDragging ? 'border-primary bg-primary/20' : 'border-gray-600 hover:border-primary hover:bg-gray-700/50'
+            isDragging ? 'border-primary bg-primary/20' : 'border-gray-400 dark:border-gray-600 hover:border-primary hover:bg-gray-200/50 dark:hover:bg-gray-700/50'
           }`}
         >
           <input
@@ -87,7 +87,7 @@ const ImageUploader: React.FC<{
             className="hidden"
             disabled={isSaving}
           />
-          <div className="text-center text-gray-400">
+          <div className="text-center text-gray-500 dark:text-gray-400">
             <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
             <p className="font-semibold mt-1 text-sm">Dra och släpp en bild</p>
             <p className="text-xs">eller klicka för att välja fil</p>
@@ -103,6 +103,7 @@ interface SuperAdminScreenProps {
     organization: Organization;
     adminRole: 'superadmin' | 'admin';
     userRole: UserRole;
+    theme: string;
     onPassProgramNavigation: (mode: 'create' | 'generate' | 'parse' | 'manage') => void;
     onSaveGlobalConfig: (organizationId: string, newConfig: StudioConfig) => Promise<void>;
     onEditStudioConfig: (studio: Studio) => void;
@@ -145,10 +146,10 @@ const PassProgramModule: React.FC<{
     onNavigate: (mode: 'create' | 'generate' | 'parse' | 'manage') => void;
 }> = ({ onNavigate }) => {
     return (
-        <div className="bg-slate-800 rounded-xl border border-gray-700 p-8">
+        <div className="bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-gray-700 p-8">
             <div className="text-center">
-                <h3 className="text-3xl font-bold text-white">Bygg ett eget pass</h3>
-                <p className="text-gray-400 mt-2 max-w-lg mx-auto">
+                <h3 className="text-3xl font-bold text-gray-900 dark:text-white">Bygg ett eget pass</h3>
+                <p className="text-gray-600 dark:text-gray-400 mt-2 max-w-lg mx-auto">
                     Klicka nedan för att öppna passbyggaren och skapa ett helt nytt, skräddarsytt pass från grunden.
                 </p>
                 <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -160,19 +161,19 @@ const PassProgramModule: React.FC<{
                     </button>
                     <button
                         onClick={() => onNavigate('generate')}
-                        className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-4 px-6 rounded-lg transition-colors text-lg shadow-md"
+                        className="bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold py-4 px-6 rounded-lg transition-colors text-lg shadow-md"
                     >
                         Skapa med AI
                     </button>
                     <button
                         onClick={() => onNavigate('parse')}
-                        className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-4 px-6 rounded-lg transition-colors text-lg shadow-md"
+                        className="bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold py-4 px-6 rounded-lg transition-colors text-lg shadow-md"
                     >
                         Klistra in Pass
                     </button>
                     <button
                         onClick={() => onNavigate('manage')}
-                        className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-4 px-6 rounded-lg transition-colors text-lg shadow-md"
+                        className="bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold py-4 px-6 rounded-lg transition-colors text-lg shadow-md"
                     >
                         Hantera Pass
                     </button>
@@ -192,7 +193,7 @@ interface ConfigProps {
 }
 
 export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
-    const { organization, onSaveGlobalConfig } = props;
+    const { organization, onSaveGlobalConfig, theme } = props;
     const [activeTab, setActiveTab] = useState<AdminTab>('drift');
 
     // Lifted state for the entire global config
@@ -227,8 +228,10 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
         handleUpdateConfigField,
         handleSaveConfig
     };
-
-    const displayLogoUrl = organization.logoUrlDark || organization.logoUrlLight;
+    
+    const displayLogoUrl = theme === 'dark' 
+        ? (organization.logoUrlDark || organization.logoUrlLight)
+        : (organization.logoUrlLight || organization.logoUrlDark);
 
     return (
         <div className="w-full max-w-4xl mx-auto space-y-8 animate-fade-in pb-12">
@@ -241,7 +244,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                 )}
             </div>
 
-            <div className="mb-6 flex border-b border-gray-700" role="tablist">
+            <div className="mb-6 flex border-b border-gray-200 dark:border-gray-700" role="tablist">
                 <TabButton tabId="drift" activeTab={activeTab} setActiveTab={setActiveTab}>
                     Drift & Innehåll
                 </TabButton>
@@ -322,20 +325,20 @@ const DriftContent: React.FC<SuperAdminScreenProps & ConfigProps> = ({ organizat
     
     return (
         <>
-             <div className="bg-gray-800 p-6 rounded-lg space-y-4 border border-gray-700">
-                <h3 className="text-2xl font-bold text-white border-b border-gray-700 pb-3 mb-4">Egna Infosidor</h3>
-                <p className="text-sm text-gray-400">Skapa och hantera informationssidor som visas som knappar för coacher.</p>
+             <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-lg space-y-4 border border-slate-200 dark:border-gray-700">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white border-b border-slate-300 dark:border-gray-700 pb-3 mb-4">Egna Infosidor</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Skapa och hantera informationssidor som visas som knappar för coacher.</p>
                 <div className="space-y-3">
                     {organization.customPages && organization.customPages.map(page => (
-                        <div key={page.id} className="bg-gray-900/50 p-4 rounded-lg flex justify-between items-center border border-gray-700">
-                            <p className="font-semibold text-white">{page.title}</p>
+                        <div key={page.id} className="bg-slate-200 dark:bg-gray-900/50 p-4 rounded-lg flex justify-between items-center border border-slate-300 dark:border-gray-700">
+                            <p className="font-semibold text-gray-900 dark:text-white">{page.title}</p>
                             <div className="flex gap-2">
-                                <button onClick={() => onEditCustomPage(page)} className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg">Redigera</button>
+                                <button onClick={() => onEditCustomPage(page)} className="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-white font-semibold py-2 px-4 rounded-lg">Redigera</button>
                                 <button onClick={() => onDeleteCustomPage(page.id)} className="bg-red-600 hover:bg-red-500 text-white font-semibold py-2 px-4 rounded-lg">Ta bort</button>
                             </div>
                         </div>
                     ))}
-                     {(!organization.customPages || organization.customPages.length === 0) && <p className="text-gray-400 text-center py-4">Inga infosidor har skapats ännu.</p>}
+                     {(!organization.customPages || organization.customPages.length === 0) && <p className="text-gray-500 dark:text-gray-400 text-center py-4">Inga infosidor har skapats ännu.</p>}
                 </div>
                 <div className="pt-4 flex justify-start items-center">
                     <button onClick={() => onEditCustomPage(null)} className="bg-primary hover:brightness-95 text-white font-bold py-2 px-5 rounded-lg">
@@ -344,23 +347,23 @@ const DriftContent: React.FC<SuperAdminScreenProps & ConfigProps> = ({ organizat
                 </div>
             </div>
 
-            <div className="bg-gray-800 p-6 rounded-lg space-y-6 border border-gray-700">
-                <div className="flex justify-between items-center border-b border-gray-700 pb-3 mb-4">
-                    <h3 className="text-2xl font-bold text-white">Globala Inställningar (Standard för nya studios)</h3>
+            <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-lg space-y-6 border border-slate-200 dark:border-gray-700">
+                <div className="flex justify-between items-center border-b border-slate-300 dark:border-gray-700 pb-3 mb-4">
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Globala Inställningar (Standard för nya studios)</h3>
                     <button onClick={handleSaveConfig} disabled={!isConfigDirty || isSavingConfig} className="bg-primary hover:brightness-95 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50 shadow-lg">
                         {isSavingConfig ? 'Sparar...' : 'Spara Globala Inställningar'}
                     </button>
                 </div>
 
                 <div className="space-y-4">
-                    <h4 className="font-semibold text-gray-300">Valbara Moduler</h4>
+                    <h4 className="font-semibold text-gray-700 dark:text-gray-300">Valbara Moduler</h4>
                     <ToggleSwitch label="Aktivera 'Dagens Boost'" checked={config.enableBoost} onChange={(c) => handleUpdateConfigField('enableBoost', c)} />
                     <ToggleSwitch label="Aktivera 'Uppvärmning'" checked={config.enableWarmup} onChange={(c) => handleUpdateConfigField('enableWarmup', c)} />
                     <ToggleSwitch label="Aktivera 'Andningsguide'" checked={config.enableBreathingGuide} onChange={(c) => handleUpdateConfigField('enableBreathingGuide', c)} />
                 </div>
 
-                <div className="space-y-2 pt-4 border-t border-gray-700">
-                    <h4 className="font-semibold text-gray-300">Anpassade Passkategorier & AI-Prompts</h4>
+                <div className="space-y-2 pt-4 border-t border-slate-300 dark:border-gray-700">
+                    <h4 className="font-semibold text-gray-700 dark:text-gray-300">Anpassade Passkategorier & AI-Prompts</h4>
                      <CategoryPromptManager
                         categories={config.customCategories}
                         onCategoriesChange={(cats) => handleUpdateConfigField('customCategories', cats)}
@@ -371,17 +374,17 @@ const DriftContent: React.FC<SuperAdminScreenProps & ConfigProps> = ({ organizat
             
             <PassProgramModule onNavigate={onPassProgramNavigation} />
 
-            <div className="bg-gray-800 p-6 rounded-lg space-y-4 border border-gray-700">
-                <h3 className="text-2xl font-bold text-white border-b border-gray-700 pb-3 mb-4">Studios</h3>
+            <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-lg space-y-4 border border-slate-200 dark:border-gray-700">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white border-b border-slate-300 dark:border-gray-700 pb-3 mb-4">Studios</h3>
                 <div className="space-y-3">
                     {organization.studios.map(studio => {
                         if (studio.id === editingStudioId) {
                             return (
-                                <div key={studio.id} className="bg-gray-700 p-4 rounded-lg border border-primary flex flex-wrap justify-between items-center gap-4">
+                                <div key={studio.id} className="bg-slate-200 dark:bg-gray-700 p-4 rounded-lg border border-primary flex flex-wrap justify-between items-center gap-4">
                                     <input
                                         value={editingStudioName}
                                         onChange={(e) => setEditingStudioName(e.target.value)}
-                                        className="flex-grow bg-black text-white p-2 rounded-md border border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"
+                                        className="flex-grow bg-white dark:bg-black text-black dark:text-white p-2 rounded-md border border-slate-300 dark:border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"
                                         autoFocus
                                         onKeyDown={(e) => e.key === 'Enter' && handleSaveStudio()}
                                     />
@@ -396,41 +399,41 @@ const DriftContent: React.FC<SuperAdminScreenProps & ConfigProps> = ({ organizat
                         }
                         
                         return (
-                            <div key={studio.id} className="bg-gray-900/50 p-4 rounded-lg flex flex-wrap justify-between items-center gap-4 border border-gray-700">
-                                <p className="text-lg font-semibold text-white">{studio.name}</p>
+                            <div key={studio.id} className="bg-slate-200 dark:bg-gray-900/50 p-4 rounded-lg flex flex-wrap justify-between items-center gap-4 border border-slate-300 dark:border-gray-700">
+                                <p className="text-lg font-semibold text-gray-900 dark:text-white">{studio.name}</p>
                                 <div className="flex gap-2">
-                                    <button onClick={() => onEditStudioConfig(studio)} className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg">Anpassa</button>
+                                    <button onClick={() => onEditStudioConfig(studio)} className="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-white font-semibold py-2 px-4 rounded-lg">Anpassa</button>
                                     <button onClick={() => handleEditStudio(studio)} className="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg">Redigera</button>
                                     <button onClick={() => handleDeleteStudio(studio)} className="bg-red-600 hover:bg-red-500 text-white font-semibold py-2 px-4 rounded-lg">Radera</button>
                                 </div>
                             </div>
                         )
                     })}
-                    {organization.studios.length === 0 && <p className="text-gray-400 text-center py-4">Inga studios har skapats ännu.</p>}
+                    {organization.studios.length === 0 && <p className="text-gray-500 dark:text-gray-400 text-center py-4">Inga studios har skapats ännu.</p>}
                 </div>
-                <form onSubmit={handleCreateStudio} className="pt-6 border-t border-gray-700 flex gap-4">
-                    <input type="text" value={newStudioName} onChange={(e) => setNewStudioName(e.target.value)} placeholder="Namn på ny studio" className="w-full bg-black text-white p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none transition" disabled={isCreatingStudio}/>
+                <form onSubmit={handleCreateStudio} className="pt-6 border-t border-slate-300 dark:border-gray-700 flex gap-4">
+                    <input type="text" value={newStudioName} onChange={(e) => setNewStudioName(e.target.value)} placeholder="Namn på ny studio" className="w-full bg-white dark:bg-black text-black dark:text-white p-3 rounded-md border border-slate-300 dark:border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none transition" disabled={isCreatingStudio}/>
                     <button type="submit" disabled={!newStudioName.trim() || isCreatingStudio} className="bg-primary hover:brightness-95 text-white font-bold py-3 px-6 rounded-lg transition-colors disabled:bg-gray-500 whitespace-nowrap">
                         {isCreatingStudio ? 'Skapar...' : 'Skapa Studio'}
                     </button>
                 </form>
             </div>
             
-            <div className="bg-gray-800 p-6 rounded-lg space-y-4 border border-gray-700">
-                <h3 className="text-2xl font-bold text-white border-b border-gray-700 pb-3 mb-4">Växla till Studiovy</h3>
-                <p className="text-sm text-gray-400">Testa appen ur en medlems perspektiv genom att temporärt byta till en specifik studiovy. Du kan enkelt återvända till adminläget från "För Coacher"-menyn.</p>
+            <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-lg space-y-4 border border-slate-200 dark:border-gray-700">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white border-b border-slate-300 dark:border-gray-700 pb-3 mb-4">Växla till Studiovy</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400">Testa appen ur en medlems perspektiv genom att temporärt byta till en specifik studiovy. Du kan enkelt återvända till adminläget från "För Coacher"-menyn.</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {organization.studios.map(studio => (
                         <button
                             key={studio.id}
                             onClick={() => onSwitchToStudioView(studio)}
-                            className="bg-gray-700 hover:bg-gray-600 text-white font-semibold py-4 px-6 rounded-lg transition-colors text-lg"
+                            className="bg-slate-200 dark:bg-gray-700 hover:bg-slate-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-4 px-6 rounded-lg transition-colors text-lg"
                         >
                             {studio.name}
                         </button>
                     ))}
                 </div>
-                 {organization.studios.length === 0 && <p className="text-gray-400 text-center py-4">Inga studios har skapats ännu för att kunna förhandsgranska.</p>}
+                 {organization.studios.length === 0 && <p className="text-gray-500 dark:text-gray-400 text-center py-4">Inga studios har skapats ännu för att kunna förhandsgranska.</p>}
             </div>
         </>
     );
@@ -438,9 +441,9 @@ const DriftContent: React.FC<SuperAdminScreenProps & ConfigProps> = ({ organizat
 
 const UtrustningContent: React.FC<SuperAdminScreenProps & ConfigProps> = ({ config, isSavingConfig, isConfigDirty, handleUpdateConfigField, handleSaveConfig }) => {
     return (
-        <div className="bg-gray-800 p-6 rounded-lg space-y-6 border border-gray-700">
-            <div className="flex justify-between items-center border-b border-gray-700 pb-3 mb-4">
-                <h3 className="text-2xl font-bold text-white">Global Utrustningslista (Standard för alla studios)</h3>
+        <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-lg space-y-6 border border-slate-200 dark:border-gray-700">
+            <div className="flex justify-between items-center border-b border-slate-300 dark:border-gray-700 pb-3 mb-4">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Global Utrustningslista (Standard för alla studios)</h3>
                 <button onClick={handleSaveConfig} disabled={!isConfigDirty || isSavingConfig} className="bg-primary hover:brightness-95 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50 shadow-lg">
                     {isSavingConfig ? 'Sparar...' : 'Spara ändringar'}
                 </button>
@@ -560,22 +563,22 @@ const OrganisationContent: React.FC<SuperAdminScreenProps> = ({ organization, on
 
     return (
         <>
-            <div className="bg-gray-800 p-6 rounded-lg space-y-4 border border-gray-700">
-                <h3 className="text-2xl font-bold text-white border-b border-gray-700 pb-3 mb-4">Organisationsinformation</h3>
+            <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-lg space-y-4 border border-slate-200 dark:border-gray-700">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white border-b border-slate-300 dark:border-gray-700 pb-3 mb-4">Organisationsinformation</h3>
                  <div className="space-y-4">
                     <div>
-                        <label htmlFor="org-name" className="block text-sm font-medium text-gray-300 mb-1">Organisationsnamn</label>
+                        <label htmlFor="org-name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Organisationsnamn</label>
                         <input
                            id="org-name"
                            type="text"
                            value={name}
                            onChange={e => setName(e.target.value)}
                            readOnly={!isSystemOwner}
-                           className={`w-full p-3 rounded-md border transition-colors ${isSystemOwner ? 'bg-black text-white border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none' : 'bg-black text-gray-400 border-gray-600 cursor-not-allowed'}`}
+                           className={`w-full p-3 rounded-md border transition-colors ${isSystemOwner ? 'bg-white dark:bg-black text-black dark:text-white border-slate-300 dark:border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none' : 'bg-slate-200 dark:bg-black text-gray-500 dark:text-gray-400 border-slate-300 dark:border-gray-600 cursor-not-allowed'}`}
                         />
                     </div>
                     <div>
-                        <label htmlFor="org-subdomain" className="block text-sm font-medium text-gray-300 mb-1">Subdomän</label>
+                        <label htmlFor="org-subdomain" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Subdomän</label>
                         <div className="flex items-center">
                             <input
                                id="org-subdomain"
@@ -583,9 +586,9 @@ const OrganisationContent: React.FC<SuperAdminScreenProps> = ({ organization, on
                                value={subdomain}
                                onChange={e => setSubdomain(e.target.value)}
                                readOnly={!isSystemOwner}
-                               className={`w-full p-3 rounded-l-md border-y border-l transition-colors ${isSystemOwner ? 'bg-black text-white border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none' : 'bg-black text-gray-400 border-gray-600 cursor-not-allowed'}`}
+                               className={`w-full p-3 rounded-l-md border-y border-l transition-colors ${isSystemOwner ? 'bg-white dark:bg-black text-black dark:text-white border-slate-300 dark:border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none' : 'bg-slate-200 dark:bg-black text-gray-500 dark:text-gray-400 border-slate-300 dark:border-gray-600 cursor-not-allowed'}`}
                             />
-                            <span className="px-3 py-3 bg-gray-700 text-gray-400 rounded-r-md border-y border-r border-gray-600">.flexibel.app</span>
+                            <span className="px-3 py-3 bg-slate-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-r-md border-y border-r border-slate-300 dark:border-gray-600">.flexibel.app</span>
                         </div>
                     </div>
                 </div>
@@ -595,16 +598,16 @@ const OrganisationContent: React.FC<SuperAdminScreenProps> = ({ organization, on
                             {isSavingOrgInfo ? 'Sparar...' : 'Spara ändringar'}
                         </button>
                     ) : (
-                        <p className="text-xs text-gray-400">Endast en Systemägare kan ändra namn och subdomän.</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Endast en Systemägare kan ändra namn och subdomän.</p>
                     )}
                 </div>
             </div>
 
-            <div className="bg-gray-800 p-6 rounded-lg space-y-6 border border-gray-700">
-                <h3 className="text-2xl font-bold text-white border-b border-gray-700 pb-3 mb-4">Profilering & Varumärke</h3>
+            <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-lg space-y-6 border border-slate-200 dark:border-gray-700">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white border-b border-slate-300 dark:border-gray-700 pb-3 mb-4">Profilering & Varumärke</h3>
                 
                 <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Förhandsvisning</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Förhandsvisning</label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="bg-white rounded-lg p-8 border border-gray-300 text-center">
                              <div className="mb-4 flex justify-center h-16 items-center">
@@ -629,25 +632,25 @@ const OrganisationContent: React.FC<SuperAdminScreenProps> = ({ organization, on
                     </div>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-gray-700">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-slate-300 dark:border-gray-700">
                     <div>
-                        <label className="block text-sm font-medium text-gray-300">Logotyp för Ljust Tema</label>
-                        <p className="text-xs text-gray-400 mt-1 mb-2">Använd en mörk logotyp. Visas på vit bakgrund.</p>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Logotyp för Ljust Tema</label>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-2">Använd en mörk logotyp. Visas på vit bakgrund.</p>
                         <input 
                             type="file" 
                             accept="image/*,.svg"
                             onChange={(e) => handleLogoFileChange(e, 'light')} 
-                            className="text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-600 file:text-white hover:file:bg-gray-500"
+                            className="text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-200 dark:file:bg-gray-600 file:text-gray-800 dark:file:text-white hover:file:bg-gray-300 dark:hover:file:bg-gray-500"
                         />
                     </div>
                      <div>
-                        <label className="block text-sm font-medium text-gray-300">Logotyp för Mörkt Tema</label>
-                        <p className="text-xs text-gray-400 mt-1 mb-2">Använd en ljus/vit logotyp. Visas på mörk bakgrund.</p>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Logotyp för Mörkt Tema</label>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 mb-2">Använd en ljus/vit logotyp. Visas på mörk bakgrund.</p>
                         <input 
                             type="file" 
                             accept="image/*,.svg"
                             onChange={(e) => handleLogoFileChange(e, 'dark')} 
-                            className="text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-600 file:text-white hover:file:bg-gray-500"
+                            className="text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-gray-200 dark:file:bg-gray-600 file:text-gray-800 dark:file:text-white hover:file:bg-gray-300 dark:hover:file:bg-gray-500"
                         />
                     </div>
                 </div>
@@ -661,13 +664,13 @@ const OrganisationContent: React.FC<SuperAdminScreenProps> = ({ organization, on
                     </button>
                 </div>
 
-                <hr className="border-gray-700" />
+                <hr className="border-slate-300 dark:border-gray-700" />
                 
                 <div className="space-y-2">
-                    <label htmlFor="primary-color" className="block text-sm font-medium text-gray-300">Primärfärg</label>
+                    <label htmlFor="primary-color" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Primärfärg</label>
                     <div className="flex items-center gap-4">
                         <input type="color" id="primary-color" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="w-12 h-12 p-1 bg-transparent border-none rounded-lg cursor-pointer"/>
-                        <input type="text" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="bg-black text-white p-2 rounded-md border border-gray-600 font-mono"/>
+                        <input type="text" value={primaryColor} onChange={(e) => setPrimaryColor(e.target.value)} className="bg-white dark:bg-black text-black dark:text-white p-2 rounded-md border border-slate-300 dark:border-gray-600 font-mono"/>
                         <button onClick={handleSaveColor} disabled={!isColorDirty || isSavingColor} className="bg-primary hover:brightness-95 text-white font-semibold py-2 px-4 rounded-lg disabled:opacity-50 ml-auto">
                                 {isSavingColor ? 'Sparar...' : 'Spara Färg'}
                         </button>
@@ -676,14 +679,14 @@ const OrganisationContent: React.FC<SuperAdminScreenProps> = ({ organization, on
                 </div>
             </div>
 
-            <div className="bg-gray-800 p-6 rounded-lg space-y-4 border border-gray-700">
-                <h3 className="text-2xl font-bold text-white border-b border-gray-700 pb-3 mb-4">Lösenordshantering</h3>
+            <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-lg space-y-4 border border-slate-200 dark:border-gray-700">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white border-b border-slate-300 dark:border-gray-700 pb-3 mb-4">Lösenordshantering</h3>
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-300 mb-1">Coach-lösenord</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Coach-lösenord</label>
                         <div className="flex items-center">
-                            <input value={passwords.coach} onChange={(e) => handlePasswordChange('coach', e.target.value)} type={showCoachPassword ? "text" : "password"} className="w-full bg-black text-white p-3 rounded-l-md border-y border-l border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"/>
-                            <button onClick={() => setShowCoachPassword(!showCoachPassword)} className="px-4 py-3 bg-gray-700 rounded-r-md border-y border-r border-gray-600 text-gray-300">
+                            <input value={passwords.coach} onChange={(e) => handlePasswordChange('coach', e.target.value)} type={showCoachPassword ? "text" : "password"} className="w-full bg-white dark:bg-black text-black dark:text-white p-3 rounded-l-md border-y border-l border-slate-300 dark:border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"/>
+                            <button onClick={() => setShowCoachPassword(!showCoachPassword)} className="px-4 py-3 bg-slate-200 dark:bg-gray-700 rounded-r-md border-y border-r border-slate-300 dark:border-gray-600 text-gray-700 dark:text-gray-300">
                                 {showCoachPassword ? 'Dölj' : 'Visa'}
                             </button>
                         </div>
@@ -791,25 +794,25 @@ const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
     };
 
     return (
-        <div className="bg-gray-800 p-6 rounded-lg space-y-6 border border-gray-700">
-            <h3 className="text-2xl font-bold text-white border-b border-gray-700 pb-3 mb-4">Hantera Användare</h3>
+        <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-lg space-y-6 border border-slate-200 dark:border-gray-700">
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white border-b border-slate-300 dark:border-gray-700 pb-3 mb-4">Hantera Användare</h3>
 
             {/* Admins List */}
             <div className="space-y-3">
-                <h4 className="font-semibold text-gray-300">Administratörer</h4>
+                <h4 className="font-semibold text-gray-700 dark:text-gray-300">Administratörer</h4>
                 {isLoading ? (
-                    <p className="text-gray-400">Laddar administratörer...</p>
+                    <p className="text-gray-500 dark:text-gray-400">Laddar administratörer...</p>
                 ) : admins.length > 0 ? (
                      admins.map(admin => (
-                        <div key={admin.uid} className="bg-gray-900/50 p-3 rounded-lg flex flex-wrap justify-between items-center gap-4 border border-gray-700">
+                        <div key={admin.uid} className="bg-slate-200 dark:bg-gray-900/50 p-3 rounded-lg flex flex-wrap justify-between items-center gap-4 border border-slate-300 dark:border-gray-700">
                             <div>
-                               <p className="font-semibold text-white">{admin.email}</p>
+                               <p className="font-semibold text-gray-900 dark:text-white">{admin.email}</p>
                                <p className={`text-xs px-2 py-0.5 mt-1 rounded-full inline-block ${admin.adminRole === 'superadmin' ? 'bg-purple-600 text-white' : 'bg-gray-600 text-gray-300'}`}>
                                  {admin.adminRole === 'superadmin' ? 'Superadmin' : 'Admin'}
                                </p>
                             </div>
                             <div className="flex gap-2">
-                               <button onClick={() => handleChangeAdminRole(admin.uid, admin.adminRole || 'admin')} className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-3 text-sm rounded-lg">
+                               <button onClick={() => handleChangeAdminRole(admin.uid, admin.adminRole || 'admin')} className="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-white font-semibold py-2 px-3 text-sm rounded-lg">
                                     Ändra Roll
                                </button>
                                <button onClick={() => handleRemoveUser(admin.email)} className="bg-red-600 hover:bg-red-500 text-white font-semibold py-2 px-3 text-sm rounded-lg">
@@ -819,20 +822,20 @@ const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
                         </div>
                     ))
                 ) : (
-                    <p className="text-gray-400">Inga administratörer hittades för denna organisation.</p>
+                    <p className="text-gray-500 dark:text-gray-400">Inga administratörer hittades för denna organisation.</p>
                 )}
             </div>
             
             {/* Coaches List */}
-            <div className="space-y-3 pt-4 border-t border-gray-700">
-                <h4 className="font-semibold text-gray-300">Coacher</h4>
+            <div className="space-y-3 pt-4 border-t border-slate-300 dark:border-gray-700">
+                <h4 className="font-semibold text-gray-700 dark:text-gray-300">Coacher</h4>
                 {isLoading ? (
-                    <p className="text-gray-400">Laddar coacher...</p>
+                    <p className="text-gray-500 dark:text-gray-400">Laddar coacher...</p>
                 ) : coaches.length > 0 ? (
                      coaches.map(coach => (
-                        <div key={coach.uid} className="bg-gray-900/50 p-3 rounded-lg flex flex-wrap justify-between items-center gap-4 border border-gray-700">
+                        <div key={coach.uid} className="bg-slate-200 dark:bg-gray-900/50 p-3 rounded-lg flex flex-wrap justify-between items-center gap-4 border border-slate-300 dark:border-gray-700">
                             <div>
-                               <p className="font-semibold text-white">{coach.email}</p>
+                               <p className="font-semibold text-gray-900 dark:text-white">{coach.email}</p>
                                <p className="text-xs px-2 py-0.5 mt-1 rounded-full inline-block bg-teal-600 text-white">
                                  Coach
                                </p>
@@ -845,13 +848,13 @@ const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
                         </div>
                     ))
                 ) : (
-                    <p className="text-gray-400">Inga coacher hittades för denna organisation.</p>
+                    <p className="text-gray-500 dark:text-gray-400">Inga coacher hittades för denna organisation.</p>
                 )}
             </div>
 
             {/* Invite Form */}
-            <div className="pt-6 border-t border-gray-700 space-y-3">
-                <h4 className="font-semibold text-gray-300">Bjud in ny användare</h4>
+            <div className="pt-6 border-t border-slate-300 dark:border-gray-700 space-y-3">
+                <h4 className="font-semibold text-gray-700 dark:text-gray-300">Bjud in ny användare</h4>
                  <form onSubmit={handleInviteUser} className="space-y-3">
                     <div className="flex flex-col sm:flex-row gap-4">
                         <input 
@@ -859,14 +862,14 @@ const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
                             value={newUserEmail}
                             onChange={e => setNewUserEmail(e.target.value)}
                             placeholder="E-postadress"
-                            className="w-full bg-black text-white p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"
+                            className="w-full bg-white dark:bg-black text-black dark:text-white p-3 rounded-md border border-slate-300 dark:border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"
                             required
                             disabled={isInviting}
                         />
                         <select
                             value={newUserRole}
                             onChange={e => setNewUserRole(e.target.value as 'coach' | 'admin')}
-                            className="w-full sm:w-auto bg-black text-white p-3 rounded-md border border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"
+                            className="w-full sm:w-auto bg-white dark:bg-black text-black dark:text-white p-3 rounded-md border border-slate-300 dark:border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none"
                             disabled={isInviting}
                         >
                             <option value="coach">Coach</option>
@@ -879,14 +882,14 @@ const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
                 </form>
                 
                  {(inviteSuccessMessage || inviteError) && (
-                    <div className="mt-4 p-4 rounded-lg border bg-black/50 border-gray-600">
-                        {inviteError && <p className="text-red-400 text-sm">{inviteError}</p>}
+                    <div className="mt-4 p-4 rounded-lg border bg-slate-200/50 dark:bg-black/50 border-slate-300 dark:border-gray-600">
+                        {inviteError && <p className="text-red-500 text-sm">{inviteError}</p>}
                         {inviteSuccessMessage && (
                             <div className="space-y-3">
-                                <p className="text-green-400 font-semibold">{inviteSuccessMessage}</p>
+                                <p className="text-green-600 dark:text-green-400 font-semibold">{inviteSuccessMessage}</p>
                                 {inviteLink && (
                                     <div>
-                                        <p className="text-sm text-gray-300 mb-2">
+                                        <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">
                                             VIKTIGT: Kopiera engångslänken nedan och skicka den manuellt till användaren (t.ex. via SMS eller Teams).
                                         </p>
                                         <div className="flex gap-2">
@@ -894,7 +897,7 @@ const AdminContent: React.FC<SuperAdminScreenProps> = ({ organization }) => {
                                                 type="text"
                                                 readOnly
                                                 value={inviteLink}
-                                                className="w-full p-2 bg-gray-900 text-gray-400 rounded-md border border-gray-700 font-mono text-sm"
+                                                className="w-full p-2 bg-slate-200 dark:bg-gray-900 text-gray-500 dark:text-gray-400 rounded-md border border-slate-300 dark:border-gray-700 font-mono text-sm"
                                             />
                                             <button
                                                 type="button"
@@ -981,14 +984,14 @@ const CategoryPromptManager: React.FC<CategoryPromptManagerProps> = ({ categorie
 
     return (
         <div className="space-y-4">
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
                 Dessa passkategorier visas som knappar på hemskärmen och i AI-passbyggaren. Varje kategori måste ha en AI-prompt.
             </p>
             {categories.map(cat => {
                 const isExpanded = !!expandedPrompts[cat.id];
                 const isEditing = editingState.hasOwnProperty(cat.id);
                 return (
-                    <div key={cat.id} className="bg-black/50 p-4 rounded-lg border border-gray-600">
+                    <div key={cat.id} className="bg-slate-200/50 dark:bg-black/50 p-4 rounded-lg border border-slate-300 dark:border-gray-600">
                         <div className="flex justify-between items-center gap-4">
                             <div className="flex-grow">
                                 {isEditing ? (
@@ -997,25 +1000,25 @@ const CategoryPromptManager: React.FC<CategoryPromptManagerProps> = ({ categorie
                                         value={editingState[cat.id]}
                                         onChange={(e) => handleEditingChange(cat.id, e.target.value)}
                                         placeholder="Namn på Passkategori"
-                                        className="w-full bg-gray-900 text-white p-2 rounded-md border border-gray-500 ring-2 ring-primary focus:outline-none transition font-semibold"
+                                        className="w-full bg-white dark:bg-gray-900 text-black dark:text-white p-2 rounded-md border border-slate-400 dark:border-gray-500 ring-2 ring-primary focus:outline-none transition font-semibold"
                                         disabled={isSaving}
                                         autoFocus
                                         onKeyDown={(e) => e.key === 'Enter' && handleSaveName(cat.id)}
                                     />
                                 ) : (
-                                    <p className="p-2 font-semibold text-white">{cat.name}</p>
+                                    <p className="p-2 font-semibold text-gray-900 dark:text-white">{cat.name}</p>
                                 )}
                             </div>
                             <div className="flex-shrink-0 flex items-center gap-3">
                                 {isEditing ? (
                                     <>
                                         <button onClick={() => handleSaveName(cat.id)} className="text-sm text-primary hover:text-green-400 transition-colors whitespace-nowrap font-semibold">Spara</button>
-                                        <button onClick={() => handleCancelEditing(cat.id)} className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">Avbryt</button>
+                                        <button onClick={() => handleCancelEditing(cat.id)} className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors whitespace-nowrap">Avbryt</button>
                                     </>
                                 ) : (
-                                    <button onClick={() => handleStartEditing(cat)} className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">Redigera</button>
+                                    <button onClick={() => handleStartEditing(cat)} className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors whitespace-nowrap">Redigera</button>
                                 )}
-                                <button onClick={() => togglePrompt(cat.id)} className="text-sm text-gray-400 hover:text-white transition-colors whitespace-nowrap">
+                                <button onClick={() => togglePrompt(cat.id)} className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors whitespace-nowrap">
                                     {isExpanded ? 'Dölj prompt' : 'Visa prompt'}
                                 </button>
                                 <button onClick={() => handleRemoveCategory(cat.id)} className="text-red-500 hover:text-red-400 font-semibold text-sm">
@@ -1028,7 +1031,7 @@ const CategoryPromptManager: React.FC<CategoryPromptManagerProps> = ({ categorie
                                 value={cat.prompt}
                                 onChange={(e) => handleUpdateCategory(cat.id, 'prompt', e.target.value)}
                                 placeholder="AI-instruktioner för denna passkategori..."
-                                className="w-full h-32 bg-gray-900 text-white p-2 rounded-md border border-gray-500 focus:ring-2 focus:ring-primary focus:outline-none transition text-sm mt-3 animate-fade-in"
+                                className="w-full h-32 bg-white dark:bg-gray-900 text-black dark:text-white p-2 rounded-md border border-slate-400 dark:border-gray-500 focus:ring-2 focus:ring-primary focus:outline-none transition text-sm mt-3 animate-fade-in"
                                 disabled={isSaving}
                             />
                         )}
@@ -1074,25 +1077,25 @@ const GlobalEquipmentManager: React.FC<GlobalEquipmentManagerProps> = ({ equipme
 
     return (
         <div className="space-y-4">
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
                 Detta är standardutrustningen som finns i alla era studios. Enskilda studios kan sedan anpassa denna lista.
             </p>
             {equipment.map(item => (
-                <div key={item.id} className="bg-black/50 p-4 rounded-lg border border-gray-600">
+                <div key={item.id} className="bg-slate-200/50 dark:bg-black/50 p-4 rounded-lg border border-slate-300 dark:border-gray-600">
                     <div className="flex justify-between items-center gap-4">
                         <input
                             type="text"
                             value={item.name}
                             onChange={(e) => handleUpdateEquipment(item.id, 'name', e.target.value)}
                             placeholder="Namn på redskap"
-                            className="w-full bg-gray-900 text-white p-2 rounded-md border border-gray-500 focus:ring-2 focus:ring-primary focus:outline-none transition font-semibold"
+                            className="w-full bg-white dark:bg-gray-900 text-black dark:text-white p-2 rounded-md border border-slate-400 dark:border-gray-500 focus:ring-2 focus:ring-primary focus:outline-none transition font-semibold"
                             disabled={isSaving}
                         />
                          <input
                             type="number"
                             value={item.quantity}
                             onChange={(e) => handleUpdateEquipment(item.id, 'quantity', parseInt(e.target.value, 10) || 0)}
-                            className="w-24 bg-gray-900 text-white p-2 rounded-md border border-gray-500 focus:ring-2 focus:ring-primary focus:outline-none transition text-center"
+                            className="w-24 bg-white dark:bg-gray-900 text-black dark:text-white p-2 rounded-md border border-slate-400 dark:border-gray-500 focus:ring-2 focus:ring-primary focus:outline-none transition text-center"
                             disabled={isSaving}
                             min="0"
                         />
