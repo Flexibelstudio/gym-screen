@@ -5,6 +5,100 @@ import { getAdminsForOrganization, setAdminRole, getCoachesForOrganization, invi
 
 type AdminTab = 'drift' | 'utrustning' | 'organisation' | 'admin';
 
+// --- Sub-component for uploading images ---
+const ImageUploader: React.FC<{
+  label: string;
+  imageUrl: string | null;
+  onImageChange: (url: string) => void;
+  isSaving: boolean;
+}> = ({ label, imageUrl, onImageChange, isSaving }) => {
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (file: File | null) => {
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (typeof e.target?.result === 'string') {
+          onImageChange(e.target.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleFile(e.dataTransfer.files[0]);
+      e.dataTransfer.clearData();
+    }
+  };
+
+  const handleRemoveImage = () => {
+      onImageChange('');
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="block text-sm font-medium text-gray-400">{label}</label>
+      {imageUrl ? (
+        <div className="relative group">
+          <img src={imageUrl} alt="Förhandsvisning" className="w-48 h-48 object-cover rounded-md" />
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <button
+              onClick={handleRemoveImage}
+              disabled={isSaving}
+              className="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-full shadow-lg"
+            >
+              Ta bort bild
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          className={`relative flex flex-col items-center justify-center p-4 w-48 h-48 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+            isDragging ? 'border-primary bg-primary/20' : 'border-gray-600 hover:border-primary hover:bg-gray-700/50'
+          }`}
+        >
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={(e) => handleFile(e.target.files?.[0] || null)}
+            accept="image/*"
+            className="hidden"
+            disabled={isSaving}
+          />
+          <div className="text-center text-gray-400">
+            <svg xmlns="http://www.w3.org/2000/svg" className="mx-auto h-8 w-8 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+            <p className="font-semibold mt-1 text-sm">Dra och släpp en bild</p>
+            <p className="text-xs">eller klicka för att välja fil</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 interface SuperAdminScreenProps {
     organization: Organization;
     adminRole: 'superadmin' | 'admin';
@@ -264,7 +358,8 @@ const DriftContent: React.FC<SuperAdminScreenProps & ConfigProps> = ({ organizat
                     <ToggleSwitch label="Aktivera 'Uppvärmning'" checked={config.enableWarmup} onChange={(c) => handleUpdateConfigField('enableWarmup', c)} />
                     <ToggleSwitch label="Aktivera 'Andningsguide'" checked={config.enableBreathingGuide} onChange={(c) => handleUpdateConfigField('enableBreathingGuide', c)} />
                 </div>
-                <div className="space-y-2">
+
+                <div className="space-y-2 pt-4 border-t border-gray-700">
                     <h4 className="font-semibold text-gray-300">Anpassade Passkategorier & AI-Prompts</h4>
                      <CategoryPromptManager
                         categories={config.customCategories}
