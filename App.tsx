@@ -256,6 +256,8 @@ const MainContent: React.FC = () => {
     return false;
   }, [page, history]);
 
+  const isQrCodeVisible = isStudioMode && page === Page.Home && studioConfig.checkInImageEnabled && studioConfig.checkInImageUrl;
+
 
   // Set the main page based on role when the component loads
   useEffect(() => {
@@ -1101,7 +1103,7 @@ useEffect(() => {
         role={role}
         historyLength={history.length}
       />}
-      <main className={`flex-grow flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'} ${isMusicPlayerVisible ? 'pb-24' : ''}`}>
+      <main className={`flex-grow flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'} ${isMusicPlayerVisible ? 'pb-24' : ''} ${isQrCodeVisible ? 'pb-40 md:pb-48' : ''}`}>
         {renderPage()}
       </main>
       {isBoostModalOpen && (
@@ -1158,7 +1160,7 @@ useEffect(() => {
       {isMusicPlayerVisible && player && playerState && selectedStudio && (
         <MusicPlayerBar player={player!} playerState={playerState} studioId={selectedStudio.id} />
       )}
-       {isStudioMode && page === Page.Home && studioConfig.checkInImageEnabled && studioConfig.checkInImageUrl && (
+       {isQrCodeVisible && (
           <div className="fixed bottom-4 right-4 z-10">
               <img
                 src={studioConfig.checkInImageUrl}
