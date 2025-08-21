@@ -1165,7 +1165,7 @@ useEffect(() => {
               <img
                 src={studioConfig.checkInImageUrl}
                 alt="QR-kod för incheckning"
-                className={`w-32 h-32 md:w-40 md:h-40 object-contain drop-shadow-lg ${theme === 'light' ? 'invert' : ''}`}
+                className="w-32 h-32 md:w-40 md:h-40 object-contain drop-shadow-lg"
               />
           </div>
       )}
