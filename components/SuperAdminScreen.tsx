@@ -2,6 +2,7 @@
 
 
 
+
 import React, { useState, useEffect, useRef } from 'react';
 import { StudioConfig, Studio, Organization, CustomPage, CustomCategoryWithPrompt, Page, UserData, UserRole, EquipmentItem, InfoCarousel, InfoMessage, DisplayConfig, DisplayPost } from '../types';
 import { ToggleSwitch } from './icons';
@@ -67,7 +68,7 @@ const ImageUploaderForBanner: React.FC<{
   const handleFile = async (file: File | null) => {
     if (disabled || !file || !file.type.startsWith('image/')) return;
     try {
-        const resizedImage = await resizeImage(file, 1920, 1080, 0.8);
+        const resizedImage = await resizeImage(file, 1280, 1280, 0.75);
         onImageChange(resizedImage);
     } catch (error) {
         console.error("Image resizing failed:", error);
