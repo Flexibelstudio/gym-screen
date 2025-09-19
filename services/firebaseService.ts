@@ -1,0 +1,512 @@
+// FIX: Switched to full compat API to resolve module errors.
+import firebase from 'firebase/compat/app';
+import 'firebase/compat/auth';
+import 'firebase/compat/firestore';
+import 'firebase/compat/functions'; // Use compat for functions
+import { firebaseConfig } from './firebaseConfig';
+
+import { Studio, StudioConfig, Organization, CustomPage, UserData, Workout, InfoCarousel, DisplayWindow } from '../types';
+import { MOCK_ORGANIZATIONS, MOCK_SYSTEM_OWNER, MOCK_ORG_ADMIN } from '../data/mockData';
+
+// Determine if running in offline/dev mode.
+// Netlify and other production environments typically set NODE_ENV to 'production'.
+// Any other value (like 'development' or undefined) results in offline mode.
+export const isOffline = process.env.NODE_ENV !== 'production';
+
+
+let app: firebase.app.App | null = null;
+let auth: firebase.auth.Auth | null = null;
+let db: firebase.firestore.Firestore | null = null;
+
+if (isOffline) {
+    console.warn("RUNNING IN OFFLINE (DEVELOPMENT) MODE. No data will be sent to Firebase.");
+} else {
+    try {
+        // Check if Firebase is already initialized to prevent errors.
+        if (!firebase.apps.length) {
+            app = firebase.initializeApp(firebaseConfig);
+        } else {
+            app = firebase.app(); // Use existing app
+        }
+        
+        auth = firebase.auth();
+        db = firebase.firestore();
+        
+        // FIX: Removed modular app initialization as we are using the compat API.
+        
+        console.log("Firebase initialized successfully. Running in ONLINE (PRODUCTION) mode.");
+    } catch (error) {
+        console.error("CRITICAL: Firebase initialization failed in production mode. The app will not function correctly.", error);
+    }
+}
+
+
+// --- Auth Functions ---
+export const onAuthChange = (callback: (user: firebase.User | null) => void) => {
+    if (isOffline || !auth) {
+        // In offline mode, we simulate an authenticated system owner for testing.
+        callback({ uid: 'offline_owner_uid', isAnonymous: false } as firebase.User);
+        return () => {}; // Return an empty unsubscribe function
+    }
+    return auth.onAuthStateChanged(callback);
+};
+
+export const signIn = (email: string, password: string): Promise<firebase.User> => {
+    if (isOffline || !auth) {
+        if(email === MOCK_SYSTEM_OWNER.email) {
+            return Promise.resolve({ uid: MOCK_SYSTEM_OWNER.uid, isAnonymous: false } as firebase.User);
+        }
+        return Promise.reject(new Error("Offline mode: Cannot sign in."));
+    }
+    return auth.signInWithEmailAndPassword(email, password).then(userCredential => userCredential.user as firebase.User);
+};
+
+export const signInAsStudio = (): Promise<firebase.User> => {
+    if (isOffline || !auth) {
+         return Promise.resolve({ uid: 'offline_studio_uid', isAnonymous: true } as firebase.User);
+    }
+    return auth.signInAnonymously().then(userCredential => userCredential.user as firebase.User);
+};
+
+export const signOut = (): Promise<void> => {
+     if (isOffline || !auth) {
+        return Promise.resolve();
+    }
+    return auth.signOut();
+};
+
+export const getUserData = async (uid: string): Promise<UserData | null> => {
+    if (isOffline || !db) {
+        if (uid === 'offline_owner_uid') {
+             return Promise.resolve(MOCK_SYSTEM_OWNER);
+        }
+        if (uid === 'offline_admin_uid') {
+            return Promise.resolve(MOCK_ORG_ADMIN);
+        }
+        return Promise.resolve(null);
+    }
+    const userDocRef = db.collection('users').doc(uid);
+    const docSnap = await userDocRef.get();
+    if (docSnap.exists) {
+        return { uid, ...docSnap.data() } as UserData;
+    }
+    return null;
+};
+
+// --- Spotify Auth Stubs ---
+// FIX: Add stub functions for Spotify integration to resolve compilation errors.
+// These functions provide a basic localStorage-based token management to allow the Spotify player to initialize.
+export const clearSpotifyAuthData = (studioId: string): void => {
+    console.warn(`Spotify feature not fully implemented. clearSpotifyAuthData called for ${studioId}.`);
+    localStorage.removeItem(`spotify_token_${studioId}`);
+    localStorage.removeItem(`spotify_expiry_${studioId}`);
+};
+
+export const getSpotifyAccessToken = async (studioId: string): Promise<string | null> => {
+    console.warn(`Spotify feature not fully implemented. getSpotifyAccessToken called for ${studioId}.`);
+    const token = localStorage.getItem(`spotify_token_${studioId}`);
+    const expiry = localStorage.getItem(`spotify_expiry_${studioId}`);
+    
+    if (token && expiry && new Date().getTime() < Number(expiry)) {
+        return token;
+    }
+    
+    // In a real app, this would trigger a refresh token flow.
+    // For this stub, we'll just clear the expired data.
+    clearSpotifyAuthData(studioId);
+    return null;
+};
+
+export const saveSpotifyAuthData = (studioId: string, accessToken: string, expiresIn: number): void => {
+    console.warn(`Spotify feature not fully implemented. saveSpotifyAuthData called for ${studioId}.`);
+    // This would save the token and expiry time.
+    const expiryTime = new Date().getTime() + expiresIn * 1000;
+    localStorage.setItem(`spotify_token_${studioId}`, accessToken);
+    localStorage.setItem(`spotify_expiry_${studioId}`, expiryTime.toString());
+};
+
+export const getSpotifyAuthUrl = async (studioId: string): Promise<string> => {
+    console.warn(`Spotify feature not fully implemented. getSpotifyAuthUrl called for ${studioId}.`);
+    // This function is not used by the current implementation of useSpotifyPlayer but is added to satisfy imports.
+    // The hook itself uses an implicit grant flow for development purposes.
+    return ``;
+};
+// --- End Spotify Auth Stubs ---
+
+
+// --- Firestore Data Functions ---
+const offlineWarning = (operation: string) => {
+    console.warn(`OFFLINE MODE: Operation "${operation}" was not sent to the server.`);
+    return Promise.resolve();
+}
+
+export const getOrganizations = async (): Promise<Organization[]> => {
+    if (isOffline || !db) {
+        return Promise.resolve(MOCK_ORGANIZATIONS);
+    }
+    const querySnapshot = await db.collection('organizations').get();
+    if (querySnapshot.empty) {
+      console.log("No organizations found in Firestore.");
+      return [];
+    }
+    return querySnapshot.docs.map(d => d.data() as Organization);
+};
+
+// NEW: Real-time listener for a single organization.
+export const listenToOrganizationChanges = (
+    organizationId: string,
+    onUpdate: (org: Organization) => void,
+): (() => void) => {
+    if (isOffline || !db) {
+        // In offline mode, there are no real-time updates.
+        return () => {}; // Return an empty unsubscribe function.
+    }
+    const docRef = db.collection('organizations').doc(organizationId);
+    const unsubscribe = docRef.onSnapshot(
+        (docSnap) => {
+            if (docSnap.exists) {
+                onUpdate(docSnap.data() as Organization);
+            } else {
+                console.warn(`Organization document with ID ${organizationId} does not exist.`);
+            }
+        },
+        (error) => {
+            console.error(`Error listening to organization ${organizationId}:`, error);
+        }
+    );
+    return unsubscribe;
+};
+
+
+const getUpdatedOrg = async (organizationId: string): Promise<Organization> => {
+    if(isOffline || !db) return Promise.resolve(MOCK_ORGANIZATIONS.find(o => o.id === organizationId)!);
+    const updatedDoc = await db.collection('organizations').doc(organizationId).get();
+    if (!updatedDoc.exists) throw new Error("Organisationen försvann.");
+    return updatedDoc.data() as Organization;
+};
+
+export const createOrganization = async (name: string, subdomain: string): Promise<Organization> => {
+    if(isOffline || !db) {
+        await offlineWarning('createOrganization');
+        const newOrg: Organization = { id: `offline_org_${Date.now()}`, name, subdomain, studios: [], passwords: { coach: '1234'}, globalConfig: MOCK_ORGANIZATIONS[0].globalConfig };
+        MOCK_ORGANIZATIONS.push(newOrg);
+        return newOrg;
+    }
+    const q = db.collection('organizations').where("subdomain", "==", subdomain.toLowerCase());
+    if (!(await q.get()).empty) throw new Error(`Subdomänen '${subdomain}' är redan upptagen.`);
+    
+    const newOrgId = `org_${subdomain.replace(/[^a-z0-9]/gi, '').toLowerCase()}_${Date.now()}`;
+    const newOrg: Organization = { 
+        id: newOrgId, 
+        name, 
+        subdomain, 
+        passwords: { coach: '1234' }, 
+        globalConfig: {
+            enableBoost: true,
+            enableBreathingGuide: true,
+            enableWarmup: true,
+            customCategories: [{ id: 'default_cat_1', name: 'Styrka & Flås', prompt: 'Skapa ett styrka och flås-pass.' }]
+        }, 
+        studios: [], 
+        customPages: [] 
+    };
+    await db.collection('organizations').doc(newOrg.id).set(newOrg);
+    return newOrg;
+};
+
+export const updateOrganization = async (organizationId: string, name: string, subdomain: string): Promise<Organization> => {
+    if(isOffline || !db) {
+        await offlineWarning('updateOrganization');
+        return getUpdatedOrg(organizationId);
+    }
+    await db.collection('organizations').doc(organizationId).update({ name, subdomain });
+    return getUpdatedOrg(organizationId);
+};
+
+export const deleteOrganization = async (organizationId: string): Promise<void> => {
+    if (isOffline || !db) {
+        await offlineWarning('deleteOrganization');
+        const index = MOCK_ORGANIZATIONS.findIndex(o => o.id === organizationId);
+        if (index > -1) {
+            MOCK_ORGANIZATIONS.splice(index, 1);
+        }
+        return;
+    }
+    await db.collection('organizations').doc(organizationId).delete();
+};
+
+export const updateOrganizationPasswords = async (organizationId: string, passwords: Organization['passwords']): Promise<Organization> => {
+    if(isOffline || !db) {
+         await offlineWarning('updateOrganizationPasswords');
+        return getUpdatedOrg(organizationId);
+    }
+    await db.collection('organizations').doc(organizationId).update({ passwords });
+    return getUpdatedOrg(organizationId);
+};
+
+export const updateOrganizationLogos = async (organizationId: string, logos: { light?: string, dark?: string }): Promise<Organization> => {
+    if(isOffline || !db) {
+        await offlineWarning('updateOrganizationLogos');
+        const org = MOCK_ORGANIZATIONS.find(o => o.id === organizationId);
+        if (org) {
+            org.logoUrlLight = logos.light;
+            org.logoUrlDark = logos.dark;
+        }
+        return getUpdatedOrg(organizationId);
+    }
+    await db.collection('organizations').doc(organizationId).update({ 
+        logoUrlLight: logos.light,
+        logoUrlDark: logos.dark
+    });
+    return getUpdatedOrg(organizationId);
+};
+
+export const updateOrganizationPrimaryColor = async (organizationId: string, primaryColor: string): Promise<Organization> => {
+    if(isOffline || !db) {
+        await offlineWarning('updateOrganizationPrimaryColor');
+        return getUpdatedOrg(organizationId);
+    }
+    await db.collection('organizations').doc(organizationId).update({ primaryColor });
+    return getUpdatedOrg(organizationId);
+};
+
+export const updateOrganizationCustomPages = async (organizationId: string, customPages: CustomPage[]): Promise<Organization> => {
+    if(isOffline || !db) {
+        await offlineWarning('updateOrganizationCustomPages');
+        return getUpdatedOrg(organizationId);
+    }
+    await db.collection('organizations').doc(organizationId).update({ customPages });
+    return getUpdatedOrg(organizationId);
+};
+
+export const updateOrganizationInfoCarousel = async (organizationId: string, infoCarousel: InfoCarousel): Promise<Organization> => {
+    if(isOffline || !db) {
+        await offlineWarning('updateOrganizationInfoCarousel');
+        const org = MOCK_ORGANIZATIONS.find(o => o.id === organizationId);
+        if (org) {
+            org.infoCarousel = infoCarousel;
+        }
+        return getUpdatedOrg(organizationId);
+    }
+
+    // Sanitize data before sending to Firestore to prevent "invalid nested entity" errors
+    // by ensuring optional fields are not `undefined`.
+    const cleanedCarousel = {
+      ...infoCarousel,
+      messages: (infoCarousel.messages || []).map(msg => ({
+        ...msg,
+        imageUrl: msg.imageUrl || '',
+        startDate: msg.startDate || '',
+        endDate: msg.endDate || '',
+      })),
+    };
+
+    await db.collection('organizations').doc(organizationId).update({ infoCarousel: cleanedCarousel });
+    return getUpdatedOrg(organizationId);
+};
+
+export const updateOrganizationDisplayWindows = async (organizationId: string, displayWindows: DisplayWindow[]): Promise<Organization> => {
+    if(isOffline || !db) {
+        await offlineWarning('updateOrganizationDisplayWindows');
+        const org = MOCK_ORGANIZATIONS.find(o => o.id === organizationId);
+        if (org) {
+            org.displayWindows = displayWindows;
+        }
+        return getUpdatedOrg(organizationId);
+    }
+    await db.collection('organizations').doc(organizationId).update({ displayWindows });
+    return getUpdatedOrg(organizationId);
+};
+
+export const updateGlobalConfig = async (organizationId: string, newConfig: StudioConfig): Promise<void> => {
+    if(isOffline || !db) {
+        await offlineWarning('updateGlobalConfig');
+        const org = MOCK_ORGANIZATIONS.find(o => o.id === organizationId);
+        if (org) {
+            org.globalConfig = newConfig;
+        }
+        return;
+    }
+    await db.collection('organizations').doc(organizationId).update({ globalConfig: newConfig });
+};
+
+export const updateStudioConfig = async (organizationId: string, studioId: string, newConfigOverrides: Partial<StudioConfig>): Promise<Studio> => {
+    if(isOffline || !db) {
+        await offlineWarning('updateStudioConfig');
+        const org = MOCK_ORGANIZATIONS.find(o => o.id === organizationId);
+        const studio = org?.studios.find(s => s.id === studioId);
+        if(!studio) throw new Error("Offline studio not found");
+        studio.configOverrides = newConfigOverrides;
+        return studio;
+    }
+    const orgDoc = await db.collection('organizations').doc(organizationId).get();
+    if (!orgDoc.exists) throw new Error("Organisationen hittades inte.");
+    const org = orgDoc.data() as Organization;
+
+    let updatedStudio: Studio | null = null;
+    const newStudios = org.studios.map(s => {
+        if (s.id === studioId) {
+            updatedStudio = { ...s, configOverrides: newConfigOverrides };
+            return updatedStudio;
+        }
+        return s;
+    });
+
+    if (!updatedStudio) throw new Error("Studion hittades inte.");
+
+    await db.collection('organizations').doc(organizationId).update({ studios: newStudios });
+    return updatedStudio;
+};
+
+
+export const createStudio = async (organizationId: string, name: string): Promise<Studio> => {
+    if(isOffline || !db) {
+        await offlineWarning('createStudio');
+        const newStudio: Studio = { id: `offline_studio_${Date.now()}`, name, configOverrides: {} };
+        const org = MOCK_ORGANIZATIONS.find(o => o.id === organizationId);
+        if (org) org.studios.push(newStudio);
+        return newStudio;
+    }
+    const orgDoc = await db.collection('organizations').doc(organizationId).get();
+    if (!orgDoc.exists) throw new Error("Organisationen hittades inte.");
+    const org = orgDoc.data() as Organization;
+    const newStudio: Studio = { id: `studio_${Date.now()}`, name, configOverrides: {} };
+    const newStudios = [...org.studios, newStudio];
+    await db.collection('organizations').doc(organizationId).update({ studios: newStudios });
+    return newStudio;
+};
+
+export const updateStudio = async (organizationId: string, studioId: string, name: string): Promise<Studio> => {
+    if(isOffline || !db) {
+        await offlineWarning('updateStudio');
+        const org = MOCK_ORGANIZATIONS.find(o => o.id === organizationId);
+        const studio = org?.studios.find(s => s.id === studioId);
+        if(!studio) throw new Error("Offline studio not found");
+        studio.name = name;
+        return studio;
+    }
+    const orgDoc = await db.collection('organizations').doc(organizationId).get();
+    if (!orgDoc.exists) throw new Error("Organisationen hittades inte.");
+    const org = orgDoc.data() as Organization;
+
+    let updatedStudio: Studio | null = null;
+    const newStudios = org.studios.map(s => {
+        if (s.id === studioId) {
+            updatedStudio = { ...s, name };
+            return updatedStudio;
+        }
+        return s;
+    });
+
+    if (!updatedStudio) throw new Error("Studion hittades inte.");
+
+    await db.collection('organizations').doc(organizationId).update({ studios: newStudios });
+    return updatedStudio;
+};
+
+export const deleteStudio = async (organizationId: string, studioId: string): Promise<void> => {
+    if(isOffline || !db) {
+        await offlineWarning('deleteStudio');
+        const org = MOCK_ORGANIZATIONS.find(o => o.id === organizationId);
+        if (org) {
+            org.studios = org.studios.filter(s => s.id !== studioId);
+        }
+        return;
+    }
+    const orgDoc = await db.collection('organizations').doc(organizationId).get();
+    if (!orgDoc.exists) throw new Error("Organisationen hittades inte.");
+    const org = orgDoc.data() as Organization;
+    
+    const newStudios = org.studios.filter(s => s.id !== studioId);
+    
+    await db.collection('organizations').doc(organizationId).update({ studios: newStudios });
+};
+
+
+export const getAdminsForOrganization = async (organizationId: string): Promise<UserData[]> => {
+    if (isOffline || !db) {
+        // Return mock admins for offline mode
+        return Promise.resolve([
+             MOCK_ORG_ADMIN, // This is a superadmin
+             { uid: 'offline_admin_2', email: 'admin@flexibel.app', role: 'organizationadmin', adminRole: 'admin', organizationId: 'org_flexibel_mock' }
+        ]);
+    }
+    const usersRef = db.collection('users');
+    const q = usersRef.where("organizationId", "==", organizationId).where("role", "==", "organizationadmin");
+    
+    const querySnapshot = await q.get();
+    if (querySnapshot.empty) {
+      return [];
+    }
+    return querySnapshot.docs.map(d => ({ uid: d.id, ...d.data() }) as UserData);
+};
+
+export const getCoachesForOrganization = async (organizationId: string): Promise<UserData[]> => {
+    if (isOffline || !db) {
+        // Add a mock coach for offline mode
+        return Promise.resolve([
+             { uid: 'offline_coach_1', email: 'coach@flexibel.app', role: 'coach', organizationId: 'org_flexibel_mock' }
+        ]);
+    }
+    const usersRef = db.collection('users');
+    const q = usersRef.where("organizationId", "==", organizationId).where("role", "==", "coach");
+    
+    const querySnapshot = await q.get();
+    if (querySnapshot.empty) {
+      return [];
+    }
+    return querySnapshot.docs.map(d => ({ uid: d.id, ...d.data() }) as UserData);
+};
+
+
+export const setAdminRole = async (uid: string, adminRole: 'superadmin' | 'admin'): Promise<void> => {
+    if (isOffline || !db) {
+        return offlineWarning('setAdminRole');
+    }
+    await db.collection('users').doc(uid).update({ adminRole });
+};
+
+// --- WORKOUTS ---
+
+export const getWorkoutsForOrganization = async (organizationId: string): Promise<Workout[]> => {
+    if (isOffline || !db) {
+        if (!(window as any).mockWorkouts) (window as any).mockWorkouts = [];
+        return Promise.resolve(
+            ((window as any).mockWorkouts as Workout[])
+            .filter(w => w.organizationId === organizationId)
+            .sort((a, b) => (a.title > b.title ? 1 : -1))
+        );
+    }
+    const workoutsCol = db.collection('workouts');
+    const q = workoutsCol.where("organizationId", "==", organizationId);
+    const querySnapshot = await q.get();
+    return querySnapshot.docs.map(doc => doc.data() as Workout).sort((a, b) => (a.title > b.title ? 1 : -1));
+};
+
+export const saveWorkout = async (workout: Workout): Promise<void> => {
+    if (isOffline || !db) {
+        if (!(window as any).mockWorkouts) (window as any).mockWorkouts = [];
+        const workouts: Workout[] = (window as any).mockWorkouts;
+        const existingIndex = workouts.findIndex((w: Workout) => w.id === workout.id);
+        if (existingIndex > -1) {
+            workouts[existingIndex] = workout;
+        } else {
+            workouts.unshift(workout);
+        }
+        (window as any).mockWorkouts = workouts;
+        return offlineWarning('saveWorkout');
+    }
+    const workoutDocRef = db.collection('workouts').doc(workout.id);
+    await workoutDocRef.set(workout, { merge: true });
+};
+
+export const deleteWorkout = async (workoutId: string): Promise<void> => {
+    if (isOffline || !db) {
+        if ((window as any).mockWorkouts) {
+            (window as any).mockWorkouts = ((window as any).mockWorkouts as Workout[]).filter((w: Workout) => w.id !== workoutId);
+        }
+        return offlineWarning('deleteWorkout');
+    }
+    const workoutDocRef = db.collection('workouts').doc(workoutId);
+    await workoutDocRef.delete();
+};
