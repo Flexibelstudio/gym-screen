@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { WorkoutBlock, TimerMode, TimerSettings } from '../types';
 import { ValueAdjuster } from './icons';
 
@@ -158,10 +159,19 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
     }
   }
 
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-start justify-center z-50 p-4 pt-16 overflow-y-auto" onClick={onClose}>
-      <div className="bg-gray-100 dark:bg-gray-800 rounded-xl p-6 sm:p-8 w-full max-w-lg text-gray-900 dark:text-white shadow-2xl border border-gray-200 dark:border-gray-700 mb-16" onClick={e => e.stopPropagation()}>
-        <h2 className="text-2xl font-bold mb-1">Anpassa tider för</h2>
+  return createPortal(
+    <div 
+        className="fixed inset-0 grid place-items-center bg-black/60 z-[1000] p-4" 
+        onClick={onClose}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="timer-setup-title"
+    >
+      <div 
+        className="bg-gray-100 dark:bg-gray-800 rounded-xl p-6 sm:p-8 w-full max-w-lg text-gray-900 dark:text-white shadow-2xl border border-gray-200 dark:border-gray-700 max-h-[calc(100dvh-2rem)] overflow-y-auto z-[1001]" 
+        onClick={e => e.stopPropagation()}
+      >
+        <h2 id="timer-setup-title" className="text-2xl font-bold mb-1">Anpassa tider för</h2>
         <h3 className="text-lg text-primary mb-6 font-semibold">{`"${block.title}"`}</h3>
         
         <div className="mb-6">
@@ -188,6 +198,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
           <button onClick={onClose} className="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 rounded-lg transition-colors">Avbryt</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
