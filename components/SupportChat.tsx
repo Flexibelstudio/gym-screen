@@ -5,6 +5,69 @@ import { QuestionMarkCircleIcon, PaperAirplaneIcon, CloseIcon } from './icons';
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+/**
+ * A component that safely renders a string as basic Markdown HTML.
+ * It supports bold text (**text**) and unordered lists (* item).
+ */
+const ChatMessageContent: React.FC<{ content: string }> = ({ content }) => {
+    const renderMarkdown = () => {
+        if (!content) return { __html: '' };
+
+        // 1. Escape basic HTML to prevent injection from the model.
+        let safeContent = content
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+        // 2. Process Markdown line by line for better structure.
+        const lines = safeContent.split('\n');
+        const htmlElements: string[] = [];
+        let inList = false;
+
+        const closeListIfNeeded = () => {
+            if (inList) {
+                htmlElements.push('</ul>');
+                inList = false;
+            }
+        };
+
+        for (const line of lines) {
+            // Apply inline formats like bold
+            let processedLine = line
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/_(.*?)_/g, '<em>$1</em>');
+
+            if (processedLine.trim().startsWith('* ')) {
+                if (!inList) {
+                    // Start a new list
+                    htmlElements.push('<ul class="list-disc list-inside space-y-1 pl-4">');
+                    inList = true;
+                }
+                // Add the list item, removing the leading '* '
+                htmlElements.push(`<li>${processedLine.trim().substring(2)}</li>`);
+            } else {
+                closeListIfNeeded();
+                if (processedLine.trim() !== '') {
+                    // Wrap non-list lines that have content in <p> tags
+                    htmlElements.push(`<p>${processedLine}</p>`);
+                }
+            }
+        }
+        
+        closeListIfNeeded(); // Ensure any open list is closed at the end.
+
+        return { __html: htmlElements.join('') };
+    };
+
+    return (
+        <div 
+            // Using Tailwind's typography plugin for clean default styling of rendered HTML.
+            className="text-base prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1" 
+            dangerouslySetInnerHTML={renderMarkdown()} 
+        />
+    );
+};
+
+
 export function SupportChat(): React.ReactElement {
     const [isOpen, setIsOpen] = useState(false);
     const [chat, setChat] = useState<Chat | null>(null);
@@ -19,13 +82,13 @@ export function SupportChat(): React.ReactElement {
             const newChat = ai.chats.create({
                 model: 'gemini-2.5-flash',
                 config: {
-                    systemInstruction: "Du är Smart Support, en hjälpsam och vänlig AI-assistent för appen Smart Skärm. Ditt mål är att svara på användarnas frågor om appens funktioner, hur man skapar pass, använder timern, etc., på ett enkelt och tydligt sätt.",
+                    systemInstruction: "Du är Smart Support, en hjälpsam och vänlig AI-assistent för systemet Smart Skärm. Ditt mål är att svara på användarnas frågor om systemets funktioner, hur man skapar pass, använder timern, etc., på ett enkelt och tydligt sätt.",
                 },
             });
             setChat(newChat);
             setMessages([{
                 role: 'model',
-                text: 'Hej! Jag är Smart Support, din AI-assistent. Hur kan jag hjälpa dig med appen idag?'
+                text: 'Hej! Jag är Smart Support, din AI-assistent. Hur kan jag hjälpa dig med systemet idag?'
             }]);
         }
     }, [isOpen, chat]);
@@ -106,7 +169,7 @@ export function SupportChat(): React.ReactElement {
                                         <div className="w-8 h-8 rounded-full bg-teal-500 flex-shrink-0 flex items-center justify-center font-bold text-white text-sm">AI</div>
                                     )}
                                     <div className={`max-w-[80%] p-3 rounded-2xl ${msg.role === 'user' ? 'bg-gray-600 text-white rounded-br-none' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-bl-none'}`}>
-                                        <p className="text-base whitespace-pre-wrap">{msg.text}</p>
+                                        <ChatMessageContent content={msg.text} />
                                     </div>
                                 </div>
                             ))}
