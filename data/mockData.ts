@@ -1,4 +1,4 @@
-import { Organization, UserData, CustomCategoryWithPrompt, CustomPage, BankExercise, SuggestedExercise, WorkoutResult } from '../types';
+import { Organization, UserData, CustomCategoryWithPrompt, CustomPage, BankExercise, SuggestedExercise, WorkoutResult, SmartScreenPricing } from '../types';
 
 export const MOCK_SYSTEM_OWNER: UserData = {
     uid: 'offline_owner_uid',
@@ -17,6 +17,11 @@ export const MOCK_ORG_ADMIN: UserData = {
 // FIX: Add mock data array for suggested exercises.
 export const MOCK_SUGGESTED_EXERCISES: SuggestedExercise[] = [];
 export const MOCK_WORKOUT_RESULTS: WorkoutResult[] = [];
+
+export const MOCK_SMART_SCREEN_PRICING: SmartScreenPricing = {
+    firstScreenPrice: 249,
+    additionalScreenPrice: 199,
+};
 
 const placeholderImageUrl = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxZW0iIGhlaWdodD0iMWVtIiB2aWV3Qm94PSIwIDAgMjQgMjQiPjxwYXRoIGZpbGw9ImN1cnJlbnRDb2xvciIgZD0iTTEyIDEwYTQgNCAwIDAgMS00LTRhNCA0IDAgMCAxIDQtNGMyLjA1IDAgMy44MyAxLjI1IDQuNTkgMy4wNUwxOC40IDhsMy43Ni0xLjI1bC0xLjI1IDMuNzVMMTkgOS4xN0ExIDUgMCAwIDAtMTIgMTBtMi00YTEgMSAwIDEgMC0yIDBhMSAxIDAgMCAwIDIgMFptLTQgN2MtMS45IDAtMy42Mi43NS00LjkyIDJINWEyIDIgMCAwIDAtMiAydjJoM2EzLjg5IDMuODkgMCAwIDEgMS44MS0yLjY3YTYgNiAwIDAgMCA4LjM4IDBsMS44MSA0LjY3SDIxdjZIM3YtMmgxMHYtMmMwLTIuNDYtMS42MS00LjU2LTQtNS42OFYxM0g3djJzMiAwIDIgMmMwIDIuMjEtMS43OSAxLjUtNCA0LjVWMjJoNHYtMmgxMHYySDIydi04YzAtMy4zMS0yLjY5LTUtNS01eiIvPjwvc3ZnPg==';
 

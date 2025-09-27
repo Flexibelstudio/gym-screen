@@ -5,8 +5,8 @@ import 'firebase/compat/storage';
 import 'firebase/compat/functions'; // Use compat for functions
 import { firebaseConfig } from './firebaseConfig';
 
-import { Studio, StudioConfig, Organization, CustomPage, UserData, Workout, InfoCarousel, DisplayWindow, BankExercise, SuggestedExercise, Exercise, WorkoutResult, WorkoutBlock, CompanyDetails } from '../types';
-import { MOCK_ORGANIZATIONS, MOCK_SYSTEM_OWNER, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_SUGGESTED_EXERCISES, MOCK_WORKOUT_RESULTS } from '../data/mockData';
+import { Studio, StudioConfig, Organization, CustomPage, UserData, Workout, InfoCarousel, DisplayWindow, BankExercise, SuggestedExercise, Exercise, WorkoutResult, WorkoutBlock, CompanyDetails, SmartScreenPricing } from '../types';
+import { MOCK_ORGANIZATIONS, MOCK_SYSTEM_OWNER, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_SUGGESTED_EXERCISES, MOCK_WORKOUT_RESULTS, MOCK_SMART_SCREEN_PRICING } from '../data/mockData';
 
 export const isOffline = process.env.NODE_ENV !== 'production';
 
@@ -820,6 +820,33 @@ export const updateUserTermsAccepted = async (uid: string): Promise<void> => {
         return Promise.resolve();
     }
     await db.collection('users').doc(uid).update({ termsAcceptedAt: Date.now() });
+};
+
+export const getSmartScreenPricing = async (): Promise<SmartScreenPricing> => {
+    if (isOffline || !db) {
+        if (!(window as any).mockSmartScreenPricing) {
+            (window as any).mockSmartScreenPricing = MOCK_SMART_SCREEN_PRICING;
+        }
+        return Promise.resolve((window as any).mockSmartScreenPricing);
+    }
+    const docRef = db.collection('system').doc('pricing');
+    const docSnap = await docRef.get();
+    if (docSnap.exists) {
+        return docSnap.data() as SmartScreenPricing;
+    }
+    // Return a default if it doesn't exist
+    return { firstScreenPrice: 249, additionalScreenPrice: 199 };
+};
+
+export const updateSmartScreenPricing = async (pricing: SmartScreenPricing): Promise<void> => {
+    if (isOffline || !db) {
+         if ((window as any).mockSmartScreenPricing) {
+            (window as any).mockSmartScreenPricing = pricing;
+        }
+        return offlineWarning('updateSmartScreenPricing');
+    }
+    const docRef = db.collection('system').doc('pricing');
+    await docRef.set(pricing, { merge: true });
 };
 
 // FIX: Removed the redeclared export of getExerciseBank.

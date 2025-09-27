@@ -1,5 +1,6 @@
 
 
+
 export type UserRole = 'member' | 'coach' | 'organizationadmin' | 'systemowner';
 
 export interface UserData {
@@ -79,6 +80,11 @@ export interface CompanyDetails {
     emailContact?: string; // Kontaktperson e-post
     phone?: string; // Kontaktperson telefon
   };
+}
+
+export interface SmartScreenPricing {
+  firstScreenPrice: number;
+  additionalScreenPrice: number;
 }
 
 export interface Organization {

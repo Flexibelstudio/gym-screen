@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { Organization } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Organization, SmartScreenPricing } from '../types';
 import { OvningsbankContent } from './OvningsbankContent';
 import { ExerciseSuggestionReview } from './ExerciseSuggestionReview';
+import { getSmartScreenPricing, updateSmartScreenPricing } from '../services/firebaseService';
+import { PencilIcon } from './icons';
 
 interface SystemOwnerScreenProps {
     allOrganizations: Organization[];
@@ -9,6 +11,119 @@ interface SystemOwnerScreenProps {
     onCreateOrganization: (name: string, subdomain: string) => Promise<void>;
     onDeleteOrganization: (organizationId: string) => void;
 }
+
+const SmartScreenPricingCard: React.FC = () => {
+    const [pricing, setPricing] = useState<SmartScreenPricing | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isEditing, setIsEditing] = useState(false);
+    const [editValues, setEditValues] = useState({ first: '0', additional: '0' });
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        const fetchPricing = async () => {
+            setIsLoading(true);
+            try {
+                const data = await getSmartScreenPricing();
+                setPricing(data);
+                setEditValues({
+                    first: String(data.firstScreenPrice),
+                    additional: String(data.additionalScreenPrice),
+                });
+            } catch (error) {
+                console.error("Failed to fetch pricing", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchPricing();
+    }, []);
+
+    const handleSave = async () => {
+        if (!pricing) return;
+        setIsSaving(true);
+        try {
+            const newPricing: SmartScreenPricing = {
+                firstScreenPrice: Number(editValues.first),
+                additionalScreenPrice: Number(editValues.additional),
+            };
+            await updateSmartScreenPricing(newPricing);
+            setPricing(newPricing);
+            setIsEditing(false);
+        } catch (error) {
+            console.error("Failed to save pricing", error);
+            alert("Kunde inte spara prissättningen.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+    
+    const handleCancel = () => {
+        if (pricing) {
+            setEditValues({
+                first: String(pricing.firstScreenPrice),
+                additional: String(pricing.additionalScreenPrice),
+            });
+        }
+        setIsEditing(false);
+    };
+
+    if (isLoading) {
+        return <div className="bg-slate-200 dark:bg-gray-900/50 p-6 rounded-lg border border-slate-300 dark:border-gray-700 animate-pulse h-28"></div>
+    }
+
+    if (!pricing) {
+        return <div className="bg-slate-200 dark:bg-gray-900/50 p-6 rounded-lg border border-slate-300 dark:border-gray-700">Kunde inte ladda prissättning.</div>
+    }
+
+    return (
+        <div className="bg-slate-200 dark:bg-gray-900/50 p-6 rounded-lg border border-slate-300 dark:border-gray-700">
+            {!isEditing ? (
+                <div className="flex justify-between items-start">
+                    <div>
+                        <h4 className="text-xl font-bold text-gray-900 dark:text-white">Prissättning SmartSkärm</h4>
+                        <div className="mt-2 text-gray-700 dark:text-gray-300 space-x-6">
+                            <span><span className="font-semibold">Första:</span> {pricing.firstScreenPrice} kr/mån</span>
+                            <span><span className="font-semibold">Ytterligare:</span> {pricing.additionalScreenPrice} kr/mån</span>
+                        </div>
+                    </div>
+                    <button onClick={() => setIsEditing(true)} className="text-gray-500 hover:text-primary transition-colors">
+                        <PencilIcon className="w-6 h-6" />
+                    </button>
+                </div>
+            ) : (
+                <div className="animate-fade-in">
+                    <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Redigera Prissättning SmartSkärm</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Första skärm (kr/mån)</label>
+                            <input
+                                type="number"
+                                value={editValues.first}
+                                onChange={(e) => setEditValues(prev => ({ ...prev, first: e.target.value }))}
+                                className="w-full bg-white dark:bg-black text-black dark:text-white p-2 rounded-md border border-slate-300 dark:border-gray-600 focus:ring-1 focus:ring-primary"
+                                disabled={isSaving}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Ytterligare skärm (kr/mån)</label>
+                            <input
+                                type="number"
+                                value={editValues.additional}
+                                onChange={(e) => setEditValues(prev => ({ ...prev, additional: e.target.value }))}
+                                className="w-full bg-white dark:bg-black text-black dark:text-white p-2 rounded-md border border-slate-300 dark:border-gray-600 focus:ring-1 focus:ring-primary"
+                                disabled={isSaving}
+                            />
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-4">
+                        <button onClick={handleCancel} disabled={isSaving} className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg">Avbryt</button>
+                        <button onClick={handleSave} disabled={isSaving} className="bg-primary hover:brightness-95 text-white font-semibold py-2 px-4 rounded-lg">{isSaving ? 'Sparar...' : 'Spara'}</button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
 
 export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganizations, onSelectOrganization, onCreateOrganization, onDeleteOrganization }) => {
     const [newOrgName, setNewOrgName] = useState('');
@@ -49,7 +164,6 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                         <div key={org.id} className="bg-slate-200 dark:bg-gray-900/50 p-4 rounded-lg flex justify-between items-center border border-slate-300 dark:border-gray-700">
                             <div>
                                 <p className="text-lg font-semibold text-gray-900 dark:text-white">{org.name}</p>
-                                <p className="text-xs text-gray-600 dark:text-gray-500">{org.subdomain}.flexibel.app</p>
                             </div>
                             <div className="flex gap-2 flex-wrap">
                                 <button
@@ -83,6 +197,11 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                 </form>
             </div>
             
+            <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-lg space-y-4 border border-slate-200 dark:border-gray-700">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white border-b border-slate-300 dark:border-gray-700 pb-3 mb-4">Systeminställningar & Prissättning</h3>
+                <SmartScreenPricingCard />
+            </div>
+
             <ExerciseSuggestionReview />
 
             <OvningsbankContent />
