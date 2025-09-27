@@ -255,6 +255,11 @@ export interface WorkoutResult {
   finishTime: number; // in seconds
   completedAt: number; // timestamp
 }
+
+export interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+}
 // FIX: Add Spotify type declarations to resolve compilation errors.
 // These types are expected to be available globally from the Spotify Web Playback SDK script.
 // FIX: Wrapped in `declare global` to make the namespace available across all modules.

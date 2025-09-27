@@ -37,6 +37,7 @@ import { DisplayWindowSelectionScreen } from './components/DisplayWindowSelectio
 import { NotesScreen } from './components/NotesScreen';
 import { HyroxScreen } from './components/HyroxScreen';
 import { TermsOfServiceModal } from './components/TermsOfServiceModal';
+import { SupportChat } from './components/SupportChat';
 
 // --- Screensaver Component & Logic ---
 
@@ -2298,6 +2299,7 @@ useEffect(() => {
         )}
        {showTerms && <TermsOfServiceModal onAccept={acceptTerms} />}
        {!isFullScreenPage && <Footer />}
+       <SupportChat />
     </div>
   );
 }
