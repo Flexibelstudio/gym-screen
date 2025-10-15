@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Flexibel Hälsostudio</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Satisfy&display=swap" rel="stylesheet">
+    <style>
+      @keyframes confetti-fall {
+        0% { transform: translateY(-20px) rotateZ(0deg); opacity: 1; }
+        100% { transform: translateY(100vh) rotateZ(720deg); opacity: 0; }
+      }
+
+      .confetti-piece {
+        position: absolute;
+        top: 0;
+        width: 10px;
+        height: 20px;
+        opacity: 0;
+        animation-name: confetti-fall;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
+        will-change: transform, opacity;
+      }
+
+      @keyframes heart-rise {
+        0% { transform: translateY(20px) scale(0.5); opacity: 1; }
+        100% { transform: translateY(-100vh) scale(1.5); opacity: 0; }
+      }
+
+      .heart-piece {
+        position: absolute;
+        bottom: 0;
+        font-size: 24px;
+        color: #e63946;
+        opacity: 0;
+        animation-name: heart-rise;
+        animation-timing-function: ease-in;
+        animation-iteration-count: infinite;
+        will-change: transform, opacity;
+      }
+
+      .line-clamp-4 {
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 4;
+      }
+      
+      .line-clamp-6 {
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 6;
+      }
+      
+      /* Keyframes for the pulsating background color */
+      @keyframes pulse-bg-light-keyframes {
+        50% { background-color: rgba(var(--pulse-color-rgb, 249 115 22), 0.3); }
+      }
+      @keyframes pulse-bg-medium-keyframes {
+        50% { background-color: rgba(var(--pulse-color-rgb, 249 115 22), 0.5); }
+      }
+      @keyframes pulse-bg-intense-keyframes {
+        50% { background-color: rgba(var(--pulse-color-rgb, 249 115 22), 0.7); }
+      }
+      
+      /* Keyframes for the pulsating inner glow effect */
+      @keyframes pulse-inset-light-keyframes {
+        50% { box-shadow: inset 0 0 2rem 0.5rem rgba(255, 255, 255, 0.2); }
+      }
+      @keyframes pulse-inset-medium-keyframes {
+        50% { box-shadow: inset 0 0 2.5rem 0.75rem rgba(255, 255, 255, 0.3); }
+      }
+      @keyframes pulse-inset-intense-keyframes {
+        50% { box-shadow: inset 0 0 3rem 1rem rgba(255, 255, 255, 0.4); }
+      }
+      
+      /* Keyframes for banner animations */
+      @keyframes slideInLeft {
+        from { transform: translateX(-100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      @keyframes slideInRight {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      @keyframes fadeInBanner {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      
+      @keyframes fade-in-out {
+        0% { opacity: 0; transform: scale(0.95); }
+        10% { opacity: 1; transform: scale(1); }
+        90% { opacity: 1; transform: scale(1); }
+        100% { opacity: 0; transform: scale(1.05); }
+      }
+
+      /* Keyframes for NotesScreen word cloud */
+      @keyframes word-cloud-fade-in {
+        from {
+          opacity: 0;
+          transform: scale(0.8);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+      
+      /* Keyframes for Hyrox gradient background */
+      @keyframes pulse-hyrox-bg-keyframes {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+    </style>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              'primary': 'var(--color-primary, #14b8a6)', // Default to new green
+            },
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              logo: ['Satisfy', 'cursive'],
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.3s ease-out forwards',
+              'fade-out': 'fadeOut 0.3s ease-out forwards',
+              'pulse-loader': 'pulseLoader 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'pulse-bg-light': 'pulse-bg-light-keyframes 2.5s ease-in-out infinite',
+              'pulse-bg-medium': 'pulse-bg-medium-keyframes 1.5s ease-in-out infinite',
+              'pulse-bg-intense': 'pulse-bg-intense-keyframes 0.8s ease-in-out infinite',
+              'pulse-inset-light': 'pulse-inset-light-keyframes 2.5s ease-in-out infinite',
+              'pulse-inset-medium': 'pulse-inset-medium-keyframes 1.5s ease-in-out infinite',
+              'pulse-inset-intense': 'pulse-inset-intense-keyframes 0.8s ease-in-out infinite',
+              'slide-in-left': 'slideInLeft 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+              'slide-in-right': 'slideInRight 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+              'fade-in-banner': 'fadeInBanner 0.7s ease-out forwards',
+              'fade-in-out': 'fade-in-out 3s ease-in-out forwards',
+              'word-cloud-fade-in': 'word-cloud-fade-in 1s ease-out forwards',
+              'zoom-fade-in': 'zoomFadeIn 0.4s ease-out forwards',
+              'slide-in-from-left': 'slideInFromLeft 0.5s ease-out forwards',
+              'slide-out-to-right': 'slideOutToRight 0.5s ease-in forwards',
+              'pulse-hyrox-bg': 'pulse-hyrox-bg-keyframes 10s ease-in-out infinite',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0', transform: 'scale(0.95)' },
+                '100%': { opacity: '1', transform: 'scale(1)' },
+              },
+              fadeOut: {
+                'from': { opacity: '1' },
+                'to': { opacity: '0' },
+              },
+              pulseLoader: {
+                '0%': { transform: 'scale(.1)', opacity: '1' },
+                '70%': { transform: 'scale(1)', opacity: '0.7' },
+                '100%': { opacity: '0' },
+              },
+              zoomFadeIn: {
+                'from': { opacity: '0', transform: 'scale(0.95)' },
+                'to': { opacity: '1', transform: 'scale(1)' },
+              },
+              slideInFromLeft: {
+                'from': { opacity: '0', transform: 'translateX(-100%)' },
+                'to': { opacity: '1', transform: 'translateX(0)' },
+              },
+              slideOutToRight: {
+                'from': { opacity: '1', transform: 'translateX(0)' },
+                'to': { opacity: '0', transform: 'translateX(100%)' },
+              }
+            }
+          }
+        }
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+    "@google/genai": "https://esm.sh/@google/genai@0.14.0",
+    "react-dom/": "https://esm.sh/react-dom@18.3.1/",
+    "react/": "https://esm.sh/react@18.3.1/",
+    "firebase/compat/app": "https://esm.sh/firebase@9.23.0/compat/app",
+    "firebase/compat/auth": "https://esm.sh/firebase@9.23.0/compat/auth",
+    "firebase/compat/firestore": "https://esm.sh/firebase@9.23.0/compat/firestore",
+    "firebase/compat/storage": "https://esm.sh/firebase@9.23.0/compat/storage",
+    "firebase/compat/functions": "https://esm.sh/firebase@9.23.0/compat/functions",
+    "firebase/": "https://esm.sh/firebase@9.23.0/",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "framer-motion": "https://esm.sh/framer-motion@11.2.12?deps=react@18.3.1"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-white dark:bg-black">
+    <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
