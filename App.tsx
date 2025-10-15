@@ -2820,6 +2820,6 @@ const Header: React.FC<HeaderProps> = ({ page, onBack, theme, toggleTheme, isVis
 // Footer Component
 const Footer: React.FC = () => (
   <footer className="w-full text-center text-gray-500 dark:text-gray-500 text-xs pt-8">
-    <p>© 2025 SmartStudio. Alla rättigheter förbehållna.</p>
+    <p>©2025 SmartStudio. Alla rättigheter förbehållna.</p>
   </footer>
 );
