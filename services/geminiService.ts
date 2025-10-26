@@ -3,6 +3,7 @@
 
 
 
+
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
 import 'firebase/compat/firestore';
@@ -487,6 +488,29 @@ export async function parseWorkoutFromImage(base64Image: string): Promise<Workou
         }
     }
     throw new Error("Misslyckades med att tolka passet från bilden efter flera försök.");
+}
+
+export async function generateExerciseDescription(exerciseName: string): Promise<string> {
+    const prompt = `
+        Skriv en kort, koncis och tydlig instruktion på svenska för hur man utför träningsövningen: "${exerciseName}". 
+        Fokusera på de viktigaste punkterna för korrekt utförande.
+        Svara endast med själva beskrivningstexten, utan extra formatering eller inledande fraser.
+
+        Exempel:
+        Om övningen är "Knäböj (Air Squats)", ska svaret vara: "Stå axelbrett, sänk höften under knähöjd, håll bröstet uppe."
+        Om övningen är "Kettlebell Swings", ska svaret vara: "Explosiv höftfällning där en kettlebell svingas från mellan knäna upp till bröst- eller ögonhöjd."
+    `;
+
+    try {
+        const response: GenerateContentResponse = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: prompt,
+        });
+        return response.text.trim();
+    } catch (error) {
+        console.error("Error generating exercise description:", error);
+        throw new Error("Kunde inte generera en beskrivning för övningen.");
+    }
 }
 
 export async function enhancePageWithAI(rawContent: string): Promise<string> {

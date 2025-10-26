@@ -62,7 +62,7 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
   const isGeneralMode = !initialPrompt;
   const currentBasePrompt = isGeneralMode ? (selectedCategory?.prompt || '') : initialPrompt;
 
-  const unpublishedWorkouts = useMemo(() => workouts.filter(w => !w.isPublished), [workouts]);
+  const unpublishedWorkouts = useMemo(() => workouts.filter(w => !w.isPublished && !w.isMemberDraft), [workouts]);
   const publishedWorkouts = useMemo(() => workouts.filter(w => w.isPublished), [workouts]);
 
   const groupedUnpublishedWorkouts = useMemo(() => {

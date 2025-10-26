@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, Passkategori, StudioConfig, UserRole, BankExercise, Organization } from '../types';
-import { ToggleSwitch, DumbbellIcon, PencilIcon } from './icons';
+import { ToggleSwitch, DumbbellIcon, PencilIcon, SparklesIcon } from './icons';
 import { TimerSetupModal } from './TimerSetupModal';
 import { getExerciseBank, uploadImage, deleteImageByUrl, updateExerciseImageOverride } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
+import { generateExerciseDescription } from '../services/geminiService';
 
 const createNewWorkout = (): Workout => ({
   id: `workout-${Date.now()}`,
@@ -1095,6 +1096,24 @@ const EditableExerciseItem: React.FC<EditableExerciseItemProps> = ({ exercise, o
     const [searchResults, setSearchResults] = useState<BankExercise[]>([]);
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement>(null);
+    const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
+
+    const handleGenerateDescription = async () => {
+        if (!exercise.name.trim()) {
+            alert("Skriv ett namn på övningen först för att kunna generera en beskrivning.");
+            return;
+        }
+        setIsGeneratingDesc(true);
+        try {
+            const description = await generateExerciseDescription(exercise.name);
+            onChange({ description });
+        } catch (error) {
+            alert("Kunde inte generera en beskrivning. Försök igen.");
+            console.error(error);
+        } finally {
+            setIsGeneratingDesc(false);
+        }
+    };
 
     const getExerciseImageUrl = useCallback((ex: Exercise | BankExercise, org: Organization | null): string | undefined => {
         if (org?.exerciseOverrides && org.exerciseOverrides[ex.id]) {
@@ -1209,13 +1228,23 @@ const EditableExerciseItem: React.FC<EditableExerciseItemProps> = ({ exercise, o
                     </ul>
                 )}
                 
-                <textarea
-                  value={exercise.description || ''}
-                  onChange={e => onChange({ description: e.target.value })}
-                  placeholder="Beskrivning (frivilligt)"
-                  className={`${baseClasses} text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-300 p-2 rounded-md border border-gray-300 dark:border-gray-600 focus:ring-1 focus:ring-primary h-16`}
-                  rows={2}
-                />
+                <div className="relative">
+                    <textarea
+                      value={exercise.description || ''}
+                      onChange={e => onChange({ description: e.target.value })}
+                      placeholder="Beskrivning (klicka på ✨ för AI-förslag)"
+                      className={`${baseClasses} text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-300 p-2 rounded-md border border-gray-300 dark:border-gray-600 focus:ring-1 focus:ring-primary h-16 pr-10`}
+                      rows={2}
+                    />
+                    <button
+                      onClick={handleGenerateDescription}
+                      disabled={isGeneratingDesc}
+                      className="absolute top-2 right-2 text-gray-400 hover:text-purple-500 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
+                      title="Generera beskrivning med AI"
+                    >
+                      {isGeneratingDesc ? <div className="w-5 h-5 border-2 border-purple-500/50 border-t-purple-500 rounded-full animate-spin"></div> : <SparklesIcon className="w-5 h-5" />}
+                    </button>
+                </div>
                  
                 {exercise.isFromBank && (
                     <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
