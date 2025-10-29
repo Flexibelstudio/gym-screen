@@ -53,11 +53,15 @@ const useBouncingPhysics = (
   containerRef: React.RefObject<HTMLDivElement>, 
   elementRefs: React.RefObject<HTMLDivElement>[]
 ) => {
-    const elementsState = useRef(elementRefs.map(() => ({
-        pos: { x: 0, y: 0 },
-        vel: { vx: (Math.random() - 0.5) * 50, vy: (Math.random() - 0.5) * 50 }, // pixels per second
-        size: { w: 0, h: 0 }
-    })));
+    const elementsState = useRef(elementRefs.map(() => {
+        const speed = 75; // pixels per second for consistent movement
+        const angle = Math.random() * 2 * Math.PI;
+        return {
+            pos: { x: 0, y: 0 },
+            vel: { vx: speed * Math.cos(angle), vy: speed * Math.sin(angle) },
+            size: { w: 0, h: 0 }
+        };
+    }));
     const animationFrameId = useRef<number>();
     
     useEffect(() => {
@@ -85,7 +89,11 @@ const useBouncingPhysics = (
                 animationFrameId.current = requestAnimationFrame(animate);
                 return;
             }
-            const deltaTime = (time - lastTime) / 1000;
+            let deltaTime = (time - lastTime) / 1000;
+            // Cap delta time to avoid huge jumps when tab is backgrounded
+            if (deltaTime > 0.1) {
+                deltaTime = 0.1;
+            }
             const currentContainerRect = containerRef.current.getBoundingClientRect();
 
             // Update and collide
@@ -93,13 +101,23 @@ const useBouncingPhysics = (
                 elState.pos.x += elState.vel.vx * deltaTime;
                 elState.pos.y += elState.vel.vy * deltaTime;
 
-                if (elState.pos.x <= 0 || elState.pos.x >= currentContainerRect.width - elState.size.w) {
+                // Wall collision with bounce correction for smoother physics
+                if (elState.pos.x < 0) {
+                    elState.pos.x = -elState.pos.x; // Reflect position
                     elState.vel.vx *= -1;
-                    elState.pos.x = Math.max(0, Math.min(elState.pos.x, currentContainerRect.width - elState.size.w));
+                } else if (elState.pos.x > currentContainerRect.width - elState.size.w) {
+                    const overshoot = elState.pos.x - (currentContainerRect.width - elState.size.w);
+                    elState.pos.x = (currentContainerRect.width - elState.size.w) - overshoot;
+                    elState.vel.vx *= -1;
                 }
-                if (elState.pos.y <= 0 || elState.pos.y >= currentContainerRect.height - elState.size.h) {
+
+                if (elState.pos.y < 0) {
+                    elState.pos.y = -elState.pos.y; // Reflect position
                     elState.vel.vy *= -1;
-                    elState.pos.y = Math.max(0, Math.min(elState.pos.y, currentContainerRect.height - elState.size.h));
+                } else if (elState.pos.y > currentContainerRect.height - elState.size.h) {
+                    const overshoot = elState.pos.y - (currentContainerRect.height - elState.size.h);
+                    elState.pos.y = (currentContainerRect.height - elState.size.h) - overshoot;
+                    elState.vel.vy *= -1;
                 }
             });
             
@@ -112,6 +130,7 @@ const useBouncingPhysics = (
                     el1.pos.y < el2.pos.y + el2.size.h &&
                     el1.pos.y + el1.size.h > el2.pos.y
                 ) {
+                    // Simple elastic collision for objects of same mass
                     const tempVel = {...el1.vel};
                     el1.vel = {...el2.vel};
                     el2.vel = tempVel;
