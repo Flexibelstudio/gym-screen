@@ -83,7 +83,9 @@ const useBouncingPhysics = (
         
         let lastTime: number | null = null;
         const animate = (time: number) => {
-            if (!containerRef.current) return;
+            const container = containerRef.current;
+            if (!container) return;
+            
             if (lastTime === null) {
                 lastTime = time;
                 animationFrameId.current = requestAnimationFrame(animate);
@@ -94,48 +96,103 @@ const useBouncingPhysics = (
             if (deltaTime > 0.1) {
                 deltaTime = 0.1;
             }
-            const currentContainerRect = containerRef.current.getBoundingClientRect();
+            const currentContainerRect = container.getBoundingClientRect();
 
-            // Update and collide
-            elementsState.current.forEach((elState) => {
+            // Update sizes and positions, and check for wall collisions
+            elementsState.current.forEach((elState, index) => {
+                const el = elementRefs[index].current;
+                if (el) {
+                    const rect = el.getBoundingClientRect();
+                    // Dynamically update size if it has been rendered and is valid
+                    if (rect.width > 0 && rect.height > 0) {
+                        elState.size.w = rect.width;
+                        elState.size.h = rect.height;
+                    }
+                }
+
                 elState.pos.x += elState.vel.vx * deltaTime;
                 elState.pos.y += elState.vel.vy * deltaTime;
 
-                // Wall collision with bounce correction for smoother physics
+                // Wall collision with boundary correction
                 if (elState.pos.x < 0) {
-                    elState.pos.x = -elState.pos.x; // Reflect position
+                    elState.pos.x = 0;
                     elState.vel.vx *= -1;
                 } else if (elState.pos.x > currentContainerRect.width - elState.size.w) {
-                    const overshoot = elState.pos.x - (currentContainerRect.width - elState.size.w);
-                    elState.pos.x = (currentContainerRect.width - elState.size.w) - overshoot;
+                    elState.pos.x = currentContainerRect.width - elState.size.w;
                     elState.vel.vx *= -1;
                 }
 
                 if (elState.pos.y < 0) {
-                    elState.pos.y = -elState.pos.y; // Reflect position
+                    elState.pos.y = 0;
                     elState.vel.vy *= -1;
                 } else if (elState.pos.y > currentContainerRect.height - elState.size.h) {
-                    const overshoot = elState.pos.y - (currentContainerRect.height - elState.size.h);
-                    elState.pos.y = (currentContainerRect.height - elState.size.h) - overshoot;
+                    elState.pos.y = currentContainerRect.height - elState.size.h;
                     elState.vel.vy *= -1;
                 }
             });
             
-            // Inter-element collision for 2 elements
-             if (elementsState.current.length > 1) {
+            // Inter-element collision (Reflection method)
+            if (elementsState.current.length > 1) {
                 const [el1, el2] = elementsState.current;
-                if (
-                    el1.pos.x < el2.pos.x + el2.size.w &&
-                    el1.pos.x + el1.size.w > el2.pos.x &&
-                    el1.pos.y < el2.pos.y + el2.size.h &&
-                    el1.pos.y + el1.size.h > el2.pos.y
-                ) {
-                    // Simple elastic collision for objects of same mass
-                    const tempVel = {...el1.vel};
-                    el1.vel = {...el2.vel};
-                    el2.vel = tempVel;
+                
+                // Check for valid sizes before doing collision math
+                if (el1.size.w > 0 && el2.size.w > 0) {
+                    // Check for bounding box overlap
+                    if (
+                        el1.pos.x < el2.pos.x + el2.size.w &&
+                        el1.pos.x + el1.size.w > el2.pos.x &&
+                        el1.pos.y < el2.pos.y + el2.size.h &&
+                        el1.pos.y + el1.size.h > el2.pos.y
+                    ) {
+                        // Calculate center-to-center vector (collision normal)
+                        const dx = (el2.pos.x + el2.size.w / 2) - (el1.pos.x + el1.size.w / 2);
+                        const dy = (el2.pos.y + el2.size.h / 2) - (el1.pos.y + el1.size.h / 2);
+                        
+                        const relVelX = el1.vel.vx - el2.vel.vx;
+                        const relVelY = el1.vel.vy - el2.vel.vy;
+                        
+                        // Only resolve if objects are moving towards each other to prevent sticking
+                        if (dx * relVelX + dy * relVelY < 0) {
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            
+                            // Prevent division by zero
+                            if (distance > 0) {
+                                // Normalized collision normal
+                                const nx = dx / distance;
+                                const ny = dy / distance;
+
+                                // --- Reflect velocities ---
+                                // Reflect el1's velocity
+                                const dot1 = el1.vel.vx * nx + el1.vel.vy * ny;
+                                el1.vel.vx -= 2 * dot1 * nx;
+                                el1.vel.vy -= 2 * dot1 * ny;
+
+                                // Reflect el2's velocity
+                                const dot2 = el2.vel.vx * nx + el2.vel.vy * ny;
+                                el2.vel.vx -= 2 * dot2 * nx;
+                                el2.vel.vy -= 2 * dot2 * ny;
+
+                                // --- Overlap Correction ---
+                                // A simple nudge to prevent objects from sticking.
+                                const r1 = (el1.size.w + el1.size.h) / 4; // Avg radius approximation
+                                const r2 = (el2.size.w + el2.size.h) / 4;
+                                const overlap = (r1 + r2) - distance;
+                                
+                                if (overlap > 0) {
+                                    const pushX = (overlap * nx) / 2;
+                                    const pushY = (overlap * ny) / 2;
+                                    
+                                    el1.pos.x -= pushX;
+                                    el1.pos.y -= pushY;
+                                    el2.pos.x += pushX;
+                                    el2.pos.y += pushY;
+                                }
+                            }
+                        }
+                    }
                 }
             }
+
 
             // Apply styles
             elementsState.current.forEach((elState, index) => {
