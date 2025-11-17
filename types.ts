@@ -1,5 +1,6 @@
 
 
+
 export interface InvoiceAdjustmentItem {
   description: string;
   amount: number;
@@ -201,7 +202,8 @@ export interface StudioConfig {
 
 
 export interface Exercise {
-  id: string;
+  id: string; // Will now be a unique instance ID
+  bankId?: string; // Will store the original ID from the bank, if applicable
   name:string;
   reps?: string;
   description?: string;
