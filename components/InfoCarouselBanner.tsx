@@ -4,6 +4,7 @@ import { InfoMessage } from '../types';
 interface InfoCarouselBannerProps {
     messages: InfoMessage[];
     className?: string;
+    forceDark?: boolean;
 }
 
 const getAnimationClass = (animation: InfoMessage['animation']) => {
@@ -18,7 +19,7 @@ const getAnimationClass = (animation: InfoMessage['animation']) => {
     }
 };
 
-export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages, className = '' }) => {
+export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages, className = '', forceDark = false }) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isFading, setIsFading] = useState(false);
 
@@ -54,8 +55,25 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
     const layout = currentMessage.layout || 'text-only';
     const hasImage = layout !== 'text-only' && currentMessage.imageUrl;
 
+    // Determine background and text colors based on forceDark prop or system theme
+    const bgClass = forceDark 
+        ? 'bg-black/90' 
+        : 'bg-white/90 dark:bg-black/90';
+    
+    const textClass = forceDark 
+        ? 'text-white' 
+        : 'text-gray-900 dark:text-white';
+    
+    const secondaryTextClass = forceDark
+        ? 'text-gray-300'
+        : 'text-gray-600 dark:text-gray-300';
+    
+    const borderClass = forceDark
+        ? 'border-gray-800'
+        : 'border-gray-200 dark:border-gray-700/50';
+
     return (
-        <div className={`fixed left-0 right-0 h-[512px] bg-white/90 dark:bg-black/90 backdrop-blur-md text-gray-900 dark:text-white z-40 border-t border-gray-200 dark:border-gray-700/50 flex items-center justify-center p-8 ${className}`}>
+        <div className={`fixed left-0 right-0 h-[512px] ${bgClass} backdrop-blur-md ${textClass} z-[1001] border-t ${borderClass} flex items-center justify-center p-8 ${className}`}>
              <div
                 key={currentIndex} // This key is crucial to re-trigger the animation
                 className={`w-full max-w-6xl mx-auto px-4 transition-opacity duration-500 ${isFading ? 'opacity-0' : 'opacity-100'} ${getAnimationClass(currentMessage.animation)}`}
@@ -65,12 +83,12 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
                         <img 
                             src={currentMessage.imageUrl} 
                             alt={currentMessage.headline} 
-                            className="h-96 w-96 object-cover rounded-2xl flex-shrink-0 shadow-xl"
+                            className="w-96 h-96 object-cover rounded-2xl flex-shrink-0 shadow-xl"
                         />
                     )}
                     <div className={`flex-grow min-w-0 ${layout === 'image-right' ? 'text-right' : 'text-left'}`}>
                         <h4 className="font-bold text-4xl text-primary line-clamp-2 mb-4 leading-tight">{currentMessage.headline}</h4>
-                        <p className="text-xl text-gray-600 dark:text-gray-300 line-clamp-12 whitespace-pre-wrap leading-relaxed">{currentMessage.body}</p>
+                        <p className={`text-xl ${secondaryTextClass} line-clamp-12 whitespace-pre-wrap leading-relaxed`}>{currentMessage.body}</p>
                     </div>
                 </div>
             </div>

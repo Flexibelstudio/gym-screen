@@ -51,7 +51,8 @@ const formatTimeForScreensaver = (date: Date) => {
 
 const useBouncingPhysics = (
   containerRef: React.RefObject<HTMLDivElement>, 
-  elementRefs: React.RefObject<HTMLDivElement>[]
+  elementRefs: React.RefObject<HTMLDivElement>[],
+  bottomOffset: number = 0
 ) => {
     const elementsState = useRef(elementRefs.map(() => {
         const speed = 75; // pixels per second for consistent movement
@@ -70,6 +71,8 @@ const useBouncingPhysics = (
 
         // Initialize positions
         const containerRect = container.getBoundingClientRect();
+        const availableHeight = containerRect.height - bottomOffset;
+
         elementsState.current.forEach((elState, index) => {
             const el = elementRefs[index].current;
             if(el) {
@@ -77,7 +80,7 @@ const useBouncingPhysics = (
                 elState.size.w = elRect.width;
                 elState.size.h = elRect.height;
                 elState.pos.x = Math.random() * (containerRect.width - elState.size.w);
-                elState.pos.y = Math.random() * (containerRect.height - elState.size.h);
+                elState.pos.y = Math.random() * (availableHeight - elState.size.h);
             }
         });
         
@@ -97,6 +100,7 @@ const useBouncingPhysics = (
                 deltaTime = 0.1;
             }
             const currentContainerRect = container.getBoundingClientRect();
+            const currentAvailableHeight = currentContainerRect.height - bottomOffset;
 
             // Update sizes and positions, and check for wall collisions
             elementsState.current.forEach((elState, index) => {
@@ -125,8 +129,9 @@ const useBouncingPhysics = (
                 if (elState.pos.y < 0) {
                     elState.pos.y = 0;
                     elState.vel.vy *= -1;
-                } else if (elState.pos.y > currentContainerRect.height - elState.size.h) {
-                    elState.pos.y = currentContainerRect.height - elState.size.h;
+                } else if (elState.pos.y > currentAvailableHeight - elState.size.h) {
+                    // Bounce off the "floor" created by the bottomOffset
+                    elState.pos.y = currentAvailableHeight - elState.size.h;
                     elState.vel.vy *= -1;
                 }
             });
@@ -212,22 +217,23 @@ const useBouncingPhysics = (
                 cancelAnimationFrame(animationFrameId.current);
             }
         };
-    }, [containerRef, elementRefs]);
+    }, [containerRef, elementRefs, bottomOffset]);
 };
 
 
 interface ScreensaverProps {
     logoUrl?: string | null;
+    bottomOffset?: number;
 }
 
-const Screensaver: React.FC<ScreensaverProps> = ({ logoUrl }) => {
+const Screensaver: React.FC<ScreensaverProps> = ({ logoUrl, bottomOffset = 0 }) => {
     const [time, setTime] = useState(formatTimeForScreensaver(new Date()));
     const containerRef = useRef<HTMLDivElement>(null);
     const clockRef = useRef<HTMLDivElement>(null);
     const logoRef = useRef<HTMLDivElement>(null);
     
     const elementRefs = useMemo(() => [clockRef, logoRef], []);
-    useBouncingPhysics(containerRef, elementRefs);
+    useBouncingPhysics(containerRef, elementRefs, bottomOffset);
 
     useEffect(() => {
         const timerId = setInterval(() => {
@@ -2625,7 +2631,7 @@ const MainContent: React.FC = () => {
       )}
        {previewImageUrl && <ImagePreviewModal imageUrl={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />}
        
-       {isInfoBannerVisible && <InfoCarouselBanner messages={activeInfoMessages} className="bottom-0" />}
+       {isInfoBannerVisible && <InfoCarouselBanner messages={activeInfoMessages} className="bottom-0" forceDark={isScreensaverActive} />}
 
        {isQrCodeVisible && (
           <div 
@@ -2651,6 +2657,7 @@ const MainContent: React.FC = () => {
         {isScreensaverActive && (
             <Screensaver 
                 logoUrl={selectedOrganization?.logoUrlDark || selectedOrganization?.logoUrlLight}
+                bottomOffset={isInfoBannerVisible ? 512 : 0}
             />
         )}
        {showTerms && <TermsOfServiceModal onAccept={acceptTerms} />}
