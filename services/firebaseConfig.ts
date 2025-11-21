@@ -1,11 +1,9 @@
-
 // Your web app's Firebase configuration
-// These are now loaded from environment variables defined in vite.config.ts
 export const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID
+  apiKey: "AIzaSyDkdGj5XOkTdpfhSpcvO_TwDTjy204qTq0",
+  authDomain: "gym-screen.firebaseapp.com",
+  projectId: "gym-screen",
+  storageBucket: "gym-screen.firebasestorage.app",
+  messagingSenderId: "970379052933",
+  appId: "1:970379052933:web:0756911ee508d5c8c1a6ec"
 };
