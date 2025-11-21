@@ -77,6 +77,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                             orgToUse = correspondingOrg;
                         }
                     } else if (fetchedOrgs.length > 0) {
+                        // In anonymous studio mode (setup phase), defaulting to first might be acceptable if local storage is empty,
+                        // but ideally they should select from a list. For now, keeping existing behavior for studio mode only.
                         orgToUse = fetchedOrgs[0];
                     }
 
@@ -101,15 +103,18 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                         orgToUse = fetchedOrgs.find(o => o.id === userData.organizationId) || null;
                     }
 
-                    // Fallback: If no matching org was found, or user has no orgId, default to the first one.
-                    if (!orgToUse && fetchedOrgs.length > 0) {
-                        console.warn("User's organizationId not found or not set, defaulting to first organization.");
-                        orgToUse = fetchedOrgs[0];
-                    }
+                    // CRITICAL SECURITY FIX:
+                    // Removed the fallback logic that defaulted to fetchedOrgs[0].
+                    // If a logged-in user (Admin/Coach) does not have a valid organizationId matched,
+                    // orgToUse MUST remain null. We do not auto-assign an organization.
                     
                     if (orgToUse) {
                         setSelectedOrganization(orgToUse);
                         setAllStudios(orgToUse.studios);
+                    } else {
+                        // Explicitly clear selection if no valid match found
+                        setSelectedOrganization(null);
+                        setAllStudios([]);
                     }
                     // Always clear selected studio for admins/coaches on initial load
                     setSelectedStudio(null);
