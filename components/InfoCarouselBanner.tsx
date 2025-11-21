@@ -65,7 +65,7 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
                         <img 
                             src={currentMessage.imageUrl} 
                             alt={currentMessage.headline} 
-                            className="h-96 w-[36rem] object-cover rounded-2xl flex-shrink-0 shadow-xl"
+                            className="h-96 w-96 object-cover rounded-2xl flex-shrink-0 shadow-xl"
                         />
                     )}
                     <div className={`flex-grow min-w-0 ${layout === 'image-right' ? 'text-right' : 'text-left'}`}>
