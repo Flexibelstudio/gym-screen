@@ -247,19 +247,6 @@ const SwitchToStudioView: React.FC<{
 
 
 const AnvandareContent: React.FC<SuperAdminScreenProps & { admins: UserData[], coaches: UserData[], isLoading: boolean }> = ({ organization, admins, coaches, isLoading }) => {
-    const handleSetAdminRole = async (uid: string, adminRole: 'superadmin' | 'admin') => {
-        // Basic confirmation for a destructive action
-        if (window.confirm("Är du säker på att du vill ändra denna användares admin-roll?")) {
-            try {
-                await setAdminRole(uid, adminRole);
-                alert("Användarrollen har uppdaterats.");
-                // A production app would re-fetch here.
-            } catch (error) {
-                alert(`Kunde inte ändra roll: ${error instanceof Error ? error.message : "Okänt fel"}`);
-            }
-        }
-    };
-
     const UserList: React.FC<{ users: UserData[], title: string, showAdminRoles?: boolean }> = ({ users, title, showAdminRoles }) => (
         <div>
             <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{title}</h4>
@@ -271,13 +258,6 @@ const AnvandareContent: React.FC<SuperAdminScreenProps & { admins: UserData[], c
                                 <p className="font-semibold text-gray-900 dark:text-white">{user.email}</p>
                                 {showAdminRoles && user.adminRole && <p className="text-xs font-mono px-2 py-0.5 mt-1 rounded-full inline-block bg-primary/20 text-primary">{user.adminRole}</p>}
                             </div>
-                            {showAdminRoles && (
-                                <div className="flex gap-2">
-                                    <button onClick={() => handleSetAdminRole(user.uid, user.adminRole === 'admin' ? 'superadmin' : 'admin')} className="text-sm bg-gray-600 hover:bg-gray-500 text-white font-semibold py-1 px-3 rounded-md">
-                                        Växla roll
-                                    </button>
-                                </div>
-                            )}
                         </li>
                     ))}
                 </ul>
@@ -1419,7 +1399,7 @@ const DashboardContent: React.FC<SuperAdminScreenProps & { setActiveTab: (tab: A
     ];
 
     const quickActions = [
-        { label: 'Pass & Program', action: () => setActiveTab('pass-program'), icon: DumbbellIcon },
+        { label: 'Skapa nytt pass', action: () => setActiveTab('pass-program'), icon: DumbbellIcon },
         { label: 'Hantera användare', action: () => setActiveTab('anvandare'), icon: UsersIcon },
         { label: 'Redigera info-karusell', action: () => setActiveTab('info-karusell'), icon: SpeakerphoneIcon },
     ];
