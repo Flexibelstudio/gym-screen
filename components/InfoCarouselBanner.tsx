@@ -55,22 +55,22 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
     const hasImage = layout !== 'text-only' && currentMessage.imageUrl;
 
     return (
-        <div className={`fixed left-0 right-0 h-64 bg-white/90 dark:bg-black/90 backdrop-blur-md text-gray-900 dark:text-white z-40 border-t border-gray-200 dark:border-gray-700/50 flex items-center justify-center p-4 ${className}`}>
+        <div className={`fixed left-0 right-0 h-[512px] bg-white/90 dark:bg-black/90 backdrop-blur-md text-gray-900 dark:text-white z-40 border-t border-gray-200 dark:border-gray-700/50 flex items-center justify-center p-8 ${className}`}>
              <div
                 key={currentIndex} // This key is crucial to re-trigger the animation
-                className={`w-full max-w-5xl mx-auto px-4 transition-opacity duration-500 ${isFading ? 'opacity-0' : 'opacity-100'} ${getAnimationClass(currentMessage.animation)}`}
+                className={`w-full max-w-6xl mx-auto px-4 transition-opacity duration-500 ${isFading ? 'opacity-0' : 'opacity-100'} ${getAnimationClass(currentMessage.animation)}`}
             >
-                <div className={`flex items-center h-full gap-8 ${layout === 'image-right' ? 'flex-row-reverse justify-end' : 'justify-start'}`}>
+                <div className={`flex items-center h-full gap-12 ${layout === 'image-right' ? 'flex-row-reverse justify-end' : 'justify-start'}`}>
                     {hasImage && (
                         <img 
                             src={currentMessage.imageUrl} 
                             alt={currentMessage.headline} 
-                            className="h-48 w-72 object-cover rounded-lg flex-shrink-0"
+                            className="h-96 w-[36rem] object-cover rounded-2xl flex-shrink-0 shadow-xl"
                         />
                     )}
                     <div className={`flex-grow min-w-0 ${layout === 'image-right' ? 'text-right' : 'text-left'}`}>
-                        <h4 className="font-bold text-3xl text-primary truncate">{currentMessage.headline}</h4>
-                        <p className="text-base text-gray-600 dark:text-gray-300 line-clamp-6 whitespace-pre-wrap">{currentMessage.body}</p>
+                        <h4 className="font-bold text-5xl text-primary truncate mb-4 leading-tight">{currentMessage.headline}</h4>
+                        <p className="text-2xl text-gray-600 dark:text-gray-300 line-clamp-12 whitespace-pre-wrap leading-relaxed">{currentMessage.body}</p>
                     </div>
                 </div>
             </div>

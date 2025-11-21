@@ -2538,7 +2538,7 @@ const MainContent: React.FC = () => {
   const isFullScreenPage = page === Page.Timer || page === Page.RepsOnly || page === Page.DisplayWindow || page === Page.DisplayWindowSelection;
   const paddingClass = isFullScreenPage ? '' : 'p-4 sm:p-6 lg:p-8';
 
-  const infoBannerHeight = 256; // h-64 in Tailwind
+  const infoBannerHeight = 512; // h-[512px] in Tailwind
 
   const mainPaddingBottom = useMemo(() => {
     return isInfoBannerVisible ? infoBannerHeight : 0;
