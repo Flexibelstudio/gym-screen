@@ -944,11 +944,7 @@ export const updateUserTermsAccepted = async (uid: string): Promise<void> => {
         console.warn(`OFFLINE: User terms accepted for UID ${uid}`);
         return Promise.resolve();
     }
-    
-    // Reverting to direct update as per user instruction
-    await db.collection('users').doc(uid).update({
-      termsAcceptedAt: Date.now(),
-    });
+    await db.collection('users').doc(uid).update({ termsAcceptedAt: Date.now() });
 };
 
 export const getSmartScreenPricing = async (): Promise<SmartScreenPricing> => {
