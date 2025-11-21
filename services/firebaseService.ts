@@ -944,7 +944,10 @@ export const updateUserTermsAccepted = async (uid: string): Promise<void> => {
         console.warn(`OFFLINE: User terms accepted for UID ${uid}`);
         return Promise.resolve();
     }
-    await db.collection('users').doc(uid).update({ termsAcceptedAt: Date.now() });
+    // Use Cloud Function to bypass Firestore rules limitation for self-update if rules aren't configured
+    const functions = firebase.app().functions('us-central1');
+    const acceptTermsFn = functions.httpsCallable('acceptTerms');
+    await acceptTermsFn({});
 };
 
 export const getSmartScreenPricing = async (): Promise<SmartScreenPricing> => {

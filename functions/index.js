@@ -46,6 +46,24 @@ const verifyAdminRequest = async (request) => {
   }
 };
 
+/**
+ * Verifies that the request is from an authenticated user (any role).
+ * @param {object} request The Express request object.
+ * @return {Promise<admin.auth.DecodedIdToken>} The decoded ID token.
+ */
+const verifyAuth = async (request) => {
+  const authorizationHeader = request.headers.authorization || "";
+  if (!authorizationHeader.startsWith("Bearer ")) {
+    throw new HttpsError("unauthenticated", "Unauthorized: No Bearer token provided.");
+  }
+  const idToken = authorizationHeader.split("Bearer ")[1];
+  try {
+    return await admin.auth().verifyIdToken(idToken);
+  } catch (error) {
+    throw new HttpsError("unauthenticated", "Unauthorized: Invalid token.");
+  }
+};
+
 
 exports.flexInviteUser = onRequest({cpu: 1, cors: true, invoker: "public"}, async (request, response) => {
   try {
@@ -127,6 +145,29 @@ exports.flexInviteUser = onRequest({cpu: 1, cors: true, invoker: "public"}, asyn
       // Handle unexpected errors
       console.error("An unexpected error occurred in flexInviteUser:", err);
       response.status(500).json({error: {message: "Ett internt serverfel inträffade."}});
+    }
+  }
+});
+
+exports.acceptTerms = onRequest({cpu: 1, cors: true, invoker: "public"}, async (request, response) => {
+  try {
+    // Verify that the user is authenticated (any role)
+    const decodedToken = await verifyAuth(request);
+    const uid = decodedToken.uid;
+
+    // Update the user document with the timestamp
+    await admin.firestore().collection("users").doc(uid).update({
+      termsAcceptedAt: Date.now(),
+    });
+
+    response.status(200).json({data: {success: true}});
+  } catch (err) {
+    if (err instanceof HttpsError) {
+      const statusCode = err.code === "unauthenticated" ? 401 : 500;
+      response.status(statusCode).json({error: {message: err.message}});
+    } else {
+      console.error("Unexpected error in acceptTerms:", err);
+      response.status(500).json({error: {message: "Internal Server Error"}});
     }
   }
 });
