@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 // FIX: Removed unused 'EquipmentItem' type from imports to fix compilation error.
 import { StudioConfig, Studio, Organization, CustomPage, CustomCategoryWithPrompt, Page, UserData, UserRole, InfoCarousel, InfoMessage, DisplayWindow, DisplayPost, Workout, CompanyDetails, SmartScreenPricing } from '../types';
@@ -918,7 +919,7 @@ const InfoKarusellContent: React.FC<SuperAdminScreenProps> = ({ organization, on
             await onUpdateInfoCarousel(organization.id, updatedCarousel);
         } catch (error) {
             alert("Kunde inte spara ändringar.");
-            // Revert optimistic update on error
+            // Revert on error
             setCarousel(JSON.parse(JSON.stringify(organization.infoCarousel || { isEnabled: false, messages: [] })));
         } finally {
             setIsSaving(false);
@@ -1726,7 +1727,25 @@ const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps
             <div className="space-y-2">
                 <ToggleSwitch label="Aktivera 'HYROX'-modul" checked={!!config.enableHyrox} onChange={(val) => handleUpdateConfigField('enableHyrox', val)} />
                 <ToggleSwitch label="Aktivera 'Idé-tavlan'" checked={!!config.enableNotes} onChange={(val) => handleUpdateConfigField('enableNotes', val)} />
-                <ToggleSwitch label="Aktivera Skärmsläckare" checked={!!config.enableScreensaver} onChange={(val) => handleUpdateConfigField('enableScreensaver', val)} />
+                
+                <div>
+                    <ToggleSwitch label="Aktivera Skärmsläckare" checked={!!config.enableScreensaver} onChange={(val) => handleUpdateConfigField('enableScreensaver', val)} />
+                    {config.enableScreensaver && (
+                        <div className="mt-3 ml-2 animate-fade-in">
+                            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">
+                                Starta efter antal minuter av inaktivitet
+                            </label>
+                            <input
+                                type="number"
+                                min="1"
+                                value={config.screensaverTimeoutMinutes || 15}
+                                onChange={(e) => handleUpdateConfigField('screensaverTimeoutMinutes', parseInt(e.target.value, 10) || 15)}
+                                className="w-32 bg-white dark:bg-black text-black dark:text-white p-2 rounded-md border border-slate-300 dark:border-gray-600 focus:ring-1 focus:ring-primary focus:outline-none"
+                            />
+                        </div>
+                    )}
+                </div>
+
                 <ToggleSwitch label="Aktivera Övningsbank i Passbyggaren" checked={!!config.enableExerciseBank} onChange={(val) => handleUpdateConfigField('enableExerciseBank', val)} />
             </div>
 
