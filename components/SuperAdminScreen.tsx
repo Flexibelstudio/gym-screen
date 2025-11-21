@@ -1419,7 +1419,7 @@ const DashboardContent: React.FC<SuperAdminScreenProps & { setActiveTab: (tab: A
     ];
 
     const quickActions = [
-        { label: 'Skapa nytt pass', action: () => setActiveTab('pass-program'), icon: DumbbellIcon },
+        { label: 'Pass & Program', action: () => setActiveTab('pass-program'), icon: DumbbellIcon },
         { label: 'Hantera användare', action: () => setActiveTab('anvandare'), icon: UsersIcon },
         { label: 'Redigera info-karusell', action: () => setActiveTab('info-karusell'), icon: SpeakerphoneIcon },
     ];
