@@ -292,7 +292,7 @@ const AnvandareContent: React.FC<SuperAdminScreenProps & { admins: UserData[], c
                 <div className="bg-slate-200 dark:bg-black/30 p-4 rounded-lg text-gray-700 dark:text-gray-300 space-y-4">
                     <p className="font-semibold">Kontakta oss för att lägga till nya användare</p>
                     <p className="text-sm">
-                        För att lägga till en ny coach eller administratör, vänligen skicka ett mail till <a href="mailto:support@flexibel.app" className="text-primary underline">support@flexibel.app</a> med personens e-postadress och önskad roll.
+                        För att lägga till en ny coach eller administratör, vänligen skicka ett mail till <a href="mailto:info@flexibelfriskvardhalsa.se" className="text-primary underline">support@flexibel.app</a> med personens e-postadress och önskad roll.
                     </p>
                     <div>
                         <p className="font-semibold text-sm mb-1">Roller:</p>
