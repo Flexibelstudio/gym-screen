@@ -69,7 +69,7 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
                         />
                     )}
                     <div className={`flex-grow min-w-0 ${layout === 'image-right' ? 'text-right' : 'text-left'}`}>
-                        <h4 className="font-bold text-4xl text-primary truncate mb-4 leading-tight">{currentMessage.headline}</h4>
+                        <h4 className="font-bold text-4xl text-primary line-clamp-2 mb-4 leading-tight">{currentMessage.headline}</h4>
                         <p className="text-xl text-gray-600 dark:text-gray-300 line-clamp-12 whitespace-pre-wrap leading-relaxed">{currentMessage.body}</p>
                     </div>
                 </div>
