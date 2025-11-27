@@ -796,7 +796,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       <div 
           className={`absolute flex flex-col items-center transition-all duration-500 z-10 
               ${showFullScreenColor 
-                  ? `top-0 h-[50%] left-0 justify-center ${isHyroxRace ? 'right-[30%]' : 'right-0'}` // h-[50%] + justify-center for vertical centering
+                  ? `top-[12%] h-[50%] left-0 justify-center ${isHyroxRace ? 'right-[30%]' : 'right-0'}` // Changed top-0 to top-[12%] for better balance
                   : `justify-center top-4 h-[42%] left-4 right-4 sm:left-6 sm:right-6 rounded-[2.5rem] shadow-2xl ${timerStyle.bg} ${pulseAnimationClass}`
               }`}
           style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
@@ -919,9 +919,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       </div>
 
       {/* BOTTOM SECTION: EXERCISES */}
-      {/* Moved down to start at 50% mark */}
+      {/* Moved down to start at 62% mark in fullscreen mode */}
       <div className={`absolute bottom-0 left-0 right-0 flex flex-col items-center justify-start px-4 z-0 
-          ${showFullScreenColor ? 'top-[50%]' : 'top-[43%]'} 
+          ${showFullScreenColor ? 'top-[62%]' : 'top-[43%]'} 
           ${isHyroxRace ? 'right-[30%]' : 'right-0'}`}
       >
           <div className="w-full flex justify-center items-start h-full pt-4"> 
@@ -961,9 +961,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           </div>
       )}
 
-      {/* Controls (Auto-hiding, Repositioned to 50% mark) */}
+      {/* Controls (Auto-hiding, Repositioned to 62% mark in fullscreen mode) */}
       <div className={`fixed z-50 transition-all duration-500 flex gap-6 ${isHyroxRace ? 'left-[35%]' : 'left-1/2'} -translate-x-1/2 
-          ${showFullScreenColor ? 'top-[50%]' : 'top-[46%]'} 
+          ${showFullScreenColor ? 'top-[62%]' : 'top-[46%]'} 
           ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
             {status === TimerStatus.Idle || status === TimerStatus.Finished ? (
                 <>
