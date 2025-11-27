@@ -921,7 +921,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       {/* BOTTOM SECTION: EXERCISES */}
       {/* Moved down to start at 50% mark */}
       <div className={`absolute bottom-0 left-0 right-0 flex flex-col items-center justify-start px-4 z-0 
-          ${showFullScreenColor ? 'top-[50%]' : 'top-[46%]'} 
+          ${showFullScreenColor ? 'top-[50%]' : 'top-[44%]'} 
           ${isHyroxRace ? 'right-[30%]' : 'right-0'}`}
       >
           <div className="w-full flex justify-center items-start h-full pt-4"> 
