@@ -339,8 +339,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     transition={{ duration: 1, delay: 0.5 }}
                     className="hidden md:flex flex-col items-end"
                 >
-                    <span className="text-6xl font-thin text-gray-300 dark:text-gray-700 font-mono">
-                        {currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <span className="text-6xl font-thin text-black dark:text-white font-mono">
+                        {currentTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', hour12: false })}
                     </span>
                     <span className="text-primary uppercase tracking-widest font-bold text-sm">
                         {currentTime.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
