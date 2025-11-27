@@ -782,18 +782,6 @@ const MainContent: React.FC = () => {
     navigateTo(Page.HyroxRaceDetail);
   };
 
-  // Handles logic for both actual sign out (Admin) and session reset (Studio Coach)
-  const handleSignOut = () => {
-    if (isStudioMode && sessionRole === 'coach') {
-        // Demote session role to member and return to home screen
-        setSessionRole('member');
-        setHistory([Page.Home]);
-    } else {
-        // Full sign out for admins
-        signOut();
-    }
-  };
-
   const renderPage = () => {
     switch (page) {
       case Page.Home:
@@ -1029,15 +1017,13 @@ const MainContent: React.FC = () => {
         toggleTheme={toggleTheme}
         isVisible={page === Page.Timer ? isTimerHeaderVisible : true}
         activeCustomPageTitle={page === Page.CustomContent ? activeCustomPage?.title : undefined}
-        // Allow logout if not studio mode, OR if studio mode AND user is a coach (to reset to member)
-        onSignOut={(!isStudioMode || sessionRole === 'coach') ? handleSignOut : undefined}
+        onSignOut={isStudioMode ? undefined : signOut}
         role={role}
         historyLength={history.length}
         showClock={showClock}
         hideBackButton={isBackButtonHidden}
         onCoachAccessRequest={handleCoachAccessRequest}
-        // Hide coach login button if already logged in as coach
-        showCoachButton={isStudioMode && sessionRole === 'member'}
+        showCoachButton={isStudioMode}
       />}
       <main 
         className={`flex-grow flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}

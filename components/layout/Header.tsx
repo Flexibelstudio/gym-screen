@@ -57,12 +57,19 @@ export const Header: React.FC<HeaderProps> = ({
     </button>
   );
 
+  const signOutButton = onSignOut && (
+    <button onClick={onSignOut} className="text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors text-lg font-semibold px-2">
+        Logga ut
+    </button>
+  );
+
   if (page === Page.Home) {
       return (
         <header className="w-full max-w-5xl mx-auto flex justify-end items-center pb-8 gap-4">
            {showClock && <DigitalClock />}
            {coachButton}
            {themeToggleButton}
+           {signOutButton}
         </header>
       );
   }
@@ -105,11 +112,7 @@ export const Header: React.FC<HeaderProps> = ({
          {showClock && <DigitalClock />}
          {coachButton}
          {themeToggleButton}
-         {onSignOut && (
-            <button onClick={onSignOut} className="text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors text-lg font-semibold">
-                Logga ut
-            </button>
-         )}
+         {signOutButton}
       </div>
     </header>
   );
