@@ -300,7 +300,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     <>
         <AmbientBackground />
         
-        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 pt-2 pb-20">
+        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 pt-2 pb-8">
             {/* --- Header / Hero Section --- */}
             <div className={`flex flex-col md:flex-row justify-between items-center mb-12 gap-6 transition-opacity duration-500 ${activeIndex !== null ? 'opacity-0' : 'opacity-100'}`}>
                 <div className="flex flex-col items-center md:items-start text-center md:text-left">

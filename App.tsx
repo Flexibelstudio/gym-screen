@@ -996,8 +996,10 @@ const MainContent: React.FC = () => {
     setCompletionInfo(null);
   };
 
+  const isHomeInStudio = isStudioMode && page === Page.Home;
+
   return (
-    <div className={`bg-white dark:bg-black text-gray-800 dark:text-gray-200 min-h-screen font-sans flex flex-col ${paddingClass}`}>
+    <div className={`bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isHomeInStudio ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
        {isOffline && (
         <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-black text-center p-2 font-semibold z-[1001]">
             Du är offline. Viss funktionalitet kan vara begränsad och ändringar sparas lokalt.
