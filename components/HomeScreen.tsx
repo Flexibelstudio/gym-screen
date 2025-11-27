@@ -66,11 +66,6 @@ const MenuCard: React.FC<{
             filter: "blur(10px)",
             transition: { duration: 0.4, ease: "easeInOut" } 
         },
-        hover: { 
-            scale: 1.05, 
-            y: -8,
-            transition: { duration: 0.3 }
-        },
         tap: { scale: 0.97 }
     };
 
@@ -78,12 +73,11 @@ const MenuCard: React.FC<{
         <motion.button
             initial="initial"
             animate={isActive ? "active" : isBlurred ? "blurred" : "enter"}
-            whileHover={!isActive && !isBlurred ? "hover" : undefined}
             whileTap={!isActive && !isBlurred ? "tap" : undefined}
             variants={variants}
             onClick={onClick}
             className={`
-                relative overflow-hidden group rounded-3xl p-6 text-left transition-colors duration-500 flex flex-col justify-between
+                relative overflow-hidden rounded-3xl p-6 text-left transition-colors duration-500 flex flex-col justify-between
                 ${isWide ? 'col-span-2 aspect-[2/1] sm:aspect-auto' : 'col-span-1 aspect-square'}
                 bg-gradient-to-br from-primary to-teal-700 text-white
                 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.3)] shadow-primary/30
@@ -120,7 +114,7 @@ const MenuCard: React.FC<{
             <div className="absolute bottom-0 left-0 w-32 h-32 bg-black/20 rounded-full blur-2xl -ml-10 -mb-10 pointer-events-none"></div>
 
             <div className="z-10 flex flex-col h-full justify-between relative">
-                <div className="mb-4 p-3 bg-white/10 w-fit rounded-2xl text-white backdrop-blur-md border border-white/10 shadow-inner group-hover:bg-white/20 transition-colors duration-300">
+                <div className="mb-4 p-3 bg-white/10 w-fit rounded-2xl text-white backdrop-blur-md border border-white/10 shadow-inner transition-colors duration-300">
                     {icon || <DumbbellIcon className="w-8 h-8" />}
                 </div>
                 
@@ -129,7 +123,7 @@ const MenuCard: React.FC<{
                         {title}
                     </h3>
                     {subTitle && (
-                        <p className="text-sm font-medium text-white/90 mt-2 group-hover:text-white transition-colors opacity-90">
+                        <p className="text-sm font-medium text-white/90 mt-2 transition-colors opacity-90">
                             {subTitle}
                         </p>
                     )}
@@ -350,7 +344,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             />
                         </div>
                     )}
-                    <span className="text-6xl font-thin text-black dark:text-white font-mono leading-none">
+                    <span className={`text-6xl font-thin font-mono leading-none ${theme === 'light' ? 'text-black' : 'text-white'}`}>
                         {currentTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', hour12: false })}
                     </span>
                     <span className="text-primary uppercase tracking-widest font-bold text-sm mt-1">
