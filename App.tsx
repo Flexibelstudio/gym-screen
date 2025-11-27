@@ -230,8 +230,6 @@ const MainContent: React.FC = () => {
     return false;
   }, [page, history]);
 
-  const isQrCodeVisible = isStudioMode && page === Page.Home && studioConfig.checkInImageEnabled && studioConfig.checkInImageUrl;
-
   const activeInfoMessages = useMemo((): InfoMessage[] => {
     const infoCarousel = selectedOrganization?.infoCarousel;
     if (!infoCarousel?.isEnabled || !selectedStudio || !infoCarousel.messages) {
@@ -985,10 +983,6 @@ const MainContent: React.FC = () => {
   const mainPaddingBottom = useMemo(() => {
     return isInfoBannerVisible ? infoBannerHeight : 0;
   }, [isInfoBannerVisible]);
-
-  const qrCodeTranslateY = useMemo(() => {
-    return isInfoBannerVisible ? infoBannerHeight : 0;
-  }, [isInfoBannerVisible]);
   
   // Update: Remove Page.Home from showClock condition.
   // The header clock should only appear on specific pages like WorkoutDetail
@@ -1073,18 +1067,6 @@ const MainContent: React.FC = () => {
        
        {isInfoBannerVisible && <InfoCarouselBanner messages={activeInfoMessages} className="bottom-0" forceDark={isScreensaverActive} />}
 
-       {isQrCodeVisible && (
-          <div 
-            className={`fixed bottom-4 right-4 z-10 transition-transform duration-300 ease-in-out`}
-            style={{ transform: `translateY(-${qrCodeTranslateY}px)`}}
-          >
-              <img
-                src={studioConfig.checkInImageUrl}
-                alt="QR-kod för incheckning"
-                className="w-32 h-32 md:w-40 md:h-40 object-contain drop-shadow-lg"
-              />
-          </div>
-      )}
        {studioToEditConfig && selectedOrganization && (
         <StudioConfigModal
             isOpen={!!studioToEditConfig}

@@ -300,6 +300,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     ? organizationLogoUrlDark || organizationLogoUrlLight 
     : organizationLogoUrlLight || organizationLogoUrlDark;
 
+  const showQrCode = studioConfig.checkInImageEnabled && studioConfig.checkInImageUrl;
+
   return (
     <>
         <AmbientBackground />
@@ -332,17 +334,26 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     </motion.div>
                 </div>
 
-                {/* Date/Time Display */}
+                {/* Date/Time Display with QR Code above */}
                 <motion.div 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 1, delay: 0.5 }}
                     className="hidden md:flex flex-col items-end"
                 >
-                    <span className="text-6xl font-thin text-black dark:text-white font-mono">
+                    {showQrCode && (
+                        <div className="mb-4 bg-white p-2 rounded-xl shadow-sm border border-gray-100">
+                            <img 
+                                src={studioConfig.checkInImageUrl} 
+                                alt="Check-in QR" 
+                                className="w-24 h-24 object-contain" 
+                            />
+                        </div>
+                    )}
+                    <span className="text-6xl font-thin text-black dark:text-white font-mono leading-none">
                         {currentTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', hour12: false })}
                     </span>
-                    <span className="text-primary uppercase tracking-widest font-bold text-sm">
+                    <span className="text-primary uppercase tracking-widest font-bold text-sm mt-1">
                         {currentTime.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
                     </span>
                 </motion.div>
