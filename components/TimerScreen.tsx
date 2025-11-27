@@ -792,11 +792,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         {showBackToPrepConfirmation && <RaceBackToPrepConfirmationModal onConfirm={onBackToGroups} onCancel={() => setShowBackToPrepConfirmation(false)} />}
       </AnimatePresence>
 
-      {/* TOP SECTION: TIMER CARD (35-40% Height for FS, 50% otherwise) */}
+      {/* TOP SECTION: TIMER CARD (Adjusted for better centering) */}
       <div 
           className={`absolute flex flex-col items-center transition-all duration-500 z-10 
               ${showFullScreenColor 
-                  ? `top-0 h-[38%] left-0 justify-start pt-24 ${isHyroxRace ? 'right-[30%]' : 'right-0'}`
+                  ? `top-0 h-[50%] left-0 justify-center ${isHyroxRace ? 'right-[30%]' : 'right-0'}` // h-[50%] + justify-center for vertical centering
                   : `justify-center top-4 h-[50%] left-4 right-4 sm:left-6 sm:right-6 rounded-[2.5rem] shadow-2xl ${timerStyle.bg} ${pulseAnimationClass}`
               }`}
           style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
@@ -919,9 +919,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       </div>
 
       {/* BOTTOM SECTION: EXERCISES */}
-      {/* Position adjustments: Start directly below the timer card with a small gap */}
+      {/* Moved down to start at 50% mark */}
       <div className={`absolute bottom-0 left-0 right-0 flex flex-col items-center justify-start px-4 z-0 
-          ${showFullScreenColor ? 'top-[40%]' : 'top-[54%]'} 
+          ${showFullScreenColor ? 'top-[50%]' : 'top-[54%]'} 
           ${isHyroxRace ? 'right-[30%]' : 'right-0'}`}
       >
           <div className="w-full flex justify-center items-start h-full pt-4"> 
@@ -961,9 +961,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           </div>
       )}
 
-      {/* Controls (Auto-hiding, Repositioned to middle float) */}
+      {/* Controls (Auto-hiding, Repositioned to 50% mark) */}
       <div className={`fixed z-50 transition-all duration-500 flex gap-6 ${isHyroxRace ? 'left-[35%]' : 'left-1/2'} -translate-x-1/2 
-          ${showFullScreenColor ? 'top-[40%]' : 'top-[54%]'} 
+          ${showFullScreenColor ? 'top-[50%]' : 'top-[54%]'} 
           ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
             {status === TimerStatus.Idle || status === TimerStatus.Finished ? (
                 <>
