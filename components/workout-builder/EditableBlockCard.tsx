@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { WorkoutBlock, Exercise, BankExercise, TimerMode } from '../../types';
-import { ToggleSwitch, SparklesIcon, ChevronUpIcon, ChevronDownIcon } from '../icons';
+import { ToggleSwitch, SparklesIcon, ChevronUpIcon, ChevronDownIcon, PencilIcon } from '../icons';
 import { generateExerciseDescription } from '../../services/geminiService';
 import { parseSettingsFromTitle } from '../../hooks/useWorkoutTimer';
 import { EditableField } from './EditableField';
@@ -17,6 +17,7 @@ interface EditableExerciseItemProps {
     exercise: Exercise;
     onChange: (updatedExercise: Partial<Exercise>) => void;
     onRemove: () => void;
+    onEditImage: (exercise: Exercise) => void;
     exerciseBank: BankExercise[];
     organizationId: string;
     index: number;
@@ -24,7 +25,7 @@ interface EditableExerciseItemProps {
     onMove: (direction: 'up' | 'down') => void;
 }
 
-const EditableExerciseItem: React.FC<EditableExerciseItemProps> = ({ exercise, onChange, onRemove, exerciseBank, organizationId, index, total, onMove }) => {
+const EditableExerciseItem: React.FC<EditableExerciseItemProps> = ({ exercise, onChange, onRemove, onEditImage, exerciseBank, organizationId, index, total, onMove }) => {
     const baseClasses = "w-full bg-transparent focus:outline-none disabled:bg-transparent";
     const textClasses = "text-gray-900 dark:text-white";
     
@@ -136,6 +137,9 @@ const EditableExerciseItem: React.FC<EditableExerciseItemProps> = ({ exercise, o
                         placeholder="Sök eller skriv övningsnamn"
                         className={`${baseClasses} ${textClasses} font-semibold`}
                     />
+                    <button onClick={() => onEditImage(exercise)} className="flex-shrink-0 text-gray-400 hover:text-primary transition-colors" title="Ändra bild">
+                        <PencilIcon className="w-4 h-4" />
+                    </button>
                     <button onClick={onRemove} className="flex-shrink-0 text-red-500 hover:text-red-400 transition-colors text-sm font-medium" title="Ta bort övning">ta bort</button>
                 </div>
 
@@ -181,6 +185,7 @@ interface EditableBlockCardProps {
     onUpdate: (block: WorkoutBlock) => void;
     onRemove: () => void;
     onEditSettings: () => void;
+    onEditExerciseImage: (exercise: Exercise | BankExercise) => void;
     isDraggable: boolean;
     workoutTitle: string;
     workoutBlocksCount: number;
@@ -190,7 +195,7 @@ interface EditableBlockCardProps {
     onMoveExercise: (exerciseIndex: number, direction: 'up' | 'down') => void;
 }
 
-export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({ block, onUpdate, onRemove, onEditSettings, isDraggable, workoutTitle, workoutBlocksCount, editorRefs, exerciseBank, organizationId, onMoveExercise }) => {
+export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({ block, onUpdate, onRemove, onEditSettings, onEditExerciseImage, isDraggable, workoutTitle, workoutBlocksCount, editorRefs, exerciseBank, organizationId, onMoveExercise }) => {
     const [isExpanded, setIsExpanded] = useState(true);
 
     const handleFieldChange = (field: keyof WorkoutBlock, value: any) => {
@@ -232,9 +237,10 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({ block, onU
     const isTitleRedundant = block.title === workoutTitle && workoutBlocksCount === 1;
     
     const settingsText = useMemo(() => {
-        const { mode, workTime, restTime, rounds } = block.settings;
+        const { mode, workTime, restTime, rounds, specifiedLaps, specifiedIntervalsPerLap } = block.settings;
         if (mode === TimerMode.NoTimer) return "Ingen timer";
         if (mode === TimerMode.Stopwatch) return "Stoppur";
+        
         const formatTime = (t: number) => {
             const m = Math.floor(t / 60);
             const s = t % 60;
@@ -242,9 +248,17 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({ block, onU
             const sPart = s > 0 ? `${s}s` : '';
             return `${mPart} ${sPart}`.trim() || '0s';
         }
+
         if (mode === TimerMode.AMRAP || mode === TimerMode.TimeCap) return `${mode}: ${formatTime(workTime)}`;
         if (mode === TimerMode.EMOM) return `EMOM: ${rounds} min`;
-        return `${mode}: ${rounds}x (${formatTime(workTime)} / ${formatTime(restTime)})`;
+
+        // Interval & Tabata Logic
+        let displayString = `${mode}: ${rounds}x`;
+        if (specifiedLaps && specifiedIntervalsPerLap) {
+            displayString = `${mode}: ${specifiedLaps} varv x ${specifiedIntervalsPerLap} intervaller`;
+        }
+
+        return `${displayString} (${formatTime(workTime)} / ${formatTime(restTime)})`;
     }, [block.settings]);
 
 
@@ -325,6 +339,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({ block, onU
                                 exercise={ex}
                                 onChange={updatedEx => handleExerciseChange(ex.id, updatedEx)}
                                 onRemove={() => handleRemoveExercise(ex.id)}
+                                onEditImage={onEditExerciseImage}
                                 exerciseBank={exerciseBank}
                                 organizationId={organizationId}
                                 index={index}

@@ -52,14 +52,14 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
         setRestMinutes(rest.minutes);
         setRestSeconds(rest.seconds);
         
-        const { rounds, workTime } = block.settings;
+        const { rounds, workTime, specifiedLaps, specifiedIntervalsPerLap } = block.settings;
 
         if (currentMode === TimerMode.Interval || currentMode === TimerMode.Tabata) {
             // Check for explicit settings first
-            if (block.settings.specifiedLaps && block.settings.specifiedIntervalsPerLap) {
+            if (specifiedLaps !== undefined && specifiedIntervalsPerLap !== undefined) {
                  setCountMode('laps');
-                 setVarv(block.settings.specifiedLaps);
-                 setIntervallerPerVarv(block.settings.specifiedIntervalsPerLap);
+                 setVarv(specifiedLaps);
+                 setIntervallerPerVarv(specifiedIntervalsPerLap);
             } else {
                 // Fallback to inference if no explicit settings exist
                 const numExercises = block.exercises.length > 0 ? block.exercises.length : 1;
