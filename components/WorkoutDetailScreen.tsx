@@ -448,9 +448,21 @@ const WorkoutBlockCard: React.FC<WorkoutBlockCardProps> = ({
             case TimerMode.Interval:
             case TimerMode.Tabata:
                 const totalIntervals = rounds;
-                const exercisesPerLap = block.exercises.length > 0 ? block.exercises.length : 1;
-                const laps = Math.ceil(totalIntervals / exercisesPerLap);
-                const lapText = laps > 1 && exercisesPerLap > 1 ? ` (${laps} varv)` : '';
+                let laps: number;
+                let showLaps = false;
+
+                // Priority: Use explicit settings if available
+                if (block.settings.specifiedLaps) {
+                    laps = block.settings.specifiedLaps;
+                    showLaps = true;
+                } else {
+                    // Fallback to inference
+                    const exercisesPerLap = block.exercises.length > 0 ? block.exercises.length : 1;
+                    laps = Math.ceil(totalIntervals / exercisesPerLap);
+                    showLaps = laps > 1 && exercisesPerLap > 1;
+                }
+                
+                const lapText = showLaps ? ` (${laps} varv)` : '';
                 return `Intervall: ${totalIntervals}x (${formatTime(workTime)} arbete / ${formatTime(restTime)} vila)${lapText} ${prepText}`;
             
             case TimerMode.AMRAP:

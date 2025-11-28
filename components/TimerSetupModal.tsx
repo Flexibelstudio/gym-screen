@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { WorkoutBlock, TimerMode, TimerSettings } from '../types';
@@ -54,16 +55,23 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
         const { rounds, workTime } = block.settings;
 
         if (currentMode === TimerMode.Interval || currentMode === TimerMode.Tabata) {
-            const numExercises = block.exercises.length > 0 ? block.exercises.length : 1;
-            
-            // Intelligently set the initial count mode
-            if (rounds > 0 && rounds % numExercises === 0) {
-                setCountMode('laps');
-                setIntervallerPerVarv(numExercises);
-                setVarv(rounds / numExercises);
+            // Check for explicit settings first
+            if (block.settings.specifiedLaps && block.settings.specifiedIntervalsPerLap) {
+                 setCountMode('laps');
+                 setVarv(block.settings.specifiedLaps);
+                 setIntervallerPerVarv(block.settings.specifiedIntervalsPerLap);
             } else {
-                setCountMode('rounds');
-                setTotalOmgångar(rounds > 0 ? rounds : 1);
+                // Fallback to inference if no explicit settings exist
+                const numExercises = block.exercises.length > 0 ? block.exercises.length : 1;
+                
+                if (rounds > 0 && rounds % numExercises === 0) {
+                    setCountMode('laps');
+                    setIntervallerPerVarv(numExercises);
+                    setVarv(rounds / numExercises);
+                } else {
+                    setCountMode('rounds');
+                    setTotalOmgångar(rounds > 0 ? rounds : 1);
+                }
             }
         } else if (currentMode === TimerMode.EMOM) {
              setTotalMinutes(rounds);
@@ -92,7 +100,16 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
     switch(mode) {
       case TimerMode.Interval:
       case TimerMode.Tabata:
-        newSettings.rounds = countMode === 'laps' ? (varv * intervallerPerVarv) : totalOmgångar;
+        if (countMode === 'laps') {
+            newSettings.rounds = varv * intervallerPerVarv;
+            newSettings.specifiedLaps = varv;
+            newSettings.specifiedIntervalsPerLap = intervallerPerVarv;
+        } else {
+            newSettings.rounds = totalOmgångar;
+            // Explicitly set to undefined to remove old values if user switched to simple rounds
+            newSettings.specifiedLaps = undefined;
+            newSettings.specifiedIntervalsPerLap = undefined;
+        }
         newSettings.workTime = workMinutes * 60 + workSeconds;
         newSettings.restTime = restMinutes * 60 + restSeconds;
         break;

@@ -229,6 +229,9 @@ export interface TimerSettings {
   restTime: number; // in seconds
   rounds: number;
   prepareTime: number; // in seconds
+  // New fields to explicitly store user's intent for laps setup
+  specifiedLaps?: number;
+  specifiedIntervalsPerLap?: number;
 }
 
 export interface WorkoutBlock {

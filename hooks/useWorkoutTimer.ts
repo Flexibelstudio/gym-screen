@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { WorkoutBlock, TimerStatus, Exercise, TimerSettings, TimerMode } from '../types';
 
@@ -188,18 +189,26 @@ export const useWorkoutTimer = (block: WorkoutBlock | null) => {
       // For Interval/Tabata, 'rounds' now means TOTAL work intervals.
       totalWorkIntervals = settingsRounds;
       // 'totalRounds' (laps) is derived from total intervals and exercises per lap.
-      totalRounds = totalExercises > 0 ? Math.ceil(settingsRounds / totalExercises) : settingsRounds;
+      if (block?.settings.specifiedIntervalsPerLap) {
+          // If we have explicit intervals per lap settings, rely on that for total rounds calculation
+          totalRounds = Math.ceil(settingsRounds / block.settings.specifiedIntervalsPerLap);
+      } else {
+          totalRounds = totalExercises > 0 ? Math.ceil(settingsRounds / totalExercises) : settingsRounds;
+      }
   }
 
+  // Determine the effective interval count per lap for display calculation
+  const effectiveIntervalsPerLap = block?.settings.specifiedIntervalsPerLap || (totalExercises > 0 ? totalExercises : 1);
 
   // The current round (1-based)
-  const currentRound = totalExercises > 0 ? Math.floor(completedWorkIntervals / totalExercises) + 1 : (completedWorkIntervals + 1);
-  // The current exercise index (0-based)
+  const currentRound = Math.floor(completedWorkIntervals / effectiveIntervalsPerLap) + 1;
+  
+  // The current exercise index (0-based) - cycle through available exercises
   const currentExerciseIndex = totalExercises > 0 ? completedWorkIntervals % totalExercises : 0;
   
   const currentExercise: Exercise | null = block && totalExercises > 0 ? block.exercises[currentExerciseIndex] : null;
   const nextExercise: Exercise | null = block && totalExercises > 0 ? block.exercises[(completedWorkIntervals + 1) % totalExercises] : null;
-  const isLastExerciseInRound = totalExercises > 0 ? currentExerciseIndex === totalExercises - 1 : false;
+  const isLastExerciseInRound = (completedWorkIntervals + 1) % effectiveIntervalsPerLap === 0;
   // --- End Derived State ---
 
   const stopTimer = useCallback(() => {
