@@ -212,22 +212,114 @@ const CircuitView: React.FC<{
     );
 };
 
-const BigRoundIndicator: React.FC<{
+interface BigRoundIndicatorProps {
     currentRound: number;
     totalRounds: number;
     mode: TimerMode;
-}> = ({ currentRound, totalRounds, mode }) => {
+    currentInterval?: number;
+    intervalsPerRound?: number;
+    specifiedLaps?: number;
+}
+
+const BigRoundIndicator: React.FC<BigRoundIndicatorProps> = ({ 
+    currentRound, totalRounds, mode, currentInterval, intervalsPerRound, specifiedLaps 
+}) => {
     
-    const label = mode === TimerMode.EMOM ? "MINUT" : "RUNDA";
     const isRelevantMode = [TimerMode.Interval, TimerMode.Tabata, TimerMode.EMOM].includes(mode);
 
     if (!isRelevantMode) return null;
 
+    if (mode === TimerMode.EMOM) {
+         return (
+            <div className="mt-6 flex flex-col items-center z-20">
+                <div className="bg-black/20 backdrop-blur-md rounded-2xl px-8 py-4 border border-white/10 shadow-xl">
+                    <span className="block text-white/70 font-bold text-xl uppercase tracking-[0.3em] mb-1 text-center">
+                        MINUT
+                    </span>
+                    <div className="flex items-baseline justify-center gap-2">
+                        <motion.span 
+                            key={currentRound}
+                            initial={{ opacity: 0, y: 20, scale: 0.5 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            transition={{ type: "spring", stiffness: 300, damping: 15 }}
+                            className="font-black text-8xl text-white drop-shadow-lg leading-none"
+                        >
+                            {currentRound}
+                        </motion.span>
+                        <span className="text-3xl font-bold text-white/60">/ {totalRounds}</span>
+                    </div>
+                </div>
+            </div>
+         );
+    }
+
+    // Interval/Tabata Logic
+    
+    // Check if we have explicit settings for laps/intervals
+    if (specifiedLaps !== undefined && currentInterval !== undefined && intervalsPerRound !== undefined) {
+        if (specifiedLaps === 1) {
+            // Only show Interval count if it's just 1 lap
+             return (
+                <div className="mt-6 flex flex-col items-center z-20">
+                    <div className="bg-black/20 backdrop-blur-md rounded-2xl px-8 py-4 border border-white/10 shadow-xl">
+                        <span className="block text-white/70 font-bold text-xl uppercase tracking-[0.3em] mb-1 text-center">
+                            INTERVALL
+                        </span>
+                        <div className="flex items-baseline justify-center gap-2">
+                            <motion.span 
+                                key={currentInterval}
+                                initial={{ opacity: 0, y: 20, scale: 0.5 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                transition={{ type: "spring", stiffness: 300, damping: 15 }}
+                                className="font-black text-8xl text-white drop-shadow-lg leading-none"
+                            >
+                                {currentInterval}
+                            </motion.span>
+                            <span className="text-3xl font-bold text-white/60">/ {intervalsPerRound}</span>
+                        </div>
+                    </div>
+                </div>
+            );
+        } else {
+            // Show Both: Lap and Interval if multiple laps
+             return (
+                <div className="mt-6 flex flex-col items-center gap-4 z-20">
+                    {/* Lap Indicator - Dominant */}
+                    <div className="bg-black/20 backdrop-blur-md rounded-2xl px-10 py-4 border border-white/10 shadow-xl">
+                        <span className="block text-white/70 font-bold text-xl uppercase tracking-[0.3em] mb-1 text-center">
+                            VARV
+                        </span>
+                        <div className="flex items-baseline justify-center gap-2">
+                            <motion.span 
+                                key={currentRound}
+                                initial={{ opacity: 0, y: 20, scale: 0.5 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                transition={{ type: "spring", stiffness: 300, damping: 15 }}
+                                className="font-black text-8xl text-white drop-shadow-lg leading-none"
+                            >
+                                {currentRound}
+                            </motion.span>
+                            <span className="text-3xl font-bold text-white/60">/ {totalRounds}</span>
+                        </div>
+                    </div>
+                    
+                    {/* Interval Indicator - Subordinate */}
+                    <div className="bg-black/20 backdrop-blur-md rounded-xl px-6 py-2 border border-white/10 shadow-lg">
+                         <span className="text-white/80 font-bold text-lg tracking-wider flex items-center gap-2">
+                            INTERVALL <span className="text-2xl text-white">{currentInterval}</span> <span className="text-white/60">/ {intervalsPerRound}</span>
+                        </span>
+                    </div>
+                </div>
+            );
+        }
+    }
+
+    // Fallback logic for legacy timer settings
     return (
         <div className="mt-6 flex flex-col items-center z-20">
             <div className="bg-black/20 backdrop-blur-md rounded-2xl px-8 py-4 border border-white/10 shadow-xl">
                 <span className="block text-white/70 font-bold text-xl uppercase tracking-[0.3em] mb-1 text-center">
-                    {label}
+                    RUNDA
                 </span>
                 <div className="flex items-baseline justify-center gap-2">
                     <motion.span 
@@ -760,6 +852,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       return groupForCountdownDisplay.participants.split('\n').map(p => p.trim()).filter(Boolean);
   }, [groupForCountdownDisplay]);
 
+  // Calculate display values for intervals/laps
+  const effectiveIntervalsPerLap = block.settings.specifiedIntervalsPerLap || (block.exercises.length > 0 ? block.exercises.length : 1);
+  const currentIntervalInLap = (completedWorkIntervals % effectiveIntervalsPerLap) + 1;
+
   return (
     <div 
         className={`fixed inset-0 w-full h-full overflow-hidden transition-colors duration-500 ${showFullScreenColor ? `${timerStyle.bg} ${pulseAnimationClass}` : 'bg-gray-100 dark:bg-black'}`}
@@ -851,6 +947,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                         currentRound={currentRound} 
                         totalRounds={totalRounds} 
                         mode={block.settings.mode} 
+                        currentInterval={currentIntervalInLap}
+                        intervalsPerRound={effectiveIntervalsPerLap}
+                        specifiedLaps={block.settings.specifiedLaps}
                     />
                 ) : (
                     <div className="mt-6 text-center z-20 text-white">
