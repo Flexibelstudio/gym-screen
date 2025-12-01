@@ -59,6 +59,11 @@ if (isOffline) {
     }
 }
 
+// Helper to remove undefined values which Firestore does not support
+const sanitizeData = <T>(data: T): T => {
+    return JSON.parse(JSON.stringify(data));
+};
+
 
 // --- Auth Functions ---
 export const onAuthChange = (callback: (user: firebase.User | null) => void) => {
@@ -482,24 +487,26 @@ export const undoLastBilling = async (organizationId: string): Promise<Organizat
 
 
 export const updateGlobalConfig = async (organizationId: string, newConfig: StudioConfig): Promise<void> => {
+    const sanitizedConfig = sanitizeData(newConfig);
     if(isOffline || !db) {
         await offlineWarning('updateGlobalConfig');
         const org = MOCK_ORGANIZATIONS.find(o => o.id === organizationId);
         if (org) {
-            org.globalConfig = newConfig;
+            org.globalConfig = sanitizedConfig;
         }
         return;
     }
-    await db.collection('organizations').doc(organizationId).update({ globalConfig: newConfig });
+    await db.collection('organizations').doc(organizationId).update({ globalConfig: sanitizedConfig });
 };
 
 export const updateStudioConfig = async (organizationId: string, studioId: string, newConfigOverrides: Partial<StudioConfig>): Promise<Studio> => {
+    const sanitizedOverrides = sanitizeData(newConfigOverrides);
     if(isOffline || !db) {
         await offlineWarning('updateStudioConfig');
         const org = MOCK_ORGANIZATIONS.find(o => o.id === organizationId);
         const studio = org?.studios.find(s => s.id === studioId);
         if(!studio) throw new Error("Offline studio not found");
-        studio.configOverrides = newConfigOverrides;
+        studio.configOverrides = sanitizedOverrides;
         return studio;
     }
     const orgDoc = await db.collection('organizations').doc(organizationId).get();
@@ -509,7 +516,7 @@ export const updateStudioConfig = async (organizationId: string, studioId: strin
     let updatedStudio: Studio | null = null;
     const newStudios = org.studios.map(s => {
         if (s.id === studioId) {
-            updatedStudio = { ...s, configOverrides: newConfigOverrides };
+            updatedStudio = { ...s, configOverrides: sanitizedOverrides };
             return updatedStudio;
         }
         return s;
@@ -649,21 +656,23 @@ export const saveExerciseToBank = async (exercise: BankExercise): Promise<void> 
         return;
     }
 
+    const sanitizedExercise = sanitizeData(exercise);
+
     if (isOffline || !db) {
         if (!(window as any).mockExerciseBank) {
             (window as any).mockExerciseBank = JSON.parse(JSON.stringify(MOCK_EXERCISE_BANK));
         }
         const exercises: BankExercise[] = (window as any).mockExerciseBank;
-        const existingIndex = exercises.findIndex((ex: BankExercise) => ex.id === exercise.id);
+        const existingIndex = exercises.findIndex((ex: BankExercise) => ex.id === sanitizedExercise.id);
         if (existingIndex > -1) {
-            exercises[existingIndex] = exercise;
+            exercises[existingIndex] = sanitizedExercise;
         } else {
-            exercises.unshift(exercise);
+            exercises.unshift(sanitizedExercise);
         }
         (window as any).mockExerciseBank = exercises.sort((a,b) => a.name.localeCompare(b.name));
         return offlineWarning('saveExerciseToBank');
     }
-    const exerciseDocRef = db.collection('exerciseBank').doc(exercise.id);
+    const exerciseDocRef = db.collection('exerciseBank').doc(sanitizedExercise.id);
 
     // Get the existing document to check for an old image URL
     const doc = await exerciseDocRef.get();
@@ -671,12 +680,12 @@ export const saveExerciseToBank = async (exercise: BankExercise): Promise<void> 
         const oldExercise = doc.data() as BankExercise;
         const oldImageUrl = oldExercise.imageUrl;
         // If the URL has changed and the old one existed, delete the old one
-        if (oldImageUrl && oldImageUrl !== exercise.imageUrl) {
+        if (oldImageUrl && oldImageUrl !== sanitizedExercise.imageUrl) {
             await deleteImageByUrl(oldImageUrl);
         }
     }
 
-    await exerciseDocRef.set(exercise, { merge: true });
+    await exerciseDocRef.set(sanitizedExercise, { merge: true });
 };
 
 export const deleteExerciseFromBank = async (exerciseId: string): Promise<void> => {
@@ -845,20 +854,22 @@ export const saveWorkout = async (workout: Workout): Promise<void> => {
         return;
     }
 
+    const sanitizedWorkout = sanitizeData(workout);
+
     if (isOffline || !db) {
         if (!(window as any).mockWorkouts) (window as any).mockWorkouts = [];
         const workouts: Workout[] = (window as any).mockWorkouts;
-        const existingIndex = workouts.findIndex((w: Workout) => w.id === workout.id);
+        const existingIndex = workouts.findIndex((w: Workout) => w.id === sanitizedWorkout.id);
         if (existingIndex > -1) {
-            workouts[existingIndex] = workout;
+            workouts[existingIndex] = sanitizedWorkout;
         } else {
-            workouts.unshift(workout);
+            workouts.unshift(sanitizedWorkout);
         }
         (window as any).mockWorkouts = workouts;
         return offlineWarning('saveWorkout');
     }
-    const workoutDocRef = db.collection('workouts').doc(workout.id);
-    await workoutDocRef.set(workout, { merge: true });
+    const workoutDocRef = db.collection('workouts').doc(sanitizedWorkout.id);
+    await workoutDocRef.set(sanitizedWorkout, { merge: true });
 };
 
 export const deleteWorkout = async (workoutId: string): Promise<void> => {
@@ -1009,9 +1020,10 @@ export const saveRace = async (raceData: Omit<HyroxRace, 'id' | 'createdAt' | 'o
         (window as any).mockRaces.unshift(newRace);
         return newRace;
     }
+    const sanitizedRaceData = sanitizeData(raceData);
     const newRaceRef = db.collection('races').doc();
     const newRace: HyroxRace = {
-        ...raceData,
+        ...sanitizedRaceData,
         id: newRaceRef.id,
         createdAt: Date.now(),
         organizationId,
