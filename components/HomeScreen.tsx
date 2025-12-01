@@ -311,7 +311,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             transition={{ duration: 0.5 }}
                             src={logoUrl} 
                             alt="Logo" 
-                            className="h-16 object-contain mb-6" 
+                            className="h-32 object-contain mb-6" 
                         />
                     )}
                     <motion.div
