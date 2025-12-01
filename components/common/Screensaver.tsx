@@ -13,7 +13,8 @@ const useBouncingPhysics = (
   bottomOffset: number = 0
 ) => {
     const elementsState = useRef(elementRefs.map(() => {
-        const speed = 75; // pixels per second for consistent movement
+        // Reduced speed slightly for a smoother, more premium feel
+        const speed = 60; 
         const angle = Math.random() * 2 * Math.PI;
         return {
             pos: { x: 0, y: 0 },
@@ -37,8 +38,9 @@ const useBouncingPhysics = (
                 const elRect = el.getBoundingClientRect();
                 elState.size.w = elRect.width;
                 elState.size.h = elRect.height;
-                elState.pos.x = Math.random() * (containerRect.width - elState.size.w);
-                elState.pos.y = Math.random() * (availableHeight - elState.size.h);
+                // Random start position within bounds
+                elState.pos.x = Math.random() * Math.max(0, containerRect.width - elState.size.w);
+                elState.pos.y = Math.random() * Math.max(0, availableHeight - elState.size.h);
             }
         });
         
@@ -60,12 +62,11 @@ const useBouncingPhysics = (
             const currentContainerRect = container.getBoundingClientRect();
             const currentAvailableHeight = currentContainerRect.height - bottomOffset;
 
-            // Update sizes and positions, and check for wall collisions
             elementsState.current.forEach((elState, index) => {
                 const el = elementRefs[index].current;
                 if (el) {
                     const rect = el.getBoundingClientRect();
-                    // Dynamically update size if it has been rendered and is valid
+                    // We assume size is relatively stable, but we check to ensure we stay in bounds if it changes
                     if (rect.width > 0 && rect.height > 0) {
                         elState.size.w = rect.width;
                         elState.size.h = rect.height;
@@ -75,95 +76,37 @@ const useBouncingPhysics = (
                 elState.pos.x += elState.vel.vx * deltaTime;
                 elState.pos.y += elState.vel.vy * deltaTime;
 
-                // Wall collision with boundary correction
-                if (elState.pos.x < 0) {
-                    elState.pos.x = 0;
-                    elState.vel.vx *= -1;
-                } else if (elState.pos.x > currentContainerRect.width - elState.size.w) {
-                    elState.pos.x = currentContainerRect.width - elState.size.w;
-                    elState.vel.vx *= -1;
-                }
-
-                if (elState.pos.y < 0) {
-                    elState.pos.y = 0;
-                    elState.vel.vy *= -1;
-                } else if (elState.pos.y > currentAvailableHeight - elState.size.h) {
-                    // Bounce off the "floor" created by the bottomOffset
-                    elState.pos.y = currentAvailableHeight - elState.size.h;
-                    elState.vel.vy *= -1;
-                }
-            });
-            
-            // Inter-element collision (Reflection method)
-            if (elementsState.current.length > 1) {
-                const [el1, el2] = elementsState.current;
+                // --- Wall collision with boundary correction ---
                 
-                // Check for valid sizes before doing collision math
-                if (el1.size.w > 0 && el2.size.w > 0) {
-                    // Check for bounding box overlap
-                    if (
-                        el1.pos.x < el2.pos.x + el2.size.w &&
-                        el1.pos.x + el1.size.w > el2.pos.x &&
-                        el1.pos.y < el2.pos.y + el2.size.h &&
-                        el1.pos.y + el1.size.h > el2.pos.y
-                    ) {
-                        // Calculate center-to-center vector (collision normal)
-                        const dx = (el2.pos.x + el2.size.w / 2) - (el1.pos.x + el1.size.w / 2);
-                        const dy = (el2.pos.y + el2.size.h / 2) - (el1.pos.y + el1.size.h / 2);
-                        
-                        const relVelX = el1.vel.vx - el2.vel.vx;
-                        const relVelY = el1.vel.vy - el2.vel.vy;
-                        
-                        // Only resolve if objects are moving towards each other to prevent sticking
-                        if (dx * relVelX + dy * relVelY < 0) {
-                            const distance = Math.sqrt(dx * dx + dy * dy);
-                            
-                            // Prevent division by zero
-                            if (distance > 0) {
-                                // Normalized collision normal
-                                const nx = dx / distance;
-                                const ny = dy / distance;
-
-                                // --- Reflect velocities ---
-                                // Reflect el1's velocity
-                                const dot1 = el1.vel.vx * nx + el1.vel.vy * ny;
-                                el1.vel.vx -= 2 * dot1 * nx;
-                                el1.vel.vy -= 2 * dot1 * ny;
-
-                                // Reflect el2's velocity
-                                const dot2 = el2.vel.vx * nx + el2.vel.vy * ny;
-                                el2.vel.vx -= 2 * dot2 * nx;
-                                el2.vel.vy -= 2 * dot2 * ny;
-
-                                // --- Overlap Correction ---
-                                // A simple nudge to prevent objects from sticking.
-                                const r1 = (el1.size.w + el1.size.h) / 4; // Avg radius approximation
-                                const r2 = (el2.size.w + el2.size.h) / 4;
-                                const overlap = (r1 + r2) - distance;
-                                
-                                if (overlap > 0) {
-                                    const pushX = (overlap * nx) / 2;
-                                    const pushY = (overlap * ny) / 2;
-                                    
-                                    el1.pos.x -= pushX;
-                                    el1.pos.y -= pushY;
-                                    el2.pos.x += pushX;
-                                    el2.pos.y += pushY;
-                                }
-                            }
-                        }
-                    }
+                // Right wall
+                if (elState.pos.x + elState.size.w > currentContainerRect.width) {
+                    elState.pos.x = currentContainerRect.width - elState.size.w;
+                    elState.vel.vx = -Math.abs(elState.vel.vx);
+                } 
+                // Left wall
+                else if (elState.pos.x < 0) {
+                    elState.pos.x = 0;
+                    elState.vel.vx = Math.abs(elState.vel.vx);
                 }
-            }
 
-
-            // Apply styles
-            elementsState.current.forEach((elState, index) => {
-                const el = elementRefs[index].current;
+                // Bottom wall (considering offset)
+                if (elState.pos.y + elState.size.h > currentAvailableHeight) {
+                    elState.pos.y = currentAvailableHeight - elState.size.h;
+                    elState.vel.vy = -Math.abs(elState.vel.vy);
+                } 
+                // Top wall
+                else if (elState.pos.y < 0) {
+                    elState.pos.y = 0;
+                    elState.vel.vy = Math.abs(elState.vel.vy);
+                }
+                
+                // Apply transform directly using translate3d for GPU acceleration
                 if (el) {
-                    el.style.transform = `translate(${elState.pos.x}px, ${elState.pos.y}px)`;
+                    el.style.transform = `translate3d(${elState.pos.x}px, ${elState.pos.y}px, 0)`;
                 }
             });
+
+            // Note: Object-to-object collision removed to prevent sticking and improve smoothness ("DVD Logo" style).
 
             lastTime = time;
             animationFrameId.current = requestAnimationFrame(animate);
@@ -190,7 +133,13 @@ export const Screensaver: React.FC<ScreensaverProps> = ({ logoUrl, bottomOffset 
     const clockRef = useRef<HTMLDivElement>(null);
     const logoRef = useRef<HTMLDivElement>(null);
     
-    const elementRefs = useMemo(() => [clockRef, logoRef], []);
+    // Create refs array only for existing elements to avoid processing nulls in physics loop
+    const elementRefs = useMemo(() => {
+        const refs = [clockRef];
+        if (logoUrl) refs.push(logoRef);
+        return refs;
+    }, [logoUrl]);
+
     useBouncingPhysics(containerRef, elementRefs, bottomOffset);
 
     useEffect(() => {
@@ -204,7 +153,7 @@ export const Screensaver: React.FC<ScreensaverProps> = ({ logoUrl, bottomOffset 
         <div ref={containerRef} className="fixed inset-0 bg-black z-[1000] cursor-none animate-fade-in overflow-hidden">
             <div 
                 ref={clockRef} 
-                className="absolute top-0 left-0 text-white font-mono text-9xl font-bold"
+                className="absolute top-0 left-0 text-white font-mono text-9xl font-bold p-4 bg-black/30 rounded-2xl backdrop-blur-sm shadow-2xl"
                 style={{ willChange: 'transform' }}
             >
                 {time}
@@ -212,10 +161,10 @@ export const Screensaver: React.FC<ScreensaverProps> = ({ logoUrl, bottomOffset 
             {logoUrl && (
                  <div 
                     ref={logoRef} 
-                    className="absolute top-0 left-0 w-80 h-80"
+                    className="absolute top-0 left-0 w-80 h-80 p-4"
                     style={{ willChange: 'transform' }}
                 >
-                    <img src={logoUrl} alt="Logo" className="w-full h-full object-contain" />
+                    <img src={logoUrl} alt="Logo" className="w-full h-full object-contain drop-shadow-2xl" />
                 </div>
             )}
         </div>
