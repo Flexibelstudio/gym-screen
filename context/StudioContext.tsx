@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect, useMemo, useCallback } from 'react';
 import { Studio, Organization, StudioConfig } from '../types';
 import { getOrganizations, listenToOrganizationChanges } from '../services/firebaseService';
@@ -36,7 +37,6 @@ interface StudioContextType {
     selectStudio: (studio: Studio) => void;
     clearStudio: () => void;
     
-    // FIX: Add studioConfig to the context type to make it available to consumers.
     studioConfig: StudioConfig;
     studioLoading: boolean;
 }
@@ -46,6 +46,7 @@ const StudioContext = createContext<StudioContextType | undefined>(undefined);
 const LOCAL_STORAGE_ORG_KEY = 'ny-screen-selected-org';
 // Studio key is now dynamic based on user ID to support multiple anonymous users on one device
 const getLocalStorageStudioKey = (uid: string) => `ny-screen-selected-studio_${uid}`;
+const PENDING_STUDIO_KEY = 'ny-screen-pending-studio-id';
 
 export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { currentUser, userData, isStudioMode, authLoading } = useAuth(); // Use the auth context
@@ -64,8 +65,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             setStudioLoading(true);
             try {
                 const fetchedOrgs = await getOrganizations();
-                setAllOrganizations(fetchedOrgs);
-
+                
                 let orgToUse: Organization | null = null;
                 
                 if (isStudioMode) { // Anonymous studio user
@@ -75,27 +75,52 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                         const correspondingOrg = fetchedOrgs.find(o => o.id === storedOrg.id);
                         if (correspondingOrg) {
                             orgToUse = correspondingOrg;
+                        } else {
+                            // Org was deleted or ID is invalid, clear storage
+                            localStorage.removeItem(LOCAL_STORAGE_ORG_KEY);
                         }
-                    } else if (fetchedOrgs.length > 0) {
-                        orgToUse = fetchedOrgs[0];
-                    }
-
+                    } 
+                    // CRITICAL CHANGE: We do NOT default to the first organization if none is found.
+                    // The device must be provisioned.
+                    
                     if (orgToUse && currentUser) {
                         setSelectedOrganization(orgToUse);
+                        // In Studio Mode, we only want to expose the relevant organization
+                        setAllOrganizations([orgToUse]);
                         setAllStudios(orgToUse.studios);
+                        
+                        // Check for pending studio activation (freshly provisioned)
+                        const pendingStudioId = localStorage.getItem(PENDING_STUDIO_KEY);
                         const studioKey = getLocalStorageStudioKey(currentUser.uid);
-                        const storedStudioJSON = localStorage.getItem(studioKey);
-                        if (storedStudioJSON) {
-                            const storedStudio = JSON.parse(storedStudioJSON);
-                            const correspondingStudio = orgToUse.studios.find(s => s.id === storedStudio.id);
-                             if (correspondingStudio) {
+                        
+                        if (pendingStudioId) {
+                            // This device was just provisioned. Bind the studio to this new anonymous user.
+                            const correspondingStudio = orgToUse.studios.find(s => s.id === pendingStudioId);
+                            if (correspondingStudio) {
                                 setSelectedStudio(correspondingStudio);
-                             } else {
-                                localStorage.removeItem(studioKey);
-                             }
+                                localStorage.setItem(studioKey, JSON.stringify(correspondingStudio));
+                            }
+                            localStorage.removeItem(PENDING_STUDIO_KEY); // Clear pending flag
+                        } else {
+                            // Normal load
+                            const storedStudioJSON = localStorage.getItem(studioKey);
+                            if (storedStudioJSON) {
+                                const storedStudio = JSON.parse(storedStudioJSON);
+                                const correspondingStudio = orgToUse.studios.find(s => s.id === storedStudio.id);
+                                if (correspondingStudio) {
+                                    setSelectedStudio(correspondingStudio);
+                                } else {
+                                    localStorage.removeItem(studioKey);
+                                }
+                            }
                         }
+                    } else {
+                        // Not provisioned or organization invalid
+                        setAllOrganizations([]);
                     }
                 } else { // Logged-in admin/owner
+                    setAllOrganizations(fetchedOrgs);
+                    
                     if (userData && userData.organizationId) {
                         // Find the organization that matches the user's data
                         orgToUse = fetchedOrgs.find(o => o.id === userData.organizationId) || null;
@@ -123,7 +148,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         loadInitialData();
     }, [authLoading, currentUser, isStudioMode, userData]);
     
-    // NEW: Effect to listen for real-time updates on the selected organization
+    // Effect to listen for real-time updates on the selected organization
     useEffect(() => {
         if (authLoading || !selectedOrganization?.id) {
             return; // Don't listen if not ready or no org is selected
@@ -143,10 +168,9 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             setAllStudios(updatedOrg.studios);
         });
 
-        // Cleanup the listener when the component unmounts or the org ID changes
         return () => unsubscribe();
 
-    }, [selectedOrganization?.id, authLoading]); // Re-run when the org ID changes or auth state settles
+    }, [selectedOrganization?.id, authLoading]);
 
     const selectOrganization = useCallback((organization: Organization | null) => {
         setSelectedOrganization(organization);

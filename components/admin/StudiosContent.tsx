@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { Organization, Studio } from '../../types';
+import { useAuth } from '../../context/AuthContext';
 
 interface StudiosContentProps {
     organization: Organization;
@@ -11,6 +12,7 @@ interface StudiosContentProps {
 }
 
 export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, onEditStudioConfig, onCreateStudio, onDeleteStudio }) => {
+    const { signOut } = useAuth();
     const [newStudioName, setNewStudioName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
 
@@ -29,6 +31,21 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
         }
     };
 
+    const handleActivateDevice = (studio: Studio) => {
+        if (window.confirm(`Vill du aktivera denna enhet som "${studio.name}"? Du kommer att loggas ut och skärmen låses till denna studio.`)) {
+            // 1. Save Org Provisioning
+            localStorage.setItem('ny-screen-selected-org', JSON.stringify({ id: organization.id, name: organization.name }));
+            
+            // 2. Save Pending Studio ID (to be picked up by the new anonymous user)
+            localStorage.setItem('ny-screen-pending-studio-id', studio.id);
+            
+            // 3. Sign out. The app will reload/refresh, AuthContext will see provisions, and auto-login anonymously.
+            signOut().then(() => {
+                window.location.reload();
+            });
+        }
+    };
+
     return (
          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
             <div className="p-6 sm:p-8 border-b border-gray-100 dark:border-gray-700">
@@ -38,16 +55,19 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
             
              <div className="p-6 sm:p-8 space-y-4 bg-gray-50/50 dark:bg-gray-900/20">
                 {organization.studios.map(studio => (
-                    <div key={studio.id} className="bg-white dark:bg-gray-800 p-5 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-4 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                    <div key={studio.id} className="bg-white dark:bg-gray-800 p-5 rounded-xl flex flex-col xl:flex-row justify-between items-center gap-4 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-center gap-4 flex-grow w-full xl:w-auto">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold flex-shrink-0">
                                 {studio.name[0].toUpperCase()}
                             </div>
-                            <p className="font-bold text-lg text-gray-900 dark:text-white">{studio.name}</p>
+                            <p className="font-bold text-lg text-gray-900 dark:text-white truncate">{studio.name}</p>
                         </div>
-                        <div className="flex gap-3 w-full sm:w-auto">
-                            <button onClick={() => onEditStudioConfig(studio)} className="flex-1 sm:flex-none bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm">Inställningar</button>
-                            <button onClick={() => onDeleteStudio(organization.id, studio.id)} className="flex-1 sm:flex-none bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-semibold py-2 px-4 rounded-lg transition-colors text-sm border border-red-100 dark:border-red-900/30">Ta bort</button>
+                        <div className="flex flex-wrap gap-2 w-full xl:w-auto justify-end">
+                            <button onClick={() => handleActivateDevice(studio)} className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm shadow-sm flex items-center gap-2">
+                                <span className="text-lg">📱</span> Aktivera denna enhet
+                            </button>
+                            <button onClick={() => onEditStudioConfig(studio)} className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm">Inställningar</button>
+                            <button onClick={() => onDeleteStudio(organization.id, studio.id)} className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-semibold py-2 px-4 rounded-lg transition-colors text-sm border border-red-100 dark:border-red-900/30">Ta bort</button>
                         </div>
                     </div>
                 ))}

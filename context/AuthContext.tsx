@@ -1,3 +1,4 @@
+
 import React, { createContext, useState, useContext, useEffect, useMemo, useCallback } from 'react';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
@@ -31,6 +32,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const IMPERSONATION_KEY = 'ny-screen-impersonation';
+const LOCAL_STORAGE_ORG_KEY = 'ny-screen-selected-org';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [currentUser, setCurrentUser] = useState<FirebaseUser | null>(null);
@@ -50,20 +52,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     const handleAuthChange = useCallback(async (user: FirebaseUser | null) => {
-        setCurrentUser(user);
-        if (user && !user.isAnonymous) {
-            const fetchedUserData = await getUserData(user.uid);
-            setUserData(fetchedUserData);
-             if (fetchedUserData && (fetchedUserData.role === 'organizationadmin' || fetchedUserData.role === 'systemowner') && !fetchedUserData.termsAcceptedAt) {
-              setShowTerms(true);
+        if (user) {
+            setCurrentUser(user);
+            if (!user.isAnonymous) {
+                const fetchedUserData = await getUserData(user.uid);
+                setUserData(fetchedUserData);
+                 if (fetchedUserData && (fetchedUserData.role === 'organizationadmin' || fetchedUserData.role === 'systemowner') && !fetchedUserData.termsAcceptedAt) {
+                  setShowTerms(true);
+                } else {
+                  setShowTerms(false);
+                }
             } else {
-              setShowTerms(false);
+                setUserData(null);
+                setShowTerms(false);
             }
+            setAuthLoading(false);
         } else {
+            // User is null (logged out). Check if we should auto-login as studio based on provisioning.
+            const hasProvisionedOrg = localStorage.getItem(LOCAL_STORAGE_ORG_KEY);
+            
+            // Only auto-login if we are not manually signing out (this logic can be tricky, 
+            // but usually a provisioned device should always be logged in).
+            // If offline mode, we skip this to allow manual dev switching.
+            if (hasProvisionedOrg && !isOffline) {
+                console.log("Device is provisioned. Attempting auto-login as Studio...");
+                try {
+                    await signInAsStudio();
+                    // return here because signInAsStudio will trigger onAuthChange again with the new user
+                    return; 
+                } catch (e) {
+                    console.error("Auto-login failed", e);
+                    // Fall through to clear state
+                }
+            }
+
+            setCurrentUser(null);
             setUserData(null);
             setShowTerms(false);
+            setAuthLoading(false);
         }
-        setAuthLoading(false);
     }, []);
 
     // Effect for handling real authentication state changes
@@ -133,6 +160,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const handleSignOut = useCallback(async () => {
         stopImpersonation(); // Clear impersonation state on sign out
+        // If we are signing out, we might also want to clear provisioning if the user INTENDS to de-provision.
+        // However, 'signOut' here is generic.
+        // Usually, 'Avsluta Studioläge' in CoachScreen clears localStorage.
         await firebaseSignOut();
         setCurrentUser(null);
         setUserData(null);
