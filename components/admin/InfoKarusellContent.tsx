@@ -1,7 +1,7 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Organization, InfoCarousel, InfoMessage, Studio } from '../../types';
-import { ToggleSwitch } from '../icons';
+import { ToggleSwitch, ChevronDownIcon, ChevronUpIcon } from '../icons';
 import { InputField, SelectField, ImageUploaderForBanner, TextareaField, CheckboxField, AILoadingSpinner } from './AdminShared';
 import { generateCarouselImage } from '../../services/geminiService';
 import { uploadImage } from '../../services/firebaseService';
@@ -78,7 +78,7 @@ const InfoMessageEditor: React.FC<{
     const showImageUploader = formData.layout === 'image-left' || formData.layout === 'image-right';
 
     return (
-        <div className="space-y-6 bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-lg">
+        <div className="space-y-6 bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-lg animate-fade-in">
              <div className="border-b border-gray-100 dark:border-gray-700 pb-4 mb-2">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white">{initialMessage.internalTitle === 'Nytt meddelande' ? 'Skapa nytt meddelande' : 'Redigera meddelande'}</h2>
              </div>
@@ -169,6 +169,7 @@ export const InfoKarusellContent: React.FC<InfoKarusellContentProps> = ({ organi
     );
     const [editingMessage, setEditingMessage] = useState<InfoMessage | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [isArchiveOpen, setIsArchiveOpen] = useState(false);
 
     useEffect(() => {
         setCarousel(JSON.parse(JSON.stringify(organization.infoCarousel || { isEnabled: false, messages: [] })));
@@ -229,17 +230,109 @@ export const InfoKarusellContent: React.FC<InfoKarusellContentProps> = ({ organi
         }
     };
 
+    // --- Grouping Logic ---
+    const { activeMessages, upcomingMessages, expiredMessages } = useMemo(() => {
+        const now = new Date();
+        const active: InfoMessage[] = [];
+        const upcoming: InfoMessage[] = [];
+        const expired: InfoMessage[] = [];
+
+        carousel.messages.forEach(msg => {
+            const start = msg.startDate ? new Date(msg.startDate) : null;
+            const end = msg.endDate ? new Date(msg.endDate) : null;
+
+            if (end && end < now) {
+                expired.push(msg);
+            } else if (start && start > now) {
+                upcoming.push(msg);
+            } else {
+                active.push(msg);
+            }
+        });
+
+        // Sort Active: Alphabetical by internal title
+        active.sort((a, b) => a.internalTitle.localeCompare(b.internalTitle));
+
+        // Sort Upcoming: Soonest start date first
+        upcoming.sort((a, b) => {
+            const dateA = a.startDate ? new Date(a.startDate).getTime() : 0;
+            const dateB = b.startDate ? new Date(b.startDate).getTime() : 0;
+            return dateA - dateB;
+        });
+
+        // Sort Expired: Most recently expired first
+        expired.sort((a, b) => {
+            const dateA = a.endDate ? new Date(a.endDate).getTime() : 0;
+            const dateB = b.endDate ? new Date(b.endDate).getTime() : 0;
+            return dateB - dateA;
+        });
+
+        return { activeMessages: active, upcomingMessages: upcoming, expiredMessages: expired };
+    }, [carousel.messages]);
+
+
+    // --- Helper to render a message card ---
+    const renderMessageCard = (msg: InfoMessage, type: 'active' | 'upcoming' | 'expired') => {
+        let statusBadge = null;
+        let dateInfo = null;
+
+        if (type === 'active') {
+            statusBadge = <span className="text-[10px] font-bold text-green-700 bg-green-100 dark:bg-green-900/30 dark:text-green-300 px-2 py-1 rounded uppercase tracking-wider">Visas nu</span>;
+            if (msg.endDate) {
+                dateInfo = <span className="text-xs text-gray-500">Slutar: {new Date(msg.endDate).toLocaleDateString('sv-SE')}</span>;
+            }
+        } else if (type === 'upcoming') {
+            statusBadge = <span className="text-[10px] font-bold text-yellow-700 bg-yellow-100 dark:bg-yellow-900/30 dark:text-yellow-300 px-2 py-1 rounded uppercase tracking-wider">Kommande</span>;
+            if (msg.startDate) {
+                dateInfo = <span className="text-xs text-gray-500 font-medium">Startar: {new Date(msg.startDate).toLocaleDateString('sv-SE')}</span>;
+            }
+        } else {
+            statusBadge = <span className="text-[10px] font-bold text-gray-600 bg-gray-200 dark:bg-gray-700 dark:text-gray-400 px-2 py-1 rounded uppercase tracking-wider">Utgången</span>;
+            if (msg.endDate) {
+                dateInfo = <span className="text-xs text-gray-400">Utgick: {new Date(msg.endDate).toLocaleDateString('sv-SE')}</span>;
+            }
+        }
+
+        return (
+            <div key={msg.id} className={`bg-white dark:bg-gray-800 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-4 border ${type === 'expired' ? 'border-gray-100 dark:border-gray-800 opacity-60 hover:opacity-100' : 'border-gray-200 dark:border-gray-700'} hover:border-primary/30 hover:shadow-sm transition-all group`}>
+                <div className="flex items-center gap-4 w-full sm:w-auto">
+                    <div className="w-14 h-14 rounded-lg bg-gray-100 dark:bg-gray-700 overflow-hidden flex-shrink-0 relative">
+                        {msg.imageUrl ? (
+                            <img src={msg.imageUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs font-bold">TEXT</div>
+                        )}
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                            {statusBadge}
+                            <p className="font-bold text-gray-900 dark:text-white truncate max-w-[200px]">{msg.internalTitle}</p>
+                        </div>
+                        <p className="text-xs text-gray-500 truncate max-w-[300px] mb-1">{msg.headline || msg.body || 'Inget innehåll'}</p>
+                        {dateInfo}
+                    </div>
+                </div>
+                <div className="flex gap-2 w-full sm:w-auto justify-end">
+                    <button onClick={() => setEditingMessage(msg)} className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-medium text-xs py-2 px-4 rounded-lg transition-colors">Redigera</button>
+                    <button onClick={() => handleDeleteMessage(msg.id)} className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-medium text-xs py-2 px-4 rounded-lg transition-colors">Ta bort</button>
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="space-y-6">
             {!editingMessage && (
-                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 sm:p-8">
-                    <div className="flex justify-between items-start mb-6">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6 sm:p-8 animate-fade-in">
+                    <div className="flex justify-between items-start mb-8">
                         <div>
                             <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Info-karusell</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400">En rullande nyhetsbanner längst ner på hemskärmen.</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Hantera nyhetsbannern som rullar längst ner på hemskärmen.</p>
                         </div>
                         <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-900/50 p-2 rounded-lg border border-gray-100 dark:border-gray-700">
-                            <span className="text-sm font-medium text-gray-600 dark:text-gray-400 pl-2">Status:</span>
+                            <span className={`text-sm font-bold pl-2 ${carousel.isEnabled ? 'text-green-600' : 'text-gray-500'}`}>
+                                {carousel.isEnabled ? 'PÅ' : 'AV'}
+                            </span>
                             <ToggleSwitch
                                 label=""
                                 checked={carousel.isEnabled}
@@ -248,36 +341,70 @@ export const InfoKarusellContent: React.FC<InfoKarusellContentProps> = ({ organi
                         </div>
                     </div>
 
-                    <div className="space-y-3">
-                        {carousel.messages.length === 0 ? (
-                            <div className="text-center py-12 bg-gray-50 dark:bg-gray-900/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-                                <p className="text-gray-400">Inga meddelanden i karusellen.</p>
-                            </div>
-                        ) : carousel.messages.map(msg => (
-                            <div key={msg.id} className="bg-white dark:bg-gray-800 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-4 border border-gray-200 dark:border-gray-700 hover:border-primary/30 hover:shadow-sm transition-all group">
-                                <div className="flex items-center gap-4 w-full sm:w-auto">
-                                    <div className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-700 overflow-hidden flex-shrink-0">
-                                        {msg.imageUrl ? (
-                                            <img src={msg.imageUrl} alt="" className="w-full h-full object-cover" />
-                                        ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">Text</div>
-                                        )}
-                                    </div>
-                                    <div>
-                                        <p className="font-bold text-gray-900 dark:text-white">{msg.internalTitle}</p>
-                                        <p className="text-xs text-gray-500 truncate max-w-[200px]">{msg.headline || 'Ingen rubrik'}</p>
-                                    </div>
-                                </div>
-                                <div className="flex gap-2 w-full sm:w-auto justify-end">
-                                    <button onClick={() => setEditingMessage(msg)} className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-medium text-sm py-2 px-4 rounded-lg transition-colors">Redigera</button>
-                                    <button onClick={() => handleDeleteMessage(msg.id)} className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-medium text-sm py-2 px-4 rounded-lg transition-colors">Ta bort</button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                     <button onClick={handleCreateNew} className="mt-6 w-full py-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-gray-500 hover:text-primary hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-all font-bold flex items-center justify-center gap-2">
+                    <button onClick={handleCreateNew} className="w-full py-4 mb-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-xl text-gray-500 hover:text-primary hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-gray-900/30 transition-all font-bold flex items-center justify-center gap-2">
                         <span className="text-xl">+</span> Skapa nytt meddelande
                     </button>
+
+                    <div className="space-y-8">
+                        
+                        {/* 1. Active Messages */}
+                        <section>
+                            <div className="flex items-center gap-2 mb-4">
+                                <h4 className="text-sm font-bold uppercase tracking-wider text-green-600 dark:text-green-400">Visas på skärmarna</h4>
+                                <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 text-xs font-bold px-2 py-0.5 rounded-full">{activeMessages.length}</span>
+                            </div>
+                            
+                            {!carousel.isEnabled && activeMessages.length > 0 && (
+                                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 p-3 rounded-lg mb-4 text-sm text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
+                                    <span>⚠️</span>
+                                    <span>Karusellen är avstängd globalt. Dessa inlägg visas inte just nu.</span>
+                                </div>
+                            )}
+
+                            {activeMessages.length > 0 ? (
+                                <div className="space-y-3">
+                                    {activeMessages.map(msg => renderMessageCard(msg, 'active'))}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-400 italic">Inga aktiva meddelanden just nu.</p>
+                            )}
+                        </section>
+
+                        {/* 2. Upcoming Messages */}
+                        {upcomingMessages.length > 0 && (
+                            <section>
+                                <div className="flex items-center gap-2 mb-4 pt-4 border-t border-gray-100 dark:border-gray-700">
+                                    <h4 className="text-sm font-bold uppercase tracking-wider text-yellow-600 dark:text-yellow-400">Kommande</h4>
+                                    <span className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 text-xs font-bold px-2 py-0.5 rounded-full">{upcomingMessages.length}</span>
+                                </div>
+                                <div className="space-y-3">
+                                    {upcomingMessages.map(msg => renderMessageCard(msg, 'upcoming'))}
+                                </div>
+                            </section>
+                        )}
+
+                        {/* 3. Expired / Archive */}
+                        {expiredMessages.length > 0 && (
+                            <section className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                                <button 
+                                    onClick={() => setIsArchiveOpen(!isArchiveOpen)}
+                                    className="flex items-center gap-2 w-full text-left group"
+                                >
+                                    <div className="flex items-center gap-2 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
+                                        {isArchiveOpen ? <ChevronUpIcon className="w-4 h-4" /> : <ChevronDownIcon className="w-4 h-4" />}
+                                        <h4 className="text-sm font-bold uppercase tracking-wider">Arkiv / Utgångna</h4>
+                                    </div>
+                                    <span className="bg-gray-100 dark:bg-gray-800 text-gray-500 text-xs font-bold px-2 py-0.5 rounded-full">{expiredMessages.length}</span>
+                                </button>
+                                
+                                {isArchiveOpen && (
+                                    <div className="space-y-3 mt-4 animate-fade-in">
+                                        {expiredMessages.map(msg => renderMessageCard(msg, 'expired'))}
+                                    </div>
+                                )}
+                            </section>
+                        )}
+                    </div>
                 </div>
             )}
             
