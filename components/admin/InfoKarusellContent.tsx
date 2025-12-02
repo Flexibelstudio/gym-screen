@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Organization, InfoCarousel, InfoMessage, Studio } from '../../types';
-import { ToggleSwitch, ChevronDownIcon, ChevronUpIcon } from '../icons';
+import { ToggleSwitch, ChevronDownIcon, ChevronUpIcon, BuildingIcon } from '../icons';
 import { InputField, SelectField, ImageUploaderForBanner, TextareaField, CheckboxField, AILoadingSpinner } from './AdminShared';
 import { generateCarouselImage } from '../../services/geminiService';
 import { uploadImage } from '../../services/firebaseService';
@@ -293,6 +293,18 @@ export const InfoKarusellContent: React.FC<InfoKarusellContentProps> = ({ organi
             }
         }
 
+        // Logic to determine visible studios text
+        const getVisibilityLabel = (ids: string[]) => {
+            if (ids.includes('all')) return 'Alla skärmar';
+            if (ids.length === 0) return 'Ingen skärm vald';
+            const names = ids.map(id => organization.studios.find(s => s.id === id)?.name).filter(Boolean);
+            if (names.length === 0) return 'Okända skärmar';
+            if (names.length <= 2) return names.join(', ');
+            return `${names[0]}, ${names[1]} +${names.length - 2}`;
+        };
+
+        const visibilityLabel = getVisibilityLabel(msg.visibleInStudios);
+
         return (
             <div key={msg.id} className={`bg-white dark:bg-gray-800 p-4 rounded-xl flex flex-col sm:flex-row justify-between items-center gap-4 border ${type === 'expired' ? 'border-gray-100 dark:border-gray-800 opacity-60 hover:opacity-100' : 'border-gray-200 dark:border-gray-700'} hover:border-primary/30 hover:shadow-sm transition-all group`}>
                 <div className="flex items-center gap-4 w-full sm:w-auto">
@@ -309,7 +321,13 @@ export const InfoKarusellContent: React.FC<InfoKarusellContentProps> = ({ organi
                             <p className="font-bold text-gray-900 dark:text-white truncate max-w-[200px]">{msg.internalTitle}</p>
                         </div>
                         <p className="text-xs text-gray-500 truncate max-w-[300px] mb-1">{msg.headline || msg.body || 'Inget innehåll'}</p>
-                        {dateInfo}
+                        <div className="flex items-center gap-3">
+                            {dateInfo}
+                            <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500" title="Visas på">
+                                <BuildingIcon className="w-3 h-3" />
+                                <span>{visibilityLabel}</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div className="flex gap-2 w-full sm:w-auto justify-end">
