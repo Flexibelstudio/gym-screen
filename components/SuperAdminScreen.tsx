@@ -18,6 +18,13 @@ import { VarumarkeContent } from './admin/VarumarkeContent';
 import { CompanyInfoContent } from './admin/CompanyInfoContent';
 import { generateWorkout } from '../services/geminiService';
 
+// --- Icons specific to this file ---
+const MenuIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+);
+
 type AdminTab = 
     'dashboard' | 
     'pass-program' | 'infosidor' | 'info-karusell' |
@@ -394,6 +401,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     const { organization, theme, onSaveGlobalConfig, workouts, onSaveWorkout } = props;
     const { selectOrganization } = useStudio();
     const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
+    const [isSidebarCollapsed, setSidebarCollapsed] = useState(false); // Collapsed state
     
     const [config, setConfig] = useState<StudioConfig>(organization.globalConfig);
     const [isSavingConfig, setIsSavingConfig] = useState(false);
@@ -600,69 +608,96 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     };
 
     return (
-         <div className="w-full max-w-screen-2xl mx-auto flex bg-gray-50 dark:bg-black min-h-screen">
-            <aside className="w-72 flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 hidden lg:flex flex-col sticky top-0 h-screen shadow-sm z-10">
-                <div className="flex-shrink-0 h-20 flex items-center px-6 border-b border-gray-100 dark:border-gray-800">
+         <div className="w-full h-screen bg-gray-50 dark:bg-black flex flex-col overflow-hidden">
+            {/* --- TOP HEADER --- */}
+            <header className="h-16 flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 sm:px-6 z-20 shadow-sm">
+                <div className="flex items-center gap-4">
+                    <button 
+                        onClick={() => setSidebarCollapsed(!isSidebarCollapsed)}
+                        className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                        title={isSidebarCollapsed ? "Expandera meny" : "Fäll ihop meny"}
+                    >
+                        <MenuIcon className="w-6 h-6" />
+                    </button>
                     {displayLogoUrl ? (
-                        <img src={displayLogoUrl} alt={`${organization.name} logotyp`} className="max-h-10 object-contain" />
+                        <img src={displayLogoUrl} alt={`${organization.name} logotyp`} className="max-h-8 object-contain" />
                     ) : (
                         <h1 className="text-lg font-bold text-gray-900 dark:text-white tracking-tight truncate">{organization.name}</h1>
                     )}
                 </div>
-                <nav className="flex-grow overflow-y-auto p-4 space-y-1 custom-scrollbar">
-                    {navItems.map((item, index) => {
-                        if (item.type === 'header') {
-                            return <h3 key={index} className="px-3 pt-5 pb-2 text-[11px] font-bold uppercase text-gray-400 tracking-widest">{item.label}</h3>
-                        }
-                        return (
-                             <button
-                                key={item.id}
-                                onClick={() => setActiveTab(item.id)}
-                                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all font-medium text-sm w-full group ${
-                                    activeTab === item.id
-                                    ? 'bg-primary/10 text-primary'
-                                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
-                                }`}
-                                 role="tab"
-                                 aria-selected={activeTab === item.id}
-                            >
-                                <item.icon className={`w-5 h-5 flex-shrink-0 transition-colors ${activeTab === item.id ? 'text-primary' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} />
-                                <span>{item.label}</span>
-                            </button>
-                        );
-                    })}
-                </nav>
-            </aside>
-            
-            <main className="flex-grow p-4 sm:p-8 lg:p-10 overflow-x-hidden">
-                {showOnboardingBanner && (
-                    <div className="bg-yellow-100 border border-yellow-200 text-yellow-800 p-4 text-center mb-8 rounded-xl shadow-sm flex flex-col sm:flex-row items-center justify-center gap-2 animate-fade-in">
-                        <span>⚠️ Er företagsinformation är ofullständig.</span>
-                        <button onClick={() => setShowOnboardingModal(true)} className="font-bold underline hover:text-yellow-900">Klicka här för att komplettera.</button>
-                    </div>
-                )}
-                <div className={mainContentWrapperClass}>
-                    {activeTab !== 'dashboard' && (
-                        <button
-                            onClick={() => setActiveTab('dashboard')}
-                            className="lg:hidden mb-6 flex items-center gap-2 text-gray-600 hover:text-primary transition-colors font-medium text-sm"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                            </svg>
-                            <span>Tillbaka till översikt</span>
-                        </button>
-                    )}
-                    {renderContent()}
-                    
-                    {activeTab !== 'company-info' && activeTab !== 'pass-program' && (
-                        <SwitchToStudioView 
-                            organization={props.organization} 
-                            onSwitchToStudioView={props.onSwitchToStudioView} 
-                        />
-                    )}
+                {/* Right side of header (User Profile / Actions) - Can be added here later */}
+                <div className="flex items-center gap-4">
+                    {/* Placeholder for potential top-right actions */}
                 </div>
-            </main>
+            </header>
+
+            {/* --- MAIN LAYOUT (Sidebar + Content) --- */}
+            <div className="flex flex-1 overflow-hidden">
+                {/* --- SIDEBAR --- */}
+                <aside className={`${isSidebarCollapsed ? 'w-20' : 'w-72'} flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 hidden lg:flex flex-col transition-all duration-300 ease-in-out`}>
+                    <nav className="flex-grow overflow-y-auto p-3 space-y-1 custom-scrollbar">
+                        {navItems.map((item, index) => {
+                            if (item.type === 'header') {
+                                if (isSidebarCollapsed) {
+                                    return <div key={index} className="h-px bg-gray-200 dark:bg-gray-800 my-4 mx-2" />;
+                                }
+                                return <h3 key={index} className="px-3 pt-5 pb-2 text-[11px] font-bold uppercase text-gray-400 tracking-widest whitespace-nowrap overflow-hidden">{item.label}</h3>
+                            }
+                            return (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setActiveTab(item.id)}
+                                    title={isSidebarCollapsed ? item.label : undefined}
+                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all font-medium text-sm w-full group ${
+                                        activeTab === item.id
+                                        ? 'bg-primary/10 text-primary'
+                                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
+                                    } ${isSidebarCollapsed ? 'justify-center' : 'text-left'}`}
+                                    role="tab"
+                                    aria-selected={activeTab === item.id}
+                                >
+                                    <item.icon className={`w-5 h-5 flex-shrink-0 transition-colors ${activeTab === item.id ? 'text-primary' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300'}`} />
+                                    {!isSidebarCollapsed && <span className="whitespace-nowrap overflow-hidden">{item.label}</span>}
+                                </button>
+                            );
+                        })}
+                    </nav>
+                </aside>
+                
+                {/* --- MAIN CONTENT AREA --- */}
+                <main className="flex-grow p-4 sm:p-8 lg:p-10 overflow-y-auto">
+                    <div className="max-w-screen-2xl mx-auto">
+                        {showOnboardingBanner && (
+                            <div className="bg-yellow-100 border border-yellow-200 text-yellow-800 p-4 text-center mb-8 rounded-xl shadow-sm flex flex-col sm:flex-row items-center justify-center gap-2 animate-fade-in">
+                                <span>⚠️ Er företagsinformation är ofullständig.</span>
+                                <button onClick={() => setShowOnboardingModal(true)} className="font-bold underline hover:text-yellow-900">Klicka här för att komplettera.</button>
+                            </div>
+                        )}
+                        <div className={mainContentWrapperClass}>
+                            {activeTab !== 'dashboard' && (
+                                <button
+                                    onClick={() => setActiveTab('dashboard')}
+                                    className="lg:hidden mb-6 flex items-center gap-2 text-gray-600 hover:text-primary transition-colors font-medium text-sm"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                                    </svg>
+                                    <span>Tillbaka till översikt</span>
+                                </button>
+                            )}
+                            {renderContent()}
+                            
+                            {activeTab !== 'company-info' && activeTab !== 'pass-program' && (
+                                <SwitchToStudioView 
+                                    organization={props.organization} 
+                                    onSwitchToStudioView={props.onSwitchToStudioView} 
+                                />
+                            )}
+                        </div>
+                    </div>
+                </main>
+            </div>
+
             {showOnboardingModal && (
                 <CompanyDetailsOnboardingModal 
                     isOpen={showOnboardingModal}
