@@ -963,17 +963,24 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         }
 
         // --- NEW RECTANGULAR LAYOUT LOGIC ---
-        // Push drawing down if timer is active
+        // DRAWING BOX CALCULATION
         const isTimerActive = !!timerBlock;
-        const timerOffset = isTimerActive ? 260 * dpr : 0; // Estimated height of timer card in pixels
+        
+        // Define margins
+        const sidePadding = canvas.width * 0.12; // 12% side margins
+        const timerSafeZone = isTimerActive ? canvas.height * 0.30 : canvas.height * 0.10; 
+        const bottomPadding = canvas.height * 0.15; // Room for controls at bottom
 
-        const padding = 60 * dpr; // Reduce side padding slightly to fit more
-        const topMargin = (50 * dpr) + timerOffset;
-        const w = canvas.width - (padding * 2);
-        const h = canvas.height - (padding * 2) - topMargin;
-        const x = padding;
-        const y = padding + topMargin;
-        const radius = 60 * dpr; // Corner radius for the rectangle track
+        // Calculate available area
+        const availableHeight = canvas.height - timerSafeZone - bottomPadding;
+        const availableWidth = canvas.width - (sidePadding * 2);
+
+        // Center within available area
+        const w = availableWidth;
+        const h = availableHeight;
+        const x = sidePadding;
+        const y = timerSafeZone + (availableHeight - h) / 2; // Centers within safe area height-wise
+        const radius = 80 * dpr; // More rounded corners for modern look
 
         const textColor = '#FFFFFF';
         const accentColor = overrideColor || '#14b8a6'; 
@@ -982,36 +989,44 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         ctx.beginPath();
         ctx.roundRect(x, y, w, h, radius);
         ctx.strokeStyle = '#374151';
-        ctx.lineWidth = 16 * dpr; 
+        ctx.lineWidth = 18 * dpr; // Slightly thicker track
         ctx.stroke();
         
         const count = exercises.length;
-        const perimeter = 2 * (w + h); // Approximate, ignoring corners for simplicity of spacing
+        const perimeter = 2 * (w + h);
         const step = perimeter / count;
 
-        // Function to map distance 'd' along perimeter to coordinate (px, py)
-        // Starting Top-Center and moving Clockwise
-        const getPointOnRect = (dist: number) => {
-            // Normalize distance
-            let d = dist % perimeter;
+        // Function to split text into multiple lines
+        const splitTextIntoLines = (text: string): string[] => {
+            if (text.length <= 12) return [text];
+            const words = text.split(' ');
+            if (words.length === 1) return [text];
             
-            // Top Edge (Center to Right)
+            const lines: string[] = [];
+            let currentLine = words[0];
+            
+            for (let i = 1; i < words.length; i++) {
+                if ((currentLine + words[i]).length < 14) {
+                    currentLine += " " + words[i];
+                } else {
+                    lines.push(currentLine);
+                    currentLine = words[i];
+                }
+            }
+            lines.push(currentLine);
+            return lines;
+        };
+
+        const getPointOnRect = (dist: number) => {
+            let d = dist % perimeter;
             if (d < w/2) return { x: x + w/2 + d, y: y, side: 'top' };
             d -= w/2;
-            
-            // Right Edge
             if (d < h) return { x: x + w, y: y + d, side: 'right' };
             d -= h;
-            
-            // Bottom Edge
             if (d < w) return { x: x + w - d, y: y + h, side: 'bottom' };
             d -= w;
-            
-            // Left Edge
             if (d < h) return { x: x, y: y + h - d, side: 'left' };
             d -= h;
-            
-            // Top Edge (Left to Center)
             return { x: x + d, y: y, side: 'top' };
         };
 
@@ -1021,60 +1036,78 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             
             // Draw Station Circle
             ctx.beginPath();
-            ctx.arc(pos.x, pos.y, 34 * dpr, 0, 2 * Math.PI); 
+            ctx.arc(pos.x, pos.y, 42 * dpr, 0, 2 * Math.PI); 
             ctx.fillStyle = '#030712'; 
             ctx.fill();
 
             ctx.beginPath();
-            ctx.arc(pos.x, pos.y, 30 * dpr, 0, 2 * Math.PI); 
+            ctx.arc(pos.x, pos.y, 36 * dpr, 0, 2 * Math.PI); 
             ctx.fillStyle = accentColor;
             ctx.fill();
             
             ctx.fillStyle = '#FFFFFF'; 
-            ctx.font = `bold ${24 * dpr}px sans-serif`; 
+            ctx.font = `black ${32 * dpr}px sans-serif`; 
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText(String(index + 1), pos.x, pos.y);
 
-            // Calculate text position inward
-            const textOffset = 60 * dpr;
+            // Calculate text position relative to track
+            const textOffset = 65 * dpr;
             let textX = pos.x;
             let textY = pos.y;
             let align: CanvasTextAlign = 'center';
-            let baseline: CanvasTextBaseline = 'middle';
 
             if (pos.side === 'top') {
                 textY += textOffset;
-                baseline = 'top';
             } else if (pos.side === 'right') {
                 textX -= textOffset;
                 align = 'right';
             } else if (pos.side === 'bottom') {
                 textY -= textOffset;
-                baseline = 'bottom';
             } else if (pos.side === 'left') {
                 textX += textOffset;
                 align = 'left';
             }
 
-            // Smart scaling
-            let fontSize = 24 * dpr;
-            const exerciseName = cleanExerciseName(ex.name);
-            const repsText = ex.reps ? ` (${ex.reps})` : '';
-            const fullText = `${exerciseName}${repsText}`;
+            // Text processing
+            const name = cleanExerciseName(ex.name);
+            const lines = splitTextIntoLines(name);
+            const repsStr = ex.reps ? `(${ex.reps})` : '';
             
+            let fontSize = 38 * dpr; // Much larger base font
             ctx.font = `bold ${fontSize}px sans-serif`;
-            const maxWidth = 300 * dpr; 
             
-            while (ctx.measureText(fullText).width > maxWidth && fontSize > 12 * dpr) {
-                fontSize -= 1;
-                ctx.font = `bold ${fontSize}px sans-serif`;
-            }
-
             ctx.fillStyle = textColor;
             ctx.textAlign = align;
-            ctx.textBaseline = baseline;
-            ctx.fillText(fullText, textX, textY);
+            ctx.textBaseline = 'middle';
+            
+            // Subtle drop shadow for text
+            ctx.shadowColor = "rgba(0,0,0,0.5)";
+            ctx.shadowBlur = 4 * dpr;
+            ctx.shadowOffsetX = 2 * dpr;
+            ctx.shadowOffsetY = 2 * dpr;
+
+            const lineHeight = fontSize * 1.1;
+            const totalTextHeight = lines.length * lineHeight;
+            
+            lines.forEach((line, i) => {
+                const yPos = textY - (totalTextHeight/2) + (i * lineHeight) + (lineHeight/2);
+                ctx.fillText(line, textX, yPos);
+            });
+            
+            // Reps on own line at bottom
+            if (repsStr) {
+                ctx.font = `bold ${fontSize * 0.7}px sans-serif`;
+                ctx.fillStyle = accentColor;
+                const repsY = textY + (totalTextHeight/2) + (lineHeight/2);
+                ctx.fillText(repsStr, textX, repsY);
+            }
+
+            // Reset shadow
+            ctx.shadowColor = "transparent";
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
         });
 
         setHistory([ctx.getImageData(0, 0, canvas.width, canvas.height)]);
