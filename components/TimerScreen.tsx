@@ -129,12 +129,28 @@ const StandardListView: React.FC<{
     let gap = isHyroxRace ? 'gap-1' : 'gap-3';
     let showDesc = !isHyroxRace; 
 
+    // Regular scaling for non-Hyrox
+    if (!isHyroxRace) {
+        if (count <= 4) {
+            titleSize = 'text-4xl md:text-5xl';
+            repsSize = 'text-2xl md:text-3xl';
+            padding = 'px-8 py-6';
+            gap = 'gap-5';
+        } else if (count <= 7) {
+            titleSize = 'text-3xl md:text-4xl';
+            repsSize = 'text-xl md:text-2xl';
+            gap = 'gap-4';
+        } else {
+            showDesc = false;
+        }
+    }
+
     return (
-        <div className={`w-full max-w-6xl h-full flex flex-col ${gap} overflow-hidden`}>
+        <div className={`w-full max-w-6xl h-full flex flex-col ${gap} ${isHyroxRace ? 'overflow-hidden' : 'overflow-y-auto pb-4'}`}>
             {exercises.map((ex, index) => (
                 <div 
                     key={ex.id} 
-                    className={`flex-1 min-h-0 bg-white dark:bg-gray-900 rounded-lg ${padding} flex flex-col justify-center border-l-[6px] shadow-sm transition-all relative group`}
+                    className={`flex-1 min-h-0 bg-white dark:bg-gray-900 rounded-lg ${padding} flex flex-col justify-center border-l-[8px] shadow-sm transition-all relative group`}
                     style={{ borderLeftColor: `rgb(${timerStyle.pulseRgb})` }}
                 >
                     <div className="flex justify-between items-center w-full gap-4">
@@ -634,9 +650,19 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   // Determining compression
   const isCompressing = !!groupForCountdownDisplay && (status === TimerStatus.Running || status === TimerStatus.Preparing);
 
+  const pulseAnimationClass = useMemo(() => {
+      if (status !== TimerStatus.Running || isHyroxRace) return '';
+      const isLastInterval = completedWorkIntervals + 1 >= totalWorkIntervals;
+      if (!isLastInterval) return '';
+      if (currentTime <= 5) return 'animate-pulse-bg-intense';
+      if (currentTime <= 10) return 'animate-pulse-bg-medium';
+      if (currentTime <= 15) return 'animate-pulse-bg-light';
+      return '';
+  }, [status, currentTime, completedWorkIntervals, totalWorkIntervals, isHyroxRace]);
+
   return (
     <div 
-        className={`fixed inset-0 w-full h-full overflow-hidden transition-colors duration-500 ${showFullScreenColor ? timerStyle.bg : 'bg-gray-100 dark:bg-black'}`}
+        className={`fixed inset-0 w-full h-full overflow-hidden transition-colors duration-500 ${showFullScreenColor ? `${timerStyle.bg} ${pulseAnimationClass}` : 'bg-gray-100 dark:bg-black'}`}
         style={{ '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties}
         onClick={handleInteraction}
         onMouseMove={handleInteraction}
@@ -651,28 +677,40 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         {showBackToPrepConfirmation && <RaceBackToPrepConfirmationModal onConfirm={onBackToGroups} onCancel={() => setShowBackToPrepConfirmation(false)} />}
       </AnimatePresence>
 
-      {/* TOP SECTION: TIMER (40% height) */}
+      {/* TOP SECTION: TIMER */}
       <div 
-          className={`absolute left-0 right-0 flex flex-col items-center justify-center transition-all duration-500 z-10 
-              ${isHyroxRace ? 'right-[30%]' : ''} top-0 h-[40%]`}
+          className={`absolute left-0 flex flex-col items-center justify-center transition-all duration-500 z-10 
+              ${isHyroxRace 
+                ? 'right-[30%] top-0 h-[40%] px-6' 
+                : showFullScreenColor 
+                    ? `top-[12%] h-[50%] right-0` 
+                    : `justify-center top-4 h-[42%] left-4 right-4 sm:left-6 sm:right-6 rounded-[2.5rem] shadow-2xl ${timerStyle.bg} ${pulseAnimationClass}`
+              }`}
+          style={(!showFullScreenColor && !isHyroxRace) ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
       >
-        <div className="mb-2 px-6 py-1.5 rounded-full bg-black/40 backdrop-blur-xl border border-white/20 shadow-lg z-20">
-            <span className="font-black tracking-[0.2em] text-white uppercase text-lg">{modeLabel}</span>
+        <div className={`${isHyroxRace ? 'mb-2 px-6 py-1 rounded-full' : 'mb-4 px-8 py-2 rounded-full'} bg-black/40 backdrop-blur-xl border border-white/20 shadow-lg z-20`}>
+            <span className={`font-black tracking-[0.2em] text-white uppercase ${isHyroxRace ? 'text-lg' : 'text-xl md:text-2xl'}`}>{modeLabel}</span>
         </div>
 
+        {((activeWorkout?.title || block.title).toLowerCase() !== block.settings.mode.toLowerCase()) && (
+            <h1 className={`font-bold text-white/80 tracking-tight text-center leading-none mb-1 drop-shadow-lg max-w-[90%] z-20 ${isHyroxRace ? 'text-xl' : 'text-2xl md:text-4xl'}`}>
+                {activeWorkout?.title || block.title}
+            </h1>
+        )}
+
         <div className="text-center z-20 w-full mb-1">
-            <h2 className="font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse text-4xl sm:text-5xl">{statusLabel}</h2>
+            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center ${isHyroxRace ? 'text-4xl' : 'text-5xl sm:text-7xl'}`}>{statusLabel}</h2>
         </div>
 
         <div className="z-20 relative flex flex-col items-center w-full text-white">
             <div className="flex items-center justify-center w-full gap-2">
-                 <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[6rem] sm:text-[8rem] md:text-[9rem]">
+                 <span className={`font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none ${isHyroxRace ? 'text-[7rem]' : 'text-[7rem] sm:text-[9rem] md:text-[11rem]'}`}>
                     {minutesStr}:{secondsStr}
                  </span>
             </div>
             {!isHyroxRace && block.settings.mode !== TimerMode.Stopwatch && totalBlockDuration > 0 && (
-                <div className="w-[60%] max-w-2xl h-3 bg-white/20 rounded-full mt-4 overflow-hidden">
-                    <div className="h-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)] transition-all duration-1000 ease-linear" style={{ width: `${progress}%` }} />
+                <div className="w-[70%] max-w-3xl h-4 bg-white/20 rounded-full mt-6 overflow-hidden">
+                    <div className="h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)] transition-all duration-1000 ease-linear" style={{ width: `${progress}%` }} />
                 </div>
             )}
         </div>
@@ -682,13 +720,13 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         )}
       </div>
 
-      {/* MID SECTION: COUNTDOWN BANNER (Overlay between 40% and 60%) */}
+      {/* MID SECTION: COUNTDOWN BANNER (Overlay for Hyrox) */}
       {isHyroxRace && groupForCountdownDisplay && (status === TimerStatus.Running || status === TimerStatus.Preparing) && (
            <div className="absolute top-[35%] left-0 right-[30%] z-30 flex justify-center px-6 pointer-events-none">
               <motion.div 
                 initial={{ y: 20, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                className="bg-black/70 backdrop-blur-xl rounded-2xl px-10 py-6 border-4 border-white/30 shadow-2xl flex flex-col items-center w-full max-w-4xl"
+                className="bg-black/80 backdrop-blur-xl rounded-2xl px-10 py-5 border-4 border-white/30 shadow-2xl flex flex-col items-center w-full max-w-4xl"
               >
                   <span className="text-white/90 text-2xl uppercase tracking-wider font-black mb-1">{groupForCountdownDisplay.name}</span>
                   <div className="flex items-center gap-6">
@@ -706,9 +744,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           </div>
         )}
 
-      {/* BOTTOM SECTION: EXERCISES (60% height) */}
-      <div className={`absolute bottom-0 left-0 right-0 flex flex-col items-center justify-start px-4 z-0 
-          ${isHyroxRace ? 'right-[30%]' : ''} top-[40%] h-[60%] py-4`}
+      {/* BOTTOM SECTION: EXERCISES */}
+      <div className={`absolute bottom-0 left-0 flex flex-col items-center justify-start px-4 z-0 
+          ${isHyroxRace ? 'right-[30%] top-[40%] h-[60%] py-4' : (showFullScreenColor ? 'top-[62%]' : 'top-[43%]') + ' right-0'}`}
       >
           <div className="w-full flex justify-center items-start h-full"> 
               {block.followMe ? (
@@ -741,7 +779,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
       {/* CONTROLS */}
       <div className={`fixed z-50 transition-all duration-500 flex gap-4 ${isHyroxRace ? 'left-[35%]' : 'left-1/2'} -translate-x-1/2 
-          bottom-8 ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
+          ${isHyroxRace ? 'bottom-8' : (showFullScreenColor ? 'top-[62%]' : 'top-[46%]')} 
+          ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
             {status === TimerStatus.Idle || status === TimerStatus.Finished ? (
                 <>
                     <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/90 text-white font-bold py-3 px-8 rounded-full shadow-xl hover:bg-gray-500 transition-colors text-lg backdrop-blur-md">TILLBAKA</button>
