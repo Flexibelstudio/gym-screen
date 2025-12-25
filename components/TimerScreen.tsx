@@ -329,7 +329,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     totalRounds, totalExercises, currentExerciseIndex,
     isLastExerciseInRound,
     totalBlockDuration, totalTimeElapsed,
-    completedWorkIntervals, totalWorkIntervals
+    completedWorkIntervals, totalWorkIntervals,
+    effectiveIntervalsPerLap
   } = useWorkoutTimer(block);
   
   const [controlsVisible, setControlsVisible] = React.useState(false);
@@ -616,10 +617,12 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const secondsStr = (timeToDisplay % 60).toString().padStart(2, '0');
 
   // --- RENDERING LOGIC ---
+  const currentIntervalInLap = (completedWorkIntervals % effectiveIntervalsPerLap) + 1;
 
   // 1. IF HYROX RACE: SPECIAL 40/60 LAYOUT
   if (isHyroxRace) {
       const isCompressing = !!groupForCountdownDisplay && (status === TimerStatus.Running || status === TimerStatus.Preparing);
+      const participantsInNextGroup = groupForCountdownDisplay ? groupForCountdownDisplay.participants.split('\n').map(p => p.trim()).filter(Boolean) : [];
 
       return (
         <div 
@@ -664,7 +667,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                         </span>
                       </div>
                       <div className="mt-3 flex flex-wrap justify-center gap-4 w-full pt-3 border-t border-white/10">
-                          {startedParticipants.map((p, i) => <span key={i} className="text-xl font-bold text-white/90 drop-shadow-md">{p}</span>)}
+                          {participantsInNextGroup.map((p, i) => <span key={i} className="text-xl font-bold text-white/90 drop-shadow-md">{p}</span>)}
                       </div>
                   </motion.div>
               </div>
