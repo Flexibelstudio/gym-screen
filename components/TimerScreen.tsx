@@ -111,25 +111,25 @@ const FollowMeView: React.FC<{
 const HyroxListView: React.FC<{ 
     exercises: Exercise[], 
     timerStyle: TimerStyle,
-    isCompressing: boolean
-}> = ({ exercises, timerStyle, isCompressing }) => {
+    isExpanded: boolean
+}> = ({ exercises, timerStyle, isExpanded }) => {
     return (
         <div className="w-full max-w-6xl h-full flex flex-col gap-1 overflow-hidden">
             {exercises.map((ex, index) => (
                 <div 
                     key={ex.id} 
-                    className={`flex-1 min-h-0 bg-white dark:bg-gray-900 rounded-lg flex flex-col justify-center border-l-[6px] shadow-sm transition-all px-4 ${isCompressing ? 'py-0.5' : 'py-1'}`}
-                    style={{ borderLeftColor: `rgb(${timerStyle.pulseRgb})`, height: '3.7vh' }}
+                    className={`flex-1 min-h-0 bg-white dark:bg-gray-900 rounded-lg flex flex-col justify-center border-l-[6px] shadow-sm transition-all px-4 ${isExpanded ? 'py-1' : 'py-0.5'}`}
+                    style={{ borderLeftColor: `rgb(${timerStyle.pulseRgb})`, height: isExpanded ? '4.2vh' : '3.7vh' }}
                 >
                     <div className="flex justify-between items-center w-full gap-4">
                         <div className="flex items-center gap-3">
                             <span className="text-gray-400 font-bold text-sm w-4">{index + 1}</span>
-                            <h4 className={`font-black text-gray-900 dark:text-white leading-none tracking-tight truncate ${isCompressing ? 'text-lg' : 'text-xl md:text-2xl'}`}>
+                            <h4 className={`font-black text-gray-900 dark:text-white leading-none tracking-tight truncate ${isExpanded ? 'text-xl md:text-2xl' : 'text-lg md:text-xl'}`}>
                                 {ex.name}
                             </h4>
                         </div>
                         {ex.reps && (
-                            <span className={`font-mono font-bold text-primary whitespace-nowrap flex-shrink-0 ${isCompressing ? 'text-base' : 'text-lg md:text-xl'}`}>
+                            <span className={`font-mono font-bold text-primary whitespace-nowrap flex-shrink-0 ${isExpanded ? 'text-lg md:text-xl' : 'text-base md:text-lg'}`}>
                                 {formatReps(ex.reps)}
                             </span>
                         )}
@@ -619,9 +619,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   // --- RENDERING LOGIC ---
   const currentIntervalInLap = (completedWorkIntervals % effectiveIntervalsPerLap) + 1;
 
-  // 1. IF HYROX RACE: SPECIAL 40/60 LAYOUT
+  // 1. IF HYROX RACE: SPECIAL DYNAMIC LAYOUT
   if (isHyroxRace) {
-      const isCompressing = !!groupForCountdownDisplay && (status === TimerStatus.Running || status === TimerStatus.Preparing);
+      const showCountdown = groupForCountdownDisplay && (status === TimerStatus.Running || status === TimerStatus.Preparing);
       const participantsInNextGroup = groupForCountdownDisplay ? groupForCountdownDisplay.participants.split('\n').map(p => p.trim()).filter(Boolean) : [];
 
       return (
@@ -640,13 +640,13 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             {showBackToPrepConfirmation && <RaceBackToPrepConfirmationModal onConfirm={onBackToGroups} onCancel={() => setShowBackToPrepConfirmation(false)} />}
           </AnimatePresence>
 
-          {/* TOP 40% - TIMER */}
-          <div className="absolute top-0 left-0 right-[30%] h-[40%] flex flex-col items-center justify-center px-6 z-10">
-              <div className="mb-2 px-6 py-1 rounded-full bg-black/40 backdrop-blur-xl border border-white/20 shadow-lg">
-                  <span className="font-black tracking-[0.2em] text-white uppercase text-lg">{modeLabel}</span>
+          {/* TOP 30% - TIMER */}
+          <div className="absolute top-0 left-0 right-[30%] h-[30%] flex flex-col items-center justify-center px-6 z-10 transition-all duration-500">
+              <div className="mb-1 px-5 py-0.5 rounded-full bg-black/40 backdrop-blur-xl border border-white/20 shadow-lg">
+                  <span className="font-black tracking-[0.2em] text-white uppercase text-base">{modeLabel}</span>
               </div>
-              <div className="text-center w-full mb-1">
-                  <h2 className="font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse text-4xl sm:text-5xl">{statusLabel}</h2>
+              <div className="text-center w-full mb-0.5">
+                  <h2 className="font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse text-3xl sm:text-4xl">{statusLabel}</h2>
               </div>
               <div className="flex items-center justify-center w-full text-white">
                    <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl text-[8rem] sm:text-[10rem]">
@@ -655,27 +655,30 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               </div>
           </div>
 
-          {/* MID - OVERLAY BANNER */}
-          {groupForCountdownDisplay && (status === TimerStatus.Running || status === TimerStatus.Preparing) && (
-               <div className="absolute top-[32%] left-0 right-[30%] z-30 flex justify-center px-6 pointer-events-none">
-                  <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-black/80 backdrop-blur-xl rounded-2xl px-10 py-5 border-4 border-white/30 shadow-2xl flex flex-col items-center w-full max-w-4xl">
-                      <span className="text-white/90 text-2xl uppercase tracking-wider font-black mb-1">{groupForCountdownDisplay.name}</span>
+          {/* 30-40% - DYNAMIC COUNTDOWN BANNER */}
+          {showCountdown && (
+               <div className="absolute top-[30%] left-0 right-[30%] h-[10%] z-30 flex justify-center px-6 pointer-events-none">
+                  <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-black/80 backdrop-blur-xl rounded-2xl px-8 py-3 border-2 border-white/30 shadow-2xl flex flex-col items-center w-full max-w-4xl justify-center">
                       <div className="flex items-center gap-6">
-                        <span className="text-white/80 text-lg font-bold uppercase tracking-widest">STARTAR OM</span>
-                        <span className={`font-mono text-6xl font-black leading-none ${timeForCountdownDisplay <= 10 ? 'text-red-400 animate-pulse' : 'text-green-400'}`}>
-                            {timeForCountdownDisplay > 0 ? `${Math.floor(timeForCountdownDisplay / 60).toString().padStart(2, '0')}:${(timeForCountdownDisplay % 60).toString().padStart(2, '0')}` : 'NU!'}
-                        </span>
+                        <span className="text-white/90 text-xl uppercase tracking-wider font-black">{groupForCountdownDisplay.name}</span>
+                        <div className="w-px h-8 bg-white/20"></div>
+                        <div className="flex items-center gap-4">
+                            <span className="text-white/80 text-sm font-bold uppercase tracking-widest">STARTAR OM</span>
+                            <span className={`font-mono text-4xl font-black leading-none ${timeForCountdownDisplay <= 10 ? 'text-red-400 animate-pulse' : 'text-green-400'}`}>
+                                {timeForCountdownDisplay > 0 ? `${Math.floor(timeForCountdownDisplay / 60).toString().padStart(2, '0')}:${(timeForCountdownDisplay % 60).toString().padStart(2, '0')}` : 'NU!'}
+                            </span>
+                        </div>
                       </div>
-                      <div className="mt-3 flex flex-wrap justify-center gap-4 w-full pt-3 border-t border-white/10">
-                          {participantsInNextGroup.map((p, i) => <span key={i} className="text-xl font-bold text-white/90 drop-shadow-md">{p}</span>)}
+                      <div className="mt-1 flex flex-wrap justify-center gap-3">
+                          {participantsInNextGroup.map((p, i) => <span key={i} className="text-sm font-bold text-white/90 drop-shadow-sm">{p}</span>)}
                       </div>
                   </motion.div>
               </div>
             )}
 
-          {/* BOTTOM 60% - EXERCISES */}
-          <div className="absolute top-[40%] bottom-0 left-0 right-[30%] px-6 py-4 flex items-center justify-center">
-              <HyroxListView exercises={block.exercises} timerStyle={timerStyle} isCompressing={isCompressing} />
+          {/* DYNAMIC BOTTOM - EXERCISES (30/40 - 100%) */}
+          <div className={`absolute left-0 right-[30%] bottom-0 px-6 py-4 flex items-center justify-center transition-all duration-500 ${showCountdown ? 'top-[40%]' : 'top-[30%]'}`}>
+              <HyroxListView exercises={block.exercises} timerStyle={timerStyle} isExpanded={!showCountdown} />
           </div>
 
           {/* RIGHT 30% - PARTICIPANTS */}
