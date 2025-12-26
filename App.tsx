@@ -882,7 +882,7 @@ const MainContent: React.FC = () => {
                   focusedBlockId={focusedBlockId} 
                   studioConfig={studioConfig}
                   sessionRole={sessionRole}
-                  isNewDraft={isEditingNewDraft}
+                  isNewDraft={isNewDraft}
                 />;
       case Page.SimpleWorkoutBuilder:
         return <SimpleWorkoutBuilderScreen 
@@ -941,6 +941,13 @@ const MainContent: React.FC = () => {
                   onCreateOrganization={handleCreateOrganization}
                   onDeleteOrganization={handleDeleteOrganization}
                />;
+      case Page.SystemOwner:
+        return <SystemOwnerScreen 
+                  allOrganizations={allOrganizations}
+                  onSelectOrganization={handleSelectOrganization}
+                  onCreateOrganization={handleCreateOrganization}
+                  onDeleteOrganization={handleDeleteOrganization}
+               />;
       case Page.CustomContent:
         return activeCustomPage && <CustomContentScreen page={activeCustomPage} />;
       case Page.CustomPageEditor:
@@ -989,26 +996,10 @@ const MainContent: React.FC = () => {
 
   const infoBannerHeight = 512; // h-[512px] in Tailwind
 
-  const mainPaddingBottom = useMemo(() => {
-    return isInfoBannerVisible ? infoBannerHeight : 0;
-  }, [isInfoBannerVisible]);
-  
-  // Update: Remove Page.Home from showClock condition.
-  // The header clock should only appear on specific pages like WorkoutDetail
-  // where there isn't already a large prominent clock.
-  const showClock = isStudioMode && (page === Page.WorkoutDetail);
-  
-  const primaryColor = selectedOrganization?.primaryColor || '#14b8a6';
-  
-  const handleCloseRegistration = () => {
-    setIsRegisteringHyroxTime(false);
-    setCompletionInfo(null);
-  };
-
   const isHomeInStudio = isStudioMode && page === Page.Home;
 
   return (
-    <div className={`bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isHomeInStudio ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
+    <div className={`bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isHomeInStudio ? 'lg:h-screen lg:overflow-hidden min-h-screen' : 'min-h-screen'} ${paddingClass}`}>
        <SeasonalOverlay page={page} />
        {isOffline && (
         <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-black text-center p-2 font-semibold z-[1001]">
@@ -1026,14 +1017,13 @@ const MainContent: React.FC = () => {
         onSignOut={isStudioMode ? undefined : signOut}
         role={role}
         historyLength={history.length}
-        showClock={showClock}
+        showClock={isStudioMode && (page === Page.WorkoutDetail)}
         hideBackButton={isBackButtonHidden}
         onCoachAccessRequest={handleCoachAccessRequest}
         showCoachButton={isStudioMode}
       />}
       <main 
-        className={`flex-grow ${isFullScreenPage ? 'block w-full relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
-        style={{ paddingBottom: `${mainPaddingBottom}px`}}
+        className={`flex-grow ${isFullScreenPage ? 'block w-full relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`} ${isInfoBannerVisible ? 'pb-0 lg:pb-[512px]' : ''}`}
       >
         {renderPage()}
       </main>
@@ -1041,7 +1031,7 @@ const MainContent: React.FC = () => {
       {completionInfo && (
           <WorkoutCompleteModal
               isOpen={!!completionInfo}
-              onClose={isRegisteringHyroxTime ? handleCloseRegistration : handleCloseWorkoutCompleteModal}
+              onClose={isRegisteringHyroxTime ? () => { setIsRegisteringHyroxTime(false); setCompletionInfo(null); } : handleCloseWorkoutCompleteModal}
               workout={completionInfo.workout}
               isFinalBlock={completionInfo.isFinal}
               blockTag={completionInfo.blockTag}
@@ -1077,7 +1067,7 @@ const MainContent: React.FC = () => {
       )}
        {previewImageUrl && <ImagePreviewModal imageUrl={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />}
        
-       {isInfoBannerVisible && <InfoCarouselBanner messages={activeInfoMessages} className="bottom-0" forceDark={isScreensaverActive} />}
+       {isInfoBannerVisible && <InfoCarouselBanner messages={activeInfoMessages} className="hidden lg:flex bottom-0" forceDark={isScreensaverActive} />}
 
        {studioToEditConfig && selectedOrganization && (
         <StudioConfigModal
@@ -1091,7 +1081,7 @@ const MainContent: React.FC = () => {
         {isScreensaverActive && (
             <Screensaver 
                 logoUrl={selectedOrganization?.logoUrlDark || selectedOrganization?.logoUrlLight}
-                bottomOffset={isInfoBannerVisible ? 512 : 0}
+                bottomOffset={isInfoBannerVisible ? (window.innerWidth >= 1024 ? 512 : 0) : 0}
             />
         )}
        {showTerms && <TermsOfServiceModal onAccept={acceptTerms} />}
