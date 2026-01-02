@@ -839,10 +839,14 @@ const MainContent: React.FC = () => {
 
        {/* --- SCAN BUTTON FOR MEMBERS --- */}
        {isMember && (
-           <div className="fixed bottom-6 right-6 z-50">
-               <ScanButton onScan={handleScanCode} />
-           </div>
-       )}
+   <div className="fixed bottom-6 right-6 z-50">
+       <ScanButton 
+           onScan={handleScanCode} 
+           workouts={workouts} 
+           user={currentUser} 
+       />
+   </div>
+)}
     </div>
   );
 }
