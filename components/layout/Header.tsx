@@ -1,7 +1,7 @@
 import React from 'react';
 import { Page, UserRole } from '../../types';
 import { DigitalClock } from '../common/DigitalClock';
-import { UserIcon } from '../icons';
+import { UserIcon, BriefcaseIcon } from '../icons'; // Added BriefcaseIcon just in case you want to use it for coach button
 import { useStudio } from '../../context/StudioContext';
 
 interface HeaderProps {
@@ -18,7 +18,7 @@ interface HeaderProps {
     hideBackButton?: boolean;
     onCoachAccessRequest?: () => void;
     showCoachButton?: boolean;
-    onMemberProfileRequest?: () => void; // NYTT
+    onMemberProfileRequest?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -62,7 +62,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const coachButton = showCoachButton && onCoachAccessRequest && (
     <button onClick={onCoachAccessRequest} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-800 dark:text-white" aria-label="Coach-åtkomst">
-      <UserIcon className="w-6 h-6" />
+      <BriefcaseIcon className="w-6 h-6" /> {/* Changed to BriefcaseIcon to distinguish from member profile */}
     </button>
   );
 
@@ -112,7 +112,7 @@ export const Header: React.FC<HeaderProps> = ({
       case Page.HyroxRaceDetail: return "Resultat";
       
       // --- NYA SIDOR ---
-      case Page.MemberProfile: return ""; // Visar ingen titel på profilsidan (clean look)
+      case Page.MemberProfile: return ""; 
       case Page.MemberRegistry: return "Medlemsregister";
       case Page.MobileLog: return "Logga Pass";
       case Page.AdminAnalytics: return "Statistik & Trender";
@@ -132,7 +132,8 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
       
       <div className="flex-1 flex flex-col items-center justify-center text-center">
-        {logoUrl && page !== Page.SuperAdmin && (
+        {/* FIX: Hide logo on SystemOwner page */}
+        {logoUrl && page !== Page.SuperAdmin && page !== Page.SystemOwner && (
             <img 
                 src={logoUrl} 
                 alt="Logo" 
