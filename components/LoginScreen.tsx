@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { signInWithGoogle, loginWithEmail, registerUser } from '../services/firebaseService';
+import { 
+    signIn, // Din gamla funktion
+    registerMemberWithCode, // Din gamla funktion
+    auth, // Behövs för Google-lösningen nedan
+    db    // Behövs för Google-lösningen nedan
+} from '../services/firebaseService';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { GoogleIcon, EmailIcon, LockIcon, UserIcon, EyeIcon, EyeOffIcon } from './icons';
 
 export const LoginScreen: React.FC = () => {
@@ -15,12 +21,13 @@ export const LoginScreen: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [showPassword, setShowPassword] = useState(false);
 
+    // --- 1. VANLIG INLOGGNING (Använder din befintliga signIn) ---
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
         setIsLoading(true);
         try {
-            await loginWithEmail(email, password);
+            await signIn(email, password);
         } catch (err: any) {
             console.error(err);
             setError("Kunde inte logga in. Kontrollera uppgifterna.");
@@ -29,6 +36,7 @@ export const LoginScreen: React.FC = () => {
         }
     };
 
+    // --- 2. REGISTRERING (Använder din befintliga registerMemberWithCode) ---
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
@@ -41,21 +49,45 @@ export const LoginScreen: React.FC = () => {
         }
 
         try {
-            await registerUser(email, password, firstName, lastName, inviteCode);
-            // Vid lyckad registrering loggas man oftast in automatiskt av Firebase lyssnaren
+            // Anpassar anropet till hur din service-fil ser ut
+            await registerMemberWithCode(email, password, inviteCode, {
+                firstName: firstName,
+                lastName: lastName
+            });
         } catch (err: any) {
             console.error(err);
-            setError(err.message || "Kunde inte registrera kontot.");
+            setError(err.message || "Kunde inte registrera kontot. Kontrollera koden.");
         } finally {
             setIsLoading(false);
         }
     };
 
+    // --- 3. GOOGLE LOGIN (Löses lokalt här för att slippa ändra service-filen) ---
     const handleGoogleLogin = async () => {
         setError(null);
         setIsLoading(true);
         try {
-            await signInWithGoogle();
+            if (!auth) throw new Error("Firebase Auth ej initierad");
+            
+            const provider = new GoogleAuthProvider();
+            const result = await signInWithPopup(auth, provider);
+            
+            // Om db finns, kontrollera/skapa användare (samma logik som vi ville ha i servicen)
+            if (db) {
+                const userDocRef = doc(db, 'users', result.user.uid);
+                const userSnapshot = await getDoc(userDocRef);
+                
+                if (!userSnapshot.exists()) {
+                    await setDoc(userDocRef, {
+                        email: result.user.email,
+                        firstName: result.user.displayName?.split(' ')[0] || 'User',
+                        lastName: result.user.displayName?.split(' ')[1] || '',
+                        role: 'member', // Default
+                        createdAt: Date.now(),
+                        organizationId: '' // Sätts tomt tills vidare
+                    });
+                }
+            }
         } catch (err: any) {
             console.error(err);
             setError("Google-inloggning misslyckades.");
@@ -195,7 +227,6 @@ export const LoginScreen: React.FC = () => {
                     </div>
                 </div>
 
-                {/* FOOTER - BYTA LÄGE (LOGIN / REGISTRERA) */}
                 <p className="text-center text-gray-600 dark:text-gray-400">
                     {isRegistering ? 'Har du redan ett konto?' : 'Har du inget konto än?'}
                     <button
@@ -208,8 +239,6 @@ export const LoginScreen: React.FC = () => {
                         {isRegistering ? 'Logga in' : 'Registrera dig'}
                     </button>
                 </p>
-                
-                {/* STUDIO-KNAPPEN BORTTAGEN HÄRIFRÅN */}
                 
             </div>
         </div>
