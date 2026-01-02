@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
-import { StudioConfig, Studio, Organization, CustomPage, Page, UserData, UserRole, InfoCarousel, DisplayWindow, Workout, CompanyDetails, ThemeOption } from '../types';
-import { ToggleSwitch, HomeIcon, DocumentTextIcon, SpeakerphoneIcon, SparklesIcon, UsersIcon, DumbbellIcon, BriefcaseIcon, BuildingIcon, SettingsIcon } from './icons';
-import { getAdminsForOrganization, getCoachesForOrganization, updateOrganizationCompanyDetails } from '../services/firebaseService';
+import { StudioConfig, Studio, Organization, CustomPage, UserData, UserRole, InfoCarousel, DisplayWindow, Workout, CompanyDetails, ThemeOption } from '../types';
+import { ToggleSwitch, HomeIcon, DocumentTextIcon, SpeakerphoneIcon, SparklesIcon, UsersIcon, DumbbellIcon, BriefcaseIcon, BuildingIcon, SettingsIcon, ChartBarIcon, SaveIcon, CopyIcon } from './icons';
+import { getAdminsForOrganization, getCoachesForOrganization, updateOrganizationCompanyDetails, getSmartScreenPricing } from '../services/firebaseService';
 import { AIGeneratorScreen } from './AIGeneratorScreen';
 import { WorkoutBuilderScreen } from './WorkoutBuilderScreen';
 import { OvningsbankContent } from './OvningsbankContent';
@@ -18,6 +17,9 @@ import { VarumarkeContent } from './admin/VarumarkeContent';
 import { CompanyInfoContent } from './admin/CompanyInfoContent';
 import { generateWorkout } from '../services/geminiService';
 import { SelectField } from './admin/AdminShared';
+import { MemberManagementScreen } from './MemberManagementScreen';
+import { AdminAnalyticsScreen } from './AdminAnalyticsScreen';
+import QRCode from "react-qr-code"; // Behövs för inbjudningskoden
 
 // --- Icons specific to this file ---
 const MenuIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
@@ -28,9 +30,9 @@ const MenuIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) =
 
 type AdminTab = 
     'dashboard' | 
-    'pass-program' | 'infosidor' | 'info-karusell' |
+    'pass-program' | 'infosidor' | 'info-karusell' | 'medlemmar' |
     'globala-installningar' | 'studios' | 'varumarke' | 'company-info' |
-    'anvandare' | 'ovningsbank';
+    'anvandare' | 'ovningsbank' | 'analytics';
 
 interface SuperAdminScreenProps {
     organization: Organization;
@@ -57,6 +59,7 @@ interface SuperAdminScreenProps {
     onSaveWorkout: (workout: Workout) => Promise<Workout>;
     onDeleteWorkout: (workoutId: string) => Promise<void>;
     onTogglePublish: (workoutId: string, isPublished: boolean) => void;
+    onSelectMember: (memberId: string) => void;
 }
 
 interface ConfigProps {
@@ -138,7 +141,7 @@ const AnvandareContent: React.FC<SuperAdminScreenProps & { admins: UserData[], c
                     <div>
                         <h3 className="text-lg font-bold text-indigo-900 dark:text-indigo-100 mb-1">Hantera Teamet</h3>
                         <p className="text-sm text-indigo-700 dark:text-indigo-300 leading-relaxed max-w-2xl">
-                            För att lägga till nya coacher eller administratörer, skicka ett mail till <a href="mailto:info@flexibel.app" className="underline hover:text-indigo-900 font-semibold">support@flexibel.app</a>. 
+                            För att lägga till nya coacher eller administratörer, skicka ett mail till <a href="mailto:hej@smartstudio.se" className="underline hover:text-indigo-900 font-semibold">hej@smartstudio.se</a>. 
                             Ange personens e-postadress och om de ska vara <strong>Coach</strong> (passhantering) eller <strong>Admin</strong> (full access).
                         </p>
                     </div>
@@ -235,6 +238,28 @@ const AiCoachInfoModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ 
 };
 
 const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps> = ({ config, isSavingConfig, isConfigDirty, handleUpdateConfigField, handleSaveConfig }) => {
+    
+    const [showPricingModal, setShowPricingModal] = useState(false);
+    const [baseCost, setBaseCost] = useState(19);
+    const [customerPrice, setCustomerPrice] = useState(49);
+
+    useEffect(() => {
+        if (showPricingModal) {
+            getSmartScreenPricing().then(pricing => {
+                if (pricing && pricing.workoutLoggingPricePerMember !== undefined) {
+                    setBaseCost(pricing.workoutLoggingPricePerMember);
+                }
+            });
+        }
+    }, [showPricingModal]);
+
+    const handleAiChange = (field: 'instructions' | 'tone', value: string) => {
+        handleUpdateConfigField('aiSettings', {
+            ...(config.aiSettings || {}),
+            [field]: value
+        });
+    };
+
     return (
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
             <div className="p-6 sm:p-8 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
@@ -250,11 +275,66 @@ const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps
             <div className="p-6 sm:p-8 space-y-8">
                 <section>
                     <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Funktioner & Moduler</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-4">
                         <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
-                            <ToggleSwitch label="HYROX-modul" checked={!!config.enableHyrox} onChange={(checked) => handleUpdateConfigField('enableHyrox', checked)} />
+                            <ToggleSwitch 
+                                label="HYROX-modul" 
+                                checked={!!config.enableHyrox} 
+                                onChange={(checked) => handleUpdateConfigField('enableHyrox', checked)} 
+                            />
                             <p className="text-xs text-gray-500 mt-2 pl-2">Aktiverar verktyg för tävlingar och HYROX-pass.</p>
                         </div>
+                        
+                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                            <ToggleSwitch 
+                                label="Passloggning & QR" 
+                                checked={!!config.enableWorkoutLogging} 
+                                onChange={(checked) => {
+                                    if (checked) setShowPricingModal(true);
+                                    else handleUpdateConfigField('enableWorkoutLogging', false);
+                                }} 
+                            />
+                            <p className="text-xs text-gray-500 mt-2 pl-2">Låt medlemmar logga sina pass och få AI-feedback.</p>
+                            <button onClick={() => setShowPricingModal(true)} className="text-xs text-blue-600 dark:text-blue-400 font-bold mt-2 pl-2 hover:underline">
+                                📊 Räkna på din vinst & läs mer...
+                            </button>
+                        </div>
+
+                        {/* --- AI CONFIGURATION (CONDITIONAL) --- */}
+                        {config.enableWorkoutLogging && (
+                            <div className="ml-8 p-4 bg-white dark:bg-black/20 rounded-xl border border-blue-100 dark:border-blue-900/30 animate-fade-in">
+                                <h4 className="font-bold text-sm text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                                    <SparklesIcon className="w-4 h-4 text-purple-500" />
+                                    AI-Coach Inställningar
+                                </h4>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Systeminstruktioner</label>
+                                        <textarea 
+                                            rows={3}
+                                            value={config.aiSettings?.instructions || ''}
+                                            onChange={(e) => handleAiChange('instructions', e.target.value)}
+                                            placeholder="T.ex: Påminn alltid om att boka PT om resultaten planar ut..."
+                                            className="w-full p-2 text-sm rounded bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none resize-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tonläge</label>
+                                        <select 
+                                            value={config.aiSettings?.tone || 'neutral'}
+                                            onChange={(e) => handleAiChange('tone', e.target.value)}
+                                            className="w-full p-2 text-sm rounded bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none"
+                                        >
+                                            <option value="neutral">Neutral & Professionell</option>
+                                            <option value="enthusiastic">Peppande & Entusiastisk</option>
+                                            <option value="strict">Sträng & Militärisk</option>
+                                            <option value="sales">Säljande & Serviceinriktad</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
                         <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch label="Idé-tavlan (Whiteboard)" checked={!!config.enableNotes} onChange={(checked) => handleUpdateConfigField('enableNotes', checked)} />
                             <p className="text-xs text-gray-500 mt-2 pl-2">Digital rityta för att skissa pass och idéer.</p>
@@ -270,6 +350,8 @@ const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps
                                     <div className="flex items-center gap-2">
                                         <input 
                                             type="number" 
+                                            min="1" 
+                                            max="60"
                                             value={config.screensaverTimeoutMinutes || 15} 
                                             onChange={(e) => handleUpdateConfigField('screensaverTimeoutMinutes', parseInt(e.target.value) || 15)}
                                             className="w-16 bg-white dark:bg-gray-800 text-center p-1 rounded border border-gray-300 dark:border-gray-600 text-sm"
@@ -313,7 +395,7 @@ const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps
                 <div className="border-t border-gray-100 dark:border-gray-700 my-6"></div>
 
                 <section>
-                    <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Passkategorier & AI</h4>
+                    <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Passkategorier</h4>
                     <CategoryPromptManager
                         categories={config.customCategories}
                         onCategoriesChange={(newCats) => handleUpdateConfigField('customCategories', newCats)}
@@ -321,6 +403,98 @@ const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps
                     />
                 </section>
             </div>
+
+            {showPricingModal && (
+                <Modal isOpen={true} onClose={() => setShowPricingModal(false)} title="Aktivera Passloggning 🚀" size="md">
+                    <div className="space-y-6 p-2">
+                        
+                        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800 text-left">
+                            <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-3">Varför aktivera Passloggning?</h4>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div>
+                                <p className="font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">FÖR MEDLEMMEN:</p>
+                                <ul className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                                    <li className="flex gap-2"><span>📈</span> Ser progression (förra passets vikter).</li>
+                                    <li className="flex gap-2"><span>🤖</span> Får AI-feedback direkt i mobilen.</li>
+                                    <li className="flex gap-2"><span>🔥</span> Roligare träning & statistik.</li>
+                                </ul>
+                                </div>
+                                <div>
+                                <p className="font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">FÖR DIG (GYMMET):</p>
+                                <ul className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                                    <li className="flex gap-2"><span>💰</span> Automatisk merförsäljning (Upsell).</li>
+                                    <li className="flex gap-2"><span>📊</span> Djup analys av medlemmarna.</li>
+                                    <li className="flex gap-2"><span>🔒</span> Ökad retention.</li>
+                                </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Inputs */}
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-100 dark:border-red-900/30">
+                                <span className="text-gray-600 dark:text-gray-300 font-medium">Din licenskostnad</span>
+                                <span className="font-bold text-gray-900 dark:text-white">{baseCost} kr / mån</span>
+                            </div>
+
+                            <div className="flex justify-between items-center p-3 bg-white dark:bg-gray-700/50 rounded-lg border border-gray-200 dark:border-gray-600 shadow-sm">
+                                <label htmlFor="customerPrice" className="text-gray-700 dark:text-gray-200 font-bold">Ditt pris till kund</label>
+                                <div className="flex items-center gap-2">
+                                    <input 
+                                        id="customerPrice"
+                                        type="number" 
+                                        value={customerPrice} 
+                                        onChange={(e) => setCustomerPrice(Number(e.target.value))}
+                                        className="w-24 text-right p-2 rounded border border-gray-300 dark:border-gray-500 bg-transparent font-bold text-lg focus:ring-2 focus:ring-primary outline-none"
+                                    />
+                                    <span className="font-medium text-gray-500">kr / mån</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="border-t-2 border-dashed border-gray-200 dark:border-gray-700 my-4"></div>
+
+                        {/* Results */}
+                        <div className="bg-green-50 dark:bg-green-900/10 p-6 rounded-2xl border-2 border-green-100 dark:border-green-900/30 text-center space-y-6">
+                            <div>
+                                <p className="text-sm font-bold text-green-800 dark:text-green-300 uppercase tracking-wider mb-1">Din vinst per medlem</p>
+                                <p className="text-4xl font-black text-green-600 dark:text-green-400">
+                                    {Math.max(0, customerPrice - baseCost)} kr<span className="text-lg text-green-600/70 font-bold">/mån</span>
+                                </p>
+                            </div>
+                            
+                            <div className="bg-white/50 dark:bg-black/20 p-3 rounded-xl">
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Potential vid 100 medlemmar</p>
+                                <p className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                                    {(Math.max(0, customerPrice - baseCost) * 100 * 12).toLocaleString()} kr / år
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <p className="text-sm text-red-600 dark:text-red-400 font-bold mt-4 text-center border-t border-red-200 dark:border-red-800 pt-4">
+                            Detta kostar extra och genom att aktivera funktionen godkänner du villkoren.
+                        </p>
+                    </div>
+                    
+                    <div className="mt-6 flex gap-3">
+                         <button onClick={() => setShowPricingModal(false)} className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold py-3 rounded-lg transition-colors">
+                            Avbryt
+                        </button>
+                        <button 
+                            onClick={async () => {
+                                handleUpdateConfigField('enableWorkoutLogging', true);
+                                await handleSaveConfig({ ...config, enableWorkoutLogging: true });
+                                setShowPricingModal(false);
+                                alert("Passloggning aktiverad och sparad!");
+                            }} 
+                            className="flex-[2] bg-primary hover:brightness-95 text-white font-bold py-3 rounded-lg shadow-lg shadow-primary/20 transition-all transform active:scale-95"
+                        >
+                            Jag godkänner och aktiverar
+                        </button>
+                    </div>
+                </Modal>
+            )}
         </div>
     );
 };
@@ -426,10 +600,10 @@ const PassProgramContent: React.FC<SuperAdminScreenProps & {
 };
 
 export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
-    const { organization, theme, onSaveGlobalConfig, workouts, onSaveWorkout } = props;
+    const { organization, theme, onSaveGlobalConfig, workouts, onSaveWorkout, onSelectMember, userRole } = props;
     const { selectOrganization } = useStudio();
     const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
-    const [isSidebarCollapsed, setSidebarCollapsed] = useState(false); // Collapsed state
+    const [isSidebarCollapsed, setSidebarCollapsed] = useState(false); 
     
     const [config, setConfig] = useState<StudioConfig>(organization.globalConfig);
     const [isSavingConfig, setIsSavingConfig] = useState(false);
@@ -523,18 +697,16 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
         setIsSavingConfig(true);
         try {
             await onSaveGlobalConfig(organization.id, configOverride || config);
+            alert("Inställningar sparade!");
         } catch (error) {
             console.error(error);
+            alert("Kunde inte spara inställningar.");
         } finally {
             setIsSavingConfig(false);
         }
     };
 
     const handleQuickGenerate = async (prompt: string) => {
-        // NOTE: We must generate the workout *before* switching tabs.
-        // If we switch tabs immediately, the WorkoutBuilder mounts with a null 'workoutToEdit', 
-        // creating a race condition where the user sees an empty builder before the AI finishes.
-        // The dashboard UI will handle the 'isLoading' state during this wait.
         try {
             const generatedWorkout = await generateWorkout(prompt, workouts);
             setWorkoutToEdit(generatedWorkout);
@@ -545,7 +717,6 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             setPassProgramSubView('builder');
         } catch(e) {
             alert("Kunde inte generera pass. Försök igen.");
-            // Stay on dashboard on error
         }
     };
 
@@ -563,19 +734,36 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
         ? (organization.logoUrlDark || organization.logoUrlLight)
         : (organization.logoUrlLight || organization.logoUrlDark);
 
-    const navItems: NavElement[] = [
-        { type: 'link', id: 'dashboard', label: 'Översikt', icon: HomeIcon },
-        { type: 'header', label: 'Innehåll' },
-        { type: 'link', id: 'pass-program', label: 'Pass & Program', icon: DumbbellIcon },
-        { type: 'link', id: 'infosidor', label: 'Infosidor', icon: DocumentTextIcon },
-        { type: 'link', id: 'info-karusell', label: 'Info-karusell', icon: SpeakerphoneIcon },
-        { type: 'header', label: 'Inställningar' },
-        { type: 'link', id: 'globala-installningar', label: 'Globala Inställningar', icon: SettingsIcon },
-        { type: 'link', id: 'studios', label: 'Skärmar', icon: BuildingIcon },
-        { type: 'link', id: 'varumarke', label: 'Varumärke & Säkerhet', icon: SparklesIcon },
-        { type: 'link', id: 'company-info', label: 'Företagsinformation', icon: BriefcaseIcon },
-        { type: 'link', id: 'anvandare', label: 'Användare', icon: UsersIcon },
-    ];
+    const navItems = useMemo(() => {
+        const allItems: NavElement[] = [
+            { type: 'link', id: 'dashboard', label: 'Översikt', icon: HomeIcon },
+            { type: 'link', id: 'analytics', label: 'Analys & Trender', icon: ChartBarIcon },
+            { type: 'header', label: 'Innehåll' },
+            { type: 'link', id: 'pass-program', label: 'Pass & Program', icon: DumbbellIcon },
+            { type: 'link', id: 'infosidor', label: 'Infosidor', icon: DocumentTextIcon },
+            { type: 'link', id: 'info-karusell', label: 'Info-karusell', icon: SpeakerphoneIcon },
+            { type: 'link', id: 'medlemmar', label: 'Medlemmar', icon: UsersIcon },
+            { type: 'header', label: 'Inställningar' },
+            { type: 'link', id: 'globala-installningar', label: 'Globala Inställningar', icon: SettingsIcon },
+            { type: 'link', id: 'studios', label: 'Skärmar', icon: BuildingIcon },
+            { type: 'link', id: 'varumarke', label: 'Varumärke & Säkerhet', icon: SparklesIcon },
+            { type: 'link', id: 'company-info', label: 'Företagsinformation', icon: BriefcaseIcon },
+            { type: 'link', id: 'anvandare', label: 'Användare', icon: UsersIcon },
+        ];
+
+        if (userRole === 'coach') {
+            // Filter out admin-only settings
+            return allItems.filter(item => {
+                if (item.type === 'header' && item.label === 'Inställningar') return false;
+                if (item.type === 'link') {
+                    return !['globala-installningar', 'studios', 'varumarke', 'company-info', 'anvandare'].includes(item.id);
+                }
+                return true;
+            });
+        }
+        
+        return allItems;
+    }, [userRole]);
     
     const mainContentWrapperClass = useMemo(() => {
         if (activeTab === 'pass-program' && passProgramSubView === 'builder') {
@@ -587,37 +775,79 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     const renderContent = () => {
         switch (activeTab) {
             case 'dashboard':
-                return <DashboardContent 
+                return (
+                    <div className="space-y-8">
+                        {/* --- NYHET: INBJUDNINGSSEKTION PÅ DASHBOARD --- */}
+                        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-fade-in">
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Bjud in medlemmar</h2>
+                            <p className="text-gray-500 text-sm mb-6">
+                                Använd denna QR-kod eller inbjudningskod för att låta dina medlemmar skapa konto i appen och kopplas till ditt gym.
+                            </p>
+                            
+                            {organization.inviteCode ? (
+                                <div className="flex flex-col sm:flex-row gap-8 items-center">
+                                    <div className="bg-white p-4 rounded-xl shadow-inner border border-gray-200">
+                                        <QRCode value={organization.inviteCode} size={150} />
+                                    </div>
+                                    <div className="flex-1 w-full text-center sm:text-left">
+                                        <div className="mb-4">
+                                            <label className="text-xs font-bold uppercase tracking-wider text-gray-400">Inbjudningskod</label>
+                                            <div className="text-3xl font-mono font-bold text-primary tracking-widest mt-1 select-all">
+                                                {organization.inviteCode}
+                                            </div>
+                                        </div>
+                                        <button 
+                                            onClick={() => navigator.clipboard.writeText(organization.inviteCode || '')}
+                                            className="text-sm font-medium text-primary hover:text-primary/80 flex items-center justify-center sm:justify-start gap-2 bg-primary/10 px-4 py-2 rounded-lg transition-colors w-full sm:w-auto"
+                                        >
+                                            <CopyIcon className="w-4 h-4" /> Kopiera kod
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="p-4 bg-yellow-100 text-yellow-800 rounded-lg">
+                                    Ingen inbjudningskod genererad än. Kontakta support.
+                                </div>
+                            )}
+                        </div>
+
+                        <DashboardContent 
                             {...props} 
                             setActiveTab={setActiveTab} 
                             admins={admins} 
                             coaches={coaches} 
                             usersLoading={usersLoading}
                             onQuickGenerate={handleQuickGenerate}
-                        />;
+                        />
+                    </div>
+                );
+            case 'analytics':
+                return <AdminAnalyticsScreen />;
             case 'pass-program':
                 return <PassProgramContent
-                           {...props}
-                           subView={passProgramSubView}
-                           setSubView={setPassProgramSubView}
-                           workoutToEdit={workoutToEdit}
-                           setWorkoutToEdit={setWorkoutToEdit}
-                           isNewDraft={isNewDraft}
-                           setIsNewDraft={setIsNewDraft}
-                           aiGeneratorInitialTab={aiGeneratorInitialTab}
-                           setAiGeneratorInitialTab={setAiGeneratorInitialTab}
-                           autoExpandCategory={autoExpandCategory}
-                           setAutoExpandCategory={setAutoExpandCategory}
-                           onReturnToHub={() => {
-                               setPassProgramSubView('hub');
-                               setWorkoutToEdit(null);
-                               setIsNewDraft(false);
-                           }}
-                       />;
+                            {...props}
+                            subView={passProgramSubView}
+                            setSubView={setPassProgramSubView}
+                            workoutToEdit={workoutToEdit}
+                            setWorkoutToEdit={setWorkoutToEdit}
+                            isNewDraft={isNewDraft}
+                            setIsNewDraft={setIsNewDraft}
+                            aiGeneratorInitialTab={aiGeneratorInitialTab}
+                            setAiGeneratorInitialTab={setAiGeneratorInitialTab}
+                            autoExpandCategory={autoExpandCategory}
+                            setAutoExpandCategory={setAutoExpandCategory}
+                            onReturnToHub={() => {
+                                setPassProgramSubView('hub');
+                                setWorkoutToEdit(null);
+                                setIsNewDraft(false);
+                            }}
+                        />;
             case 'infosidor':
                 return <InfosidorContent {...props} />;
             case 'info-karusell':
                 return <InfoKarusellContent {...props} />;
+            case 'medlemmar':
+                return <MemberManagementScreen onSelectMember={onSelectMember} />;
             case 'globala-installningar':
                 return <GlobalaInställningarContent {...props} {...configProps} />;
             case 'studios':

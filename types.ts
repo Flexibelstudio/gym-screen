@@ -1,3 +1,4 @@
+// --- BEFINTLIGA TYPER (BEHÅLLNA FRÅN GAMLA VERSIONEN) ---
 
 export interface InvoiceAdjustmentItem {
   description: string;
@@ -16,22 +17,29 @@ export interface InvoiceDetails {
   billingMonthForAction: string; // "2024-11"
 }
 
-
 export interface ExerciseOverride {
   imageUrl?: string;
 }
 
 export type UserRole = 'member' | 'coach' | 'organizationadmin' | 'systemowner';
 
+// UPPDATERAD: Lagt till nya fält för profil (firstName, goals etc) samt 'member' i role
 export interface UserData {
   uid: string;
   email: string;
-  role: 'coach' | 'organizationadmin' | 'systemowner';
+  role: 'member' | 'coach' | 'organizationadmin' | 'systemowner'; 
   organizationId?: string; // Which organization they belong to
-  adminRole?: 'superadmin' | 'admin'; // NEW: granular role for org admins
+  adminRole?: 'superadmin' | 'admin'; // granular role for org admins
   termsAcceptedAt?: number; // Timestamp of when the admin ToS were accepted
+  
+  // -- NYA FÄLT FÖR MEDLEMME --
+  goals?: MemberGoals;
+  firstName?: string;
+  lastName?: string;
+  age?: number;
+  gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say';
+  photoUrl?: string;
 }
-
 
 export interface CustomPageTab {
   id: string;
@@ -50,13 +58,15 @@ export interface InfoMessage {
   internalTitle: string;
   headline: string;
   body: string;
-  layout: 'text-only' | 'image-left' | 'image-right';
+  layout: 'text-only' | 'image-left' | 'image-right' | 'image-fullscreen' | 'video-fullscreen';
   imageUrl?: string; // base64 data URI
+  videoUrl?: string; // e.g., URL to an MP4 file
   animation: 'fade' | 'slide-left' | 'slide-right';
   durationSeconds: number;
   startDate?: string; // ISO string
   endDate?: string;   // ISO string
   visibleInStudios: string[]; // Array of studio IDs, or ['all']
+  disableOverlay?: boolean;
 }
 
 export interface InfoCarousel {
@@ -65,7 +75,7 @@ export interface InfoCarousel {
 }
 
 export interface DisplayPost {
-  id:string;
+  id: string;
   internalTitle: string;
   layout: 'text-only' | 'image-fullscreen' | 'video-fullscreen' | 'image-left';
   headline?: string;
@@ -77,6 +87,7 @@ export interface DisplayPost {
   startDate?: string; // ISO string
   endDate?: string;   // ISO string
   disableOverlay?: boolean;
+  posts?: DisplayPost[]; // For nested structures if needed
 }
 
 export interface DisplayWindow {
@@ -102,9 +113,11 @@ export interface CompanyDetails {
   };
 }
 
+// UPPDATERAD: Lagt till workoutLoggingPricePerMember
 export interface SmartScreenPricing {
   firstScreenPrice: number;
   additionalScreenPrice: number;
+  workoutLoggingPricePerMember?: number;
 }
 
 export interface ThemeDateRange {
@@ -128,8 +141,9 @@ export interface SystemSettings {
   seasonalThemes: SeasonalThemeSetting[];
 }
 
+// UPPDATERAD: Lagt till inviteCode
 export interface Organization {
-  id:string;
+  id: string;
   name: string;
   subdomain: string;
   logoUrlLight?: string;
@@ -145,13 +159,16 @@ export interface Organization {
   infoCarousel?: InfoCarousel;
   displayWindows?: DisplayWindow[];
   companyDetails?: CompanyDetails;
-  discountPercentage?: number; // Kept for backwards compatibility, new logic uses discountType/Value
+  discountPercentage?: number; // Kept for backwards compatibility
   discountType?: 'percentage' | 'fixed';
   discountValue?: number;
   exerciseOverrides?: Record<string, ExerciseOverride>;
   lastBilledMonth?: string; // Format "YYYY-MM", e.g. "2024-10"
   lastBilledDate?: number; // Timestamp
-  lastActiveAt?: number; // Timestamp of last significant activity (e.g. starting a timer)
+  lastActiveAt?: number; // Timestamp of last significant activity
+  
+  // -- NYTT FÄLT --
+  inviteCode?: string;
 }
 
 export interface Studio {
@@ -159,10 +176,10 @@ export interface Studio {
     name: string;
     createdAt?: number; // Timestamp of creation for billing purposes
     // This now holds only the settings that are DIFFERENT from the global config.
-    // If a value is not present here, the app will use the value from the global config.
     configOverrides?: Partial<StudioConfig>;
 }
 
+// UPPDATERAD: Lagt till nya Member-sidor på slutet
 export enum Page {
   Home,
   WorkoutDetail,
@@ -184,6 +201,13 @@ export enum Page {
   Hyrox,
   HyroxRaceList,
   HyroxRaceDetail,
+  
+  // -- NYA SIDOR --
+  MemberDetail,
+  AdminAnalytics,
+  MemberProfile,
+  MemberRegistry,
+  MobileLog, // Added for deep link simulation
 }
 
 export enum TimerMode {
@@ -208,6 +232,7 @@ export interface CustomCategoryWithPrompt {
 
 export type ThemeOption = 'none' | 'auto' | 'winter' | 'christmas' | 'newyear' | 'valentines' | 'easter' | 'midsummer' | 'summer' | 'halloween';
 
+// UPPDATERAD: Lagt till enableWorkoutLogging och aiSettings
 export interface StudioConfig {
   enableBreathingGuide?: boolean;
   enableNotes?: boolean;
@@ -220,13 +245,19 @@ export interface StudioConfig {
   checkInImageUrl?: string; // Stored as base64 data URI
   enableWarmup: boolean;
   seasonalTheme?: ThemeOption;
+  
+  // -- NYA INSTÄLLNINGAR --
+  enableWorkoutLogging?: boolean;
+  aiSettings?: {
+    instructions?: string;
+    tone?: string;
+  };
 }
-
 
 export interface Exercise {
   id: string; // Will now be a unique instance ID
   bankId?: string; // Will store the original ID from the bank, if applicable
-  name:string;
+  name: string;
   reps?: string;
   description?: string;
   isFromBank?: boolean;
@@ -260,7 +291,7 @@ export interface TimerSettings {
 }
 
 export interface WorkoutBlock {
-  id:string;
+  id: string;
   title: string;
   tag: string;
   setupDescription: string;
@@ -374,4 +405,101 @@ export interface HyroxRace {
   exercises: string[];
   startGroups: RaceStartGroup[];
   results: RaceResultItem[];
+}
+
+// --- HÄR BÖRJAR DE NYA TYPES SOM BEHÖVS FÖR MEDLEMSREGISTRET ---
+
+// Hjälptyper för om nya komponenter importerar dem direkt
+export interface Address {
+    street: string;
+    zip: string;
+    city: string;
+}
+
+export interface ContactPerson {
+    name: string;
+    email: string;
+    emailContact: string;
+    phone: string;
+}
+
+export interface MemberGoals {
+    hasSpecificGoals: boolean;
+    selectedGoals: string[];
+    targetDate?: string; // ISO Date string YYYY-MM-DD
+}
+
+export interface Member {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    status: 'active' | 'inactive';
+    organizationId: string;
+    createdAt: number;
+    role: 'member';
+    endDate?: string | null;
+    goals?: MemberGoals;
+}
+
+export interface CheckInEvent {
+    id: string;
+    userId: string;
+    firstName: string;
+    lastName: string;
+    timestamp: number;
+    organizationId: string;
+    streak?: number;
+}
+
+export type MemberFeeling = 'top' | 'good' | 'ok' | 'heavy' | 'injured';
+export type RepRange = '1-5' | '6-10' | '11-15' | '16+';
+
+export interface ExerciseResult {
+  exerciseId: string;
+  blockId: string;
+  exerciseName: string;
+  weight?: number;
+  reps?: RepRange; // Made optional
+  distance?: number; // New: For cardio
+  kcal?: number; // New: For cardio
+}
+
+export interface WorkoutLog {
+  id: string;
+  memberId: string;
+  organizationId: string;
+  workoutId: string;
+  workoutTitle: string;
+  date: number;
+  source: 'qr_scan' | 'manual';
+  rpe?: number;
+  feeling?: MemberFeeling;
+  tags?: string[];
+  comment?: string;
+  exerciseResults: ExerciseResult[];
+}
+
+export interface WorkoutQRPayload {
+  oid: string;
+  wid: string;
+  ts: number;
+}
+
+export interface SubmitWorkoutLogRequest {
+  organizationId: string;
+  workoutId: string;
+  workoutTitle: string;
+  source: 'qr_scan' | 'manual';
+  rpe?: number;
+  feeling?: MemberFeeling;
+  tags?: string[];
+  comment?: string;
+  exerciseResults: ExerciseResult[];
+}
+
+export interface SubmitWorkoutLogResponse {
+    success: boolean;
+    logId: string;
+    message: string;
 }

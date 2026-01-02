@@ -1,13 +1,12 @@
-
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { StudioConfig, Studio, Organization } from '../types';
-import { ToggleSwitch } from './icons';
-import { uploadImage, deleteImageByUrl } from '../services/firebaseService';
+import React, { useState, useEffect, useRef } from 'react';
+import { StudioConfig, Studio, Organization, ThemeOption } from '../types';
+import { ToggleSwitch, CloseIcon, SaveIcon, InformationCircleIcon } from './icons';
+import { uploadImage, deleteImageByUrl, getSmartScreenPricing } from '../services/firebaseService';
 import { resizeImage } from '../utils/imageUtils';
 import { CategoryPromptManager } from './CategoryPromptManager';
 
 // Define a type for keys that have boolean values in StudioConfig
-type BooleanStudioConfigKeys = 'checkInImageEnabled' | 'enableNotes' | 'enableScreensaver' | 'enableExerciseBank' | 'enableHyrox';
+type BooleanStudioConfigKeys = 'checkInImageEnabled' | 'enableNotes' | 'enableScreensaver' | 'enableExerciseBank' | 'enableHyrox' | 'enableWorkoutLogging' | 'enableBreathingGuide' | 'enableWarmup';
 type ConfigTab = 'modules' | 'categories' | 'checkin';
 
 // --- Sub-component for uploading images ---
@@ -121,31 +120,60 @@ interface StudioConfigModalProps {
 }
 
 export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, onClose, studio, organization, onSave }) => {
+    // Merge global config with studio overrides
+    const initialConfig = { ...organization.globalConfig, ...studio.configOverrides };
+    
     const [overrides, setOverrides] = useState<Partial<StudioConfig>>(studio.configOverrides || {});
     const [isSaving, setIsSaving] = useState(false);
     const [activeTab, setActiveTab] = useState<ConfigTab>('modules');
+    
+    // Profit Calculator State
+    const [showPricingModal, setShowPricingModal] = useState(false);
+    const [baseCost, setBaseCost] = useState(19);
+    const [customerPrice, setCustomerPrice] = useState(49);
+
     const globalConfig = organization.globalConfig;
 
     useEffect(() => {
-        if (studio) {
+        if (isOpen) {
             setOverrides(studio.configOverrides || {});
             setActiveTab('modules');
         }
-    }, [studio]);
-    
+    }, [isOpen, studio]);
+
+    useEffect(() => {
+        if (showPricingModal) {
+            getSmartScreenPricing().then(pricing => {
+                if (pricing && pricing.workoutLoggingPricePerMember !== undefined) {
+                    setBaseCost(pricing.workoutLoggingPricePerMember);
+                }
+            });
+        }
+    }, [showPricingModal]);
+
     if (!isOpen) return null;
 
     const effectiveConfig = { ...globalConfig, ...overrides };
 
     const handleToggleChange = (key: BooleanStudioConfigKeys, value: boolean) => {
+        // Special logic for activating logging -> Show Pricing Modal first
+        if (key === 'enableWorkoutLogging' && value === true) {
+            setShowPricingModal(true);
+            return;
+        }
+
         setOverrides(prev => {
             const newOverrides = { ...prev };
             const globalValue = globalConfig[key] ?? false;
+            
+            // If checking matches global, remove override. Else set override.
             if (globalValue === value) {
                 delete newOverrides[key];
             } else {
                 newOverrides[key] = value;
             }
+            
+            // Special cleanup: if disabling logging, maybe clear AI settings? (Optional, kept simple for now)
             return newOverrides;
         });
     };
@@ -160,6 +188,17 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
         setOverrides(prev => ({ ...prev, [key]: value }));
     };
 
+    // Helper for nested AI settings changes
+    const handleAiConfigChange = (field: 'instructions' | 'tone', value: string) => {
+        setOverrides(prev => ({
+            ...prev,
+            aiSettings: {
+                ...(prev.aiSettings || effectiveConfig.aiSettings || {}),
+                [field]: value
+            }
+        }));
+    };
+
     const resetFieldToGlobal = <K extends keyof StudioConfig>(key: K) => {
         setOverrides(prev => {
             const newOverrides = { ...prev };
@@ -168,39 +207,53 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
         });
     };
 
-    const handleSaveChanges = async () => {
+    const handleSave = async () => {
         setIsSaving(true);
-        try {
-            await onSave(organization.id, studio.id, overrides);
-            onClose();
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setIsSaving(false);
-        }
+        // Calculate diff to only save overrides
+        // (Existing logic relies on 'overrides' state which is already a diff map)
+        
+        await onSave(organization.id, studio.id, overrides);
+        setIsSaving(false);
+        onClose();
     };
     
     const isDirty = JSON.stringify(overrides) !== JSON.stringify(studio.configOverrides || {});
 
-    const renderToggle = (key: BooleanStudioConfigKeys, label: string) => {
+    const renderToggle = (key: BooleanStudioConfigKeys, label: string, description: string, onInfoClick?: () => void) => {
         const isOverridden = overrides[key] !== undefined;
         const currentValue = effectiveConfig[key] ?? false;
 
         return (
-             <div className="flex items-center justify-between p-2 -ml-2 rounded-lg hover:bg-slate-200/50 dark:hover:bg-gray-700/50">
-                 <ToggleSwitch 
-                    label={label}
-                    checked={currentValue}
-                    onChange={(checked) => handleToggleChange(key, checked)}
-                />
-                <div className="w-36 text-right space-x-2">
+             <div className="flex items-center justify-between p-3 rounded-lg hover:bg-slate-100 dark:hover:bg-gray-800/50 transition-colors">
+                 <div className="flex-grow flex items-center relative pr-4">
+                    <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                            <ToggleSwitch 
+                                label={label}
+                                checked={currentValue}
+                                onChange={(checked) => handleToggleChange(key, checked)}
+                            />
+                            {onInfoClick && (
+                                <button 
+                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onInfoClick(); }}
+                                    className="text-gray-400 hover:text-blue-500 transition-colors"
+                                    title="Läs mer"
+                                >
+                                    <InformationCircleIcon className="w-5 h-5" />
+                                </button>
+                            )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1 ml-14">{description}</p>
+                    </div>
+                 </div>
+                <div className="w-32 text-right space-x-2 shrink-0">
                 {isOverridden ? (
-                    <>
-                        <span className="text-xs text-yellow-500 font-semibold">Åsidosätter global</span>
-                        <button onClick={() => handleToggleChange(key, globalConfig[key] ?? false)} className="text-xs text-yellow-400 hover:underline">Återställ</button>
-                    </>
+                    <div className="flex flex-col items-end">
+                        <span className="text-[10px] text-yellow-600 dark:text-yellow-500 font-semibold uppercase tracking-wide">Avviker från global</span>
+                        <button onClick={() => handleToggleChange(key, globalConfig[key] ?? false)} className="text-xs text-primary hover:underline">Återställ</button>
+                    </div>
                 ) : (
-                    <span className="text-xs text-gray-500">Ärvd från global</span>
+                    <span className="text-xs text-gray-400 italic">Ärvd från global</span>
                 )}
                 </div>
             </div>
@@ -210,10 +263,10 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
     const TabButton: React.FC<{tab: ConfigTab, label: string}> = ({tab, label}) => (
         <button
             onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
                 activeTab === tab 
-                ? 'bg-primary text-white' 
-                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
+                ? 'border-primary text-primary' 
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
             }`}
         >
             {label}
@@ -224,45 +277,61 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
         switch (activeTab) {
             case 'modules':
                 return (
-                    <div className="space-y-2 animate-fade-in">
-                        {renderToggle('enableHyrox', "Aktivera 'HYROX'-modul")}
-                        {renderToggle('enableNotes', "Aktivera 'Idé-tavlan'")}
-                        {renderToggle('enableScreensaver', "Aktivera Skärmsläckare")}
-                        {renderToggle('enableExerciseBank', "Aktivera Övningsbank")}
-                    </div>
-                );
-            case 'checkin':
-                return (
-                     <div className="space-y-4 animate-fade-in">
-                        <ToggleSwitch
-                            label="Visa incheckningsbild (QR-kod)"
-                            checked={overrides.checkInImageEnabled ?? effectiveConfig.checkInImageEnabled ?? false}
-                            onChange={(checked) => handleConfigChange('checkInImageEnabled', checked)}
-                        />
-
-                        {(overrides.checkInImageEnabled ?? effectiveConfig.checkInImageEnabled) && (
-                            <div className="pt-4 animate-fade-in">
-                                <ImageUploader
-                                    label="Ladda upp QR-kod"
-                                    imageUrl={overrides.checkInImageUrl ?? effectiveConfig.checkInImageUrl ?? null}
-                                    onImageChange={(url) => handleConfigChange('checkInImageUrl', url)}
-                                    isSaving={isSaving}
-                                    organizationId={organization.id}
-                                    studioId={studio.id}
-                                />
-                                <p className="text-xs text-gray-500 mt-2">Denna bild sparas specifikt för denna studio.</p>
+                    <div className="space-y-4 animate-fade-in">
+                        <h3 className="font-semibold text-gray-900 dark:text-white mb-2 px-2">Funktioner</h3>
+                        
+                        {renderToggle('enableWorkoutLogging', "Aktivera Passloggning", "Låt medlemmar logga sina resultat via QR-kod.", () => setShowPricingModal(true))}
+                        
+                        {/* --- AI CONFIGURATION (CONDITIONAL) --- */}
+                        {/* Detta visas BARA om Passloggning är aktiverat */}
+                        {effectiveConfig.enableWorkoutLogging && (
+                            <div className="ml-14 mr-4 mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border-l-4 border-primary animate-fade-in">
+                                <h4 className="font-bold text-sm text-gray-900 dark:text-white mb-3">🤖 AI-Coach Inställningar</h4>
+                                
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tonläge</label>
+                                        <select 
+                                            value={effectiveConfig.aiSettings?.tone || 'neutral'}
+                                            onChange={(e) => handleAiConfigChange('tone', e.target.value)}
+                                            className="w-full p-2 text-sm rounded bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none"
+                                        >
+                                            <option value="neutral">Neutral & Professionell</option>
+                                            <option value="enthusiastic">Peppande & Entusiastisk</option>
+                                            <option value="strict">Sträng & Militärisk</option>
+                                            <option value="sales">Säljande & Serviceinriktad</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Systeminstruktioner</label>
+                                        <textarea 
+                                            rows={3}
+                                            value={effectiveConfig.aiSettings?.instructions || ''}
+                                            onChange={(e) => handleAiConfigChange('instructions', e.target.value)}
+                                            placeholder="T.ex: Påminn alltid om att boka PT om resultaten planar ut..."
+                                            className="w-full p-2 text-sm rounded bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none resize-none"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         )}
+
+                        {renderToggle('enableNotes', "Aktivera 'Idé-tavlan'", "Whiteboard för coacher.")}
+                        {renderToggle('enableExerciseBank', "Aktivera Övningsbank", "Tillgång till globala övningar.")}
+                        {renderToggle('enableHyrox', "Aktivera HYROX-modul", "Tävlingsläge och tidtagning.")}
+                        {renderToggle('enableBreathingGuide', "Aktivera Andningsguide", "Visuell hjälp vid vila.")}
+                        {renderToggle('enableWarmup', "Aktivera Uppvärmning", "Förslag på uppvärmning.")}
                     </div>
                 );
+
             case 'categories':
                 const isOverridden = overrides.customCategories !== undefined;
                 return (
-                     <div className="space-y-4 animate-fade-in">
-                        <div className="flex justify-between items-center">
-                            <h4 className="font-semibold text-lg">Anpassade Passkategorier & AI-Prompts</h4>
+                      <div className="space-y-4 animate-fade-in px-2">
+                        <div className="flex justify-between items-center mb-4">
+                            <h4 className="font-semibold">Anpassade Passkategorier</h4>
                             {isOverridden ? (
-                                <button onClick={() => resetFieldToGlobal('customCategories')} className="text-xs text-yellow-400 hover:underline">Återställ till global</button>
+                                <button onClick={() => resetFieldToGlobal('customCategories')} className="text-xs text-yellow-500 hover:underline">Återställ till global</button>
                             ) : (
                                 <span className="text-xs text-gray-500">Ärvd från global</span>
                             )}
@@ -274,36 +343,177 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                         />
                     </div>
                 );
+
+            case 'checkin':
+                return (
+                    <div className="space-y-6 animate-fade-in px-2">
+                        <div>
+                            <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Tema</h3>
+                            <select 
+                                value={overrides.seasonalTheme ?? effectiveConfig.seasonalTheme ?? 'auto'}
+                                onChange={(e) => setOverrides({ ...overrides, seasonalTheme: e.target.value as ThemeOption })}
+                                className="w-full p-3 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white"
+                            >
+                                <option value="auto">Automatiskt (Datumstyrt)</option>
+                                <option value="none">Inget tema</option>
+                                <option value="winter">Vinter</option>
+                                <option value="christmas">Jul</option>
+                                <option value="newyear">Nyår</option>
+                                <option value="summer">Sommar</option>
+                                <option value="halloween">Halloween</option>
+                            </select>
+                        </div>
+
+                        <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+                            {renderToggle('enableScreensaver', "Skärmsläckare", "Visa logotyp vid inaktivitet.")}
+                            
+                            {/* Conditional Screensaver Timeout */}
+                            {effectiveConfig.enableScreensaver && (
+                                <div className="mt-4 ml-14 flex items-center gap-4 animate-fade-in">
+                                    <label className="text-sm text-gray-700 dark:text-gray-300">
+                                        Tid innan start (minuter):
+                                    </label>
+                                    <input 
+                                        type="number" 
+                                        min="1" 
+                                        max="60"
+                                        value={overrides.screensaverTimeoutMinutes ?? effectiveConfig.screensaverTimeoutMinutes ?? 15}
+                                        onChange={(e) => setOverrides({ ...overrides, screensaverTimeoutMinutes: parseInt(e.target.value) })}
+                                        className="w-20 p-2 rounded bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-center font-bold"
+                                    />
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+                            {renderToggle('checkInImageEnabled', "Visa incheckningsbild", "QR-kod för incheckning.")}
+
+                            {(overrides.checkInImageEnabled ?? effectiveConfig.checkInImageEnabled) && (
+                                <div className="mt-4 ml-14 animate-fade-in">
+                                    <ImageUploader
+                                        label="Ladda upp QR-kod"
+                                        imageUrl={overrides.checkInImageUrl ?? effectiveConfig.checkInImageUrl ?? null}
+                                        onImageChange={(url) => handleConfigChange('checkInImageUrl', url)}
+                                        isSaving={isSaving}
+                                        organizationId={organization.id}
+                                        studioId={studio.id}
+                                    />
+                                    <p className="text-xs text-gray-500 mt-2">Denna bild sparas specifikt för denna studio.</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
         }
     };
 
     return (
+        <>
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[1001] p-4 animate-fade-in" onClick={onClose}>
-            <div className="bg-slate-50 dark:bg-gray-800 rounded-xl p-6 w-full max-w-2xl text-gray-900 dark:text-white shadow-2xl border border-slate-200 dark:border-gray-700 flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-                <div className="flex-shrink-0">
-                    <h2 className="text-2xl font-bold mb-1">Anpassa inställningar för</h2>
-                    <h3 className="text-lg text-primary mb-6 font-semibold">{studio.name}</h3>
-                </div>
-
-                <div className="flex-shrink-0 border-b border-slate-300 dark:border-gray-600 mb-6">
-                    <div className="flex items-center gap-2">
-                        <TabButton tab="modules" label="Moduler" />
-                        <TabButton tab="categories" label="Passkategorier" />
-                        <TabButton tab="checkin" label="Incheckning" />
+            <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-2xl text-gray-900 dark:text-white shadow-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+                
+                {/* Header */}
+                <div className="p-6 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
+                    <div>
+                        <h2 className="text-2xl font-bold">Inställningar</h2>
+                        <p className="text-primary font-medium">{studio.name}</p>
                     </div>
+                    <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
+                        <CloseIcon className="w-6 h-6 text-gray-500" />
+                    </button>
                 </div>
 
-                <div className="flex-grow overflow-y-auto pr-2">
+                {/* Tabs */}
+                <div className="px-6 pt-2 flex gap-4 border-b border-gray-200 dark:border-gray-800">
+                    <TabButton tab="modules" label="Moduler & Funktioner" />
+                    <TabButton tab="checkin" label="Tema & Skärm" />
+                    <TabButton tab="categories" label="Kategorier" />
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-6">
                     {renderContent()}
                 </div>
 
-                <div className="mt-8 flex gap-4 flex-shrink-0">
-                    <button onClick={onClose} className="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 rounded-lg transition-colors">Avbryt</button>
-                    <button onClick={handleSaveChanges} disabled={!isDirty || isSaving} className="flex-1 bg-primary hover:brightness-95 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50">
-                        {isSaving ? 'Sparar...' : 'Spara ändringar'}
+                {/* Footer */}
+                <div className="p-6 border-t border-gray-200 dark:border-gray-800 flex gap-4">
+                    <button onClick={onClose} className="flex-1 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 font-medium transition-colors">
+                        Avbryt
+                    </button>
+                    <button 
+                        onClick={handleSave} 
+                        disabled={!isDirty || isSaving} 
+                        className="flex-1 py-3 rounded-lg bg-primary hover:bg-primary/90 text-white font-bold shadow-lg shadow-primary/20 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                        {isSaving ? 'Sparar...' : <><SaveIcon className="w-5 h-5" /> Spara ändringar</>}
                     </button>
                 </div>
             </div>
         </div>
+
+        {/* PRICING MODAL (Inline implementation to avoid extra files) */}
+        {showPricingModal && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[1002] p-4 animate-fade-in" onClick={() => setShowPricingModal(false)}>
+                <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+                    <div className="p-6 bg-gradient-to-br from-blue-600 to-indigo-700 text-white text-center">
+                        <h3 className="text-2xl font-black mb-1">Aktivera Passloggning 🚀</h3>
+                        <p className="text-blue-100 text-sm">Ge dina medlemmar en modern träningsupplevelse</p>
+                    </div>
+                    
+                    <div className="p-6 space-y-6">
+                        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl text-sm space-y-2 text-gray-700 dark:text-gray-300">
+                            <p>✅ <strong>För medlemmar:</strong> Logga resultat, se progression och få AI-feedback.</p>
+                            <p>✅ <strong>För gymmet:</strong> Ökad retention, data och automatisk merförsäljning.</p>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center p-3 rounded-lg bg-gray-100 dark:bg-gray-800">
+                                <span className="font-medium">Licenskostnad</span>
+                                <span className="font-bold">{baseCost} kr / mån</span>
+                            </div>
+                            <div className="flex justify-between items-center p-3 rounded-lg border-2 border-primary/20 bg-white dark:bg-gray-800">
+                                <label htmlFor="price" className="font-bold text-primary">Ditt pris till kund</label>
+                                <div className="flex items-center gap-2">
+                                    <input 
+                                        id="price"
+                                        type="number" 
+                                        value={customerPrice} 
+                                        onChange={e => setCustomerPrice(Number(e.target.value))}
+                                        className="w-20 text-right font-bold bg-transparent border-b border-gray-300 focus:border-primary outline-none"
+                                    />
+                                    <span>kr/mån</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-green-100 dark:bg-green-900/30 p-4 rounded-xl text-center">
+                            <p className="text-xs font-bold text-green-700 dark:text-green-400 uppercase">Din potentiella vinst</p>
+                            <p className="text-3xl font-black text-green-600 dark:text-green-400">
+                                {Math.max(0, customerPrice - baseCost) * 100 * 12} kr <span className="text-base font-medium opacity-70">/ år</span>
+                            </p>
+                            <p className="text-xs text-green-700/70 dark:text-green-400/70 mt-1">(vid 100 medlemmar)</p>
+                        </div>
+                    </div>
+
+                    <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex gap-3">
+                        <button onClick={() => setShowPricingModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">Avbryt</button>
+                        <button 
+                            onClick={async () => {
+                                const newOverrides = { ...overrides, enableWorkoutLogging: true };
+                                setOverrides(newOverrides);
+                                try {
+                                    await onSave(organization.id, studio.id, newOverrides);
+                                } catch(e) { console.error(e); }
+                                setShowPricingModal(false);
+                            }} 
+                            className="flex-[2] py-3 bg-primary text-white font-bold rounded-lg shadow-lg hover:brightness-110"
+                        >
+                            Godkänn & Aktivera
+                        </button>
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 };

@@ -1,8 +1,8 @@
-
 import React from 'react';
 import { Page, UserRole } from '../../types';
 import { DigitalClock } from '../common/DigitalClock';
 import { UserIcon } from '../icons';
+import { useStudio } from '../../context/StudioContext';
 
 interface HeaderProps {
     page: Page;
@@ -18,6 +18,7 @@ interface HeaderProps {
     hideBackButton?: boolean;
     onCoachAccessRequest?: () => void;
     showCoachButton?: boolean;
+    onMemberProfileRequest?: () => void; // NYTT
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -33,8 +34,16 @@ export const Header: React.FC<HeaderProps> = ({
     showClock, 
     hideBackButton = false, 
     onCoachAccessRequest, 
-    showCoachButton 
+    showCoachButton,
+    onMemberProfileRequest
 }) => {
+  const { selectedOrganization } = useStudio();
+
+  // Determine logo based on theme
+  const logoUrl = theme === 'dark' 
+    ? selectedOrganization?.logoUrlDark || selectedOrganization?.logoUrlLight 
+    : selectedOrganization?.logoUrlLight || selectedOrganization?.logoUrlDark;
+
   const themeToggleButton = (
     <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" aria-label="Växla tema">
       {theme === 'dark' ? (
@@ -57,6 +66,14 @@ export const Header: React.FC<HeaderProps> = ({
     </button>
   );
 
+  const memberProfileButton = onMemberProfileRequest && (
+    <button onClick={onMemberProfileRequest} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-800 dark:text-white" aria-label="Min Profil">
+      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
+        <UserIcon className="w-5 h-5" />
+      </div>
+    </button>
+  );
+
   const signOutButton = onSignOut && (
     <button onClick={onSignOut} className="text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors text-lg font-semibold px-2">
         Logga ut
@@ -67,6 +84,7 @@ export const Header: React.FC<HeaderProps> = ({
       return (
         <header className="w-full max-w-5xl mx-auto flex justify-end items-center pb-8 gap-4">
            {showClock && <DigitalClock />}
+           {memberProfileButton}
            {coachButton}
            {themeToggleButton}
            {signOutButton}
@@ -92,6 +110,13 @@ export const Header: React.FC<HeaderProps> = ({
       case Page.Hyrox: return "HYROX Träning";
       case Page.HyroxRaceList: return "Tidigare Lopp";
       case Page.HyroxRaceDetail: return "Resultat";
+      
+      // --- NYA SIDOR ---
+      case Page.MemberProfile: return ""; // Visar ingen titel på profilsidan (clean look)
+      case Page.MemberRegistry: return "Medlemsregister";
+      case Page.MobileLog: return "Logga Pass";
+      case Page.AdminAnalytics: return "Statistik & Trender";
+      
       default: return "";
     }
   }
@@ -105,11 +130,21 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
         )}
       </div>
-      <div className="flex-1 text-center">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{getTitle()}</h1>
+      
+      <div className="flex-1 flex flex-col items-center justify-center text-center">
+        {logoUrl && page !== Page.SuperAdmin && (
+            <img 
+                src={logoUrl} 
+                alt="Logo" 
+                className="h-8 mb-1 object-contain opacity-90" 
+            />
+        )}
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-none">{getTitle()}</h1>
       </div>
+
       <div className="flex-1 flex justify-end items-center gap-4">
          {showClock && <DigitalClock />}
+         {memberProfileButton}
          {coachButton}
          {themeToggleButton}
          {signOutButton}

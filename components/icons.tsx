@@ -1,85 +1,75 @@
-
 import React from 'react';
 
-export const StarIcon: React.FC<{className?: string, filled?: boolean}> = ({className = "h-6 w-6", filled = false}) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363 1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+// --- GRUNDLÄGGANDE IKONER ---
+
+export const PlayIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
 );
 
-
-export const ValueAdjuster: React.FC<{
-  label: string;
-  value: number;
-  onchange: (newValue: number) => void;
-  min?: number;
-  max?: number;
-  step?: number;
-  wrapAround?: boolean;
-  onWrap?: (direction: 'up' | 'down') => void;
-}> = ({ label, value, onchange, min = 0, max = 99, step = 1, wrapAround = false, onWrap }) => {
-  const increment = () => {
-    const newValue = value + step;
-    if (wrapAround && newValue > max) {
-      // Handles wrapping for things like seconds -> minutes
-      onchange(min + (newValue - (max + 1))); 
-      if (onWrap) onWrap('up');
-    } else {
-      onchange(Math.min(max, newValue));
-    }
-  };
-
-  const decrement = () => {
-    const newValue = value - step;
-    if (wrapAround && newValue < min) {
-      // Handles wrapping for things like seconds -> minutes
-      onchange(max - (min - newValue - 1));
-      if (onWrap) onWrap('down');
-    } else {
-      onchange(Math.max(min, newValue));
-    }
-  };
-
-  return (
-    <div className="text-center">
-      <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">{label}</label>
-      <div className="flex items-center gap-4">
-        <button
-          onClick={decrement}
-          className="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-md w-12 h-12 flex items-center justify-center text-3xl font-bold transition-colors text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary ring-offset-2 ring-offset-white dark:ring-offset-black"
-          aria-label={`Minska ${label}`}
-        >
-          -
-        </button>
-        <span className="font-mono text-5xl font-bold text-gray-900 dark:text-white w-20 text-center" style={{fontVariantNumeric: 'tabular-nums', textShadow: '0 1px 3px rgba(0,0,0,0.4)'}}>
-          {String(value).padStart(2, '0')}
-        </span>
-        <button
-          onClick={increment}
-          className="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-md w-12 h-12 flex items-center justify-center text-3xl font-bold transition-colors text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary ring-offset-2 ring-offset-white dark:ring-offset-black"
-          aria-label={`Öka ${label}`}
-        >
-          +
-        </button>
-      </div>
-    </div>
-  );
-};
-
-export const ToggleSwitch: React.FC<{
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  label: string;
-}> = ({ checked, onChange, label }) => (
-    <label className="flex items-center justify-between cursor-pointer w-full p-2 rounded-lg hover:bg-gray-500/10 transition-colors">
-        <span className="font-semibold text-gray-700 dark:text-gray-300">{label}</span>
-        <div className="relative">
-            <input type="checkbox" className="sr-only peer" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-            <div className="w-14 h-8 bg-gray-300 dark:bg-gray-600 rounded-full peer-checked:bg-primary transition-colors"></div>
-            <div className="absolute left-1 top-1 bg-white w-6 h-6 rounded-full shadow-md transition-transform peer-checked:translate-x-6"></div>
-        </div>
-    </label>
+export const PauseIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
 );
+
+export const ResetIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+    </svg>
+);
+
+export const PencilIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+    </svg>
+);
+
+export const TrashIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+    </svg>
+);
+
+export const PlusIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+    </svg>
+);
+
+export const CheckIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+    </svg>
+);
+
+export const ChevronRightIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+    </svg>
+);
+
+export const ChevronDownIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+    </svg>
+);
+
+export const ChevronUpIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+    </svg>
+);
+
+export const StarIcon: React.FC<{ filled?: boolean; className?: string }> = ({ filled, className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill={filled ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+    </svg>
+);
+
+// --- NAVIGATION & UI ---
 
 export const HomeIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -111,16 +101,10 @@ export const UsersIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h
     </svg>
 );
 
-export const PencilIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z" />
-    </svg>
-);
-
 export const DumbbellIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-       <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5l-2.25 2.25 2.25 2.25-2.25 2.25-2.25-2.25zM17.25 18l-2.25 2.25-2.25-2.25 2.25-2.25 2.25 2.25zM9 9.75l6 6" />
-       <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h4v10H3V7zm14 0h4v10h-4V7zM7 12h10" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5l-2.25 2.25 2.25 2.25-2.25 2.25-2.25-2.25zM17.25 18l-2.25 2.25-2.25-2.25 2.25-2.25 2.25 2.25zM9 9.75l6 6" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h4v10H3V7zm14 0h4v10h-4V7zM7 12h10" />
     </svg>
 );
 
@@ -174,21 +158,121 @@ export const UserIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-
 
 export const SettingsIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
     </svg>
 );
 
-export const ChevronUpIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
+// --- NYA IKONER ---
+
+export const SaveIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
     </svg>
 );
 
-export const ChevronDownIcon: React.FC<{ className?: string }> = ({ className = 'w-6 h-6' }) => (
+export const ChartBarIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
     </svg>
+);
+
+export const CopyIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+    </svg>
+);
+
+export const SearchIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
+);
+
+export const QrCodeIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zm-6 2v3m-3-3v3m10 10v-3m2 3v-3m2 6v-3m-2 3v-3m-2 3v-3m-2 0h-2v4h2v-4zm-6-2v3M6 20v-3m6 0v3M6 4v1m6-1v1m6-1v1M6 9h2m-2 0H4v4h2V9zm6 0h2m-2 0h-2v4h2V9zm6 0h2m-2 0h-2v4h2V9zM6 4h2M6 4H4v4h2V4zm6 0h2M12 4h-2v4h2V4zm6 0h2M18 4h-2v4h2V4z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h6v6H3V3zm12 0h6v6h-6V3zM3 15h6v6H3v-6z" />
+    </svg>
+);
+
+export const ChatBubbleIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+    </svg>
+);
+
+// --- KOMPONENTER FÖR VÄLJARE (ValueAdjuster, ToggleSwitch, etc) ---
+
+export const ValueAdjuster: React.FC<{
+  label: string;
+  value: number;
+  onchange: (newValue: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  wrapAround?: boolean;
+  onWrap?: (direction: 'up' | 'down') => void;
+}> = ({ label, value, onchange, min = 0, max = 99, step = 1, wrapAround = false, onWrap }) => {
+  const increment = () => {
+    const newValue = value + step;
+    if (wrapAround && newValue > max) {
+      onchange(min + (newValue - (max + 1))); 
+      if (onWrap) onWrap('up');
+    } else {
+      onchange(Math.min(max, newValue));
+    }
+  };
+
+  const decrement = () => {
+    const newValue = value - step;
+    if (wrapAround && newValue < min) {
+      onchange(max - (min - newValue - 1));
+      if (onWrap) onWrap('down');
+    } else {
+      onchange(Math.max(min, newValue));
+    }
+  };
+
+  return (
+    <div className="text-center">
+      <label className="block text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-wider">{label}</label>
+      <div className="flex items-center gap-4">
+        <button
+          onClick={decrement}
+          className="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-md w-12 h-12 flex items-center justify-center text-3xl font-bold transition-colors text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary ring-offset-2 ring-offset-white dark:ring-offset-black"
+          aria-label={`Minska ${label}`}
+        >
+          -
+        </button>
+        <span className="font-mono text-5xl font-bold text-gray-900 dark:text-white w-20 text-center" style={{fontVariantNumeric: 'tabular-nums', textShadow: '0 1px 3px rgba(0,0,0,0.4)'}}>
+          {String(value).padStart(2, '0')}
+        </span>
+        <button
+          onClick={increment}
+          className="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 rounded-md w-12 h-12 flex items-center justify-center text-3xl font-bold transition-colors text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary ring-offset-2 ring-offset-white dark:ring-offset-black"
+          aria-label={`Öka ${label}`}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export const ToggleSwitch: React.FC<{
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label?: string;
+}> = ({ checked, onChange, label }) => (
+    <label className="flex items-center justify-between cursor-pointer w-full p-2 rounded-lg hover:bg-gray-500/10 transition-colors">
+        {label && <span className="font-semibold text-gray-700 dark:text-gray-300">{label}</span>}
+        <div className="relative">
+            <input type="checkbox" className="sr-only peer" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+            <div className="w-14 h-8 bg-gray-300 dark:bg-gray-600 rounded-full peer-checked:bg-primary transition-colors"></div>
+            <div className={`absolute left-1 top-1 bg-white w-6 h-6 rounded-full shadow-md transition-transform ${checked ? 'translate-x-6' : 'translate-x-0'}`}></div>
+        </div>
+    </label>
 );
 
 // --- Added for Icon Picker ---

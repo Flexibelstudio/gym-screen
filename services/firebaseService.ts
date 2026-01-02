@@ -7,6 +7,7 @@ import {
   onAuthStateChanged, 
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   reauthenticateWithCredential,
+  createUserWithEmailAndPassword, // NY: För att registrera medlemmar
   EmailAuthProvider,
   Auth,
   User
@@ -27,6 +28,7 @@ import {
   onSnapshot, 
   writeBatch, 
   deleteField,
+  serverTimestamp, // NY: För tidsstämplar
   Firestore,
   Query
 } from 'firebase/firestore';
@@ -41,7 +43,12 @@ import {
 
 import { firebaseConfig } from './firebaseConfig';
 import { queueOfflineWrite } from '../utils/idb';
-import { Studio, StudioConfig, Organization, CustomPage, UserData, Workout, InfoCarousel, BankExercise, SuggestedExercise, Exercise, WorkoutResult, WorkoutBlock, CompanyDetails, SmartScreenPricing, HyroxRace, SeasonalThemeSetting } from '../types';
+// UPPDATERAD IMPORT: Lagt till MemberGoals, WorkoutLog, CheckInEvent etc
+import { 
+  Studio, StudioConfig, Organization, CustomPage, UserData, Workout, InfoCarousel, 
+  BankExercise, SuggestedExercise, Exercise, WorkoutResult, WorkoutBlock, CompanyDetails, 
+  SmartScreenPricing, HyroxRace, SeasonalThemeSetting, MemberGoals, WorkoutLog, CheckInEvent 
+} from '../types';
 import { MOCK_ORGANIZATIONS, MOCK_SYSTEM_OWNER, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_SUGGESTED_EXERCISES, MOCK_WORKOUT_RESULTS, MOCK_SMART_SCREEN_PRICING, MOCK_RACES } from '../data/mockData';
 
 // Smart offline-check som fungerar i både AI Studio och Vite
@@ -152,6 +159,73 @@ export const reauthenticateUser = async (user: User, password: string) => {
   const credential = EmailAuthProvider.credential(user.email, password);
   return await reauthenticateWithCredential(user, credential);
 };
+
+// --- NYA AUTH-FUNKTIONER FÖR MEDLEMMAR ---
+
+export const updateUserGoals = async (uid: string, goals: MemberGoals) => {
+    if (isOffline || !db) return;
+    await updateDoc(doc(db, 'users', uid), { goals });
+};
+
+interface RegisterAdditionalData {
+    firstName: string;
+    lastName: string;
+    age?: number;
+    gender?: 'male' | 'female' | 'other' | 'prefer_not_to_say';
+    photoBase64?: string | null;
+}
+
+export const registerMemberWithCode = async (email: string, pass: string, code: string, additionalData?: RegisterAdditionalData) => {
+    if (isOffline || !db || !auth) {
+        throw new Error("Offline mode: Cannot register new users.");
+    }
+
+    // 1. Verify code and find organization
+    const q = query(collection(db, 'organizations'), where('inviteCode', '==', code));
+    const snap = await getDocs(q);
+    
+    if (snap.empty) {
+        throw new Error("Ogiltig inbjudningskod.");
+    }
+    
+    const organizationId = snap.docs[0].id;
+
+    // 2. Create Authentication User
+    const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+    const user = userCredential.user;
+
+    // 3. Upload profile image if present
+    let photoUrl = '';
+    if (additionalData?.photoBase64 && storage) {
+        try {
+            const path = `users/${user.uid}/profile_${Date.now()}.jpg`;
+            photoUrl = await uploadImage(path, additionalData.photoBase64);
+        } catch (e) {
+            console.warn("Failed to upload profile image during registration", e);
+        }
+    }
+
+    // 4. Create User Document
+    const userData: UserData = {
+        uid: user.uid,
+        email: email,
+        role: 'member',
+        organizationId: organizationId,
+        firstName: additionalData?.firstName,
+        lastName: additionalData?.lastName,
+        age: additionalData?.age,
+        gender: additionalData?.gender,
+        photoUrl: photoUrl
+    };
+
+    await setDoc(doc(db, 'users', user.uid), {
+        ...userData,
+        createdAt: serverTimestamp()
+    });
+
+    return user;
+};
+
 
 // --- Storage ---
 export const uploadImage = async (path: string, image: File | string): Promise<string> => {
@@ -488,4 +562,74 @@ export const saveRace = async (data: any, orgId: string) => {
     const race = { ...sanitizeData(data), id: ref.id, organizationId: orgId, createdAt: Date.now() };
     await setDoc(ref, race);
     return race;
+};
+
+
+// --- NY LOGIK FÖR MEDLEMSLOGGNING & SPOTLIGHT ---
+
+export const getMemberLogs = async (memberId: string): Promise<WorkoutLog[]> => {
+    if (isOffline || !db) return []; 
+    const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"), limit(20));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as WorkoutLog);
+};
+
+export const saveWorkoutLog = async (logData: Omit<WorkoutLog, 'id'>) => {
+    if (isOffline || !db) return;
+    // Auto-generate ID using Firestore doc()
+    const newLogRef = doc(collection(db, 'workoutLogs'));
+    const newLog: WorkoutLog = {
+        id: newLogRef.id,
+        ...logData
+    };
+    await setDoc(newLogRef, newLog);
+    return newLog;
+};
+
+export const sendCheckIn = async (orgId: string, userEmail: string) => {
+    if (isOffline || !db) {
+        console.log("Offline CheckIn:", userEmail);
+        return;
+    }
+    
+    // Create a temporary document that automatically deletes or just exists for listeners
+    const checkInRef = doc(collection(db, 'active_checkins'));
+    const event: CheckInEvent = {
+        id: checkInRef.id,
+        userId: userEmail, // Using email as ID for simplicity in display
+        firstName: userEmail.split('@')[0], // Simple parsing
+        lastName: '',
+        timestamp: Date.now(),
+        organizationId: orgId,
+        streak: Math.floor(Math.random() * 20) + 1 // Mock streak for visual effect
+    };
+    
+    await setDoc(checkInRef, event);
+};
+
+export const listenForCheckIns = (orgId: string, callback: (event: CheckInEvent) => void) => {
+    if (isOffline || !db) return () => {};
+    
+    // Listen for check-ins created in the last 5 seconds (to avoid old ones on reload)
+    const fiveSecondsAgo = Date.now() - 5000;
+    
+    const q = query(
+        collection(db, 'active_checkins'), 
+        where('organizationId', '==', orgId),
+        where('timestamp', '>', fiveSecondsAgo),
+        orderBy('timestamp', 'desc'),
+        limit(1)
+    );
+
+    return onSnapshot(q, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added') {
+                const data = change.doc.data() as CheckInEvent;
+                // Double check timestamp to be sure it's fresh
+                if (Date.now() - data.timestamp < 10000) { 
+                    callback(data);
+                }
+            }
+        });
+    });
 };

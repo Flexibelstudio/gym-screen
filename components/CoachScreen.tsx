@@ -1,6 +1,5 @@
-
 import React from 'react';
-import { Page, MenuItem, CustomPage, UserRole } from '../types';
+import { Page, CustomPage, UserRole } from '../types';
 import { useStudio } from '../context/StudioContext';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
@@ -8,10 +7,22 @@ import {
     DocumentTextIcon, 
     BriefcaseIcon, 
     SettingsIcon, 
-    HomeIcon, 
     UserIcon,
-    CloseIcon 
+    CloseIcon
 } from './icons';
+
+// Enkel fallback-ikon för Users om du inte har den importerad i icons.ts
+const UsersIcon = ({ className }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+    </svg>
+);
+
+const BuildingIcon = ({ className }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+        <rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="9" y2="22.01"></line><line x1="15" y1="22" x2="15" y2="22.01"></line><line x1="12" y1="22" x2="12" y2="22.01"></line><line x1="12" y1="2" x2="12" y2="4"></line><line x1="8" y1="6" x2="8" y2="6.01"></line><line x1="16" y1="6" x2="16" y2="6.01"></line><line x1="8" y1="10" x2="8" y2="10.01"></line><line x1="16" y1="10" x2="16" y2="10.01"></line><line x1="8" y1="14" x2="8" y2="14.01"></line><line x1="16" y1="14" x2="16" y2="14.01"></line><line x1="8" y1="18" x2="8" y2="18.01"></line><line x1="16" y1="18" x2="16" y2="18.01"></line>
+    </svg>
+);
 
 interface CoachScreenProps {
   role: UserRole;
@@ -19,6 +30,7 @@ interface CoachScreenProps {
   onSelectCustomPage: (page: CustomPage) => void;
   isImpersonating?: boolean;
   onReturnToAdmin?: () => void;
+  onAdminLogin?: () => void;
 }
 
 const CoachCard: React.FC<{
@@ -55,12 +67,15 @@ const CoachCard: React.FC<{
     </motion.button>
 );
 
-export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSelectCustomPage, isImpersonating, onReturnToAdmin }) => {
+export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSelectCustomPage, isImpersonating, onReturnToAdmin, onAdminLogin }) => {
   const { selectedStudio, selectedOrganization } = useStudio();
   const { isStudioMode, signOut, clearDeviceProvisioning } = useAuth();
 
   const items: { title: string; subTitle?: string; action: () => void; icon: React.ReactNode; gradient: string }[] = [];
 
+  // 1. CONTENT FOR ALL COACHES (Shared Password & Personal Login)
+  
+  // Infosidor (Dynamiska)
   (selectedOrganization?.customPages || []).forEach(page => {
       items.push({
           title: page.title,
@@ -71,7 +86,19 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
       });
   });
 
+  // --- NYHET: Medlemsregister ---
+  items.push({ 
+      title: 'Medlemsregister', 
+      subTitle: 'Hantera medlemmar',
+      action: () => navigateTo(Page.MemberRegistry),
+      icon: <UsersIcon className="w-8 h-8" />,
+      gradient: 'bg-gradient-to-br from-emerald-600 to-teal-800'
+  });
+
+  // 2. HIERARCHY LOGIC
+
   if (isImpersonating) {
+      // Case A: Admin previewing as Studio/Member -> Return to Admin
       items.push({ 
           title: 'Återgå till Admin', 
           subTitle: 'Avsluta förhandsvisning',
@@ -79,28 +106,20 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
           icon: <BriefcaseIcon className="w-8 h-8" />,
           gradient: 'bg-gradient-to-br from-gray-700 to-gray-900'
       });
-  } else if (role === 'systemowner') {
-      items.push({ 
-          title: 'Systemägare', 
-          subTitle: 'Hantera alla organisationer',
-          action: () => navigateTo(Page.SystemOwner), 
-          icon: <SettingsIcon className="w-8 h-8" />,
+  } else if (isStudioMode) {
+      // Case B: Shared Password Mode (Studio View) -> Login to get more access
+      items.push({
+          title: 'Logga in Admin',
+          subTitle: 'För system & inställningar',
+          action: onAdminLogin || (() => {}), // Fallback if undefined
+          icon: <UserIcon className="w-8 h-8" />,
           gradient: 'bg-gradient-to-br from-indigo-600 to-purple-800'
       });
-  } else if (role === 'organizationadmin') {
-      items.push({ 
-          title: 'Adminpanel', 
-          subTitle: 'Inställningar & Pass',
-          action: () => navigateTo(Page.SuperAdmin),
-          icon: <BriefcaseIcon className="w-8 h-8" />,
-          gradient: 'bg-gradient-to-br from-blue-600 to-indigo-900'
-      });
-  }
 
-  if (isStudioMode && !isImpersonating) {
+      // Studio Management (Logout/Reset device)
       items.push({
-          title: 'Nollställ skärm',
-          subTitle: 'Logga ut & rensa lås',
+          title: 'Byt Studio / Nollställ',
+          subTitle: 'Logga ut enheten',
           action: () => {
               if (window.confirm("Vill du nollställa denna enhet? Detta tar bort låset till studion och loggar ut.")) {
                   clearDeviceProvisioning();
@@ -110,12 +129,47 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
           icon: <CloseIcon className="w-8 h-8" />,
           gradient: 'bg-gradient-to-br from-red-500 to-red-800'
       });
-  } else if (!isStudioMode && !isImpersonating) {
-       items.push({
+
+  } else {
+      // Case C: Personally Logged In (Admin or Personal Coach Account)
+      
+      if (role === 'systemowner') {
+          items.push({ 
+              title: 'Systemägare', 
+              subTitle: 'Hantera alla organisationer',
+              action: () => navigateTo(Page.SystemOwner), 
+              icon: <SettingsIcon className="w-8 h-8" />,
+              gradient: 'bg-gradient-to-br from-gray-800 to-black'
+          });
+      }
+
+      // Access to Admin Panel
+      items.push({ 
+          title: role === 'organizationadmin' ? 'Adminpanel' : 'Studiohantering', 
+          subTitle: 'Inställningar & Pass',
+          action: () => navigateTo(Page.SuperAdmin),
+          icon: <BriefcaseIcon className="w-8 h-8" />,
+          gradient: 'bg-gradient-to-br from-blue-600 to-indigo-900'
+      });
+
+      // Personal Logout
+      items.push({
           title: 'Logga ut',
+          subTitle: 'Avsluta session',
           action: () => signOut(),
           icon: <UserIcon className="w-8 h-8" />,
           gradient: 'bg-gradient-to-br from-red-500 to-red-800'
+      });
+  }
+
+  // Always show Studio Selection if not locked (good for navigation)
+  if (!isStudioMode && !isImpersonating && items.length < 6) {
+       items.push({
+          title: 'Välj Studio',
+          subTitle: 'Byt aktiv skärm',
+          action: () => navigateTo(Page.StudioSelection),
+          icon: <BuildingIcon className="w-8 h-8" />,
+          gradient: 'bg-gradient-to-br from-orange-500 to-red-600'
       });
   }
 
@@ -123,7 +177,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
     <div className="w-full max-w-6xl mx-auto px-4 py-12">
       <div className="text-center mb-16">
           <h1 className="text-5xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tight mb-6">
-              För Coacher
+              För Coacher & Personal
           </h1>
           <div className="inline-flex flex-col sm:flex-row items-center gap-3 sm:gap-8 bg-gray-100 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-200 dark:border-gray-700">
               <div className="text-left">

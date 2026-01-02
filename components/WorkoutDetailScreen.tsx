@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, Passkategori, StudioConfig, WorkoutResult, Organization, BankExercise } from '../types';
@@ -7,6 +6,8 @@ import { StarIcon, PencilIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, PencilI
 import { getWorkoutResults } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
 import { AnimatePresence, motion } from 'framer-motion';
+// NY IMPORT
+import { WorkoutQRDisplay } from './WorkoutQRDisplay';
 
 // Helper to get color based on workout tag
 const getTagColor = (tag: string) => {
@@ -55,13 +56,16 @@ interface WorkoutDetailScreenProps {
   setFollowMeShowImage: (show: boolean) => void;
   onUpdateWorkout: (workout: Workout) => void;
   onVisualize: (workout: Workout) => void;
+  // NY PROP
+  hasActiveCarousel?: boolean; 
 }
 
 const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({ 
     workout, onStartBlock, onUpdateBlockSettings, onEditWorkout, 
     isCoachView, onTogglePublish, onToggleFavorite, onDuplicate, 
     onShowImage, isPresentationMode, studioConfig, onDelete,
-    followMeShowImage, setFollowMeShowImage, onUpdateWorkout, onVisualize
+    followMeShowImage, setFollowMeShowImage, onUpdateWorkout, onVisualize,
+    hasActiveCarousel = false // Default
 }) => {
   const { selectedOrganization } = useStudio();
   const [sessionWorkout, setSessionWorkout] = useState<Workout>(() => JSON.parse(JSON.stringify(workout)));
@@ -80,7 +84,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   }, [workout]);
 
   useEffect(() => {
-    // UPDATED: Check for organization context and pass it to getWorkoutResults
+    // Check for organization context and pass it to getWorkoutResults
     if (isHyroxRace && selectedOrganization) {
         const fetchResults = () => {
             if (!resultsLoading) { 
@@ -114,7 +118,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
 
   const handleUpdateBlock = (updatedBlock: WorkoutBlock) => {
     setSessionWorkout(prevWorkout => {
-      if (!prevWorkout) return null;
+      if (!prevWorkout) return null; // Should not happen given initial state
       return {
         ...prevWorkout,
         blocks: prevWorkout.blocks.map(b => b.id === updatedBlock.id ? updatedBlock : b)
@@ -146,9 +150,20 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
     return null; 
   }
 
+  // Determine if workout logging is enabled for this studio/organization
+  const isLoggingEnabled = studioConfig.enableWorkoutLogging || false;
+
   return (
-    <div className="w-full max-w-[1600px] mx-auto px-2 sm:px-6 lg:px-8">
+    <div className="w-full max-w-[1600px] mx-auto px-2 sm:px-6 lg:px-8 pb-32 relative">
       
+      {/* --- NYHET: QR Code Display for Logging --- */}
+      <WorkoutQRDisplay 
+          workoutId={workout.id}
+          organizationId={selectedOrganization.id}
+          isEnabled={isLoggingEnabled}
+          hasActiveCarousel={hasActiveCarousel}
+      />
+
       {/* --- HEADER SECTION --- */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-gray-200 dark:border-gray-800 pb-6">
         <div>
@@ -641,6 +656,5 @@ const ResultsLeaderboard: React.FC<ResultsLeaderboardProps> = ({ results, isLoad
         </div>
     );
 };
-
 
 export default WorkoutDetailScreen;
