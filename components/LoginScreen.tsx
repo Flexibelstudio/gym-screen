@@ -247,15 +247,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                         Skapa ett med inbjudningskod
                     </button>
                 </div>
-
-                <div className="mt-6 border-t border-gray-700 pt-6">
-                    <button
-                        onClick={handleStudioLogin}
-                        className="w-full text-center text-sm text-gray-500 hover:text-gray-300 transition-colors"
-                    >
-                        Starta i Studio-läge (Skärm)
-                    </button>
-                </div>
             </div>
         </>
     );
