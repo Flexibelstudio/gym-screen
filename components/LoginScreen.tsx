@@ -1,12 +1,8 @@
 import React, { useState } from 'react';
 import { 
-    signIn, // Din gamla funktion
-    registerMemberWithCode, // Din gamla funktion
-    auth, // Behövs för Google-lösningen nedan
-    db    // Behövs för Google-lösningen nedan
+    signIn, 
+    registerMemberWithCode 
 } from '../services/firebaseService';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { GoogleIcon, EmailIcon, LockIcon, UserIcon, EyeIcon, EyeOffIcon } from './icons';
 
 export const LoginScreen: React.FC = () => {
@@ -21,12 +17,12 @@ export const LoginScreen: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [showPassword, setShowPassword] = useState(false);
 
-    // --- 1. VANLIG INLOGGNING (Använder din befintliga signIn) ---
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
         setIsLoading(true);
         try {
+            // Använder din befintliga signIn funktion
             await signIn(email, password);
         } catch (err: any) {
             console.error(err);
@@ -36,7 +32,6 @@ export const LoginScreen: React.FC = () => {
         }
     };
 
-    // --- 2. REGISTRERING (Använder din befintliga registerMemberWithCode) ---
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
@@ -49,7 +44,7 @@ export const LoginScreen: React.FC = () => {
         }
 
         try {
-            // Anpassar anropet till hur din service-fil ser ut
+            // Använder din befintliga registerMemberWithCode
             await registerMemberWithCode(email, password, inviteCode, {
                 firstName: firstName,
                 lastName: lastName
@@ -62,38 +57,10 @@ export const LoginScreen: React.FC = () => {
         }
     };
 
-    // --- 3. GOOGLE LOGIN (Löses lokalt här för att slippa ändra service-filen) ---
     const handleGoogleLogin = async () => {
-        setError(null);
-        setIsLoading(true);
-        try {
-            if (!auth) throw new Error("Firebase Auth ej initierad");
-            
-            const provider = new GoogleAuthProvider();
-            const result = await signInWithPopup(auth, provider);
-            
-            // Om db finns, kontrollera/skapa användare (samma logik som vi ville ha i servicen)
-            if (db) {
-                const userDocRef = doc(db, 'users', result.user.uid);
-                const userSnapshot = await getDoc(userDocRef);
-                
-                if (!userSnapshot.exists()) {
-                    await setDoc(userDocRef, {
-                        email: result.user.email,
-                        firstName: result.user.displayName?.split(' ')[0] || 'User',
-                        lastName: result.user.displayName?.split(' ')[1] || '',
-                        role: 'member', // Default
-                        createdAt: Date.now(),
-                        organizationId: '' // Sätts tomt tills vidare
-                    });
-                }
-            }
-        } catch (err: any) {
-            console.error(err);
-            setError("Google-inloggning misslyckades.");
-        } finally {
-            setIsLoading(false);
-        }
+        // Eftersom vi inte kan importera auth från din service-fil just nu
+        // så inaktiverar vi denna knappens logik tills service-filen uppdateras korrekt.
+        alert("Google-inloggning kräver uppdatering av service-filen.");
     };
 
     return (
@@ -218,7 +185,8 @@ export const LoginScreen: React.FC = () => {
                             <button
                                 onClick={handleGoogleLogin}
                                 disabled={isLoading}
-                                className="w-full flex items-center justify-center gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-semibold py-3.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                                className="w-full flex items-center justify-center gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 font-semibold py-3.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors opacity-50 cursor-not-allowed"
+                                title="Google-inloggning är tillfälligt inaktiverad"
                             >
                                 <GoogleIcon className="w-5 h-5" />
                                 <span>Google</span>
@@ -239,7 +207,6 @@ export const LoginScreen: React.FC = () => {
                         {isRegistering ? 'Logga in' : 'Registrera dig'}
                     </button>
                 </p>
-                
             </div>
         </div>
     );
