@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel } from './types';
 
@@ -820,10 +819,13 @@ const MainContent: React.FC = () => {
        {!isFullScreenPage && <Footer />}
        {!isStudioMode && <SupportChat />}
 
-       {currentUser && !isStudioMode && (
+       {/* FAB renderas endast för medlemmar i personlig vy */}
+       {currentUser && !isStudioMode && role === 'member' && (
           <div className="fixed bottom-6 right-6 z-50">
               <ScanButton 
                   onScan={() => handleScanCode(null)} 
+                  workouts={workouts} 
+                  user={currentUser} 
               />
           </div>
        )}
