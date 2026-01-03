@@ -52,7 +52,7 @@ import {
 import { MOCK_ORGANIZATIONS, MOCK_SYSTEM_OWNER, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_SUGGESTED_EXERCISES, MOCK_WORKOUT_RESULTS, MOCK_SMART_SCREEN_PRICING, MOCK_RACES, MOCK_MEMBERS } from '../data/mockData';
 
 // Förbättrad isOffline: Gå bara offline om det absolut saknas en Firebase API-nyckel
-export const isOffline = !firebaseConfig.apiKey;
+export const isOffline = !firebaseConfig.apiKey || firebaseConfig.apiKey === '';
 
 const DEFAULT_SEASONAL_THEMES: SeasonalThemeSetting[] = [
     { id: 'winter', name: 'Vinter', isEnabled: true, ranges: [{ startMonth: 12, startDay: 1, endMonth: 1, endDay: 31 }] },
@@ -221,8 +221,9 @@ export const getMembers = async (orgId: string): Promise<Member[]> => {
     if (isOffline || !db) {
         return MOCK_MEMBERS;
     }
-    // FÖRENKLAD FRÅGA: Vi hämtar alla användare i organisationen för att undvika behov av composite index.
-    // Filtrering på roll sker i minnet.
+    // FÖRENKLAD FRÅGA FÖR PROD: Vi tar bort 'role' filtret från Firestore-frågan 
+    // eftersom det kräver ett manuellt skapat Composite Index i Firebase Console.
+    // Vi filtrerar istället resultatet i JavaScript för att säkerställa att det fungerar direkt.
     const q = query(
         collection(db, 'users'), 
         where('organizationId', '==', orgId)
@@ -502,7 +503,7 @@ export const approveExerciseSuggestion = async (s: SuggestedExercise) => {
 
 export const deleteExerciseSuggestion = async (id: string) => {
     if (isOffline || !db) return;
-    await deleteDoc(doc(db, 'exerciseSuggestions', id));
+    await deleteDoc(tx, doc(db, 'exerciseSuggestions', id));
 };
 
 export const updateExerciseSuggestion = async (s: SuggestedExercise) => {

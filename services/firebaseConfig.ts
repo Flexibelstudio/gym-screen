@@ -20,7 +20,7 @@ const getEnv = (key: string): string => {
 };
 
 export const firebaseConfig = {
-  apiKey: getEnv('VITE_FIREBASE_API_KEY'),
+  apiKey: getEnv('VITE_FIREBASE_API_KEY') || getEnv('API_KEY'),
   authDomain: getEnv('VITE_FIREBASE_AUTH_DOMAIN'),
   projectId: getEnv('VITE_FIREBASE_PROJECT_ID'),
   storageBucket: getEnv('VITE_FIREBASE_STORAGE_BUCKET'),
