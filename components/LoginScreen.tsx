@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-// Importera den säkrade funktionen direkt från servicen för att vara säker
+// Importera den säkrade funktionen direkt från servicen
 import { registerMemberWithCode, signInWithGoogle as serviceSignInWithGoogle } from '../services/firebaseService';
 import { resizeImage } from '../utils/imageUtils';
 import { CloseIcon } from './icons';
@@ -21,8 +21,6 @@ interface LoginScreenProps {
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
-    // Vi använder inte signInWithGoogle från context här för att undvika cirkulära beroenden eller initieringsproblem
-    // Vi anropar servicen direkt istället.
     const { signIn, signInAsStudio, sendPasswordResetEmail } = useAuth();
     const [view, setView] = useState<'login' | 'reset' | 'register'>('login');
     
@@ -74,11 +72,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
         setError(null);
         setLoading(true);
         try {
-            // Använd den direkta service-funktionen som har extra säkerhetskontroller
             await serviceSignInWithGoogle();
             if (onClose) onClose();
         } catch (err) {
-            setError('Inloggningen med Google misslyckades. Kontrollera din anslutning eller försök igen.');
+            // Detta fångar felet från din bild 1
+            setError('Inloggningen med Google misslyckades. (Saknar API-nycklar?)');
             console.error("Google Login Error:", err);
         } finally {
             setLoading(false);
@@ -107,7 +105,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
             await sendPasswordResetEmail(resetEmail);
             setResetSuccess(`En återställningslänk har skickats till ${resetEmail} om kontot finns.`);
         } catch (err) {
-            // Vi visar samma meddelande av säkerhetsskäl även om mailet inte finns
             setResetSuccess(`En återställningslänk har skickats till ${resetEmail} om kontot finns.`);
         } finally {
             setResetLoading(false);
@@ -162,7 +159,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                     photoBase64: profileImage
                 }
             );
-            // AuthContext handles state update automatically
             if (onClose) onClose();
         } catch (err: any) {
             setRegError(err.message || "Registrering misslyckades. Kontrollera koden och försök igen.");
@@ -213,6 +209,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="E-postadress"
                             required
+                            autoComplete="email" /* --- FIX FÖR GULA VARNINGEN --- */
                             className="w-full bg-black text-white p-4 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                     </div>
@@ -225,6 +222,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="Lösenord"
                             required
+                            autoComplete="current-password" /* --- FIX FÖR GULA VARNINGEN --- */
                             className="w-full bg-black text-white p-4 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                     </div>
@@ -273,6 +271,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                         placeholder="E-postadress"
                         required
                         autoFocus
+                        autoComplete="email"
                         className="w-full bg-black text-white p-4 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                     />
                 </div>
@@ -344,6 +343,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                             onChange={(e) => setFirstName(e.target.value)}
                             placeholder="Anna"
                             required
+                            autoComplete="given-name"
                             className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                     </div>
@@ -355,6 +355,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                             onChange={(e) => setLastName(e.target.value)}
                             placeholder="Andersson"
                             required
+                            autoComplete="family-name"
                             className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                     </div>
@@ -408,6 +409,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                         onChange={(e) => setRegEmail(e.target.value)}
                         placeholder="din@email.com"
                         required
+                        autoComplete="email"
                         className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                     />
                 </div>
@@ -421,6 +423,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                             onChange={(e) => setRegPassword(e.target.value)}
                             placeholder="Minst 6 tecken"
                             required
+                            autoComplete="new-password" /* --- FIX FÖR GULA VARNINGEN --- */
                             className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                     </div>
@@ -433,6 +436,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                             onChange={(e) => setRegConfirmPassword(e.target.value)}
                             placeholder="Upprepa"
                             required
+                            autoComplete="new-password" /* --- FIX FÖR GULA VARNINGEN --- */
                             className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                     </div>
