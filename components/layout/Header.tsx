@@ -1,7 +1,8 @@
+
 import React from 'react';
 import { Page, UserRole } from '../../types';
 import { DigitalClock } from '../common/DigitalClock';
-import { UserIcon, BriefcaseIcon } from '../icons'; // Added BriefcaseIcon just in case you want to use it for coach button
+import { UserIcon, BriefcaseIcon } from '../icons';
 import { useStudio } from '../../context/StudioContext';
 
 interface HeaderProps {
@@ -60,17 +61,20 @@ export const Header: React.FC<HeaderProps> = ({
 
   const canGoBack = historyLength > 1;
 
-  const coachButton = showCoachButton && onCoachAccessRequest && (
-    <button onClick={onCoachAccessRequest} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-800 dark:text-white" aria-label="Coach-åtkomst">
-      <BriefcaseIcon className="w-6 h-6" /> {/* Changed to BriefcaseIcon to distinguish from member profile */}
+  // Dölj profilknappen i studiolägets hemskärm, men visa den annars för alla roller
+  const shouldShowProfile = onMemberProfileRequest && (page !== Page.Home || !showCoachButton);
+
+  const memberProfileButton = shouldShowProfile && (
+    <button onClick={onMemberProfileRequest} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-800 dark:text-white" aria-label="Min Profil">
+      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold border border-primary/20">
+        <UserIcon className="w-5 h-5" />
+      </div>
     </button>
   );
 
-  const memberProfileButton = onMemberProfileRequest && (
-    <button onClick={onMemberProfileRequest} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-800 dark:text-white" aria-label="Min Profil">
-      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">
-        <UserIcon className="w-5 h-5" />
-      </div>
+  const coachButton = showCoachButton && onCoachAccessRequest && (
+    <button onClick={onCoachAccessRequest} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-800 dark:text-white" aria-label="Coach-åtkomst">
+      <BriefcaseIcon className="w-6 h-6" />
     </button>
   );
 
@@ -102,21 +106,15 @@ export const Header: React.FC<HeaderProps> = ({
       case Page.WorkoutList: return "Välj Pass";
       case Page.SavedWorkouts: return "Övriga Pass";
       case Page.StudioSelection: return "Välj Studio";
-      case Page.SuperAdmin: return "";
-      case Page.SystemOwner: return "Systemägare";
       case Page.RepsOnly: return "Övningar";
-      case Page.CustomPageEditor: return "";
       case Page.IdeaBoard: return "Idé-tavlan";
       case Page.Hyrox: return "HYROX Träning";
       case Page.HyroxRaceList: return "Tidigare Lopp";
       case Page.HyroxRaceDetail: return "Resultat";
-      
-      // --- NYA SIDOR ---
-      case Page.MemberProfile: return ""; 
+      case Page.MemberProfile: return "Min Profil"; 
       case Page.MemberRegistry: return "Medlemsregister";
       case Page.MobileLog: return "Logga Pass";
       case Page.AdminAnalytics: return "Statistik & Trender";
-      
       default: return "";
     }
   }
@@ -132,7 +130,6 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
       
       <div className="flex-1 flex flex-col items-center justify-center text-center">
-        {/* FIX: Hide logo on SystemOwner page */}
         {logoUrl && page !== Page.SuperAdmin && page !== Page.SystemOwner && (
             <img 
                 src={logoUrl} 

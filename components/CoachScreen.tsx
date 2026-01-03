@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Page, CustomPage, UserRole } from '../types';
 import { useStudio } from '../context/StudioContext';
@@ -8,10 +9,10 @@ import {
     BriefcaseIcon, 
     SettingsIcon, 
     UserIcon,
-    CloseIcon
+    CloseIcon,
+    DumbbellIcon
 } from './icons';
 
-// Enkel fallback-ikon för Users om du inte har den importerad i icons.ts
 const UsersIcon = ({ className }: { className?: string }) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
         <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
@@ -73,9 +74,16 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
 
   const items: { title: string; subTitle?: string; action: () => void; icon: React.ReactNode; gradient: string }[] = [];
 
-  // 1. CONTENT FOR ALL COACHES (Shared Password & Personal Login)
-  
-  // Infosidor (Dynamiska)
+  // 1. DIN TRÄNING (För coacher/admins som vill logga pass)
+  items.push({ 
+      title: 'Min Träning', 
+      subTitle: 'Se statistik & mål',
+      action: () => navigateTo(Page.MemberProfile),
+      icon: <UserIcon className="w-8 h-8" />,
+      gradient: 'bg-gradient-to-br from-teal-500 to-emerald-700'
+  });
+
+  // 2. CONTENT FOR ALL COACHES
   (selectedOrganization?.customPages || []).forEach(page => {
       items.push({
           title: page.title,
@@ -86,7 +94,6 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
       });
   });
 
-  // --- NYHET: Medlemsregister ---
   items.push({ 
       title: 'Medlemsregister', 
       subTitle: 'Hantera medlemmar',
@@ -95,10 +102,8 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
       gradient: 'bg-gradient-to-br from-emerald-600 to-teal-800'
   });
 
-  // 2. HIERARCHY LOGIC
-
+  // 3. HIERARCHY LOGIC
   if (isImpersonating) {
-      // Case A: Admin previewing as Studio/Member -> Return to Admin
       items.push({ 
           title: 'Återgå till Admin', 
           subTitle: 'Avsluta förhandsvisning',
@@ -107,16 +112,14 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
           gradient: 'bg-gradient-to-br from-gray-700 to-gray-900'
       });
   } else if (isStudioMode) {
-      // Case B: Shared Password Mode (Studio View) -> Login to get more access
       items.push({
           title: 'Logga in Admin',
           subTitle: 'För system & inställningar',
-          action: onAdminLogin || (() => {}), // Fallback if undefined
-          icon: <UserIcon className="w-8 h-8" />,
+          action: onAdminLogin || (() => {}),
+          icon: <SettingsIcon className="w-8 h-8" />,
           gradient: 'bg-gradient-to-br from-indigo-600 to-purple-800'
       });
 
-      // Studio Management (Logout/Reset device)
       items.push({
           title: 'Byt Studio / Nollställ',
           subTitle: 'Logga ut enheten',
@@ -131,8 +134,6 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
       });
 
   } else {
-      // Case C: Personally Logged In (Admin or Personal Coach Account)
-      
       if (role === 'systemowner') {
           items.push({ 
               title: 'Systemägare', 
@@ -143,7 +144,6 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
           });
       }
 
-      // Access to Admin Panel
       items.push({ 
           title: role === 'organizationadmin' ? 'Adminpanel' : 'Studiohantering', 
           subTitle: 'Inställningar & Pass',
@@ -152,24 +152,12 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
           gradient: 'bg-gradient-to-br from-blue-600 to-indigo-900'
       });
 
-      // Personal Logout
       items.push({
           title: 'Logga ut',
           subTitle: 'Avsluta session',
           action: () => signOut(),
           icon: <UserIcon className="w-8 h-8" />,
           gradient: 'bg-gradient-to-br from-red-500 to-red-800'
-      });
-  }
-
-  // Always show Studio Selection if not locked (good for navigation)
-  if (!isStudioMode && !isImpersonating && items.length < 6) {
-       items.push({
-          title: 'Välj Studio',
-          subTitle: 'Byt aktiv skärm',
-          action: () => navigateTo(Page.StudioSelection),
-          icon: <BuildingIcon className="w-8 h-8" />,
-          gradient: 'bg-gradient-to-br from-orange-500 to-red-600'
       });
   }
 

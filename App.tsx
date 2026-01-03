@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, CustomCategoryWithPrompt, UserRole, InfoMessage, DisplayWindow, Note, StartGroup, InfoCarousel, WorkoutQRPayload } from './types';
 
@@ -28,7 +29,6 @@ import { ImagePreviewModal } from './components/ui/ImagePreviewModal';
 import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { SeasonalOverlay } from './components/common/SeasonalOverlay';
-// NY IMPORT: ScanButton
 import { ScanButton } from './components/ScanButton';
 
 // --- Main App ---
@@ -134,7 +134,6 @@ const MainContent: React.FC = () => {
   const [isRegisteringHyroxTime, setIsRegisteringHyroxTime] = useState(false);
   const [aiGeneratorInitialTab, setAiGeneratorInitialTab] = useState<'generate' | 'parse' | 'manage' | 'create'>('create');
   
-  // --- NYTT FÖR LOGGNING ---
   const [mobileLogData, setMobileLogData] = useState<{workoutId: string, organizationId: string} | null>(null);
 
   const [theme, setTheme] = useState(() => {
@@ -254,7 +253,7 @@ const MainContent: React.FC = () => {
     }
     
     if (currentPage === Page.IdeaBoard) setWorkoutToVisualize(null);
-    if (currentPage === Page.MobileLog) setMobileLogData(null); // Clear log data
+    if (currentPage === Page.MobileLog) setMobileLogData(null); 
     
     if (newHistory[newHistory.length - 1] === Page.Home && (role === 'systemowner' || role === 'organizationadmin') && !isImpersonating) {
       if (role === 'systemowner') setHistory([Page.SystemOwner]);
@@ -448,7 +447,7 @@ const MainContent: React.FC = () => {
     }
   };
 
-  const handleEditStudioConfig = (studio: Studio) => setStudioToEditConfig(studio);
+  const handleEditStudioConfig = (studio: Studio) => setEditStudioConfig(studio);
 
   const handleSaveGlobalConfig = async (organizationId: string, newConfig: StudioConfig) => {
       try {
@@ -642,32 +641,19 @@ const MainContent: React.FC = () => {
   };
 
   const handleScanCode = (data: string | null) => {
-      // HÄR KAN VI HANTERA SKANNINGEN
-      // Om data är en länk eller JSON, parsa den och navigera
-      if (!data) return;
-      try {
-          // Exempel på data: {"wid":"...","oid":"..."} base64 encoded
-          // Vi låter ScanButton sköta själva avkodningen om den är smart, 
-          // annars gör vi det här. Men MobileLogData är vad vi siktar på.
-          // För nu antar vi att ScanButton eller QRScannerScreen gör jobbet och redirectar.
-          // Om vi behöver sätta state manuellt:
-          // setMobileLogData({ workoutId: '...', organizationId: '...' });
-          // navigateTo(Page.MobileLog);
-          console.log("Scanned code:", data);
-      } catch (e) {
-          console.error("Scan error", e);
-      }
+      console.log("Scanned code:", data);
   };
 
   // --- Constants for Layout ---
   const isFullScreenPage = page === Page.Timer || page === Page.RepsOnly || page === Page.IdeaBoard;
   const paddingClass = isFullScreenPage ? '' : 'p-4 sm:p-6 lg:p-8';
-  const isHomeInStudio = isStudioMode && page === Page.Home;
-  const isMember = !!currentUser && role === 'member' && !isStudioMode;
+  
+  // Bestäm om profilknappen ska skickas med
+  const memberProfileCallback = !isStudioMode || page !== Page.Home ? () => navigateTo(Page.MemberProfile) : undefined;
 
   // --- Main Render ---
   return (
-    <div className={`bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isHomeInStudio ? 'lg:h-screen lg:overflow-hidden min-h-screen' : 'min-h-screen'} ${paddingClass}`}>
+    <div className={`bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'lg:h-screen lg:overflow-hidden min-h-screen' : 'min-h-screen'} ${paddingClass}`}>
        <SeasonalOverlay page={page} />
        
        {isOffline && (
@@ -678,7 +664,6 @@ const MainContent: React.FC = () => {
        
        <DeveloperToolbar />
        
-       {/* Header logic remains in App.tsx to control visibility globally */}
        {(page === Page.Timer || !isFullScreenPage) && <Header 
         page={page} 
         onBack={handleBack} 
@@ -693,7 +678,7 @@ const MainContent: React.FC = () => {
         hideBackButton={isBackButtonHidden}
         onCoachAccessRequest={handleCoachAccessRequest}
         showCoachButton={isStudioMode}
-        onMemberProfileRequest={role === 'member' ? () => navigateTo(Page.MemberProfile) : undefined}
+        onMemberProfileRequest={memberProfileCallback}
       />}
 
       <main 
@@ -837,16 +822,24 @@ const MainContent: React.FC = () => {
        {!isFullScreenPage && <Footer />}
        {!isStudioMode && <SupportChat />}
 
-       {/* --- SCAN BUTTON FOR MEMBERS --- */}
-       {isMember && (
-   <div className="fixed bottom-6 right-6 z-50">
-       <ScanButton 
-           onScan={handleScanCode} 
-           workouts={workouts} 
-           user={currentUser} 
-       />
-   </div>
-)}
+       {currentUser && role !== 'member' && !isStudioMode && (
+          <div className="fixed bottom-6 right-6 z-50">
+              <ScanButton 
+                  onScan={handleScanCode} 
+                  workouts={workouts} 
+                  user={currentUser} 
+              />
+          </div>
+       )}
+       {currentUser && role === 'member' && !isStudioMode && (
+          <div className="fixed bottom-6 right-6 z-50">
+              <ScanButton 
+                  onScan={handleScanCode} 
+                  workouts={workouts} 
+                  user={currentUser} 
+              />
+          </div>
+       )}
     </div>
   );
 }
