@@ -1,3 +1,4 @@
+
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -158,7 +159,7 @@ export const updateUserProfile = async (uid: string, data: Partial<UserData>) =>
 
 export const joinOrganizationWithCode = async (uid: string, code: string) => {
     if (isOffline || !db) throw new Error("Offline: Kan ej ansluta.");
-    const q = query(collection(db, 'organizations'), where('inviteCode', '==', code));
+    const q = query(collection(db, 'organizations'), where('inviteCode', '==', code.toUpperCase()));
     const snap = await getDocs(q);
     if (snap.empty) throw new Error("Ogiltig kod.");
     const orgId = snap.docs[0].id;
@@ -178,7 +179,7 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
     if (isOffline || !db || !auth) {
         throw new Error("Offline mode: Cannot register new users.");
     }
-    const q = query(collection(db, 'organizations'), where('inviteCode', '==', code));
+    const q = query(collection(db, 'organizations'), where('inviteCode', '==', code.toUpperCase()));
     const snap = await getDocs(q);
     if (snap.empty) throw new Error("Ogiltig inbjudningskod.");
     const organizationId = snap.docs[0].id;
@@ -266,9 +267,11 @@ export const createOrganization = async (name: string, subdomain: string): Promi
     return newOrg;
 };
 
-export const updateOrganization = async (id: string, name: string, subdomain: string) => {
+export const updateOrganization = async (id: string, name: string, subdomain: string, inviteCode?: string) => {
     if(isOffline || !db) return getOrganizationById(id) as Promise<Organization>;
-    await updateDoc(doc(db, 'organizations', id), { name, subdomain });
+    const updateData: any = { name, subdomain };
+    if (inviteCode) updateData.inviteCode = inviteCode.toUpperCase();
+    await updateDoc(doc(db, 'organizations', id), updateData);
     return getOrganizationById(id) as Promise<Organization>;
 };
 
@@ -457,7 +460,7 @@ export const getSuggestedExercises = async (orgId?: string) => {
     if (isOffline || !db) return MOCK_SUGGESTED_EXERCISES;
     let q = query(collection(db, 'exerciseSuggestions'), orderBy('name'));
     if (orgId) q = query(q, where('organizationId', '==', orgId));
-    return (await getDocs(q)).docs.map(d => d.data() as SuggestedExercise);
+    return (await getDocs(q)).docs.map(d => ({ ...d.data(), id: d.id }) as SuggestedExercise);
 };
 
 export const approveExerciseSuggestion = async (s: SuggestedExercise) => {

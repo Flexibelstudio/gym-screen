@@ -4,7 +4,6 @@ import { Member } from '../types';
 import { ToggleSwitch, UsersIcon, PencilIcon, ChartBarIcon } from './icons';
 import { MemberDetailModal } from './MemberDetailModal';
 import { useStudio } from '../context/StudioContext';
-import { updateOrganization } from '../services/firebaseService';
 import QRCode from 'react-qr-code';
 import { Modal } from './ui/Modal';
 
@@ -59,22 +58,11 @@ const MOCK_MEMBERS: Member[] = [
   },
 ];
 
-const generateInviteCode = () => {
-    // Generate a random 6-character alphanumeric code
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Exclude I, 1, O, 0 to avoid confusion
-    let result = '';
-    for (let i = 0; i < 6; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-};
-
 export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ onSelectMember }) => {
-  const { selectedOrganization, selectOrganization } = useStudio();
+  const { selectedOrganization } = useStudio();
   const [members, setMembers] = useState<Member[]>(MOCK_MEMBERS);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
-  const [isGeneratingCode, setIsGeneratingCode] = useState(false);
 
   // Date editing state
   const [editingDateMember, setEditingDateMember] = useState<Member | null>(null);
@@ -89,33 +77,17 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
     }));
   };
 
-  const handleInviteClick = async () => {
-    if (!selectedOrganization) return;
+  const handleInviteClick = () => {
     setShowInviteModal(true);
-
-    if (!selectedOrganization.inviteCode) {
-        setIsGeneratingCode(true);
-        try {
-            const newCode = generateInviteCode();
-            const updatedOrg = { ...selectedOrganization, inviteCode: newCode };
-            selectOrganization(updatedOrg);
-        } catch (e) {
-            console.error("Failed to generate code", e);
-        } finally {
-            setIsGeneratingCode(false);
-        }
-    }
   };
 
   const handleEditDateClick = (member: Member) => {
     setEditingDateMember(member);
-    // Use existing date or today's date if null
     setNewDateValue(member.endDate || new Date().toISOString().split('T')[0]);
   };
 
   const handleSaveDate = () => {
       if (!editingDateMember) return;
-      
       setMembers(prev => prev.map(m => {
           if (m.id === editingDateMember.id) {
               return { ...m, endDate: newDateValue };
@@ -127,17 +99,16 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
 
   const handleClearDate = () => {
       if (!editingDateMember) return;
-      
       setMembers(prev => prev.map(m => {
           if (m.id === editingDateMember.id) {
-              return { ...m, endDate: null }; // Set to indefinite
+              return { ...m, endDate: null };
           }
           return m;
       }));
       setEditingDateMember(null);
   };
 
-  const inviteCode = selectedOrganization?.inviteCode || 'GENERATING...';
+  const inviteCode = selectedOrganization?.inviteCode;
   const qrPayload = selectedOrganization ? JSON.stringify({ action: 'join', oid: selectedOrganization.id }) : '';
 
   return (
@@ -258,11 +229,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
             </tbody>
           </table>
         </div>
-        {members.length === 0 && (
-          <div className="p-10 text-center text-gray-500 dark:text-gray-400">
-            Inga medlemmar registrerade än.
-          </div>
-        )}
       </div>
 
       {selectedMember && (
@@ -273,7 +239,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
         />
       )}
 
-      {/* Date Edit Modal */}
       {editingDateMember && (
           <Modal
             isOpen={true}
@@ -299,21 +264,21 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                   <div className="flex flex-col gap-3 pt-2">
                       <button 
                         onClick={handleSaveDate}
-                        className="w-full bg-primary hover:brightness-95 text-white font-bold py-3 rounded-lg transition-colors shadow-sm"
+                        className="w-full bg-primary text-white font-bold py-3 rounded-lg"
                       >
                           Spara Datum
                       </button>
                       
                       <button 
                         onClick={handleClearDate}
-                        className="w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 font-semibold py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        className="w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 font-semibold py-3 rounded-lg"
                       >
-                          Ta bort slutdatum (Tills vidare)
+                          Ta bort slutdatum
                       </button>
 
                       <button 
                         onClick={() => setEditingDateMember(null)}
-                        className="w-full text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 font-medium py-2 transition-colors"
+                        className="w-full text-gray-500 font-medium py-2"
                       >
                           Avbryt
                       </button>
@@ -337,31 +302,32 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                     </p>
                 </div>
 
-                <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12">
-                    {/* QR Code Section */}
-                    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200">
-                        <QRCode 
-                            value={qrPayload}
-                            size={200}
-                            fgColor="#000000"
-                            bgColor="#ffffff"
-                            level="L"
-                        />
-                        <p className="mt-4 text-xs font-bold uppercase tracking-widest text-gray-500">Skanna i appen</p>
-                    </div>
+                {inviteCode ? (
+                    <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12">
+                        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-200">
+                            <QRCode 
+                                value={qrPayload}
+                                size={200}
+                                fgColor="#000000"
+                                bgColor="#ffffff"
+                                level="L"
+                            />
+                            <p className="mt-4 text-xs font-bold uppercase tracking-widest text-gray-500">Skanna i appen</p>
+                        </div>
 
-                    {/* Manual Code Section */}
-                    <div className="flex flex-col items-center">
-                        <span className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">Eller använd kod</span>
-                        <div className="bg-gray-100 dark:bg-gray-700 px-8 py-4 rounded-xl border-2 border-gray-200 dark:border-gray-600">
-                            {isGeneratingCode ? (
-                                <span className="text-gray-400 animate-pulse">Laddar...</span>
-                            ) : (
+                        <div className="flex flex-col items-center">
+                            <span className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">Eller använd kod</span>
+                            <div className="bg-gray-100 dark:bg-gray-700 px-8 py-4 rounded-xl border-2 border-gray-200 dark:border-gray-600">
                                 <span className="text-4xl font-black font-mono tracking-widest text-primary">{inviteCode}</span>
-                            )}
+                            </div>
                         </div>
                     </div>
-                </div>
+                ) : (
+                    <div className="p-8 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-dashed border-yellow-200 rounded-2xl">
+                        <p className="text-yellow-800 dark:text-yellow-200 font-bold mb-2">Ingen kod tillgänglig</p>
+                        <p className="text-yellow-700 dark:text-yellow-300 text-sm">Du måste först aktivera Passloggning i Globala Inställningar för att generera en inbjudningskod.</p>
+                    </div>
+                )}
 
                 <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl text-sm text-blue-800 dark:text-blue-200">
                     <p><strong>Tips:</strong> Skriv ut denna vy och sätt upp i receptionen.</p>

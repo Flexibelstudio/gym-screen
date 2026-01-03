@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { StudioConfig, Studio, Organization, CustomPage, UserData, UserRole, InfoCarousel, DisplayWindow, Workout, CompanyDetails, ThemeOption } from '../types';
 import { ToggleSwitch, HomeIcon, DocumentTextIcon, SpeakerphoneIcon, SparklesIcon, UsersIcon, DumbbellIcon, BriefcaseIcon, BuildingIcon, SettingsIcon, ChartBarIcon, SaveIcon, CopyIcon } from './icons';
@@ -19,7 +20,7 @@ import { generateWorkout } from '../services/geminiService';
 import { SelectField } from './admin/AdminShared';
 import { MemberManagementScreen } from './MemberManagementScreen';
 import { AdminAnalyticsScreen } from './AdminAnalyticsScreen';
-import QRCode from "react-qr-code"; // Behövs för inbjudningskoden
+import QRCode from "react-qr-code"; 
 
 // --- Icons specific to this file ---
 const MenuIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
@@ -27,6 +28,15 @@ const MenuIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) =
         <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
     </svg>
 );
+
+const generateInviteCode = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+};
 
 type AdminTab = 
     'dashboard' | 
@@ -47,7 +57,7 @@ interface SuperAdminScreenProps {
     onUpdatePasswords: (organizationId: string, passwords: Organization['passwords']) => Promise<void>;
     onUpdateLogos: (organizationId: string, logos: { light: string; dark: string }) => Promise<void>;
     onUpdatePrimaryColor: (organizationId: string, color: string) => Promise<void>;
-    onUpdateOrganization: (organizationId: string, name: string, subdomain: string) => Promise<void>;
+    onUpdateOrganization: (organizationId: string, name: string, subdomain: string, inviteCode?: string) => Promise<void>;
     onUpdateCustomPages: (organizationId: string, pages: CustomPage[]) => Promise<void>;
     onSwitchToStudioView: (studio: Studio) => void;
     onEditCustomPage: (page: CustomPage | null) => void;
@@ -69,18 +79,6 @@ interface ConfigProps {
     handleUpdateConfigField: <K extends keyof StudioConfig>(key: K, value: StudioConfig[K]) => void;
     handleSaveConfig: (configOverride?: StudioConfig) => Promise<void>;
 }
-
-interface NavItem {
-    type: 'link';
-    id: AdminTab;
-    label: string;
-    icon: React.ComponentType<{ className?: string }>;
-}
-interface NavHeader {
-    type: 'header';
-    label: string;
-}
-type NavElement = NavItem | NavHeader;
 
 const SwitchToStudioView: React.FC<{
     organization: Organization;
@@ -202,43 +200,8 @@ const PassProgramModule: React.FC<{ onNavigate: (mode: 'create' | 'generate' | '
     );
 };
 
-const AiCoachInfoContent: React.FC<{ onReadMoreClick?: () => void }> = ({ onReadMoreClick }) => (
-    <div className="flex items-start gap-4">
-        <div className="p-3 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-full flex-shrink-0">
-            <SparklesIcon className="w-6 h-6" />
-        </div>
-        <div>
-            <h4 className="font-bold text-lg text-gray-900 dark:text-white mb-1">AI Coach – Din digitala kollega</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed mb-2">
-                AI Coach analyserar dina pass och ger feedback på balans, variation och återhämtning. Den hjälper dig att säkerställa hög kvalitet på träningen.
-            </p>
-            {onReadMoreClick && (
-                <button onClick={onReadMoreClick} className="text-primary font-semibold text-sm hover:underline">
-                    Läs mer om hur det fungerar
-                </button>
-            )}
-        </div>
-    </div>
-);
-
-const AiCoachInfoModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => {
-    return (
-      <Modal isOpen={isOpen} onClose={onClose} title="Om AI Coach" size="md">
-        <div className="space-y-4 text-gray-700 dark:text-gray-300">
-            <p>AI Coach är systemets intelligenta assistent som bygger på Googles Gemini-modell. Den är tränad för att förstå träningslogik, övningsstruktur och progression.</p>
-            <h5 className="font-bold text-gray-900 dark:text-white">Funktioner:</h5>
-            <ul className="list-disc list-inside space-y-1">
-                <li>Skapar nya pass med "studions stil".</li>
-                <li>Ger "Magic Pen"-förslag för att finjustera block.</li>
-                <li>Ger feedback på intensitet och balans.</li>
-            </ul>
-        </div>
-      </Modal>
-    );
-};
-
-const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps> = ({ config, isSavingConfig, isConfigDirty, handleUpdateConfigField, handleSaveConfig }) => {
-    
+const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps> = (props) => {
+    const { config, isSavingConfig, isConfigDirty, handleUpdateConfigField, handleSaveConfig, organization, onUpdateOrganization } = props;
     const [showPricingModal, setShowPricingModal] = useState(false);
     const [baseCost, setBaseCost] = useState(19);
     const [customerPrice, setCustomerPrice] = useState(49);
@@ -258,6 +221,29 @@ const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps
             ...(config.aiSettings || {}),
             [field]: value
         });
+    };
+
+    const confirmAndEnableLogging = async () => {
+        setIsSavingConfig(true);
+        try {
+            // 1. Generate invite code if missing
+            if (!organization.inviteCode) {
+                const newCode = generateInviteCode();
+                await onUpdateOrganization(organization.id, organization.name, organization.subdomain, newCode);
+            }
+
+            // 2. Enable logging in config and save
+            handleUpdateConfigField('enableWorkoutLogging', true);
+            await handleSaveConfig({ ...config, enableWorkoutLogging: true });
+            
+            setShowPricingModal(false);
+            alert("Passloggning aktiverad och inbjudningskod skapad!");
+        } catch (error) {
+            console.error(error);
+            alert("Kunde inte aktivera modulen.");
+        } finally {
+            setIsSavingConfig(false);
+        }
     };
 
     return (
@@ -295,12 +281,14 @@ const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps
                                 }} 
                             />
                             <p className="text-xs text-gray-500 mt-2 pl-2">Låt medlemmar logga sina pass och få AI-feedback.</p>
+                            {organization.inviteCode && (
+                                <p className="text-[10px] text-primary font-bold mt-1 pl-2">KOD AKTIV: {organization.inviteCode}</p>
+                            )}
                             <button onClick={() => setShowPricingModal(true)} className="text-xs text-blue-600 dark:text-blue-400 font-bold mt-2 pl-2 hover:underline">
                                 📊 Räkna på din vinst & läs mer...
                             </button>
                         </div>
 
-                        {/* --- AI CONFIGURATION (CONDITIONAL) --- */}
                         {config.enableWorkoutLogging && (
                             <div className="ml-8 p-4 bg-white dark:bg-black/20 rounded-xl border border-blue-100 dark:border-blue-900/30 animate-fade-in">
                                 <h4 className="font-bold text-sm text-gray-900 dark:text-white mb-3 flex items-center gap-2">
@@ -407,10 +395,8 @@ const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps
             {showPricingModal && (
                 <Modal isOpen={true} onClose={() => setShowPricingModal(false)} title="Aktivera Passloggning 🚀" size="md">
                     <div className="space-y-6 p-2">
-                        
                         <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-800 text-left">
                             <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-3">Varför aktivera Passloggning?</h4>
-                            
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
                                 <p className="font-bold text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">FÖR MEDLEMMEN:</p>
@@ -431,7 +417,6 @@ const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps
                             </div>
                         </div>
 
-                        {/* Inputs */}
                         <div className="space-y-4">
                             <div className="flex justify-between items-center p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-100 dark:border-red-900/30">
                                 <span className="text-gray-600 dark:text-gray-300 font-medium">Din licenskostnad</span>
@@ -455,7 +440,6 @@ const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps
 
                         <div className="border-t-2 border-dashed border-gray-200 dark:border-gray-700 my-4"></div>
 
-                        {/* Results */}
                         <div className="bg-green-50 dark:bg-green-900/10 p-6 rounded-2xl border-2 border-green-100 dark:border-green-900/30 text-center space-y-6">
                             <div>
                                 <p className="text-sm font-bold text-green-800 dark:text-green-300 uppercase tracking-wider mb-1">Din vinst per medlem</p>
@@ -482,12 +466,8 @@ const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps
                             Avbryt
                         </button>
                         <button 
-                            onClick={async () => {
-                                handleUpdateConfigField('enableWorkoutLogging', true);
-                                await handleSaveConfig({ ...config, enableWorkoutLogging: true });
-                                setShowPricingModal(false);
-                                alert("Passloggning aktiverad och sparad!");
-                            }} 
+                            onClick={confirmAndEnableLogging}
+                            disabled={isSavingConfig}
                             className="flex-[2] bg-primary hover:brightness-95 text-white font-bold py-3 rounded-lg shadow-lg shadow-primary/20 transition-all transform active:scale-95"
                         >
                             Jag godkänner och aktiverar
@@ -777,7 +757,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             case 'dashboard':
                 return (
                     <div className="space-y-8">
-                        {/* --- NYHET: INBJUDNINGSSEKTION PÅ DASHBOARD --- */}
+                        {/* --- INBJUDNINGSSEKTION PÅ DASHBOARD --- */}
                         <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-fade-in">
                             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Bjud in medlemmar</h2>
                             <p className="text-gray-500 text-sm mb-6">
@@ -805,8 +785,14 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                                     </div>
                                 </div>
                             ) : (
-                                <div className="p-4 bg-yellow-100 text-yellow-800 rounded-lg">
-                                    Ingen inbjudningskod genererad än. Kontakta support.
+                                <div className="p-8 text-center bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                                    <p className="text-gray-500 text-sm mb-4">Ingen inbjudningskod är skapad än. Du kan skapa en genom att aktivera Passloggning i de globala inställningarna.</p>
+                                    <button 
+                                        onClick={() => setActiveTab('globala-installningar')}
+                                        className="text-primary font-bold hover:underline"
+                                    >
+                                        Gå till inställningar &rarr;
+                                    </button>
                                 </div>
                             )}
                         </div>
@@ -882,10 +868,6 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                     ) : (
                         <h1 className="text-lg font-bold text-gray-900 dark:text-white tracking-tight truncate">{organization.name}</h1>
                     )}
-                </div>
-                {/* Right side of header (User Profile / Actions) - Can be added here later */}
-                <div className="flex items-center gap-4">
-                    {/* Placeholder for potential top-right actions */}
                 </div>
             </header>
 
