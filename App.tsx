@@ -100,6 +100,9 @@ const MainContent: React.FC = () => {
   const page = history[history.length - 1];
   const [customBackHandler, setCustomBackHandler] = useState<(() => void) | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  
+  // Track if we've performed the initial role-based routing
+  const hasInitialRouted = useRef(false);
 
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
@@ -195,10 +198,18 @@ const MainContent: React.FC = () => {
 
   // --- Role & History Init ---
   useEffect(() => {
-    if (isImpersonating) return;
-    if (role === 'systemowner') setHistory([Page.SystemOwner]);
-    else if (role === 'organizationadmin') setHistory([Page.SuperAdmin]);
-    else setHistory([Page.Home]);
+    if (isImpersonating || hasInitialRouted.current) return;
+    
+    if (role === 'systemowner') {
+        setHistory([Page.SystemOwner]);
+        hasInitialRouted.current = true;
+    } else if (role === 'organizationadmin') {
+        setHistory([Page.SuperAdmin]);
+        hasInitialRouted.current = true;
+    } else if (role) {
+        setHistory([Page.Home]);
+        hasInitialRouted.current = true;
+    }
   }, [role, isImpersonating]);
   
   useEffect(() => {
@@ -253,11 +264,8 @@ const MainContent: React.FC = () => {
     if (currentPage === Page.IdeaBoard) setActiveWorkout(null);
     if (currentPage === Page.MobileLog) setMobileLogData(null); 
     
-    if (newHistory[newHistory.length - 1] === Page.Home && (role === 'systemowner' || role === 'organizationadmin') && !isImpersonating) {
-      if (role === 'systemowner') setHistory([Page.SystemOwner]);
-      else setHistory([Page.SuperAdmin]);
-      return;
-    }
+    // REMOVED: Auto-redirect away from Home for admins in handleBack.
+    // If an admin has navigated to Page.Home (member view), they should be allowed to stay there.
 
     setHistory(newHistory);
   }, [history, role, isImpersonating, customBackHandler, setActiveWorkout]);
@@ -413,10 +421,11 @@ const MainContent: React.FC = () => {
     const isFinalBlock = completionInfo?.isFinal;
     setCompletionInfo(null);
     if (isFinalBlock) {
-      const homePage = (role === 'systemowner' || role === 'organizationadmin') && !isImpersonating 
-          ? (role === 'systemowner' ? Page.SystemOwner : Page.SuperAdmin) 
-          : Page.Home;
-      setHistory([homePage]);
+      // Direct return to whatever the bottom of the stack is (usually Home or Dashboard)
+      // but without forcing specific pages based on role if already on a member-facing stack.
+      if (history.length > 1) {
+          handleBack();
+      }
     } else {
       handleBack();
     }
@@ -848,3 +857,4 @@ const MainContent: React.FC = () => {
     </div>
   );
 }
+

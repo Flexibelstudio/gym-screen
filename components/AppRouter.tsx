@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { Page, Workout, WorkoutBlock, StudioConfig, Organization, CustomPage, UserRole, UserData, StartGroup } from '../types';
 
@@ -342,7 +343,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                  <WorkoutLogScreen 
                     workoutId={props.mobileLogData.workoutId} 
                     organizationId={props.mobileLogData.organizationId} 
-                    onClose={() => navigateTo(Page.Home)}
+                    onClose={() => handleBack()}
                  /> 
              ) : <div>Laddar loggning...</div>;
 
@@ -350,3 +351,4 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
             return <div>Sidan hittades inte</div>;
     }
 };
+
