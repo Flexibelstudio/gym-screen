@@ -864,44 +864,46 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                 return (
                     <div className="space-y-8">
                         {/* --- INBJUDNINGSSEKTION PÅ DASHBOARD --- */}
-                        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-fade-in">
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Bjud in medlemmar</h2>
-                            <p className="text-gray-500 text-sm mb-6">
-                                Använd denna QR-kod eller inbjudningskod för att låta dina medlemmar skapa konto i appen och kopplas till ditt gym.
-                            </p>
-                            
-                            {organization.inviteCode ? (
-                                <div className="flex flex-col sm:flex-row gap-8 items-center">
-                                    <div className="bg-white p-4 rounded-xl shadow-inner border border-gray-200">
-                                        <QRCode value={organization.inviteCode} size={150} />
-                                    </div>
-                                    <div className="flex-1 w-full text-center sm:text-left">
-                                        <div className="mb-4">
-                                            <label className="text-xs font-bold uppercase tracking-wider text-gray-400">Inbjudningskod</label>
-                                            <div className="text-3xl font-mono font-bold text-primary tracking-widest mt-1 select-all">
-                                                {organization.inviteCode}
-                                            </div>
+                        {isLoggingEnabled && (
+                            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-fade-in">
+                                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Bjud in medlemmar</h2>
+                                <p className="text-gray-500 text-sm mb-6">
+                                    Använd denna QR-kod eller inbjudningskod för att låta dina medlemmar skapa konto i appen och kopplas till ditt gym.
+                                </p>
+                                
+                                {organization.inviteCode ? (
+                                    <div className="flex flex-col sm:flex-row gap-8 items-center">
+                                        <div className="bg-white p-4 rounded-xl shadow-inner border border-gray-200">
+                                            <QRCode value={organization.inviteCode} size={150} />
                                         </div>
+                                        <div className="flex-1 w-full text-center sm:text-left">
+                                            <div className="mb-4">
+                                                <label className="text-xs font-bold uppercase tracking-wider text-gray-400">Inbjudningskod</label>
+                                                <div className="text-3xl font-mono font-bold text-primary tracking-widest mt-1 select-all">
+                                                    {organization.inviteCode}
+                                                </div>
+                                            </div>
+                                            <button 
+                                                onClick={() => navigator.clipboard.writeText(organization.inviteCode || '')}
+                                                className="text-sm font-medium text-primary hover:text-primary/80 flex items-center justify-center sm:justify-start gap-2 bg-primary/10 px-4 py-2 rounded-lg transition-colors w-full sm:w-auto"
+                                            >
+                                                <CopyIcon className="w-4 h-4" /> Kopiera kod
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="p-8 text-center bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                                        <p className="text-gray-500 text-sm mb-4">Ingen inbjudningskod är skapad än. Du kan skapa en genom att aktivera Passloggning i de globala inställningarna.</p>
                                         <button 
-                                            onClick={() => navigator.clipboard.writeText(organization.inviteCode || '')}
-                                            className="text-sm font-medium text-primary hover:text-primary/80 flex items-center justify-center sm:justify-start gap-2 bg-primary/10 px-4 py-2 rounded-lg transition-colors w-full sm:w-auto"
+                                            onClick={() => setActiveTab('globala-installningar')}
+                                            className="text-primary font-bold hover:underline"
                                         >
-                                            <CopyIcon className="w-4 h-4" /> Kopiera kod
+                                            Gå till inställningar &rarr;
                                         </button>
                                     </div>
-                                </div>
-                            ) : (
-                                <div className="p-8 text-center bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-                                    <p className="text-gray-500 text-sm mb-4">Ingen inbjudningskod är skapad än. Du kan skapa en genom att aktivera Passloggning i de globala inställningarna.</p>
-                                    <button 
-                                        onClick={() => setActiveTab('globala-installningar')}
-                                        className="text-primary font-bold hover:underline"
-                                    >
-                                        Gå till inställningar &rarr;
-                                    </button>
-                                </div>
-                            )}
-                        </div>
+                                )}
+                            </div>
+                        )}
 
                         <DashboardContent 
                             {...props} 
