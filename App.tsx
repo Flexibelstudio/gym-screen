@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, CustomCategoryWithPrompt, UserRole, InfoMessage, DisplayWindow, Note, StartGroup, InfoCarousel, WorkoutQRPayload } from './types';
+import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel } from './types';
 
 import { useStudio } from './context/StudioContext';
 import { useAuth } from './context/AuthContext';
@@ -10,8 +10,7 @@ import { useWorkout } from './context/WorkoutContext';
 import { AppRouter } from './components/AppRouter';
 
 // --- Services ---
-import { parseWorkoutFromText } from './services/geminiService';
-import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, deleteOrganization, updateOrganizationInfoCarousel, deleteImageByUrl } from './services/firebaseService';
+import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, deleteOrganization, updateOrganizationInfoCarousel } from './services/firebaseService';
 
 // --- Components ---
 import { WorkoutCompleteModal } from './components/WorkoutCompleteModal';
@@ -89,12 +88,12 @@ const THEME_STORAGE_KEY = 'flexibel-screen-theme';
 
 const MainContent: React.FC = () => {
   const { 
-    selectedStudio, selectStudio, allStudios, setAllStudios,
+    selectedStudio, selectStudio, setAllStudios,
     selectedOrganization, selectOrganization, allOrganizations, setAllOrganizations,
     studioConfig
   } = useStudio();
   const { role, userData, isStudioMode, signOut, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, currentUser } = useAuth();
-  const { workouts, isLoading: workoutsLoading, activeWorkout, setActiveWorkout, saveWorkout, deleteWorkout } = useWorkout();
+  const { workouts, activeWorkout, setActiveWorkout, saveWorkout, deleteWorkout } = useWorkout();
   
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
   const [history, setHistory] = useState<Page[]>([Page.Home]);
@@ -123,7 +122,6 @@ const MainContent: React.FC = () => {
   const [activeCustomPage, setActiveCustomPage] = useState<CustomPage | null>(null);
   const [racePrepState, setRacePrepState] = useState<{ groups: StartGroup[]; interval: number } | null>(null);
   const [activeRaceId, setActiveRaceId] = useState<string | null>(null);
-  const [workoutToVisualize, setWorkoutToVisualize] = useState<Workout | null>(null);
   const [isEditingNewDraft, setIsEditingNewDraft] = useState(false);
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const [customPageToEdit, setCustomPageToEdit] = useState<CustomPage | null>(null);
@@ -151,33 +149,33 @@ const MainContent: React.FC = () => {
   const inactivityTimerRef = useRef<number | null>(null);
 
   // --- Screensaver Logic ---
-    const pagesThatPreventScreensaver: Page[] = [Page.Timer, Page.RepsOnly, Page.IdeaBoard];
+  const pagesThatPreventScreensaver: Page[] = [Page.Timer, Page.RepsOnly, Page.IdeaBoard];
 
-    const resetInactivityTimer = useCallback(() => {
-        if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
-        if (studioConfig.enableScreensaver && !pagesThatPreventScreensaver.includes(page)) {
-            const timeoutMinutes = studioConfig.screensaverTimeoutMinutes || 15;
-            inactivityTimerRef.current = window.setTimeout(() => {
-                setIsScreensaverActive(true);
-            }, timeoutMinutes * 60 * 1000);
-        }
-    }, [studioConfig.enableScreensaver, studioConfig.screensaverTimeoutMinutes, page]);
+  const resetInactivityTimer = useCallback(() => {
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+      if (studioConfig.enableScreensaver && !pagesThatPreventScreensaver.includes(page)) {
+          const timeoutMinutes = studioConfig.screensaverTimeoutMinutes || 15;
+          inactivityTimerRef.current = window.setTimeout(() => {
+              setIsScreensaverActive(true);
+          }, timeoutMinutes * 60 * 1000);
+      }
+  }, [studioConfig.enableScreensaver, studioConfig.screensaverTimeoutMinutes, page]);
 
-    const handleUserActivity = useCallback(() => {
-        if (isScreensaverActive) setIsScreensaverActive(false);
-        resetInactivityTimer();
-    }, [isScreensaverActive, resetInactivityTimer]);
+  const handleUserActivity = useCallback(() => {
+      if (isScreensaverActive) setIsScreensaverActive(false);
+      resetInactivityTimer();
+  }, [isScreensaverActive, resetInactivityTimer]);
 
-    useEffect(() => {
-        resetInactivityTimer();
-        return () => { if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current); };
-    }, [resetInactivityTimer, page]);
+  useEffect(() => {
+      resetInactivityTimer();
+      return () => { if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current); };
+  }, [resetInactivityTimer, page]);
 
-    useEffect(() => {
-        const events: (keyof WindowEventMap)[] = ['mousemove', 'mousedown', 'touchstart', 'keydown', 'scroll'];
-        events.forEach(event => window.addEventListener(event, handleUserActivity));
-        return () => { events.forEach(event => window.removeEventListener(event, handleUserActivity)); };
-    }, [handleUserActivity]);
+  useEffect(() => {
+      const events: (keyof WindowEventMap)[] = ['mousemove', 'mousedown', 'touchstart', 'keydown', 'scroll'];
+      events.forEach(event => window.addEventListener(event, handleUserActivity));
+      return () => { events.forEach(event => window.removeEventListener(event, handleUserActivity)); };
+  }, [handleUserActivity]);
 
   // --- Info Banner Logic ---
   const activeInfoMessages = useMemo((): InfoMessage[] => {
@@ -252,7 +250,7 @@ const MainContent: React.FC = () => {
         setSessionRole('member');
     }
     
-    if (currentPage === Page.IdeaBoard) setWorkoutToVisualize(null);
+    if (currentPage === Page.IdeaBoard) setActiveWorkout(null);
     if (currentPage === Page.MobileLog) setMobileLogData(null); 
     
     if (newHistory[newHistory.length - 1] === Page.Home && (role === 'systemowner' || role === 'organizationadmin') && !isImpersonating) {
@@ -262,7 +260,7 @@ const MainContent: React.FC = () => {
     }
 
     setHistory(newHistory);
-  }, [history, role, isImpersonating, customBackHandler]);
+  }, [history, role, isImpersonating, customBackHandler, setActiveWorkout]);
 
   // --- Business Logic Handlers ---
   const handleCreateNewWorkout = () => {
@@ -447,7 +445,7 @@ const MainContent: React.FC = () => {
     }
   };
 
-  const handleEditStudioConfig = (studio: Studio) => setEditStudioConfig(studio);
+  const handleEditStudioConfig = (studio: Studio) => setStudioToEditConfig(studio);
 
   const handleSaveGlobalConfig = async (organizationId: string, newConfig: StudioConfig) => {
       try {
@@ -520,9 +518,9 @@ const MainContent: React.FC = () => {
     }
   };
   
-  const handleUpdateOrganization = async (organizationId: string, name: string, subdomain: string) => {
+  const handleUpdateOrganization = async (organizationId: string, name: string, subdomain: string, inviteCode?: string) => {
     try {
-        const updatedOrg = await updateOrganization(organizationId, name, subdomain);
+        const updatedOrg = await updateOrganization(organizationId, name, subdomain, inviteCode);
         setAllOrganizations(prev => prev.map(o => (o.id === organizationId ? updatedOrg : o)));
         if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
     } catch (error) {
@@ -743,7 +741,7 @@ const MainContent: React.FC = () => {
                 
                 handleCoachAccessRequest: handleCoachAccessRequest,
                 handleReturnToAdmin: handleReturnToAdmin,
-                setShowImage: setPreviewImageUrl,
+                setShowImage: (url) => setPreviewImageUrl(url),
                 setTimerHeaderVisible: setIsTimerHeaderVisible,
                 setBackButtonHidden: setIsBackButtonHidden,
                 setRacePrepState: setRacePrepState,
@@ -822,21 +820,10 @@ const MainContent: React.FC = () => {
        {!isFullScreenPage && <Footer />}
        {!isStudioMode && <SupportChat />}
 
-       {currentUser && role !== 'member' && !isStudioMode && (
+       {currentUser && !isStudioMode && (
           <div className="fixed bottom-6 right-6 z-50">
               <ScanButton 
-                  onScan={handleScanCode} 
-                  workouts={workouts} 
-                  user={currentUser} 
-              />
-          </div>
-       )}
-       {currentUser && role === 'member' && !isStudioMode && (
-          <div className="fixed bottom-6 right-6 z-50">
-              <ScanButton 
-                  onScan={handleScanCode} 
-                  workouts={workouts} 
-                  user={currentUser} 
+                  onScan={() => handleScanCode(null)} 
               />
           </div>
        )}
