@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel } from './types';
 
@@ -648,15 +649,17 @@ const MainContent: React.FC = () => {
   // Bestäm om profilknappen ska skickas med
   const memberProfileCallback = !isStudioMode || page !== Page.Home ? () => navigateTo(Page.MemberProfile) : undefined;
 
-  // --- LOGIC FOR BUTTON VISIBILITY ---
-  const isMember = role === 'member';
+  // --- LOGIC FOR BUTTON VISIBILITY (REVISED) ---
   const isAdminOrCoach = role === 'systemowner' || role === 'organizationadmin' || role === 'coach';
   
-  // Visa supportchatt BARA för admins/ägare/coacher
-  const showSupportChat = !isStudioMode && isAdminOrCoach;
+  const isMemberFacingPage = [Page.Home, Page.WorkoutDetail, Page.SavedWorkouts, Page.MemberProfile, Page.WorkoutList].includes(page);
+  const isAdminFacingPage = [Page.Coach, Page.SuperAdmin, Page.SystemOwner, Page.AdminAnalytics, Page.MemberRegistry].includes(page);
+
+  // Visa supportchatt BARA för personal på administrativa sidor
+  const showSupportChat = !isStudioMode && isAdminOrCoach && isAdminFacingPage;
   
-  // Visa FAB (Plusknappen) BARA för medlemmar
-  const showScanButton = !isStudioMode && isMember;
+  // Visa FAB (Plusknappen) på "medlems-sidor" för alla inloggade användare (för träning)
+  const showScanButton = !isStudioMode && isMemberFacingPage;
 
   // --- Main Render ---
   return (
