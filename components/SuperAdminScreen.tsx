@@ -58,6 +58,7 @@ interface SuperAdminScreenProps {
     onUpdateLogos: (organizationId: string, logos: { light: string; dark: string }) => Promise<void>;
     onUpdatePrimaryColor: (organizationId: string, color: string) => Promise<void>;
     onUpdateOrganization: (organizationId: string, name: string, subdomain: string, inviteCode?: string) => Promise<void>;
+    onUpdateOrganizationCompanyDetails?: (organizationId: string, details: CompanyDetails) => Promise<void>;
     onUpdateCustomPages: (organizationId: string, pages: CustomPage[]) => Promise<void>;
     onSwitchToStudioView: (studio: Studio) => void;
     onEditCustomPage: (page: CustomPage | null) => void;
@@ -75,6 +76,7 @@ interface SuperAdminScreenProps {
 interface ConfigProps {
     config: StudioConfig;
     isSavingConfig: boolean;
+    setIsSavingConfig: React.Dispatch<React.SetStateAction<boolean>>;
     isConfigDirty: boolean;
     handleUpdateConfigField: <K extends keyof StudioConfig>(key: K, value: StudioConfig[K]) => void;
     handleSaveConfig: (configOverride?: StudioConfig) => Promise<void>;
@@ -200,8 +202,53 @@ const PassProgramModule: React.FC<{ onNavigate: (mode: 'create' | 'generate' | '
     );
 };
 
+const AiCoachInfoContent: React.FC<{ onReadMoreClick: () => void }> = ({ onReadMoreClick }) => (
+    <div className="flex flex-col md:flex-row items-center gap-6">
+        <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 rounded-2xl flex items-center justify-center flex-shrink-0">
+            <SparklesIcon className="w-8 h-8" />
+        </div>
+        <div className="flex-grow text-center md:text-left">
+            <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Nya AI Coach är här! 🤖</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Få feedback på dina passupplägg, generera övningsbeskrivningar och skapa variation med ett klick.</p>
+        </div>
+        <button onClick={onReadMoreClick} className="px-5 py-2 bg-white dark:bg-gray-800 text-purple-600 dark:text-purple-300 font-bold rounded-lg border border-purple-200 dark:border-purple-800 hover:bg-purple-50 transition-colors shadow-sm">
+            Läs mer
+        </button>
+    </div>
+);
+
+const AiCoachInfoModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => (
+    <Modal isOpen={isOpen} onClose={onClose} title="Smart AI Coach 🤖" size="lg">
+        <div className="space-y-6 text-gray-800 dark:text-gray-200">
+            <p className="text-lg font-medium leading-relaxed">SmartStudio AI Coach är din personliga assistent i passbyggandet. Här är vad den kan hjälpa dig med:</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-100 dark:border-purple-900/30">
+                    <h5 className="font-bold text-purple-900 dark:text-purple-100 mb-2">✨ Skapa pass från idé</h5>
+                    <p className="text-sm">Skriv "Ett tungt benpass med fokus på explosivitet" så bygger AI:n blocken, övningarna och sätter timern åt dig.</p>
+                </div>
+                <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl border border-blue-100 dark:border-blue-900/30">
+                    <h5 className="font-bold text-blue-900 dark:text-blue-100 mb-2">📋 Tolka anteckningar</h5>
+                    <p className="text-sm">Har du skrivit ner passet på mobilen eller ett papper? Klistra in texten eller fota den i Idé-tavlan för att digitalisera det direkt.</p>
+                </div>
+                <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-100 dark:border-green-900/30">
+                    <h5 className="font-bold text-green-900 dark:text-green-100 mb-2">🧠 Analysera & Förbättra</h5>
+                    <p className="text-sm">Klicka på "Analysera" i passbyggaren för att få coach-feedback på balans, flås-faktor och "Magic Pen"-förslag på specifika förbättringar.</p>
+                </div>
+                <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-xl border border-orange-100 dark:border-orange-900/30">
+                    <h5 className="font-bold text-orange-900 dark:text-orange-100 mb-2">🖼️ Generera Bilder</h5>
+                    <p className="text-sm">Saknas en bild till en övning? Använd AI:n för att skapa en unik illustration som visas på skärmen.</p>
+                </div>
+            </div>
+            <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl text-sm italic border-l-4 border-primary">
+                AI:n är ett verktyg för inspiration och effektivitet. Granska alltid passet innan publicering för att säkerställa att det matchar din expertis och medlemmarnas behov.
+            </div>
+            <button onClick={onClose} className="w-full bg-primary text-white font-bold py-3 rounded-xl">Uppfattat!</button>
+        </div>
+    </Modal>
+);
+
 const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps> = (props) => {
-    const { config, isSavingConfig, isConfigDirty, handleUpdateConfigField, handleSaveConfig, organization, onUpdateOrganization } = props;
+    const { config, isSavingConfig, setIsSavingConfig, isConfigDirty, handleUpdateConfigField, handleSaveConfig, organization, onUpdateOrganization } = props;
     const [showPricingModal, setShowPricingModal] = useState(false);
     const [baseCost, setBaseCost] = useState(19);
     const [customerPrice, setCustomerPrice] = useState(49);
@@ -623,8 +670,15 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     
     const handleUpdateCompanyDetails = async (details: CompanyDetails) => {
         try {
-            const updatedOrg = await updateOrganizationCompanyDetails(organization.id, details);
-            selectOrganization(updatedOrg); 
+            // Check if onUpdateOrganizationCompanyDetails exists in props
+            if (props.onUpdateOrganizationCompanyDetails) {
+                await props.onUpdateOrganizationCompanyDetails(organization.id, details);
+            } else {
+                // Fallback to updating details through the organization service if needed
+                const { updateOrganizationCompanyDetails: updateService } = await import('../services/firebaseService');
+                const updatedOrg = await updateService(organization.id, details);
+                selectOrganization(updatedOrg);
+            }
             setShowOnboardingModal(false);
             setShowOnboardingBanner(false);
             sessionStorage.removeItem(onboardingSkippedKey);
@@ -705,6 +759,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     const configProps: ConfigProps = {
         config,
         isSavingConfig,
+        setIsSavingConfig, // Pass down the function
         isConfigDirty,
         handleUpdateConfigField,
         handleSaveConfig
@@ -949,3 +1004,10 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
         </div>
     );
 };
+
+interface NavElement {
+    type: 'header' | 'link';
+    label: string;
+    id?: AdminTab;
+    icon?: any;
+}
