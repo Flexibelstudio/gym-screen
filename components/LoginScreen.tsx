@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { registerMemberWithCode } from '../services/firebaseService';
+// Importera den säkrade funktionen direkt från servicen för att vara säker
+import { registerMemberWithCode, signInWithGoogle as serviceSignInWithGoogle } from '../services/firebaseService';
 import { resizeImage } from '../utils/imageUtils';
 import { CloseIcon } from './icons';
 import { motion } from 'framer-motion';
@@ -20,7 +21,9 @@ interface LoginScreenProps {
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
-    const { signIn, signInWithGoogle, signInAsStudio, sendPasswordResetEmail } = useAuth();
+    // Vi använder inte signInWithGoogle från context här för att undvika cirkulära beroenden eller initieringsproblem
+    // Vi anropar servicen direkt istället.
+    const { signIn, signInAsStudio, sendPasswordResetEmail } = useAuth();
     const [view, setView] = useState<'login' | 'reset' | 'register'>('login');
     
     // Login state
@@ -71,11 +74,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
         setError(null);
         setLoading(true);
         try {
-            await signInWithGoogle();
+            // Använd den direkta service-funktionen som har extra säkerhetskontroller
+            await serviceSignInWithGoogle();
             if (onClose) onClose();
         } catch (err) {
-            setError('Inloggningen med Google misslyckades.');
-            console.error(err);
+            setError('Inloggningen med Google misslyckades. Kontrollera din anslutning eller försök igen.');
+            console.error("Google Login Error:", err);
         } finally {
             setLoading(false);
         }
@@ -103,6 +107,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
             await sendPasswordResetEmail(resetEmail);
             setResetSuccess(`En återställningslänk har skickats till ${resetEmail} om kontot finns.`);
         } catch (err) {
+            // Vi visar samma meddelande av säkerhetsskäl även om mailet inte finns
             setResetSuccess(`En återställningslänk har skickats till ${resetEmail} om kontot finns.`);
         } finally {
             setResetLoading(false);

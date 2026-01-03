@@ -1,4 +1,3 @@
-
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -115,6 +114,7 @@ if (isOffline) {
 }
 
 const sanitizeData = <T>(data: T): T => JSON.parse(JSON.stringify(data));
+const offlineWarning = (op: string) => { console.warn(`OFFLINE: ${op} skipped.`); return Promise.resolve(); };
 
 // --- Auth ---
 export const onAuthChange = (callback: (user: User | null) => void) => {
@@ -137,27 +137,42 @@ export const registerUser = async (email: string, pass: string, first: string, l
 };
 
 export const signInWithGoogle = async () => {
+    // SÄKERHETSKONTROLL: Om vi är offline ELLER om auth inte lyckades starta
     if (isOffline || !auth) {
-        return { uid: 'offline_google', email: 'google@test.com' };
+        console.warn("Google Login: Körs i offline/mock-läge eftersom auth saknas.");
+        return { 
+            uid: 'offline_google', 
+            email: 'google@test.com', 
+            displayName: 'Google User',
+            photoURL: ''
+        } as User;
     }
-    const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    if (db) {
-        const userDocRef = doc(db, 'users', result.user.uid);
-        const userSnapshot = await getDoc(userDocRef);
-        if (!userSnapshot.exists()) {
-            await setDoc(userDocRef, {
-                email: result.user.email,
-                firstName: result.user.displayName?.split(' ')[0] || 'User',
-                lastName: result.user.displayName?.split(' ')[1] || '',
-                role: 'member',
-                createdAt: Date.now(),
-                organizationId: '',
-                isTrainingMember: true 
-            });
+
+    try {
+        const provider = new GoogleAuthProvider();
+        const result = await signInWithPopup(auth, provider);
+        
+        if (db) {
+            const userDocRef = doc(db, 'users', result.user.uid);
+            const userSnapshot = await getDoc(userDocRef);
+            
+            if (!userSnapshot.exists()) {
+                await setDoc(userDocRef, {
+                    email: result.user.email,
+                    firstName: result.user.displayName?.split(' ')[0] || 'User',
+                    lastName: result.user.displayName?.split(' ')[1] || '',
+                    role: 'member',
+                    createdAt: Date.now(),
+                    organizationId: '',
+                    isTrainingMember: true 
+                });
+            }
         }
+        return result.user;
+    } catch (error) {
+        console.error("Google Sign In Error:", error);
+        throw error; 
     }
-    return result.user;
 };
 
 export const signInAsStudio = (): Promise<User> => {
@@ -192,14 +207,17 @@ export const updateUserGoals = async (uid: string, goals: MemberGoals) => {
     await updateDoc(doc(db, 'users', uid), { goals });
 };
 
+// --- UPPDATERAD: Hanterar nu mock-objekt i offline-läge ---
 export const updateUserProfile = async (uid: string, data: Partial<UserData>) => {
     if (isOffline || !db) {
+        // För simulering i AI Studio: uppdatera mock-objekten
         if (uid === MOCK_SYSTEM_OWNER.uid) Object.assign(MOCK_SYSTEM_OWNER, data);
         if (uid === MOCK_ORG_ADMIN.uid) Object.assign(MOCK_ORG_ADMIN, data);
         return;
     }
     await updateDoc(doc(db, 'users', uid), sanitizeData(data));
 };
+// -----------------------------------------------------------
 
 export const joinOrganizationWithCode = async (uid: string, code: string) => {
     if (isOffline || !db) throw new Error("Offline: Kan ej ansluta.");
@@ -208,6 +226,7 @@ export const joinOrganizationWithCode = async (uid: string, code: string) => {
     if (snap.empty) throw new Error("Ogiltig kod.");
     const orgId = snap.docs[0].id;
     
+    // När man går med via kod blir man automatiskt en tränande medlem
     await updateDoc(doc(db, 'users', uid), { 
         organizationId: orgId,
         isTrainingMember: true 
