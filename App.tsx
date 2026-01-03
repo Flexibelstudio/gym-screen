@@ -42,8 +42,10 @@ export default function App() {
     }
   }, [isStudioMode, studioLoading, allOrganizations, selectOrganization, selectedOrganization]);
 
-  if (authLoading || studioLoading) {
-    return <div className="bg-black text-white min-h-screen flex items-center justify-center">Laddar...</div>;
+  // FIX: Only show full-screen loader if we don't have a user yet.
+  // This prevents the whole MainContent from unmounting when just refreshing data.
+  if ((authLoading || studioLoading) && !currentUser) {
+    return <div className="bg-black text-white min-h-screen flex items-center justify-center">Laddar SmartStudio...</div>;
   }
   
   if (!currentUser) {
@@ -64,7 +66,6 @@ export default function App() {
 // Hjälpfunktion för att kopiera pass
 const deepCopyAndPrepareAsNew = (workoutToCopy: Workout): Workout => {
     const newWorkout = JSON.parse(JSON.stringify(workoutToCopy));
-    
     newWorkout.id = `workout-${Date.now()}`;
     newWorkout.title = `KOPIA - ${workoutToCopy.title}`;
     newWorkout.isPublished = false;
@@ -80,7 +81,6 @@ const deepCopyAndPrepareAsNew = (workoutToCopy: Workout): Workout => {
         });
         return block;
     });
-
     return newWorkout;
 };
 
@@ -96,13 +96,19 @@ const MainContent: React.FC = () => {
   const { workouts, activeWorkout, setActiveWorkout, saveWorkout, deleteWorkout } = useWorkout();
   
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
-  const [history, setHistory] = useState<Page[]>([Page.Home]);
+  
+  // FIX: Robust history initialization. 
+  // We initialize the stack based on role to avoid the "force-redirect" useEffect.
+  const [history, setHistory] = useState<Page[]>(() => {
+      if (isStudioMode) return [Page.Home];
+      if (role === 'systemowner') return [Page.SystemOwner];
+      if (role === 'organizationadmin') return [Page.SuperAdmin];
+      return [Page.Home];
+  });
+
   const page = history[history.length - 1];
   const [customBackHandler, setCustomBackHandler] = useState<(() => void) | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  
-  // Track if we've performed the initial role-based routing
-  const hasInitialRouted = useRef(false);
 
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
@@ -196,22 +202,7 @@ const MainContent: React.FC = () => {
 
   const isInfoBannerVisible = page === Page.Home && activeInfoMessages.length > 0;
 
-  // --- Role & History Init ---
-  useEffect(() => {
-    if (isImpersonating || hasInitialRouted.current) return;
-    
-    if (role === 'systemowner') {
-        setHistory([Page.SystemOwner]);
-        hasInitialRouted.current = true;
-    } else if (role === 'organizationadmin') {
-        setHistory([Page.SuperAdmin]);
-        hasInitialRouted.current = true;
-    } else if (role) {
-        setHistory([Page.Home]);
-        hasInitialRouted.current = true;
-    }
-  }, [role, isImpersonating]);
-  
+  // --- Role & History Sync ---
   useEffect(() => {
     setSessionRole(role);
   }, [role]);
@@ -264,9 +255,6 @@ const MainContent: React.FC = () => {
     if (currentPage === Page.IdeaBoard) setActiveWorkout(null);
     if (currentPage === Page.MobileLog) setMobileLogData(null); 
     
-    // REMOVED: Auto-redirect away from Home for admins in handleBack.
-    // If an admin has navigated to Page.Home (member view), they should be allowed to stay there.
-
     setHistory(newHistory);
   }, [history, role, isImpersonating, customBackHandler, setActiveWorkout]);
 
@@ -421,8 +409,6 @@ const MainContent: React.FC = () => {
     const isFinalBlock = completionInfo?.isFinal;
     setCompletionInfo(null);
     if (isFinalBlock) {
-      // Direct return to whatever the bottom of the stack is (usually Home or Dashboard)
-      // but without forcing specific pages based on role if already on a member-facing stack.
       if (history.length > 1) {
           handleBack();
       }
@@ -635,7 +621,7 @@ const MainContent: React.FC = () => {
 
   const handleSelectOrganization = (organization: Organization) => {
       selectOrganization(organization);
-      navigateTo(Page.SuperAdmin);
+      setHistory([Page.SuperAdmin]);
   };
 
   const handleSwitchToStudioView = (studio: Studio) => {
@@ -660,19 +646,13 @@ const MainContent: React.FC = () => {
   const isFullScreenPage = page === Page.Timer || page === Page.RepsOnly || page === Page.IdeaBoard;
   const paddingClass = isFullScreenPage ? '' : 'p-4 sm:p-6 lg:p-8';
   
-  // Bestäm om profilknappen ska skickas med
   const memberProfileCallback = !isStudioMode || page !== Page.Home ? () => navigateTo(Page.MemberProfile) : undefined;
 
-  // --- LOGIC FOR BUTTON VISIBILITY (REVISED) ---
   const isAdminOrCoach = role === 'systemowner' || role === 'organizationadmin' || role === 'coach';
-  
   const isMemberFacingPage = [Page.Home, Page.WorkoutDetail, Page.SavedWorkouts, Page.MemberProfile, Page.WorkoutList].includes(page);
   const isAdminFacingPage = [Page.Coach, Page.SuperAdmin, Page.SystemOwner, Page.AdminAnalytics, Page.MemberRegistry].includes(page);
 
-  // Visa supportchatt BARA för personal på administrativa sidor
   const showSupportChat = !isStudioMode && isAdminOrCoach && isAdminFacingPage;
-  
-  // Visa FAB (Plusknappen) på "medlems-sidor" för alla inloggade användare (för träning)
   const showScanButton = !isStudioMode && isMemberFacingPage;
 
   // --- Main Render ---
@@ -845,8 +825,6 @@ const MainContent: React.FC = () => {
        {showTerms && <TermsOfServiceModal onAccept={acceptTerms} />}
        {!isFullScreenPage && <Footer />}
        
-       {/* --- FIXED LOGIC FOR FLOATING BUTTONS --- */}
-       
        {showSupportChat && <SupportChat />}
 
        {showScanButton && (
@@ -857,4 +835,3 @@ const MainContent: React.FC = () => {
     </div>
   );
 }
-
