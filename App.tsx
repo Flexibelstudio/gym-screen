@@ -817,15 +817,17 @@ const MainContent: React.FC = () => {
         )}
        {showTerms && <TermsOfServiceModal onAccept={acceptTerms} />}
        {!isFullScreenPage && <Footer />}
-       {!isStudioMode && <SupportChat />}
+       
+       {/* --- FIXED LOGIC HERE --- */}
+       
+       {/* Visa supportchatt BARA för admins/ägare/coacher, inte medlemmar eller studio */}
+       {!isStudioMode && role !== 'member' && <SupportChat />}
 
-       {/* FAB renderas endast för medlemmar i personlig vy */}
-       {currentUser && !isStudioMode && role === 'member' && (
+       {/* Visa FAB (Plusknappen) BARA för medlemmar, inte studio */}
+       {!isStudioMode && role === 'member' && (
           <div className="fixed bottom-6 right-6 z-50">
               <ScanButton 
                   onScan={() => handleScanCode(null)} 
-                  workouts={workouts} 
-                  user={currentUser} 
               />
           </div>
        )}
