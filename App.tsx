@@ -648,6 +648,16 @@ const MainContent: React.FC = () => {
   // Bestäm om profilknappen ska skickas med
   const memberProfileCallback = !isStudioMode || page !== Page.Home ? () => navigateTo(Page.MemberProfile) : undefined;
 
+  // --- LOGIC FOR BUTTON VISIBILITY ---
+  const isMember = role === 'member';
+  const isAdminOrCoach = role === 'systemowner' || role === 'organizationadmin' || role === 'coach';
+  
+  // Visa supportchatt BARA för admins/ägare/coacher
+  const showSupportChat = !isStudioMode && isAdminOrCoach;
+  
+  // Visa FAB (Plusknappen) BARA för medlemmar
+  const showScanButton = !isStudioMode && isMember;
+
   // --- Main Render ---
   return (
     <div className={`bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'lg:h-screen lg:overflow-hidden min-h-screen' : 'min-h-screen'} ${paddingClass}`}>
@@ -818,17 +828,13 @@ const MainContent: React.FC = () => {
        {showTerms && <TermsOfServiceModal onAccept={acceptTerms} />}
        {!isFullScreenPage && <Footer />}
        
-       {/* --- FIXED LOGIC HERE --- */}
+       {/* --- FIXED LOGIC FOR FLOATING BUTTONS --- */}
        
-       {/* Visa supportchatt BARA för admins/ägare/coacher, inte medlemmar eller studio */}
-       {!isStudioMode && role !== 'member' && <SupportChat />}
+       {showSupportChat && <SupportChat />}
 
-       {/* Visa FAB (Plusknappen) BARA för medlemmar, inte studio */}
-       {!isStudioMode && role === 'member' && (
+       {showScanButton && (
           <div className="fixed bottom-6 right-6 z-50">
-              <ScanButton 
-                  onScan={() => handleScanCode(null)} 
-              />
+              <ScanButton onScan={() => handleScanCode(null)} />
           </div>
        )}
     </div>
