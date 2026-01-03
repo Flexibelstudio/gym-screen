@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog } from '../../services/firebaseService';
 import { generateMemberInsights, MemberInsightResponse } from '../../services/geminiService';
@@ -451,9 +450,15 @@ export default function WorkoutLogScreen({
               navigation.replace('WorkoutFeedback', { feedbackText });
           }
         }, 2500); // 2.5s confetti
-    } catch (e) {
+    } catch (e: any) {
+        // --- FELHANTERING HÄR ---
+        console.error("🔥 KRITISKT FEL VID SPARA PASS 🔥");
+        console.error("Felobjekt:", e);
+        if (e.code) console.error("Felkod:", e.code);
+        if (e.message) console.error("Felmeddelande:", e.message);
+        
         setIsSubmitting(false);
-        alert("Kunde inte spara.");
+        alert(`Kunde inte spara. Teknisk orsak: ${e.message}`);
     }
   };
 
