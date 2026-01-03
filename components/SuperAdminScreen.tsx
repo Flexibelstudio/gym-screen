@@ -9,6 +9,7 @@ import { OvningsbankContent } from './OvningsbankContent';
 import { useStudio } from '../context/StudioContext';
 import { CompanyDetailsOnboardingModal } from './CompanyDetailsOnboardingModal';
 import { Modal } from './ui/Modal';
+import { Toast } from './ui/Notification';
 import { CategoryPromptManager } from './CategoryPromptManager';
 import { DashboardContent } from './admin/DashboardContent';
 import { StudiosContent } from './admin/StudiosContent';
@@ -16,7 +17,7 @@ import { InfosidorContent } from './admin/InfosidorContent';
 import { InfoKarusellContent } from './admin/InfoKarusellContent';
 import { VarumarkeContent } from './admin/VarumarkeContent';
 import { CompanyInfoContent } from './admin/CompanyInfoContent';
-import { generateWorkout } from '../services/geminiService';
+import { generateWorkout } from '../../services/geminiService';
 import { SelectField } from './admin/AdminShared';
 import { MemberManagementScreen } from './MemberManagementScreen';
 import { AdminAnalyticsScreen } from './AdminAnalyticsScreen';
@@ -86,6 +87,7 @@ interface ConfigProps {
     isConfigDirty: boolean;
     handleUpdateConfigField: <K extends keyof StudioConfig>(key: K, value: StudioConfig[K]) => void;
     handleSaveConfig: (configOverride?: StudioConfig) => Promise<void>;
+    showToast: (msg: string) => void;
 }
 
 const FeatureLockedView: React.FC<{ 
@@ -297,7 +299,7 @@ const AiCoachInfoModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ 
 );
 
 const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps> = (props) => {
-    const { config, isSavingConfig, setIsSavingConfig, isConfigDirty, handleUpdateConfigField, handleSaveConfig, organization, onUpdateOrganization } = props;
+    const { config, isSavingConfig, setIsSavingConfig, isConfigDirty, handleUpdateConfigField, handleSaveConfig, organization, onUpdateOrganization, showToast } = props;
     const [showPricingModal, setShowPricingModal] = useState(false);
     const [baseCost, setBaseCost] = useState(19);
     const [customerPrice, setCustomerPrice] = useState(49);
@@ -333,10 +335,10 @@ const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps
             await handleSaveConfig({ ...config, enableWorkoutLogging: true });
             
             setShowPricingModal(false);
-            alert("Passloggning aktiverad och inbjudningskod skapad!");
+            showToast("Passloggning aktiverad och inbjudningskod skapad!");
         } catch (error) {
             console.error(error);
-            alert("Kunde inte aktivera modulen.");
+            showToast("Kunde inte aktivera modulen.");
         } finally {
             setIsSavingConfig(false);
         }
@@ -697,6 +699,9 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     const [showOnboardingModal, setShowOnboardingModal] = useState(false);
     const [showOnboardingBanner, setShowOnboardingBanner] = useState(false);
     
+    // Toast Feedback state
+    const [toast, setToast] = useState<{ message: string, visible: boolean }>({ message: '', visible: false });
+
     const isCompanyDetailsIncomplete = (org: Organization): boolean => {
         return !org.companyDetails?.legalName?.trim() || !org.companyDetails?.orgNumber?.trim();
     };
@@ -731,6 +736,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             setShowOnboardingModal(false);
             setShowOnboardingBanner(false);
             sessionStorage.removeItem(onboardingSkippedKey);
+            setToast({ message: "Uppgifter sparade!", visible: true });
         } catch (e) {
             alert("Kunde inte spara uppgifterna. Försök igen.");
             throw e;
@@ -780,10 +786,10 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
         setIsSavingConfig(true);
         try {
             await onSaveGlobalConfig(organization.id, configOverride || config);
-            alert("Inställningar sparade!");
+            setToast({ message: "Inställningar sparade!", visible: true });
         } catch (error) {
             console.error(error);
-            alert("Kunde inte spara inställningar.");
+            setToast({ message: "Kunde inte spara inställningar.", visible: true });
         } finally {
             setIsSavingConfig(false);
         }
@@ -799,7 +805,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             setActiveTab('pass-program');
             setPassProgramSubView('builder');
         } catch(e) {
-            alert("Kunde inte generera pass. Försök igen.");
+            setToast({ message: "Kunde inte generera pass. Försök igen.", visible: true });
         }
     };
 
@@ -811,7 +817,8 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
         setIsSavingConfig, // Pass down the function
         isConfigDirty,
         handleUpdateConfigField,
-        handleSaveConfig
+        handleSaveConfig,
+        showToast: (msg) => setToast({ message: msg, visible: true })
     };
     
     const displayLogoUrl = theme === 'dark' 
@@ -884,7 +891,10 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                                                 </div>
                                             </div>
                                             <button 
-                                                onClick={() => navigator.clipboard.writeText(organization.inviteCode || '')}
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(organization.inviteCode || '');
+                                                    setToast({ message: "Kod kopierad!", visible: true });
+                                                }}
                                                 className="text-sm font-medium text-primary hover:text-primary/80 flex items-center justify-center sm:justify-start gap-2 bg-primary/10 px-4 py-2 rounded-lg transition-colors w-full sm:w-auto"
                                             >
                                                 <CopyIcon className="w-4 h-4" /> Kopiera kod
@@ -991,6 +1001,12 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
 
     return (
          <div className="w-full h-screen bg-gray-50 dark:bg-black flex flex-col overflow-hidden">
+            <Toast 
+                isVisible={toast.visible} 
+                message={toast.message} 
+                onClose={() => setToast({ ...toast, visible: false })} 
+            />
+
             {/* --- TOP HEADER --- */}
             <header className="h-16 flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 sm:px-6 z-20 shadow-sm">
                 <div className="flex items-center gap-4">

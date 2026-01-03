@@ -1,9 +1,11 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { StudioConfig, Studio, Organization, ThemeOption } from '../types';
 import { ToggleSwitch, CloseIcon, SaveIcon, InformationCircleIcon } from './icons';
 import { uploadImage, deleteImageByUrl, getSmartScreenPricing } from '../services/firebaseService';
 import { resizeImage } from '../utils/imageUtils';
 import { CategoryPromptManager } from './CategoryPromptManager';
+import { Toast } from './ui/Notification';
 
 // Define a type for keys that have boolean values in StudioConfig
 type BooleanStudioConfigKeys = 'checkInImageEnabled' | 'enableNotes' | 'enableScreensaver' | 'enableExerciseBank' | 'enableHyrox' | 'enableWorkoutLogging' | 'enableBreathingGuide' | 'enableWarmup';
@@ -127,6 +129,9 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
     const [isSaving, setIsSaving] = useState(false);
     const [activeTab, setActiveTab] = useState<ConfigTab>('modules');
     
+    // Toast state
+    const [toast, setToast] = useState<{ message: string, visible: boolean }>({ message: '', visible: false });
+
     // Profit Calculator State
     const [showPricingModal, setShowPricingModal] = useState(false);
     const [baseCost, setBaseCost] = useState(19);
@@ -214,6 +219,8 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
         
         await onSave(organization.id, studio.id, overrides);
         setIsSaving(false);
+        // Close with a slight delay so they see a "Success" if we had a toast, 
+        // but since we close immediately we rely on the parent or a quick feedback.
         onClose();
     };
     
@@ -409,6 +416,8 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
 
     return (
         <>
+        <Toast isVisible={toast.visible} message={toast.message} onClose={() => setToast({ ...toast, visible: false })} />
+        
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[1001] p-4 animate-fade-in" onClick={onClose}>
             <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-2xl text-gray-900 dark:text-white shadow-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
                 
@@ -503,6 +512,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                                 setOverrides(newOverrides);
                                 try {
                                     await onSave(organization.id, studio.id, newOverrides);
+                                    setToast({ message: "Passloggning aktiverad!", visible: true });
                                 } catch(e) { console.error(e); }
                                 setShowPricingModal(false);
                             }} 
