@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Page, Workout, WorkoutBlock, StudioConfig, Organization, CustomPage, UserRole, UserData, StartGroup } from '../types';
 
@@ -85,7 +86,7 @@ interface AppRouterProps {
         updatePasswords: (orgId: string, passwords: any) => Promise<void>;
         updateLogos: (orgId: string, logos: { light: string; dark: string }) => Promise<void>;
         updatePrimaryColor: (orgId: string, color: string) => Promise<void>;
-        updateOrganization: (orgId: string, name: string, subdomain: string) => Promise<void>;
+        updateOrganization: (orgId: string, name: string, subdomain: string, inviteCode?: string) => Promise<void>;
         updateCustomPages: (orgId: string, pages: CustomPage[]) => Promise<void>;
         updateInfoCarousel: (orgId: string, carousel: any) => Promise<void>;
         
@@ -292,20 +293,21 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onUpdateStudio={functions.updateStudio}
                 onDeleteStudio={functions.deleteStudio}
                 onUpdatePasswords={functions.updatePasswords}
-                onUpdateLogos={functions.updateLogos}
-                onUpdatePrimaryColor={functions.updatePrimaryColor}
-                onUpdateOrganization={functions.updateOrganization}
-                onUpdateCustomPages={functions.updateCustomPages}
-                onSwitchToStudioView={functions.switchToStudioView}
-                onEditCustomPage={functions.editCustomPage}
-                onDeleteCustomPage={functions.deleteCustomPage}
-                onUpdateInfoCarousel={functions.updateInfoCarousel}
-                onUpdateDisplayWindows={async () => {}} 
+                onUpdateLogos: functions.updateLogos,
+                onUpdatePrimaryColor: functions.updatePrimaryColor,
+                onUpdateOrganization: functions.updateOrganization,
+                onUpdateCustomPages: functions.updateCustomPages,
+                onSwitchToStudioView: functions.switchToStudioView,
+                onEditCustomPage: functions.editCustomPage,
+                onDeleteCustomPage: functions.deleteCustomPage,
+                onUpdateInfoCarousel: functions.updateInfoCarousel,
+                onUpdateDisplayWindows: async () => { console.log("Not implemented"); }, 
                 workouts={workouts}
                 workoutsLoading={false}
                 onSaveWorkout={props.onSaveWorkout}
                 onDeleteWorkout={props.onDeleteWorkout}
                 onTogglePublish={props.onTogglePublish}
+                onSelectMember={onSelectMember}
             /> : null;
 
         case Page.CustomContent:
@@ -322,14 +324,13 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
         
         case Page.MemberRegistry:
             return <MemberManagementScreen 
-                organizationId={selectedOrganization?.id || ''}
-                goBack={() => navigateTo(Page.Coach)}
+                onSelectMember={onSelectMember}
             />;
             
         case Page.MemberProfile:
             return userData ? <MemberProfileScreen 
                 userData={userData}
-                goBack={handleBack}
+                onBack={handleBack}
             /> : <div>Laddar profil...</div>;
 
         case Page.AdminAnalytics:
