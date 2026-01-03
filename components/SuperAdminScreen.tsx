@@ -17,7 +17,7 @@ import { InfosidorContent } from './admin/InfosidorContent';
 import { InfoKarusellContent } from './admin/InfoKarusellContent';
 import { VarumarkeContent } from './admin/VarumarkeContent';
 import { CompanyInfoContent } from './admin/CompanyInfoContent';
-import { generateWorkout } from '../../services/geminiService';
+import { generateWorkout } from '../services/geminiService';
 import { SelectField } from './admin/AdminShared';
 import { MemberManagementScreen } from './MemberManagementScreen';
 import { AdminAnalyticsScreen } from './AdminAnalyticsScreen';
