@@ -105,8 +105,6 @@ const MainContent: React.FC = () => {
   const page = history[history.length - 1];
 
   // --- REAKTIV NAVIGERING FÖR ADMIN ---
-  // Denna effekt ser till att man "skjutsas" till rätt adminvy när rollen laddats in, 
-  // förutsatt att man står på startsidan och inte är i studioläge.
   useEffect(() => {
     if (!authLoading && !isStudioMode && history.length === 1 && history[0] === Page.Home) {
       if (role === 'systemowner') {
@@ -177,7 +175,6 @@ const MainContent: React.FC = () => {
               if (decoded.wid && decoded.oid) {
                   setMobileLogData({ workoutId: decoded.wid, organizationId: decoded.oid });
                   setHistory(prev => [...prev, Page.MobileLog]);
-                  // Clean URL to prevent re-triggering
                   window.history.replaceState({}, document.title, window.location.pathname);
               }
           } catch (e) {
@@ -710,7 +707,7 @@ const MainContent: React.FC = () => {
         showClock={isStudioMode && (page === Page.WorkoutDetail)}
         hideBackButton={isBackButtonHidden}
         onCoachAccessRequest={handleCoachAccessRequest}
-        showCoachButton={isStudioMode || role !== 'member'}
+        showCoachButton={isStudioMode}
         onMemberProfileRequest={memberProfileCallback}
       />}
 
