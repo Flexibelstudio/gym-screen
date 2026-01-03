@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { WorkoutLog, UserData, MemberGoals } from '../types';
 import { getMemberLogs, updateUserGoals, updateUserProfile, joinOrganizationWithCode, uploadImage } from '../services/firebaseService';
@@ -147,7 +148,6 @@ const LogDetailModal: React.FC<{ log: WorkoutLog; onClose: () => void }> = ({ lo
 };
 
 export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userData, onBack }) => {
-    // VIKTIGT: Vi tvingar fram redigering om namn eller org saknas
     const isNewUser = !userData.firstName || !userData.organizationId;
     
     const [logs, setLogs] = useState<WorkoutLog[]>([]);
@@ -170,7 +170,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
     useEffect(() => {
         const fetchLogs = async () => {
-            // FIX: Hämta bara loggar om användaren är fullständigt registrerad och i en organisation
             if (isEditing || !userData.organizationId || !userData.uid) return;
             
             setLoading(true);
@@ -207,7 +206,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         setIsSaving(true);
         setInviteError('');
         try {
-            // 1. Uppdatera basinfo
             await updateUserProfile(userData.uid, {
                 firstName: firstName.trim(),
                 lastName: lastName.trim(),
@@ -215,7 +213,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 gender: gender as any,
             });
 
-            // 2. Försök gå med i gym om kod angetts och org saknas
             if (inviteCode.trim() && !userData.organizationId) {
                 try {
                     await joinOrganizationWithCode(userData.uid, inviteCode.trim().toUpperCase());
@@ -386,7 +383,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             </div>
 
             <div className="space-y-8">
-                {/* --- HÄR ÄR DEN NYA SEKTIONEN FÖR PERSONAL --- */}
+                {/* Personal-specifik medlemskaps-widget */}
                 {isStaff && (
                     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[2rem] p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
                         <div className="flex items-center gap-4">

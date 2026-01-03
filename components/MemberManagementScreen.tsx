@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Member } from '../types';
 import { ToggleSwitch, UsersIcon, PencilIcon, ChartBarIcon } from './icons';
@@ -14,7 +15,7 @@ interface MemberManagementScreenProps {
 export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ onSelectMember }) => {
   const { selectedOrganization } = useStudio();
   const [members, setMembers] = useState<Member[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true); 
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
 
@@ -22,7 +23,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
   const [editingDateMember, setEditingDateMember] = useState<Member | null>(null);
   const [newDateValue, setNewDateValue] = useState<string>('');
 
-  // --- HÄMTA DATA ---
   useEffect(() => {
     if (selectedOrganization) {
         loadMembers();
@@ -33,7 +33,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
       if (!selectedOrganization) return;
       setIsLoading(true);
       try {
-          // Hämtar nu medlemmar baserat på isTrainingMember=true
           const data = await getMembers(selectedOrganization.id);
           setMembers(data);
       } catch (e) {
@@ -43,12 +42,9 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
       }
   };
 
-  // --- ACTIONS ---
-
   const toggleStatus = async (member: Member) => {
     const newStatus = member.status === 'active' ? 'inactive' : 'active';
     setMembers(prev => prev.map(m => m.id === member.id ? { ...m, status: newStatus } : m));
-    
     try {
         await updateMemberStatus(member.id, newStatus);
     } catch (e) {
@@ -66,7 +62,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
       if (!editingDateMember) return;
       const originalDate = editingDateMember.endDate;
       setMembers(prev => prev.map(m => m.id === editingDateMember.id ? { ...m, endDate: newDateValue } : m));
-      
       try {
           await updateMemberEndDate(editingDateMember.id, newDateValue);
           setEditingDateMember(null);
@@ -80,7 +75,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
       if (!editingDateMember) return;
       const originalDate = editingDateMember.endDate;
       setMembers(prev => prev.map(m => m.id === editingDateMember.id ? { ...m, endDate: null } : m));
-
       try {
           await updateMemberEndDate(editingDateMember.id, null);
           setEditingDateMember(null);
@@ -92,8 +86,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
 
   const inviteCode = selectedOrganization?.inviteCode;
   const qrPayload = selectedOrganization ? JSON.stringify({ action: 'join', oid: selectedOrganization.id }) : '';
-
-  // --- RENDERING ---
 
   if (isLoading) {
       return (
@@ -129,8 +121,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
               <h4 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Ditt register är tomt</h4>
               <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-8">
                   Det ser lite tomt ut här! Dela din inbjudningskod med dina medlemmar så att de kan skapa konton och kopplas till ditt gym.
-                  <br/><br/>
-                  <em className="text-xs text-gray-400">Är du personal? Gå till din profil för att aktivera din träningsprofil och synas här.</em>
               </p>
               <button 
                 onClick={() => setShowInviteModal(true)}
@@ -165,7 +155,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                           <div>
                             <div className="flex items-center gap-2">
                                 <p className="font-bold text-gray-900 dark:text-white">{member.firstName} {member.lastName}</p>
-                                {/* ROLL-TAGGAR */}
                                 {member.role === 'systemowner' && <span className="text-[9px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter border border-purple-200">Systemägare</span>}
                                 {member.role === 'organizationadmin' && <span className="text-[9px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter border border-blue-200">Admin</span>}
                                 {member.role === 'coach' && <span className="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-md font-black uppercase tracking-tighter border border-emerald-200">Coach</span>}
@@ -249,8 +238,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
             </div>
           </div>
       )}
-
-      {/* --- MODALS --- */}
 
       {selectedMember && (
         <MemberDetailModal
