@@ -1,4 +1,3 @@
-
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -47,9 +46,9 @@ import { queueOfflineWrite } from '../utils/idb';
 import { 
   Studio, StudioConfig, Organization, CustomPage, UserData, Workout, InfoCarousel, 
   BankExercise, SuggestedExercise, Exercise, WorkoutResult, WorkoutBlock, CompanyDetails, 
-  SmartScreenPricing, HyroxRace, SeasonalThemeSetting, MemberGoals, WorkoutLog, CheckInEvent 
+  SmartScreenPricing, HyroxRace, SeasonalThemeSetting, MemberGoals, WorkoutLog, CheckInEvent, Member 
 } from '../types';
-import { MOCK_ORGANIZATIONS, MOCK_SYSTEM_OWNER, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_SUGGESTED_EXERCISES, MOCK_WORKOUT_RESULTS, MOCK_SMART_SCREEN_PRICING, MOCK_RACES } from '../data/mockData';
+import { MOCK_ORGANIZATIONS, MOCK_SYSTEM_OWNER, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_SUGGESTED_EXERCISES, MOCK_WORKOUT_RESULTS, MOCK_SMART_SCREEN_PRICING, MOCK_RACES, MOCK_MEMBERS } from '../data/mockData';
 
 export const isOffline = (
     typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production' 
@@ -74,6 +73,7 @@ let db: Firestore | null = null;
 let storage: FirebaseStorage | null = null;
 
 if (isOffline) {
+    console.warn("RUNNING IN OFFLINE (MOCK) MODE.");
     if (MOCK_ORGANIZATIONS.length > 0 && !MOCK_ORGANIZATIONS[0].lastActiveAt) {
         MOCK_ORGANIZATIONS[0].lastActiveAt = Date.now() - 1000 * 60 * 60 * 2; 
     }
@@ -91,24 +91,30 @@ if (isOffline) {
             if (!db) return;
             const pricingRef = doc(db, 'system', 'pricing');
             if (!(await getDoc(pricingRef)).exists()) await setDoc(pricingRef, MOCK_SMART_SCREEN_PRICING);
+            
             const themesRef = doc(db, 'system', 'seasonalThemes');
             if (!(await getDoc(themesRef)).exists()) await setDoc(themesRef, { themes: DEFAULT_SEASONAL_THEMES });
+
             const bankCol = collection(db, 'exerciseBank');
             const bankSnap = await getDocs(query(bankCol, limit(1)));
             if (bankSnap.empty) {
+                console.log("Seeding exercise bank...");
                 const batch = writeBatch(db);
                 MOCK_EXERCISE_BANK.forEach(ex => batch.set(doc(bankCol, ex.id), ex));
                 await batch.commit();
             }
         };
         seedData();
+        console.log("Firebase initialized (Modular SDK).");
     } catch (error) {
         console.error("CRITICAL: Firebase init failed.", error);
     }
 }
 
 const sanitizeData = <T>(data: T): T => JSON.parse(JSON.stringify(data));
+const offlineWarning = (op: string) => { console.warn(`OFFLINE: ${op} skipped.`); return Promise.resolve(); };
 
+// --- Auth ---
 export const onAuthChange = (callback: (user: User | null) => void) => {
     if (isOffline || !auth) {
         callback({ uid: 'offline_owner_uid', isAnonymous: false } as User);
@@ -146,6 +152,8 @@ export const reauthenticateUser = async (user: User, password: string) => {
   const credential = EmailAuthProvider.credential(user.email, password);
   return await reauthenticateWithCredential(user, credential);
 };
+
+// --- Medlemshantering ---
 
 export const updateUserGoals = async (uid: string, goals: MemberGoals) => {
     if (isOffline || !db) return;
@@ -211,6 +219,33 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
     });
     return user;
 };
+
+// --- HÄR ÄR TILLÄGGEN FÖR ADMINVYN (Alternativ A) ---
+
+export const getMembers = async (orgId: string): Promise<Member[]> => {
+    if (isOffline || !db) {
+        return MOCK_MEMBERS; // För testning i offline/dev-läge
+    }
+    const q = query(
+        collection(db, 'users'), 
+        where('organizationId', '==', orgId),
+        where('role', '==', 'member')
+    );
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ ...d.data(), id: d.id }) as Member);
+};
+
+export const updateMemberStatus = async (uid: string, status: 'active' | 'inactive') => {
+    if (isOffline || !db) return;
+    await updateDoc(doc(db, 'users', uid), { status });
+};
+
+export const updateMemberEndDate = async (uid: string, date: string | null) => {
+    if (isOffline || !db) return;
+    await updateDoc(doc(db, 'users', uid), { endDate: date });
+};
+
+// --- Slut på tillägg ---
 
 export const uploadImage = async (path: string, image: File | string): Promise<string> => {
     if (typeof image === 'string' && !image.startsWith('data:image')) return image;

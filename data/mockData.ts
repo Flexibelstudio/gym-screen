@@ -1,5 +1,4 @@
-
-import { Organization, UserData, CustomCategoryWithPrompt, CustomPage, BankExercise, WorkoutResult, SmartScreenPricing, ExerciseOverride, SuggestedExercise, HyroxRace } from '../types';
+import { Organization, UserData, CustomCategoryWithPrompt, CustomPage, BankExercise, WorkoutResult, SmartScreenPricing, ExerciseOverride, SuggestedExercise, HyroxRace, Member } from '../types';
 
 export const MOCK_SYSTEM_OWNER: UserData = {
     uid: 'offline_owner_uid',
@@ -14,6 +13,64 @@ export const MOCK_ORG_ADMIN: UserData = {
     organizationId: 'org_flexibel_mock',
     adminRole: 'superadmin',
 };
+
+// --- NYTT: MOCK MEDLEMMAR FÖR ADMINVYN (Alternativ A) ---
+export const MOCK_MEMBERS: Member[] = [
+  { 
+    id: '1', 
+    firstName: 'Anna', 
+    lastName: 'Andersson', 
+    email: 'anna.andersson@example.com', 
+    status: 'active', 
+    organizationId: 'org_flexibel_mock', 
+    createdAt: Date.now() - 10000000, 
+    role: 'member',
+    endDate: '2024-12-31',
+    goals: {
+        hasSpecificGoals: true,
+        selectedGoals: ['Bli starkare', 'Gå ner i vikt'],
+        targetDate: '2024-12-31'
+    }
+  },
+  { 
+    id: '2', 
+    firstName: 'Erik', 
+    lastName: 'Eriksson', 
+    email: 'erik.e@example.com', 
+    status: 'inactive', 
+    organizationId: 'org_flexibel_mock', 
+    createdAt: Date.now() - 86400000, 
+    role: 'member',
+    endDate: null,
+    goals: {
+        hasSpecificGoals: true,
+        selectedGoals: ['HYROX', 'Bättre kondition'],
+        targetDate: '2025-06-01'
+    }
+  },
+  { 
+    id: '3', 
+    firstName: 'Johan', 
+    lastName: 'Johansson', 
+    email: 'johan.j@example.com', 
+    status: 'active', 
+    organizationId: 'org_flexibel_mock', 
+    createdAt: Date.now() - 172800000, 
+    role: 'member',
+    endDate: null
+  },
+  { 
+    id: '4', 
+    firstName: 'Lisa', 
+    lastName: 'Lindberg', 
+    email: 'lisa.l@example.com', 
+    status: 'active', 
+    organizationId: 'org_flexibel_mock', 
+    createdAt: Date.now() - 200000000, 
+    role: 'member',
+    endDate: '2025-01-15'
+  },
+];
 
 export const MOCK_WORKOUT_RESULTS: WorkoutResult[] = [];
 
