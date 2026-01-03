@@ -1,3 +1,4 @@
+
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -70,9 +71,9 @@ const DEFAULT_SEASONAL_THEMES: SeasonalThemeSetting[] = [
 ];
 
 let app: FirebaseApp | null = null;
-let auth: Auth | null = null;
-let db: Firestore | null = null;
-let storage: FirebaseStorage | null = null;
+export let auth: Auth | null = null;
+export let db: Firestore | null = null;
+export let storage: FirebaseStorage | null = null;
 
 if (isOffline) {
     console.warn("RUNNING IN OFFLINE (MOCK) MODE.");
@@ -114,7 +115,6 @@ if (isOffline) {
 }
 
 const sanitizeData = <T>(data: T): T => JSON.parse(JSON.stringify(data));
-const offlineWarning = (op: string) => { console.warn(`OFFLINE: ${op} skipped.`); return Promise.resolve(); };
 
 // --- Auth ---
 export const onAuthChange = (callback: (user: User | null) => void) => {
@@ -192,17 +192,14 @@ export const updateUserGoals = async (uid: string, goals: MemberGoals) => {
     await updateDoc(doc(db, 'users', uid), { goals });
 };
 
-// --- HÄR ÄR DIN UPPDATERING ---
 export const updateUserProfile = async (uid: string, data: Partial<UserData>) => {
     if (isOffline || !db) {
-        // För simulering i AI Studio: uppdatera mock-objekten
         if (uid === MOCK_SYSTEM_OWNER.uid) Object.assign(MOCK_SYSTEM_OWNER, data);
         if (uid === MOCK_ORG_ADMIN.uid) Object.assign(MOCK_ORG_ADMIN, data);
         return;
     }
     await updateDoc(doc(db, 'users', uid), sanitizeData(data));
 };
-// -----------------------------
 
 export const joinOrganizationWithCode = async (uid: string, code: string) => {
     if (isOffline || !db) throw new Error("Offline: Kan ej ansluta.");
@@ -211,7 +208,6 @@ export const joinOrganizationWithCode = async (uid: string, code: string) => {
     if (snap.empty) throw new Error("Ogiltig kod.");
     const orgId = snap.docs[0].id;
     
-    // När man går med via kod blir man automatiskt en tränande medlem
     await updateDoc(doc(db, 'users', uid), { 
         organizationId: orgId,
         isTrainingMember: true 
@@ -287,8 +283,6 @@ export const updateMemberEndDate = async (uid: string, date: string | null) => {
     if (isOffline || !db) return;
     await updateDoc(doc(db, 'users', uid), { endDate: date });
 };
-
-// --- Slut på tillägg ---
 
 export const uploadImage = async (path: string, image: File | string): Promise<string> => {
     if (typeof image === 'string' && !image.startsWith('data:image')) return image;
