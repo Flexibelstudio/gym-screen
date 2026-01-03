@@ -1,4 +1,3 @@
-
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -51,8 +50,11 @@ import {
 } from '../types';
 import { MOCK_ORGANIZATIONS, MOCK_SYSTEM_OWNER, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_SUGGESTED_EXERCISES, MOCK_WORKOUT_RESULTS, MOCK_SMART_SCREEN_PRICING, MOCK_RACES, MOCK_MEMBERS } from '../data/mockData';
 
-// Förbättrad isOffline: Gå bara offline om det absolut saknas en Firebase API-nyckel
-export const isOffline = !firebaseConfig.apiKey || firebaseConfig.apiKey === '';
+export const isOffline = (
+    typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production' 
+    ? true 
+    : !(import.meta as any).env?.VITE_FIREBASE_API_KEY 
+);
 
 const DEFAULT_SEASONAL_THEMES: SeasonalThemeSetting[] = [
     { id: 'winter', name: 'Vinter', isEnabled: true, ranges: [{ startMonth: 12, startDay: 1, endMonth: 1, endDay: 31 }] },
@@ -110,6 +112,7 @@ if (isOffline) {
 }
 
 const sanitizeData = <T>(data: T): T => JSON.parse(JSON.stringify(data));
+const offlineWarning = (op: string) => { console.warn(`OFFLINE: ${op} skipped.`); return Promise.resolve(); };
 
 // --- Auth ---
 export const onAuthChange = (callback: (user: User | null) => void) => {
@@ -217,21 +220,19 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
     return user;
 };
 
+// --- HÄR ÄR TILLÄGGEN FÖR ADMINVYN (Alternativ A) ---
+
 export const getMembers = async (orgId: string): Promise<Member[]> => {
     if (isOffline || !db) {
-        return MOCK_MEMBERS;
+        return MOCK_MEMBERS; // För testning i offline/dev-läge
     }
-    // FÖRENKLAD FRÅGA FÖR PROD: Vi tar bort 'role' filtret från Firestore-frågan 
-    // eftersom det kräver ett manuellt skapat Composite Index i Firebase Console.
-    // Vi filtrerar istället resultatet i JavaScript för att säkerställa att det fungerar direkt.
     const q = query(
         collection(db, 'users'), 
-        where('organizationId', '==', orgId)
+        where('organizationId', '==', orgId),
+        where('role', '==', 'member')
     );
     const snap = await getDocs(q);
-    return snap.docs
-        .map(d => ({ ...d.data(), id: d.id }) as Member)
-        .filter(m => m.role === 'member');
+    return snap.docs.map(d => ({ ...d.data(), id: d.id }) as Member);
 };
 
 export const updateMemberStatus = async (uid: string, status: 'active' | 'inactive') => {
@@ -243,6 +244,8 @@ export const updateMemberEndDate = async (uid: string, date: string | null) => {
     if (isOffline || !db) return;
     await updateDoc(doc(db, 'users', uid), { endDate: date });
 };
+
+// --- Slut på tillägg ---
 
 export const uploadImage = async (path: string, image: File | string): Promise<string> => {
     if (typeof image === 'string' && !image.startsWith('data:image')) return image;
@@ -503,7 +506,7 @@ export const approveExerciseSuggestion = async (s: SuggestedExercise) => {
 
 export const deleteExerciseSuggestion = async (id: string) => {
     if (isOffline || !db) return;
-    await deleteDoc(tx, doc(db, 'exerciseSuggestions', id));
+    await deleteDoc(doc(db, 'exerciseSuggestions', id));
 };
 
 export const updateExerciseSuggestion = async (s: SuggestedExercise) => {
