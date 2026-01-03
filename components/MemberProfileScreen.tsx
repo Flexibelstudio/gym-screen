@@ -98,15 +98,16 @@ const GoalsEditModal: React.FC<{
 };
 
 const ToggleSwitch: React.FC<{ checked: boolean; onChange: (v: boolean) => void }> = ({ checked, onChange }) => (
-    <div className="relative inline-block w-12 h-6 align-middle select-none transition duration-200 ease-in">
+    <label className="relative inline-flex items-center cursor-pointer select-none">
         <input 
             type="checkbox" 
             checked={checked} 
             onChange={(e) => onChange(e.target.checked)} 
-            className="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer transition-all duration-300 ease-in-out transform translate-x-0 checked:translate-x-6 checked:bg-primary checked:border-primary"
+            className="sr-only peer"
         />
-        <label className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer transition-colors duration-300 ${checked ? 'bg-primary/30' : 'bg-gray-300'}`}></label>
-    </div>
+        <div className="w-12 h-6 bg-gray-300 dark:bg-gray-600 rounded-full peer peer-checked:bg-primary transition-colors"></div>
+        <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full shadow-sm transition-transform duration-300 ease-in-out ${checked ? 'translate-x-6' : 'translate-x-0'}`}></div>
+    </label>
 );
 
 const LogDetailModal: React.FC<{ log: WorkoutLog; onClose: () => void }> = ({ log, onClose }) => {
@@ -196,7 +197,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             const url = await uploadImage(path, resized);
             setPhotoUrl(url);
             await updateUserProfile(userData.uid, { photoUrl: url });
-            // Notera: refreshUserData anropas normalt via en auth listener i bakgrunden
         } catch (err) {
             alert("Kunde inte spara bilden.");
         } finally {
@@ -228,7 +228,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             }
 
             setIsEditing(false);
-            // Sidan kommer att uppdateras automatiskt via Firebase onSnapshot i AuthContext
         } catch (error) {
             alert("Kunde inte spara profil.");
         } finally {
@@ -264,7 +263,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         return diffDays > 0 ? diffDays : 0;
     }, [userData.goals?.targetDate]);
 
-    // --- FORM VIEW (ONBOARDING) ---
     if (isEditing) {
         return (
             <div className="w-full max-w-2xl mx-auto px-4 py-8 animate-fade-in pb-24">
@@ -273,7 +271,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         <h1 className="text-3xl font-black text-gray-900 dark:text-white">
                             {isNewUser ? 'Välkommen! 👋' : 'Redigera Profil'}
                         </h1>
-                        {isNewUser && <p className="text-gray-500 mt-1">Låt oss börja med dina uppgifter.</p>}
+                        {isNewUser && <p className="text-gray-505 mt-1">Låt oss börja med dina uppgifter.</p>}
                     </div>
                     {!isNewUser && (
                         <button onClick={() => setIsEditing(false)} className="text-sm font-bold text-gray-500 bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-xl">
@@ -352,7 +350,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         );
     }
 
-    // --- DASHBOARD VIEW ---
     return (
         <div className="w-full max-w-4xl mx-auto px-4 py-8 animate-fade-in pb-24">
             <div className="flex items-center justify-between mb-10">
@@ -376,7 +373,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             </div>
 
             <div className="space-y-8">
-                {/* Goals Card */}
                 <div className="bg-gradient-to-br from-indigo-600 to-purple-800 rounded-[2rem] p-8 text-white shadow-2xl relative overflow-hidden">
                     <div className="relative z-10 flex justify-between items-start">
                         <div className="flex-grow">
@@ -415,11 +411,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             <PencilIcon className="w-6 h-6 text-white group-hover:scale-110 transition-transform" />
                         </button>
                     </div>
-                    {/* Background blob */}
                     <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-primary/20 rounded-full blur-[80px] pointer-events-none"></div>
                 </div>
 
-                {/* Stats Grid */}
                 <div className="grid grid-cols-2 gap-6">
                     <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-8 shadow-sm border border-gray-100 dark:border-gray-800 transition-all hover:shadow-xl hover:-translate-y-1">
                         <div className="flex items-center justify-between mb-4">
@@ -437,7 +431,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     </div>
                 </div>
 
-                {/* History Card */}
                 <div className="bg-white dark:bg-gray-900 rounded-[2rem] shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
                     <div className="p-8 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50/30 dark:bg-gray-900/50">
                         <h3 className="font-black text-xl text-gray-900 dark:text-white uppercase tracking-tight">Senaste Passen</h3>
