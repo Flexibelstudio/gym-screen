@@ -3,11 +3,20 @@
 // Hanterar både Vite-miljö och miljöer utan import.meta.env (som AI Studio preview)
 const getEnv = (key: string): string => {
     try {
+        // Kontrollera först process.env (AI Studio / Node miljö)
+        if (typeof process !== 'undefined' && process.env && process.env[key]) {
+            return process.env[key] as string;
+        }
+        // Kontrollera sedan import.meta.env (Vite miljö)
         // @ts-ignore
-        return (import.meta.env && import.meta.env[key]) || '';
+        if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+            // @ts-ignore
+            return import.meta.env[key];
+        }
     } catch (e) {
-        return '';
+        console.warn(`Could not read env var: ${key}`, e);
     }
+    return '';
 };
 
 export const firebaseConfig = {
