@@ -29,6 +29,12 @@ const MenuIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) =
     </svg>
 );
 
+const LockClosedIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+    </svg>
+);
+
 const generateInviteCode = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
     let result = '';
@@ -81,6 +87,49 @@ interface ConfigProps {
     handleUpdateConfigField: <K extends keyof StudioConfig>(key: K, value: StudioConfig[K]) => void;
     handleSaveConfig: (configOverride?: StudioConfig) => Promise<void>;
 }
+
+const FeatureLockedView: React.FC<{ 
+    title: string; 
+    description: string; 
+    features: string[];
+    onGoToSettings: () => void;
+}> = ({ title, description, features, onGoToSettings }) => (
+    <div className="max-w-3xl mx-auto py-12 px-6 animate-fade-in">
+        <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 md:p-12 shadow-xl border border-gray-100 dark:border-gray-700 text-center relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-8 opacity-5">
+                <LockClosedIcon className="w-64 h-64" />
+            </div>
+            
+            <div className="w-20 h-20 bg-primary/10 text-primary rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
+                <LockClosedIcon className="w-10 h-10" />
+            </div>
+            
+            <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-4">{title}</h2>
+            <p className="text-gray-500 dark:text-gray-400 text-lg mb-8 leading-relaxed">
+                {description}
+            </p>
+            
+            <div className="bg-gray-50 dark:bg-gray-900/50 rounded-2xl p-6 mb-10 text-left border border-gray-100 dark:border-gray-700">
+                <h4 className="font-bold text-gray-900 dark:text-white mb-4 uppercase tracking-widest text-xs">Detta ingår vid aktivering:</h4>
+                <ul className="space-y-3">
+                    {features.map((f, i) => (
+                        <li key={i} className="flex items-start gap-3 text-gray-700 dark:text-gray-300">
+                            <span className="text-primary font-bold">✓</span>
+                            <span className="font-medium">{f}</span>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+            
+            <button 
+                onClick={onGoToSettings}
+                className="bg-primary hover:brightness-110 text-white font-black py-4 px-10 rounded-2xl shadow-lg shadow-primary/20 transition-all transform hover:-translate-y-1 active:scale-95"
+            >
+                Aktivera nu i inställningar
+            </button>
+        </div>
+    </div>
+);
 
 const SwitchToStudioView: React.FC<{
     organization: Organization;
@@ -509,7 +558,7 @@ const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps
                     </div>
                     
                     <div className="mt-6 flex gap-3">
-                         <button onClick={() => setShowPricingModal(false)} className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold py-3 rounded-lg transition-colors">
+                         <button onClick={() => setShowPricingModal(false)} className="flex-1 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-white font-bold py-3 rounded-lg transition-colors">
                             Avbryt
                         </button>
                         <button 
@@ -807,6 +856,8 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
         return 'max-w-5xl mx-auto';
     }, [activeTab, passProgramSubView]);
 
+    const isLoggingEnabled = organization.globalConfig.enableWorkoutLogging === true;
+
     const renderContent = () => {
         switch (activeTab) {
             case 'dashboard':
@@ -863,6 +914,21 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                     </div>
                 );
             case 'analytics':
+                if (!isLoggingEnabled) {
+                    return (
+                        <FeatureLockedView 
+                            title="Lås upp Analys & Trender 📊"
+                            description="Få djupa insikter i hur dina medlemmar presterar och mår. Se trender över tid och optimera ditt träningsutbud."
+                            features={[
+                                "Visualisera medlemsaktivitet per vecka/månad",
+                                "Se snitt-RPE och känsla för olika passkategorier",
+                                "Identifiera populära övningar och utmaningar",
+                                "AI-genererade trendspaningar för hela gymmet"
+                            ]}
+                            onGoToSettings={() => setActiveTab('globala-installningar')}
+                        />
+                    );
+                }
                 return <AdminAnalyticsScreen />;
             case 'pass-program':
                 return <PassProgramContent
@@ -888,6 +954,21 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             case 'info-karusell':
                 return <InfoKarusellContent {...props} />;
             case 'medlemmar':
+                if (!isLoggingEnabled) {
+                    return (
+                        <FeatureLockedView 
+                            title="Lås upp Medlemsregistret 👥"
+                            description="Håll koll på dina medlemmar, deras personliga mål och träningshistorik på ett och samma ställe."
+                            features={[
+                                "Samla alla medlemmar i en snygg lista",
+                                "Se individuella mål och deadlinas",
+                                "Få AI-analys av enskilda medlemmars styrkor/svagheter",
+                                "Styr medlemskapets giltighetstid och status"
+                            ]}
+                            onGoToSettings={() => setActiveTab('globala-installningar')}
+                        />
+                    );
+                }
                 return <MemberManagementScreen onSelectMember={onSelectMember} />;
             case 'globala-installningar':
                 return <GlobalaInställningarContent {...props} {...configProps} />;
