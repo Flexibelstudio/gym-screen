@@ -23,13 +23,12 @@ import { SuperAdminScreen } from './SuperAdminScreen';
 import { WorkoutBuilderScreen } from './WorkoutBuilderScreen';
 import { RepsOnlyScreen } from './RepsOnlyScreen';
 import { CustomPageEditorScreen } from './CustomPageEditorScreen';
+import { MemberDetailScreen } from './MemberDetailScreen';
 
 // --- DE NYA KOMPONENTERNA ---
 import MemberProfileScreen from './MemberProfileScreen';
 import MemberManagementScreen from './MemberManagementScreen';
 import { AdminAnalyticsScreen } from './AdminAnalyticsScreen';
-// OBS: Se till att sökvägen stämmer med var du la mappen (src/mobile/screens)
-// Om du la mappen direkt i src, så blir importen:
 import WorkoutLogScreen from '../mobile/screens/WorkoutLogScreen'; 
 
 interface AppRouterProps {
@@ -173,7 +172,8 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onDelete={props.onDeleteWorkout}
                 followMeShowImage={props.followMeShowImage}
                 setFollowMeShowImage={functions.setFollowMeShowImage}
-                onVisualize={(w) => { /* IdeaBoard logic if needed */ }}
+                onUpdateWorkout={(w) => props.onSaveWorkout(w)}
+                onVisualize={(w) => navigateTo(Page.IdeaBoard)}
             /> : null;
 
         case Page.Timer:
@@ -181,7 +181,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 key={activeBlock.id} 
                 block={activeBlock} 
                 onFinish={(data) => {
-                    // Logic handled in App.tsx callback if passed correctly
+                    // Logik hanteras via callbacks i App.tsx
                 }} 
                 onHeaderVisibilityChange={functions.setTimerHeaderVisible} 
                 onShowImage={functions.setShowImage} 
@@ -196,7 +196,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
         case Page.RepsOnly:
              return activeBlock ? <RepsOnlyScreen 
                 block={activeBlock} 
-                onFinish={() => {}} 
+                onFinish={() => handleBack()} 
                 onShowImage={functions.setShowImage} 
                 organization={selectedOrganization} 
              /> : null;
@@ -261,7 +261,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
 
         case Page.SavedWorkouts:
             return <SavedWorkoutsScreen 
-                workouts={workouts.filter(w => w.isMemberDraft)} 
+                workouts={workouts.filter(w => w.isMemberDraft || w.isFavorite)} 
                 onSelectWorkout={props.onSelectWorkout} 
                 onEditWorkout={props.onEditWorkout}
                 onDeleteWorkout={props.onDeleteWorkout}
@@ -293,21 +293,21 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onUpdateStudio={functions.updateStudio}
                 onDeleteStudio={functions.deleteStudio}
                 onUpdatePasswords={functions.updatePasswords}
-                onUpdateLogos: functions.updateLogos,
-                onUpdatePrimaryColor: functions.updatePrimaryColor,
-                onUpdateOrganization: functions.updateOrganization,
-                onUpdateCustomPages: functions.updateCustomPages,
-                onSwitchToStudioView: functions.switchToStudioView,
-                onEditCustomPage: functions.editCustomPage,
-                onDeleteCustomPage: functions.deleteCustomPage,
-                onUpdateInfoCarousel: functions.updateInfoCarousel,
-                onUpdateDisplayWindows: async () => { console.log("Not implemented"); }, 
+                onUpdateLogos={functions.updateLogos}
+                onUpdatePrimaryColor={functions.updatePrimaryColor}
+                onUpdateOrganization={functions.updateOrganization}
+                onUpdateCustomPages={functions.updateCustomPages}
+                onSwitchToStudioView={functions.switchToStudioView}
+                onEditCustomPage={functions.editCustomPage}
+                onDeleteCustomPage={functions.deleteCustomPage}
+                onUpdateInfoCarousel={functions.updateInfoCarousel}
+                onUpdateDisplayWindows={async () => { console.log("Not implemented"); }} 
                 workouts={workouts}
                 workoutsLoading={false}
                 onSaveWorkout={props.onSaveWorkout}
                 onDeleteWorkout={props.onDeleteWorkout}
                 onTogglePublish={props.onTogglePublish}
-                onSelectMember={onSelectMember}
+                onSelectMember={(id) => navigateTo(Page.MemberDetail)}
             /> : null;
 
         case Page.CustomContent:
@@ -320,11 +320,9 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                   pageToEdit={null} 
              />
 
-        // --- HÄR ÄR DE NYA SIDORNA ---
-        
         case Page.MemberRegistry:
             return <MemberManagementScreen 
-                onSelectMember={onSelectMember}
+                onSelectMember={(id) => navigateTo(Page.MemberDetail)}
             />;
             
         case Page.MemberProfile:
@@ -332,6 +330,9 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 userData={userData}
                 onBack={handleBack}
             /> : <div>Laddar profil...</div>;
+
+        case Page.MemberDetail:
+            return <MemberDetailScreen memberId={null} onBack={handleBack} />;
 
         case Page.AdminAnalytics:
             return <AdminAnalyticsScreen />;
