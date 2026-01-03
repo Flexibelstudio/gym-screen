@@ -1,11 +1,11 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { WorkoutLog, UserData, MemberGoals } from '../types';
-import { getMemberLogs, updateUserGoals, getOrganizationById, registerMemberWithCode } from '../services/firebaseService';
-import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, ChevronDownIcon } from './icons';
+import { getMemberLogs, updateUserGoals, updateUserProfile, joinOrganizationWithCode, uploadImage } from '../services/firebaseService';
+import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, ChevronDownIcon, UserIcon } from './icons';
 import { Modal } from './ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import { useStudio } from '../context/StudioContext';
+import { resizeImage } from '../utils/imageUtils';
 
 interface MemberProfileScreenProps {
     userData: UserData;
@@ -142,67 +142,25 @@ const LogDetailModal: React.FC<{ log: WorkoutLog; onClose: () => void }> = ({ lo
     );
 };
 
-const JoinGymModal: React.FC<{ 
-    onJoin: (code: string) => Promise<void>; 
-    onClose: () => void 
-}> = ({ onJoin, onClose }) => {
-    const [code, setCode] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-
-    const handleJoin = async () => {
-        if (!code.trim()) return;
-        setLoading(true);
-        setError('');
-        try {
-            await onJoin(code.trim().toUpperCase());
-            onClose();
-        } catch (e: any) {
-            setError(e.message || 'Kunde inte ansluta. Kontrollera koden.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <Modal isOpen={true} onClose={onClose} title="Anslut till ett gym" size="sm">
-            <div className="space-y-6">
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Skriv in den 6-siffriga inbjudningskoden som visas på gymmets skärmar.
-                </p>
-                <input 
-                    type="text"
-                    value={code}
-                    onChange={e => setCode(e.target.value)}
-                    placeholder="ABC123"
-                    maxLength={6}
-                    className="w-full text-center text-3xl font-black font-mono tracking-widest bg-gray-100 dark:bg-gray-800 p-4 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none transition"
-                />
-                {error && <p className="text-red-500 text-xs font-bold text-center">{error}</p>}
-                <div className="flex gap-3">
-                    <button onClick={onClose} className="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white font-bold py-3 rounded-lg">Avbryt</button>
-                    <button 
-                        onClick={handleJoin} 
-                        disabled={loading || code.length < 6}
-                        className="flex-1 bg-primary text-white font-bold py-3 rounded-lg shadow-lg disabled:opacity-50"
-                    >
-                        {loading ? 'Ansluter...' : 'Gå med'}
-                    </button>
-                </div>
-            </div>
-        </Modal>
-    );
-}
-
 export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userData, onBack }) => {
-    const { refreshUserData, currentUser } = useAuth();
-    const { selectOrganization } = useStudio();
+    const { refreshUserData } = useAuth();
     const [logs, setLogs] = useState<WorkoutLog[]>([]);
     const [loading, setLoading] = useState(true);
-    const [goals, setGoals] = useState<MemberGoals | undefined>(userData.goals);
-    const [isEditingGoals, setIsEditingGoals] = useState(false);
-    const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
+    const [isEditing, setIsEditing] = useState(!userData.firstName);
     const [selectedLog, setSelectedLog] = useState<WorkoutLog | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
+    const [isEditingGoals, setIsEditingGoals] = useState(false);
+
+    // Form states
+    const [firstName, setFirstName] = useState(userData.firstName || '');
+    const [lastName, setLastName] = useState(userData.lastName || '');
+    const [age, setAge] = useState(userData.age?.toString() || '');
+    const [gender, setGender] = useState(userData.gender || 'prefer_not_to_say');
+    const [photoUrl, setPhotoUrl] = useState(userData.photoUrl || '');
+    const [inviteCode, setInviteCode] = useState('');
+    const [inviteError, setInviteError] = useState('');
+
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         const fetchLogs = async () => {
@@ -216,30 +174,67 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 setLoading(false);
             }
         };
-        fetchLogs();
-    }, [userData.uid]);
+        if (!isEditing) fetchLogs();
+    }, [userData.uid, isEditing]);
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setIsSaving(true);
+        try {
+            const resized = await resizeImage(file, 400, 400, 0.8);
+            const path = `users/${userData.uid}/profile_${Date.now()}.jpg`;
+            const url = await uploadImage(path, resized);
+            setPhotoUrl(url);
+            await updateUserProfile(userData.uid, { photoUrl: url });
+            if (refreshUserData) await refreshUserData();
+        } catch (err) {
+            alert("Kunde inte spara bilden.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleSaveProfile = async () => {
+        setIsSaving(true);
+        setInviteError('');
+        try {
+            // 1. Update basic info
+            await updateUserProfile(userData.uid, {
+                firstName: firstName.trim(),
+                lastName: lastName.trim(),
+                age: age ? parseInt(age) : undefined,
+                gender: gender as any,
+            });
+
+            // 2. Try to join gym if code is entered
+            if (inviteCode.trim() && !userData.organizationId) {
+                try {
+                    await joinOrganizationWithCode(userData.uid, inviteCode.trim().toUpperCase());
+                } catch (e: any) {
+                    setInviteError(e.message || 'Kunde inte ansluta till gymmet. Kontrollera koden.');
+                    setIsSaving(false);
+                    return; // Stop if code fails
+                }
+            }
+
+            if (refreshUserData) await refreshUserData();
+            setIsEditing(false);
+        } catch (error) {
+            alert("Kunde inte spara profil.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const handleSaveGoals = async (newGoals: MemberGoals) => {
         try {
             await updateUserGoals(userData.uid, newGoals);
             if (refreshUserData) await refreshUserData();
-            setGoals(newGoals);
             setIsEditingGoals(false);
         } catch (error) {
-            console.error("Failed to update goals", error);
             alert("Kunde inte spara målen.");
         }
-    };
-
-    const handleJoinGym = async (code: string) => {
-        // Here we use the registration service logic but for an existing user.
-        // For simplicity in this demo, we assume a function exists that links an existing user to an org via code.
-        // We'll simulate this by fetching the org and calling updateUserData.
-        
-        // In a real app, this would be a cloud function to ensure security.
-        alert(`Ansluter till gym med kod: ${code}... (Simulering)`);
-        // Force refresh
-        if (refreshUserData) await refreshUserData();
     };
 
     const stats = useMemo(() => {
@@ -249,49 +244,138 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             const now = new Date();
             return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
         }).length;
-        
         return { totalWorkouts, thisMonth };
     }, [logs]);
 
     const daysLeft = useMemo(() => {
-        if (!goals?.targetDate) return null;
-        const target = new Date(goals.targetDate);
+        if (!userData.goals?.targetDate) return null;
+        const target = new Date(userData.goals.targetDate);
         const now = new Date();
         const diffTime = target.getTime() - now.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         return diffDays > 0 ? diffDays : 0;
-    }, [goals?.targetDate]);
+    }, [userData.goals?.targetDate]);
 
+    // --- FORM VIEW ---
+    if (isEditing) {
+        return (
+            <div className="w-full max-w-2xl mx-auto px-4 py-8 animate-fade-in pb-24">
+                <div className="flex items-center justify-between mb-8">
+                    <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white">Redigera Profil</h1>
+                    {userData.firstName && (
+                        <button onClick={() => setIsEditing(false)} className="text-sm font-semibold text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-xl transition-colors">
+                            Avbryt
+                        </button>
+                    )}
+                </div>
+
+                <div className="space-y-8 bg-white dark:bg-gray-800 p-6 sm:p-8 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700">
+                    {/* Avatar Upload */}
+                    <div className="flex flex-col items-center">
+                        <div 
+                            className="w-32 h-32 rounded-full bg-gray-100 dark:bg-gray-900 border-4 border-primary/20 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary transition-all relative group"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            {photoUrl ? (
+                                <img src={photoUrl} alt="Profil" className="w-full h-full object-cover" />
+                            ) : (
+                                <UserIcon className="w-16 h-16 text-gray-300" />
+                            )}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                <span className="text-xs text-white font-bold uppercase tracking-widest">Ändra</span>
+                            </div>
+                        </div>
+                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
+                        <p className="text-sm font-bold text-primary mt-4">Välkommen...</p>
+                        <p className="text-xs text-gray-500 mt-1">Låt oss bygga din atletidentitet.</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Förnamn</label>
+                            <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white p-3 rounded-xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none" placeholder="Tindra" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Efternamn</label>
+                            <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white p-3 rounded-xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none" placeholder="Lindström" />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Ålder</label>
+                            <input type="number" value={age} onChange={e => setAge(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white p-3 rounded-xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none" placeholder="28" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kön</label>
+                            <select value={gender} onChange={e => setGender(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white p-3 rounded-xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none appearance-none">
+                                <option value="prefer_not_to_say">Vill ej ange</option>
+                                <option value="male">Man</option>
+                                <option value="female">Kvinna</option>
+                                <option value="other">Annat</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Invite Code Section (if not connected) */}
+                    {!userData.organizationId && (
+                        <div className="pt-6 border-t border-gray-100 dark:border-gray-700">
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-3 text-center">Har du en inbjudningskod?</label>
+                            <input 
+                                type="text" value={inviteCode} onChange={e => setInviteCode(e.target.value.toUpperCase())} 
+                                className="w-full text-center text-3xl font-black font-mono tracking-widest bg-gray-50 dark:bg-gray-900 p-4 rounded-xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none" 
+                                placeholder="KOD123" maxLength={6}
+                            />
+                            {inviteError && <p className="text-red-500 text-xs font-bold text-center mt-2">{inviteError}</p>}
+                        </div>
+                    )}
+
+                    <button 
+                        onClick={handleSaveProfile} 
+                        disabled={isSaving || !firstName.trim()}
+                        className="w-full bg-primary hover:brightness-110 text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 disabled:opacity-50"
+                    >
+                        {isSaving ? 'Sparar...' : 'Spara och fortsätt'}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // --- DASHBOARD VIEW ---
     return (
         <div className="w-full max-w-4xl mx-auto px-4 py-8 animate-fade-in pb-24">
-            {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xl font-black">
-                        {userData.firstName?.[0] || userData.email?.[0].toUpperCase()}
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xl font-black overflow-hidden border border-primary/20">
+                        {photoUrl ? <img src={photoUrl} className="w-full h-full object-cover" /> : (userData.firstName?.[0] || userData.email?.[0].toUpperCase())}
                     </div>
                     <div>
-                        <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white leading-tight">Min Profil</h1>
+                        <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white leading-tight">{userData.firstName} {userData.lastName}</h1>
                         <p className="text-gray-500 dark:text-gray-400">Medlem sedan {userData.createdAt ? new Date(userData.createdAt).toLocaleDateString('sv-SE') : 'idag'}</p>
                     </div>
                 </div>
-                <button onClick={onBack} className="text-sm font-semibold text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-xl transition-colors">
-                    Stäng
-                </button>
+                <div className="flex gap-2">
+                    <button onClick={() => setIsEditing(true)} className="text-sm font-bold text-primary hover:bg-primary/10 px-4 py-2 rounded-xl transition-colors">
+                        Redigera Profil
+                    </button>
+                    <button onClick={onBack} className="text-sm font-semibold text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-xl transition-colors">
+                        Stäng
+                    </button>
+                </div>
             </div>
 
             <div className="space-y-6">
-                {/* Goals Card */}
                 <div className="bg-gradient-to-r from-blue-600 to-indigo-700 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
                     <div className="relative z-10 flex justify-between items-start">
                         <div>
                             <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
                                 <span className="text-2xl">🎯</span> Mina Mål
                             </h3>
-                            {goals?.hasSpecificGoals ? (
+                            {userData.goals?.hasSpecificGoals ? (
                                 <div className="space-y-3">
                                     <div className="flex flex-wrap gap-2">
-                                        {goals.selectedGoals.map(g => (
+                                        {userData.goals.selectedGoals.map(g => (
                                             <span key={g} className="bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-sm font-medium border border-white/10">
                                                 {g}
                                             </span>
@@ -299,7 +383,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                     </div>
                                     {daysLeft !== null && (
                                         <p className="text-blue-100 text-sm font-medium">
-                                            {daysLeft} dagar kvar till måldatum ({goals.targetDate})
+                                            {daysLeft} dagar kvar till måldatum ({userData.goals.targetDate})
                                         </p>
                                     )}
                                 </div>
@@ -318,42 +402,15 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl pointer-events-none"></div>
                 </div>
 
-                {/* Gym Connection Card */}
-                {!userData.organizationId && (
-                    <div className="bg-purple-100 dark:bg-purple-900/30 rounded-2xl p-6 border-2 border-dashed border-purple-300 dark:border-purple-700 text-center animate-pulse">
-                        <h4 className="text-purple-900 dark:text-purple-100 font-bold mb-2">Inte ansluten till något gym</h4>
-                        <p className="text-sm text-purple-700 dark:text-purple-300 mb-4">Ange inbjudningskoden från ditt gym för att börja logga pass och se progression.</p>
-                        <button 
-                            onClick={() => setIsJoinModalOpen(true)}
-                            className="bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 px-6 rounded-lg transition-colors shadow-md"
-                        >
-                            Ange kod
-                        </button>
-                    </div>
-                )}
-
-                {userData.organizationId && (
-                    <div className="flex justify-end">
-                        <button 
-                            onClick={() => setIsJoinModalOpen(true)}
-                            className="text-xs font-bold text-gray-500 hover:text-primary transition-colors flex items-center gap-1"
-                        >
-                            <span>Anslut till ytterligare gym</span>
-                            <ChevronDownIcon className="w-3 h-3 rotate-[-90deg]" />
-                        </button>
-                    </div>
-                )}
-
-                {/* KPI Cards */}
                 <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 transition-transform hover:scale-[1.02]">
                         <div className="flex items-center gap-3 mb-2">
                             <div className="p-2 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-lg"><DumbbellIcon className="w-6 h-6" /></div>
-                            <span className="font-bold text-gray-500 uppercase tracking-wider text-xs">Totalt antal pass</span>
+                            <span className="font-bold text-gray-500 uppercase tracking-wider text-xs">Totalt pass</span>
                         </div>
                         <p className="text-4xl font-black text-gray-900 dark:text-white">{stats.totalWorkouts}</p>
                     </div>
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 transition-transform hover:scale-[1.02]">
                         <div className="flex items-center gap-3 mb-2">
                             <div className="p-2 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded-lg"><ChartBarIcon className="w-6 h-6" /></div>
                             <span className="font-bold text-gray-500 uppercase tracking-wider text-xs">Denna månad</span>
@@ -362,9 +419,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     </div>
                 </div>
 
-                {/* Recent Logs List */}
                 <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-                    <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                    <div className="p-6 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-900/20">
                         <h3 className="font-bold text-lg text-gray-900 dark:text-white">Senaste Passen</h3>
                     </div>
                     <div className="divide-y divide-gray-100 dark:divide-gray-700 max-h-[400px] overflow-y-auto">
@@ -373,7 +429,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         ) : logs.length === 0 ? (
                             <div className="p-8 text-center">
                                 <p className="text-gray-400 mb-2">Inga loggade pass än.</p>
-                                <p className="text-sm text-gray-500">Kör ett pass och logga det för att se statistik här!</p>
+                                <p className="text-sm text-gray-500">Kör ett pass och logga det via QR-koden på skärmen!</p>
                             </div>
                         ) : (
                             logs.map(log => (
@@ -399,16 +455,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
             {isEditingGoals && (
                 <GoalsEditModal 
-                    currentGoals={goals} 
+                    currentGoals={userData.goals} 
                     onSave={handleSaveGoals} 
                     onClose={() => setIsEditingGoals(false)} 
-                />
-            )}
-
-            {isJoinModalOpen && (
-                <JoinGymModal 
-                    onJoin={handleJoinGym} 
-                    onClose={() => setIsJoinModalOpen(false)} 
                 />
             )}
 

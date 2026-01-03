@@ -7,7 +7,7 @@ import {
   onAuthStateChanged, 
   sendPasswordResetEmail as firebaseSendPasswordResetEmail,
   reauthenticateWithCredential,
-  createUserWithEmailAndPassword, // NY: För att registrera medlemmar
+  createUserWithEmailAndPassword,
   EmailAuthProvider,
   Auth,
   User
@@ -28,7 +28,7 @@ import {
   onSnapshot, 
   writeBatch, 
   deleteField,
-  serverTimestamp, // NY: För tidsstämplar
+  serverTimestamp,
   Firestore,
   Query
 } from 'firebase/firestore';
@@ -43,7 +43,6 @@ import {
 
 import { firebaseConfig } from './firebaseConfig';
 import { queueOfflineWrite } from '../utils/idb';
-// UPPDATERAD IMPORT: Lagt till MemberGoals, WorkoutLog, CheckInEvent etc
 import { 
   Studio, StudioConfig, Organization, CustomPage, UserData, Workout, InfoCarousel, 
   BankExercise, SuggestedExercise, Exercise, WorkoutResult, WorkoutBlock, CompanyDetails, 
@@ -51,11 +50,10 @@ import {
 } from '../types';
 import { MOCK_ORGANIZATIONS, MOCK_SYSTEM_OWNER, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_SUGGESTED_EXERCISES, MOCK_WORKOUT_RESULTS, MOCK_SMART_SCREEN_PRICING, MOCK_RACES } from '../data/mockData';
 
-// Smart offline-check som fungerar i både AI Studio och Vite
 export const isOffline = (
     typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production' 
-    ? true // I AI Studio / Dev
-    : !(import.meta as any).env?.VITE_FIREBASE_API_KEY // I Vite prod om nyckel saknas
+    ? true 
+    : !(import.meta as any).env?.VITE_FIREBASE_API_KEY 
 );
 
 const DEFAULT_SEASONAL_THEMES: SeasonalThemeSetting[] = [
@@ -75,8 +73,6 @@ let db: Firestore | null = null;
 let storage: FirebaseStorage | null = null;
 
 if (isOffline) {
-    console.warn("RUNNING IN OFFLINE (MOCK) MODE.");
-    // Mock initialization logic
     if (MOCK_ORGANIZATIONS.length > 0 && !MOCK_ORGANIZATIONS[0].lastActiveAt) {
         MOCK_ORGANIZATIONS[0].lastActiveAt = Date.now() - 1000 * 60 * 60 * 2; 
     }
@@ -90,38 +86,28 @@ if (isOffline) {
         db = getFirestore(app);
         storage = getStorage(app);
         
-        // Seeding logic
         const seedData = async () => {
             if (!db) return;
-            // Seed Pricing
             const pricingRef = doc(db, 'system', 'pricing');
             if (!(await getDoc(pricingRef)).exists()) await setDoc(pricingRef, MOCK_SMART_SCREEN_PRICING);
-            
-            // Seed Themes
             const themesRef = doc(db, 'system', 'seasonalThemes');
             if (!(await getDoc(themesRef)).exists()) await setDoc(themesRef, { themes: DEFAULT_SEASONAL_THEMES });
-
-            // Seed Exercise Bank
             const bankCol = collection(db, 'exerciseBank');
             const bankSnap = await getDocs(query(bankCol, limit(1)));
             if (bankSnap.empty) {
-                console.log("Seeding exercise bank...");
                 const batch = writeBatch(db);
                 MOCK_EXERCISE_BANK.forEach(ex => batch.set(doc(bankCol, ex.id), ex));
                 await batch.commit();
             }
         };
         seedData();
-        console.log("Firebase initialized (Modular SDK).");
     } catch (error) {
         console.error("CRITICAL: Firebase init failed.", error);
     }
 }
 
 const sanitizeData = <T>(data: T): T => JSON.parse(JSON.stringify(data));
-const offlineWarning = (op: string) => { console.warn(`OFFLINE: ${op} skipped.`); return Promise.resolve(); };
 
-// --- Auth ---
 export const onAuthChange = (callback: (user: User | null) => void) => {
     if (isOffline || !auth) {
         callback({ uid: 'offline_owner_uid', isAnonymous: false } as User);
@@ -160,11 +146,24 @@ export const reauthenticateUser = async (user: User, password: string) => {
   return await reauthenticateWithCredential(user, credential);
 };
 
-// --- NYA AUTH-FUNKTIONER FÖR MEDLEMMAR ---
-
 export const updateUserGoals = async (uid: string, goals: MemberGoals) => {
     if (isOffline || !db) return;
     await updateDoc(doc(db, 'users', uid), { goals });
+};
+
+export const updateUserProfile = async (uid: string, data: Partial<UserData>) => {
+    if (isOffline || !db) return;
+    await updateDoc(doc(db, 'users', uid), sanitizeData(data));
+};
+
+export const joinOrganizationWithCode = async (uid: string, code: string) => {
+    if (isOffline || !db) throw new Error("Offline: Kan ej ansluta.");
+    const q = query(collection(db, 'organizations'), where('inviteCode', '==', code));
+    const snap = await getDocs(q);
+    if (snap.empty) throw new Error("Ogiltig kod.");
+    const orgId = snap.docs[0].id;
+    await updateDoc(doc(db, 'users', uid), { organizationId: orgId });
+    return orgId;
 };
 
 interface RegisterAdditionalData {
@@ -179,22 +178,12 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
     if (isOffline || !db || !auth) {
         throw new Error("Offline mode: Cannot register new users.");
     }
-
-    // 1. Verify code and find organization
     const q = query(collection(db, 'organizations'), where('inviteCode', '==', code));
     const snap = await getDocs(q);
-    
-    if (snap.empty) {
-        throw new Error("Ogiltig inbjudningskod.");
-    }
-    
+    if (snap.empty) throw new Error("Ogiltig inbjudningskod.");
     const organizationId = snap.docs[0].id;
-
-    // 2. Create Authentication User
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
     const user = userCredential.user;
-
-    // 3. Upload profile image if present
     let photoUrl = '';
     if (additionalData?.photoBase64 && storage) {
         try {
@@ -204,8 +193,6 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
             console.warn("Failed to upload profile image during registration", e);
         }
     }
-
-    // 4. Create User Document
     const userData: UserData = {
         uid: user.uid,
         email: email,
@@ -217,21 +204,16 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
         gender: additionalData?.gender,
         photoUrl: photoUrl
     };
-
     await setDoc(doc(db, 'users', user.uid), {
         ...userData,
         createdAt: serverTimestamp()
     });
-
     return user;
 };
 
-
-// --- Storage ---
 export const uploadImage = async (path: string, image: File | string): Promise<string> => {
     if (typeof image === 'string' && !image.startsWith('data:image')) return image;
     if (isOffline || !storage) return "https://via.placeholder.com/800x800?text=Offline+Image";
-    
     const blob = typeof image === 'string' ? await (await fetch(image)).blob() : image;
     const snap = await uploadBytes(ref(storage, path), blob);
     return getDownloadURL(snap.ref);
@@ -242,7 +224,6 @@ export const deleteImageByUrl = async (url: string): Promise<void> => {
     try { await deleteObject(ref(storage, url)); } catch (e) { console.warn("Image delete failed", e); }
 };
 
-// --- Organizations ---
 export const getOrganizations = async (): Promise<Organization[]> => {
     if (isOffline || !db) return MOCK_ORGANIZATIONS;
     const snap = await getDocs(collection(db, 'organizations'));
@@ -274,10 +255,8 @@ export const createOrganization = async (name: string, subdomain: string): Promi
         MOCK_ORGANIZATIONS.push(newOrg as Organization);
         return newOrg as Organization;
     }
-    // Check duplicates
     const q = query(collection(db, 'organizations'), where("subdomain", "==", subdomain.toLowerCase()));
     if (!(await getDocs(q)).empty) throw new Error(`Subdomänen '${subdomain}' är upptagen.`);
-    
     const id = `org_${subdomain.replace(/[^a-z0-9]/gi, '').toLowerCase()}_${Date.now()}`;
     const newOrg: Organization = { 
         id, name, subdomain, passwords: { coach: '1234' }, studios: [], customPages: [],
@@ -302,7 +281,6 @@ export const deleteOrganization = async (id: string) => {
     await deleteDoc(doc(db, 'organizations', id));
 };
 
-// Generic updates to keep code DRY
 const updateOrgField = async (id: string, field: string, value: any) => {
     if(isOffline || !db) return getOrganizationById(id) as Promise<Organization>;
     await updateDoc(doc(db, 'organizations', id), { [field]: value });
@@ -340,12 +318,10 @@ export const updateOrganizationBilledStatus = async (id: string, month: string) 
 
 export const undoLastBilling = async (id: string) => {
     if(isOffline || !db) return getOrganizationById(id) as Promise<Organization>;
-    // Logic to revert month removed for brevity in clean version, but fields cleared:
     await updateDoc(doc(db, 'organizations', id), { lastBilledDate: deleteField() });
     return getOrganizationById(id) as Promise<Organization>;
 };
 
-// --- Studios ---
 export const createStudio = async (orgId: string, name: string) => {
     const studio = { id: `st_${Date.now()}`, name, createdAt: Date.now(), configOverrides: {} };
     if(isOffline || !db) return studio;
@@ -373,7 +349,6 @@ export const deleteStudio = async (orgId: string, studioId: string) => {
 
 export const updateStudioConfig = async (orgId: string, studioId: string, overrides: any) => {
     if(isOffline || !db) {
-        // Find in mocks to get name
         const org = MOCK_ORGANIZATIONS.find(o => o.id === orgId);
         const existingStudio = org?.studios.find(s => s.id === studioId);
         return { 
@@ -395,7 +370,6 @@ export const updateGlobalConfig = async (id: string, config: any) => {
     await updateDoc(doc(db, 'organizations', id), { globalConfig: sanitizeData(config) });
 };
 
-// --- Users & Roles ---
 export const getAdminsForOrganization = async (id: string) => {
     if(isOffline || !db) return [MOCK_ORG_ADMIN];
     const q = query(collection(db, 'users'), where("organizationId", "==", id), where("role", "==", "organizationadmin"));
@@ -418,7 +392,6 @@ export const updateUserTermsAccepted = async (uid: string) => {
     await updateDoc(doc(db, 'users', uid), { termsAcceptedAt: Date.now() });
 };
 
-// --- Exercise Bank ---
 export const getExerciseBank = async (): Promise<BankExercise[]> => {
     if (isOffline || !db) return MOCK_EXERCISE_BANK;
     const snap = await getDocs(query(collection(db, 'exerciseBank'), orderBy('name')));
@@ -428,7 +401,6 @@ export const getExerciseBank = async (): Promise<BankExercise[]> => {
 export const saveExerciseToBank = async (ex: BankExercise) => {
     if (isOffline || !db) return;
     const ref = doc(db, 'exerciseBank', ex.id);
-    // Logic to delete old image if replaced
     const snap = await getDoc(ref);
     if(snap.exists()) {
         const old = snap.data() as BankExercise;
@@ -448,7 +420,6 @@ export const deleteExerciseFromBank = async (id: string) => {
     await deleteDoc(ref);
 };
 
-// --- Workouts ---
 export const getWorkoutsForOrganization = async (orgId: string): Promise<Workout[]> => {
     if (isOffline || !db) return (window as any).mockWorkouts || [];
     const q = query(collection(db, 'workouts'), where("organizationId", "==", orgId));
@@ -458,20 +429,16 @@ export const getWorkoutsForOrganization = async (orgId: string): Promise<Workout
 
 export const saveWorkout = async (w: Workout) => {
     if (isOffline || !db) return;
-    // Simple logic: no image cleanup for workouts to keep it fast, or add later if needed
     await setDoc(doc(db, 'workouts', w.id), sanitizeData(w), { merge: true });
 };
 
 export const deleteWorkout = async (id: string) => {
     if (isOffline || !db) return;
-    // Cleanup images in blocks? skipped for brevity/speed in this version
     await deleteDoc(doc(db, 'workouts', id));
 };
 
-// --- Results & Suggestions ---
 export const getWorkoutResults = async (wid: string, oid: string) => {
     if (isOffline || !db) return [];
-    // Strict filtering
     const q = query(collection(db, 'workoutResults'), where("organizationId", "==", oid), where("workoutId", "==", wid), orderBy("finishTime", "asc"));
     return (await getDocs(q)).docs.map(d => d.data() as WorkoutResult);
 };
@@ -511,16 +478,13 @@ export const updateExerciseSuggestion = async (s: SuggestedExercise) => {
 
 export const addExerciseSuggestion = async (ex: Exercise, w: Workout) => {
     if (ex.isFromBank || ex.isFromAI || !ex.name || isOffline || !db) return;
-    // Check dupes
     const q = query(collection(db, 'exerciseBank'), where('name', '==', ex.name.trim()));
     if (!(await getDocs(q)).empty) return;
-    
     const id = `sugg_${Date.now()}`;
     const sugg: SuggestedExercise = { id, name: ex.name, description: ex.description || '', imageUrl: ex.imageUrl, sourceWorkoutTitle: w.title, organizationId: w.organizationId! };
     await setDoc(doc(db, 'exerciseSuggestions', id), sugg);
 };
 
-// --- System & Misc ---
 export const getSmartScreenPricing = async () => {
     if (isOffline || !db) return MOCK_SMART_SCREEN_PRICING;
     const snap = await getDoc(doc(db, 'system', 'pricing'));
@@ -564,9 +528,6 @@ export const saveRace = async (data: any, orgId: string) => {
     return race;
 };
 
-
-// --- NY LOGIK FÖR MEDLEMSLOGGNING & SPOTLIGHT ---
-
 export const getMemberLogs = async (memberId: string): Promise<WorkoutLog[]> => {
     if (isOffline || !db) return []; 
     const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"), limit(20));
@@ -576,7 +537,6 @@ export const getMemberLogs = async (memberId: string): Promise<WorkoutLog[]> => 
 
 export const saveWorkoutLog = async (logData: Omit<WorkoutLog, 'id'>) => {
     if (isOffline || !db) return;
-    // Auto-generate ID using Firestore doc()
     const newLogRef = doc(collection(db, 'workoutLogs'));
     const newLog: WorkoutLog = {
         id: newLogRef.id,
@@ -591,28 +551,22 @@ export const sendCheckIn = async (orgId: string, userEmail: string) => {
         console.log("Offline CheckIn:", userEmail);
         return;
     }
-    
-    // Create a temporary document that automatically deletes or just exists for listeners
     const checkInRef = doc(collection(db, 'active_checkins'));
     const event: CheckInEvent = {
         id: checkInRef.id,
-        userId: userEmail, // Using email as ID for simplicity in display
-        firstName: userEmail.split('@')[0], // Simple parsing
+        userId: userEmail,
+        firstName: userEmail.split('@')[0],
         lastName: '',
         timestamp: Date.now(),
         organizationId: orgId,
-        streak: Math.floor(Math.random() * 20) + 1 // Mock streak for visual effect
+        streak: Math.floor(Math.random() * 20) + 1
     };
-    
     await setDoc(checkInRef, event);
 };
 
 export const listenForCheckIns = (orgId: string, callback: (event: CheckInEvent) => void) => {
     if (isOffline || !db) return () => {};
-    
-    // Listen for check-ins created in the last 5 seconds (to avoid old ones on reload)
     const fiveSecondsAgo = Date.now() - 5000;
-    
     const q = query(
         collection(db, 'active_checkins'), 
         where('organizationId', '==', orgId),
@@ -620,12 +574,10 @@ export const listenForCheckIns = (orgId: string, callback: (event: CheckInEvent)
         orderBy('timestamp', 'desc'),
         limit(1)
     );
-
     return onSnapshot(q, (snapshot) => {
         snapshot.docChanges().forEach((change) => {
             if (change.type === 'added') {
                 const data = change.doc.data() as CheckInEvent;
-                // Double check timestamp to be sure it's fresh
                 if (Date.now() - data.timestamp < 10000) { 
                     callback(data);
                 }
