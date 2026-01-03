@@ -90,7 +90,7 @@ const MainContent: React.FC = () => {
     selectedOrganization, selectOrganization, allOrganizations, setAllOrganizations,
     studioConfig
   } = useStudio();
-  const { role, userData, isStudioMode, signOut, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, currentUser } = useAuth();
+  const { role, userData, isStudioMode, signOut, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, currentUser, authLoading } = useAuth();
   const { workouts, activeWorkout, setActiveWorkout, saveWorkout, deleteWorkout } = useWorkout();
   
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
@@ -103,6 +103,20 @@ const MainContent: React.FC = () => {
   });
 
   const page = history[history.length - 1];
+
+  // --- REAKTIV NAVIGERING FÖR ADMIN ---
+  // Denna effekt ser till att man "skjutsas" till rätt adminvy när rollen laddats in, 
+  // förutsatt att man står på startsidan och inte är i studioläge.
+  useEffect(() => {
+    if (!authLoading && !isStudioMode && history.length === 1 && history[0] === Page.Home) {
+      if (role === 'systemowner') {
+        setHistory([Page.SystemOwner]);
+      } else if (role === 'organizationadmin') {
+        setHistory([Page.SuperAdmin]);
+      }
+    }
+  }, [role, authLoading, isStudioMode, history]);
+
   const [customBackHandler, setCustomBackHandler] = useState<(() => void) | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
