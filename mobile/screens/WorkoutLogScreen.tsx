@@ -59,9 +59,6 @@ const isExerciseMatch = (
     }
 
     // 3. Fuzzy / Innehåller (Historik innehåller pass-namnet)
-    // T.ex. target="Knäböj", candidate="Knäböj (stång)" -> Match!
-    // Men undvik att "Press" matchar "Benpress" genom att kolla ordgränser eller bara längdskillnad om det är rimligt.
-    // För nu kör vi user-requested logic: candidate.includes(target)
     if (nCandidate.includes(nTarget) && nTarget.length > 3) {
         return true;
     }
@@ -302,7 +299,6 @@ interface WorkoutLogScreenProps {
     workoutId?: string;
     organizationId?: string;
     onClose?: () => void;
-    // Props passed automatically by React Navigation or manually by parent
     navigation?: any;
     route?: any;
 }
@@ -331,7 +327,6 @@ export default function WorkoutLogScreen({
   const [history, setHistory] = useState<Record<string, number>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
   
-  // Fetch Workout & Generate AI Insights
   useEffect(() => {
     if (!wId || !oId) {
         setLoading(false);
@@ -360,10 +355,8 @@ export default function WorkoutLogScreen({
                 setLoading(false);
                 const logs = await getMemberLogs(userId);
                 
-                // Build History using Smart Matching (Tratt-strategi)
                 const historyMap: Record<string, number> = {};
                 
-                // For each exercise in the CURRENT workout, find the best match in history
                 exercises.forEach(currentEx => {
                     let maxWeight = 0;
                     
@@ -410,23 +403,27 @@ export default function WorkoutLogScreen({
   const handleSubmit = async () => {
     setIsSubmitting(true);
 
+    // FIX: Se till att vi aldrig skickar 'undefined' till Firebase
     const payload = {
       memberId: userId,
       organizationId: oId,
       workoutId: wId,
       workoutTitle: workout?.title || 'Unknown',
       source: 'qr_scan' as const,
-      rpe: logData.rpe || undefined,
-      feeling: logData.feeling || undefined,
-      comment: logData.comment,
+      // Använd null istället för undefined för optional-fält
+      rpe: logData.rpe ?? null, 
+      feeling: logData.feeling ?? null,
+      comment: logData.comment || "", // Tom sträng om kommentar saknas
+      
       exerciseResults: exerciseResults.map(r => ({
         exerciseId: r.exerciseId,
         blockId: 'unknown',
         exerciseName: r.exerciseName,
-        reps: r.reps as any,
-        weight: r.weight ? parseFloat(r.weight) : undefined,
-        distance: r.distance ? parseFloat(r.distance) : undefined,
-        kcal: r.kcal ? parseFloat(r.kcal) : undefined
+        reps: r.reps ?? null,
+        // Säkra nummer-konvertering
+        weight: r.weight ? parseFloat(r.weight) : null,
+        distance: r.distance ? parseFloat(r.distance) : null,
+        kcal: r.kcal ? parseFloat(r.kcal) : null
       })),
       date: Date.now()
     };
@@ -434,7 +431,6 @@ export default function WorkoutLogScreen({
     try {
         await saveWorkoutLog(payload);
         
-        // Show confetti briefly
         setShowCelebration(true);
         
         setTimeout(() => {
@@ -442,16 +438,14 @@ export default function WorkoutLogScreen({
           setShowCelebration(false);
           
           if (onClose) {
-              // Web Context (ScanButton.tsx)
               onClose();
           } else if (navigation) {
-              // Mobile Context -> Go to Feedback Screen to show success and prevent back navigation to form
               const feedbackText = aiInsights?.readiness?.message || "Bra jobbat!";
               navigation.replace('WorkoutFeedback', { feedbackText });
           }
-        }, 2500); // 2.5s confetti
+        }, 2500); 
     } catch (e: any) {
-        // --- FELHANTERING HÄR ---
+        // --- DETALJERAD FELHANTERING ---
         console.error("🔥 KRITISKT FEL VID SPARA PASS 🔥");
         console.error("Felobjekt:", e);
         if (e.code) console.error("Felkod:", e.code);
