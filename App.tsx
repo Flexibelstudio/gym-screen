@@ -153,6 +153,25 @@ const MainContent: React.FC = () => {
   const [followMeShowImage, setFollowMeShowImage] = useState(true);
   const inactivityTimerRef = useRef<number | null>(null);
 
+  // --- QR Scan External Listener ---
+  useEffect(() => {
+      const params = new URLSearchParams(window.location.search);
+      const logPayload = params.get('log');
+      if (logPayload) {
+          try {
+              const decoded = JSON.parse(atob(logPayload));
+              if (decoded.wid && decoded.oid) {
+                  setMobileLogData({ workoutId: decoded.wid, organizationId: decoded.oid });
+                  setHistory(prev => [...prev, Page.MobileLog]);
+                  // Clean URL to prevent re-triggering
+                  window.history.replaceState({}, document.title, window.location.pathname);
+              }
+          } catch (e) {
+              console.error("Failed to parse QR payload from URL", e);
+          }
+      }
+  }, []);
+
   // --- Screensaver Logic ---
   const pagesThatPreventScreensaver: Page[] = [Page.Timer, Page.RepsOnly, Page.IdeaBoard];
 

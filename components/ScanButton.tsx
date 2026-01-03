@@ -7,7 +7,9 @@ import { useStudio } from '../context/StudioContext';
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { AnimatePresence, motion } from 'framer-motion';
 import { Workout, WorkoutLog, ChatMessage } from '../types';
-import { saveWorkoutLog } from '../services/firebaseService';
+
+// Declare jsQR for TypeScript (loaded from CDN)
+declare const jsQR: any;
 
 // --- Sub-component: WorkoutSearchModal ---
 interface WorkoutSearchModalProps {
@@ -66,7 +68,6 @@ const MemberChatModal: React.FC<{ onClose: () => void; userEmail?: string }> = (
 
     useEffect(() => {
         const initChat = async () => {
-            const systemPrompt = `Du är en personlig AI-coach för en medlem på gymmet SmartStudio. Svara alltid kort, peppande och på svenska. Du heter Smart Coach.`;
             setMessages([{ role: 'model', text: `Hej ${userEmail ? userEmail.split('@')[0] : ''}! Jag är din AI-coach. Vad behöver du hjälp med idag?` }]);
         };
         initChat();
@@ -91,18 +92,20 @@ const MemberChatModal: React.FC<{ onClose: () => void; userEmail?: string }> = (
             else apiKey = (import.meta as any).env.VITE_API_KEY;
 
             const ai = new GoogleGenAI({ apiKey });
-            const model = ai.getGenerativeModel({ model: 'gemini-3-flash-preview' });
             
-            const chat = model.startChat({
-                history: messages.map(m => ({ role: m.role, parts: [{ text: m.text }] }))
+            const chat = ai.chats.create({
+                model: 'gemini-3-flash-preview',
+                config: {
+                    systemInstruction: `Du är en personlig AI-coach för en medlem på gymmet SmartStudio. Svara alltid kort, peppande och på svenska. Du heter Smart Coach.`
+                }
             });
 
-            const result = await chat.sendMessageStream(userMsg);
+            const result = await chat.sendMessageStream({ message: userMsg });
             let fullResponse = '';
             setMessages(prev => [...prev, { role: 'model', text: '' }]);
 
-            for await (const chunk of result.stream) {
-                const text = chunk.text();
+            for await (const chunk of result) {
+                const text = (chunk as GenerateContentResponse).text;
                 fullResponse += text;
                 setMessages(prev => {
                     const newMsgs = [...prev];
@@ -160,27 +163,82 @@ interface ScanButtonProps {
     onLogWorkout?: (workoutId: string, orgId: string) => void;
 }
 
-// --- Main Component: ScanButton ---
 export const ScanButton: React.FC<ScanButtonProps> = ({ onLogWorkout }) => {
     const { currentUser } = useAuth();
     const { workouts } = useWorkout();
     const { selectedOrganization } = useStudio();
     
-    // View States
     const [view, setView] = useState<'idle' | 'menu' | 'camera' | 'search' | 'chat'>('idle');
 
-    // Camera Refs
     const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
     const [stream, setStream] = useState<MediaStream | null>(null);
     const [cameraError, setCameraError] = useState<string | null>(null);
+    const animationFrameRef = useRef<number | null>(null);
 
-    // Camera Logic
+    const scanLoop = () => {
+        if (!canvasRef.current || !videoRef.current || view !== 'camera') return;
+
+        const canvas = canvasRef.current;
+        const video = videoRef.current;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+        if (video.readyState === video.HAVE_ENOUGH_DATA && ctx) {
+            canvas.height = video.videoHeight;
+            canvas.width = video.videoWidth;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            
+            // Use jsQR (provided via CDN in index.html)
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: "dontInvert",
+            });
+
+            if (code) {
+                console.log("Code found", code.data);
+                handleScannedData(code.data);
+                return; // Stop loop on success
+            }
+        }
+        animationFrameRef.current = requestAnimationFrame(scanLoop);
+    };
+
+    const handleScannedData = (data: string) => {
+        try {
+            // Check if it's our URL format: https://.../?log=BASE64
+            if (data.includes('?log=')) {
+                const url = new URL(data);
+                const logParam = url.searchParams.get('log');
+                if (logParam) {
+                    const decoded = JSON.parse(atob(logParam));
+                    if (decoded.wid && decoded.oid && onLogWorkout) {
+                        onLogWorkout(decoded.wid, decoded.oid);
+                        setView('idle');
+                        return;
+                    }
+                }
+            }
+            
+            // Fallback: If it's direct JSON (old format compatibility)
+            const decoded = JSON.parse(data);
+            if (decoded.wid && decoded.oid && onLogWorkout) {
+                onLogWorkout(decoded.wid, decoded.oid);
+                setView('idle');
+            }
+        } catch (e) {
+            console.warn("Invalid QR data scanned:", data);
+        }
+    };
+
     const startCamera = async () => {
         setCameraError(null);
         try {
             const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
             setStream(mediaStream);
-            if (videoRef.current) videoRef.current.srcObject = mediaStream;
+            if (videoRef.current) {
+                videoRef.current.srcObject = mediaStream;
+                animationFrameRef.current = requestAnimationFrame(scanLoop);
+            }
         } catch (err) {
             console.error("Camera error:", err);
             setCameraError("Kunde inte starta kameran.");
@@ -192,20 +250,17 @@ export const ScanButton: React.FC<ScanButtonProps> = ({ onLogWorkout }) => {
             stream.getTracks().forEach(track => track.stop());
             setStream(null);
         }
+        if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current);
+        }
     };
 
     useEffect(() => {
-        if (view === 'camera' && !stream) startCamera();
-        else if (view !== 'camera' && stream) stopCamera();
+        if (view === 'camera') startCamera();
+        else stopCamera();
+        return () => stopCamera();
     }, [view]);
 
-    useEffect(() => {
-        if (view === 'camera' && videoRef.current && stream) {
-            videoRef.current.srcObject = stream;
-        }
-    }, [view, stream]);
-
-    // Handlers
     const handleMenuToggle = () => setView(view === 'idle' ? 'menu' : 'idle');
     
     const handleSelectWorkout = (workout: Workout) => {
@@ -215,7 +270,6 @@ export const ScanButton: React.FC<ScanButtonProps> = ({ onLogWorkout }) => {
         }
     };
 
-    // Render Sub-Views
     if (view === 'camera') {
         return (
             <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[2000] flex flex-col items-center justify-center p-4">
@@ -226,6 +280,7 @@ export const ScanButton: React.FC<ScanButtonProps> = ({ onLogWorkout }) => {
                     ) : (
                         <>
                             <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
+                            <canvas ref={canvasRef} className="hidden" />
                             <div className="absolute inset-0 border-[40px] border-black/50 pointer-events-none"><div className="w-full h-full border-2 border-primary/50 relative"></div></div>
                             <div className="absolute bottom-10 left-0 right-0 text-center pointer-events-none"><p className="text-white font-bold bg-black/50 inline-block px-4 py-2 rounded-full backdrop-blur-sm">Rikta kameran mot QR-koden</p></div>
                         </>
@@ -238,7 +293,6 @@ export const ScanButton: React.FC<ScanButtonProps> = ({ onLogWorkout }) => {
     if (view === 'search') return <WorkoutSearchModal onClose={() => setView('idle')} onSelect={handleSelectWorkout} workouts={workouts} />;
     if (view === 'chat') return <MemberChatModal onClose={() => setView('idle')} userEmail={currentUser?.email} />;
 
-    // Render Main FAB Menu
     return (
         <>
             <AnimatePresence>
@@ -256,7 +310,6 @@ export const ScanButton: React.FC<ScanButtonProps> = ({ onLogWorkout }) => {
                 <AnimatePresence>
                     {view === 'menu' && (
                         <div className="flex flex-col items-end gap-3 mb-2">
-                            {/* Chat Button */}
                             <motion.button
                                 initial={{ opacity: 0, y: 20, scale: 0.8 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -271,7 +324,6 @@ export const ScanButton: React.FC<ScanButtonProps> = ({ onLogWorkout }) => {
                                 </div>
                             </motion.button>
 
-                            {/* Search Button */}
                             <motion.button
                                 initial={{ opacity: 0, y: 20, scale: 0.8 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -286,7 +338,6 @@ export const ScanButton: React.FC<ScanButtonProps> = ({ onLogWorkout }) => {
                                 </div>
                             </motion.button>
 
-                            {/* Scan Button (Small) */}
                             <motion.button
                                 initial={{ opacity: 0, y: 20, scale: 0.8 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -303,7 +354,6 @@ export const ScanButton: React.FC<ScanButtonProps> = ({ onLogWorkout }) => {
                     )}
                 </AnimatePresence>
 
-                {/* Main Toggle Button */}
                 <button
                     onClick={handleMenuToggle}
                     className={`w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-transform focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary ${view === 'menu' ? 'bg-gray-200 rotate-45 text-gray-800 shadow-xl' : 'bg-primary hover:scale-110 text-white'}`}
