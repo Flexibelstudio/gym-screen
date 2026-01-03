@@ -432,6 +432,11 @@ const MainContent: React.FC = () => {
     }
   };
 
+  const handleLogWorkoutRequest = (workoutId: string, orgId: string) => {
+    setMobileLogData({ workoutId, organizationId: orgId });
+    navigateTo(Page.MobileLog);
+  };
+
   // --- Admin/Studio Config Handlers ---
   const handleSaveStudioConfig = async (organizationId: string, studioId: string, newConfigOverrides: Partial<StudioConfig>) => {
     try {
@@ -837,7 +842,7 @@ const MainContent: React.FC = () => {
 
        {showScanButton && (
           <div className="fixed bottom-6 right-6 z-50">
-              <ScanButton onScan={() => handleScanCode(null)} />
+              <ScanButton onScan={() => handleScanCode(null)} onLogWorkout={handleLogWorkoutRequest} />
           </div>
        )}
     </div>

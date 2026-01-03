@@ -57,99 +57,6 @@ const WorkoutSearchModal: React.FC<WorkoutSearchModalProps> = ({ onClose, onSele
     );
 };
 
-// --- Sub-component: LogModal ---
-interface LogModalProps {
-    workout: Workout;
-    onClose: () => void;
-    onSave: (data: { rpe: number, feeling: 'top' | 'good' | 'ok' | 'heavy' | 'injured', comment: string }) => void;
-}
-
-const LogModal: React.FC<LogModalProps> = ({ workout, onClose, onSave }) => {
-    const [rpe, setRpe] = useState<number>(5);
-    const [feeling, setFeeling] = useState<'top' | 'good' | 'ok' | 'heavy' | 'injured'>('good');
-    const [comment, setComment] = useState('');
-
-    const feelings = [
-        { key: 'top', label: 'Topp', icon: '🤩' },
-        { key: 'good', label: 'Bra', icon: '🙂' },
-        { key: 'ok', label: 'OK', icon: '😐' },
-        { key: 'heavy', label: 'Tung', icon: '🥵' },
-        { key: 'injured', label: 'Ont', icon: '🤕' },
-    ];
-
-    return (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-[2000] flex flex-col justify-end sm:justify-center p-0 sm:p-6 animate-slide-in-up sm:animate-fade-in">
-            <div className="bg-gray-900 w-full max-w-lg mx-auto rounded-t-3xl sm:rounded-3xl p-6 sm:p-8 border-t sm:border border-gray-700 shadow-2xl h-[85vh] sm:h-auto overflow-y-auto">
-                <div className="flex justify-between items-start mb-6">
-                    <div>
-                        <h2 className="text-xl font-bold text-white text-opacity-70">Logga pass</h2>
-                        <h3 className="text-2xl font-black text-white">{workout.title}</h3>
-                    </div>
-                    <button onClick={onClose} className="p-2 bg-gray-800 rounded-full"><CloseIcon className="w-6 h-6 text-white" /></button>
-                </div>
-
-                <div className="space-y-8">
-                    {/* RPE */}
-                    <div>
-                        <label className="block text-sm font-bold text-gray-400 uppercase mb-3">Ansträngning (1-10)</label>
-                        <div className="flex justify-between bg-gray-800 p-2 rounded-xl">
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                                <button 
-                                    key={num} 
-                                    onClick={() => setRpe(num)}
-                                    className={`w-8 h-10 rounded-lg font-bold transition-all ${rpe === num ? 'bg-primary text-white scale-110 shadow-lg' : 'text-gray-500 hover:text-white'}`}
-                                >
-                                    {num}
-                                </button>
-                            ))}
-                        </div>
-                        <div className="flex justify-between text-xs text-gray-500 mt-2 px-1">
-                            <span>Lätt</span>
-                            <span>Maximalt</span>
-                        </div>
-                    </div>
-
-                    {/* Feeling */}
-                    <div>
-                        <label className="block text-sm font-bold text-gray-400 uppercase mb-3">Känsla</label>
-                        <div className="grid grid-cols-5 gap-2">
-                            {feelings.map(f => (
-                                <button 
-                                    key={f.key}
-                                    onClick={() => setFeeling(f.key as any)}
-                                    className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all border-2 ${feeling === f.key ? 'bg-gray-800 border-primary shadow-lg scale-105' : 'border-transparent hover:bg-gray-800'}`}
-                                >
-                                    <span className="text-2xl mb-1">{f.icon}</span>
-                                    <span className={`text-xs font-bold ${feeling === f.key ? 'text-white' : 'text-gray-500'}`}>{f.label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Comment */}
-                    <div>
-                        <label className="block text-sm font-bold text-gray-400 uppercase mb-3">Kommentar</label>
-                        <textarea 
-                            value={comment}
-                            onChange={e => setComment(e.target.value)}
-                            placeholder="Egna noteringar..."
-                            rows={3}
-                            className="w-full bg-gray-800 text-white p-4 rounded-xl border border-gray-700 focus:border-primary focus:outline-none resize-none"
-                        />
-                    </div>
-
-                    <button 
-                        onClick={() => onSave({ rpe, feeling, comment })}
-                        className="w-full bg-primary hover:brightness-110 text-white font-black py-4 rounded-xl text-lg shadow-lg shadow-primary/20 transition-transform active:scale-95"
-                    >
-                        Spara Pass
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
 // --- Sub-component: MemberChatModal ---
 const MemberChatModal: React.FC<{ onClose: () => void; userEmail?: string }> = ({ onClose, userEmail }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -250,17 +157,17 @@ const MemberChatModal: React.FC<{ onClose: () => void; userEmail?: string }> = (
 
 interface ScanButtonProps {
     onScan: () => void;
+    onLogWorkout?: (workoutId: string, orgId: string) => void;
 }
 
 // --- Main Component: ScanButton ---
-export const ScanButton: React.FC<ScanButtonProps> = () => {
+export const ScanButton: React.FC<ScanButtonProps> = ({ onLogWorkout }) => {
     const { currentUser } = useAuth();
     const { workouts } = useWorkout();
     const { selectedOrganization } = useStudio();
     
     // View States
-    const [view, setView] = useState<'idle' | 'menu' | 'camera' | 'search' | 'chat' | 'logging'>('idle');
-    const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
+    const [view, setView] = useState<'idle' | 'menu' | 'camera' | 'search' | 'chat'>('idle');
 
     // Camera Refs
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -302,32 +209,9 @@ export const ScanButton: React.FC<ScanButtonProps> = () => {
     const handleMenuToggle = () => setView(view === 'idle' ? 'menu' : 'idle');
     
     const handleSelectWorkout = (workout: Workout) => {
-        setSelectedWorkout(workout);
-        setView('logging');
-    };
-
-    const handleSaveLog = async (data: any) => {
-        if (!currentUser || !selectedOrganization || !selectedWorkout) return;
-        
-        const logEntry: Omit<WorkoutLog, 'id'> = {
-            memberId: currentUser.uid,
-            organizationId: selectedOrganization.id,
-            workoutId: selectedWorkout.id,
-            workoutTitle: selectedWorkout.title,
-            date: Date.now(),
-            source: 'manual',
-            rpe: data.rpe,
-            feeling: data.feeling,
-            comment: data.comment,
-            exerciseResults: [] // Manual simple log doesn't have exercises
-        };
-
-        try {
-            await saveWorkoutLog(logEntry);
-            alert("Pass sparat!");
+        if (onLogWorkout && selectedOrganization) {
+            onLogWorkout(workout.id, selectedOrganization.id);
             setView('idle');
-        } catch (e) {
-            alert("Kunde inte spara.");
         }
     };
 
@@ -352,7 +236,6 @@ export const ScanButton: React.FC<ScanButtonProps> = () => {
     }
 
     if (view === 'search') return <WorkoutSearchModal onClose={() => setView('idle')} onSelect={handleSelectWorkout} workouts={workouts} />;
-    if (view === 'logging' && selectedWorkout) return <LogModal workout={selectedWorkout} onClose={() => setView('idle')} onSave={handleSaveLog} />;
     if (view === 'chat') return <MemberChatModal onClose={() => setView('idle')} userEmail={currentUser?.email} />;
 
     // Render Main FAB Menu
