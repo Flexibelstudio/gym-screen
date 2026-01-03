@@ -2,7 +2,8 @@
 import React, { createContext, useState, useContext, useEffect, useMemo, useCallback } from 'react';
 import firebase from 'firebase/compat/app';
 import 'firebase/compat/auth';
-import { onAuthChange, signOut as firebaseSignOut, signIn, signInAsStudio, getUserData, isOffline, sendPasswordResetEmail, updateUserTermsAccepted, reauthenticateUser } from '../services/firebaseService';
+import { onAuthChange, signOut as firebaseSignOut, signIn, signInAsStudio, getUserData, isOffline, sendPasswordResetEmail, updateUserTermsAccepted, reauthenticateUser, db } from '../services/firebaseService';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { UserData, UserRole } from '../types';
 import { MOCK_SYSTEM_OWNER, MOCK_ORG_ADMIN } from '../data/mockData';
 
@@ -10,7 +11,7 @@ type FirebaseUser = firebase.User;
 type SimulatedUserType = 'systemowner' | 'organizationadmin' | 'studio';
 
 interface AuthContextType {
-    currentUser: any | null; // Changed from FirebaseUser to any to support both modular and compat users
+    currentUser: any | null;
     userData: UserData | null;
     role: UserRole;
     isStudioMode: boolean;
@@ -49,48 +50,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     });
 
-    const handleAuthChange = useCallback(async (user: any | null) => {
-        if (user) {
-            setCurrentUser(user);
-            if (!user.isAnonymous) {
-                const fetchedUserData = await getUserData(user.uid);
-                setUserData(fetchedUserData);
-                if (fetchedUserData && (fetchedUserData.role === 'organizationadmin' || fetchedUserData.role === 'systemowner') && !fetchedUserData.termsAcceptedAt) {
-                    setShowTerms(true);
+    useEffect(() => {
+        if (isOffline || !db) return;
+
+        let unsubscribeDoc: (() => void) | null = null;
+
+        const unsubscribeAuth = onAuthChange(async (user) => {
+            if (unsubscribeDoc) {
+                unsubscribeDoc();
+                unsubscribeDoc = null;
+            }
+
+            if (user) {
+                setCurrentUser(user);
+                if (!user.isAnonymous) {
+                    // Starta realtids-lyssnare på användardokumentet
+                    unsubscribeDoc = onSnapshot(doc(db, 'users', user.uid), (snap) => {
+                        if (snap.exists()) {
+                            const data = { uid: user.uid, ...snap.data() } as UserData;
+                            setUserData(data);
+                            if ((data.role === 'organizationadmin' || data.role === 'systemowner') && !data.termsAcceptedAt) {
+                                setShowTerms(true);
+                            } else {
+                                setShowTerms(false);
+                            }
+                        }
+                        setAuthLoading(false);
+                    }, (err) => {
+                        console.error("User doc listener error:", err);
+                        setAuthLoading(false);
+                    });
                 } else {
+                    setUserData(null);
                     setShowTerms(false);
+                    setAuthLoading(false);
                 }
             } else {
+                // Endast auto-login om enheten är explicit låst som en skärm
+                const isDeviceLocked = localStorage.getItem(DEVICE_LOCKED_KEY) === 'true';
+                const hasProvisionedOrg = localStorage.getItem(LOCAL_STORAGE_ORG_KEY);
+                
+                if (isDeviceLocked && hasProvisionedOrg) {
+                    try {
+                        await signInAsStudio();
+                        return; 
+                    } catch (e) {}
+                }
+
+                setCurrentUser(null);
                 setUserData(null);
                 setShowTerms(false);
+                setAuthLoading(false);
             }
-            setAuthLoading(false);
-        } else {
-            // Endast auto-login om enheten är explicit låst som en skärm
-            const isDeviceLocked = localStorage.getItem(DEVICE_LOCKED_KEY) === 'true';
-            const hasProvisionedOrg = localStorage.getItem(LOCAL_STORAGE_ORG_KEY);
-            
-            if (isDeviceLocked && hasProvisionedOrg && !isOffline) {
-                try {
-                    await signInAsStudio();
-                    return; 
-                } catch (e) {
-                    console.error("Auto-login failed", e);
-                }
-            }
+        });
 
-            setCurrentUser(null);
-            setUserData(null);
-            setShowTerms(false);
-            setAuthLoading(false);
-        }
+        return () => {
+            unsubscribeAuth();
+            if (unsubscribeDoc) unsubscribeDoc();
+        };
     }, []);
-
-    useEffect(() => {
-        if (isOffline) return;
-        const unsubscribe = onAuthChange(handleAuthChange);
-        return () => unsubscribe();
-    }, [handleAuthChange]);
 
     const [simulatedUserType, setSimulatedUserType] = useState<SimulatedUserType>('systemowner');
 
@@ -146,7 +164,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const clearDeviceProvisioning = useCallback(() => {
         localStorage.removeItem(DEVICE_LOCKED_KEY);
         localStorage.removeItem(LOCAL_STORAGE_ORG_KEY);
-        // Vi rensar även studio-nycklar för att vara helt säkra
         Object.keys(localStorage).forEach(key => {
             if (key.startsWith('ny-screen-selected-studio')) {
                 localStorage.removeItem(key);

@@ -11,7 +11,6 @@ import {
   EmailAuthProvider,
   Auth,
   User,
-  // TILLAGT: För Google Inloggning
   GoogleAuthProvider,
   signInWithPopup
 } from 'firebase/auth';
@@ -154,7 +153,7 @@ export const signInWithGoogle = async () => {
                 role: 'member',
                 createdAt: Date.now(),
                 organizationId: '',
-                isTrainingMember: true // Google-inloggade blir tränande medlemmar by default
+                isTrainingMember: true 
             });
         }
     }
@@ -193,10 +192,17 @@ export const updateUserGoals = async (uid: string, goals: MemberGoals) => {
     await updateDoc(doc(db, 'users', uid), { goals });
 };
 
+// --- HÄR ÄR DIN UPPDATERING ---
 export const updateUserProfile = async (uid: string, data: Partial<UserData>) => {
-    if (isOffline || !db) return;
+    if (isOffline || !db) {
+        // För simulering i AI Studio: uppdatera mock-objekten
+        if (uid === MOCK_SYSTEM_OWNER.uid) Object.assign(MOCK_SYSTEM_OWNER, data);
+        if (uid === MOCK_ORG_ADMIN.uid) Object.assign(MOCK_ORG_ADMIN, data);
+        return;
+    }
     await updateDoc(doc(db, 'users', uid), sanitizeData(data));
 };
+// -----------------------------
 
 export const joinOrganizationWithCode = async (uid: string, code: string) => {
     if (isOffline || !db) throw new Error("Offline: Kan ej ansluta.");
@@ -221,7 +227,6 @@ interface RegisterAdditionalData {
     photoBase64?: string | null;
 }
 
-// UPPDATERAD: Sätter isTrainingMember: true vid registrering
 export const registerMemberWithCode = async (email: string, pass: string, code: string, additionalData?: RegisterAdditionalData) => {
     if (isOffline || !db || !auth) {
         throw new Error("Offline mode: Cannot register new users.");
@@ -251,7 +256,7 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
         age: additionalData?.age,
         gender: additionalData?.gender,
         photoUrl: photoUrl,
-        isTrainingMember: true // VIKTIGT: Sätts till true så de syns i listan
+        isTrainingMember: true 
     };
     await setDoc(doc(db, 'users', user.uid), {
         ...userData,
@@ -260,7 +265,6 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
     return user;
 };
 
-// UPPDATERAD: Filtrerar på isTrainingMember istället för roll
 export const getMembers = async (orgId: string): Promise<Member[]> => {
     if (isOffline || !db) {
         return MOCK_MEMBERS;
@@ -268,7 +272,7 @@ export const getMembers = async (orgId: string): Promise<Member[]> => {
     const q = query(
         collection(db, 'users'), 
         where('organizationId', '==', orgId),
-        where('isTrainingMember', '==', true) // HÄR ÄR ÄNDRINGEN
+        where('isTrainingMember', '==', true)
     );
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ ...d.data(), id: d.id }) as Member);

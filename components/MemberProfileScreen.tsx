@@ -157,6 +157,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [isSaving, setIsSaving] = useState(false);
     const [isEditingGoals, setIsEditingGoals] = useState(false);
 
+    // Lokalt state för medlemskaps-switchen för att göra den responsiv
+    const [isTrainingMemberLocal, setIsTrainingMemberLocal] = useState(!!userData.isTrainingMember);
+
     // Form states
     const [firstName, setFirstName] = useState(userData.firstName || '');
     const [lastName, setLastName] = useState(userData.lastName || '');
@@ -167,6 +170,11 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [inviteError, setInviteError] = useState('');
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Synka lokalt state om userData ändras utifrån (t.ex. via onSnapshot)
+    useEffect(() => {
+        setIsTrainingMemberLocal(!!userData.isTrainingMember);
+    }, [userData.isTrainingMember]);
 
     useEffect(() => {
         const fetchLogs = async () => {
@@ -241,13 +249,14 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     };
 
     const toggleTrainingMembership = async (val: boolean) => {
-        setIsSaving(true);
+        // Optimistisk uppdatering i UI
+        setIsTrainingMemberLocal(val);
         try {
             await updateUserProfile(userData.uid, { isTrainingMember: val });
         } catch (error) {
+            // Revertera om det skiter sig
+            setIsTrainingMemberLocal(!val);
             alert("Kunde inte uppdatera medlemskap.");
-        } finally {
-            setIsSaving(false);
         }
     };
 
@@ -396,10 +405,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             </div>
                         </div>
                         <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 p-2 px-4 rounded-2xl border border-gray-100 dark:border-gray-700">
-                            <span className={`text-xs font-bold uppercase tracking-widest ${userData.isTrainingMember ? 'text-primary' : 'text-gray-400'}`}>
-                                {userData.isTrainingMember ? 'Aktiv i listan' : 'Dold i listan'}
+                            <span className={`text-xs font-bold uppercase tracking-widest ${isTrainingMemberLocal ? 'text-primary' : 'text-gray-400'}`}>
+                                {isTrainingMemberLocal ? 'Aktiv i listan' : 'Dold i listan'}
                             </span>
-                            <ToggleSwitch checked={!!userData.isTrainingMember} onChange={toggleTrainingMembership} />
+                            <ToggleSwitch checked={isTrainingMemberLocal} onChange={toggleTrainingMembership} />
                         </div>
                     </div>
                 )}
