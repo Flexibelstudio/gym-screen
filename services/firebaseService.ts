@@ -10,7 +10,10 @@ import {
   createUserWithEmailAndPassword,
   EmailAuthProvider,
   Auth,
-  User
+  User,
+  // TILLAGT: För Google Inloggning
+  GoogleAuthProvider,
+  signInWithPopup
 } from 'firebase/auth';
 import { 
   getFirestore, 
@@ -128,6 +131,36 @@ export const signIn = (email: string, password: string): Promise<User> => {
     return signInWithEmailAndPassword(auth, email, password).then(c => c.user);
 };
 
+export const loginWithEmail = signIn;
+
+export const registerUser = async (email: string, pass: string, first: string, last: string, inviteCode: string) => {
+    return registerMemberWithCode(email, pass, inviteCode, { firstName: first, lastName: last });
+};
+
+export const signInWithGoogle = async () => {
+    if (isOffline || !auth) {
+        return { uid: 'offline_google', email: 'google@test.com' };
+    }
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+    if (db) {
+        const userDocRef = doc(db, 'users', result.user.uid);
+        const userSnapshot = await getDoc(userDocRef);
+        if (!userSnapshot.exists()) {
+            await setDoc(userDocRef, {
+                email: result.user.email,
+                firstName: result.user.displayName?.split(' ')[0] || 'User',
+                lastName: result.user.displayName?.split(' ')[1] || '',
+                role: 'member',
+                createdAt: Date.now(),
+                organizationId: '',
+                isTrainingMember: true // Google-inloggade blir tränande medlemmar by default
+            });
+        }
+    }
+    return result.user;
+};
+
 export const signInAsStudio = (): Promise<User> => {
     if (isOffline || !auth) return Promise.resolve({ uid: 'offline_studio_uid', isAnonymous: true } as User);
     return signInAnonymously(auth).then(c => c.user);
@@ -171,7 +204,12 @@ export const joinOrganizationWithCode = async (uid: string, code: string) => {
     const snap = await getDocs(q);
     if (snap.empty) throw new Error("Ogiltig kod.");
     const orgId = snap.docs[0].id;
-    await updateDoc(doc(db, 'users', uid), { organizationId: orgId });
+    
+    // När man går med via kod blir man automatiskt en tränande medlem
+    await updateDoc(doc(db, 'users', uid), { 
+        organizationId: orgId,
+        isTrainingMember: true 
+    });
     return orgId;
 };
 
@@ -183,6 +221,7 @@ interface RegisterAdditionalData {
     photoBase64?: string | null;
 }
 
+// UPPDATERAD: Sätter isTrainingMember: true vid registrering
 export const registerMemberWithCode = async (email: string, pass: string, code: string, additionalData?: RegisterAdditionalData) => {
     if (isOffline || !db || !auth) {
         throw new Error("Offline mode: Cannot register new users.");
@@ -211,7 +250,8 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
         lastName: additionalData?.lastName,
         age: additionalData?.age,
         gender: additionalData?.gender,
-        photoUrl: photoUrl
+        photoUrl: photoUrl,
+        isTrainingMember: true // VIKTIGT: Sätts till true så de syns i listan
     };
     await setDoc(doc(db, 'users', user.uid), {
         ...userData,
@@ -220,16 +260,15 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
     return user;
 };
 
-// --- HÄR ÄR TILLÄGGEN FÖR ADMINVYN (Alternativ A) ---
-
+// UPPDATERAD: Filtrerar på isTrainingMember istället för roll
 export const getMembers = async (orgId: string): Promise<Member[]> => {
     if (isOffline || !db) {
-        return MOCK_MEMBERS; // För testning i offline/dev-läge
+        return MOCK_MEMBERS;
     }
     const q = query(
         collection(db, 'users'), 
         where('organizationId', '==', orgId),
-        where('role', '==', 'member')
+        where('isTrainingMember', '==', true) // HÄR ÄR ÄNDRINGEN
     );
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ ...d.data(), id: d.id }) as Member);

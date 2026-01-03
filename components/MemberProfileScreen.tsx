@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { WorkoutLog, UserData, MemberGoals } from '../types';
 import { getMemberLogs, updateUserGoals, updateUserProfile, joinOrganizationWithCode, uploadImage } from '../services/firebaseService';
-import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, ChevronDownIcon, UserIcon } from './icons';
+import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, ChevronDownIcon, UserIcon, CheckIcon } from './icons';
 import { Modal } from './ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import { useStudio } from '../context/StudioContext';
@@ -244,6 +243,17 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         }
     };
 
+    const toggleTrainingMembership = async (val: boolean) => {
+        setIsSaving(true);
+        try {
+            await updateUserProfile(userData.uid, { isTrainingMember: val });
+        } catch (error) {
+            alert("Kunde inte uppdatera medlemskap.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const stats = useMemo(() => {
         const totalWorkouts = logs.length;
         const thisMonth = logs.filter(l => {
@@ -262,6 +272,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         return diffDays > 0 ? diffDays : 0;
     }, [userData.goals?.targetDate]);
+
+    // UI för administratörs-medlemskap
+    const isStaff = userData.role !== 'member';
 
     if (isEditing) {
         return (
@@ -373,6 +386,27 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             </div>
 
             <div className="space-y-8">
+                {/* --- HÄR ÄR DEN NYA SEKTIONEN FÖR PERSONAL --- */}
+                {isStaff && (
+                    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-[2rem] p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-gray-100 dark:bg-gray-800 rounded-2xl text-gray-500">
+                                <UserIcon className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-gray-900 dark:text-white">Din träningsprofil</h4>
+                                <p className="text-xs text-gray-500">Som {userData.role} kan du välja om du vill synas i medlemslistan.</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 p-2 px-4 rounded-2xl border border-gray-100 dark:border-gray-700">
+                            <span className={`text-xs font-bold uppercase tracking-widest ${userData.isTrainingMember ? 'text-primary' : 'text-gray-400'}`}>
+                                {userData.isTrainingMember ? 'Aktiv i listan' : 'Dold i listan'}
+                            </span>
+                            <ToggleSwitch checked={!!userData.isTrainingMember} onChange={toggleTrainingMembership} />
+                        </div>
+                    </div>
+                )}
+
                 <div className="bg-gradient-to-br from-indigo-600 to-purple-800 rounded-[2rem] p-8 text-white shadow-2xl relative overflow-hidden">
                     <div className="relative z-10 flex justify-between items-start">
                         <div className="flex-grow">

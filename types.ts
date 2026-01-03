@@ -1,4 +1,4 @@
-// --- BEFINTLIGA TYPER (BEHÅLLNA FRÅN GAMLA VERSIONEN) ---
+// --- BEFINTLIGA TYPER ---
 
 export interface InvoiceAdjustmentItem {
   description: string;
@@ -23,15 +23,18 @@ export interface ExerciseOverride {
 
 export type UserRole = 'member' | 'coach' | 'organizationadmin' | 'systemowner';
 
-// UPPDATERAD: Lagt till nya fält för profil (firstName, goals etc) samt 'member' i role
+// UPPDATERAD: Lagt till isTrainingMember
 export interface UserData {
   uid: string;
   email: string;
-  role: 'member' | 'coach' | 'organizationadmin' | 'systemowner'; 
+  role: UserRole; 
   organizationId?: string; // Which organization they belong to
   adminRole?: 'superadmin' | 'admin'; // granular role for org admins
   termsAcceptedAt?: number; // Timestamp of when the admin ToS were accepted
   
+  // -- NYTT FÄLT FÖR SYNLIGHET I MEDLEMSLISTA --
+  isTrainingMember?: boolean; // Om true, visas denna user i medlemsregistret oavsett roll
+
   // -- NYA FÄLT FÖR MEDLEMME --
   goals?: MemberGoals;
   firstName?: string;
@@ -113,7 +116,6 @@ export interface CompanyDetails {
   };
 }
 
-// UPPDATERAD: Lagt till workoutLoggingPricePerMember
 export interface SmartScreenPricing {
   firstScreenPrice: number;
   additionalScreenPrice: number;
@@ -141,7 +143,6 @@ export interface SystemSettings {
   seasonalThemes: SeasonalThemeSetting[];
 }
 
-// UPPDATERAD: Lagt till inviteCode
 export interface Organization {
   id: string;
   name: string;
@@ -151,7 +152,6 @@ export interface Organization {
   primaryColor?: string; // Hex color code, e.g., '#FF5733'
   passwords: {
     coach: string;
-    // superadmin password is now obsolete, replaced by user accounts
   };
   studios: Studio[];
   globalConfig: StudioConfig;
@@ -167,7 +167,6 @@ export interface Organization {
   lastBilledDate?: number; // Timestamp
   lastActiveAt?: number; // Timestamp of last significant activity
   
-  // -- NYTT FÄLT --
   inviteCode?: string;
 }
 
@@ -175,11 +174,9 @@ export interface Studio {
     id: string;
     name: string;
     createdAt?: number; // Timestamp of creation for billing purposes
-    // This now holds only the settings that are DIFFERENT from the global config.
     configOverrides?: Partial<StudioConfig>;
 }
 
-// UPPDATERAD: Lagt till nya Member-sidor på slutet
 export enum Page {
   Home,
   WorkoutDetail,
@@ -192,11 +189,11 @@ export enum Page {
   WorkoutList,
   SavedWorkouts,
   StudioSelection,
-  SuperAdmin, // This now represents the "Organization Admin"
-  SystemOwner, // New page for top-level system administration
-  CustomContent, // For displaying dynamic, user-created pages
-  IdeaBoard, // New page for handwritten notes & ideas
-  RepsOnly, // For timer-less blocks
+  SuperAdmin, 
+  SystemOwner, 
+  CustomContent, 
+  IdeaBoard, 
+  RepsOnly, 
   CustomPageEditor,
   Hyrox,
   HyroxRaceList,
@@ -207,7 +204,7 @@ export enum Page {
   AdminAnalytics,
   MemberProfile,
   MemberRegistry,
-  MobileLog, // Added for deep link simulation
+  MobileLog, 
 }
 
 export enum TimerMode {
@@ -220,19 +217,17 @@ export enum TimerMode {
   NoTimer = 'Ingen Timer',
 }
 
-// WorkoutCategory is now Passkategori and a string to allow for admin-defined custom categories.
 export type Passkategori = string;
 
 export interface CustomCategoryWithPrompt {
   id: string;
   name: string;
   prompt: string;
-  icon?: string; // Icon key, e.g., 'dumbbell', 'heart', 'yoga'
+  icon?: string; 
 }
 
 export type ThemeOption = 'none' | 'auto' | 'winter' | 'christmas' | 'newyear' | 'valentines' | 'easter' | 'midsummer' | 'summer' | 'halloween';
 
-// UPPDATERAD: Lagt till enableWorkoutLogging och aiSettings
 export interface StudioConfig {
   enableBreathingGuide?: boolean;
   enableNotes?: boolean;
@@ -242,7 +237,7 @@ export interface StudioConfig {
   enableHyrox?: boolean;
   customCategories: CustomCategoryWithPrompt[];
   checkInImageEnabled?: boolean;
-  checkInImageUrl?: string; // Stored as base64 data URI
+  checkInImageUrl?: string; 
   enableWarmup: boolean;
   seasonalTheme?: ThemeOption;
   
@@ -255,8 +250,8 @@ export interface StudioConfig {
 }
 
 export interface Exercise {
-  id: string; // Will now be a unique instance ID
-  bankId?: string; // Will store the original ID from the bank, if applicable
+  id: string; 
+  bankId?: string; 
   name: string;
   reps?: string;
   description?: string;
@@ -285,7 +280,6 @@ export interface TimerSettings {
   restTime: number; // in seconds
   rounds: number;
   prepareTime: number; // in seconds
-  // New fields to explicitly store user's intent for laps setup
   specifiedLaps?: number;
   specifiedIntervalsPerLap?: number;
 }
@@ -305,7 +299,7 @@ export interface WorkoutBlock {
 export interface StartGroup {
   id: string;
   name: string;
-  participants: string; // Text field content, one name per line
+  participants: string; 
   startTime?: number;
 }
 
@@ -316,11 +310,11 @@ export interface Workout {
   blocks: WorkoutBlock[];
   category?: Passkategori;
   isPublished?: boolean;
-  organizationId?: string; // Which organization it belongs to
+  organizationId?: string; 
   isFavorite?: boolean;
   createdAt?: number;
   participants?: string[];
-  hideExerciseImages?: boolean; // Kept for backward compatibility but effectively unused
+  hideExerciseImages?: boolean; 
   startGroups?: StartGroup[];
   startIntervalMinutes?: number;
   raceId?: string;
@@ -349,7 +343,7 @@ export interface Note {
   id: string;
   timestamp: number;
   text: string;
-  imageUrl: string; // base64 data URI
+  imageUrl: string; 
 }
 
 export interface WorkoutResult {
@@ -407,9 +401,8 @@ export interface HyroxRace {
   results: RaceResultItem[];
 }
 
-// --- HÄR BÖRJAR DE NYA TYPES SOM BEHÖVS FÖR MEDLEMSREGISTRET ---
+// --- MEDLEMSREGISTRET & PROFIL ---
 
-// Hjälptyper för om nya komponenter importerar dem direkt
 export interface Address {
     street: string;
     zip: string;
@@ -429,6 +422,7 @@ export interface MemberGoals {
     targetDate?: string; // ISO Date string YYYY-MM-DD
 }
 
+// UPPDATERAD: Member använder nu UserRole och inkluderar isTrainingMember
 export interface Member {
     id: string;
     firstName: string;
@@ -437,7 +431,8 @@ export interface Member {
     status: 'active' | 'inactive';
     organizationId: string;
     createdAt: number;
-    role: 'member';
+    role: UserRole; // Ändrat från 'member' till UserRole så att admins syns korrekt
+    isTrainingMember?: boolean; // Nytt fält
     endDate?: string | null;
     goals?: MemberGoals;
 }
@@ -460,9 +455,9 @@ export interface ExerciseResult {
   blockId: string;
   exerciseName: string;
   weight?: number;
-  reps?: RepRange; // Made optional
-  distance?: number; // New: For cardio
-  kcal?: number; // New: For cardio
+  reps?: RepRange; 
+  distance?: number; 
+  kcal?: number; 
 }
 
 export interface WorkoutLog {
