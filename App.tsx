@@ -42,8 +42,6 @@ export default function App() {
     }
   }, [isStudioMode, studioLoading, allOrganizations, selectOrganization, selectedOrganization]);
 
-  // FIX: Only show full-screen loader if we don't have a user yet.
-  // This prevents the whole MainContent from unmounting when just refreshing data.
   if ((authLoading || studioLoading) && !currentUser) {
     return <div className="bg-black text-white min-h-screen flex items-center justify-center">Laddar SmartStudio...</div>;
   }
@@ -97,8 +95,6 @@ const MainContent: React.FC = () => {
   
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
   
-  // FIX: Robust history initialization. 
-  // We initialize the stack based on role to avoid the "force-redirect" useEffect.
   const [history, setHistory] = useState<Page[]>(() => {
       if (isStudioMode) return [Page.Home];
       if (role === 'systemowner') return [Page.SystemOwner];
@@ -681,7 +677,7 @@ const MainContent: React.FC = () => {
         showClock={isStudioMode && (page === Page.WorkoutDetail)}
         hideBackButton={isBackButtonHidden}
         onCoachAccessRequest={handleCoachAccessRequest}
-        showCoachButton={isStudioMode}
+        showCoachButton={isStudioMode || role !== 'member'}
         onMemberProfileRequest={memberProfileCallback}
       />}
 
