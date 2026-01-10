@@ -1,0 +1,629 @@
+
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, Passkategori, StudioConfig, WorkoutResult, Organization, BankExercise } from '../types';
+import { TimerSetupModal } from './TimerSetupModal';
+import { StarIcon, PencilIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, PencilIcon as DrawIcon, CloseIcon } from './icons';
+import { getWorkoutResults } from '../services/firebaseService';
+import { useStudio } from '../context/StudioContext';
+import { AnimatePresence, motion } from 'framer-motion';
+import { WorkoutQRDisplay } from './WorkoutQRDisplay';
+import { useAuth } from '../context/AuthContext';
+
+// Helper to get color based on workout tag
+const getTagColor = (tag: string) => {
+  switch (tag.toLowerCase()) {
+    case 'styrka': return 'bg-red-200 text-red-800 dark:bg-red-900/50 dark:text-red-200';
+    case 'kondition': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200';
+    case 'rörlighet': return 'bg-teal-100 text-teal-900 dark:bg-teal-900/50 dark:text-teal-200';
+    case 'teknik': return 'bg-purple-100 text-purple-900 dark:bg-purple-900/50 dark:text-purple-200';
+    case 'core': case 'bål': case 'core/bål': return 'bg-yellow-200 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200';
+    case 'balans': return 'bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-200';
+    case 'uppvärmning': return 'bg-orange-500 text-white';
+    default: return 'bg-gray-500 text-white';
+  }
+};
+
+// Helper to ensure units are displayed
+const formatReps = (reps: string | undefined): string => {
+    if (!reps) return '';
+    const trimmed = reps.trim();
+    if (!trimmed) return '';
+
+    // If the string contains only numbers, ranges (-), commas, or slashes, append 'reps'
+    const isNumericLike = /^[\d\s\-\.,/]+$/.test(trimmed);
+
+    if (isNumericLike) {
+        return `${trimmed} reps`;
+    }
+    return trimmed;
+};
+
+// --- MEMBER VIEW COMPONENTS ---
+
+const MemberExerciseRow: React.FC<{ exercise: Exercise }> = ({ exercise }) => (
+    <div className="flex items-start py-3 border-b border-gray-100 dark:border-gray-800 last:border-0">
+        <div className="w-20 sm:w-24 flex-shrink-0 pt-0.5">
+            <span className="font-bold text-primary text-sm sm:text-base">{formatReps(exercise.reps) || '-'}</span>
+        </div>
+        <div className="flex-grow min-w-0">
+            <p className="font-bold text-gray-900 dark:text-white text-base sm:text-lg leading-tight">{exercise.name}</p>
+            {exercise.description && (
+                <p className="text-gray-500 dark:text-gray-400 text-sm mt-1 leading-relaxed">{exercise.description}</p>
+            )}
+        </div>
+    </div>
+);
+
+const MemberBlockView: React.FC<{ block: WorkoutBlock }> = ({ block }) => (
+    <div className="mb-8 last:mb-0">
+        <div className="flex items-center gap-3 mb-4">
+            <span className={`h-8 w-1 rounded-full ${getTagColor(block.tag).split(' ')[0]}`}></span>
+            <div>
+                <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">{block.title}</h3>
+                {block.setupDescription && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{block.setupDescription}</p>
+                )}
+            </div>
+        </div>
+        
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm border border-gray-100 dark:border-gray-800">
+            {block.exercises.length > 0 ? (
+                <div className="space-y-1">
+                    {block.exercises.map(ex => (
+                        <MemberExerciseRow key={ex.id} exercise={ex} />
+                    ))}
+                </div>
+            ) : (
+                <p className="text-gray-400 italic text-sm">Inga övningar i detta block.</p>
+            )}
+        </div>
+    </div>
+);
+
+const MemberWorkoutView: React.FC<{ 
+    workout: Workout, 
+    onClose?: () => void, 
+    onLog?: () => void 
+}> = ({ workout, onClose, onLog }) => {
+    return (
+        <div className="pb-32 animate-fade-in">
+            {/* Header Info */}
+            <div className="mb-8 text-center sm:text-left">
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-gray-900 dark:text-white leading-tight mb-2">
+                    {workout.title}
+                </h1>
+                <div className="flex items-center justify-center sm:justify-start gap-3">
+                    {workout.category && (
+                        <span className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
+                            {workout.category}
+                        </span>
+                    )}
+                    <span className="text-gray-400 dark:text-gray-500 text-xs font-bold uppercase tracking-wider">
+                        {workout.blocks.length} delar
+                    </span>
+                </div>
+            </div>
+
+            {/* Coach Tips */}
+            {workout.coachTips && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/10 p-6 rounded-2xl border border-yellow-100 dark:border-yellow-900/30 mb-10">
+                    <h3 className="font-bold text-yellow-800 dark:text-yellow-200 uppercase tracking-widest text-xs mb-2 flex items-center gap-2">
+                        <span>💡</span> Coach Tips
+                    </h3>
+                    <p className="text-yellow-900 dark:text-yellow-100 text-base leading-relaxed font-medium">
+                        {workout.coachTips}
+                    </p>
+                </div>
+            )}
+
+            {/* Blocks */}
+            <div className="space-y-2">
+                {workout.blocks.map(block => (
+                    <MemberBlockView key={block.id} block={block} />
+                ))}
+            </div>
+
+            {/* Floating Action Buttons */}
+            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-lg px-6 z-50 flex gap-4">
+                {onClose && (
+                    <button 
+                    onClick={onClose}
+                    className="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-black py-4 rounded-[2rem] shadow-2xl transition-all transform active:scale-95 text-lg uppercase tracking-tight border border-gray-200 dark:border-gray-700"
+                    >
+                        Stäng
+                    </button>
+                )}
+                {onLog && (
+                    <button 
+                    onClick={onLog}
+                    className="flex-[2] bg-primary hover:brightness-110 text-white font-black py-4 rounded-[2rem] shadow-xl shadow-primary/40 transition-all transform active:scale-95 flex items-center justify-center gap-2 text-lg uppercase tracking-tight"
+                    >
+                        <PencilIcon className="w-5 h-5" />
+                        <span>Logga pass</span>
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};
+
+
+// WorkoutDetailScreen Component
+interface WorkoutDetailScreenProps {
+  workout: Workout;
+  onStartBlock: (block: WorkoutBlock) => void;
+  onUpdateBlockSettings: (blockId: string, newSettings: Partial<WorkoutBlock['settings']>) => void;
+  onEditWorkout: (workout: Workout, blockId?: string) => void;
+  isCoachView: boolean;
+  onTogglePublish: (workoutId: string, isPublished: boolean) => void;
+  onToggleFavorite: (workoutId: string) => void;
+  onDuplicate: (workout: Workout) => void;
+  onShowImage: (url: string) => void; 
+  isPresentationMode: boolean;
+  studioConfig: StudioConfig;
+  onDelete?: (workoutId: string) => void;
+  followMeShowImage: boolean;
+  setFollowMeShowImage: (show: boolean) => void;
+  onUpdateWorkout: (workout: Workout) => void;
+  onVisualize: (workout: Workout) => void;
+  hasActiveCarousel?: boolean; 
+  onLogWorkout?: (workoutId: string, orgId: string) => void;
+  onClose?: () => void;
+}
+
+const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({ 
+    workout, onStartBlock, onUpdateBlockSettings, onEditWorkout, 
+    isCoachView, onTogglePublish, onToggleFavorite, onDuplicate, 
+    onShowImage, isPresentationMode, studioConfig, onDelete,
+    followMeShowImage, setFollowMeShowImage, onUpdateWorkout, onVisualize,
+    hasActiveCarousel = false,
+    onLogWorkout,
+    onClose
+}) => {
+  const { selectedOrganization, selectedStudio } = useStudio();
+  const { isStudioMode } = useAuth();
+  const [sessionWorkout, setSessionWorkout] = useState<Workout>(() => JSON.parse(JSON.stringify(workout)));
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+  const [coachTipsVisible, setCoachTipsVisible] = useState(true);
+  const [results, setResults] = useState<WorkoutResult[]>([]);
+  const [resultsLoading, setResultsLoading] = useState(false);
+  
+  const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  
+  const personalBestName = useMemo(() => localStorage.getItem('hyrox-participant-name'), []);
+  const isHyroxRace = useMemo(() => workout.id.startsWith('hyrox-full-race'), [workout.id]);
+
+  useEffect(() => {
+    setSessionWorkout(JSON.parse(JSON.stringify(workout)));
+  }, [workout]);
+
+  useEffect(() => {
+    if (isHyroxRace && selectedOrganization) {
+        const fetchResults = () => {
+            if (!resultsLoading) { 
+                setResultsLoading(true);
+                getWorkoutResults(workout.id, selectedOrganization.id)
+                    .then(setResults)
+                    .catch(console.error)
+                    .finally(() => setResultsLoading(false));
+            }
+        };
+        fetchResults();
+        const intervalId = setInterval(fetchResults, 15000);
+        return () => clearInterval(intervalId);
+    }
+  }, [workout.id, isHyroxRace, resultsLoading, selectedOrganization]);
+
+  const handleDelete = () => {
+      if (onDelete && window.confirm(`Är du säker på att du vill ta bort passet "${workout.title}"?`)) {
+          onDelete(workout.id);
+      }
+  };
+
+  const handleUpdateBlock = (updatedBlock: WorkoutBlock) => {
+    setSessionWorkout(prevWorkout => {
+      if (!prevWorkout) return null;
+      return {
+        ...prevWorkout,
+        blocks: prevWorkout.blocks.map(b => b.id === updatedBlock.id ? updatedBlock : b)
+      };
+    });
+  };
+
+  const handleUpdateSettings = (blockId: string, newSettings: Partial<TimerSettings>) => {
+      onUpdateBlockSettings(blockId, newSettings);
+      const blockToUpdate = sessionWorkout.blocks.find(b => b.id === blockId);
+      if (blockToUpdate) {
+          const updatedBlock = {
+              ...blockToUpdate,
+              settings: { ...blockToUpdate.settings, ...newSettings }
+          };
+          handleUpdateBlock(updatedBlock);
+      }
+      setEditingBlockId(null);
+  };
+  
+  const scrollToBlock = (blockId: string) => {
+      const el = blockRefs.current[blockId];
+      if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+  };
+
+  if (!sessionWorkout || !selectedOrganization) {
+    return null; 
+  }
+
+  // --- MEMBER VIEW SWITCH ---
+  // If not in coach view (i.e., a regular member on their phone OR viewing as preview), show the simplified view
+  if (!isCoachView) {
+      return (
+          <div className="w-full max-w-3xl mx-auto px-4 sm:px-6">
+              <MemberWorkoutView 
+                  workout={sessionWorkout} 
+                  onClose={onClose} 
+                  onLog={onLogWorkout ? () => onLogWorkout(workout.id, selectedOrganization.id) : undefined}
+              />
+          </div>
+      );
+  }
+
+  // --- COACH / ADMIN VIEW (Below) ---
+
+  const isLoggingEnabled = studioConfig.enableWorkoutLogging || false;
+  const showSidebar = true; // Always show sidebar in coach view for tools
+  const showQR = isLoggingEnabled && !!selectedStudio && !isPresentationMode;
+
+  return (
+    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pb-40 relative animate-fade-in">
+      
+      {showQR && (
+        <WorkoutQRDisplay 
+            workoutId={workout.id}
+            organizationId={selectedOrganization.id}
+            isEnabled={true}
+            hasActiveCarousel={hasActiveCarousel}
+        />
+      )}
+
+      {/* --- HEADER SECTION --- */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4 border-b border-gray-200 dark:border-gray-800 pb-6">
+        <div>
+            <h1 className="text-3xl lg:text-5xl font-extrabold text-gray-900 dark:text-white leading-tight">{sessionWorkout.title}</h1>
+            <div className="flex items-center gap-2 mt-3">
+                {sessionWorkout.category && (
+                    <span className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">
+                        {sessionWorkout.category}
+                    </span>
+                )}
+                <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+                    {sessionWorkout.blocks.length} träningsblock
+                </span>
+            </div>
+        </div>
+        
+        <div className="flex items-center gap-2 flex-wrap">
+            <button 
+                onClick={() => onDuplicate(workout)} 
+                className="bg-purple-100 dark:bg-purple-900/30 hover:bg-purple-200 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-semibold py-3 px-5 rounded-xl transition-colors"
+            >
+                Kopiera
+            </button>
+            <button 
+                onClick={() => onEditWorkout(workout)} 
+                className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-semibold py-3 px-5 rounded-xl transition-colors"
+            >
+                Redigera
+            </button>
+            {workout.isPublished ? (
+                <button 
+                    onClick={() => onTogglePublish(workout.id, false)}
+                    className="bg-yellow-100 dark:bg-yellow-900/30 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 text-yellow-800 dark:text-yellow-200 font-semibold py-3 px-5 rounded-xl transition-colors"
+                >
+                    Avpublicera
+                </button>
+            ) : (
+                <button 
+                    onClick={() => onTogglePublish(workout.id, true)}
+                    className="bg-primary hover:brightness-95 text-white font-semibold py-3 px-5 rounded-xl transition-colors shadow-md"
+                >
+                    Publicera
+                </button>
+            )}
+        </div>
+      </div>
+
+      {/* --- MAIN GRID LAYOUT --- */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+        
+        <div className={`${showSidebar ? 'md:col-span-7 lg:col-span-8' : 'md:col-span-12'} space-y-8`}>
+            
+            {/* Coach Tips */}
+            {sessionWorkout.coachTips && sessionWorkout.coachTips.trim() !== '' && (
+                <div className="bg-white dark:bg-gray-800 border-l-4 border-orange-400 dark:border-orange-500 rounded-r-xl shadow-sm overflow-hidden">
+                <div className="p-5">
+                    <div className="flex justify-between items-center mb-2">
+                        <h3 className="font-bold text-lg text-orange-800 dark:text-orange-200 flex items-center gap-2">
+                            <span>📢</span> Coach tips
+                        </h3>
+                        <button onClick={() => setCoachTipsVisible(!coachTipsVisible)} className="text-xs font-bold uppercase tracking-wider text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors">
+                            {coachTipsVisible ? 'Dölj' : 'Visa'}
+                        </button>
+                    </div>
+                    <AnimatePresence>
+                        {coachTipsVisible && (
+                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm">
+                                {sessionWorkout.coachTips}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+                </div>
+            )}
+            
+            {/* BLOCKS LIST */}
+            <div className="space-y-6">
+                {sessionWorkout.blocks.map((block, index) => (
+                    <div key={block.id} ref={el => { blockRefs.current[block.id] = el }}>
+                        <WorkoutBlockCard 
+                            block={block} 
+                            onStart={() => onStartBlock(block)} 
+                            onEditSettings={() => setEditingBlockId(block.id)}
+                            onUpdateBlock={handleUpdateBlock}
+                            isCoachView={isCoachView}
+                            organizationId={selectedOrganization?.id || ''}
+                        />
+                    </div>
+                ))}
+            </div>
+
+            {isHyroxRace && (
+                <ResultsLeaderboard 
+                    results={results} 
+                    isLoading={resultsLoading}
+                    personalBestName={personalBestName} 
+                />
+            )}
+        </div>
+
+        {/* SIDEBAR - Endast för Coach */}
+        {showSidebar && (
+            <div className="md:col-span-5 lg:col-span-4 space-y-6">
+                <div className="sticky top-6 space-y-6 max-h-[calc(100vh-2rem)] overflow-y-auto pr-2">
+                    
+                    {/* Navigation */}
+                    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Innehåll</h3>
+                        <nav className="space-y-1">
+                            {sessionWorkout.blocks.map((block, index) => (
+                                <button key={block.id} onClick={() => scrollToBlock(block.id)} className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 group">
+                                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 flex items-center justify-center text-xs group-hover:bg-primary group-hover:text-white transition-colors">
+                                        {index + 1}
+                                    </span>
+                                    <span className="truncate">{block.title}</span>
+                                </button>
+                            ))}
+                        </nav>
+                    </div>
+
+                    <AiContextPanel workout={sessionWorkout} />
+
+                    <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-sm border border-gray-200 dark:border-gray-700">
+                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Verktyg</h3>
+                        <div className="space-y-2">
+                            {studioConfig.enableNotes && (
+                                <button onClick={() => onVisualize(workout)} className="w-full text-left px-3 py-2 text-sm text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors flex items-center gap-2">
+                                    <DrawIcon className="w-4 h-4" />
+                                    <span>Visa på Idé-tavlan</span>
+                                </button>
+                            )}
+                            <button onClick={() => handleDelete()} className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                                Ta bort pass
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+      </div>
+
+      {editingBlockId && (
+        <TimerSetupModal
+          isOpen={!!editingBlockId}
+          onClose={() => setEditingBlockId(null)}
+          block={sessionWorkout.blocks.find(b => b.id === editingBlockId)!}
+          onSave={(newSettings) => handleUpdateSettings(editingBlockId, newSettings)}
+        />
+      )}
+    </div>
+  );
+};
+
+// Component: AI Panel
+const AiContextPanel: React.FC<{ workout: Workout }> = ({ workout }) => {
+    const hasSummary = !!workout.aiCoachSummary;
+    const hasSuggestions = workout.blocks.some(b => (b.aiMagicPenSuggestions && b.aiMagicPenSuggestions.length > 0) || b.aiCoachNotes);
+    if (!hasSummary && !hasSuggestions) return null;
+
+    return (
+        <div className="space-y-6">
+            {hasSummary && (
+                <div className="bg-gradient-to-br from-purple-50 to-indigo-50 dark:from-gray-800 dark:to-gray-800 rounded-xl p-6 shadow-sm border border-purple-100 dark:border-gray-700">
+                    <div className="flex items-center gap-2 mb-4">
+                        <div className="bg-purple-100 dark:bg-purple-900/30 p-2 rounded-lg text-purple-600 dark:text-purple-300">
+                            <SparklesIcon className="w-5 h-5" />
+                        </div>
+                        <h3 className="font-bold text-gray-900 dark:text-white">AI-Coach Analys</h3>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{workout.aiCoachSummary}</p>
+                </div>
+            )}
+        </div>
+    );
+};
+
+// WorkoutBlockCard Component
+interface WorkoutBlockCardProps {
+    block: WorkoutBlock;
+    onStart: () => void;
+    onEditSettings: () => void;
+    onUpdateBlock: (block: WorkoutBlock) => void;
+    isCoachView: boolean;
+    organizationId: string;
+}
+const WorkoutBlockCard: React.FC<WorkoutBlockCardProps> = ({ 
+    block, onStart, onEditSettings, onUpdateBlock, isCoachView, organizationId
+}) => {
+    const [exercisesVisible, setExercisesVisible] = useState(true);
+
+    const formatTime = (time: number) => {
+      const minutes = Math.floor(time / 60);
+      const seconds = time % 60;
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    };
+
+    const settingsText = useMemo(() => {
+        const { mode, workTime, restTime, rounds, prepareTime } = block.settings;
+        const prepText = `(+${prepareTime}s redo)`;
+        switch(mode) {
+            case TimerMode.Interval:
+            case TimerMode.Tabata:
+                const totalIntervals = rounds;
+                const exercisesPerLap = block.exercises.length > 0 ? block.exercises.length : 1;
+                const laps = block.settings.specifiedLaps || Math.ceil(totalIntervals / exercisesPerLap);
+                const lapText = laps > 1 ? ` (${laps} varv)` : '';
+                return `Intervall: ${totalIntervals}x (${formatTime(workTime)} / ${formatTime(restTime)})${lapText} ${prepText}`;
+            case TimerMode.AMRAP:
+            case TimerMode.TimeCap:
+                return `${mode}: ${formatTime(workTime)} totalt ${prepText}`;
+            case TimerMode.EMOM:
+                return `EMOM: ${rounds} min totalt ${prepText}`;
+            case TimerMode.NoTimer:
+                return 'Egen takt';
+            default:
+                return `${mode}: ${rounds}x (${workTime}s / ${restTime}s)`;
+        }
+    }, [block.settings, block.exercises.length]);
+  
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden transition-all">
+        <div className="p-5 border-b border-gray-100 dark:border-gray-700/50">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+                <div className="flex-grow">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest ${getTagColor(block.tag)}`}>
+                            {block.tag}
+                        </span>
+                        {block.followMe && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-300">
+                                Följ mig
+                            </span>
+                        )}
+                    </div>
+                    <h2 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">{block.title}</h2>
+                    {block.setupDescription && (
+                        <div className="mt-3 text-gray-500 dark:text-gray-400 text-xs leading-relaxed">
+                            {block.setupDescription}
+                        </div>
+                    )}
+                </div>
+                
+                {/* Start-knapp endast för coacher på skärm */}
+                {isCoachView && (
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                        <button onClick={onStart} className="bg-primary hover:brightness-95 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 transition-colors shadow-lg shadow-primary/20 whitespace-nowrap">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" /></svg>
+                            <span>Starta Timer</span>
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+        
+        <div className="bg-gray-5 dark:bg-black/20 px-5 py-3 flex justify-between items-center text-[10px] border-b border-gray-100 dark:border-gray-700/50">
+          <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            <span>{settingsText}</span>
+          </div>
+          {isCoachView && (
+              <button onClick={onEditSettings} className="text-primary hover:underline font-black uppercase tracking-widest">Ändra</button>
+          )}
+        </div>
+
+        <div className="bg-white dark:bg-gray-800 px-5 py-4">
+          <button onClick={() => setExercisesVisible(!exercisesVisible)} className="w-full flex justify-between items-center text-gray-400 dark:text-gray-500 mb-4 hover:text-gray-900 transition-colors">
+            <span className="text-[10px] font-black uppercase tracking-[0.2em]">{exercisesVisible ? 'Dölj innehåll' : 'Visa innehåll'}</span>
+            <span className="text-[10px] font-bold">{block.exercises.length} övningar</span>
+          </button>
+
+          <AnimatePresence initial={false}>
+            {exercisesVisible && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="space-y-3 overflow-hidden pb-2">
+                {block.exercises.map((ex) => (
+                    <div key={ex.id} className="flex items-start gap-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800">
+                        <div className="flex-grow min-w-0">
+                            <h4 className="text-base font-bold text-gray-900 dark:text-white leading-tight">
+                                {ex.reps && <span className="text-primary mr-2">{formatReps(ex.reps)}</span>}
+                                {ex.name}
+                            </h4>
+                            {ex.description && <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">{ex.description}</p>}
+                        </div>
+                    </div>
+                ))}
+                </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+    );
+};
+
+const formatResultTime = (timeInSeconds: number) => {
+    const minutes = Math.floor(timeInSeconds / 60);
+    const seconds = timeInSeconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
+interface ResultsLeaderboardProps {
+    results: WorkoutResult[];
+    isLoading: boolean;
+    personalBestName: string | null;
+}
+
+const ResultsLeaderboard: React.FC<ResultsLeaderboardProps> = ({ results, isLoading, personalBestName }) => {
+    const personalBestResult = useMemo(() => {
+        if (!personalBestName) return null;
+        const userResults = results.filter(r => r.participantName === personalBestName);
+        return userResults.sort((a, b) => a.finishTime - b.finishTime)[0] || null;
+    }, [results, personalBestName]);
+
+    return (
+        <div className="mt-8 bg-gray-50 dark:bg-gray-800 rounded-3xl p-6 border border-gray-200 dark:border-gray-700">
+            <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-6">Topplista</h3>
+            {personalBestResult && (
+                <div className="mb-6 p-4 bg-primary/10 border border-primary/20 rounded-2xl">
+                    <p className="font-bold text-primary text-sm">Ditt personbästa: {formatResultTime(personalBestResult.finishTime)}</p>
+                </div>
+            )}
+            {isLoading && results.length === 0 ? (
+                <p className="text-gray-500 text-sm">Laddar resultat...</p>
+            ) : (
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left">
+                        <thead>
+                            <tr className="border-b border-gray-200 dark:border-gray-700"><th className="pb-3 text-[10px] font-black uppercase text-gray-400">#</th><th className="pb-3 text-[10px] font-black uppercase text-gray-400">Namn</th><th className="pb-3 text-right text-[10px] font-black uppercase text-gray-400">Tid</th></tr>
+                        </thead>
+                        <tbody>
+                            {results.map((r, i) => (
+                                <tr key={r.id} className="border-b border-gray-100 dark:border-gray-800 last:border-0"><td className="py-4 font-black text-sm">{i + 1}</td><td className="py-4 font-bold text-gray-800 dark:text-white text-sm">{r.participantName}</td><td className="py-4 text-right font-mono font-bold text-sm">{formatResultTime(r.finishTime)}</td></tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default WorkoutDetailScreen;

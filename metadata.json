@@ -1,0 +1,8 @@
+{
+  "name": "Smart Skärm ",
+  "description": "Efter att jag fick den från Karin igen",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "prompt": ""
+}

@@ -1,0 +1,324 @@
+
+<!DOCTYPE html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SmartSkärm</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="apple-touch-icon" href="/favicon.png">
+    
+    <meta name="theme-color" content="#14b8a6">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- QR Scanner library for web -->
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=Satisfy&display=swap" rel="stylesheet">
+    
+    <style>
+      /* Hide scrollbar for Chrome, Safari and Opera */
+      ::-webkit-scrollbar {
+        display: none;
+      }
+      /* Hide scrollbar for IE, Edge and Firefox */
+      html {
+        -ms-overflow-style: none;  /* IE and Edge */
+        scrollbar-width: none;  /* Firefox */
+      }
+
+      @keyframes confetti-fall {
+        0% { transform: translateY(-20px) rotateZ(0deg); opacity: 1; }
+        100% { transform: translateY(100vh) rotateZ(720deg); opacity: 0; }
+      }
+
+      .confetti-piece {
+        position: absolute;
+        top: 0;
+        width: 10px;
+        height: 20px;
+        opacity: 0;
+        animation-name: confetti-fall;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
+        will-change: transform, opacity;
+      }
+
+      @keyframes heart-rise {
+        0% { transform: translateY(20px) scale(0.5); opacity: 1; }
+        100% { transform: translateY(-100vh) scale(1.5); opacity: 0; }
+      }
+
+      .heart-piece {
+        position: absolute;
+        bottom: 0;
+        font-size: 24px;
+        color: #e63946;
+        opacity: 0;
+        animation-name: heart-rise;
+        animation-timing-function: ease-in;
+        animation-iteration-count: infinite;
+        will-change: transform, opacity;
+      }
+
+      @keyframes snowfall {
+        0% {
+          transform: translateY(-10px) translateX(0);
+          opacity: 1;
+        }
+        50% {
+          transform: translateY(50vh) translateX(20px);
+          opacity: 0.8;
+        }
+        100% {
+          transform: translateY(100vh) translateX(-20px);
+          opacity: 0;
+        }
+      }
+
+      .snowflake {
+        position: absolute;
+        top: -10px;
+        background: white;
+        border-radius: 50%;
+        opacity: 0.8;
+        animation-name: snowfall;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
+        will-change: transform;
+        pointer-events: none;
+      }
+
+      @keyframes fog-move {
+        0% { transform: translateX(0); }
+        100% { transform: translateX(-50%); }
+      }
+
+      .fog-layer {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 200%;
+        height: 300px;
+        background: linear-gradient(to top, rgba(50,50,50,0.4) 0%, transparent 100%);
+        background-size: 50% 100%;
+        animation: fog-move 20s linear infinite;
+        pointer-events: none;
+        z-index: 5;
+      }
+
+      .line-clamp-4 {
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 4;
+      }
+      
+      .line-clamp-6 {
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 6;
+      }
+      
+      /* Keyframes for the pulsating background color */
+      @keyframes pulse-bg-light-keyframes {
+        50% { background-color: rgba(var(--pulse-color-rgb, 249 115 22), 0.3); }
+      }
+      @keyframes pulse-bg-medium-keyframes {
+        50% { background-color: rgba(var(--pulse-color-rgb, 249 115 22), 0.5); }
+      }
+      @keyframes pulse-bg-intense-keyframes {
+        50% { background-color: rgba(var(--pulse-color-rgb, 249 115 22), 0.7); }
+      }
+      
+      /* Keyframes for the pulsating inner glow effect */
+      @keyframes pulse-inset-light-keyframes {
+        50% { box-shadow: inset 0 0 2rem 0.5rem rgba(255, 255, 255, 0.2); }
+      }
+      @keyframes pulse-inset-medium-keyframes {
+        50% { box-shadow: inset 0 0 2.5rem 0.75rem rgba(255, 255, 255, 0.3); }
+      }
+      @keyframes pulse-inset-intense-keyframes {
+        50% { box-shadow: inset 0 0 3rem 1rem rgba(255, 255, 255, 0.4); }
+      }
+      
+      /* Keyframes for banner animations */
+      @keyframes slideInLeft {
+        from { transform: translateX(-100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      @keyframes slideInRight {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+      }
+      @keyframes fadeInBanner {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      
+      @keyframes fade-in-out {
+        0% { opacity: 0; transform: scale(0.95); }
+        10% { opacity: 1; transform: scale(1); }
+        90% { opacity: 1; transform: scale(1); }
+        100% { opacity: 0; transform: scale(1.05); }
+      }
+
+      /* Keyframes for NotesScreen word cloud */
+      @keyframes word-cloud-fade-in {
+        from {
+          opacity: 0;
+          transform: scale(0.8);
+        }
+        to {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      @keyframes pulse-border-keyframes {
+        50% {
+          border-color: var(--color-primary, #14b8a6);
+          box-shadow: 0 0 12px 0 var(--color-primary, #14b8a6);
+        }
+      }
+      
+      /* Keyframes for Hyrox gradient background */
+      @keyframes pulse-hyrox-bg-keyframes {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+
+      /* Blob animations for Home Screen Background */
+      @keyframes blob {
+        0% { transform: translate(0px, 0px) scale(1); }
+        33% { transform: translate(30px, -50px) scale(1.1); }
+        66% { transform: translate(-20px, 20px) scale(0.9); }
+        100% { transform: translate(0px, 0px) scale(1); }
+      }
+      .animate-blob {
+        animation: blob 7s infinite;
+      }
+      .animation-delay-2000 {
+        animation-delay: 2s;
+      }
+      .animation-delay-4000 {
+        animation-delay: 4s;
+      }
+    </style>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              'primary': 'var(--color-primary, #14b8a6)', // Default to new green
+            },
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              logo: ['Satisfy', 'cursive'],
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.3s ease-out forwards',
+              'fade-out': 'fadeOut 0.3s ease-out forwards',
+              'pulse-loader': 'pulseLoader 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+              'pulse-bg-light': 'pulse-bg-light-keyframes 2.5s ease-in-out infinite',
+              'pulse-bg-medium': 'pulse-bg-medium-keyframes 1.5s ease-in-out infinite',
+              'pulse-bg-intense': 'pulse-bg-intense-keyframes 0.8s ease-in-out infinite',
+              'pulse-inset-light': 'pulse-inset-light-keyframes 2.5s ease-in-out infinite',
+              'pulse-inset-medium': 'pulse-inset-medium-keyframes 1.5s ease-in-out infinite',
+              'pulse-inset-intense': 'pulse-inset-intense-keyframes 0.8s ease-in-out infinite',
+              'slide-in-left': 'slideInLeft 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+              'slide-in-right': 'slideInRight 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+              'fade-in-banner': 'fadeInBanner 0.7s ease-out forwards',
+              'fade-in-out': 'fade-in-out 3s ease-in-out forwards',
+              'word-cloud-fade-in': 'word-cloud-fade-in 1s ease-out forwards',
+              'zoom-fade-in': 'zoomFadeIn 0.4s ease-out forwards',
+              'slide-in-from-left': 'slideInFromLeft 0.5s ease-out forwards',
+              'slide-out-to-right': 'slideOutToRight 0.5s ease-in forwards',
+              'pulse-hyrox-bg': 'pulse-hyrox-bg-keyframes 10s ease-in-out infinite',
+              'pulse-border': 'pulse-border-keyframes 1.5s ease-in-out',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0', transform: 'scale(0.95)' },
+                '100%': { opacity: '1', transform: 'scale(1)' },
+              },
+              fadeOut: {
+                'from': { opacity: '1' },
+                'to': { opacity: '0' },
+              },
+              pulseLoader: {
+                '0%': { transform: 'scale(.1)', opacity: '1' },
+                '70%': { transform: 'scale(1)', opacity: '0.7' },
+                '100%': { opacity: '0' },
+              },
+              zoomFadeIn: {
+                'from': { opacity: '0', transform: 'scale(0.95)' },
+                'to': { opacity: '1', transform: 'scale(1)' },
+              },
+              slideInFromLeft: {
+                'from': { opacity: '0', transform: 'translateX(-100%)' },
+                'to': { opacity: '1', transform: 'translateX(0)' },
+              },
+              slideOutToRight: {
+                'from': { opacity: '1', transform: 'translateX(0)' },
+                'to': { opacity: '0', transform: 'translateX(100%)' },
+              }
+            }
+          }
+        }
+      }
+    </script>
+<script type="importmap">
+{
+  "imports": {
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "framer-motion": "https://esm.sh/framer-motion@^12.23.26",
+    "react-dom": "https://esm.sh/react-dom@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "zod": "https://esm.sh/zod@^4.2.1",
+    "firebase/": "https://esm.sh/firebase@^12.7.0/",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "url": "https://esm.sh/url@^0.11.4",
+    "path": "https://esm.sh/path@^0.12.7",
+    "react-window": "https://esm.sh/react-window@1.8.10",
+    "react-virtualized-auto-sizer": "https://esm.sh/react-virtualized-auto-sizer@1.0.24",
+    "react-qr-code": "https://esm.sh/react-qr-code@^2.0.18",
+    "react-native": "https://esm.sh/react-native@^0.83.1",
+    "expo-camera": "https://esm.sh/expo-camera@^17.0.10",
+    "@react-navigation/native": "https://esm.sh/@react-navigation/native@^7.1.26",
+    "@expo/vector-icons": "https://esm.sh/@expo/vector-icons@^15.0.3",
+    "@react-navigation/native-stack": "https://esm.sh/@react-navigation/native-stack@^7.9.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-white dark:bg-black">
+    <div id="root"></div>
+    <script type="module" src="./index.tsx"></script>
+    
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then(registration => {
+              console.log('ServiceWorker registration successful with scope: ', registration.scope);
+            })
+            .catch(err => {
+              console.log('ServiceWorker registration failed: ', err);
+            });
+        });
+      }
+    </script>
+<script type="module" src="/index.tsx"></script>
+</body>
+</html>
