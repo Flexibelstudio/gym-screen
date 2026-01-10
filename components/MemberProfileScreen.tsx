@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { WorkoutLog, UserData, MemberGoals, Page, UserRole } from '../types';
 import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog } from '../services/firebaseService';
-import { analyzeMemberProgress, MemberProgressAnalysis } from '../services/geminiService'; // NY IMPORT
+import { analyzeMemberProgress, MemberProgressAnalysis } from '../services/geminiService';
 import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, InformationCircleIcon } from './icons';
 import { Modal } from './ui/Modal';
 import { resizeImage } from '../utils/imageUtils';
@@ -166,7 +166,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [isSaving, setIsSaving] = useState(false);
     const [isEditingGoals, setIsEditingGoals] = useState(false);
     
-    // NYTT: State för AI-analys
+    // AI State
     const [analysis, setAnalysis] = useState<MemberProgressAnalysis | null>(null);
     const [showInfo, setShowInfo] = useState(false);
 
@@ -183,7 +183,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         if (profileEditTrigger > 0) setIsEditing(true);
     }, [profileEditTrigger]);
 
-    // Real-time log listening AND AI Analysis trigger
+    // Real-time log listening & AI Analysis
     useEffect(() => {
         if (!userData.uid) return;
         setLoading(true);
@@ -191,11 +191,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             setLogs(data);
             setLoading(false);
 
-            // Trigger AI analysis when logs are loaded
             if (data.length > 0) {
                 analyzeMemberProgress(data, userData.firstName || 'Medlem', userData.goals)
                     .then(result => setAnalysis(result))
-                    .catch(err => console.error("Could not generate profile analysis", err));
+                    .catch(err => console.error("Analysis error", err));
             }
         });
         return () => unsubscribe();
@@ -423,7 +422,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-white/20 rounded-full blur-[60px] pointer-events-none"></div>
                 </div>
 
-                {/* --- NY INSATT SEKTION: FYSIK-INDEX & AI-ANALYS (FRÅN NYA KODEN) --- */}
+                {/* AI Analysis Section */}
                 {analysis && (
                     <motion.div 
                         initial={{ opacity: 0, y: 20 }}
@@ -444,11 +443,11 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 <ul className="space-y-1 ml-1">
                                     <li className="flex gap-2"><span className="text-red-500">●</span> <span><strong>Styrka:</strong> Ökar vid tunga lyft och låga repetitioner.</span></li>
                                     <li className="flex gap-2"><span className="text-blue-500">●</span> <span><strong>Kondition:</strong> Ökar vid hög puls och distans.</span></li>
+                                    <li className="flex gap-2"><span className="text-green-500">●</span> <span><strong>Frekvens:</strong> Baserat på hur ofta du tränar.</span></li>
                                 </ul>
                             </div>
                         )}
 
-                        {/* Staplar */}
                         <div className="space-y-6 mb-8">
                             {[
                                 { label: 'Styrka', val: analysis.metrics.strength, color: 'bg-red-500' },
@@ -467,7 +466,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             ))}
                         </div>
 
-                        {/* Textanalys */}
                         <div className="grid md:grid-cols-2 gap-6 bg-gray-50 dark:bg-gray-800/30 p-5 rounded-2xl">
                             <div>
                                 <h4 className="text-xs font-black uppercase tracking-widest text-indigo-500 mb-2 flex items-center gap-1"><SparklesIcon className="w-3 h-3" /> Styrkor</h4>
@@ -480,7 +478,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         </div>
                     </motion.div>
                 )}
-                {/* ----------------------------------------------------------------- */}
 
                 {/* Goals section */}
                 <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-800">
@@ -572,11 +569,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     </div>
                 </div>
             </div>
-        </div>
 
-        {isEditingGoals && <GoalsEditModal currentGoals={userData.goals} onSave={handleSaveGoals} onClose={() => setIsEditingGoals(false)} />}
-        {selectedLog && <LogDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} onUpdate={handleUpdateLog} onDelete={handleDeleteLog} />}
-    </div>
+            {isEditingGoals && <GoalsEditModal currentGoals={userData.goals} onSave={handleSaveGoals} onClose={() => setIsEditingGoals(false)} />}
+            {selectedLog && <LogDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} onUpdate={handleUpdateLog} onDelete={handleDeleteLog} />}
+        </div>
     );
 };
 
