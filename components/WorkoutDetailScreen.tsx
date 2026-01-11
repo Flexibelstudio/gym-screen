@@ -1,13 +1,19 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, Passkategori, StudioConfig, WorkoutResult, Organization, BankExercise } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
-import { StarIcon, PencilIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, PencilIcon as DrawIcon, CloseIcon } from './icons';
+import { StarIcon, PencilIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, PencilIcon as DrawIcon, CloseIcon, ClockIcon, UsersIcon } from './icons';
 import { getWorkoutResults } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import { WorkoutQRDisplay } from './WorkoutQRDisplay';
 import { useAuth } from '../context/AuthContext';
+
+// Helper to format time for results (00:00)
+const formatResultTime = (timeInSeconds: number) => {
+    const minutes = Math.floor(timeInSeconds / 60);
+    const seconds = timeInSeconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
 
 // Helper to get color based on workout tag
 const getTagColor = (tag: string) => {
@@ -142,263 +148,16 @@ const MemberWorkoutView: React.FC<{
     );
 };
 
+// --- COACH VIEW SUB-COMPONENTS ---
 
-// WorkoutDetailScreen Component
-interface WorkoutDetailScreenProps {
-  workout: Workout;
-  onStartBlock: (block: WorkoutBlock) => void;
-  onUpdateBlockSettings: (blockId: string, newSettings: Partial<WorkoutBlock['settings']>) => void;
-  onEditWorkout: (workout: Workout, blockId?: string) => void;
-  isCoachView: boolean;
-  onTogglePublish: (workoutId: string, isPublished: boolean) => void;
-  onToggleFavorite: (workoutId: string) => void;
-  onDuplicate: (workout: Workout) => void;
-  onShowImage: (url: string) => void; 
-  isPresentationMode: boolean;
-  studioConfig: StudioConfig;
-  onDelete?: (workoutId: string) => void;
-  followMeShowImage: boolean;
-  setFollowMeShowImage: (show: boolean) => void;
-  onUpdateWorkout: (workout: Workout) => void;
-  onVisualize: (workout: Workout) => void;
-  hasActiveCarousel?: boolean; 
-  onLogWorkout?: (workoutId: string, orgId: string) => void;
-  onClose?: () => void;
-}
-
-const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({ 
-    workout, onStartBlock, onUpdateBlockSettings, onEditWorkout, 
-    isCoachView, onTogglePublish, onToggleFavorite, onDuplicate, 
-    onShowImage, isPresentationMode, studioConfig, onDelete,
-    followMeShowImage, setFollowMeShowImage, onUpdateWorkout, onVisualize,
-    hasActiveCarousel = false,
-    onLogWorkout,
-    onClose
-}) => {
-  const { selectedOrganization, selectedStudio } = useStudio();
-  const { isStudioMode, role } = useAuth();
-  const [sessionWorkout, setSessionWorkout] = useState<Workout>(() => JSON.parse(JSON.stringify(workout)));
-  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
-  const [coachTipsVisible, setCoachTipsVisible] = useState(true);
-  const [results, setResults] = useState<WorkoutResult[]>([]);
-  const [resultsLoading, setResultsLoading] = useState(false);
-  
-  const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  
-  const personalBestName = useMemo(() => localStorage.getItem('hyrox-participant-name'), []);
-  const isHyroxRace = useMemo(() => workout.id.startsWith('hyrox-full-race'), [workout.id]);
-
-  useEffect(() => {
-    setSessionWorkout(JSON.parse(JSON.stringify(workout)));
-  }, [workout]);
-
-  useEffect(() => {
-    if (isHyroxRace && selectedOrganization) {
-        const fetchResults = () => {
-            if (!resultsLoading) { 
-                setResultsLoading(true);
-                getWorkoutResults(workout.id, selectedOrganization.id)
-                    .then(setResults)
-                    .catch(console.error)
-                    .finally(() => setResultsLoading(false));
-            }
-        };
-        fetchResults();
-        const intervalId = setInterval(fetchResults, 15000);
-        return () => clearInterval(intervalId);
-    }
-  }, [workout.id, isHyroxRace, resultsLoading, selectedOrganization]);
-
-  const handleDelete = () => {
-      if (onDelete && window.confirm(`Är du säker på att du vill ta bort passet "${workout.title}"?`)) {
-          onDelete(workout.id);
-      }
-  };
-
-  const handleUpdateBlock = (updatedBlock: WorkoutBlock) => {
-    setSessionWorkout(prevWorkout => {
-      if (!prevWorkout) return null;
-      return {
-        ...prevWorkout,
-        blocks: prevWorkout.blocks.map(b => b.id === updatedBlock.id ? updatedBlock : b)
-      };
-    });
-  };
-
-  const handleUpdateSettings = (blockId: string, newSettings: Partial<TimerSettings>) => {
-      onUpdateBlockSettings(blockId, newSettings);
-      const blockToUpdate = sessionWorkout.blocks.find(b => b.id === blockId);
-      if (blockToUpdate) {
-          const updatedBlock = {
-              ...blockToUpdate,
-              settings: { ...blockToUpdate.settings, ...newSettings }
-          };
-          handleUpdateBlock(updatedBlock);
-      }
-      setEditingBlockId(null);
-  };
-  
-  const scrollToBlock = (blockId: string) => {
-      const el = blockRefs.current[blockId];
-      if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-  };
-
-  if (!sessionWorkout || !selectedOrganization) {
-    return null; 
-  }
-
-  // --- MEMBER VIEW SWITCH ---
-  // Studio mode OR true admin/coach should see the full details with start buttons.
-  // Only regular members on mobile (isStudioMode = false AND role = member) see simplified view.
-  const showCoachView = isStudioMode || isCoachView;
-
-  if (!showCoachView) {
-      return (
-          <div className="w-full max-w-3xl mx-auto px-4 sm:px-6">
-              <MemberWorkoutView 
-                  workout={sessionWorkout} 
-                  onClose={onClose} 
-                  onLog={onLogWorkout ? () => onLogWorkout(workout.id, selectedOrganization.id) : undefined}
-              />
-          </div>
-      );
-  }
-
-  // --- COACH / ADMIN VIEW (Below) ---
-
-  const isLoggingEnabled = studioConfig.enableWorkoutLogging || false;
-  const showSidebar = !isStudioMode; // Sidebar only for true admins, not for the screen view
-  const showQR = isLoggingEnabled && !!selectedStudio && !isPresentationMode;
-
-  return (
-    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pb-40 relative animate-fade-in">
-      
-      {showQR && (
-        <WorkoutQRDisplay 
-            workoutId={workout.id}
-            organizationId={selectedOrganization.id}
-            isEnabled={true}
-            hasActiveCarousel={hasActiveCarousel}
-        />
-      )}
-
-      {/* --- HEADER SECTION --- */}
-      <div className="mb-10 text-center sm:text-left">
-          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black text-gray-900 dark:text-white leading-tight mb-2 tracking-tight">
-              {sessionWorkout.title}
-          </h1>
-          <div className="flex items-center justify-center sm:justify-start gap-3">
-              {sessionWorkout.category && (
-                  <span className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-gray-200 dark:border-gray-700">
-                      {sessionWorkout.category}
-                  </span>
-              )}
-          </div>
-      </div>
-
-      {/* --- TIPS FRÅN COACHEN --- */}
-      {sessionWorkout.coachTips && (
-        <div className="bg-[#fff9f0] dark:bg-orange-900/10 border-l-[12px] border-orange-400 rounded-2xl p-8 mb-12 shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-                <h3 className="text-2xl font-black text-orange-900 dark:text-orange-200 uppercase tracking-tight flex items-center gap-3">
-                    <span className="text-3xl">📢</span> Tips från coachen
-                </h3>
-                {showSidebar && (
-                    <button onClick={() => setCoachTipsVisible(!coachTipsVisible)} className="text-xs font-black uppercase text-gray-400 hover:text-orange-600">
-                        {coachTipsVisible ? 'Dölj' : 'Visa'}
-                    </button>
-                )}
-            </div>
-            <AnimatePresence>
-                {coachTipsVisible && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                        <p className="text-xl text-orange-900/80 dark:text-orange-100/80 leading-relaxed font-medium">
-                            {sessionWorkout.coachTips}
-                        </p>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
-      )}
-
-      {/* --- MAIN GRID --- */}
-      <div className={`grid grid-cols-1 ${showSidebar ? 'md:grid-cols-12' : ''} gap-10 items-start`}>
-        
-        <div className={`${showSidebar ? 'md:col-span-8' : 'w-full'} space-y-10`}>
-            {/* BLOCKS LIST */}
-            <div className="space-y-8">
-                {sessionWorkout.blocks.map((block) => (
-                    <div key={block.id} ref={el => { blockRefs.current[block.id] = el }}>
-                        <WorkoutBlockCard 
-                            block={block} 
-                            onStart={() => onStartBlock(block)} 
-                            onEditSettings={() => setEditingBlockId(block.id)}
-                            onUpdateBlock={handleUpdateBlock}
-                            isCoachView={true}
-                            organizationId={selectedOrganization?.id || ''}
-                        />
-                    </div>
-                ))}
-            </div>
-
-            {isHyroxRace && (
-                <ResultsLeaderboard 
-                    results={results} 
-                    isLoading={resultsLoading}
-                    personalBestName={personalBestName} 
-                />
-            )}
-        </div>
-
-        {/* SIDEBAR - Kun för Admin */}
-        {showSidebar && (
-            <div className="md:col-span-4 space-y-6">
-                <div className="sticky top-6 space-y-6 max-h-[calc(100vh-2rem)] overflow-y-auto pr-2">
-                    <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-xl border border-gray-100 dark:border-gray-700">
-                        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Administration</h3>
-                        <div className="space-y-2">
-                            <button onClick={() => onEditWorkout(workout)} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 hover:bg-primary/10 hover:text-primary transition-all font-bold">
-                                <PencilIcon className="w-5 h-5" /> Redigera Pass
-                            </button>
-                            <button onClick={() => onDuplicate(workout)} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 hover:bg-primary/10 hover:text-primary transition-all font-bold">
-                                <StarIcon className="w-5 h-5" /> Kopiera Pass
-                            </button>
-                            <button onClick={() => onTogglePublish(workout.id, !workout.isPublished)} className={`w-full flex items-center gap-3 p-4 rounded-2xl font-bold transition-all ${workout.isPublished ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
-                                {workout.isPublished ? 'Avpublicera' : 'Publicera'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        )}
-      </div>
-
-      {editingBlockId && (
-        <TimerSetupModal
-          isOpen={!!editingBlockId}
-          onClose={() => setEditingBlockId(null)}
-          block={sessionWorkout.blocks.find(b => b.id === editingBlockId)!}
-          onSave={(newSettings) => handleUpdateSettings(editingBlockId, newSettings)}
-        />
-      )}
-    </div>
-  );
-};
-
-// WorkoutBlockCard Component
-interface WorkoutBlockCardProps {
+const WorkoutBlockCard: React.FC<{
     block: WorkoutBlock;
     onStart: () => void;
     onEditSettings: () => void;
     onUpdateBlock: (block: WorkoutBlock) => void;
     isCoachView: boolean;
     organizationId: string;
-}
-const WorkoutBlockCard: React.FC<WorkoutBlockCardProps> = ({ 
-    block, onStart, onEditSettings, onUpdateBlock, isCoachView, organizationId
-}) => {
+}> = ({ block, onStart, onEditSettings, onUpdateBlock, isCoachView, organizationId }) => {
     const [exercisesVisible, setExercisesVisible] = useState(true);
 
     const formatTime = (time: number) => {
@@ -408,7 +167,7 @@ const WorkoutBlockCard: React.FC<WorkoutBlockCardProps> = ({
     };
 
     const settingsText = useMemo(() => {
-        const { mode, workTime, restTime, rounds, prepareTime } = block.settings;
+        const { mode, workTime, restTime, rounds } = block.settings;
         switch(mode) {
             case TimerMode.Interval:
             case TimerMode.Tabata:
@@ -508,7 +267,11 @@ const WorkoutBlockCard: React.FC<WorkoutBlockCardProps> = ({
     );
 };
 
-const ResultsLeaderboard: React.FC<ResultsLeaderboardProps> = ({ results, isLoading, personalBestName }) => {
+const ResultsLeaderboard: React.FC<{
+    results: WorkoutResult[];
+    isLoading: boolean;
+    personalBestName: string | null;
+}> = ({ results, isLoading, personalBestName }) => {
     const personalBestResult = useMemo(() => {
         if (!personalBestName) return null;
         const userResults = results.filter(r => r.participantName === personalBestName);
@@ -543,17 +306,240 @@ const ResultsLeaderboard: React.FC<ResultsLeaderboardProps> = ({ results, isLoad
     );
 };
 
-// Types for internal usage
-const UsersIcon = ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-    </svg>
-);
+// --- MAIN COMPONENT ---
 
-interface ResultsLeaderboardProps {
-    results: WorkoutResult[];
-    isLoading: boolean;
-    personalBestName: string | null;
+interface WorkoutDetailScreenProps {
+  workout: Workout;
+  onStartBlock: (block: WorkoutBlock) => void;
+  onUpdateBlockSettings: (blockId: string, newSettings: Partial<WorkoutBlock['settings']>) => void;
+  onEditWorkout: (workout: Workout, blockId?: string) => void;
+  isCoachView: boolean;
+  onTogglePublish: (workoutId: string, isPublished: boolean) => void;
+  onToggleFavorite: (workoutId: string) => void;
+  onDuplicate: (workout: Workout) => void;
+  onShowImage: (url: string) => void; 
+  isPresentationMode: boolean;
+  studioConfig: StudioConfig;
+  onDelete?: (workoutId: string) => void;
+  followMeShowImage: boolean;
+  setFollowMeShowImage: (show: boolean) => void;
+  onUpdateWorkout: (workout: Workout) => void;
+  onVisualize: (workout: Workout) => void;
+  hasActiveCarousel?: boolean; 
+  onLogWorkout?: (workoutId: string, orgId: string) => void;
+  onClose?: () => void;
 }
+
+const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({ 
+    workout, onStartBlock, onUpdateBlockSettings, onEditWorkout, 
+    isCoachView, onTogglePublish, onToggleFavorite, onDuplicate, 
+    onShowImage, isPresentationMode, studioConfig, onDelete,
+    followMeShowImage, setFollowMeShowImage, onUpdateWorkout, onVisualize,
+    hasActiveCarousel = false,
+    onLogWorkout,
+    onClose
+}) => {
+  const { selectedOrganization, selectedStudio } = useStudio();
+  const { isStudioMode, role } = useAuth();
+  const [sessionWorkout, setSessionWorkout] = useState<Workout>(() => JSON.parse(JSON.stringify(workout)));
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+  const [coachTipsVisible, setCoachTipsVisible] = useState(true);
+  const [results, setResults] = useState<WorkoutResult[]>([]);
+  const [resultsLoading, setResultsLoading] = useState(false);
+  
+  const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  
+  const personalBestName = useMemo(() => localStorage.getItem('hyrox-participant-name'), []);
+  const isHyroxRace = useMemo(() => workout.id.startsWith('hyrox-full-race'), [workout.id]);
+
+  useEffect(() => {
+    setSessionWorkout(JSON.parse(JSON.stringify(workout)));
+  }, [workout]);
+
+  useEffect(() => {
+    if (isHyroxRace && selectedOrganization) {
+        const fetchResults = () => {
+            if (!resultsLoading) { 
+                setResultsLoading(true);
+                getWorkoutResults(workout.id, selectedOrganization.id)
+                    .then(setResults)
+                    .catch(console.error)
+                    .finally(() => setResultsLoading(false));
+            }
+        };
+        fetchResults();
+        const intervalId = setInterval(fetchResults, 15000);
+        return () => clearInterval(intervalId);
+    }
+  }, [workout.id, isHyroxRace, resultsLoading, selectedOrganization]);
+
+  const handleDelete = () => {
+      if (onDelete && window.confirm(`Är du säker på att du vill ta bort passet "${workout.title}"?`)) {
+          onDelete(workout.id);
+      }
+  };
+
+  const handleUpdateBlock = (updatedBlock: WorkoutBlock) => {
+    setSessionWorkout(prevWorkout => {
+      if (!prevWorkout) return null;
+      return {
+        ...prevWorkout,
+        blocks: prevWorkout.blocks.map(b => b.id === updatedBlock.id ? updatedBlock : b)
+      };
+    });
+  };
+
+  const handleUpdateSettings = (blockId: string, newSettings: Partial<TimerSettings>) => {
+      onUpdateBlockSettings(blockId, newSettings);
+      const blockToUpdate = sessionWorkout.blocks.find(b => b.id === blockId);
+      if (blockToUpdate) {
+          const updatedBlock = {
+              ...blockToUpdate,
+              settings: { ...blockToUpdate.settings, ...newSettings }
+          };
+          handleUpdateBlock(updatedBlock);
+      }
+      setEditingBlockId(null);
+  };
+  
+  if (!sessionWorkout || !selectedOrganization) {
+    return null; 
+  }
+
+  // --- MEMBER VIEW SWITCH ---
+  const showCoachView = isStudioMode || isCoachView;
+
+  if (!showCoachView) {
+      return (
+          <div className="w-full max-w-3xl mx-auto px-4 sm:px-6">
+              <MemberWorkoutView 
+                  workout={sessionWorkout} 
+                  onClose={onClose} 
+                  onLog={onLogWorkout ? () => onLogWorkout(workout.id, selectedOrganization.id) : undefined}
+              />
+          </div>
+      );
+  }
+
+  // --- COACH / ADMIN VIEW (Below) ---
+
+  const isLoggingEnabled = studioConfig.enableWorkoutLogging || false;
+  const showSidebar = !isStudioMode; 
+  const showQR = isLoggingEnabled && !!selectedStudio && !isPresentationMode;
+
+  return (
+    <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pb-40 relative animate-fade-in">
+      
+      {showQR && (
+        <WorkoutQRDisplay 
+            workoutId={workout.id}
+            organizationId={selectedOrganization.id}
+            isEnabled={true}
+            hasActiveCarousel={hasActiveCarousel}
+        />
+      )}
+
+      {/* --- HEADER SECTION --- */}
+      <div className="mb-10 text-center sm:text-left">
+          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black text-gray-900 dark:text-white leading-tight mb-2 tracking-tight">
+              {sessionWorkout.title}
+          </h1>
+          <div className="flex items-center justify-center sm:justify-start gap-3">
+              {sessionWorkout.category && (
+                  <span className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-gray-200 dark:border-gray-700">
+                      {sessionWorkout.category}
+                  </span>
+              )}
+          </div>
+      </div>
+
+      {/* --- TIPS FRÅN COACHEN --- */}
+      {sessionWorkout.coachTips && (
+        <div className="bg-[#fff9f0] dark:bg-orange-900/10 border-l-[12px] border-orange-400 rounded-2xl p-8 mb-12 shadow-sm">
+            <div className="flex justify-between items-center mb-4">
+                <h3 className="text-2xl font-black text-orange-900 dark:text-orange-200 uppercase tracking-tight flex items-center gap-3">
+                    <span className="text-3xl">📢</span> Tips från coachen
+                </h3>
+                {showSidebar && (
+                    <button onClick={() => setCoachTipsVisible(!coachTipsVisible)} className="text-xs font-black uppercase text-gray-400 hover:text-orange-600">
+                        {coachTipsVisible ? 'Dölj' : 'Visa'}
+                    </button>
+                )}
+            </div>
+            <AnimatePresence>
+                {coachTipsVisible && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                        <p className="text-xl text-orange-900/80 dark:text-orange-100/80 leading-relaxed font-medium">
+                            {sessionWorkout.coachTips}
+                        </p>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+      )}
+
+      {/* --- MAIN GRID --- */}
+      <div className={`grid grid-cols-1 ${showSidebar ? 'md:grid-cols-12' : ''} gap-10 items-start`}>
+        
+        <div className={`${showSidebar ? 'md:col-span-8' : 'w-full'} space-y-10`}>
+            {/* BLOCKS LIST */}
+            <div className="space-y-8">
+                {sessionWorkout.blocks.map((block) => (
+                    <div key={block.id} ref={el => { blockRefs.current[block.id] = el }}>
+                        <WorkoutBlockCard 
+                            block={block} 
+                            onStart={() => onStartBlock(block)} 
+                            onEditSettings={() => setEditingBlockId(block.id)}
+                            onUpdateBlock={handleUpdateBlock}
+                            isCoachView={true}
+                            organizationId={selectedOrganization?.id || ''}
+                        />
+                    </div>
+                ))}
+            </div>
+
+            {isHyroxRace && (
+                <ResultsLeaderboard 
+                    results={results} 
+                    isLoading={resultsLoading}
+                    personalBestName={personalBestName} 
+                />
+            )}
+        </div>
+
+        {/* SIDEBAR - Kun för Admin */}
+        {showSidebar && (
+            <div className="md:col-span-4 space-y-6">
+                <div className="sticky top-6 space-y-6 max-h-[calc(100vh-2rem)] overflow-y-auto pr-2 text-left">
+                    <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-xl border border-gray-100 dark:border-gray-700">
+                        <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Administration</h3>
+                        <div className="space-y-2">
+                            <button onClick={() => onEditWorkout(workout)} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 hover:bg-primary/10 hover:text-primary transition-all font-bold">
+                                <PencilIcon className="w-5 h-5" /> Redigera Pass
+                            </button>
+                            <button onClick={() => onDuplicate(workout)} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 hover:bg-primary/10 hover:text-primary transition-all font-bold">
+                                <StarIcon className="w-5 h-5" /> Kopiera Pass
+                            </button>
+                            <button onClick={() => onTogglePublish(workout.id, !workout.isPublished)} className={`w-full flex items-center gap-3 p-4 rounded-2xl font-bold transition-all ${workout.isPublished ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                                {workout.isPublished ? 'Avpublicera' : 'Publicera'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+      </div>
+
+      {editingBlockId && (
+        <TimerSetupModal
+          isOpen={!!editingBlockId}
+          onClose={() => setEditingBlockId(null)}
+          block={sessionWorkout.blocks.find(b => b.id === editingBlockId)!}
+          onSave={(newSettings) => handleUpdateSettings(editingBlockId, newSettings)}
+        />
+      )}
+    </div>
+  );
+};
 
 export default WorkoutDetailScreen;
