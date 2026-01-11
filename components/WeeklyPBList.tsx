@@ -37,7 +37,7 @@ export const WeeklyPBList: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="h-full flex flex-col items-center justify-center bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800">
+            <div className="h-full flex flex-col items-center justify-center bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-lg">
                 <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
                 <p className="text-gray-400 text-xs font-bold uppercase tracking-widest">Hämtar rekord...</p>
             </div>
@@ -45,7 +45,7 @@ export const WeeklyPBList: React.FC = () => {
     }
 
     return (
-        <div className="bg-white dark:bg-gradient-to-br dark:from-gray-900 dark:to-black rounded-3xl p-6 shadow-xl border border-gray-100 dark:border-gray-800 relative overflow-hidden h-full flex flex-col transition-colors duration-500">
+        <div className="bg-white dark:bg-gradient-to-br dark:from-gray-900 dark:to-black rounded-3xl p-6 shadow-2xl border border-gray-100 dark:border-gray-800 relative overflow-hidden h-full flex flex-col transition-colors duration-500">
             {/* Header */}
             <div className="flex items-center gap-3 mb-6 relative z-10">
                 <div className="p-2.5 bg-yellow-500/10 dark:bg-yellow-500/20 rounded-xl text-yellow-600 dark:text-yellow-400 shadow-inner border border-yellow-500/20">
