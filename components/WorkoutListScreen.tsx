@@ -49,12 +49,23 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
             {filteredWorkouts.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                     {filteredWorkouts.map(workout => (
-                        <button
+                        <div
                             key={workout.id}
-                            onClick={() => onSelectWorkout(workout, 'view')}
-                            className="group relative bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.15)] hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col text-left p-8"
+                            className="group relative bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.15)] hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col p-8"
                         >
-                            <div className="flex-grow">
+                            {/* Studio Mode Overlay - Makes entire card clickable in studio */}
+                            {isStudioMode && (
+                                <button 
+                                    className="absolute inset-0 z-10 w-full h-full cursor-pointer"
+                                    onClick={() => onSelectWorkout(workout, 'view')}
+                                    aria-label={`Visa ${workout.title}`}
+                                />
+                            )}
+
+                            <div 
+                                className="flex-grow cursor-pointer"
+                                onClick={() => !isStudioMode && onSelectWorkout(workout, 'view')}
+                            >
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="flex flex-wrap gap-2">
                                         {!passkategori && workout.category && (
@@ -62,7 +73,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                                 {workout.category}
                                             </span>
                                         )}
-                                        {workout.logType === 'quick' && !isStudioMode && (
+                                        {workout.logType === 'quick' && (
                                             <div className="flex items-center gap-1 text-[10px] font-black text-purple-600 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-300 px-3 py-1 rounded-lg border border-purple-100 dark:border-purple-800">
                                                 <ClockIcon className="w-3.5 h-3.5" />
                                                 <span>SNABBLOGG</span>
@@ -73,24 +84,33 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                 <h3 className="text-2xl font-black text-primary dark:text-primary leading-tight mb-4 line-clamp-2">
                                     {workout.title}
                                 </h3>
-                                <p className="text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-4">
+                                <p className="text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-4 font-medium">
                                     {workout.coachTips || "Välkommen till dagens pass. Fokusera på teknik och intensitet!"}
                                 </p>
                             </div>
 
                             {!isStudioMode && (
-                                <div className="mt-8 flex flex-col sm:flex-row gap-3">
-                                    <div className="flex-1 px-4 py-3 rounded-2xl bg-primary text-white font-black text-center text-xs uppercase tracking-widest shadow-lg shadow-primary/20">
+                                <div className="mt-8 flex gap-3 relative z-20">
+                                    <button
+                                        onClick={() => onSelectWorkout(workout, 'view')}
+                                        className="flex-1 px-4 py-3 rounded-2xl border-2 border-gray-100 dark:border-gray-800 text-gray-600 dark:text-gray-300 font-black text-center text-[10px] uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                                    >
+                                        Visa pass
+                                    </button>
+                                    <button
+                                        onClick={() => onSelectWorkout(workout, 'log')}
+                                        className="flex-[1.5] px-4 py-3 rounded-2xl bg-primary text-white font-black text-center text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20 hover:brightness-110 transition-all active:scale-95"
+                                    >
                                         Logga pass
-                                    </div>
+                                    </button>
                                 </div>
                             )}
                             
                             {/* Decorative element */}
-                            <div className="absolute bottom-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                            <div className="absolute bottom-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
                                 <DumbbellIcon className="w-16 h-16" />
                             </div>
-                        </button>
+                        </div>
                     ))}
                 </div>
             ) : (
