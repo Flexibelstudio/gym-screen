@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { WorkoutLog, UserData, MemberGoals, Page, UserRole } from '../types';
 import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog } from '../services/firebaseService';
-import { analyzeMemberProgress, MemberProgressAnalysis } from '../services/geminiService';
-import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, InformationCircleIcon } from './icons';
+import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon } from './icons';
 import { Modal } from './ui/Modal';
 import { resizeImage } from '../utils/imageUtils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -165,10 +164,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [selectedLog, setSelectedLog] = useState<WorkoutLog | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isEditingGoals, setIsEditingGoals] = useState(false);
-    
-    // AI State
-    const [analysis, setAnalysis] = useState<MemberProgressAnalysis | null>(null);
-    const [showInfo, setShowInfo] = useState(false);
 
     // Form states
     const [firstName, setFirstName] = useState(userData.firstName || '');
@@ -183,23 +178,16 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         if (profileEditTrigger > 0) setIsEditing(true);
     }, [profileEditTrigger]);
 
-    // Real-time log listening & AI Analysis
+    // Real-time log listening
     useEffect(() => {
         if (!userData.uid) return;
         setLoading(true);
         const unsubscribe = listenToMemberLogs(userData.uid, (data) => {
             setLogs(data);
             setLoading(false);
-
-            if (data.length > 0) {
-                // Vi hämtar analysen för att få "metrics" och "actions"
-                analyzeMemberProgress(data, userData.firstName || 'Medlem', userData.goals)
-                    .then(result => setAnalysis(result))
-                    .catch(err => console.error("Analysis error", err));
-            }
         });
         return () => unsubscribe();
-    }, [userData.uid, userData.firstName, userData.goals]);
+    }, [userData.uid]);
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -422,69 +410,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     </div>
                     <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-white/20 rounded-full blur-[60px] pointer-events-none"></div>
                 </div>
-
-                {/* --- FYSIK-INDEX (Visual Only) --- */}
-                {analysis && (
-                    <motion.div 
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="bg-white dark:bg-gray-900 rounded-[2rem] p-6 border border-gray-100 dark:border-gray-800 shadow-sm"
-                    >
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px]">Fysik-index (AI)</h3>
-                            <button onClick={() => setShowInfo(!showInfo)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
-                                <InformationCircleIcon className="w-4 h-4" />
-                            </button>
-                        </div>
-
-                        {showInfo && (
-                            <div className="mb-6 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-xl text-xs text-gray-500 dark:text-gray-400 leading-relaxed border border-gray-100 dark:border-gray-700 animate-fade-in">
-                                <p className="font-bold text-gray-700 dark:text-gray-300 mb-2">Hur funkar indexet?</p>
-                                <p className="mb-1">AI:n analyserar dina senaste pass för att skapa en profil:</p>
-                                <ul className="space-y-1 ml-1">
-                                    <li className="flex gap-2"><span className="text-red-500">●</span> <span><strong>Styrka:</strong> Ökar vid tunga lyft och låga repetitioner.</span></li>
-                                    <li className="flex gap-2"><span className="text-blue-500">●</span> <span><strong>Kondition:</strong> Ökar vid hög puls och distans.</span></li>
-                                    <li className="flex gap-2"><span className="text-green-500">●</span> <span><strong>Frekvens:</strong> Baserat på hur ofta du tränar.</span></li>
-                                </ul>
-                            </div>
-                        )}
-
-                        <div className="space-y-6">
-                            {[
-                                { label: 'Styrka', val: analysis.metrics.strength, color: 'bg-red-500' },
-                                { label: 'Kondition', val: analysis.metrics.endurance, color: 'bg-blue-500' },
-                                { label: 'Frekvens', val: analysis.metrics.frequency, color: 'bg-green-500' }
-                            ].map(m => (
-                                <div key={m.label}>
-                                    <div className="flex justify-between text-[10px] font-black uppercase mb-2">
-                                        <span className="text-gray-500">{m.label}</span>
-                                        <span className="text-gray-900 dark:text-white">{m.val}%</span>
-                                    </div>
-                                    <div className="w-full bg-gray-100 dark:bg-gray-800 h-2.5 rounded-full overflow-hidden">
-                                        <motion.div initial={{ width: 0 }} animate={{ width: `${m.val}%` }} className={`${m.color} h-full rounded-full`} />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </motion.div>
-                )}
-                
-                {/* --- AI SMARTA MÅL / REKOMMENDATIONER --- */}
-                {analysis && analysis.actions && analysis.actions.length > 0 && (
-                    <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-[2rem] border border-indigo-100 dark:border-indigo-800 shadow-sm mt-6">
-                        <h4 className="text-xs font-black text-indigo-900 dark:text-indigo-200 uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <SparklesIcon className="w-4 h-4" /> Smarta Mål & Tips (AI)
-                        </h4>
-                        <ul className="space-y-3">
-                            {analysis.actions.map((action, i) => (
-                                <li key={i} className="flex gap-3 items-start text-sm text-gray-700 dark:text-gray-300 leading-relaxed bg-white/50 dark:bg-black/20 p-3 rounded-xl">
-                                    <span className="text-indigo-500 font-bold mt-0.5">•</span>
-                                    <span>{action}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
-                )}
 
                 {/* Goals section */}
                 <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-800">
