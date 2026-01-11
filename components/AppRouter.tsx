@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Page, Workout, WorkoutBlock, Passkategori, CustomPage, StartGroup, UserRole, UserData, StudioConfig, Organization, WorkoutDiploma, InfoCarousel } from '../types';
 import { HomeScreen } from './HomeScreen';
@@ -171,7 +170,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onStartBlock={(block) => onStartBlock(block, activeWorkout)} 
                 onUpdateBlockSettings={(blockId, settings) => { /* Implement update logic if needed locally or pass up */ }}
                 onEditWorkout={onEditWorkout} 
-                isCoachView={role === 'coach' || role === 'organizationadmin' || role === 'systemowner'}
+                isCoachView={isStudioMode || role === 'coach' || role === 'organizationadmin' || role === 'systemowner'}
                 onTogglePublish={onTogglePublish}
                 onToggleFavorite={onToggleFavorite}
                 onDuplicate={onDuplicateWorkout}
