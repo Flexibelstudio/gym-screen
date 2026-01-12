@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage } from '../../services/firebaseService';
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
@@ -52,7 +52,7 @@ interface WorkoutData {
 // --- FUN COMPARISON DATA ---
 const WEIGHT_COMPARISONS = [
     { name: "Hamstrar", singular: "en Hamster", weight: 0.15, emoji: "🐹" },
-    { name: "Fotbollar", singular: "en Fotboll", weight: 0.45, emoji: "⚽" },
+    { name: "Fotbollar", singular: "en Fortboll", weight: 0.45, emoji: "⚽" },
     { name: "Paket Smör", singular: "ett Paket Smör", weight: 0.5, emoji: "🧈" },
     { name: "iPads", singular: "en iPad", weight: 0.5, emoji: "📱" },
     { name: "Ananasar", singular: "en Ananas", weight: 1, emoji: "🍍" },
@@ -717,6 +717,23 @@ export const WorkoutLogScreen = ({
   
   const [history, setHistory] = useState<Record<string, number>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
+
+  // --- FORM VALIDATION LOGIC ---
+  const isQuickWorkoutMode = workout?.logType === 'quick';
+  
+  const uncheckedSetsCount = useMemo(() => {
+      if (isQuickWorkoutMode || isManualMode) return 0;
+      return exerciseResults.reduce((acc, ex) => acc + ex.setDetails.filter(s => !s.completed).length, 0);
+  }, [isQuickWorkoutMode, isManualMode, exerciseResults]);
+
+  const isFormValid = useMemo(() => {
+      if (isSubmitting) return false;
+      if (isQuickWorkoutMode || isManualMode) {
+          return customActivity.name.trim() !== '' && customActivity.duration.trim() !== '';
+      }
+      const totalSets = exerciseResults.reduce((acc, ex) => acc + ex.setDetails.length, 0);
+      return totalSets > 0 && uncheckedSetsCount === 0;
+  }, [isSubmitting, isQuickWorkoutMode, isManualMode, customActivity, exerciseResults, uncheckedSetsCount]);
   
   useEffect(() => {
     if (!oId) { setLoading(false); return; }
@@ -846,6 +863,8 @@ export const WorkoutLogScreen = ({
   };
 
   const handleSubmit = async () => {
+      if (!isFormValid) return;
+
       setIsSubmitting(true);
       try {
           const isQuickOrManual = isManualMode || workout?.logType === 'quick';
@@ -991,8 +1010,6 @@ export const WorkoutLogScreen = ({
           />
       );
   }
-
-  const isQuickWorkoutMode = workout?.logType === 'quick';
 
   return (
     <div className="bg-gray-5 dark:bg-black text-gray-900 dark:text-white flex flex-col relative h-full">
@@ -1154,22 +1171,34 @@ export const WorkoutLogScreen = ({
 
       {/* Footer Actions - Fixed at bottom */}
       <div className="flex-shrink-0 p-6 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 safe-area-bottom z-10">
-          <div className="max-w-2xl mx-auto flex gap-4">
-            <button 
-                onClick={() => handleCancel(false)}
-                className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-500 font-bold py-4 rounded-2xl transition-all active:scale-95"
-            >
-                Avbryt
-            </button>
-            <button 
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className="flex-[2] bg-primary hover:brightness-110 text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/30 transition-all transform active:scale-95 disabled:bg-gray-400 disabled:shadow-none disabled:transform-none text-lg uppercase tracking-tight"
-            >
-                {isSubmitting 
-                    ? 'Sparar...'
-                    : (isManualMode || isQuickWorkoutMode ? 'Spara Aktivitet' : 'Spara Pass')}
-            </button>
+          <div className="max-w-2xl mx-auto flex flex-col gap-4">
+            
+            {/* INSTRUCTIONS / FEEDBACK */}
+            {!isFormValid && !isQuickWorkoutMode && !isManualMode && (
+                <div className="text-center animate-fade-in">
+                    <p className="text-orange-600 dark:text-orange-400 text-xs font-black uppercase tracking-widest mb-1 flex items-center justify-center gap-1">
+                        <InformationCircleIcon className="w-3.5 h-3.5" /> {uncheckedSetsCount} set kvar att checka av
+                    </p>
+                </div>
+            )}
+
+            <div className="flex gap-4">
+                <button 
+                    onClick={() => handleCancel(false)}
+                    className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-500 font-bold py-4 rounded-2xl transition-all active:scale-95"
+                >
+                    Avbryt
+                </button>
+                <button 
+                    onClick={handleSubmit}
+                    disabled={!isFormValid}
+                    className="flex-[2] bg-primary hover:brightness-110 text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/30 transition-all transform active:scale-95 disabled:bg-gray-300 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 disabled:shadow-none disabled:transform-none text-lg uppercase tracking-tight"
+                >
+                    {isSubmitting 
+                        ? 'Sparar...'
+                        : (isManualMode || isQuickWorkoutMode ? 'Spara Aktivitet' : 'Spara Pass')}
+                </button>
+            </div>
           </div>
       </div>
 
