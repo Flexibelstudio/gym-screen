@@ -1,5 +1,3 @@
-
-// ... (imports remain the same)
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma } from './types';
 
@@ -30,14 +28,14 @@ import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { SeasonalOverlay } from './components/common/SeasonalOverlay';
 import { SpotlightOverlay } from './components/SpotlightOverlay';
-import { PBOverlay } from './components/PBOverlay'; // Import PBOverlay
+import { PBOverlay } from './components/PBOverlay';
 import { ScanButton } from './components/ScanButton';
-import { WorkoutLogScreen } from './mobile/screens/WorkoutLogScreen';
+import { WorkoutLogScreen } from './mobile/screens/WorkoutLogScreen'; // OBS: Se till att sökvägen stämmer
 import { WorkoutListScreen } from './components/WorkoutListScreen';
 import { WebQRScanner } from './components/WebQRScanner';
 import { motion, AnimatePresence } from 'framer-motion';
 import WorkoutDetailScreen from './components/WorkoutDetailScreen';
-import { CloseIcon, PencilIcon } from './components/icons';
+import { CloseIcon } from './components/icons';
 import { WorkoutDiplomaView } from './components/WorkoutDiplomaView';
 
 // --- Global UI Components ---
@@ -57,7 +55,7 @@ const CancelConfirmationModal: React.FC<{
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 max-sm w-full shadow-2xl text-center border border-gray-100 dark:border-gray-800"
+            className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl text-center border border-gray-100 dark:border-gray-800"
             onClick={e => e.stopPropagation()}
         >
             <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-3xl flex items-center justify-center mx-auto mb-6">
@@ -85,7 +83,7 @@ const CancelConfirmationModal: React.FC<{
     </motion.div>
 );
 
-// --- Suspended Screen ---
+// --- Suspension View ---
 const SuspendedScreen: React.FC<{ orgName: string; logoUrl?: string }> = ({ orgName, logoUrl }) => (
     <div className="fixed inset-0 bg-gray-100 dark:bg-black z-[10000] flex flex-col items-center justify-center p-8 text-center animate-fade-in">
         {logoUrl && <img src={logoUrl} alt="Logo" className="h-32 mb-8 grayscale opacity-50" />}
@@ -138,7 +136,7 @@ export default function App() {
   return <MainContent />;
 }
 
-// ... (deepCopyAndPrepareAsNew, THEME_STORAGE_KEY remain the same)
+// Hjälpfunktion för att kopiera pass
 const deepCopyAndPrepareAsNew = (workoutToCopy: Workout): Workout => {
     const newWorkout = JSON.parse(JSON.stringify(workoutToCopy));
     newWorkout.id = `workout-${Date.now()}`;
@@ -162,7 +160,6 @@ const deepCopyAndPrepareAsNew = (workoutToCopy: Workout): Workout => {
 const THEME_STORAGE_KEY = 'flexibel-screen-theme';
 
 const MainContent: React.FC = () => {
-  // ... (All hooks and state definitions remain the same)
   const { 
     selectedStudio, selectStudio, setAllStudios,
     selectedOrganization, selectOrganization, allOrganizations, setAllOrganizations,
@@ -173,15 +170,18 @@ const MainContent: React.FC = () => {
   
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
   
+  // LANDNINGSLOGIK VID UPPSTART
   const [history, setHistory] = useState<Page[]>(() => {
       if (isStudioMode) return [Page.Home];
       if (role === 'systemowner') return [Page.SystemOwner];
       if (role === 'organizationadmin') return [Page.SuperAdmin];
+      // Medlem hamnar alltid på Profilen
       return [Page.MemberProfile];
   });
 
   const page = history[history.length - 1];
 
+  // REAKTIV NAVIGERING (Om man hamnar fel)
   useEffect(() => {
     if (!authLoading && !isStudioMode) {
       const isAtInitialPage = history.length === 1;
@@ -190,8 +190,10 @@ const MainContent: React.FC = () => {
       if (role === 'systemowner' && currentPage !== Page.SystemOwner && isAtInitialPage) {
         setHistory([Page.SystemOwner]);
       } else if (role === 'organizationadmin' && currentPage !== Page.SuperAdmin && isAtInitialPage) {
+        // Om en admin landade på profil eller home men borde vara på admin
         setHistory([Page.SuperAdmin]);
       } else if (role === 'member' && currentPage !== Page.MemberProfile && isAtInitialPage) {
+        // Om en medlem landade någon annanstans än på profilen -> Skicka till profilen
         setHistory([Page.MemberProfile]);
       }
     }
@@ -215,6 +217,7 @@ const MainContent: React.FC = () => {
     window.scrollTo(0, 0);
   }, [page]);
 
+  // --- UI State ---
   const [activeBlock, setActiveBlock] = useState<WorkoutBlock | null>(null);
   const [activePasskategori, setActivePasskategori] = useState<string | null>(null);
   const [isPickingForLog, setIsPickingForLog] = useState(false);
@@ -228,6 +231,7 @@ const MainContent: React.FC = () => {
   const [completionInfo, setCompletionInfo] = useState<{ workout: Workout, isFinal: boolean, blockTag?: string, finishTime?: number } | null>(null);
   const [preferredAdminTab, setPreferredAdminTab] = useState<string>('dashboard');
   
+  // --- AUTH MODALS STATE ---
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isReAuthModalOpen, setIsReAuthModalOpen] = useState(false);
   const [reAuthPurpose, setReAuthPurpose] = useState<'admin' | 'profile'>('admin');
@@ -242,6 +246,7 @@ const MainContent: React.FC = () => {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [activeDiploma, setActiveDiploma] = useState<WorkoutDiploma | null>(null);
 
+  // --- BODY SCROLL LOCK EFFECT ---
   useEffect(() => {
       if (mobileLogData || mobileViewData || isSearchWorkoutOpen || isScannerOpen || activeDiploma) {
           document.body.style.overflow = 'hidden';
@@ -266,6 +271,7 @@ const MainContent: React.FC = () => {
   const inactivityTimerRef = useRef<number | null>(null);
   const [profileEditTrigger, setProfileEditTrigger] = useState(0);
 
+  // --- QR Scan External Listener ---
   useEffect(() => {
       const params = new URLSearchParams(window.location.search);
       const logPayload = params.get('log');
@@ -282,6 +288,7 @@ const MainContent: React.FC = () => {
       }
   }, []);
 
+  // --- Screensaver Logic ---
   const pagesThatPreventScreensaver: Page[] = [
       Page.Timer, 
       Page.RepsOnly, 
@@ -317,6 +324,7 @@ const MainContent: React.FC = () => {
       return () => { events.forEach(event => window.removeEventListener(event, handleUserActivity)); };
   }, [handleUserActivity]);
 
+  // --- Info Banner Logic ---
   const activeInfoMessages = useMemo((): InfoMessage[] => {
     const infoCarousel = selectedOrganization?.infoCarousel;
     if (!infoCarousel?.isEnabled || !selectedStudio || !infoCarousel.messages) return [];
@@ -332,6 +340,7 @@ const MainContent: React.FC = () => {
 
   const isInfoBannerVisible = page === Page.Home && activeInfoMessages.length > 0;
 
+  // --- Role & History Sync ---
   useEffect(() => {
     setSessionRole(role);
   }, [role]);
@@ -354,6 +363,7 @@ const MainContent: React.FC = () => {
     else root.style.removeProperty('--color-primary');
   }, [selectedOrganization]);
 
+  // --- Navigation Functions ---
   const navigateTo = (page: Page) => {
     setHistory(prev => [...prev, page]);
   };
@@ -382,6 +392,7 @@ const MainContent: React.FC = () => {
     
     if (currentPage === Page.IdeaBoard) setActiveWorkout(null);
 
+    // If we were in picking mode and we navigate away from the list, clear picking mode
     if (currentPage === Page.WorkoutList && isPickingForLog) {
         setIsPickingForLog(false);
     }
@@ -389,8 +400,8 @@ const MainContent: React.FC = () => {
     setHistory(newHistory);
   }, [history, role, isImpersonating, customBackHandler, setActiveWorkout, isPickingForLog]);
 
-  // ... (All event handlers remain same, just ensure handleSelectWorkout uses correct logic)
-
+  // --- Business Logic Handlers ---
+  
   const handleMemberProfileRequest = () => {
       if (isStudioMode) {
           setReAuthPurpose('profile');
@@ -483,7 +494,7 @@ const MainContent: React.FC = () => {
         category: 'Ej kategoriserad',
         isPublished: false,
         organizationId: selectedOrganization.id,
-        createdAt: Date.now() // Added
+        createdAt: Date.now()
     };
     handleStartBlock(block, tempWorkout);
   };
@@ -630,6 +641,7 @@ const MainContent: React.FC = () => {
 
   const confirmCancelLog = () => {
       setMobileLogData(null);
+      // NOTE: Vi behåller isPickingForLog som true för att man ska kunna välja ett annat pass i listan
       setShowLogCancelModal(false);
   };
 
@@ -638,7 +650,9 @@ const MainContent: React.FC = () => {
   };
 
   const handleScanCode = (data: string | null) => {
+      console.log("Scanned code:", data);
       if (!data) return;
+      
       try {
           let payload: any;
           if (data.includes('log=')) {
@@ -648,6 +662,7 @@ const MainContent: React.FC = () => {
           } else {
               payload = JSON.parse(data);
           }
+
           if (payload && payload.wid && payload.oid) {
               handleLogWorkoutRequest(payload.wid, payload.oid);
               setIsScannerOpen(false);
@@ -657,7 +672,7 @@ const MainContent: React.FC = () => {
       }
   };
 
-  // ... (Admin handlers remain same)
+  // --- Admin/Studio Config Handlers ---
   const handleSaveStudioConfig = async (organizationId: string, studioId: string, newConfigOverrides: Partial<StudioConfig>) => {
     try {
       const updatedStudio = await updateStudioConfig(organizationId, studioId, newConfigOverrides);
@@ -861,6 +876,7 @@ const MainContent: React.FC = () => {
     navigateTo(Page.HyroxRaceDetail);
   };
 
+  // --- Constants for Layout ---
   const isFullScreenPage = page === Page.Timer || page === Page.RepsOnly || page === Page.IdeaBoard;
   const paddingClass = isFullScreenPage ? '' : 'p-4 sm:p-6 lg:p-8';
   
@@ -884,7 +900,7 @@ const MainContent: React.FC = () => {
        <DeveloperToolbar />
        
        {isStudioMode && <SpotlightOverlay />} 
-       {isStudioMode && <PBOverlay />} {/* PB Overlay added */}
+       {isStudioMode && <PBOverlay />}
 
        {(page === Page.Timer || !isFullScreenPage) && <Header 
         page={page} 
