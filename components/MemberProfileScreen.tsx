@@ -196,7 +196,7 @@ const LogDetailModal: React.FC<{ log: WorkoutLog, onClose: () => void, onUpdate:
                     <div className="space-y-2">
                         <h4 className="font-bold text-gray-900 dark:text-white">Resultat</h4>
                         {log.exerciseResults.map((ex, i) => (
-                            <div key={i} className="flex justify-between items-center bg-gray-50 dark:bg-gray-900 p-3 rounded-lg">
+                            <div key={i} className="flex justify-between items-center bg-gray-5 dark:bg-gray-900 p-3 rounded-lg">
                                 <span className="font-medium text-gray-800 dark:text-gray-200">{ex.exerciseName}</span>
                                 <span className="font-mono text-primary font-bold">
                                     {ex.weight ? `${ex.weight}kg` : ''} 
@@ -457,17 +457,20 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             </div>
 
                             {/* SMART Breakdown on Profile */}
-                            {userData.goals.smartCriteria && (
-                                <div className="space-y-4 pt-2 border-t border-gray-50 dark:border-gray-800">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em]">Målanalys (SMART)</p>
-                                    <div className="grid gap-3 sm:grid-cols-2">
-                                        <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={userData.goals.smartCriteria.specific} />
-                                        <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={userData.goals.smartCriteria.measurable} />
-                                        <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={userData.goals.smartCriteria.achievable} />
-                                        <SmartItem letter="R" color="bg-rose-500" title="Relevant" text={userData.goals.smartCriteria.relevant} />
-                                    </div>
+                            <div className="space-y-4 pt-2 border-t border-gray-50 dark:border-gray-800">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em]">Målanalys (SMART)</p>
+                                <div className="space-y-4">
+                                    {userData.goals.smartCriteria && (
+                                        <>
+                                            <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={userData.goals.smartCriteria.specific} />
+                                            <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={userData.goals.smartCriteria.measurable} />
+                                            <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={userData.goals.smartCriteria.achievable} />
+                                            <SmartItem letter="R" color="bg-rose-500" title="Relevant" text={userData.goals.smartCriteria.relevant} />
+                                        </>
+                                    )}
+                                    <SmartItem letter="T" color="bg-indigo-500" title="Tid" text={userData.goals.targetDate || 'Ingen deadline.'} />
                                 </div>
-                            )}
+                            </div>
 
                             {daysLeft !== null && (
                                 <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl">

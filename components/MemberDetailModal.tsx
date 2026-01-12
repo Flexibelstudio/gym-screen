@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Member, WorkoutLog, SmartGoalDetail } from '../types';
 import { Modal } from './ui/Modal';
 import { getMemberLogs } from '../services/firebaseService';
@@ -86,7 +86,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                     </div>
                 ) : (
                     <>
-                        {/* --- NY SEKTION: SMARTA MÅL --- */}
+                        {/* --- SMARTA MÅL --- */}
                         {smart && (
                             <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden">
                                 <div className="flex items-center justify-between mb-6">
@@ -95,9 +95,6 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                                 </div>
 
                                 <div className="space-y-5 relative">
-                                    {/* Linje mellan bokstäverna */}
-                                    <div className="absolute left-4 top-4 bottom-4 w-0.5 bg-gray-100 dark:bg-gray-800 -z-0"></div>
-                                    
                                     <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={smart.specific} />
                                     <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={smart.measurable} />
                                     <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={smart.achievable} />
