@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage } from '../../services/firebaseService';
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma } from '../../services/geminiService';
@@ -383,8 +382,8 @@ const ExerciseLogCard: React.FC<{
             <div className="space-y-2">
                 <div className="grid grid-cols-[30px_1fr_1fr_40px_40px] gap-2 px-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                     <div className="text-center">Set</div>
-                    <div className="text-center">Vikt (kg)</div>
                     <div className="text-center">Reps</div>
+                    <div className="text-center">Vikt (kg)</div>
                     <div></div>
                     <div className="text-center">Klar</div>
                 </div>
@@ -397,6 +396,18 @@ const ExerciseLogCard: React.FC<{
                                 <span className="text-xs font-bold text-gray-500 bg-gray-100 dark:bg-gray-800 rounded-full w-6 h-6 flex items-center justify-center">{index + 1}</span>
                             </div>
                             
+                            <div className="bg-gray-5 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                <input 
+                                    type="text"
+                                    inputMode="numeric" 
+                                    value={set.reps} 
+                                    onChange={(e) => handleSetChange(index, 'reps', e.target.value)}
+                                    placeholder="0"
+                                    className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                    disabled={set.completed}
+                                />
+                            </div>
+
                             <div className="relative">
                                 <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
                                     <input 
@@ -415,18 +426,6 @@ const ExerciseLogCard: React.FC<{
                                 )}
                             </div>
                             
-                            <div className="bg-gray-5 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                <input 
-                                    type="text"
-                                    inputMode="numeric" 
-                                    value={set.reps} 
-                                    onChange={(e) => handleSetChange(index, 'reps', e.target.value)}
-                                    placeholder="0"
-                                    className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                    disabled={set.completed}
-                                />
-                            </div>
-
                              <div className="flex justify-center">
                                 {result.setDetails.length > 1 && (
                                     <button 
@@ -445,7 +444,7 @@ const ExerciseLogCard: React.FC<{
                                     className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-sm ${
                                         set.completed 
                                         ? 'bg-green-500 text-white' 
-                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                                        : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                                     }`}
                                 >
                                     <CheckIcon className="w-5 h-5" />
