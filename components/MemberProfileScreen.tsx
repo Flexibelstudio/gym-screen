@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { WorkoutLog, UserData, MemberGoals, Page, UserRole } from '../types';
+import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail } from '../types';
 import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog } from '../services/firebaseService';
-import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon } from './icons';
+import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch } from './icons';
 import { Modal } from './ui/Modal';
 import { resizeImage } from '../utils/imageUtils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -47,6 +47,16 @@ const getAthleteArchetype = (logs: WorkoutLog[]) => {
 const GoalsEditModal: React.FC<{ currentGoals?: MemberGoals, onSave: (goals: MemberGoals) => void, onClose: () => void }> = ({ currentGoals, onSave, onClose }) => {
     const [selectedGoals, setSelectedGoals] = useState<string[]>(currentGoals?.selectedGoals || []);
     const [targetDate, setTargetDate] = useState(currentGoals?.targetDate || '');
+    const [isSmartEnabled, setIsSmartEnabled] = useState(!!currentGoals?.smartCriteria);
+    
+    // Smart States
+    const [smart, setSmart] = useState<SmartGoalDetail>(currentGoals?.smartCriteria || {
+        specific: '',
+        measurable: '',
+        achievable: '',
+        relevant: '',
+        timeBound: ''
+    });
     
     const toggleGoal = (goal: string) => {
         if (selectedGoals.includes(goal)) {
@@ -58,35 +68,87 @@ const GoalsEditModal: React.FC<{ currentGoals?: MemberGoals, onSave: (goals: Mem
 
     const handleSave = () => {
         onSave({
-            hasSpecificGoals: selectedGoals.length > 0,
+            hasSpecificGoals: selectedGoals.length > 0 || (isSmartEnabled && !!smart.specific),
             selectedGoals,
             targetDate,
-            startDate: currentGoals?.startDate || new Date().toISOString().split('T')[0]
+            startDate: currentGoals?.startDate || new Date().toISOString().split('T')[0],
+            smartCriteria: isSmartEnabled ? smart : undefined
         });
     };
 
+    const inputClasses = "w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all font-medium";
+    const labelClasses = "block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1";
+
     return (
-        <Modal isOpen={true} onClose={onClose} title="Sätt dina mål" size="sm">
-            <div className="space-y-6">
+        <Modal isOpen={true} onClose={onClose} title="Sätt dina mål" size="md">
+            <div className="space-y-8">
+                {/* Snabbval / Taggar */}
                 <div>
-                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Vad vill du uppnå?</label>
+                    <label className={labelClasses}>Målkategorier</label>
                     <div className="flex flex-wrap gap-2">
                         {['Bli starkare', 'Gå ner i vikt', 'Bättre kondition', 'HYROX', 'Må bra', 'Rörlighet'].map(goal => (
                             <button
                                 key={goal}
                                 onClick={() => toggleGoal(goal)}
-                                className={`px-3 py-2 rounded-lg text-sm font-bold border transition-colors ${selectedGoals.includes(goal) ? 'bg-primary text-white border-primary' : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-transparent hover:border-gray-300'}`}
+                                className={`px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${selectedGoals.includes(goal) ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-transparent hover:border-gray-300'}`}
                             >
                                 {goal}
                             </button>
                         ))}
                     </div>
                 </div>
-                <div>
-                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Måldatum</label>
-                    <input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white" />
+
+                {/* SMART Toggle */}
+                <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800/50">
+                    <ToggleSwitch 
+                        label="Använd SMART-metoden" 
+                        checked={isSmartEnabled} 
+                        onChange={setIsSmartEnabled} 
+                    />
+                    <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider mt-2 ml-1">För dig som vill vara extra tydlig</p>
                 </div>
-                <button onClick={handleSave} className="w-full bg-primary text-white font-bold py-3 rounded-xl hover:brightness-110">Spara Mål</button>
+
+                {/* SMART Fält */}
+                <AnimatePresence>
+                    {isSmartEnabled && (
+                        <motion.div 
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="space-y-4 overflow-hidden"
+                        >
+                            <div>
+                                <label className={labelClasses}>S - Specifikt (Vad exakt?)</label>
+                                <input value={smart.specific} onChange={e => setSmart({...smart, specific: e.target.value})} className={inputClasses} placeholder="T.ex. Klara 5 chins eller 100kg i knäböj" />
+                            </div>
+                            <div>
+                                <label className={labelClasses}>M - Mätbart (Hur vet vi?)</label>
+                                <input value={smart.measurable} onChange={e => setSmart({...smart, measurable: e.target.value})} className={inputClasses} placeholder="T.ex. Genom antal repetitioner eller kg på stången" />
+                            </div>
+                            <div>
+                                <label className={labelClasses}>A - Accepterat (Är det rimligt?)</label>
+                                <input value={smart.achievable} onChange={e => setSmart({...smart, achievable: e.target.value})} className={inputClasses} placeholder="T.ex. Ja, jag tränar 3 gånger i veckan" />
+                            </div>
+                            <div>
+                                <label className={labelClasses}>R - Relevant (Varför är det viktigt?)</label>
+                                <input value={smart.relevant} onChange={e => setSmart({...smart, relevant: e.target.value})} className={inputClasses} placeholder="T.ex. För att känna mig starkare i vardagen" />
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Datumväljare (Alltid synlig) */}
+                <div>
+                    <label className={labelClasses}>T - Tidsbestämt (Måldatum)</label>
+                    <input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} className={inputClasses} />
+                </div>
+
+                <button 
+                    onClick={handleSave} 
+                    className="w-full bg-primary hover:brightness-110 text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 text-lg uppercase tracking-widest"
+                >
+                    Spara Mål
+                </button>
             </div>
         </Modal>
     );

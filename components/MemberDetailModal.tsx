@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Member, WorkoutLog } from '../types';
+import { Member, WorkoutLog, SmartGoalDetail } from '../types';
 import { Modal } from './ui/Modal';
 import { getMemberLogs } from '../services/firebaseService';
 import { analyzeMemberProgress, MemberProgressAnalysis } from '../services/geminiService';
@@ -11,6 +11,18 @@ interface MemberDetailModalProps {
     member: Member;
     onClose: () => void;
 }
+
+const SmartItem: React.FC<{ letter: string, color: string, title: string, text: string }> = ({ letter, color, title, text }) => (
+    <div className="flex gap-4 group">
+        <div className={`w-8 h-8 rounded-lg ${color} flex items-center justify-center text-white font-black flex-shrink-0 shadow-sm transition-transform group-hover:scale-110`}>
+            {letter}
+        </div>
+        <div className="min-w-0">
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">{title}</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-white leading-relaxed">{text || 'Ej angivet.'}</p>
+        </div>
+    </div>
+);
 
 export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, member, onClose }) => {
     const [recentLogs, setRecentLogs] = useState<WorkoutLog[]>([]);
@@ -26,7 +38,6 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                     const logs = await getMemberLogs(member.uid);
                     setRecentLogs(logs);
                     
-                    // Kör alltid analysen om det finns data
                     if (logs.length > 0) {
                         const result = await analyzeMemberProgress(logs, member.firstName, member.goals);
                         setAnalysis(result);
@@ -44,6 +55,8 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
     }, [visible, member]);
 
     if (!visible) return null;
+
+    const smart = member.goals?.smartCriteria;
 
     return (
         <Modal isOpen={visible} onClose={onClose} title={`${member.firstName} ${member.lastName}`} size="lg">
@@ -73,7 +86,28 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                     </div>
                 ) : (
                     <>
-                        {/* --- SEKTION 1: FYSIK-INDEX (Visualisering) --- */}
+                        {/* --- NY SEKTION: SMARTA MÅL --- */}
+                        {smart && (
+                            <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px]">Målanalys (SMART)</h3>
+                                    <span className="text-xl">🎯</span>
+                                </div>
+
+                                <div className="space-y-5 relative">
+                                    {/* Linje mellan bokstäverna */}
+                                    <div className="absolute left-4 top-4 bottom-4 w-0.5 bg-gray-100 dark:bg-gray-800 -z-0"></div>
+                                    
+                                    <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={smart.specific} />
+                                    <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={smart.measurable} />
+                                    <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={smart.achievable} />
+                                    <SmartItem letter="R" color="bg-rose-500" title="Relevant" text={smart.relevant} />
+                                    <SmartItem letter="T" color="bg-indigo-500" title="Tid" text={member.goals?.targetDate || 'Ingen deadline.'} />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* --- SEKTION 1: FYSIK-INDEX --- */}
                         <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm">
                             <div className="flex items-center justify-between mb-6">
                                 <h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px]">Fysik-index</h3>
@@ -129,7 +163,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                             )}
                         </div>
 
-                        {/* --- SEKTION 2: AI-ANALYS (Textanalys för coachen) --- */}
+                        {/* --- SEKTION 2: AI-ANALYS --- */}
                         {analysis && (
                             <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-800 p-6 rounded-2xl border border-indigo-100 dark:border-gray-700">
                                 <div className="flex items-center gap-2 mb-4">
@@ -168,7 +202,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                             </div>
                         )}
 
-                        {/* --- SEKTION 3: SENASTE PASS (Lista) --- */}
+                        {/* --- SEKTION 3: SENASTE PASS --- */}
                         <div className="mt-8">
                             <h4 className="font-black text-gray-400 uppercase tracking-widest text-[10px] mb-4">Senaste aktivitet</h4>
                             <div className="space-y-3">
