@@ -35,7 +35,11 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
             const loadData = async () => {
                 setIsLoading(true);
                 try {
-                    const logs = await getMemberLogs(member.uid);
+                    // Använder member.id (som är dokument-ID) för att vara säker
+                    const targetId = member.id || member.uid;
+                    if (!targetId) throw new Error("Missing ID");
+
+                    const logs = await getMemberLogs(targetId);
                     setRecentLogs(logs);
                     
                     if (logs.length > 0) {
@@ -45,7 +49,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                         setAnalysis(null);
                     }
                 } catch (e) {
-                    console.error(e);
+                    console.error("Data fetch error:", e);
                 } finally {
                     setIsLoading(false);
                 }
@@ -87,7 +91,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                 ) : (
                     <>
                         {/* --- SMARTA MÅL --- */}
-                        {smart && (
+                        {member.goals?.hasSpecificGoals && (
                             <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden">
                                 <div className="flex items-center justify-between mb-6">
                                     <h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px]">Målanalys (SMART)</h3>
@@ -95,10 +99,18 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                                 </div>
 
                                 <div className="space-y-5 relative">
-                                    <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={smart.specific} />
-                                    <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={smart.measurable} />
-                                    <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={smart.achievable} />
-                                    <SmartItem letter="R" color="bg-rose-500" title="Relevant" text={smart.relevant} />
+                                    {smart ? (
+                                        <>
+                                            <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={smart.specific} />
+                                            <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={smart.measurable} />
+                                            <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={smart.achievable} />
+                                            <SmartItem letter="R" color="bg-rose-500" title="Relevant" text={smart.relevant} />
+                                        </>
+                                    ) : (
+                                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                                            <p className="text-xs text-gray-400 italic">SMART-analys saknas.</p>
+                                        </div>
+                                    )}
                                     <SmartItem letter="T" color="bg-indigo-500" title="Tid" text={member.goals?.targetDate || 'Ingen deadline.'} />
                                 </div>
                             </div>
