@@ -364,6 +364,17 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         </div>
                     </div>
                 </div>
+
+                {/* Achievement-knapp för styrka */}
+                <button
+                    onClick={() => navigateTo(Page.MyStrength)}
+                    className="flex flex-col items-center gap-1 group transition-all"
+                >
+                    <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 shadow-sm transition-all group-hover:scale-110 group-active:scale-95 group-hover:shadow-md">
+                        <TrophyIcon className="w-6 h-6" />
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-primary transition-colors">Styrka</span>
+                </button>
             </div>
 
             <div className="space-y-6">
@@ -385,13 +396,13 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         <p className="text-3xl sm:text-4xl font-black text-white leading-none tracking-tight relative z-10">{stats.thisMonth}</p>
                     </div>
 
-                    <div className="relative overflow-hidden bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl p-3 sm:p-4 shadow-lg shadow-orange-500/20 text-center flex flex-col items-center justify-center min-h-[100px] group">
-                        <div className="absolute -left-2 -bottom-2 text-white opacity-20 transform -rotate-12 transition-transform group-hover:scale-110">
+                    <div className="relative overflow-hidden bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-500 dark:to-red-500 rounded-2xl p-3 sm:p-4 shadow-lg shadow-orange-500/20 text-center flex flex-col items-center justify-center min-h-[100px] group">
+                        <div className="absolute -left-2 -bottom-2 text-orange-200 dark:text-white opacity-20 transform -rotate-12 transition-transform group-hover:scale-110">
                             <FireIcon className="w-16 h-16" />
                         </div>
-                        <span className="block text-[10px] font-black text-white/80 uppercase tracking-widest mb-1 relative z-10">Streak</span>
+                        <span className="block text-[10px] font-black text-orange-600 dark:text-white/80 uppercase tracking-widest mb-1 relative z-10">Streak</span>
                         <div className="flex items-center justify-center relative z-10 min-h-[36px]">
-                             {stats.isActive ? <FireIcon className="w-8 h-8 text-white animate-pulse" /> : <p className="text-3xl sm:text-4xl font-black text-white leading-none tracking-tight">-</p>}
+                             {stats.isActive ? <FireIcon className="w-8 h-8 text-orange-500 dark:text-white animate-pulse" /> : <p className="text-3xl sm:text-4xl font-black text-orange-300 dark:text-white leading-none tracking-tight">-</p>}
                         </div>
                     </div>
                 </div>
@@ -418,13 +429,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             <span className="text-xl">🎯</span> Mina Mål
                         </h3>
                         <div className="flex gap-2">
-                            <button 
-                                onClick={() => navigateTo(Page.MyStrength)}
-                                className="p-2 text-gray-400 hover:text-primary transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl"
-                                title="Se min styrka"
-                            >
-                                <TrophyIcon className="w-5 h-5" />
-                            </button>
                             <button 
                                 onClick={() => setIsEditingGoals(true)} 
                                 className="p-2 text-gray-400 hover:text-primary transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl"
