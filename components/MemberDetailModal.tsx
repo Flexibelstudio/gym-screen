@@ -35,7 +35,6 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
             const loadData = async () => {
                 setIsLoading(true);
                 try {
-                    // Använder member.id (som är dokument-ID) för att vara säker
                     const targetId = member.id || member.uid;
                     if (!targetId) throw new Error("Missing ID");
 
@@ -83,6 +82,32 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                     </div>
                 </div>
 
+                {/* --- SMARTA MÅL (Visas alltid direkt) --- */}
+                {member.goals?.hasSpecificGoals && (
+                    <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px]">Målanalys (SMART)</h3>
+                            <span className="text-xl">🎯</span>
+                        </div>
+
+                        <div className="space-y-5 relative">
+                            {smart ? (
+                                <>
+                                    <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={smart.specific} />
+                                    <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={smart.measurable} />
+                                    <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={smart.achievable} />
+                                    <SmartItem letter="R" color="bg-rose-500" title="Relevant" text={smart.relevant} />
+                                </>
+                            ) : (
+                                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                                    <p className="text-xs text-gray-400 italic">SMART-analys saknas.</p>
+                                </div>
+                            )}
+                            <SmartItem letter="T" color="bg-indigo-500" title="Tid" text={member.goals?.targetDate || 'Ingen deadline.'} />
+                        </div>
+                    </div>
+                )}
+
                 {isLoading ? (
                     <div className="py-12 text-center flex flex-col items-center gap-3">
                         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
@@ -90,32 +115,6 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                     </div>
                 ) : (
                     <>
-                        {/* --- SMARTA MÅL --- */}
-                        {member.goals?.hasSpecificGoals && (
-                            <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden">
-                                <div className="flex items-center justify-between mb-6">
-                                    <h3 className="font-black text-gray-400 uppercase tracking-widest text-[10px]">Målanalys (SMART)</h3>
-                                    <span className="text-xl">🎯</span>
-                                </div>
-
-                                <div className="space-y-5 relative">
-                                    {smart ? (
-                                        <>
-                                            <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={smart.specific} />
-                                            <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={smart.measurable} />
-                                            <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={smart.achievable} />
-                                            <SmartItem letter="R" color="bg-rose-500" title="Relevant" text={smart.relevant} />
-                                        </>
-                                    ) : (
-                                        <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
-                                            <p className="text-xs text-gray-400 italic">SMART-analys saknas.</p>
-                                        </div>
-                                    )}
-                                    <SmartItem letter="T" color="bg-indigo-500" title="Tid" text={member.goals?.targetDate || 'Ingen deadline.'} />
-                                </div>
-                            </div>
-                        )}
-
                         {/* --- SEKTION 1: FYSIK-INDEX --- */}
                         <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm">
                             <div className="flex items-center justify-between mb-6">
