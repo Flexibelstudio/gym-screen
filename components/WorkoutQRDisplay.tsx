@@ -6,7 +6,7 @@ interface WorkoutQRDisplayProps {
     workoutId: string;
     organizationId: string;
     isEnabled: boolean;
-    hasActiveCarousel: boolean;
+    hasActiveCarousel?: boolean;
     inline?: boolean;
     size?: number;
 }
@@ -15,7 +15,6 @@ export const WorkoutQRDisplay: React.FC<WorkoutQRDisplayProps> = ({
     workoutId,
     organizationId,
     isEnabled,
-    hasActiveCarousel,
     inline = false,
     size = 128
 }) => {
@@ -37,12 +36,12 @@ export const WorkoutQRDisplay: React.FC<WorkoutQRDisplayProps> = ({
         return null;
     }
 
-    // Construct the URL that the phone will open
+    // Construct a deep link or web URL that the phone will open.
     const encodedPayload = btoa(JSON.stringify(payload));
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://medlem.smartskarm.se';
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://medlem.flexibel.app';
     const qrValue = `${baseUrl}/?log=${encodedPayload}`;
 
-    // Om den ska visas "inline" (t.ex. i en lista eller admin)
+    // Om den visas "inline" (t.ex. i listor eller admin)
     if (inline) {
         return (
             <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center gap-1 inline-block">
@@ -60,32 +59,28 @@ export const WorkoutQRDisplay: React.FC<WorkoutQRDisplayProps> = ({
         );
     }
 
-    // --- FLYTANDE FAB-LÄGE (Standard för passvyn) ---
-    
-    // Justera höjden om karusellen (info-bannern) visas längst ner (ca 512px hög på stora skärmar)
-    const bottomPosition = hasActiveCarousel ? 'bottom-[540px]' : 'bottom-10';
-
+    // --- FLYTANDE FAB-LÄGE (För passvyn) ---
     return (
         <div 
-            className={`fixed right-10 z-[100] bg-white p-6 rounded-[2.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] flex flex-col items-center gap-4 transition-all duration-700 ease-in-out animate-fade-in ${bottomPosition}`}
-            style={{ width: '180px' }}
+            className="fixed bottom-10 right-10 z-[100] bg-white p-5 rounded-[2.5rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4)] flex flex-col items-center gap-3 transition-all duration-500 animate-fade-in border border-white/20"
+            style={{ width: '170px' }}
         >
             <div className="bg-white p-1 rounded-2xl">
                 <QRCode 
                     value={qrValue} 
-                    size={132} 
+                    size={130} 
                     fgColor="#000000" 
                     bgColor="#ffffff" 
                     level="L"
                 />
             </div>
-            <div className="text-center space-y-1">
+            <div className="text-center space-y-0.5">
                 <p className="text-black font-black text-[10px] uppercase tracking-[0.2em] leading-tight opacity-40">Skanna för att</p>
                 <p className="text-primary font-black text-2xl uppercase tracking-tighter leading-none">LOGGA</p>
                 <p className="text-gray-400 text-[9px] font-bold uppercase tracking-widest pt-1">Starta appen</p>
             </div>
             
-            {/* Dekorativt hörn för en snyggare look */}
+            {/* Dekorativt hörn-element för SmartSkärm-looken */}
             <div className="absolute -top-2 -left-2 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-2xl opacity-20"></div>
         </div>
     );
