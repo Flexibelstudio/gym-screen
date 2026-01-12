@@ -1,3 +1,5 @@
+
+// ... (imports remain the same)
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -88,6 +90,7 @@ if (isOffline) {
 const sanitizeData = <T>(data: T): T => JSON.parse(JSON.stringify(data));
 
 // --- Auth ---
+// ... (behåll auth functions)
 export const onAuthChange = (callback: (user: User | null) => void) => {
     if (isOffline || !auth) return () => {}; 
     return onAuthStateChanged(auth, callback);
@@ -310,6 +313,7 @@ export const deleteImageByUrl = async (url: string): Promise<void> => {
     try { await deleteObject(ref(storage, url)); } catch (e) {}
 };
 
+// ... (behåll organisationer, studios, configs logik)
 export const getOrganizations = async (): Promise<Organization[]> => {
     if (isOffline || !db) return MOCK_ORGANIZATIONS;
     const snap = await getDocs(collection(db, 'organizations'));
@@ -571,10 +575,8 @@ export const saveRace = async (data: any, orgId: string) => {
     return race;
 };
 
-// -- LOGGING LOGIC --
-
 export const listenToMemberLogs = (memberId: string, onUpdate: (logs: WorkoutLog[]) => void) => {
-    if (isOffline || !db || !memberId) {
+    if (isOffline || !db) {
         onUpdate([]);
         return () => {};
     }
@@ -587,7 +589,7 @@ export const listenToMemberLogs = (memberId: string, onUpdate: (logs: WorkoutLog
 
 // NEW: Listener for community feed
 export const listenToCommunityLogs = (orgId: string, onUpdate: (logs: WorkoutLog[]) => void) => {
-    if (isOffline || !db || !orgId) {
+    if (isOffline || !db) {
         onUpdate([]);
         return () => {};
     }
@@ -604,14 +606,14 @@ export const listenToCommunityLogs = (orgId: string, onUpdate: (logs: WorkoutLog
 };
 
 export const getMemberLogs = async (memberId: string): Promise<WorkoutLog[]> => {
-    if (isOffline || !db || !memberId) return []; 
+    if (isOffline || !db) return []; 
     const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"), limit(50));
     const snap = await getDocs(q);
     return snap.docs.map(d => d.data() as WorkoutLog);
 };
 
 export const getOrganizationLogs = async (orgId: string, limitCount: number = 100): Promise<WorkoutLog[]> => {
-    if (isOffline || !db || !orgId) return [];
+    if (isOffline || !db) return [];
     const q = query(collection(db, 'workoutLogs'), where("organizationId", "==", orgId), orderBy("date", "desc"), limit(limitCount));
     const snap = await getDocs(q);
     return snap.docs.map(d => d.data() as WorkoutLog);
