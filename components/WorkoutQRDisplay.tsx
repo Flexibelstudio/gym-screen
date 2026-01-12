@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import QRCode from 'react-qr-code';
 import { WorkoutQRPayload } from '../types';
@@ -39,12 +38,10 @@ export const WorkoutQRDisplay: React.FC<WorkoutQRDisplayProps> = ({
     }
 
     // Construct a deep link or web URL that the phone will open.
-    // In Dev/AI Studio environment, we point to the current window location with a query param.
-    // In Production, this would point to the deployed PWA URL.
     const encodedPayload = btoa(JSON.stringify(payload));
     
     // Check if we are in a dev environment or AI Studio Preview
-    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://medlem.flexibel.app';
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://medlem.smartskarm.se';
     const qrValue = `${baseUrl}/?log=${encodedPayload}`;
 
     if (inline) {
@@ -64,27 +61,34 @@ export const WorkoutQRDisplay: React.FC<WorkoutQRDisplayProps> = ({
         );
     }
 
-    // Fixed position (Overlay mode)
-    const bottomClass = hasActiveCarousel ? 'bottom-[140px]' : 'bottom-6';
+    // --- FLYTANDE LÄGE (För studio-skärmen) ---
+    
+    // Om karusellen är aktiv i botten (höjd ca 512px på stora skärmar), flytta upp koden
+    // Vi lägger till marginal för att den inte ska ligga precis kant-i-kant.
+    const bottomOffset = hasActiveCarousel ? 'bottom-[540px]' : 'bottom-8';
 
     return (
         <div 
-            className={`fixed right-6 z-40 bg-white p-4 rounded-2xl shadow-2xl flex flex-col items-center gap-3 transition-all duration-500 animate-fade-in ${bottomClass}`}
-            style={{ width: '160px' }}
+            className={`fixed right-8 z-[100] bg-white p-6 rounded-[2.5rem] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] flex flex-col items-center gap-4 transition-all duration-700 ease-in-out animate-fade-in ${bottomOffset}`}
+            style={{ width: '180px' }}
         >
-            <div className="bg-white p-1 rounded-lg">
+            <div className="bg-white p-1 rounded-2xl">
                 <QRCode 
                     value={qrValue} 
-                    size={128} 
+                    size={132} 
                     fgColor="#000000" 
                     bgColor="#ffffff" 
                     level="L"
                 />
             </div>
-            <div className="text-center">
-                <p className="text-black font-bold text-xs uppercase tracking-wider">Skanna för att logga</p>
-                <p className="text-gray-500 text-[10px] font-mono mt-0.5">Starta appen</p>
+            <div className="text-center space-y-1">
+                <p className="text-black font-black text-[10px] uppercase tracking-[0.2em] leading-tight">Skanna för att</p>
+                <p className="text-primary font-black text-xl uppercase tracking-tighter leading-none">LOGGA</p>
+                <p className="text-gray-400 text-[9px] font-bold uppercase tracking-widest pt-1">Starta appen</p>
             </div>
+            
+            {/* Dekorativt hörn-element för premiumkänsla */}
+            <div className="absolute -top-2 -left-2 w-6 h-6 border-t-4 border-l-4 border-primary rounded-tl-xl opacity-20"></div>
         </div>
     );
 };
