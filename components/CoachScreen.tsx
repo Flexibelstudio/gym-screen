@@ -1,16 +1,18 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { Page, CustomPage, UserRole } from '../types';
 import { useStudio } from '../context/StudioContext';
 import { useAuth } from '../context/AuthContext';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Modal } from './ui/Modal';
 import { 
     DocumentTextIcon, 
     BriefcaseIcon, 
     SettingsIcon, 
     UserIcon,
     CloseIcon,
-    DumbbellIcon
+    DumbbellIcon,
+    SparklesIcon,
+    ChartBarIcon
 } from './icons';
 
 const UsersIcon = ({ className }: { className?: string }) => (
@@ -36,7 +38,8 @@ const CoachCard: React.FC<{
     icon: React.ReactNode;
     gradient: string;
     delay: number;
-}> = ({ title, subTitle, onClick, icon, gradient, delay }) => (
+    isLocked?: boolean;
+}> = ({ title, subTitle, onClick, icon, gradient, delay, isLocked }) => (
     <motion.button
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -50,6 +53,13 @@ const CoachCard: React.FC<{
             flex flex-col justify-between transition-all
         `}
     >
+        {isLocked && (
+            <div className="absolute top-4 right-4 bg-black/20 backdrop-blur-md p-1.5 rounded-lg border border-white/10">
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-white/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+            </div>
+        )}
         <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none mix-blend-overlay"></div>
         <div className="bg-white/20 w-fit p-3 rounded-2xl backdrop-blur-sm shadow-inner">
             {icon}
@@ -66,11 +76,11 @@ const CoachCard: React.FC<{
 export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSelectCustomPage, isImpersonating, onReturnToAdmin, onAdminLogin, onMemberProfileRequest }) => {
   const { selectedStudio, selectedOrganization, studioConfig } = useStudio();
   const { isStudioMode, signOut, clearDeviceProvisioning } = useAuth();
+  const [showLockedModal, setShowLockedModal] = useState(false);
 
-  const items: { title: string; subTitle?: string; action: () => void; icon: React.ReactNode; gradient: string }[] = [];
+  const items: { title: string; subTitle?: string; action: () => void; icon: React.ReactNode; gradient: string; isLocked?: boolean }[] = [];
 
-  // 1. DIN TRÄNING & MEDLEMSREGISTER
-  // Vi visar alltid profilen och registret för personalroller
+  // 1. DIN TRÄNING
   items.push({ 
       title: 'Min Träning', 
       subTitle: 'Se statistik & mål',
@@ -79,15 +89,18 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
       gradient: 'bg-gradient-to-br from-teal-500 to-emerald-700'
   });
 
+  // 2. MEDLEMSREGISTER (Med villkorlig logik)
+  const isLoggingEnabled = studioConfig.enableWorkoutLogging === true;
   items.push({ 
       title: 'Medlemsregister', 
       subTitle: 'Hantera medlemmar',
-      action: () => navigateTo(Page.MemberRegistry),
+      action: isLoggingEnabled ? () => navigateTo(Page.MemberRegistry) : () => setShowLockedModal(true),
       icon: <UsersIcon className="w-8 h-8" />,
-      gradient: 'bg-gradient-to-br from-emerald-600 to-teal-800'
+      gradient: isLoggingEnabled ? 'bg-gradient-to-br from-emerald-600 to-teal-800' : 'bg-gradient-to-br from-gray-500 to-gray-600',
+      isLocked: !isLoggingEnabled
   });
 
-  // 2. CONTENT FOR ALL COACHES (Infosidor)
+  // 3. CONTENT FOR ALL COACHES (Infosidor)
   (selectedOrganization?.customPages || []).forEach(page => {
       items.push({
           title: page.title,
@@ -98,7 +111,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
       });
   });
 
-  // 3. HIERARCHY LOGIC
+  // 4. HIERARCHY LOGIC
   if (isImpersonating) {
       items.push({ 
           title: 'Återgå till Admin', 
@@ -185,6 +198,61 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
             />
         ))}
       </div>
+
+      {/* MODAL FÖR LÅST FUNKTION */}
+      <Modal isOpen={showLockedModal} onClose={() => setShowLockedModal(false)} title="Lås upp People Hub 🚀" size="lg">
+        <div className="space-y-6">
+            <div className="bg-gradient-to-br from-indigo-600 to-purple-700 p-8 rounded-3xl text-white text-center shadow-xl">
+                <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-4 backdrop-blur-md">
+                    <SparklesIcon className="w-8 h-8 text-white" />
+                </div>
+                <h3 className="text-2xl font-black mb-2 uppercase tracking-tight">Världens modernaste medlemsupplevelse</h3>
+                <p className="text-indigo-100 leading-relaxed">
+                    Denna funktion ingår i tilläggstjänsten <strong>Smart Medlemsupplevelse</strong>.
+                </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">
+                    <h4 className="font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                        <ChartBarIcon className="w-4 h-4 text-primary" />
+                        För Coachen
+                    </h4>
+                    <ul className="text-xs text-gray-500 space-y-2">
+                        <li>• Full översikt över alla medlemmar</li>
+                        <li>• Se personbästa och träningsmål</li>
+                        <li>• AI-genererad analys av framsteg</li>
+                    </ul>
+                </div>
+                <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700">
+                    <h4 className="font-bold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                        <UserIcon className="w-4 h-4 text-purple-500" />
+                        För Medlemmen
+                    </h4>
+                    <ul className="text-xs text-gray-500 space-y-2">
+                        <li>• Logga pass direkt via QR-kod</li>
+                        <li>• Personlig AI-strategi inför passet</li>
+                        <li>• Träningsdagbok i mobilen</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-2xl border border-blue-100 dark:border-blue-800 text-sm text-center">
+                <p className="text-blue-800 dark:text-blue-300 font-medium">
+                    {role === 'organizationadmin' || role === 'systemowner' 
+                        ? "Du som är administratör kan aktivera detta under 'Globala Inställningar' i adminpanelen."
+                        : "Prata med din administratör eller gymägare för att låsa upp dessa funktioner!"}
+                </p>
+            </div>
+
+            <button 
+                onClick={() => setShowLockedModal(false)}
+                className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-black py-4 rounded-2xl uppercase tracking-widest text-sm shadow-lg active:scale-95 transition-all"
+            >
+                Jag förstår
+            </button>
+        </div>
+      </Modal>
     </div>
   );
 }
