@@ -31,22 +31,21 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
     const [showInfo, setShowInfo] = useState(false);
 
     useEffect(() => {
-        // Säkerhetsspärr: Gör inget anrop om vi saknar medlems-ID eller om modalen inte är synlig
-        if (visible && member && member.uid) {
+        if (visible && member) {
             const loadData = async () => {
                 setIsLoading(true);
                 try {
                     const logs = await getMemberLogs(member.uid);
                     setRecentLogs(logs);
                     
-                    if (logs && logs.length > 0) {
+                    if (logs.length > 0) {
                         const result = await analyzeMemberProgress(logs, member.firstName, member.goals);
                         setAnalysis(result);
                     } else {
                         setAnalysis(null);
                     }
                 } catch (e) {
-                    console.error("Error loading member details:", e);
+                    console.error(e);
                 } finally {
                     setIsLoading(false);
                 }
@@ -55,7 +54,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
         }
     }, [visible, member]);
 
-    if (!visible || !member) return null;
+    if (!visible) return null;
 
     const smart = member.goals?.smartCriteria;
 
@@ -95,7 +94,10 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                                     <span className="text-xl">🎯</span>
                                 </div>
 
-                                <div className="space-y-5">
+                                <div className="space-y-5 relative">
+                                    {/* Linje mellan bokstäverna */}
+                                    <div className="absolute left-4 top-4 bottom-4 w-0.5 bg-gray-100 dark:bg-gray-800 -z-0"></div>
+                                    
                                     <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={smart.specific} />
                                     <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={smart.measurable} />
                                     <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={smart.achievable} />
