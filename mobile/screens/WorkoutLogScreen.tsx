@@ -1054,10 +1054,11 @@ export const WorkoutLogScreen = ({
             {!isQuickWorkoutMode && !isManualMode && (
                 <button 
                     onClick={() => setShowCalculator(true)}
-                    className="p-3 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-all shadow-sm active:scale-90"
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-full border border-indigo-100 dark:border-indigo-800 hover:bg-indigo-100 transition-all shadow-sm active:scale-95"
                     title="1RM Kalkylator"
                 >
-                    <CalculatorIcon className="w-6 h-6" />
+                    <CalculatorIcon className="w-5 h-5" />
+                    <span className="text-[10px] font-black uppercase tracking-wider">1RM Kalkylator</span>
                 </button>
             )}
             <button onClick={() => handleCancel(false)} className="p-3 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all flex-shrink-0 shadow-sm active:scale-90">
