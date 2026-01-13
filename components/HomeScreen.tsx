@@ -70,7 +70,7 @@ const MenuCard: React.FC<{
             variants={variants}
             onClick={onClick}
             className={`
-                relative overflow-hidden rounded-[2.5rem] p-6 text-left flex flex-col justify-between h-full min-h-[180px]
+                relative overflow-hidden rounded-[2.5rem] p-6 text-left flex flex-col justify-between h-full min-h-[160px]
                 bg-gradient-to-br from-primary to-teal-700 text-white
                 shadow-xl border-t border-l border-white/20 transition-all duration-300
                 hover:shadow-primary/20 hover:-translate-y-1
@@ -91,15 +91,15 @@ const MenuCard: React.FC<{
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none mix-blend-overlay"></div>
 
             <div className="z-10 flex flex-col h-full justify-between relative">
-                <div className="mb-4 p-3 bg-white/15 w-fit rounded-2xl text-white backdrop-blur-md border border-white/10 shadow-inner">
-                    {icon || <DumbbellIcon className="w-8 h-8" />}
+                <div className="mb-3 p-2.5 bg-white/15 w-fit rounded-2xl text-white backdrop-blur-md border border-white/10 shadow-inner">
+                    {icon || <DumbbellIcon className="w-7 h-7" />}
                 </div>
                 <div>
-                    <h3 className="text-2xl sm:text-3xl font-black leading-tight drop-shadow-md tracking-tight uppercase">
+                    <h3 className="text-xl sm:text-2xl font-black leading-tight drop-shadow-md tracking-tight uppercase">
                         {title}
                     </h3>
                     {subTitle && (
-                        <p className="text-xs font-bold text-white/80 mt-1 uppercase tracking-widest">
+                        <p className="text-[10px] font-bold text-white/80 mt-0.5 uppercase tracking-widest">
                             {subTitle}
                         </p>
                     )}
@@ -176,8 +176,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     });
     if (studioConfig.enableHyrox) items.push({ title: 'HYROX', action: () => navigateTo(Page.Hyrox), icon: <HyroxIcon /> });
     if (studioConfig.enableNotes) items.push({ title: 'Idé-tavlan', subTitle: 'Rita & Skissa', action: () => navigateTo(Page.IdeaBoard), icon: <PencilIcon className="w-8 h-8" /> });
-    items.push({ title: 'Timer', subTitle: 'Intervall, Tabata, m.m.', action: () => navigateTo(Page.FreestandingTimer), icon: <TimerIcon /> });
-    items.push({ title: 'Övriga Pass', subTitle: 'Favoriter', action: () => navigateTo(Page.SavedWorkouts), icon: <StarIcon className="w-8 h-8" filled={false} /> });
+    items.push({ title: 'Timer', subTitle: 'Intervall', action: () => navigateTo(Page.FreestandingTimer), icon: <TimerIcon /> });
+    items.push({ title: 'Favoriter', subTitle: 'Övriga Pass', action: () => navigateTo(Page.SavedWorkouts), icon: <StarIcon className="w-8 h-8" filled={false} /> });
     return items;
   }, [studioConfig, navigateTo, onSelectPasskategori]);
 
@@ -207,50 +207,51 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     <>
         <AmbientBackground />
         
-        <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 pt-4 pb-6 h-screen flex flex-col overflow-hidden">
+        {/* Changed h-screen to h-full and flex-1 to allow parent App.tsx to control layout and padding */}
+        <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 flex flex-col h-full overflow-hidden">
             
-            {/* Header Section */}
-            <div className="flex flex-shrink-0 justify-between items-start mb-8 w-full">
-                <div className="flex flex-col gap-4">
+            {/* Header Section - More compact for desktop */}
+            <div className="flex flex-shrink-0 justify-between items-start mb-6 w-full pt-4">
+                <div className="flex flex-col gap-3">
                     {logoUrl ? (
                         <motion.img 
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
                             src={logoUrl} 
                             alt="Logo" 
-                            className="h-20 md:h-28 object-contain self-start" 
+                            className="h-16 md:h-24 object-contain self-start" 
                         />
                     ) : (
-                        <h1 className="text-3xl font-black text-primary uppercase tracking-tighter">Smart Skärm</h1>
+                        <h1 className="text-2xl font-black text-primary uppercase tracking-tighter">Smart Skärm</h1>
                     )}
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
-                        <h2 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tight leading-none">{welcomeMessage.title}</h2>
-                        <p className="text-lg md:text-xl text-gray-400 font-medium mt-2">...{welcomeMessage.subtitle}</p>
+                        <h2 className="text-3xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tight leading-none">{welcomeMessage.title}</h2>
+                        <p className="text-base md:text-lg text-gray-400 font-medium mt-1">...{welcomeMessage.subtitle}</p>
                     </motion.div>
                 </div>
 
-                <div className="flex flex-col items-end gap-6">
+                <div className="flex flex-col items-end gap-4">
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="text-right">
-                        <span className="block text-6xl md:text-8xl font-thin font-mono leading-none text-gray-900 dark:text-white">
+                        <span className="block text-5xl md:text-7xl font-thin font-mono leading-none text-gray-900 dark:text-white">
                             {currentTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', hour12: false })}
                         </span>
-                        <span className="text-primary uppercase tracking-[0.2em] font-black text-sm md:text-base mt-2 block">
+                        <span className="text-primary uppercase tracking-[0.2em] font-black text-xs md:text-sm mt-1.5 block">
                             {currentTime.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
                         </span>
                     </motion.div>
                     
                     {showQrCode && (
-                        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} className="bg-white p-3 rounded-3xl shadow-xl border border-gray-100 flex flex-col items-center">
-                            <img src={studioConfig.checkInImageUrl} alt="QR" className="w-24 h-24 object-contain" />
-                            <p className="text-gray-400 text-[9px] font-black uppercase tracking-widest mt-1.5">Checka in / Logga</p>
+                        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} className="bg-white p-2.5 rounded-2xl shadow-xl border border-gray-100 flex flex-col items-center">
+                            <img src={studioConfig.checkInImageUrl} alt="QR" className="w-20 h-20 object-contain" />
+                            <p className="text-gray-400 text-[8px] font-black uppercase tracking-widest mt-1">Checka in / Logga</p>
                         </motion.div>
                     )}
                 </div>
             </div>
 
-            {/* Menu Grid - Full Width with 5 Columns */}
-            <div className="flex-grow overflow-y-auto pr-2 mb-8 custom-scrollbar">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 auto-rows-fr">
+            {/* Menu Grid - Scrollable area */}
+            <div className="flex-grow overflow-y-auto pr-2 mb-6 custom-scrollbar min-h-0">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5 auto-rows-fr">
                     {menuItems.map((item, index) => (
                         <MenuCard
                             key={item.title}
@@ -265,24 +266,23 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         />
                     ))}
                     
-                    {/* Boost Button if available */}
                     {onShowBoostModal && (
                         <motion.button
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.5 }}
                             onClick={onShowBoostModal}
-                            className="relative overflow-hidden rounded-[2.5rem] p-6 text-left flex flex-col justify-center items-center h-full min-h-[180px] bg-white/5 border-2 border-dashed border-primary/30 text-primary hover:bg-primary/5 transition-all"
+                            className="relative overflow-hidden rounded-[2.5rem] p-6 text-left flex flex-col justify-center items-center h-full min-h-[160px] bg-white/5 border-2 border-dashed border-primary/30 text-primary hover:bg-primary/5 transition-all"
                         >
-                            <SparklesIcon className="w-10 h-10 mb-2 animate-pulse" />
-                            <span className="font-black uppercase tracking-widest text-sm">Boost</span>
+                            <SparklesIcon className="w-8 h-8 mb-2 animate-pulse" />
+                            <span className="font-black uppercase tracking-widest text-xs">Boost</span>
                         </motion.button>
                     )}
                 </div>
             </div>
 
-            {/* Bottom Social Dashboard - 50/50 Split */}
-            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-64 sm:h-80 mb-2">
+            {/* Bottom Social Dashboard - Reduced height to fit on screen with carousel */}
+            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-56 sm:h-64 mb-4">
                 <motion.div 
                     initial={{ opacity: 0, y: 30 }} 
                     animate={{ opacity: 1, y: 0 }} 
