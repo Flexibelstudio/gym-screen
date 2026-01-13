@@ -1,10 +1,11 @@
-
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { registerMemberWithCode } from '../services/firebaseService';
 import { resizeImage } from '../utils/imageUtils';
 import { CloseIcon } from './icons';
 import { motion } from 'framer-motion';
+import { UserTermsModal } from './UserTermsModal';
+import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 
 interface LoginScreenProps {
     onClose?: () => void;
@@ -13,6 +14,10 @@ interface LoginScreenProps {
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
     const { signIn, signInAsStudio, sendPasswordResetEmail } = useAuth();
     const [view, setView] = useState<'login' | 'reset' | 'register'>('login');
+    
+    // UI States for Modals
+    const [showTerms, setShowTerms] = useState(false);
+    const [showPrivacy, setShowPrivacy] = useState(false);
     
     // Login state
     const [email, setEmail] = useState('');
@@ -384,11 +389,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
 
                 {regError && <p className="text-red-400 text-sm text-center">{regError}</p>}
 
+                {/* TERMS AND PRIVACY NOTE */}
+                <div className="py-2 text-center">
+                    <p className="text-[10px] text-gray-500 leading-relaxed">
+                        Genom att skapa ett konto godkänner du våra{' '}
+                        <button type="button" onClick={() => setShowTerms(true)} className="text-primary font-bold hover:underline">Användarvillkor</button>
+                        {' '}och bekräftar att du läst vår{' '}
+                        <button type="button" onClick={() => setShowPrivacy(true)} className="text-primary font-bold hover:underline">Integritetspolicy</button>.
+                    </p>
+                </div>
+
                 <div className="pt-2">
                     <button
                         type="submit"
                         disabled={regLoading}
-                        className="w-full bg-primary hover:brightness-95 text-white font-bold py-4 rounded-lg transition-colors disabled:bg-gray-600"
+                        className="w-full bg-primary hover:brightness-110 text-white font-black py-4 rounded-lg transition-colors disabled:bg-gray-600 shadow-lg shadow-primary/20"
                     >
                         {regLoading ? 'Skapar konto...' : 'Gå med och logga in'}
                     </button>
@@ -400,6 +415,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                     </button>
                 </div>
             </form>
+            
+            <UserTermsModal isOpen={showTerms} onClose={() => setShowTerms(false)} />
+            <PrivacyPolicyModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />
         </>
     );
 
@@ -415,7 +433,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                         <CloseIcon className="w-8 h-8" />
                     </button>
                 )}
-                <div className="bg-gray-900 border border-gray-700 rounded-lg p-8 max-h-[90vh] flex flex-col shadow-2xl">
+                <div className="bg-gray-900 border border-gray-700 rounded-lg p-8 max-h-[95vh] flex flex-col shadow-2xl">
                     {view === 'login' && renderLoginView()}
                     {view === 'reset' && renderResetView()}
                     {view === 'register' && renderRegisterView()}

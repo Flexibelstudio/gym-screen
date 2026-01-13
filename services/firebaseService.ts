@@ -1,4 +1,3 @@
-
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -200,7 +199,8 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
         age: additionalData?.age || null,
         gender: additionalData?.gender || 'prefer_not_to_say',
         isTrainingMember: true,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        termsAcceptedAt: Date.now() // Lagrar godkännande av villkor
     };
     
     await setDoc(doc(db, 'users', user.uid), userData);
@@ -255,7 +255,7 @@ export const saveWorkoutLog = async (logData: any) => {
                         const eventData: StudioEvent = {
                             id: eventRef.id,
                             type: 'pb',
-                            organizationId: logData.organizationId,
+                            organizationId: organizationId,
                             timestamp: Date.now(),
                             data: { userName: newLog.memberName || 'En medlem', exerciseName: exResult.exerciseName.trim(), isNewRecord: true }
                         };
