@@ -2,11 +2,11 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Page, Workout, MenuItem, StudioConfig, Passkategori, CustomCategoryWithPrompt } from '../types';
 import { welcomeMessages } from '../data/welcomeMessages';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DumbbellIcon, SparklesIcon, StarIcon, PencilIcon, getIconComponent } from './icons';
+import { DumbbellIcon, SparklesIcon, StarIcon, PencilIcon, getIconComponent, CloseIcon } from './icons';
 import { WeeklyPBList } from './WeeklyPBList'; 
 import { CommunityFeed } from './CommunityFeed';
+import { Modal } from './ui/Modal';
 
-// ... (TimerIcon, HyroxIcon, getIconForCategory components remain the same)
 const TimerIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -148,6 +148,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [sparklingIndex, setSparklingIndex] = useState<number | null>(null);
   const timeoutId = useRef<number | null>(null);
 
+  // State för expanded view
+  const [expandedList, setExpandedList] = useState<'feed' | 'pb' | null>(null);
+
   useEffect(() => {
     const updateGreeting = () => {
         const hour = new Date().getHours();
@@ -209,7 +212,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         
         <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 flex flex-col h-full overflow-hidden">
             
-            {/* Header Section */}
+            {/* Header Section - Fast höjd */}
             <div className="flex flex-shrink-0 justify-between items-start mb-6 w-full pt-4">
                 <div className="flex flex-col gap-3">
                     {logoUrl ? (
@@ -247,7 +250,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
             </div>
 
-            {/* Meny-grid */}
+            {/* Meny-grid - Flexibel höjd för att fylla utrymmet */}
             <div className="flex-grow overflow-y-auto pr-2 mb-8 custom-scrollbar min-h-0">
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 auto-rows-fr">
                     {menuItems.map((item, index) => (
@@ -266,15 +269,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
             </div>
 
-            {/* Botten-dashboard - Fast höjd (450px) för att garantera 5 rader + rubrik */}
-            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-[450px] mb-4">
+            {/* Botten-dashboard - Fast höjd (480px) för att garantera 5 rader + rubrik och rundat avslut */}
+            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-[480px] mb-6">
                 <motion.div 
                     initial={{ opacity: 0, y: 30 }} 
                     animate={{ opacity: 1, y: 0 }} 
                     transition={{ delay: 0.6 }}
                     className="h-full"
                 >
-                    <CommunityFeed />
+                    <CommunityFeed onExpand={() => setExpandedList('feed')} />
                 </motion.div>
 
                 <motion.div 
@@ -283,10 +286,45 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     transition={{ delay: 0.7 }}
                     className="h-full"
                 >
-                    <WeeklyPBList />
+                    <WeeklyPBList onExpand={() => setExpandedList('pb')} />
                 </motion.div>
             </div>
         </div>
+
+        {/* EXPANDED MODAL VIEW */}
+        <AnimatePresence>
+            {expandedList && (
+                <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-md flex items-center justify-center p-6"
+                >
+                    <motion.div 
+                        initial={{ scale: 0.9, y: 20 }}
+                        animate={{ scale: 1, y: 0 }}
+                        exit={{ scale: 0.9, y: 20 }}
+                        className="w-full max-w-5xl h-[85vh] relative"
+                    >
+                        <button 
+                            onClick={() => setExpandedList(null)}
+                            className="absolute -top-16 right-0 text-white hover:text-primary transition-colors flex items-center gap-2 font-black uppercase tracking-widest"
+                        >
+                            <span>Stäng</span>
+                            <CloseIcon className="w-8 h-8" />
+                        </button>
+
+                        <div className="h-full">
+                            {expandedList === 'feed' ? (
+                                <CommunityFeed isExpanded />
+                            ) : (
+                                <WeeklyPBList isExpanded />
+                            )}
+                        </div>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
     </>
   );
 };

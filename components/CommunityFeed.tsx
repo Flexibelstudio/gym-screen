@@ -23,7 +23,12 @@ const getFeelingIcon = (feeling: string | null) => {
     }
 };
 
-export const CommunityFeed: React.FC = () => {
+interface CommunityFeedProps {
+    onExpand?: () => void;
+    isExpanded?: boolean;
+}
+
+export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpanded = false }) => {
     const { selectedOrganization } = useStudio();
     const [logs, setLogs] = useState<WorkoutLog[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -32,7 +37,7 @@ export const CommunityFeed: React.FC = () => {
         if (!selectedOrganization) return;
         setIsLoading(true);
         const unsubscribe = listenToCommunityLogs(selectedOrganization.id, (newLogs) => {
-            setLogs(newLogs.slice(0, 15)); 
+            setLogs(newLogs.slice(0, 50)); // Hämta upp till 50
             setIsLoading(false);
         });
         return () => unsubscribe();
@@ -46,33 +51,49 @@ export const CommunityFeed: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="h-full bg-white/5 backdrop-blur-md rounded-[2rem] flex items-center justify-center text-white/30 text-xs font-bold uppercase tracking-widest border border-white/10">
+            <div className="h-full bg-white/5 backdrop-blur-md rounded-[2.5rem] flex items-center justify-center text-white/30 text-xs font-bold uppercase tracking-widest border border-white/10">
                 Laddar gymlödet...
             </div>
         );
     }
 
+    const itemHeight = 72; // Fast höjd per rad
+    const viewportHeight = itemHeight * 5; // Precis 5 rader
+
     return (
-        <div className="bg-white/10 backdrop-blur-md rounded-[2rem] p-5 border border-white/10 h-full flex flex-col relative overflow-hidden shadow-2xl">
+        <div 
+            onClick={!isExpanded ? onExpand : undefined}
+            className={`
+                bg-white/10 backdrop-blur-md rounded-[2.5rem] p-6 border border-white/10 flex flex-col relative overflow-hidden shadow-2xl transition-all
+                ${!isExpanded ? 'h-full cursor-pointer hover:bg-white/15 active:scale-[0.99]' : 'h-full'}
+            `}
+        >
             <div className="flex items-center justify-between mb-4 relative z-10">
-                <div className="flex items-center gap-2.5">
-                    <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.8)]"></div>
-                    <h3 className="text-lg font-black text-white uppercase tracking-tight leading-none">Gymlödet</h3>
+                <div className="flex items-center gap-3">
+                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.8)]"></div>
+                    <h3 className="text-xl font-black text-white uppercase tracking-tight leading-none">Gymlödet</h3>
                 </div>
-                <span className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em] bg-white/5 px-2 py-1 rounded-lg border border-white/5">Live</span>
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] bg-white/5 px-2 py-1 rounded-lg border border-white/5">Live</span>
+                    {!isExpanded && <span className="text-[10px] font-black text-primary uppercase">Visa alla</span>}
+                </div>
             </div>
 
-            <div className="flex-grow overflow-y-auto pr-1 space-y-2 custom-scrollbar relative z-10 scrollbar-hide">
+            <div 
+                className={`flex-grow overflow-y-auto pr-1 space-y-2 relative z-10 custom-scrollbar scroll-smooth`}
+                style={{ height: !isExpanded ? `${viewportHeight}px` : 'auto', maxHeight: isExpanded ? '70vh' : undefined }}
+            >
                 <AnimatePresence initial={false}>
                     {logs.length > 0 ? (
                         logs.map((log) => (
                             <motion.div
                                 key={log.id}
-                                initial={{ opacity: 0, x: -20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                className="bg-black/30 hover:bg-black/40 transition-colors rounded-xl p-2.5 flex items-center gap-3 border border-white/5 group"
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="bg-black/30 hover:bg-black/40 transition-colors rounded-2xl flex items-center gap-4 border border-white/5 group px-4"
+                                style={{ height: `${itemHeight - 8}px` }} // -8 för gap
                             >
-                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-black text-xs shadow-lg flex-shrink-0 overflow-hidden border border-white/10">
+                                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-black text-sm shadow-lg flex-shrink-0 overflow-hidden border border-white/10">
                                     {log.memberPhotoUrl ? (
                                         <img src={log.memberPhotoUrl} alt="" className="w-full h-full object-cover" />
                                     ) : (
@@ -82,10 +103,10 @@ export const CommunityFeed: React.FC = () => {
 
                                 <div className="flex-grow min-w-0">
                                     <div className="flex justify-between items-baseline">
-                                        <p className="text-white font-bold text-xs truncate mr-2">
+                                        <p className="text-white font-bold text-sm truncate mr-2">
                                             {log.memberName || 'Anonym'}
                                         </p>
-                                        <span className="text-[8px] text-white/30 font-bold uppercase whitespace-nowrap">
+                                        <span className="text-[9px] text-white/30 font-bold uppercase whitespace-nowrap">
                                             {getRelativeTime(log.date)}
                                         </span>
                                     </div>
@@ -102,14 +123,15 @@ export const CommunityFeed: React.FC = () => {
                         ))
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
-                            <DumbbellIcon className="w-6 h-6 text-white mb-2" />
+                            <DumbbellIcon className="w-8 h-8 text-white mb-2" />
                             <p className="text-white text-[10px] font-bold uppercase tracking-widest">Väntar på aktivitet...</p>
                         </div>
                     )}
                 </AnimatePresence>
             </div>
             
-            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-black/40 to-transparent pointer-events-none z-20"></div>
+            {/* Fade-out i botten för att indikera scroll */}
+            {!isExpanded && <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/60 to-transparent pointer-events-none z-20"></div>}
         </div>
     );
 };
