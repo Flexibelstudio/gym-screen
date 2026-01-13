@@ -1,4 +1,3 @@
-// ... (alla tidigare importer är desamma)
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma } from './types';
 
@@ -26,7 +25,6 @@ import { SupportChat } from './components/SupportChat';
 import { Screensaver } from './components/common/Screensaver';
 import { ImagePreviewModal } from './components/ui/ImagePreviewModal';
 import { Header } from './components/layout/Header';
-import { Footer } from './components/layout/Footer';
 import { SeasonalOverlay } from './components/common/SeasonalOverlay';
 import { SpotlightOverlay } from './components/SpotlightOverlay';
 import { PBOverlay } from './components/PBOverlay'; 
@@ -595,16 +593,6 @@ const MainContent: React.FC = () => {
   const handleClosePasswordModal = () => {
     setIsPasswordModalOpen(false);
   }
-
-  const handleReturnToGroupPrep = () => {
-    if (activeWorkout && (activeWorkout.id.startsWith('hyrox-full-race') || activeWorkout.id.startsWith('custom-race'))) {
-        setRacePrepState({
-            groups: activeWorkout.startGroups || [],
-            interval: activeWorkout.startIntervalMinutes || 2,
-        });
-        handleBack();
-    }
-  };
 
   const handleLogWorkoutRequest = (workoutId: string, orgId: string) => {
     setIsSearchWorkoutOpen(false);

@@ -209,7 +209,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         
         <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 flex flex-col h-full overflow-hidden">
             
-            {/* Header Section - Fast höjd */}
+            {/* Header Section - Fast höjd för stabilitet */}
             <div className="flex flex-shrink-0 justify-between items-start mb-6 w-full pt-4">
                 <div className="flex flex-col gap-3">
                     {logoUrl ? (
@@ -247,7 +247,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
             </div>
 
-            {/* Meny-grid - Flexibel och scrollbar vid behov */}
+            {/* Meny-grid - Flexibel sektion som tar resten av platsen */}
             <div className="flex-grow overflow-y-auto pr-2 mb-8 custom-scrollbar min-h-0">
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 auto-rows-fr">
                     {menuItems.map((item, index) => (
@@ -266,8 +266,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
             </div>
 
-            {/* Botten-dashboard - Fast höjd, låst mot botten */}
-            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-56 lg:h-64 mb-4">
+            {/* Botten-dashboard - Fast höjd som garanterar att 5 rader syns snyggt */}
+            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-[380px] lg:h-[420px] mb-4">
                 <motion.div 
                     initial={{ opacity: 0, y: 30 }} 
                     animate={{ opacity: 1, y: 0 }} 
