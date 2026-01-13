@@ -1,4 +1,4 @@
-// ... (imports remain the same)
+// ... (alla tidigare importer är desamma)
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma } from './types';
 
@@ -29,7 +29,7 @@ import { Header } from './components/layout/Header';
 import { Footer } from './components/layout/Footer';
 import { SeasonalOverlay } from './components/common/SeasonalOverlay';
 import { SpotlightOverlay } from './components/SpotlightOverlay';
-import { PBOverlay } from './components/PBOverlay'; // Import PBOverlay
+import { PBOverlay } from './components/PBOverlay'; 
 import { ScanButton } from './components/ScanButton';
 import { WorkoutLogScreen } from './mobile/screens/WorkoutLogScreen';
 import { WorkoutListScreen } from './components/WorkoutListScreen';
@@ -899,7 +899,6 @@ const MainContent: React.FC = () => {
         isStudioMode={isStudioMode}
       />}
 
-      {/* Modern container approach for handling heights and the banner */}
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden relative">
           <main 
             className={`flex-1 min-h-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
@@ -995,7 +994,6 @@ const MainContent: React.FC = () => {
             />
           </main>
           
-          {/* Info Banner Integrated into flow for Studio Home */}
           {isInfoBannerVisible && (
               <div className="flex-shrink-0 w-full h-[320px] lg:h-[480px] xl:h-[512px] relative z-[40]">
                   <InfoCarouselBanner 
@@ -1007,7 +1005,6 @@ const MainContent: React.FC = () => {
           )}
       </div>
       
-      {/* 1. GLOBAL WORKOUT SEARCH POPUP */}
       <AnimatePresence>
           {isSearchWorkoutOpen && (
               <>
@@ -1045,7 +1042,6 @@ const MainContent: React.FC = () => {
           )}
       </AnimatePresence>
 
-      {/* 2. GLOBAL WORKOUT PREVIEW POPUP */}
       <AnimatePresence>
           {mobileViewData && (
               <>
@@ -1103,7 +1099,6 @@ const MainContent: React.FC = () => {
           )}
       </AnimatePresence>
 
-      {/* 3. GLOBAL WORKOUT LOGGING POPUP */}
       <AnimatePresence>
           {mobileLogData && (
               <>
@@ -1219,7 +1214,6 @@ const MainContent: React.FC = () => {
             />
         )}
        {showTerms && <TermsOfServiceModal onAccept={acceptTerms} />}
-       {!isFullScreenPage && <Footer />}
        
        {showSupportChat && <SupportChat />}
 

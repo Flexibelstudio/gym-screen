@@ -70,7 +70,7 @@ const MenuCard: React.FC<{
             variants={variants}
             onClick={onClick}
             className={`
-                relative overflow-hidden rounded-[2.5rem] p-6 text-left flex flex-col justify-between h-full min-h-[160px]
+                relative overflow-hidden rounded-[2.5rem] p-6 text-left flex flex-col justify-between h-full min-h-[140px]
                 bg-gradient-to-br from-primary to-teal-700 text-white
                 shadow-xl border-t border-l border-white/20 transition-all duration-300
                 hover:shadow-primary/20 hover:-translate-y-1
@@ -91,15 +91,15 @@ const MenuCard: React.FC<{
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none mix-blend-overlay"></div>
 
             <div className="z-10 flex flex-col h-full justify-between relative">
-                <div className="mb-3 p-2.5 bg-white/15 w-fit rounded-2xl text-white backdrop-blur-md border border-white/10 shadow-inner">
-                    {icon || <DumbbellIcon className="w-7 h-7" />}
+                <div className="mb-2 p-2 bg-white/15 w-fit rounded-xl text-white backdrop-blur-md border border-white/10 shadow-inner">
+                    {icon || <DumbbellIcon className="w-6 h-6" />}
                 </div>
                 <div>
-                    <h3 className="text-xl sm:text-2xl font-black leading-tight drop-shadow-md tracking-tight uppercase">
+                    <h3 className="text-lg sm:text-xl font-black leading-tight drop-shadow-md tracking-tight uppercase">
                         {title}
                     </h3>
                     {subTitle && (
-                        <p className="text-[10px] font-bold text-white/80 mt-0.5 uppercase tracking-widest">
+                        <p className="text-[9px] font-bold text-white/80 mt-0.5 uppercase tracking-widest">
                             {subTitle}
                         </p>
                     )}
@@ -209,7 +209,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         
         <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 flex flex-col h-full overflow-hidden">
             
-            {/* Header Section */}
+            {/* Header Section - Fast höjd */}
             <div className="flex flex-shrink-0 justify-between items-start mb-6 w-full pt-4">
                 <div className="flex flex-col gap-3">
                     {logoUrl ? (
@@ -241,16 +241,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     
                     {showQrCode && (
                         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} className="bg-white p-2.5 rounded-2xl shadow-xl border border-gray-100 flex flex-col items-center">
-                            <img src={studioConfig.checkInImageUrl} alt="QR" className="w-20 h-20 object-contain" />
-                            <p className="text-gray-400 text-[8px] font-black uppercase tracking-widest mt-1">Checka in / Logga</p>
+                            <img src={studioConfig.checkInImageUrl} alt="QR" className="w-16 h-16 object-contain" />
                         </motion.div>
                     )}
                 </div>
             </div>
 
-            {/* Menu Grid - Scrollable Area */}
-            <div className="flex-grow overflow-y-auto pr-2 mb-6 custom-scrollbar min-h-0">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5 auto-rows-fr">
+            {/* Meny-grid - Flexibel och scrollbar vid behov */}
+            <div className="flex-grow overflow-y-auto pr-2 mb-8 custom-scrollbar min-h-0">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 auto-rows-fr">
                     {menuItems.map((item, index) => (
                         <MenuCard
                             key={item.title}
@@ -264,24 +263,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             isSparkling={sparklingIndex === index}
                         />
                     ))}
-                    
-                    {onShowBoostModal && (
-                        <motion.button
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.5 }}
-                            onClick={onShowBoostModal}
-                            className="relative overflow-hidden rounded-[2.5rem] p-6 text-left flex flex-col justify-center items-center h-full min-h-[160px] bg-white/5 border-2 border-dashed border-primary/30 text-primary hover:bg-primary/5 transition-all"
-                        >
-                            <SparklesIcon className="w-8 h-8 mb-2 animate-pulse" />
-                            <span className="font-black uppercase tracking-widest text-xs">Boost</span>
-                        </motion.button>
-                    )}
                 </div>
             </div>
 
-            {/* Bottom Social Dashboard - 50/50 Split Bar */}
-            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-48 sm:h-56 lg:h-64 mb-4">
+            {/* Botten-dashboard - Fast höjd, låst mot botten */}
+            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-56 lg:h-64 mb-4">
                 <motion.div 
                     initial={{ opacity: 0, y: 30 }} 
                     animate={{ opacity: 1, y: 0 }} 
