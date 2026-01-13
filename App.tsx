@@ -556,6 +556,16 @@ const MainContent: React.FC = () => {
     navigateTo(Page.SimpleWorkoutBuilder);
   };
   
+  const handleReturnToGroupPrep = useCallback(() => {
+    if (activeWorkout && (activeWorkout.id.startsWith('hyrox-full-race') || activeWorkout.id.startsWith('custom-race'))) {
+        setRacePrepState({
+            groups: activeWorkout.startGroups || [],
+            interval: activeWorkout.startIntervalMinutes || 2,
+        });
+        handleBack();
+    }
+  }, [activeWorkout, handleBack]);
+
   const handleTimerFinish = useCallback((finishData: { isNatural?: boolean; time?: number, raceId?: string } = {}) => {
     const { isNatural = false, time, raceId } = finishData;
     if (raceId) {
@@ -889,7 +899,7 @@ const MainContent: React.FC = () => {
 
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden relative">
           <main 
-            className={`flex-1 min-h-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
+            className={`flex-1 min-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
           >
             <AppRouter 
                 page={page}
@@ -962,7 +972,6 @@ const MainContent: React.FC = () => {
                     setRacePrepState: setRacePrepState,
                     setCompletionInfo: setCompletionInfo,
                     setRegisteringHyroxTime: setIsRegisteringHyroxTime,
-                    setTargetDate: () => {}, 
                     setFollowMeShowImage: setFollowMeShowImage,
                     
                     handleGeneratedWorkout: handleGeneratedWorkout,

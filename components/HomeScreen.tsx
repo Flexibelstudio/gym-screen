@@ -6,7 +6,7 @@ import { DumbbellIcon, SparklesIcon, StarIcon, PencilIcon, getIconComponent } fr
 import { WeeklyPBList } from './WeeklyPBList'; 
 import { CommunityFeed } from './CommunityFeed';
 
-// --- Icons for Menu Cards ---
+// ... (TimerIcon, HyroxIcon, getIconForCategory components remain the same)
 const TimerIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -209,7 +209,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         
         <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 flex flex-col h-full overflow-hidden">
             
-            {/* Header Section - Fast höjd för stabilitet */}
+            {/* Header Section */}
             <div className="flex flex-shrink-0 justify-between items-start mb-6 w-full pt-4">
                 <div className="flex flex-col gap-3">
                     {logoUrl ? (
@@ -247,7 +247,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
             </div>
 
-            {/* Meny-grid - Flexibel sektion som tar resten av platsen */}
+            {/* Meny-grid */}
             <div className="flex-grow overflow-y-auto pr-2 mb-8 custom-scrollbar min-h-0">
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 auto-rows-fr">
                     {menuItems.map((item, index) => (
@@ -266,8 +266,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
             </div>
 
-            {/* Botten-dashboard - Fast höjd som garanterar att 5 rader syns snyggt */}
-            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-[380px] lg:h-[420px] mb-4">
+            {/* Botten-dashboard - Fast höjd (450px) för att garantera 5 rader + rubrik */}
+            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-[450px] mb-4">
                 <motion.div 
                     initial={{ opacity: 0, y: 30 }} 
                     animate={{ opacity: 1, y: 0 }} 
