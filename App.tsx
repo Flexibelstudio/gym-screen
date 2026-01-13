@@ -1,4 +1,3 @@
-
 // ... (imports remain the same)
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma } from './types';
@@ -138,7 +137,6 @@ export default function App() {
   return <MainContent />;
 }
 
-// ... (deepCopyAndPrepareAsNew, THEME_STORAGE_KEY remain the same)
 const deepCopyAndPrepareAsNew = (workoutToCopy: Workout): Workout => {
     const newWorkout = JSON.parse(JSON.stringify(workoutToCopy));
     newWorkout.id = `workout-${Date.now()}`;
@@ -162,7 +160,6 @@ const deepCopyAndPrepareAsNew = (workoutToCopy: Workout): Workout => {
 const THEME_STORAGE_KEY = 'flexibel-screen-theme';
 
 const MainContent: React.FC = () => {
-  // ... (All hooks and state definitions remain the same)
   const { 
     selectedStudio, selectStudio, setAllStudios,
     selectedOrganization, selectOrganization, allOrganizations, setAllOrganizations,
@@ -389,8 +386,6 @@ const MainContent: React.FC = () => {
     setHistory(newHistory);
   }, [history, role, isImpersonating, customBackHandler, setActiveWorkout, isPickingForLog]);
 
-  // ... (All event handlers remain same, just ensure handleSelectWorkout uses correct logic)
-
   const handleMemberProfileRequest = () => {
       if (isStudioMode) {
           setReAuthPurpose('profile');
@@ -483,7 +478,7 @@ const MainContent: React.FC = () => {
         category: 'Ej kategoriserad',
         isPublished: false,
         organizationId: selectedOrganization.id,
-        createdAt: Date.now() // Added
+        createdAt: Date.now() 
     };
     handleStartBlock(block, tempWorkout);
   };
@@ -657,7 +652,6 @@ const MainContent: React.FC = () => {
       }
   };
 
-  // ... (Admin handlers remain same)
   const handleSaveStudioConfig = async (organizationId: string, studioId: string, newConfigOverrides: Partial<StudioConfig>) => {
     try {
       const updatedStudio = await updateStudioConfig(organizationId, studioId, newConfigOverrides);
@@ -872,7 +866,7 @@ const MainContent: React.FC = () => {
   const showScanButton = (!isStudioMode && isMemberFacingPage) || (page === Page.MemberProfile);
 
   return (
-    <div className={`bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'lg:h-screen lg:overflow-hidden min-h-screen' : 'min-h-screen'} ${paddingClass}`}>
+    <div className={`bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
        <SeasonalOverlay page={page} />
        
        {isOffline && (
@@ -884,7 +878,7 @@ const MainContent: React.FC = () => {
        <DeveloperToolbar />
        
        {isStudioMode && <SpotlightOverlay />} 
-       {isStudioMode && <PBOverlay />} {/* PB Overlay added */}
+       {isStudioMode && <PBOverlay />}
 
        {(page === Page.Timer || !isFullScreenPage) && <Header 
         page={page} 
@@ -905,100 +899,115 @@ const MainContent: React.FC = () => {
         isStudioMode={isStudioMode}
       />}
 
-      <main 
-        className={`flex-grow ${isFullScreenPage ? 'block w-full relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`} ${isInfoBannerVisible && page === Page.Home ? 'pb-0 lg:pb-[512px]' : ''}`}
-      >
-        <AppRouter 
-            page={page}
-            navigateTo={navigateTo}
-            handleBack={handleBack}
-            role={sessionRole}
-            userData={userData}
-            studioConfig={studioConfig}
-            selectedOrganization={selectedOrganization}
-            allOrganizations={allOrganizations}
-            isStudioMode={isStudioMode}
-            isImpersonating={isImpersonating}
-            theme={theme}
-            
-            workouts={workouts}
-            activeWorkout={activeWorkout}
-            activeBlock={activeBlock}
-            
-            passkategoriFilter={activePasskategori}
-            activeCustomPage={activeCustomPage}
-            activeRaceId={activeRaceId}
-            racePrepState={racePrepState}
-            followMeShowImage={followMeShowImage}
-            mobileLogData={null}
-            
-            preferredAdminTab={preferredAdminTab}
-            profileEditTrigger={profileEditTrigger}
+      {/* Modern container approach for handling heights and the banner */}
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden relative">
+          <main 
+            className={`flex-1 min-h-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
+          >
+            <AppRouter 
+                page={page}
+                navigateTo={navigateTo}
+                handleBack={handleBack}
+                role={sessionRole}
+                userData={userData}
+                studioConfig={studioConfig}
+                selectedOrganization={selectedOrganization}
+                allOrganizations={allOrganizations}
+                isStudioMode={isStudioMode}
+                isImpersonating={isImpersonating}
+                theme={theme}
+                
+                workouts={workouts}
+                activeWorkout={activeWorkout}
+                activeBlock={activeBlock}
+                
+                passkategoriFilter={activePasskategori}
+                activeCustomPage={activeCustomPage}
+                activeRaceId={activeRaceId}
+                racePrepState={racePrepState}
+                followMeShowImage={followMeShowImage}
+                mobileLogData={null}
+                
+                preferredAdminTab={preferredAdminTab}
+                profileEditTrigger={profileEditTrigger}
 
-            onSelectWorkout={handleSelectWorkout}
-            onSelectPasskategori={handleSelectPasskategori}
-            onCreateNewWorkout={handleCreateNewWorkout}
-            onStartBlock={handleStartBlock}
-            onEditWorkout={handleEditWorkout}
-            onDeleteWorkout={handleDeleteWorkout}
-            onSaveWorkout={handleSaveAndNavigate}
-            onSaveWorkoutNoNav={handleSaveOnly}
-            onTogglePublish={handleTogglePublishStatus}
-            onToggleFavorite={handleToggleFavoriteStatus}
-            onDuplicateWorkout={handleDuplicateWorkout}
-            onTimerFinish={handleTimerFinish}
-            
-            functions={{
-                selectOrganization: handleSelectOrganization,
-                createOrganization: handleCreateOrganization,
-                deleteOrganization: handleDeleteOrganization,
-                saveGlobalConfig: handleSaveGlobalConfig,
-                createStudio: handleCreateStudio,
-                updateStudio: handleUpdateStudio,
-                deleteStudio: handleDeleteStudio,
-                updatePasswords: handleUpdateOrganizationPasswords,
-                updateLogos: handleUpdateOrganizationLogos,
-                updatePrimaryColor: handleUpdateOrganizationPrimaryColor,
-                updateOrganization: handleUpdateOrganization,
-                updateCustomPages: handleUpdateOrganizationCustomPages,
-                updateInfoCarousel: handleUpdateOrganizationInfoCarousel,
+                onSelectWorkout={handleSelectWorkout}
+                onSelectPasskategori={handleSelectPasskategori}
+                onCreateNewWorkout={handleCreateNewWorkout}
+                onStartBlock={handleStartBlock}
+                onEditWorkout={handleEditWorkout}
+                onDeleteWorkout={handleDeleteWorkout}
+                onSaveWorkout={handleSaveAndNavigate}
+                onSaveWorkoutNoNav={handleSaveOnly}
+                onTogglePublish={handleTogglePublishStatus}
+                onToggleFavorite={handleToggleFavoriteStatus}
+                onDuplicateWorkout={handleDuplicateWorkout}
+                onTimerFinish={handleTimerFinish}
                 
-                saveCustomPage: handleSaveCustomPage,
-                deleteCustomPage: handleDeleteCustomPage,
-                editCustomPage: handleEditCustomPage,
-                
-                editStudioConfig: handleEditStudioConfig,
-                switchToStudioView: handleSwitchToStudioView,
-                
-                handleCoachAccessRequest: handleCoachAccessRequest,
-                handleReturnToAdmin: handleReturnToAdminRequest, 
-                handleGoToSystemOwner: () => setHistory([Page.SystemOwner]),
-                setShowImage: (url) => setPreviewImageUrl(url),
-                setTimerHeaderVisible: setIsTimerHeaderVisible,
-                setBackButtonHidden: setIsBackButtonHidden,
-                setRacePrepState: setRacePrepState,
-                setCompletionInfo: setCompletionInfo,
-                setRegisteringHyroxTime: setIsRegisteringHyroxTime,
-                setFollowMeShowImage: setFollowMeShowImage,
-                
-                handleGeneratedWorkout: handleGeneratedWorkout,
-                handleWorkoutInterpreted: handleWorkoutInterpretedFromNote,
-                setAiGeneratorInitialTab: setAiGeneratorInitialTab,
-                setCustomBackHandler: setCustomBackHandler,
-                
-                handleStartFreestandingTimer: handleStartFreestandingTimer,
-                handleStartRace: handleStartRace,
-                handleSelectRace: handleSelectRace,
-                handleReturnToGroupPrep: handleReturnToGroupPrep,
-                handleSelectCustomPage: handleSelectCustomPage,
-                
-                handleMemberProfileRequest: handleMemberProfileRequest,
-                handleLogWorkoutRequest: handleLogWorkoutRequest
-            }}
-        />
-      </main>
+                functions={{
+                    selectOrganization: handleSelectOrganization,
+                    createOrganization: handleCreateOrganization,
+                    deleteOrganization: handleDeleteOrganization,
+                    saveGlobalConfig: handleSaveGlobalConfig,
+                    createStudio: handleCreateStudio,
+                    updateStudio: handleUpdateStudio,
+                    deleteStudio: handleDeleteStudio,
+                    updatePasswords: handleUpdateOrganizationPasswords,
+                    updateLogos: handleUpdateOrganizationLogos,
+                    updatePrimaryColor: handleUpdateOrganizationPrimaryColor,
+                    updateOrganization: handleUpdateOrganization,
+                    updateCustomPages: handleUpdateOrganizationCustomPages,
+                    updateInfoCarousel: handleUpdateOrganizationInfoCarousel,
+                    
+                    saveCustomPage: handleSaveCustomPage,
+                    deleteCustomPage: handleDeleteCustomPage,
+                    editCustomPage: handleEditCustomPage,
+                    
+                    editStudioConfig: handleEditStudioConfig,
+                    switchToStudioView: handleSwitchToStudioView,
+                    
+                    handleCoachAccessRequest: handleCoachAccessRequest,
+                    handleReturnToAdmin: handleReturnToAdminRequest, 
+                    handleGoToSystemOwner: () => setHistory([Page.SystemOwner]),
+                    setShowImage: (url) => setPreviewImageUrl(url),
+                    setTimerHeaderVisible: setIsTimerHeaderVisible,
+                    setBackButtonHidden: setIsBackButtonHidden,
+                    setRacePrepState: setRacePrepState,
+                    setCompletionInfo: setCompletionInfo,
+                    setRegisteringHyroxTime: setIsRegisteringHyroxTime,
+                    setTargetDate: () => {}, 
+                    setFollowMeShowImage: setFollowMeShowImage,
+                    
+                    handleGeneratedWorkout: handleGeneratedWorkout,
+                    handleWorkoutInterpreted: handleWorkoutInterpretedFromNote,
+                    setAiGeneratorInitialTab: setAiGeneratorInitialTab,
+                    setCustomBackHandler: setCustomBackHandler,
+                    
+                    handleStartFreestandingTimer: handleStartFreestandingTimer,
+                    handleStartRace: handleStartRace,
+                    handleSelectRace: handleSelectRace,
+                    handleReturnToGroupPrep: handleReturnToGroupPrep,
+                    handleSelectCustomPage: handleSelectCustomPage,
+                    
+                    handleMemberProfileRequest: handleMemberProfileRequest,
+                    handleLogWorkoutRequest: handleLogWorkoutRequest
+                }}
+            />
+          </main>
+          
+          {/* Info Banner Integrated into flow for Studio Home */}
+          {isInfoBannerVisible && (
+              <div className="flex-shrink-0 w-full h-[320px] lg:h-[480px] xl:h-[512px] relative z-[40]">
+                  <InfoCarouselBanner 
+                    messages={activeInfoMessages} 
+                    className="relative !h-full" 
+                    forceDark={isScreensaverActive} 
+                  />
+              </div>
+          )}
+      </div>
       
-      {/* 1. GLOBAL WORKOUT SEARCH POPUP (BOTTOM LAYER) */}
+      {/* 1. GLOBAL WORKOUT SEARCH POPUP */}
       <AnimatePresence>
           {isSearchWorkoutOpen && (
               <>
@@ -1036,7 +1045,7 @@ const MainContent: React.FC = () => {
           )}
       </AnimatePresence>
 
-      {/* 2. GLOBAL WORKOUT PREVIEW POPUP (MIDDLE LAYER - ABOVE SEARCH) */}
+      {/* 2. GLOBAL WORKOUT PREVIEW POPUP */}
       <AnimatePresence>
           {mobileViewData && (
               <>
@@ -1072,7 +1081,7 @@ const MainContent: React.FC = () => {
                                     onStartBlock={(block) => handleStartBlock(block, mobileViewData)} 
                                     onUpdateBlockSettings={() => {}}
                                     onEditWorkout={() => {}} 
-                                    isCoachView={false} // Force read-only mode for preview
+                                    isCoachView={false} 
                                     onTogglePublish={() => {}}
                                     onToggleFavorite={handleToggleFavoriteStatus}
                                     onDuplicate={() => {}}
@@ -1094,7 +1103,7 @@ const MainContent: React.FC = () => {
           )}
       </AnimatePresence>
 
-      {/* 3. GLOBAL WORKOUT LOGGING POPUP (TOP LAYER) */}
+      {/* 3. GLOBAL WORKOUT LOGGING POPUP */}
       <AnimatePresence>
           {mobileLogData && (
               <>
@@ -1124,7 +1133,6 @@ const MainContent: React.FC = () => {
           )}
       </AnimatePresence>
 
-      {/* 4. DIPLOMA POPUP */}
       <AnimatePresence>
           {activeDiploma && (
               <WorkoutDiplomaView 
@@ -1195,8 +1203,6 @@ const MainContent: React.FC = () => {
        
        {previewImageUrl && <ImagePreviewModal imageUrl={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />}
        
-       {isInfoBannerVisible && <InfoCarouselBanner messages={activeInfoMessages} className="hidden lg:flex bottom-0" forceDark={isScreensaverActive} />}
-
        {studioToEditConfig && selectedOrganization && (
         <StudioConfigModal
             isOpen={!!studioToEditConfig}

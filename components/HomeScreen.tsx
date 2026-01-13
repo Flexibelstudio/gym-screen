@@ -207,10 +207,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     <>
         <AmbientBackground />
         
-        {/* Changed h-screen to h-full and flex-1 to allow parent App.tsx to control layout and padding */}
         <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 flex flex-col h-full overflow-hidden">
             
-            {/* Header Section - More compact for desktop */}
+            {/* Header Section */}
             <div className="flex flex-shrink-0 justify-between items-start mb-6 w-full pt-4">
                 <div className="flex flex-col gap-3">
                     {logoUrl ? (
@@ -249,7 +248,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
             </div>
 
-            {/* Menu Grid - Scrollable area */}
+            {/* Menu Grid - Scrollable Area */}
             <div className="flex-grow overflow-y-auto pr-2 mb-6 custom-scrollbar min-h-0">
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-5 auto-rows-fr">
                     {menuItems.map((item, index) => (
@@ -281,8 +280,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
             </div>
 
-            {/* Bottom Social Dashboard - Reduced height to fit on screen with carousel */}
-            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-56 sm:h-64 mb-4">
+            {/* Bottom Social Dashboard - 50/50 Split Bar */}
+            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-48 sm:h-56 lg:h-64 mb-4">
                 <motion.div 
                     initial={{ opacity: 0, y: 30 }} 
                     animate={{ opacity: 1, y: 0 }} 
