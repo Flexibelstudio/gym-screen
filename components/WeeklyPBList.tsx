@@ -42,7 +42,7 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
     }
 
     const itemHeight = 72;
-    const viewportHeight = itemHeight * 5;
+    const viewportHeight = itemHeight * 4;
 
     return (
         <div 
@@ -62,7 +62,7 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] bg-white/5 px-2 py-1 rounded-lg border border-white/5">Hof</span>
-                    {!isExpanded && <span className="text-[10px] font-black text-primary uppercase">Visa alla</span>}
+                    {!isExpanded && <span className="text-[10px] font-black text-primary uppercase">Visa mer</span>}
                 </div>
             </div>
 
@@ -109,8 +109,6 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
                     )}
                 </AnimatePresence>
             </div>
-            
-            {!isExpanded && <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/60 to-transparent pointer-events-none z-20"></div>}
         </div>
     );
 };

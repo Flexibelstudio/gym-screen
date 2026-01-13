@@ -58,7 +58,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
     }
 
     const itemHeight = 72; // Fast höjd per rad
-    const viewportHeight = itemHeight * 5; // Precis 5 rader
+    const viewportHeight = itemHeight * 4; // Precis 4 rader
 
     return (
         <div 
@@ -75,7 +75,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] bg-white/5 px-2 py-1 rounded-lg border border-white/5">Live</span>
-                    {!isExpanded && <span className="text-[10px] font-black text-primary uppercase">Visa alla</span>}
+                    {!isExpanded && <span className="text-[10px] font-black text-primary uppercase">Visa mer</span>}
                 </div>
             </div>
 
@@ -129,9 +129,6 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
                     )}
                 </AnimatePresence>
             </div>
-            
-            {/* Fade-out i botten för att indikera scroll */}
-            {!isExpanded && <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/60 to-transparent pointer-events-none z-20"></div>}
         </div>
     );
 };

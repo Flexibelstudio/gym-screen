@@ -269,8 +269,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
             </div>
 
-            {/* Botten-dashboard - Fast höjd (480px) för att garantera 5 rader + rubrik och rundat avslut */}
-            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-[480px] mb-6">
+            {/* Botten-dashboard - Fast höjd (400px) för att garantera 4 rader + rubrik och rundat avslut */}
+            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-[400px] mb-6">
                 <motion.div 
                     initial={{ opacity: 0, y: 30 }} 
                     animate={{ opacity: 1, y: 0 }} 
