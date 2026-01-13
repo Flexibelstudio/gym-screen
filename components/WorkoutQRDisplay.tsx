@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import QRCode from 'react-qr-code';
 import { WorkoutQRPayload } from '../types';
 
@@ -59,29 +60,33 @@ export const WorkoutQRDisplay: React.FC<WorkoutQRDisplayProps> = ({
         );
     }
 
-    // --- FLYTANDE FAB-LÄGE (Övre högra hörnet) ---
-    return (
+    // --- PORTAL-LÖSNING FÖR FIXED LÄGE (Nedre högra hörnet) ---
+    // Vi använder createPortal för att rendera komponenten direkt under <body>
+    // Detta löser problemet med att "fixed" position slutar fungera pga transform-egenskaper hos föräldrar.
+    const portalContent = (
         <div 
-            className="fixed top-10 right-10 z-[100] bg-white p-5 rounded-[2.5rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.4)] flex flex-col items-center gap-3 transition-all duration-500 animate-fade-in border border-white/20"
-            style={{ width: '170px' }}
+            className="fixed bottom-10 right-10 z-[9999] bg-white p-4 rounded-[2rem] shadow-[0_20px_50px_-15px_rgba(0,0,0,0.3)] flex flex-col items-center gap-2 transition-all duration-500 animate-fade-in border border-gray-100"
+            style={{ width: '150px' }}
         >
-            <div className="bg-white p-1 rounded-2xl">
+            <div className="bg-white p-1 rounded-xl">
                 <QRCode 
                     value={qrValue} 
-                    size={130} 
+                    size={110} 
                     fgColor="#000000" 
                     bgColor="#ffffff" 
                     level="L"
                 />
             </div>
-            <div className="text-center space-y-0.5">
-                <p className="text-black font-black text-[10px] uppercase tracking-[0.2em] leading-tight opacity-40">Skanna för att</p>
-                <p className="text-primary font-black text-2xl uppercase tracking-tighter leading-none">LOGGA</p>
-                <p className="text-gray-400 text-[9px] font-bold uppercase tracking-widest pt-1">Starta appen</p>
+            <div className="text-center space-y-0">
+                <p className="text-black font-black text-[9px] uppercase tracking-[0.2em] leading-tight opacity-40">Skanna för att</p>
+                <p className="text-primary font-black text-xl uppercase tracking-tighter leading-none">LOGGA</p>
+                <p className="text-gray-400 text-[8px] font-bold uppercase tracking-widest pt-1">Starta appen</p>
             </div>
             
-            {/* Dekorativt hörn-element för SmartSkärm-looken */}
-            <div className="absolute -top-2 -left-2 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-2xl opacity-20"></div>
+            {/* Dekorativt hörn-element */}
+            <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-primary rounded-tl-xl opacity-20"></div>
         </div>
     );
+
+    return createPortal(portalContent, document.body);
 };
