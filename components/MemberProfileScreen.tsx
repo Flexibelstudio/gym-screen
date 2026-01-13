@@ -30,6 +30,47 @@ const SmartItem: React.FC<{ letter: string, color: string, title: string, text: 
 
 // --- Helper Functions ---
 
+const getYearWeek = (date: Date) => {
+    const d = new Date(date.getTime());
+    d.setHours(0, 0, 0, 0);
+    // Torsdag i samma vecka avgör året (ISO 8601)
+    d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+    const yearStart = new Date(d.getFullYear(), 0, 1);
+    const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return `${d.getFullYear()}-W${weekNo}`;
+};
+
+const calculateWeeklyStreak = (logs: WorkoutLog[]) => {
+    if (logs.length === 0) return 0;
+
+    // Skapa ett set av alla veckor som har loggade pass
+    const activeWeeks = new Set(logs.map(log => getYearWeek(new Date(log.date))));
+    
+    const now = new Date();
+    const currentWeekKey = getYearWeek(now);
+    
+    // Vi börjar räkna från FÖRRA veckan (eftersom den nuvarande inte är klar än/ska inte uppdateras än enligt önskemål)
+    let streak = 0;
+    let checkDate = new Date(now);
+    
+    // Gå bakåt 7 dagar för att hamna i förra kalenderveckan
+    checkDate.setDate(checkDate.getDate() - 7);
+
+    while (true) {
+        const weekKey = getYearWeek(checkDate);
+        if (activeWeeks.has(weekKey)) {
+            streak++;
+            // Gå bakåt ytterligare en vecka
+            checkDate.setDate(checkDate.getDate() - 7);
+        } else {
+            // Gap hittat i historiken
+            break;
+        }
+    }
+
+    return streak;
+};
+
 const getLevelInfo = (count: number) => {
     const level = Math.floor(count / 10) + 1;
     const progressToNext = (count % 10) * 10;
@@ -101,7 +142,7 @@ const GoalsEditModal: React.FC<{ currentGoals?: MemberGoals, onSave: (goals: Mem
                 <div>
                     <label className={labelClasses}>Målkategorier</label>
                     <div className="flex flex-wrap gap-2">
-                        {['Bli starkare', 'Gå ner i vikt', 'Bättre kondition', 'HYROX', 'Må bra', 'Rörlighet'].map(goal => (
+                        {['Bli starkare', 'Bygga muskler', 'Gå ner i vikt', 'Bättre kondition', 'HYROX', 'Må bra', 'Rörlighet'].map(goal => (
                             <button
                                 key={goal}
                                 onClick={() => toggleGoal(goal)}
@@ -211,9 +252,9 @@ const LogDetailModal: React.FC<{ log: WorkoutLog, onClose: () => void, onUpdate:
                 <div>
                     <h4 className="font-bold text-gray-900 dark:text-white mb-2">Kommentar</h4>
                     {isEditing ? (
-                        <textarea value={comment} onChange={e => setComment(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-3" rows={3} />
+                        <textarea value={comment} onChange={e => setComment(e.target.value)} className="w-full bg-gray-5 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-3" rows={3} />
                     ) : (
-                        <p className="text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg italic">{log.comment || "Ingen kommentar."}</p>
+                        <p className="text-gray-600 dark:text-gray-300 bg-gray-5 dark:bg-gray-900/50 p-3 rounded-lg italic">{log.comment || "Ingen kommentar."}</p>
                     )}
                 </div>
 
@@ -326,10 +367,18 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             const date = new Date(l.date);
             return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
         }).length;
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-        const hasWorkoutThisWeek = logs.some(l => new Date(l.date) > oneWeekAgo);
-        return { totalWorkouts, thisMonth, isActive: hasWorkoutThisWeek };
+        
+        // Vecko-streak logik
+        const weeklyStreak = calculateWeeklyStreak(logs);
+        const currentWeekKey = getYearWeek(now);
+        const hasTrainedThisWeek = logs.some(l => getYearWeek(new Date(l.date)) === currentWeekKey);
+
+        return { 
+            totalWorkouts, 
+            thisMonth, 
+            weeklyStreak, 
+            hasTrainedThisWeek 
+        };
     }, [logs]);
 
     const daysLeft = useMemo(() => {
@@ -412,8 +461,11 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             <FireIcon className="w-16 h-16" />
                         </div>
                         <span className="block text-[10px] font-black text-orange-600 dark:text-white/80 uppercase tracking-widest mb-1 relative z-10">Streak</span>
-                        <div className="flex items-center justify-center relative z-10 min-h-[36px]">
-                             {stats.isActive ? <FireIcon className="w-8 h-8 text-orange-500 dark:text-white animate-pulse" /> : <p className="text-3xl sm:text-4xl font-black text-orange-300 dark:text-white leading-none tracking-tight">-</p>}
+                        <div className="flex items-center justify-center relative z-10 min-h-[36px] gap-1">
+                             <p className="text-3xl sm:text-4xl font-black text-orange-500 dark:text-white leading-none tracking-tight">
+                                {stats.weeklyStreak}
+                             </p>
+                             <FireIcon className={`w-8 h-8 ${stats.hasTrainedThisWeek ? 'text-orange-500 dark:text-white animate-pulse' : 'text-gray-300 dark:text-gray-600 opacity-50'}`} />
                         </div>
                     </div>
                 </div>
