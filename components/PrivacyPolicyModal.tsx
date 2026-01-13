@@ -24,7 +24,7 @@ export const PrivacyPolicyModal: React.FC<{ isOpen: boolean; onClose: () => void
 
             <section className="space-y-2">
                 <h4 className="font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider">Lagring och säkerhet</h4>
-                <p>Datan lagras säkert i Google Firebase. Endast behörig personal på din anslutna studio och systemadministratörer har tillgång till din data för att kunna ge support och coachning.</p>
+                <p>Datan lagras säkert. Endast behörig personal på din anslutna studio och systemadministratörer har tillgång till din data för att kunna ge support och coachning.</p>
             </section>
 
             <section className="space-y-2">
