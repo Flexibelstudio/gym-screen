@@ -21,7 +21,6 @@ import { SuperAdminScreen } from './SuperAdminScreen';
 import { SystemOwnerScreen } from './SystemOwnerScreen';
 import { CustomContentScreen } from './CustomContentScreen';
 import { CustomPageEditorScreen } from './CustomPageEditorScreen';
-import { MyStrengthScreen } from './MyStrengthScreen';
 import { TimerScreen } from './TimerScreen';
 import WorkoutDetailScreen from './WorkoutDetailScreen';
 import { WarmupScreen } from './WarmupScreen';
@@ -296,9 +295,6 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 profileEditTrigger={profileEditTrigger}
                 navigateTo={navigateTo}
             /> : <div>Laddar profil...</div>;
-
-        case Page.MyStrength:
-            return <MyStrengthScreen onBack={handleBack} />;
 
         case Page.CustomContent:
             if (!activeCustomPage) return <div>Sidan finns inte</div>;

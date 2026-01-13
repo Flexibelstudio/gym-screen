@@ -5,6 +5,7 @@ import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIco
 import { Modal } from './ui/Modal';
 import { resizeImage } from '../utils/imageUtils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { MyStrengthScreen } from './MyStrengthScreen';
 
 interface MemberProfileScreenProps {
     userData: UserData;
@@ -240,6 +241,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [selectedLog, setSelectedLog] = useState<WorkoutLog | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isEditingGoals, setIsEditingGoals] = useState(false);
+    const [isMyStrengthVisible, setIsMyStrengthVisible] = useState(false);
 
     // Form states
     const [firstName, setFirstName] = useState(userData.firstName || '');
@@ -374,9 +376,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     </div>
                 </div>
 
-                {/* Achievement-knapp för styrka */}
+                {/* Achievement-knapp för styrka - Nu en Popup! */}
                 <button
-                    onClick={() => navigateTo(Page.MyStrength)}
+                    onClick={() => setIsMyStrengthVisible(true)}
                     className="flex flex-col items-center gap-1 group transition-all"
                 >
                     <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 shadow-sm transition-all group-hover:scale-110 group-active:scale-95 group-hover:shadow-md">
@@ -534,6 +536,18 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
             {isEditingGoals && <GoalsEditModal currentGoals={userData.goals} onSave={handleSaveGoals} onClose={() => setIsEditingGoals(false)} />}
             {selectedLog && <LogDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} onUpdate={handleUpdateLog} onDelete={handleDeleteLog} />}
+            
+            {/* MIN STYRKA MODAL */}
+            {isMyStrengthVisible && (
+                <Modal 
+                    isOpen={isMyStrengthVisible} 
+                    onClose={() => setIsMyStrengthVisible(false)} 
+                    title="Min Styrka 🏆" 
+                    size="2xl"
+                >
+                    <MyStrengthScreen onBack={() => setIsMyStrengthVisible(false)} />
+                </Modal>
+            )}
         </div>
     );
 };
