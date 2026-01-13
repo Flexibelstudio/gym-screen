@@ -8,7 +8,7 @@ import { CategoryPromptManager } from './CategoryPromptManager';
 import { Toast } from './ui/Notification';
 
 // Define a type for keys that have boolean values in StudioConfig
-type BooleanStudioConfigKeys = 'checkInImageEnabled' | 'enableNotes' | 'enableScreensaver' | 'enableExerciseBank' | 'enableHyrox' | 'enableWorkoutLogging' | 'enableBreathingGuide' | 'enableWarmup';
+type BooleanStudioConfigKeys = 'checkInImageEnabled' | 'enableNotes' | 'enableScreensaver' | 'enableExerciseBank' | 'enableHyrox' | 'enableWorkoutLogging';
 type ConfigTab = 'modules' | 'categories' | 'checkin';
 
 // --- Sub-component for uploading images ---
@@ -326,8 +326,6 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                         {renderToggle('enableNotes', "Aktivera 'Idé-tavlan'", "Whiteboard för coacher.")}
                         {renderToggle('enableExerciseBank', "Aktivera Övningsbank", "Tillgång till globala övningar.")}
                         {renderToggle('enableHyrox', "Aktivera HYROX-modul", "Tävlingsläge och tidtagning.")}
-                        {renderToggle('enableBreathingGuide', "Aktivera Andningsguide", "Visuell hjälp vid vila.")}
-                        {renderToggle('enableWarmup', "Aktivera Uppvärmning", "Förslag på uppvärmning.")}
                     </div>
                 );
 

@@ -1,3 +1,4 @@
+
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -385,7 +386,7 @@ export const createOrganization = async (name: string, subdomain: string): Promi
     const newOrg: Organization = { 
         id, name, subdomain, passwords: { coach: '1234' }, studios: [], customPages: [], status: 'active',
         inviteCode: generateInviteCode(),
-        globalConfig: { enableBreathingGuide: true, enableWarmup: true, customCategories: [{ id: '1', name: 'Standard', prompt: '' }] } 
+        globalConfig: { customCategories: [{ id: '1', name: 'Standard', prompt: '' }] } 
     };
     await setDoc(doc(db, 'organizations', id), newOrg);
     return newOrg;

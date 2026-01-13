@@ -131,7 +131,6 @@ export interface CustomCategoryWithPrompt {
 export type ThemeOption = 'none' | 'auto' | 'winter' | 'christmas' | 'newyear' | 'valentines' | 'easter' | 'midsummer' | 'summer' | 'halloween';
 
 export interface StudioConfig {
-  enableWarmup: boolean;
   enableScreensaver?: boolean;
   screensaverTimeoutMinutes?: number;
   enableExerciseBank?: boolean;
@@ -139,7 +138,6 @@ export interface StudioConfig {
   enableHyrox?: boolean;
   enableNotes?: boolean;
   enableWorkoutLogging?: boolean;
-  enableBreathingGuide?: boolean;
   checkInImageEnabled?: boolean;
   checkInImageUrl?: string;
   seasonalTheme?: ThemeOption;

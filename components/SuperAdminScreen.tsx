@@ -360,7 +360,7 @@ const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps
                 <section>
                     <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Funktioner & Moduler</h4>
                     <div className="space-y-4">
-                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch 
                                 label="HYROX-modul" 
                                 checked={!!config.enableHyrox} 
@@ -411,7 +411,7 @@ const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps
                                             value={config.aiSettings?.instructions || ''}
                                             onChange={(e) => handleAiChange('instructions', e.target.value)}
                                             placeholder="T.ex: Påminn alltid om att boka PT om resultaten planar ut..."
-                                            className="w-full p-2 text-sm rounded bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none resize-none"
+                                            className="w-full p-2 text-sm rounded bg-gray-5 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none resize-none"
                                         />
                                     </div>
                                     <div>
