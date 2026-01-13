@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { WorkoutBlock, TimerMode, TimerSettings } from '../types';
-import { ValueAdjuster } from './icons';
+import { ValueAdjuster, ChevronDownIcon, ChevronUpIcon } from './icons';
 
 interface TimerSetupModalProps {
   isOpen: boolean;
@@ -22,7 +22,7 @@ const secondsToMinSec = (totalSeconds: number) => {
 export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClose, block, onSave }) => {
   // --- Initialize State Lazily from Props ---
   const [initialState] = useState(() => {
-      const { mode, workTime, restTime, rounds, specifiedLaps, specifiedIntervalsPerLap } = block.settings;
+      const { mode, workTime, restTime, rounds, specifiedLaps, specifiedIntervalsPerLap, direction } = block.settings;
       const work = secondsToMinSec(workTime);
       const rest = secondsToMinSec(restTime);
       
@@ -64,7 +64,8 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
           intervallerPerVarv: iIntervallerPerVarv,
           totalOmgångar: iTotalOmgångar,
           countMode: iCountMode,
-          totalMinutes: iTotalMinutes
+          totalMinutes: iTotalMinutes,
+          direction: direction || 'down'
       };
   });
 
@@ -86,10 +87,13 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
   const [workSeconds, setWorkSeconds] = useState(initialState.workSeconds);
   const [restMinutes, setRestMinutes] = useState(initialState.restMinutes);
   const [restSeconds, setRestSeconds] = useState(initialState.restSeconds);
+  
+  const [direction, setDirection] = useState<'up' | 'down'>(initialState.direction);
 
   // Check for unsaved changes
   const hasUnsavedChanges = useMemo(() => {
       if (mode !== initialState.mode) return true;
+      if (direction !== initialState.direction) return true;
 
       // Check specific fields based on mode
       switch (mode) {
@@ -112,17 +116,15 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
               return totalMinutes !== initialState.totalMinutes;
           
           case TimerMode.NoTimer:
-              // Assuming NoTimer has no settings to change in this modal context
               return false; 
               
           default:
-              // Fallback for Stopwatch or others: check time
               if (workMinutes !== initialState.workMinutes || workSeconds !== initialState.workSeconds) return true;
               return false;
       }
   }, [
       mode, countMode, varv, intervallerPerVarv, totalOmgångar, totalMinutes, 
-      workMinutes, workSeconds, restMinutes, restSeconds, initialState
+      workMinutes, workSeconds, restMinutes, restSeconds, direction, initialState
   ]);
 
   useEffect(() => {
@@ -137,7 +139,6 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
   }, [isOpen]);
 
   const handleBackdropClick = (e: React.MouseEvent) => {
-      // Ensure we only trigger on the background, not child elements
       if (e.target === e.currentTarget) {
           if (hasUnsavedChanges) {
               if (window.confirm("Du har osparade ändringar. Vill du verkligen stänga och förlora dina ändringar?")) {
@@ -152,7 +153,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
   if (!isOpen) return null;
 
   const handleSave = () => {
-    const newSettings: Partial<TimerSettings> = { mode };
+    const newSettings: Partial<TimerSettings> = { mode, direction };
 
     switch(mode) {
       case TimerMode.Interval:
@@ -163,7 +164,6 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
             newSettings.specifiedIntervalsPerLap = intervallerPerVarv;
         } else {
             newSettings.rounds = totalOmgångar;
-            // Explicitly set to undefined to remove old values if user switched to simple rounds
             newSettings.specifiedLaps = undefined;
             newSettings.specifiedIntervalsPerLap = undefined;
         }
@@ -202,6 +202,30 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
         setTotalMinutes(10);
     }
   }
+
+  const renderDirectionToggle = () => {
+      // Don't show for NoTimer or Stopwatch (Stopwatch is always up)
+      if (mode === TimerMode.NoTimer || mode === TimerMode.Stopwatch) return null;
+      
+      return (
+          <div className="flex justify-center mb-6">
+              <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">
+                  <button 
+                      onClick={() => setDirection('down')} 
+                      className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md transition-colors ${direction === 'down' ? 'bg-white dark:bg-black shadow-sm text-primary' : 'text-gray-600 dark:text-gray-300'}`}
+                  >
+                      <ChevronDownIcon className="w-4 h-4" /> Räkna Ned
+                  </button>
+                  <button 
+                      onClick={() => setDirection('up')} 
+                      className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md transition-colors ${direction === 'up' ? 'bg-white dark:bg-black shadow-sm text-primary' : 'text-gray-600 dark:text-gray-300'}`}
+                  >
+                      <ChevronUpIcon className="w-4 h-4" /> Räkna Upp
+                  </button>
+              </div>
+          </div>
+      );
+  };
 
   const renderSettingsInputs = () => {
     const animationClass = 'animate-fade-in';
@@ -291,6 +315,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
         </div>
 
         <div className="bg-white dark:bg-black rounded-lg p-6 border border-gray-200 dark:border-gray-700 min-h-[350px] flex flex-col justify-center items-center">
+            {renderDirectionToggle()}
             {renderSettingsInputs()}
         </div>
 

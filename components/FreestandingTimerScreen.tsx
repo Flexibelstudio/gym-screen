@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { WorkoutBlock, TimerMode, TimerSettings, Exercise } from '../types';
-import { ValueAdjuster } from './icons';
+import { ValueAdjuster, ChevronDownIcon, ChevronUpIcon } from './icons';
 
 interface FreestandingTimerScreenProps {
     onStart: (block: WorkoutBlock) => void;
@@ -16,6 +17,9 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
     const [workSeconds, setWorkSeconds] = useState(30);
     const [restMinutes, setRestMinutes] = useState(0);
     const [restSeconds, setRestSeconds] = useState(15);
+    
+    // New state for direction
+    const [direction, setDirection] = useState<'up' | 'down'>('down');
 
     const isConfigurationValid = useCallback(() => {
         const totalWorkSeconds = workMinutes * 60 + workSeconds;
@@ -37,6 +41,9 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
 
     // Reset settings when mode changes
     useEffect(() => {
+        // Reset direction to down by default when switching modes, unless it's stopwatch
+        setDirection('down');
+
         switch(mode) {
             case TimerMode.Interval: 
                 setRounds(3); 
@@ -57,7 +64,11 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
     }, [mode]);
 
     const handleStartTimer = () => {
-        let settings: Partial<TimerSettings> & { mode: TimerMode, prepareTime: number } = { mode, prepareTime: 10 };
+        let settings: Partial<TimerSettings> & { mode: TimerMode, prepareTime: number } = { 
+            mode, 
+            prepareTime: 10,
+            direction // Pass the direction state
+        };
         let title: string = mode;
         let exercises: Exercise[] = [{ id: 'ex-dummy', name: mode }];
 
@@ -98,6 +109,30 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
             followMe: false, // Freestanding is always "follow me" style
         };
         onStart(blockToStart);
+    };
+
+    const renderDirectionToggle = () => {
+        // Don't show for NoTimer or Stopwatch (Stopwatch is always up)
+        if (mode === TimerMode.NoTimer || mode === TimerMode.Stopwatch) return null;
+        
+        return (
+            <div className="flex justify-center mb-6 w-full">
+                <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">
+                    <button 
+                        onClick={() => setDirection('down')} 
+                        className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md transition-colors ${direction === 'down' ? 'bg-white dark:bg-black shadow-sm text-primary' : 'text-gray-600 dark:text-gray-300'}`}
+                    >
+                        <ChevronDownIcon className="w-4 h-4" /> Räkna Ned
+                    </button>
+                    <button 
+                        onClick={() => setDirection('up')} 
+                        className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md transition-colors ${direction === 'up' ? 'bg-white dark:bg-black shadow-sm text-primary' : 'text-gray-600 dark:text-gray-300'}`}
+                    >
+                        <ChevronUpIcon className="w-4 h-4" /> Räkna Upp
+                    </button>
+                </div>
+            </div>
+        );
     };
 
     const renderSettings = () => {
@@ -189,6 +224,7 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
             <section className="w-full">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">2. Anpassa {mode}</h2>
                 <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700 min-h-[350px] flex flex-col justify-center items-center">
+                    {renderDirectionToggle()}
                     {renderSettings()}
                 </div>
                 {mode !== TimerMode.Stopwatch && (

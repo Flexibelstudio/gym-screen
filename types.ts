@@ -73,6 +73,7 @@ export interface TimerSettings {
   prepareTime: number; // seconds
   specifiedLaps?: number;
   specifiedIntervalsPerLap?: number;
+  direction?: 'up' | 'down';
 }
 
 export interface Exercise {

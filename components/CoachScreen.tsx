@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Page, CustomPage, UserRole } from '../types';
 import { useStudio } from '../context/StudioContext';
@@ -89,7 +90,16 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
       gradient: 'bg-gradient-to-br from-teal-500 to-emerald-700'
   });
 
-  // 2. MEDLEMSREGISTER (Med villkorlig logik)
+  // 2. PASS & PROGRAM (NEW)
+  items.push({
+      title: 'Pass & Program',
+      subTitle: 'Skapa & hantera pass',
+      action: () => navigateTo(Page.SuperAdmin),
+      icon: <DumbbellIcon className="w-8 h-8" />,
+      gradient: 'bg-gradient-to-br from-blue-600 to-indigo-600'
+  });
+
+  // 3. MEDLEMSREGISTER (Med villkorlig logik)
   const isLoggingEnabled = studioConfig.enableWorkoutLogging === true;
   items.push({ 
       title: 'Medlemsregister', 
@@ -100,7 +110,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
       isLocked: !isLoggingEnabled
   });
 
-  // 3. CONTENT FOR ALL COACHES (Infosidor)
+  // 4. CONTENT FOR ALL COACHES (Infosidor)
   (selectedOrganization?.customPages || []).forEach(page => {
       items.push({
           title: page.title,
@@ -111,7 +121,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
       });
   });
 
-  // 4. HIERARCHY LOGIC
+  // 5. HIERARCHY LOGIC
   if (isImpersonating) {
       items.push({ 
           title: 'Återgå till Admin', 

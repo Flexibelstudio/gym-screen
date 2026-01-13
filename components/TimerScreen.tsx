@@ -298,7 +298,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 }) => {
   const { activeWorkout } = useWorkout();
   const { 
-    status, currentTime, currentRound, currentExercise, nextExercise,
+    status, currentTime, currentPhaseDuration, currentRound, currentExercise, nextExercise,
     start, pause, resume, reset, 
     totalRounds, totalExercises, currentExerciseIndex,
     isLastExerciseInRound,
@@ -583,10 +583,21 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       }
   }, [status, isHyroxRace]);
 
-  const timeToDisplay = (status !== TimerStatus.Preparing && (isHyroxRace || block.settings.mode === TimerMode.Stopwatch)) 
-      ? totalTimeElapsed 
-      : currentTime;
+  // Handle Counting UP or DOWN
+  const timeToDisplay = useMemo(() => {
+      if (status === TimerStatus.Preparing) return currentTime;
+      if (isHyroxRace || block.settings.mode === TimerMode.Stopwatch) return totalTimeElapsed;
       
+      // Default to "Time Remaining" (count down)
+      if (!block.settings.direction || block.settings.direction === 'down') {
+          return currentTime;
+      }
+      
+      // Handle "Count Up" within interval
+      return currentPhaseDuration - currentTime;
+
+  }, [status, currentTime, isHyroxRace, block.settings.mode, block.settings.direction, currentPhaseDuration, totalTimeElapsed]);
+
   const minutesStr = Math.floor(timeToDisplay / 60).toString().padStart(2, '0');
   const secondsStr = (timeToDisplay % 60).toString().padStart(2, '0');
 
@@ -608,6 +619,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         {status === TimerStatus.Paused && (
             <PauseOverlay 
                 onResume={resume}
+                onRestart={handleConfirmReset}
                 onFinish={() => onFinish({ isNatural: false })}
             />
         )}

@@ -1,11 +1,13 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail } from '../types';
+import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma } from '../types';
 import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog } from '../services/firebaseService';
 import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch } from './icons';
 import { Modal } from './ui/Modal';
 import { resizeImage } from '../utils/imageUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MyStrengthScreen } from './MyStrengthScreen';
+import { WorkoutDiplomaView } from './WorkoutDiplomaView';
 
 interface MemberProfileScreenProps {
     userData: UserData;
@@ -226,19 +228,43 @@ const LogDetailModal: React.FC<{ log: WorkoutLog, onClose: () => void, onUpdate:
         }
     };
 
+    const isCustomActivity = log.activityType === 'custom_activity' || (!log.exerciseResults || log.exerciseResults.length === 0);
+
     return (
         <Modal isOpen={true} onClose={onClose} title={log.workoutTitle} size="lg">
             <div className="space-y-6">
-                <div className="flex justify-between items-center text-sm text-gray-500">
+                <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
                     <span>{new Date(log.date).toLocaleString()}</span>
-                    <span>{log.durationMinutes ? `${log.durationMinutes} min` : ''}</span>
+                    <div className="flex gap-2">
+                         {log.feeling && <span className="font-medium" title="Känsla">{log.feeling === 'good' ? '🔥' : log.feeling === 'bad' ? '🤕' : '🙂'}</span>}
+                         {log.rpe && <span className="font-bold bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded text-xs">RPE {log.rpe}</span>}
+                    </div>
                 </div>
+
+                {isCustomActivity && (
+                     <div className="bg-gray-50 dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700">
+                        <div className="grid grid-cols-3 gap-4 divide-x divide-gray-200 dark:divide-gray-700">
+                             <div className="text-center px-2">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tid</p>
+                                <p className="font-mono font-bold text-xl text-gray-900 dark:text-white">{log.durationMinutes || 0}<span className="text-xs ml-1 font-normal text-gray-500">min</span></p>
+                             </div>
+                             <div className="text-center px-2">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Distans</p>
+                                <p className="font-mono font-bold text-xl text-gray-900 dark:text-white">{log.totalDistance || 0}<span className="text-xs ml-1 font-normal text-gray-500">km</span></p>
+                             </div>
+                             <div className="text-center px-2">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Energi</p>
+                                <p className="font-mono font-bold text-xl text-gray-900 dark:text-white">{log.totalCalories || 0}<span className="text-xs ml-1 font-normal text-gray-500">kcal</span></p>
+                             </div>
+                        </div>
+                    </div>
+                )}
                 
-                {log.exerciseResults && (
+                {log.exerciseResults && log.exerciseResults.length > 0 && (
                     <div className="space-y-2">
-                        <h4 className="font-bold text-gray-900 dark:text-white">Resultat</h4>
+                        <h4 className="font-bold text-gray-900 dark:text-white text-sm uppercase tracking-wider mb-2">Resultat</h4>
                         {log.exerciseResults.map((ex, i) => (
-                            <div key={i} className="flex justify-between items-center bg-gray-5 dark:bg-gray-900 p-3 rounded-lg">
+                            <div key={i} className="flex justify-between items-center bg-gray-50 dark:bg-gray-900 p-3 rounded-lg border border-gray-100 dark:border-gray-800">
                                 <span className="font-medium text-gray-800 dark:text-gray-200">{ex.exerciseName}</span>
                                 <span className="font-mono text-primary font-bold">
                                     {ex.weight ? `${ex.weight}kg` : ''} 
@@ -250,21 +276,21 @@ const LogDetailModal: React.FC<{ log: WorkoutLog, onClose: () => void, onUpdate:
                 )}
 
                 <div>
-                    <h4 className="font-bold text-gray-900 dark:text-white mb-2">Kommentar</h4>
+                    <h4 className="font-bold text-gray-900 dark:text-white mb-2 text-sm uppercase tracking-wider">Kommentar</h4>
                     {isEditing ? (
-                        <textarea value={comment} onChange={e => setComment(e.target.value)} className="w-full bg-gray-5 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-3" rows={3} />
+                        <textarea value={comment} onChange={e => setComment(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition" rows={3} />
                     ) : (
-                        <p className="text-gray-600 dark:text-gray-300 bg-gray-5 dark:bg-gray-900/50 p-3 rounded-lg italic">{log.comment || "Ingen kommentar."}</p>
+                        <p className="text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg italic border border-gray-100 dark:border-gray-800">{log.comment || "Ingen kommentar."}</p>
                     )}
                 </div>
 
                 <div className="flex gap-4 pt-4 border-t border-gray-100 dark:border-gray-800">
                     {isEditing ? (
-                        <button onClick={handleSave} className="flex-1 bg-primary text-white font-bold py-2 rounded-lg">Spara</button>
+                        <button onClick={handleSave} className="flex-1 bg-primary text-white font-bold py-3 rounded-xl hover:brightness-110 transition-colors">Spara ändringar</button>
                     ) : (
-                        <button onClick={() => setIsEditing(true)} className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold py-2 rounded-lg">Redigera</button>
+                        <button onClick={() => setIsEditing(true)} className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold py-3 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Redigera text</button>
                     )}
-                    <button onClick={handleDelete} className="px-4 text-red-500 font-bold hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                    <button onClick={handleDelete} className="px-6 text-red-500 font-bold bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl transition-colors flex items-center justify-center border border-red-100 dark:border-red-900/30" title="Radera pass">
                         <TrashIcon className="w-5 h-5" />
                     </button>
                 </div>
@@ -283,6 +309,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [isSaving, setIsSaving] = useState(false);
     const [isEditingGoals, setIsEditingGoals] = useState(false);
     const [isMyStrengthVisible, setIsMyStrengthVisible] = useState(false);
+    const [viewingDiploma, setViewingDiploma] = useState<WorkoutDiploma | null>(null);
 
     // Form states
     const [firstName, setFirstName] = useState(userData.firstName || '');
@@ -425,7 +452,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     </div>
                 </div>
 
-                {/* Achievement-knapp för styrka - Nu en Popup! */}
+                {/* Achievement-knapp för styrka */}
                 <button
                     onClick={() => setIsMyStrengthVisible(true)}
                     className="flex flex-col items-center gap-1 group transition-all"
@@ -576,6 +603,18 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                         <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">{new Date(log.date).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
                                     </div>
                                     <div className="flex gap-3 items-center flex-shrink-0">
+                                        {log.diploma && (
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setViewingDiploma(log.diploma!);
+                                                }}
+                                                className="w-8 h-8 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-yellow-600 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors shadow-sm"
+                                                title="Visa Diplom"
+                                            >
+                                                <TrophyIcon className="w-4 h-4" />
+                                            </button>
+                                        )}
                                         {log.rpe && <div className="flex flex-col items-center"><span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">RPE</span><span className="bg-primary/10 text-primary text-sm px-3 py-1 rounded-full font-black border border-primary/20">{log.rpe}</span></div>}
                                         <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-300 dark:text-gray-600 group-hover:bg-primary group-hover:text-white transition-all"><span className="text-xl">→</span></div>
                                     </div>
@@ -589,17 +628,60 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             {isEditingGoals && <GoalsEditModal currentGoals={userData.goals} onSave={handleSaveGoals} onClose={() => setIsEditingGoals(false)} />}
             {selectedLog && <LogDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} onUpdate={handleUpdateLog} onDelete={handleDeleteLog} />}
             
-            {/* MIN STYRKA MODAL */}
-            {isMyStrengthVisible && (
-                <Modal 
-                    isOpen={isMyStrengthVisible} 
-                    onClose={() => setIsMyStrengthVisible(false)} 
-                    title="Min Styrka 🏆" 
-                    size="2xl"
-                >
-                    <MyStrengthScreen onBack={() => setIsMyStrengthVisible(false)} />
-                </Modal>
-            )}
+            {/* MIN STYRKA MODAL (REPLACED WITH FULL SCREEN SHEET STYLE) */}
+            <AnimatePresence>
+                {isMyStrengthVisible && (
+                    <>
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[2000]"
+                            onClick={() => setIsMyStrengthVisible(false)}
+                        />
+                        <motion.div 
+                            initial={{ y: '100%', opacity: 0 }}
+                            animate={{ y: '0%', opacity: 1 }}
+                            exit={{ y: '100%', opacity: 0 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                            className="fixed inset-x-0 top-[5vh] bottom-[5vh] z-[2010] px-1 pointer-events-none"
+                        >
+                            <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] h-full max-w-2xl mx-auto shadow-2xl overflow-hidden flex flex-col pointer-events-auto relative">
+                                <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center flex-shrink-0">
+                                    <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
+                                        Min Styrka <span className="text-2xl">🏆</span>
+                                    </h2>
+                                    <button onClick={() => setIsMyStrengthVisible(false)} className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                                        <CloseIcon className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+                                    </button>
+                                </div>
+                                
+                                <div className="flex-grow overflow-y-auto p-4 sm:p-6 custom-scrollbar">
+                                    <MyStrengthScreen onBack={() => setIsMyStrengthVisible(false)} />
+                                </div>
+
+                                <div className="p-6 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 bg-white dark:bg-gray-900">
+                                    <button 
+                                        onClick={() => setIsMyStrengthVisible(false)}
+                                        className="w-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-black py-4 rounded-2xl transition-all active:scale-95 uppercase tracking-widest text-sm hover:bg-gray-200 dark:hover:bg-gray-700"
+                                    >
+                                        STÄNG
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {viewingDiploma && (
+                    <WorkoutDiplomaView 
+                        diploma={viewingDiploma} 
+                        onClose={() => setViewingDiploma(null)} 
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 };

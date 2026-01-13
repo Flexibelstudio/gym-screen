@@ -161,7 +161,11 @@ const calculateTotalDuration = (settings: TimerSettings, totalExercises: number)
 
 export const useWorkoutTimer = (block: WorkoutBlock | null) => {
   const [status, setStatus] = useState<TimerStatus>(TimerStatus.Idle);
+  // currentTime is "Time Remaining" in the current phase
   const [currentTime, setCurrentTime] = useState(0);
+  
+  // Track the total duration of the current phase (for calculating count up)
+  const [currentPhaseDuration, setCurrentPhaseDuration] = useState(0);
   
   // Refactored State: A single source of truth for interval progress.
   // This counts the number of *completed* work intervals.
@@ -225,6 +229,7 @@ export const useWorkoutTimer = (block: WorkoutBlock | null) => {
     if (status === TimerStatus.Preparing) {
         setStatus(TimerStatus.Running);
         setCurrentTime(block.settings.workTime);
+        setCurrentPhaseDuration(block.settings.workTime);
         return;
     }
   
@@ -233,15 +238,18 @@ export const useWorkoutTimer = (block: WorkoutBlock | null) => {
       if (block.settings.restTime > 0) {
         setStatus(TimerStatus.Resting);
         setCurrentTime(block.settings.restTime);
+        setCurrentPhaseDuration(block.settings.restTime);
       } else {
         setStatus(TimerStatus.Running);
         setCurrentTime(block.settings.workTime);
+        setCurrentPhaseDuration(block.settings.workTime);
       }
     } 
     // Transition from a finished Rest interval to the next Work
     else if (status === TimerStatus.Resting) {
       setStatus(TimerStatus.Running);
       setCurrentTime(block.settings.workTime);
+      setCurrentPhaseDuration(block.settings.workTime);
     }
     
   }, [block, status]);
@@ -316,7 +324,9 @@ export const useWorkoutTimer = (block: WorkoutBlock | null) => {
 
     setCompletedWorkIntervals(0);
     setStatus(TimerStatus.Preparing);
-    setCurrentTime(block.settings.prepareTime || 10);
+    const prepTime = block.settings.prepareTime || 10;
+    setCurrentTime(prepTime);
+    setCurrentPhaseDuration(prepTime);
   }, [block]);
 
   const pause = () => {
@@ -341,6 +351,7 @@ export const useWorkoutTimer = (block: WorkoutBlock | null) => {
     stopTimer();
     setStatus(TimerStatus.Idle);
     setCurrentTime(0);
+    setCurrentPhaseDuration(0);
     setCompletedWorkIntervals(0);
     setTotalTimeElapsed(0);
   }, [stopTimer]);
@@ -348,6 +359,7 @@ export const useWorkoutTimer = (block: WorkoutBlock | null) => {
   return { 
     status, 
     currentTime, 
+    currentPhaseDuration,
     currentRound, 
     currentExercise, 
     nextExercise,

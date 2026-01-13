@@ -37,6 +37,7 @@ const createNewBlock = (): WorkoutBlock => ({
     restTime: 15,
     rounds: 3,
     prepareTime: 10,
+    direction: 'down'
   },
   exercises: [],
 });
