@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage } from '../../services/firebaseService';
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage } from '../../services/geminiService';
@@ -92,7 +93,6 @@ const WEIGHT_COMPARISONS = [
     { name: "Smart Cars", singular: "en Smart Car", weight: 900, emoji: "🚗" },
     { name: "Personbilar", singular: "en Personbil", weight: 1500, emoji: "🚘" },
     { name: "Flodhästar", singular: "en Flodhäst", weight: 1500, emoji: "🦛" },
-    { name: "Noshörningar", singular: "en Noshörning", weight: 2000, emoji: "🛏️" },
     { name: "Noshörningar", singular: "en Noshörning", weight: 2000, emoji: "🦏" },
     { name: "Vita Hajar", singular: "en Vit Haj", weight: 2000, emoji: "🦈" },
     { name: "Späckhuggare", singular: "en Späckhuggare", weight: 4000, emoji: "🐋" },
@@ -356,10 +356,10 @@ const PostWorkoutForm: React.FC<{ data: LogData; onUpdate: (updates: Partial<Log
                         ))}
                     </div>
                 </div>
-                <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-4">Kroppskänsla</h5><div className="flex flex-wrap gap-2">
+                <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Kroppskänsla</h5><div className="flex flex-wrap gap-2">
                     {KROPPSKANSLA_TAGS.map(tag => (<button key={tag} onClick={() => toggleTag(tag)} className={`px-4 py-2.5 rounded-xl text-xs font-bold border-2 transition-all active:scale-95 ${data.tags.includes(tag) ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-100 dark:border-gray-700'}`}>{tag}</button>))}
                 </div></div>
-                <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-3 ml-1">Kommentar</h5><textarea value={data.comment} onChange={(e) => onUpdate({ comment: e.target.value })} placeholder="Anteckningar..." rows={4} className="w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800 rounded-[1.5rem] p-5 text-gray-900 dark:text-white text-base focus:ring-2 focus:ring-primary outline-none transition-all shadow-inner" /></div>
+                <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3 ml-1">Kommentar</h5><textarea value={data.comment} onChange={(e) => onUpdate({ comment: e.target.value })} placeholder="Anteckningar..." rows={4} className="w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800 rounded-[1.5rem] p-5 text-gray-900 dark:text-white text-base focus:ring-2 focus:ring-primary outline-none transition-all shadow-inner" /></div>
             </div>
             <Modal isOpen={showRpeInfo} onClose={() => setShowRpeInfo(false)} title="Vad är RPE?" size="sm"><div className="space-y-6"><p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">RPE (Rate of Perceived Exertion) är en skala mellan 1-10 som hjälper dig att skatta din ansträngning.</p><div className="space-y-2">
                 {RPE_LEVELS.map(level => (<div key={level.range} className="flex gap-4 p-3 rounded-2xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800"><div className={`w-12 h-12 rounded-xl ${level.color} flex items-center justify-center text-white font-black flex-shrink-0 shadow-sm`}>{level.range}</div><div><h6 className="font-bold text-gray-900 dark:text-white text-sm">{level.label}</h6><p className="text-xs text-gray-500 dark:text-gray-400">{level.desc}</p></div></div>))}
@@ -499,8 +499,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                 try {
                     const exerciseNames = exercises.map(e => e.exerciseName);
                     if (exerciseNames.length > 0) {
-                        const insightsData = await generateMemberInsights(logs, foundWorkout.title, exerciseNames);
-                        setAiInsights(insightsData);
+                        const insights = await generateMemberInsights(logs, foundWorkout.title, exerciseNames);
+                        setAiInsights(insights);
                     } else {
                         setViewMode('logging');
                     }
@@ -575,17 +575,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
           const logDateMs = new Date(logDate).getTime();
           
           let totalVolume = 0;
-          const newPBs: { name: string; diff: number; current: number }[] = [];
-
+          
           const exerciseResultsToSave = isQuickOrManual ? [] : exerciseResults.map(r => {
               const validWeights = r.setDetails.map(s => parseFloat(s.weight)).filter(n => !isNaN(n));
               const maxWeight = validWeights.length > 0 ? Math.max(...validWeights) : null;
               
-              const previousPB = history[r.exerciseName]?.weight; 
-              if (maxWeight && previousPB && maxWeight > previousPB) {
-                  newPBs.push({ name: r.exerciseName, diff: maxWeight - previousPB, current: maxWeight });
-              }
-
               r.setDetails.forEach(s => {
                   const weight = parseFloat(s.weight);
                   const reps = parseFloat(s.reps);
@@ -639,67 +633,56 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               finalLogRaw.totalDistance = parseFloat(sessionStats.distance) || 0;
               finalLogRaw.totalCalories = parseInt(sessionStats.calories) || 0;
 
+              // Save to Firestore and wait for PB calculation response
+              const { newRecords } = await saveWorkoutLog(cleanForFirestore(finalLogRaw));
+
               let diplomaData: WorkoutDiploma | null = null;
 
               if (totalVolume > 0) {
                   const comparison = getFunComparison(totalVolume);
                   if (comparison) {
                       diplomaData = {
-                          title: newPBs.length > 0 ? "NYTT REKORD!" : "ENORM INSATS!",
+                          title: newRecords.length > 0 ? "NYTT REKORD!" : "ENORM INSATS!",
                           subtitle: `Du lyfte totalt ${totalVolume.toLocaleString()} kg`,
                           achievement: `Det motsvarar ca ${comparison.count} st ${comparison.name}`,
                           footer: `En ${comparison.single} väger ca ${comparison.weight} kg`,
                           imagePrompt: comparison.emoji, 
-                          newPBs: newPBs.length > 0 ? newPBs : undefined
+                          newPBs: newRecords.length > 0 ? newRecords : undefined
                       };
                   }
-              } else if (finalLogRaw.totalDistance > 0 || finalLogRaw.totalCalories > 0) {
+              }
+
+              // Fallback if no volume (e.g., pure cardio but with records)
+              if (!diplomaData) {
                   try {
-                      diplomaData = await generateWorkoutDiploma(finalLogRaw);
+                      diplomaData = await generateWorkoutDiploma({ ...finalLogRaw, newPBs: newRecords });
                       if (diplomaData) {
-                          diplomaData.newPBs = newPBs.length > 0 ? newPBs : undefined;
-                          if (newPBs.length > 0) diplomaData.title = "NYTT REKORD!";
+                          diplomaData.newPBs = newRecords.length > 0 ? newRecords : undefined;
+                          if (newRecords.length > 0) diplomaData.title = "NYTT REKORD!";
                       }
                   } catch (e) {
                       diplomaData = {
-                          title: newPBs.length > 0 ? "NYTT REKORD!" : "GRYMT JOBBAT!",
+                          title: newRecords.length > 0 ? "NYTT REKORD!" : "GRYMT JOBBAT!",
                           subtitle: "Passet är genomfört.",
                           achievement: `Distans: ${finalLogRaw.totalDistance} km | Kcal: ${finalLogRaw.totalCalories}`,
                           footer: "Starkt jobbat!",
                           imagePrompt: "🔥",
-                          newPBs: newPBs.length > 0 ? newPBs : undefined
+                          newPBs: newRecords.length > 0 ? newRecords : undefined
                       };
                   }
               }
 
-              if (!diplomaData) {
-                   diplomaData = {
-                       title: newPBs.length > 0 ? "NYTT REKORD!" : "BRA JOBBAT!",
-                       subtitle: "Passet är genomfört.",
-                       achievement: "Kontinuitet är nykeln.",
-                       footer: "Ses snart igen!",
-                       imagePrompt: "🔥",
-                       newPBs: newPBs.length > 0 ? newPBs : undefined
-                    };
-              }
-
-              finalLogRaw.diploma = diplomaData;
-              const finalLog = cleanForFirestore(finalLogRaw);
-              
-              // This function also handles the Firestorepb_batch event creation
-              await saveWorkoutLog(finalLog);
-              
-              if (diplomaData.imagePrompt) {
+              if (diplomaData && diplomaData.imagePrompt) {
                   try {
                       const base64Image = await generateImage(diplomaData.imagePrompt);
                       if (base64Image) {
                           const storagePath = `users/${userId}/diplomas/log_${Date.now()}.jpg`;
-                          finalLogRaw.diploma.imageUrl = await uploadImage(storagePath, base64Image);
+                          diplomaData.imageUrl = await uploadImage(storagePath, base64Image);
                       }
                   } catch (e) { console.warn(e); }
               }
 
-              handleCancel(true, finalLogRaw.diploma || null);
+              handleCancel(true, diplomaData);
           }
 
       } catch (err) {
@@ -792,7 +775,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
           <div className="p-4 sm:p-8 max-w-2xl mx-auto w-full">
               
               <div className="mb-8">
-                  <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2 ml-1">Datum</label>
+                  <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Datum</label>
                   <div className="relative">
                       <input 
                           type="date"
@@ -857,7 +840,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                     <div className="mt-8 mb-6 bg-white dark:bg-gray-900 p-5 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Kalorier (kcal)</label>
+                                <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Kalorier (kcal)</label>
                                 <input 
                                     type="number"
                                     value={sessionStats.calories}
@@ -867,7 +850,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                 />
                             </div>
                             <div>
-                                <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Distans (km)</label>
+                                <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Distans (km)</label>
                                 <input 
                                     type="number"
                                     value={sessionStats.distance}

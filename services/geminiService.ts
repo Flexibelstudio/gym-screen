@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise, SuggestedExercise, CustomCategoryWithPrompt, WorkoutLog, MemberGoals, WorkoutDiploma } from '../types';
 import { getExerciseBank } from './firebaseService';
@@ -797,15 +798,19 @@ export async function generateBusinessActions(logs: WorkoutLog[]): Promise<strin
 
 // --- PREMIUM DIPLOMA GENERATOR ---
 
-export async function generateWorkoutDiploma(logData: WorkoutLog): Promise<WorkoutDiploma> {
+export async function generateWorkoutDiploma(logData: any): Promise<WorkoutDiploma> {
     const ai = getAIClient();
 
     // Summarize exercises for context
     const exercisesSummary = logData.exerciseResults
-        ?.map(e => `${e.exerciseName}: ${e.weight ? e.weight + 'kg' : ''} ${e.reps ? 'x ' + e.reps : ''}`)
+        ?.map((e: any) => `${e.exerciseName}: ${e.weight ? e.weight + 'kg' : ''} ${e.reps ? 'x ' + e.reps : ''}`)
         .join(', ');
 
-    // Additional Stats for context
+    // Highlight Personal Bests if provided
+    const pbHighlights = logData.newPBs && logData.newPBs.length > 0 
+        ? `ANVÄNDAREN SATTE NYA REKORD I: ${logData.newPBs.map((pb: any) => `${pb.name} (${pb.current}kg, +${pb.diff}kg)`).join(', ')}`
+        : '';
+
     const statsInfo = [
         logData.totalDistance ? `Distans: ${logData.totalDistance} km` : '',
         logData.totalCalories ? `Kalorier: ${logData.totalCalories} kcal` : '',
@@ -821,27 +826,26 @@ export async function generateWorkoutDiploma(logData: WorkoutLog): Promise<Worko
     - RPE (1-10): ${logData.rpe || 'Okänt'}
     - Känsla: ${logData.feeling || 'Okänd'}
     - Kommentar: "${logData.comment || ''}"
-    - Övningsdata (Stickprov): ${exercisesSummary}
+    - Övningsdata: ${exercisesSummary}
     - Stats: ${statsInfo}
+    - REKORD DATA (VIKTIGAST): ${pbHighlights}
 
     DIN UPPGIFT:
     Generera ett JSON-objekt med exakt dessa 5 fält baserat på reglerna nedan:
 
     1. title (Rubrik): Kort & Kraftfull (Max 2-3 ord).
+       - Om nya rekord sattes: ANVÄND "NY NIVÅ" eller "REKORDPASS".
        - 1-5 reps => REN STYRKA / TUNGT LYFT
        - 6-12 reps => BYGGPASS / VOLYM & KONTROLL
        - 15+ reps => UTHÅLLIGHET / MENTAL STYRKA
-       - PB/Rekord => NY NIVÅ / REKORDPASS
        - Cardio/Distans => LÅNGDISTANS / KONDITION
 
     2. subtitle (Underrad): En mening som förklarar passets identitet.
-       - Ex: "Låga repetitioner med maximal belastning."
+       - Om rekord sattes, nämn det här! Ex: "Du slog ditt tidigare rekord i ${logData.newPBs?.[0]?.name}."
 
     3. achievement (Prestation): Hjälte-raden.
-       - Om data finns i input (t.ex. tunga vikter), nämn det! Ex: "Du hanterade tunga vikter i marklyft."
-       - Om distans eller kalorier finns, inkludera detta (t.ex. "Du sprang 5 km idag!").
-       - Om RPE var högt: "Du genomförde, trots att det var tungt."
-       - Annars: "Kontinuitet är nykeysen till resultat."
+       - Om rekord sattes, fira det stort! Ex: "Total dominans i gymmet idag."
+       - Om inga rekord, nämn volymen eller intensiteten.
 
     4. footer (Avslut): Kort, slående mening.
        - Ex: "Styrka är en färskvara. Du fyllde på idag."
@@ -870,42 +874,16 @@ export async function generateWorkoutDiploma(logData: WorkoutLog): Promise<Worko
             config: { responseMimeType: "application/json" }
         });
         
-        const rawJson = response.text.trim();
-        let parsed: any;
-        
-        try {
-            parsed = JSON.parse(rawJson);
-        } catch (e) {
-            // Backup handling if it returned an array or has extra chars
-            const match = rawJson.match(/\{[\s\S]*\}/);
-            if (match) parsed = JSON.parse(match[0]);
-            else throw e;
-        }
-
-        // Handle array wrap if AI returned [{...}]
-        const data = Array.isArray(parsed) ? parsed[0] : parsed;
-        
-        // Ensure backwards compatibility if fields are missing
-        return {
-            title: data.title || "BRA JOBBAT",
-            subtitle: data.subtitle || "Passet är genomfört.",
-            achievement: data.achievement || "Kontinuitet ger resultat.",
-            footer: data.footer || "Vila nu.",
-            imagePrompt: data.imagePrompt || "Abstract dark concrete texture, 8k, monochrome",
-            // Include old fields for safety if accessed elsewhere
-            message: data.subtitle,
-            comparison: data.achievement
-        };
+        const data = JSON.parse(response.text.trim());
+        return data;
     } catch (e) {
         console.error("Diploma generation failed", e);
         return {
-            title: "BRA JOBBAT",
+            title: logData.newPBs?.length > 0 ? "NYTT REKORD!" : "BRA JOBBAT",
             subtitle: "Du tog dig igenom passet.",
-            achievement: "Starkt jobbat!",
-            footer: "Ses snart igen.",
-            imagePrompt: "Abstract dark stone texture, cinematic lighting, 8k, monochrome",
-            message: "Du tog dig igenom passet.",
-            comparison: "Starkt jobbat!"
+            achievement: "Kontinuitet ger resultat.",
+            footer: "Vila nu.",
+            imagePrompt: "Abstract dark stone texture, cinematic lighting, 8k, monochrome"
         };
     }
 }

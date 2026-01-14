@@ -1,3 +1,4 @@
+
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -209,12 +210,18 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
 
 // --- DATA & MOTIVATION ---
 
-export const saveWorkoutLog = async (logData: any) => {
-    if (isOffline || !db || !logData.organizationId) return;
+/**
+ * Saves a workout log and calculates Personal Bests.
+ * Returns an array of records that were broken during this session.
+ */
+export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecords: { exerciseName: string, weight: number, diff: number }[] }> => {
+    if (isOffline || !db || !logData.organizationId) return { log: logData, newRecords: [] };
     
     const newLogRef = doc(collection(db, 'workoutLogs'));
     const newLog = { id: newLogRef.id, ...logData };
+    const newRecords: { exerciseName: string; weight: number; diff: number }[] = [];
 
+    // 1. Enrich log with member name/photo for feed
     if (logData.memberId) {
         try {
             const userSnap = await getDoc(doc(db, 'users', logData.memberId));
@@ -226,8 +233,10 @@ export const saveWorkoutLog = async (logData: any) => {
         } catch (e) { console.warn(e); }
     }
 
+    // 2. Save the log itself
     await setDoc(newLogRef, newLog);
 
+    // 3. Process Personal Bests
     if (logData.memberId && logData.memberId !== 'offline_member_uid' && logData.exerciseResults) {
         try {
             const batch = writeBatch(db);
@@ -235,8 +244,6 @@ export const saveWorkoutLog = async (logData: any) => {
             const currentPBsSnap = await getDocs(pbCollectionRef);
             const currentPBs: Record<string, any> = {};
             currentPBsSnap.forEach(d => currentPBs[d.id] = d.data());
-
-            const newRecords: { exerciseName: string; weight: number; diff: number }[] = [];
 
             for (const exResult of logData.exerciseResults) {
                 let maxW = 0;
@@ -252,19 +259,24 @@ export const saveWorkoutLog = async (logData: any) => {
                     const existingPBWeight = currentPBs[pbId]?.weight || 0;
 
                     if (pbId && maxW > existingPBWeight) {
-                        const pbData: PersonalBest = { id: pbId, exerciseName: exResult.exerciseName.trim(), weight: maxW, date: Date.now() };
+                        const pbData: PersonalBest = { 
+                            id: pbId, 
+                            exerciseName: exResult.exerciseName.trim(), 
+                            weight: maxW, 
+                            date: Date.now() 
+                        };
                         batch.set(doc(db, 'users', logData.memberId, 'personalBests', pbId), pbData);
                         
                         newRecords.push({
                             exerciseName: exResult.exerciseName.trim(),
                             weight: maxW,
-                            diff: maxW - existingPBWeight
+                            diff: parseFloat((maxW - existingPBWeight).toFixed(2))
                         });
                     }
                 }
             }
 
-            // Emit ONE batch event if multiple PBs were hit
+            // 4. Emit ONE batched PB event to the studio
             if (newRecords.length > 0) {
                 const eventRef = doc(collection(db, 'studio_events'));
                 const eventData: StudioEvent = {
@@ -284,7 +296,8 @@ export const saveWorkoutLog = async (logData: any) => {
             await batch.commit();
         } catch (e) { console.error("PB logic failed", e); }
     }
-    return newLog;
+
+    return { log: newLog, newRecords };
 };
 
 export const updateWorkoutLog = async (logId: string, updates: Partial<WorkoutLog>) => {
