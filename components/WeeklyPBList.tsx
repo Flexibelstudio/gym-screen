@@ -18,7 +18,6 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
     useEffect(() => {
         if (!selectedOrganization) return;
         setIsLoading(true);
-        // Vi använder listenToWeeklyPBs men i komponenten låter vi den visa 50 senaste oavsett tidsram
         const unsubscribe = listenToWeeklyPBs(selectedOrganization.id, (newEvents) => {
             setEvents(newEvents.slice(0, 50)); 
             setIsLoading(false);
@@ -83,9 +82,15 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
                                 className="bg-black/30 hover:bg-black/40 transition-colors rounded-2xl flex items-center gap-4 border border-white/5 group px-4"
                                 style={{ height: `${itemHeight - 8}px` }}
                             >
-                                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center text-white font-black text-lg shadow-lg flex-shrink-0">
-                                    {event.data.userName[0].toUpperCase()}
+                                {/* Uppdaterad Avatar-rendering med Guld-kant */}
+                                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center text-white font-black text-lg shadow-lg flex-shrink-0 overflow-hidden border border-yellow-400/50">
+                                    {event.data.userPhotoUrl ? (
+                                        <img src={event.data.userPhotoUrl} alt="" className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span>{event.data.userName[0].toUpperCase()}</span>
+                                    )}
                                 </div>
+                                
                                 <div className="min-w-0 flex-grow">
                                     <div className="flex justify-between items-baseline mb-0.5">
                                         <p className="text-white font-bold text-sm truncate mr-2">

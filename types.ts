@@ -1,4 +1,3 @@
-
 export type UserRole = 'member' | 'coach' | 'organizationadmin' | 'systemowner';
 
 export interface ExerciseOverride {
@@ -442,6 +441,7 @@ export interface StudioEvent {
     timestamp: number;
     data: {
         userName: string;
+        userPhotoUrl?: string | null; // Added photoUrl
         exerciseName: string;
         isNewRecord: boolean;
     };

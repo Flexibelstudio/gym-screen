@@ -255,9 +255,14 @@ export const saveWorkoutLog = async (logData: any) => {
                         const eventData: StudioEvent = {
                             id: eventRef.id,
                             type: 'pb',
-                            organizationId: logData.organizationId, // FIXAD: Använder nu logData.organizationId istället för odefinierad variabel
+                            organizationId: logData.organizationId,
                             timestamp: Date.now(),
-                            data: { userName: newLog.memberName || 'En medlem', exerciseName: exResult.exerciseName.trim(), isNewRecord: true }
+                            data: { 
+                                userName: newLog.memberName || 'En medlem', 
+                                userPhotoUrl: newLog.memberPhotoUrl || null, // Inkludera bild-URL här
+                                exerciseName: exResult.exerciseName.trim(), 
+                                isNewRecord: true 
+                            }
                         };
                         batch.set(eventRef, eventData);
                     }
