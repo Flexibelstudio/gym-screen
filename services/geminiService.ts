@@ -1,5 +1,4 @@
-
-import { GoogleGenAI, GenerateContentResponse, Type, Schema } from "@google/genai";
+import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise, SuggestedExercise, CustomCategoryWithPrompt, WorkoutLog, MemberGoals, WorkoutDiploma } from '../types';
 import { getExerciseBank } from './firebaseService';
 import { z } from 'zod';
@@ -42,7 +41,7 @@ const BankExerciseSuggestionSchema = z.object({
 const ExerciseSuggestionsResponseSchema = z.array(BankExerciseSuggestionSchema);
 
 // --- Google Schemas ---
-const googleExerciseSchema: Schema = {
+const googleExerciseSchema = {
     type: Type.ARRAY,
     items: {
         type: Type.OBJECT,
@@ -59,7 +58,7 @@ const googleExerciseSchema: Schema = {
     }
 };
 
-const googleWorkoutSchema: Schema = {
+const googleWorkoutSchema = {
   type: Type.OBJECT,
   required: ['title', 'coachTips', 'blocks'],
   properties: {
@@ -394,10 +393,8 @@ export async function enhancePageWithAI(rawContent: string): Promise<string> {
 }
 
 export async function generateCarouselImage(prompt: string): Promise<string> {
-    // Note: We're simulating this for now as per previous context, or use imagen if enabled.
     const ai = getAIClient();
     try {
-        // Placeholder for real image generation logic using Imagen if available
         const response = await ai.models.generateContent({
             model: model, 
             contents: { parts: [{ text: `Generate an image description for: ${prompt}.` }] }, 
@@ -406,7 +403,6 @@ export async function generateCarouselImage(prompt: string): Promise<string> {
     } catch (e) { throw new Error("Bildgenerering misslyckades."); }
 }
 
-// --- NEW IMAGE GENERATION FUNCTION FOR DIPLOMA ---
 export async function generateImage(prompt: string): Promise<string | null> {
     const ai = getAIClient();
     try {
@@ -560,6 +556,72 @@ export async function generateMemberInsights(
         return {
             readiness: { status: 'moderate', message: 'Lyssna på kroppen idag!' },
             suggestions: {}
+        };
+    }
+}
+
+// --- DAGSFORM / EXERCISE SPECIFIC ADVICE ---
+
+export interface ExerciseDagsformAdvice {
+    suggestion: string;
+    reasoning: string;
+    history: { date: string, weight: number, reps: string }[];
+}
+
+export async function getExerciseDagsformAdvice(
+    exerciseName: string,
+    feeling: 'good' | 'neutral' | 'bad',
+    allLogs: WorkoutLog[]
+): Promise<ExerciseDagsformAdvice> {
+    const ai = getAIClient();
+
+    // 1. Extract history for this specific exercise
+    const history = allLogs.flatMap(log => 
+        (log.exerciseResults || [])
+            .filter(ex => isExerciseMatch(exerciseName, ex.exerciseName))
+            .map(ex => ({
+                date: new Date(log.date).toLocaleDateString('sv-SE'),
+                weight: ex.weight || 0,
+                reps: ex.reps || "Mixed"
+            }))
+    ).slice(0, 5);
+
+    const prompt = `
+    Du är en expert PT. Ge ett konkret viktförslag och tips för övningen "${exerciseName}" för IDAG.
+    
+    MEDLEMMENS DAGSFORM: "${feeling === 'good' ? 'Pigg/Stark' : feeling === 'bad' ? 'Seg/Skadad' : 'Normal'}"
+    HISTORIK FÖR DENNA ÖVNING: ${JSON.stringify(history)}
+
+    DIN UPPGIFT:
+    1. Analysera trenden (ökar/minskar/stilla).
+    2. Föreslå en specifik vikt för idag baserat på dagsform.
+    3. Ge en kort motivering (max 2 meningar).
+
+    Svara på SVENSKA i JSON-format.
+    {
+      "suggestion": "T.ex. 45 kg",
+      "reasoning": "Din motivering här..."
+    }
+    `;
+
+    try {
+        const response = await ai.models.generateContent({
+            model: model,
+            contents: prompt,
+            config: { responseMimeType: "application/json" }
+        });
+
+        const data = JSON.parse(response.text.trim());
+        return {
+            ...data,
+            history
+        };
+    } catch (e) {
+        console.error("Dagsform advice failed", e);
+        return {
+            suggestion: "Hitta dagsform",
+            reasoning: "Datan räckte inte för ett specifikt råd. Börja lätt och känn efter.",
+            history: history
         };
     }
 }
@@ -779,7 +841,7 @@ export async function generateWorkoutDiploma(logData: WorkoutLog): Promise<Worko
        - Om data finns i input (t.ex. tunga vikter), nämn det! Ex: "Du hanterade tunga vikter i marklyft."
        - Om distans eller kalorier finns, inkludera detta (t.ex. "Du sprang 5 km idag!").
        - Om RPE var högt: "Du genomförde, trots att det var tungt."
-       - Annars: "Kontinuitet är nyckeln till resultat."
+       - Annars: "Kontinuitet är nykeysen till resultat."
 
     4. footer (Avslut): Kort, slående mening.
        - Ex: "Styrka är en färskvara. Du fyllde på idag."
@@ -847,5 +909,3 @@ export async function generateWorkoutDiploma(logData: WorkoutLog): Promise<Worko
         };
     }
 }
-
-export { getExerciseBank };
