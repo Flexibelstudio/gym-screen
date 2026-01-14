@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from 'react';
 import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, Passkategori, StudioConfig, WorkoutResult, Organization, BankExercise } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
 import { StarIcon, PencilIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, PencilIcon as DrawIcon, CloseIcon, ClockIcon, UsersIcon, ChartBarIcon, TrophyIcon } from './icons';
@@ -39,29 +39,33 @@ const formatReps = (reps: string | undefined): string => {
     return trimmed;
 };
 
-// --- NEW COMPONENT: BLOCK PRESENTATION MODAL ---
+// --- BLOCK PRESENTATION MODAL ---
 const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => void }> = ({ block, onClose }) => {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    // Säkerställ att vi alltid hamnar högst upp när modalen öppnas eller byter block
+    // 1. Lås body-scroll så att bakgrunden inte kan störa
     useEffect(() => {
-        const scrollToTop = () => {
-            if (scrollContainerRef.current) {
-                scrollContainerRef.current.scrollTop = 0;
-            }
-        };
-
-        // Kör direkt
-        scrollToTop();
-        
-        // Kör igen efter en frame och efter en kort timeout för att vinna över animationer
-        const rafId = requestAnimationFrame(scrollToTop);
-        const timeoutId = setTimeout(scrollToTop, 50);
-
+        const originalStyle = window.getComputedStyle(document.body).overflow;
+        document.body.style.overflow = 'hidden';
         return () => {
-            cancelAnimationFrame(rafId);
-            clearTimeout(timeoutId);
+            document.body.style.overflow = originalStyle;
         };
+    }, []);
+
+    // 2. Tvinga nollställning av scroll INNAN rendering (useLayoutEffect)
+    useLayoutEffect(() => {
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = 0;
+        }
+        
+        // Dubbel säkerhet med en omedelbar nollställning
+        const reset = () => {
+            if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
+        };
+        
+        reset();
+        const rafId = requestAnimationFrame(reset);
+        return () => cancelAnimationFrame(rafId);
     }, [block.id]);
 
     return (
@@ -72,7 +76,7 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
             className="fixed inset-0 z-[10000] bg-white dark:bg-gray-950 flex flex-col overflow-hidden"
         >
             {/* Header */}
-            <div className="flex justify-between items-start p-8 md:p-12 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+            <div className="flex-shrink-0 flex justify-between items-start p-8 md:p-12 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
                 <div className="max-w-4xl">
                     <div className="flex items-center gap-4 mb-4">
                          <span className={`inline-flex items-center px-4 py-2 rounded-xl text-lg font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
@@ -97,7 +101,7 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
             </div>
 
             {/* Content - Giant List */}
-            {/* Vi sätter en KEY här för att tvinga DOM-reset när block.id ändras */}
+            {/* KEY={block.id} är den viktigaste fixen - den tvingar fram en ny DOM-nod */}
             <div 
                 key={block.id}
                 ref={scrollContainerRef} 
@@ -135,7 +139,7 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
             </div>
             
             {/* Footer */}
-            <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex justify-center">
+            <div className="flex-shrink-0 p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex justify-center">
                  <button onClick={onClose} className="bg-black dark:bg-white text-white dark:text-black font-black text-xl py-4 px-12 rounded-full shadow-xl hover:scale-105 transition-transform uppercase tracking-widest">
                      Stäng visningsläge
                  </button>
@@ -500,7 +504,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
         const intervalId = setInterval(fetchResults, 15000);
         return () => clearInterval(intervalId);
     }
-  }, [workout.id, iHyroxRace, resultsLoading, selectedOrganization]);
+  }, [workout.id, isHyroxRace, resultsLoading, selectedOrganization]);
 
   const handleDelete = () => {
       if (onDelete && window.confirm(`Är du säker på att du vill ta bort passet "${workout.title}"?`)) {
