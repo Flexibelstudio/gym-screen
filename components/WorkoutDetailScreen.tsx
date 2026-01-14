@@ -44,7 +44,6 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     // Säkerställ att vi alltid hamnar högst upp när modalen öppnas eller byter block
-    // Vi använder requestAnimationFrame för att vänta på att animationen startat och layouten är klar
     useEffect(() => {
         const scrollToTop = () => {
             if (scrollContainerRef.current) {
@@ -55,9 +54,14 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
         // Kör direkt
         scrollToTop();
         
-        // Och kör igen efter en frame för att vara helt säker (viktigt vid animationer)
+        // Kör igen efter en frame och efter en kort timeout för att vinna över animationer
         const rafId = requestAnimationFrame(scrollToTop);
-        return () => cancelAnimationFrame(rafId);
+        const timeoutId = setTimeout(scrollToTop, 50);
+
+        return () => {
+            cancelAnimationFrame(rafId);
+            clearTimeout(timeoutId);
+        };
     }, [block.id]);
 
     return (
@@ -93,7 +97,12 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
             </div>
 
             {/* Content - Giant List */}
-            <div ref={scrollContainerRef} className="flex-grow overflow-y-auto p-8 md:p-12 scroll-smooth">
+            {/* Vi sätter en KEY här för att tvinga DOM-reset när block.id ändras */}
+            <div 
+                key={block.id}
+                ref={scrollContainerRef} 
+                className="flex-grow overflow-y-auto p-8 md:p-12"
+            >
                 <div className="max-w-7xl mx-auto space-y-6">
                     {block.exercises.map((ex, index) => (
                         <div key={ex.id} className="flex items-start gap-8 p-8 rounded-[2rem] bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800">
@@ -491,7 +500,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
         const intervalId = setInterval(fetchResults, 15000);
         return () => clearInterval(intervalId);
     }
-  }, [workout.id, isHyroxRace, resultsLoading, selectedOrganization]);
+  }, [workout.id, iHyroxRace, resultsLoading, selectedOrganization]);
 
   const handleDelete = () => {
       if (onDelete && window.confirm(`Är du säker på att du vill ta bort passet "${workout.title}"?`)) {
