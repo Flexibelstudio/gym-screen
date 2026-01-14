@@ -400,7 +400,10 @@ const cleanForFirestore = (obj: any): any => {
   const result: any = {};
   Object.keys(obj).forEach(key => {
     const val = obj[key];
-    if (val !== undefined) result[key] = (val && typeof v === 'object' && !(val instanceof Date)) ? cleanForFirestore(val) : val;
+    if (val !== undefined && val !== null) {
+        if (typeof val === 'number' && isNaN(val)) return;
+        result[key] = (val && typeof v === 'object' && !(val instanceof Date)) ? cleanForFirestore(val) : val;
+    }
   });
   return result;
 };
@@ -592,7 +595,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   };
 
   const handleSubmit = async () => {
-      if (!isFormValid) return;
+      if (!isFormValid || !oId) return;
 
       setIsSubmitting(true);
       try {
@@ -644,8 +647,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                       weight: maxWeight, 
                       reps: repsSummary, 
                       sets: r.setDetails.length,
-                      distance: null, 
-                      kcal: null,
                       blockId: r.blockId
                   };
               })

@@ -430,6 +430,10 @@ const MainContent: React.FC = () => {
     newDraft.title = `Justering: ${workoutToAdjust.title}`;
     newDraft.isMemberDraft = true;
     newDraft.isPublished = false;
+    // Sätt organizationId om det saknas
+    if (!newDraft.organizationId && selectedOrganization) {
+        newDraft.organizationId = selectedOrganization.id;
+    }
     setActiveWorkout(newDraft);
     setIsEditingNewDraft(true);
     navigateTo(Page.SimpleWorkoutBuilder);

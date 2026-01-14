@@ -228,7 +228,7 @@ export const saveWorkoutLog = async (logData: any) => {
 
     await setDoc(newLogRef, newLog);
 
-    if (logData.memberId && logData.exerciseResults) {
+    if (logData.memberId && logData.memberId !== 'offline_member_uid' && logData.exerciseResults) {
         try {
             const batch = writeBatch(db);
             const pbCollectionRef = collection(db, 'users', logData.memberId, 'personalBests');
@@ -247,7 +247,7 @@ export const saveWorkoutLog = async (logData: any) => {
 
                 if (maxW > 0 && exResult.exerciseName) {
                     const pbId = getPBId(exResult.exerciseName);
-                    if (!currentPBs[pbId] || maxW > currentPBs[pbId].weight) {
+                    if (pbId && (!currentPBs[pbId] || maxW > currentPBs[pbId].weight)) {
                         const pbData: PersonalBest = { id: pbId, exerciseName: exResult.exerciseName.trim(), weight: maxW, date: Date.now() };
                         batch.set(doc(db, 'users', logData.memberId, 'personalBests', pbId), pbData);
                         
