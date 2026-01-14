@@ -981,7 +981,7 @@ const MainContent: React.FC = () => {
                     setBackButtonHidden: setIsBackButtonHidden,
                     setRacePrepState: setRacePrepState,
                     setCompletionInfo: setCompletionInfo,
-                    setRegisteringHyroxTime: setRegisteringHyroxTime,
+                    setRegisteringHyroxTime: setIsRegisteringHyroxTime,
                     setFollowMeShowImage: setFollowMeShowImage,
                     
                     handleGeneratedWorkout: handleGeneratedWorkout,
