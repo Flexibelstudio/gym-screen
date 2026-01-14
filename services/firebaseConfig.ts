@@ -1,10 +1,10 @@
-
-// Firebase konfiguration
-// Hanterar både Vite-miljö och miljöer utan import.meta.env (som AI Studio preview)
 const getEnv = (key: string): string => {
     try {
         // @ts-ignore
-        return (import.meta.env && import.meta.env[key]) || '';
+        const val = (import.meta.env && import.meta.env[key]) || '';
+        if (val) return val;
+        // Fallback for process.env
+        return process.env[key] || '';
     } catch (e) {
         return '';
     }

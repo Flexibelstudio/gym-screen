@@ -1,911 +1,692 @@
-import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
-import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise, SuggestedExercise, CustomCategoryWithPrompt, WorkoutLog, MemberGoals, WorkoutDiploma } from '../types';
-import { getExerciseBank } from './firebaseService';
-import { z } from 'zod';
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { 
+  getAuth, 
+  signInWithEmailAndPassword, 
+  signInAnonymously, 
+  signOut as firebaseSignOut, 
+  onAuthStateChanged, 
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
+  reauthenticateWithCredential,
+  createUserWithEmailAndPassword,
+  EmailAuthProvider,
+  Auth,
+  User
+} from 'firebase/auth';
+import { 
+  getFirestore, 
+  collection, 
+  doc, 
+  getDoc, 
+  getDocs, 
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  query, 
+  where, 
+  orderBy, 
+  limit, 
+  onSnapshot, 
+  writeBatch, 
+  deleteField,
+  serverTimestamp,
+  Firestore
+} from 'firebase/firestore';
+import { 
+  getStorage, 
+  ref, 
+  uploadBytes, 
+  getDownloadURL, 
+  deleteObject, 
+  FirebaseStorage 
+} from 'firebase/storage';
 
-// MODELL: Uppdaterad till korrekt version enligt instruktioner
-const model = 'gemini-3-flash-preview'; 
+import { firebaseConfig } from './firebaseConfig';
+import { 
+  Studio, StudioConfig, Organization, UserData, Workout, InfoCarousel, 
+  BankExercise, SuggestedExercise, WorkoutResult, CompanyDetails, 
+  SmartScreenPricing, HyroxRace, SeasonalThemeSetting, MemberGoals, 
+  WorkoutLog, CheckInEvent, Member, UserRole, PersonalBest, StudioEvent,
+  CustomPage
+} from '../types';
+import { MOCK_ORGANIZATIONS, MOCK_SYSTEM_OWNER, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_MEMBERS, MOCK_SMART_SCREEN_PRICING } from '../data/mockData';
 
-// SÄKERHET: Hämta nyckel exklusivt från process.env enligt riktlinjer
-const getAIClient = () => {
-    if (typeof process !== 'undefined' && process.env?.API_KEY) {
-        return new GoogleGenAI({ apiKey: process.env.API_KEY });
-    }
-    
-    const viteKey = (import.meta as any).env.VITE_API_KEY;
-    if (viteKey) return new GoogleGenAI({ apiKey: viteKey });
+// --- INITIALISERING ---
 
-    console.error("CRITICAL: No API Key found.");
-    throw new Error("API-nyckel saknas. Kontrollera dina inställningar.");
-};
+const hasFirebaseConfig = !!(
+    (import.meta as any).env?.VITE_FIREBASE_API_KEY || 
+    (process as any).env?.VITE_FIREBASE_API_KEY
+);
 
-// --- Helper Logic for Matching ---
-const normalizeString = (str: string) => {
-    return str.toLowerCase().trim().replace(/[^\w\såäöÅÄÖ]/g, ''); 
-};
+export const isOffline = !hasFirebaseConfig;
 
-const isExerciseMatch = (targetName: string, candidateName: string): boolean => {
-    const nTarget = normalizeString(targetName);
-    const nCandidate = normalizeString(candidateName);
-    if (nTarget === nCandidate) return true;
-    if (nCandidate.includes(nTarget) && nTarget.length > 3) return true;
-    return false;
-};
+let app: FirebaseApp | null = null;
+export let auth: Auth | null = null;
+export let db: Firestore | null = null;
+export let storage: FirebaseStorage | null = null;
 
-// --- Zod Schemas ---
-const BankExerciseSuggestionSchema = z.object({
-  name: z.string(),
-  description: z.string(),
-  tags: z.array(z.string())
-});
-const ExerciseSuggestionsResponseSchema = z.array(BankExerciseSuggestionSchema);
-
-// --- Google Schemas ---
-const googleExerciseSchema = {
-    type: Type.ARRAY,
-    items: {
-        type: Type.OBJECT,
-        required: ['name', 'description', 'tags'],
-        properties: {
-            name: { type: Type.STRING, description: "Exercise name in Swedish" },
-            description: { type: Type.STRING, description: "Short execution instruction in Swedish" },
-            tags: { 
-                type: Type.ARRAY, 
-                items: { type: Type.STRING },
-                description: "Tags like 'styrka', 'ben', 'hantlar' in Swedish"
-            }
-        }
-    }
-};
-
-const googleWorkoutSchema = {
-  type: Type.OBJECT,
-  required: ['title', 'coachTips', 'blocks'],
-  properties: {
-      title: { type: Type.STRING, description: "Workout title in Swedish" },
-      coachTips: { type: Type.STRING, description: "Tips for the coach in Swedish" },
-      aiCoachSummary: { type: Type.STRING, description: "Summary of analysis in Swedish" },
-      blocks: {
-          type: Type.ARRAY,
-          items: {
-              type: Type.OBJECT,
-              required: ['title', 'tag', 'setupDescription', 'followMe', 'settings', 'exercises'],
-              properties: {
-                  title: { type: Type.STRING, description: "Block title in Swedish" },
-                  tag: { type: Type.STRING, enum: ["Styrka", "Kondition", "Rörlighet", "Teknik", "Core/Bål", "Balans", "Uppvärmning"] },
-                  setupDescription: { type: Type.STRING, description: "Setup description in Swedish" },
-                  followMe: { type: Type.BOOLEAN },
-                  aiCoachNotes: { type: Type.STRING, description: "Analysis notes in Swedish" },
-                   aiMagicPenSuggestions: {
-                    type: Type.ARRAY,
-                    items: { type: Type.STRING },
-                    description: "Suggestions in Swedish"
-                  },
-                  settings: {
-                      type: Type.OBJECT,
-                      required: ['mode', 'workTime', 'restTime', 'rounds'],
-                      properties: {
-                          mode: { type: Type.STRING, enum: Object.values(TimerMode) },
-                          workTime: { type: Type.NUMBER },
-                          restTime: { type: Type.NUMBER },
-                          rounds: { type: Type.NUMBER },
-                      },
-                  },
-                  exercises: {
-                      type: Type.ARRAY,
-                      items: {
-                          type: Type.OBJECT,
-                          required: ['name', 'description'],
-                          properties: {
-                              name: { type: Type.STRING, description: "Exercise name in Swedish" },
-                              reps: { type: Type.STRING },
-                              description: { type: Type.STRING, description: "Exercise description in Swedish" },
-                          },
-                      },
-                  },
-              },
-          },
-      },
-  },
-};
-
-// --- VALIDATION HELPER ---
-const validateAndTransformWorkoutData = (data: unknown, originalIds: Workout | null = null): Workout => {
-    const d = data as any;
-
-    const newWorkout: Workout = {
-        id: originalIds?.id || `ai-${new Date().toISOString()}`,
-        title: d.title || "AI-genererat Pass",
-        coachTips: d.coachTips || "",
-        aiCoachSummary: d.aiCoachSummary || "",
-        category: 'AI Genererat',
-        isPublished: false,
-        createdAt: Date.now(),
-        organizationId: originalIds?.organizationId || '',
-        blocks: (d.blocks || []).map((block: any, index: number): WorkoutBlock => {
-            const tag = block.tag || 'Allmänt';
-            const settings = block.settings || {};
-            const mode = settings.mode || TimerMode.AMRAP;
-            
-            let { workTime, restTime, rounds } = settings;
-
-            if (mode === TimerMode.AMRAP && (!workTime || workTime === 0)) workTime = 600;
-            if (mode === TimerMode.EMOM && (!rounds || rounds === 0)) rounds = 10;
-
-            const finalSettings: TimerSettings = {
-                mode: mode,
-                workTime: Number(workTime) || 0,
-                restTime: Number(restTime) || 0,
-                rounds: Number(rounds) || 1,
-                prepareTime: 10,
-            };
-
-            const originalBlock = originalIds?.blocks?.[index];
-
-            return {
-                id: originalBlock?.id || `block-${index}-${new Date().getTime()}`,
-                title: block.title || `Block ${index + 1}`,
-                tag: tag,
-                followMe: block.followMe === true,
-                setupDescription: block.setupDescription || "",
-                aiCoachNotes: block.aiCoachNotes || "",
-                aiMagicPenSuggestions: block.aiMagicPenSuggestions || [],
-                settings: finalSettings,
-                exercises: (block.exercises || []).map((ex: any, exIndex: number): Exercise => {
-                    const originalExercise = originalBlock?.exercises?.[exIndex];
-                    return {
-                        id: originalExercise?.id || `ex-${exIndex}-${new Date().getTime()}`,
-                        name: ex.name || "Namnlös övning",
-                        reps: ex.reps || '',
-                        description: ex.description || '',
-                        isFromAI: true,
-                        isFromBank: originalExercise?.isFromBank
-                    }
-                }),
-            };
-        }),
-    };
-
-    return newWorkout;
-};
-
-async function _callGeminiWithSchema(prompt: string, originalWorkoutContext: Workout | null = null): Promise<Workout> {
-  const ai = getAIClient();
-  const MAX_RETRIES = 2;
-  let attempt = 0;
-  let delay = 1000;
-
-  while (attempt < MAX_RETRIES) {
+if (!isOffline) {
     try {
-        const response: GenerateContentResponse = await ai.models.generateContent({
-            model: model,
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: googleWorkoutSchema,
-            },
-        });
-
-        const jsonStr = response.text.trim();
-        const parsedData = JSON.parse(jsonStr);
-        return validateAndTransformWorkoutData(parsedData, originalWorkoutContext);
-
+        app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+        auth = getAuth(app);
+        db = getFirestore(app);
+        storage = getStorage(app);
     } catch (error) {
-        attempt++;
-        console.error(`Gemini Attempt ${attempt} failed:`, error);
-        
-        const isRateLimitError = error instanceof Error && error.message.includes("429");
-        if (isRateLimitError && attempt < MAX_RETRIES) {
-            await new Promise(res => setTimeout(res, delay));
-            delay *= 2; 
-        } else {
-            if (error instanceof Error) throw error;
-            throw new Error("Kunde inte tolka AI:ns svar.");
-        }
-    }
-  }
-  throw new Error("Misslyckades med att behandla passet.");
-}
-
-// --- STANDARD WORKOUT GENERATION FUNCTIONS ---
-
-export async function generateExerciseSuggestions(userPrompt: string): Promise<Partial<BankExercise>[]> {
-    const ai = getAIClient();
-    const existingBank = await getExerciseBank();
-    const existingExerciseNames = existingBank.map(ex => ex.name).join(', ');
-
-    const fullPrompt = `
-        Du är en expert på funktionell träning. Generera förslag på övningar baserat på användarens önskemål.
-        VIKTIGT: Svaret måste vara valid JSON och all text MÅSTE vara på SVENSKA.
-        
-        Användarens önskemål: "${userPrompt.replace(/`/g, '\\`')}"
-        Exkludera dessa övningar (finns redan): ${existingExerciseNames}
-        Format: JSON Array med fälten 'name', 'description', 'tags'.
-    `;
-
-    try {
-        const response: GenerateContentResponse = await ai.models.generateContent({
-            model: model,
-            contents: fullPrompt,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: googleExerciseSchema,
-            },
-        });
-
-        const jsonStr = response.text.trim();
-        const parsedData = JSON.parse(jsonStr);
-        const validationResult = ExerciseSuggestionsResponseSchema.safeParse(parsedData);
-        if (!validationResult.success) {
-            if(Array.isArray(parsedData)) return parsedData;
-            throw new Error("Ogiltigt svar från AI.");
-        }
-        return validationResult.data;
-
-    } catch (error) {
-        console.error("Error generating suggestions:", error);
-        throw error;
+        console.error("CRITICAL: Firebase init failed.", error);
     }
 }
 
-export async function generateWorkout(userPrompt: string, allWorkouts?: Workout[], selectedCategory?: CustomCategoryWithPrompt | null): Promise<Workout> {
-    const fullPrompt = `
-        Du är en expertcoach på ett gym. Skapa ett träningspass på SVENSKA.
-        
-        Önskemål: "${userPrompt.replace(/`/g, '\\`')}"
-        
-        REGLER:
-        1. All text (titlar, beskrivningar, coach-tips, övningsnamn) SKA vara på svenska.
-        2. Skapa 1-3 logiska block.
-        3. Välj passande timer-inställningar för syftet.
-        4. Returnera strikt JSON som matchar schemat.
-    `;
-    return _callGeminiWithSchema(fullPrompt);
-}
+// --- HJÄLPMETODER ---
 
-export async function remixWorkout(originalWorkout: Workout): Promise<Workout> {
-    const workoutJson = JSON.stringify(originalWorkout);
-    const fullPrompt = `
-        Du är en expertcoach inom funktionell träning. Din uppgift är att "remixa" detta träningspass.
-        
-        INSTRUKTIONER:
-        1. **Behåll strukturen:** Behåll exakt samma antal block, samma timer-inställningar (tidsdomäner, varv) och samma "intent" (syfte).
-        2. **Byt övningar:** Byt ut övningarna mot likvärdiga alternativ (samma muskelgrupper/rörelsemönster). 
-           - Exempel: Byt Wall Balls mot Thrusters. Byt Rodd mot SkiErg. Byt Pushups mot Dips.
-        3. **Språk:** All text ska vara på SVENSKA.
-        4. **Namn:** Ge passet ett nytt, kreativt namn som antyder att det är en remix eller variation (t.ex. "Remix: [Gammalt Namn]" eller "Variant B").
+const sanitizeData = <T>(data: T): T => JSON.parse(JSON.stringify(data));
 
-        PASSDATA ATT REMIXA:
-        ${workoutJson}
-    `;
-    console.log("Sending remix request to Gemini...");
-    return _callGeminiWithSchema(fullPrompt);
-}
-
-export async function analyzeCurrentWorkout(currentWorkout: Workout): Promise<Workout> {
-    const currentWorkoutJson = JSON.stringify(currentWorkout).replace(/`/g, '\\`');
-    const fullPrompt = `
-        Du är en senior träningscoach. Analysera detta träningspass och ge feedback.
-        
-        VIKTIGT OM SPRÅKET:
-        - All output MÅSTE vara på SVENSKA. Inga engelska frases.
-        - Fyll i fältet 'aiCoachSummary' med en sammanfattning på svenska.
-        - Fyll i 'aiCoachNotes' och 'aiMagicPenSuggestions' för varje block på svenska.
-        
-        Uppgift:
-        1. Granska balansen (push/pull, underkropp/överkropp).
-        2. Föreslå konkreta förbättringar i 'aiMagicPenSuggestions' (t.ex. "Lägg till rodd för balans").
-        3. Ge beröm och tips i 'aiCoachSummary'.
-
-        Passdata att analysera: ${currentWorkoutJson}
-    `;
-  return _callGeminiWithSchema(fullPrompt, currentWorkout);
-}
-
-export async function parseWorkoutFromText(pastedText: string): Promise<Workout> {
-    const fullPrompt = `
-    Du är en expertcoach. Din uppgift är att tolka texten och skapa ett strukturerat träningspass.
-
-    REGLER FÖR TOLKNING:
-    1. **Instruktion vs Lista:**
-       - Om texten är en **begäran** (t.ex. "Gör ett benpass"), SKAPA ett pass som uppfyller önskemålet.
-       - Om texten är en **lista** (klistrat från mail/notes), strukturera den exakt som den står.
-
-    2. **KRITISKA REGLER:**
-       - **SPRÅK:** All text i JSON-svaret (titlar, övningar, beskrivningar) MÅSTE vara på SVENSKA. Översätt om nödvändigt.
-       - **ÖVNINGSNAMN:** Fältet \`name\` får ENDAST innehålla övningens namn. Inga tider eller reps.
-       - **REPS:** Lägg antal/tid i \`reps\`-fältet, inte i namnet. Hitta inte på reps om det inte står.
-
-    Text att tolka: "${pastedText.replace(/`/g, '\\`')}"
-    Output: JSON som matchar schemat.
-    `;
-     return _callGeminiWithSchema(fullPrompt);
-}
-
-export async function parseWorkoutFromImage(base64Image: string, additionalText: string = ''): Promise<Workout> {
-    const ai = getAIClient();
-    const prompt = `
-    Du är en expertcoach. Analysera den handskrivna anteckningen eller bilden på ett träningspass och skapa ett strukturerat JSON-träningspass.
-
-    YTTERLIGARE INSTRUKTIONER: "${additionalText}"
-
-    REGLER:
-    1. **SPRÅK:** All output (titlar, övningar, beskrivningar) SKA vara på SVENSKA.
-    2. **Transkribering vs Skapande:**
-       - Om bilden visar ett färdigt pass (whiteboard/anteckning): Transkribera det exakt.
-       - Om bilden är något annat: Försök skapa ett pass inspirerat av bilden.
-    3. **Inga Hallucinationer:**
-       - Baka inte in reps/tid i övningsnamnet. Använd rätt fält i JSON-schemat.
-       - Hitta inte på reps om det inte står i bilden eller instruktionerna.
-
-    Output: Returnera ENDAST valid JSON som matchar schemat.
-    `;
-    
-    try {
-        const response = await ai.models.generateContent({
-            model: model,
-            contents: { parts: [{ inlineData: { mimeType: 'image/png', data: base64Image } }, { text: prompt }] },
-            config: { 
-                responseMimeType: "application/json", 
-                responseSchema: googleWorkoutSchema
-            },
-        });
-        
-        const jsonStr = response.text.trim();
-        return validateAndTransformWorkoutData(JSON.parse(jsonStr));
-    } catch (e) { throw new Error("Kunde inte läsa bilden."); }
-}
-
-export async function generateExerciseDescription(exerciseName: string): Promise<string> {
-    const ai = getAIClient();
-    const prompt = `
-    Du är en minimalistisk träningsapp. Din uppgift är att skriva en extremt kort instruktion på SVENSKA för övningen: "${exerciseName}".
-
-    REGLER:
-    1. Maxlängd: 15-20 ord.
-    2. Stil: Telegram-stil / Imperativ (Gör så här).
-    3. Innehåll: Beskriv ENDAST rörelsen.
-    4. FÖRBJUDET:
-       - Inga adjektiv (t.ex. "långsamt", "kontrollerat", "noggrant").
-       - Inga form-tips (t.ex. "spänn bålen", "rak rygg", "blick framåt").
-       - Inga hälsofördelar.
-
-    Målet är att användaren ska förstå rörelsen på 2 sekunder.
-    `;
-    try {
-        const response = await ai.models.generateContent({
-            model: model,
-            contents: prompt,
-        });
-        return response.text.trim();
-    } catch (e) { return "Beskrivning saknas."; }
-}
-
-export async function enhancePageWithAI(rawContent: string): Promise<string> {
-    const ai = getAIClient();
-    try {
-        const response = await ai.models.generateContent({
-            model: model,
-            contents: `Förbättra följande text. Gör den professionell, tydlig och inspirerande. Använd Markdown för formatering. Texten ska vara på SVENSKA. Input: ${rawContent}`,
-        });
-        return response.text;
-    } catch (e) { return rawContent; }
-}
-
-export async function generateCarouselImage(prompt: string): Promise<string> {
-    const ai = getAIClient();
-    try {
-        const response = await ai.models.generateContent({
-            model: model, 
-            contents: { parts: [{ text: `Generate an image description for: ${prompt}.` }] }, 
-        });
-        throw new Error("Bildgenerering kräver Imagen-åtkomst.");
-    } catch (e) { throw new Error("Bildgenerering misslyckades."); }
-}
-
-export async function generateImage(prompt: string): Promise<string | null> {
-    const ai = getAIClient();
-    try {
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-image',
-            contents: prompt,
-            config: {
-                imageConfig: {
-                    aspectRatio: "1:1"
-                }
-            }
-        });
-        
-        for (const part of response.candidates[0].content.parts) {
-            if (part.inlineData) {
-                return `data:image/png;base64,${part.inlineData.data}`;
-            }
-        }
-        return null;
-    } catch (e) {
-        console.error("Image generation failed", e);
-        return null;
+const generateInviteCode = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-}
+    return result;
+};
 
-export async function interpretHandwriting(base64Image: string): Promise<string> {
-    const ai = getAIClient();
-    try {
-        const response = await ai.models.generateContent({
-            model: model,
-            contents: { parts: [{ inlineData: { mimeType: 'image/png', data: base64Image } }, { text: "Transkribera texten exakt som den står till svenska. Lägg inte till egen text, tider eller tolkningar." }] },
-        });
-        return response.text;
-    } catch (e) { throw new Error("Kunde inte tolka."); }
-}
+const getPBId = (name: string) => name.toLowerCase().trim().replace(/[^\w]/g, '_');
 
-export async function generateHyroxWod(): Promise<Workout> {
-    return _callGeminiWithSchema("Create a Hyrox workout (JSON, Swedish).");
-}
+// --- AUTHENTICERING ---
 
-// --- MEMBER INSIGHTS ---
+export const onAuthChange = (callback: (user: User | null) => void) => {
+    if (isOffline || !auth) return () => {}; 
+    return onAuthStateChanged(auth, callback);
+};
 
-export interface MemberInsightResponse {
-    readiness: {
-        status: 'high' | 'moderate' | 'low';
-        message: string;
-        color?: string;
-    };
-    strategy?: string; 
-    suggestions: {
-        [exerciseName: string]: string; 
-    };
-    scaling?: {
-        [exerciseName: string]: string; 
-    };
-}
+export const signIn = (email: string, password: string): Promise<User> => {
+    if (isOffline || !auth) return Promise.reject("Offline");
+    return signInWithEmailAndPassword(auth, email, password).then(c => c.user);
+};
 
-export async function generateMemberInsights(
-    recentLogs: WorkoutLog[], 
-    currentWorkoutTitle: string, 
-    currentExercises: string[]
-): Promise<MemberInsightResponse> {
-    const ai = getAIClient();
-    
-    const smartHistoryMap: Record<string, number> = {};
-    
-    currentExercises.forEach(currentExName => {
-        let maxWeight = 0;
-        recentLogs.forEach(log => {
-            log.exerciseResults?.forEach(logEx => {
-                if (logEx.weight && isExerciseMatch(currentExName, logEx.exerciseName)) {
-                    if (logEx.weight > maxWeight) {
-                        maxWeight = logEx.weight;
-                    }
-                }
-            });
-        });
-        if (maxWeight > 0) {
-            smartHistoryMap[currentExName] = maxWeight;
-        }
+export const signInAsStudio = (): Promise<User> => {
+    if (isOffline || !auth) return Promise.resolve({ uid: 'offline_studio_uid', isAnonymous: true } as User);
+    return signInAnonymously(auth).then(c => c.user);
+};
+
+export const signOut = (): Promise<void> => (isOffline || !auth) ? Promise.resolve() : firebaseSignOut(auth);
+
+export const sendPasswordResetEmail = (email: string) => (isOffline || !auth) ? Promise.resolve() : firebaseSendPasswordResetEmail(auth, email);
+
+export const reauthenticateUser = async (user: User, password: string) => {
+  if (isOffline || !auth || !user.email) return;
+  const credential = EmailAuthProvider.credential(user.email, password);
+  return await reauthenticateWithCredential(user, credential);
+};
+
+export const updateUserTermsAccepted = async (uid: string) => {
+    if (isOffline || !db || !uid) return;
+    await updateDoc(doc(db, 'users', uid), { termsAcceptedAt: Date.now() });
+};
+
+// --- PEOPLE HUB (MEDLEMSHANTERING) ---
+
+export const getMembers = async (orgId: string): Promise<Member[]> => {
+    if (isOffline || !db || !orgId) return MOCK_MEMBERS;
+    const q = query(collection(db, 'users'), where('organizationId', '==', orgId));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ ...d.data(), uid: d.id, id: d.id }) as Member);
+};
+
+export const getAdminsForOrganization = async (orgId: string): Promise<UserData[]> => {
+    if (isOffline || !db || !orgId) return [MOCK_ORG_ADMIN];
+    const q = query(collection(db, 'users'), where('organizationId', '==', orgId), where('role', '==', 'organizationadmin'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ ...d.data(), uid: d.id }) as UserData);
+};
+
+export const getCoachesForOrganization = async (orgId: string): Promise<UserData[]> => {
+    if (isOffline || !db || !orgId) return [];
+    const q = query(collection(db, 'users'), where('organizationId', '==', orgId), where('role', '==', 'coach'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ ...d.data(), uid: d.id }) as UserData);
+};
+
+export const listenToMembers = (orgId: string, onUpdate: (members: Member[]) => void) => {
+    if (isOffline || !db || !orgId) {
+        onUpdate(MOCK_MEMBERS);
+        return () => {};
+    }
+    const q = query(collection(db, 'users'), where('organizationId', '==', orgId));
+    return onSnapshot(q, (snap) => {
+        const members = snap.docs.map(d => ({ ...d.data(), uid: d.id, id: d.id }) as Member);
+        onUpdate(members);
     });
+};
 
-    const filteredHistory = recentLogs.slice(0, 5).map(log => {
-        const relevantExercises = log.exerciseResults?.filter(logEx =>
-            currentExercises.some(currEx => isExerciseMatch(currEx, logEx.exerciseName))
-        ).map(ex => ({
-            name: ex.exerciseName,
-            weight: ex.weight,
-            reps: ex.reps
-        })) || [];
+export const updateUserGoals = async (uid: string, goals: MemberGoals) => {
+    if (isOffline || !db || !uid) return;
+    await updateDoc(doc(db, 'users', uid), { goals: sanitizeData(goals) });
+};
 
-        return {
-            date: new Date(log.date).toISOString().split('T')[0],
-            title: log.workoutTitle,
-            rpe: log.rpe,
-            feeling: log.feeling,
-            exercises: relevantExercises.length > 0 ? relevantExercises : undefined
-        };
-    });
+export const updateUserProfile = async (uid: string, data: Partial<UserData>) => {
+    if (isOffline || !db || !uid) return;
+    await updateDoc(doc(db, 'users', uid), sanitizeData(data));
+};
 
-    const prompt = `
-    Du är en expert PT och strateg. Analysera medlemmens 5 senaste pass och ge en "Pre-Game Strategy" inför DAGENS pass.
+export const updateUserRole = async (uid: string, role: UserRole) => {
+    if (isOffline || !db || !uid) return;
+    await updateDoc(doc(db, 'users', uid), { role });
+};
+
+export const updateMemberEndDate = async (uid: string, date: string | null) => {
+    if (isOffline || !db || !uid) return;
+    await updateDoc(doc(db, 'users', uid), { endDate: date });
+};
+
+export const registerMemberWithCode = async (email: string, pass: string, code: string, additionalData?: any) => {
+    if (isOffline || !db || !auth) throw new Error("Offline mode");
+
+    const q = query(collection(db, 'organizations'), where('inviteCode', '==', code.toUpperCase()));
+    const snap = await getDocs(q);
+    if (snap.empty) throw new Error("Ogiltig inbjudningskod.");
+    const organizationId = snap.docs[0].id;
+
+    const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+    const user = userCredential.user;
+
+    const userData = {
+        uid: user.uid,
+        email: email,
+        role: 'member',
+        status: 'active',
+        organizationId: organizationId,
+        firstName: additionalData?.firstName || '',
+        lastName: additionalData?.lastName || '',
+        age: additionalData?.age || null,
+        gender: additionalData?.gender || 'prefer_not_to_say',
+        isTrainingMember: true,
+        createdAt: serverTimestamp(),
+        termsAcceptedAt: Date.now() 
+    };
     
-    VIKTIGT: All output ska vara på SVENSKA.
+    await setDoc(doc(db, 'users', user.uid), userData);
+    return user;
+};
 
-    **Historik (Filtrerad):**
-    ${JSON.stringify(filteredHistory)}
+// --- DATA & MOTIVATION ---
 
-    **Personbästa (för matchande övningar):**
-    ${JSON.stringify(smartHistoryMap)}
-
-    **Dagens Pass:**
-    Titel: "${currentWorkoutTitle}"
-    Övningar: ${currentExercises.join(', ')}
-
-    **Uppgift:**
-    1. **Strategi:** Ge en kort, peppande strategi (max 1 mening) baserat på passets typ (styrka vs kondition) och medlemmens historik.
-    2. **Dagsform (Readiness):** Analysera RPE/Känsla.
-    3. **Smart Load:** Föreslå vikter baserat på PB. Om inget PB finns, skriv "Hitta dagsform".
-    4. **Skalning:** Om passet innehåller komplexa/tunga övningar (t.ex. Box Jumps, Tunga lyft, Muscle-ups), ge ett enklare alternativ i 'scaling'-fältet.
-
-    **Output Schema (JSON):**
-    {
-      "readiness": {
-        "status": "high" | "moderate" | "low",
-        "message": "Kort råd om dagsform."
-      },
-      "strategy": "Kort peppande strategi för passet (t.ex. 'Håll igen i början, öka på slutet!')",
-      "suggestions": {
-        "Exercise Name": "45kg"
-      },
-      "scaling": {
-        "Hard Exercise Name": "Alternative Exercise Name (Reason)" 
-      }
-    }
-    `;
-
-    try {
-        const response = await ai.models.generateContent({
-            model: model, 
-            contents: prompt,
-            config: {
-                responseMimeType: "application/json"
-            }
-        });
-
-        const jsonStr = response.text.trim();
-        return JSON.parse(jsonStr) as MemberInsightResponse;
-    } catch (e) {
-        console.error("Failed to generate member insights", e);
-        return {
-            readiness: { status: 'moderate', message: 'Lyssna på kroppen idag!' },
-            suggestions: {}
-        };
-    }
-}
-
-// --- DAGSFORM / EXERCISE SPECIFIC ADVICE ---
-
-export interface ExerciseDagsformAdvice {
-    suggestion: string;
-    reasoning: string;
-    history: { date: string, weight: number, reps: string }[];
-}
-
-export async function getExerciseDagsformAdvice(
-    exerciseName: string,
-    feeling: 'good' | 'neutral' | 'bad',
-    allLogs: WorkoutLog[]
-): Promise<ExerciseDagsformAdvice> {
-    const ai = getAIClient();
-
-    // 1. Extract history for this specific exercise
-    const history = allLogs.flatMap(log => 
-        (log.exerciseResults || [])
-            .filter(ex => isExerciseMatch(exerciseName, ex.exerciseName))
-            .map(ex => ({
-                date: new Date(log.date).toLocaleDateString('sv-SE'),
-                weight: ex.weight || 0,
-                reps: ex.reps || "Mixed"
-            }))
-    ).slice(0, 5);
-
-    const prompt = `
-    Du är en expert PT. Ge ett konkret viktförslag och tips för övningen "${exerciseName}" för IDAG.
+export const saveWorkoutLog = async (logData: any) => {
+    if (isOffline || !db || !logData.organizationId) return;
     
-    MEDLEMMENS DAGSFORM: "${feeling === 'good' ? 'Pigg/Stark' : feeling === 'bad' ? 'Seg/Skadad' : 'Normal'}"
-    HISTORIK FÖR DENNA ÖVNING: ${JSON.stringify(history)}
+    const newLogRef = doc(collection(db, 'workoutLogs'));
+    const newLog = { id: newLogRef.id, ...logData };
 
-    DIN UPPGIFT:
-    1. Analysera trenden (ökar/minskar/stilla).
-    2. Föreslå en specifik vikt för idag baserat på dagsform.
-    3. Ge en kort motivering (max 2 meningar).
-
-    Svara på SVENSKA i JSON-format.
-    {
-      "suggestion": "T.ex. 45 kg",
-      "reasoning": "Din motivering här..."
-    }
-    `;
-
-    try {
-        const response = await ai.models.generateContent({
-            model: model,
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
-        });
-
-        const data = JSON.parse(response.text.trim());
-        return {
-            ...data,
-            history
-        };
-    } catch (e) {
-        console.error("Dagsform advice failed", e);
-        return {
-            suggestion: "Hitta dagsform",
-            reasoning: "Datan räckte inte för ett specifikt råd. Börja lätt och känn efter.",
-            history: history
-        };
-    }
-}
-
-// --- NEW MEMBER ANALYSIS FOR COACHES ---
-
-export interface MemberProgressAnalysis {
-    strengths: string;
-    improvements: string;
-    actions: string[];
-    metrics: {
-        strength: number;
-        endurance: number;
-        frequency: number;
-    }
-}
-
-export async function analyzeMemberProgress(
-    logs: WorkoutLog[], 
-    memberName: string, 
-    goals?: MemberGoals
-): Promise<MemberProgressAnalysis> {
-    const ai = getAIClient();
-
-    const logSummary = logs.slice(0, 20).map(log => ({
-        date: new Date(log.date).toISOString().split('T')[0],
-        title: log.workoutTitle,
-        rpe: log.rpe,
-        feeling: log.feeling,
-        comment: log.comment,
-        tags: log.tags,
-        exercises: log.exerciseResults?.map(e => `${e.exerciseName} (${e.weight || 0}kg)`).join(', ')
-    }));
-
-    const prompt = `
-    Du är en senior huvudcoach på ett gym. Analysera träningsdatan för medlemmen "${memberName}" och ge en strategisk analys till deras coach.
-    
-    MÅL FÖR MEDLEMMEN: ${goals?.hasSpecificGoals ? goals.selectedGoals.join(', ') : 'Inga specifika mål angivna.'}
-    
-    TRÄNINGSHISTORIK (20 senaste):
-    ${JSON.stringify(logSummary)}
-
-    DIN UPPGIFT:
-    1. **Styrkor:** Vad gör de bra? (Consistency, fokus, progression).
-    2. **Förbättringsområden:** Vad saknas eller stagnerar?
-    3. **Coach Actions:** 2-3 konkreta saker coachen bör säga eller göra nästa gång de ses.
-    4. **Metrics (0-100):** Uppskatta Styrka, Uthållighet och Frekvens baserat på datan.
-
-    VIKTIGT: Svara på SVENSKA i JSON-format.
-    
-    SCHEMA:
-    {
-      "strengths": "Beskrivning på svenska",
-      "improvements": "Beskrivning på svenska",
-      "actions": ["Punkt 1", "Punkt 2"],
-      "metrics": {
-        "strength": number,
-        "endurance": number,
-        "frequency": number
-      }
-    }
-    `;
-
-    try {
-        const response = await ai.models.generateContent({
-            model: model,
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
-        });
-
-        return JSON.parse(response.text.trim()) as MemberProgressAnalysis;
-    } catch (e) {
-        console.error("Member analysis failed", e);
-        return {
-            strengths: "Kunde inte generera analys.",
-            improvements: "Datan räcker inte till en fullständig analys.",
-            actions: ["Fortsätt peppa medlemmen på golvet."],
-            metrics: { strength: 50, endurance: 50, frequency: 50 }
-        };
-    }
-}
-
-// --- ADMIN ANALYTICS CHAT ---
-
-export async function askAdminAnalytics(userQuestion: string, logs: WorkoutLog[]): Promise<string> {
-    const ai = getAIClient();
-
-    const logSummary = logs.map(log => ({
-        date: new Date(log.date).toISOString().split('T')[0],
-        title: log.workoutTitle,
-        rpe: log.rpe,
-        feeling: log.feeling,
-        comment: log.comment,
-        tags: log.tags, 
-        exercises: log.exerciseResults?.map(e => e.exerciseName).join(', ')
-    }));
-
-    const prompt = `
-    Du är en expert på dataanalys och affärsutveckling för gym. Du pratar med gymmets administratörer/ägare.
-    
-    DATASET (JSON):
-    ${JSON.stringify(logSummary.slice(0, 50))} 
-
-    ANVÄNDARENS FRÅGA: "${userQuestion}"
-
-    INSTRUKTIONER:
-    1. Extremt kortfattade och professionella (Executive Summary-stil).
-    2. Befriade från "filler-fraser". Börja ALDRIG med "Okej, jag förstår", "Tack för frågan" eller "Jag är din analytiker...". Gå direkt på svaret.
-    3. Fria från stjärnor (**) runt namn på gym eller varumärken.
-    4. Svara på svenska.
-
-    HANTERING AV DATA:
-    - Om data/dataset saknas eller är tomt: Skriv ENDAST: "Underlaget saknar data för denna period." Ge inga hypotetiska listor på vad du *skulle* ha gjort om data fanns, såvida inte användaren uttryckligen ber om generella råd.
-    - Om data finns: Presentera insikterna direkt i punktform utan långa inledningar.
-
-    Exempel på bra svar vid saknad data:
-    "Data saknas för att analysera den generella stämningen. Vänligen ladda upp träningsloggar för perioden."
-    `;
-
-    try {
-        const response = await ai.models.generateContent({
-            model: model,
-            contents: prompt,
-        });
-        return response.text.trim();
-    } catch (e) {
-        console.error("Analytics chat failed", e);
-        return "Tyvärr, jag kunde inte analysera datan just nu. Försök igen senare.";
-    }
-}
-
-export async function generateBusinessActions(logs: WorkoutLog[]): Promise<string> {
-    const ai = getAIClient();
-
-    const logSummary = logs.map(log => ({
-        date: new Date(log.date).toISOString().split('T')[0],
-        title: log.workoutTitle,
-        rpe: log.rpe,
-        feeling: log.feeling,
-        comment: log.comment,
-        tags: log.tags
-    }));
-
-    const prompt = `
-    Analysera datan och ge 3 korta, konkreta åtgärdsförslag (Action Points).
-
-    DATASET (JSON):
-    ${JSON.stringify(logSummary.slice(0, 75))}
-
-    REGLER:
-    1. Max 3 punkter.
-    2. Max 1-2 meningar per punkt.
-    3. Ingen inledning eller avslutning. Rakt på sak.
-    4. Fokusera på återkommande problem eller önskemål i kommentarerna.
-
-    FORMAT:
-    Markdown punktlista.
-
-    Språk: Svenska.
-    `;
-
-    try {
-        const response = await ai.models.generateContent({
-            model: model,
-            contents: prompt,
-        });
-        return response.text.trim();
-    } catch (e) {
-        console.error("Business actions generation failed", e);
-        return "Kunde inte generera åtgärdsförslag just nu. Försök igen senare.";
-    }
-}
-
-// --- PREMIUM DIPLOMA GENERATOR ---
-
-export async function generateWorkoutDiploma(logData: WorkoutLog): Promise<WorkoutDiploma> {
-    const ai = getAIClient();
-
-    // Summarize exercises for context
-    const exercisesSummary = logData.exerciseResults
-        ?.map(e => `${e.exerciseName}: ${e.weight ? e.weight + 'kg' : ''} ${e.reps ? 'x ' + e.reps : ''}`)
-        .join(', ');
-
-    // Additional Stats for context
-    const statsInfo = [
-        logData.totalDistance ? `Distans: ${logData.totalDistance} km` : '',
-        logData.totalCalories ? `Kalorier: ${logData.totalCalories} kcal` : '',
-        logData.durationMinutes ? `Tid: ${logData.durationMinutes} min` : ''
-    ].filter(Boolean).join(', ');
-
-    const prompt = `
-    Roll: Du är en AI-copywriter och Art Director för en premium träningsapp. Ditt jobb är att paketera ett avslutat träningspass till en snygg "award".
-    Tonläge: Auktoritärt men varmt. Datadrivet. Premium/Exklusivt.
-
-    INPUT DATA:
-    - Passnamn: "${logData.workoutTitle}"
-    - RPE (1-10): ${logData.rpe || 'Okänt'}
-    - Känsla: ${logData.feeling || 'Okänd'}
-    - Kommentar: "${logData.comment || ''}"
-    - Övningsdata (Stickprov): ${exercisesSummary}
-    - Stats: ${statsInfo}
-
-    DIN UPPGIFT:
-    Generera ett JSON-objekt med exakt dessa 5 fält baserat på reglerna nedan:
-
-    1. title (Rubrik): Kort & Kraftfull (Max 2-3 ord).
-       - 1-5 reps => REN STYRKA / TUNGT LYFT
-       - 6-12 reps => BYGGPASS / VOLYM & KONTROLL
-       - 15+ reps => UTHÅLLIGHET / MENTAL STYRKA
-       - PB/Rekord => NY NIVÅ / REKORDPASS
-       - Cardio/Distans => LÅNGDISTANS / KONDITION
-
-    2. subtitle (Underrad): En mening som förklarar passets identitet.
-       - Ex: "Låga repetitioner med maximal belastning."
-
-    3. achievement (Prestation): Hjälte-raden.
-       - Om data finns i input (t.ex. tunga vikter), nämn det! Ex: "Du hanterade tunga vikter i marklyft."
-       - Om distans eller kalorier finns, inkludera detta (t.ex. "Du sprang 5 km idag!").
-       - Om RPE var högt: "Du genomförde, trots att det var tungt."
-       - Annars: "Kontinuitet är nykeysen till resultat."
-
-    4. footer (Avslut): Kort, slående mening.
-       - Ex: "Styrka är en färskvara. Du fyllde på idag."
-
-    5. imagePrompt (Bild):
-       - MÅSTE vara på ENGELSKA.
-       - Inga accentfärger: Monokrom (Svart, Vit, Grå) eller neutrala material (Stål, Betong, Sten, Svart marmor).
-       - Stil: 3D Render, Minimalist, High Contrast, Cinematic Lighting.
-       - Motiv: Abstrakt representation (t.ex. tung sten, block, kedjor). Inga människor/text.
-       - Format: [Motiv], material made of [Concrete/Steel/Stone], dramatic lighting, dark background, monochrome, 8k, unreal engine 5 render, minimalist style, no colors.
-
-    Output Schema (JSON):
-    {
-        "title": "string",
-        "subtitle": "string",
-        "achievement": "string",
-        "footer": "string",
-        "imagePrompt": "string"
-    }
-    `;
-
-    try {
-        const response = await ai.models.generateContent({
-            model: model,
-            contents: prompt,
-            config: { responseMimeType: "application/json" }
-        });
-        
-        const rawJson = response.text.trim();
-        let parsed: any;
-        
+    if (logData.memberId) {
         try {
-            parsed = JSON.parse(rawJson);
-        } catch (e) {
-            // Backup handling if it returned an array or has extra chars
-            const match = rawJson.match(/\{[\s\S]*\}/);
-            if (match) parsed = JSON.parse(match[0]);
-            else throw e;
-        }
-
-        // Handle array wrap if AI returned [{...}]
-        const data = Array.isArray(parsed) ? parsed[0] : parsed;
-        
-        // Ensure backwards compatibility if fields are missing
-        return {
-            title: data.title || "BRA JOBBAT",
-            subtitle: data.subtitle || "Passet är genomfört.",
-            achievement: data.achievement || "Kontinuitet ger resultat.",
-            footer: data.footer || "Vila nu.",
-            imagePrompt: data.imagePrompt || "Abstract dark concrete texture, 8k, monochrome",
-            // Include old fields for safety if accessed elsewhere
-            message: data.subtitle,
-            comparison: data.achievement
-        };
-    } catch (e) {
-        console.error("Diploma generation failed", e);
-        return {
-            title: "BRA JOBBAT",
-            subtitle: "Du tog dig igenom passet.",
-            achievement: "Starkt jobbat!",
-            footer: "Ses snart igen.",
-            imagePrompt: "Abstract dark stone texture, cinematic lighting, 8k, monochrome",
-            message: "Du tog dig igenom passet.",
-            comparison: "Starkt jobbat!"
-        };
+            const userSnap = await getDoc(doc(db, 'users', logData.memberId));
+            if (userSnap.exists()) {
+                const userData = userSnap.data();
+                newLog.memberName = `${userData.firstName || 'Medlem'} ${userData.lastName ? userData.lastName[0] + '.' : ''}`.trim();
+                newLog.memberPhotoUrl = userData.photoUrl || null;
+            }
+        } catch (e) { console.warn(e); }
     }
-}
+
+    await setDoc(newLogRef, newLog);
+
+    if (logData.memberId && logData.exerciseResults) {
+        try {
+            const batch = writeBatch(db);
+            const pbCollectionRef = collection(db, 'users', logData.memberId, 'personalBests');
+            const currentPBsSnap = await getDocs(pbCollectionRef);
+            const currentPBs: Record<string, any> = {};
+            currentPBsSnap.forEach(d => currentPBs[d.id] = d.data());
+
+            for (const exResult of logData.exerciseResults) {
+                let maxW = 0;
+                if (exResult.setDetails) {
+                    const weights = exResult.setDetails.map((s: any) => parseFloat(s.weight)).filter((n: number) => !isNaN(n));
+                    if (weights.length > 0) maxW = Math.max(...weights);
+                } else if (exResult.weight) {
+                    maxW = Number(exResult.weight);
+                }
+
+                if (maxW > 0 && exResult.exerciseName) {
+                    const pbId = getPBId(exResult.exerciseName);
+                    if (!currentPBs[pbId] || maxW > currentPBs[pbId].weight) {
+                        const pbData: PersonalBest = { id: pbId, exerciseName: exResult.exerciseName.trim(), weight: maxW, date: Date.now() };
+                        batch.set(doc(db, 'users', logData.memberId, 'personalBests', pbId), pbData);
+                        
+                        const eventRef = doc(collection(db, 'studio_events'));
+                        const eventData: StudioEvent = {
+                            id: eventRef.id,
+                            type: 'pb',
+                            organizationId: logData.organizationId,
+                            timestamp: Date.now(),
+                            data: { 
+                                userName: newLog.memberName || 'En medlem', 
+                                userPhotoUrl: newLog.memberPhotoUrl || null, 
+                                exerciseName: exResult.exerciseName.trim(), 
+                                isNewRecord: true 
+                            }
+                        };
+                        batch.set(eventRef, eventData);
+                    }
+                }
+            }
+            await batch.commit();
+        } catch (e) { console.error("PB logic failed", e); }
+    }
+    return newLog;
+};
+
+export const updateWorkoutLog = async (logId: string, updates: Partial<WorkoutLog>) => {
+    if (isOffline || !db || !logId) return;
+    await updateDoc(doc(db, 'workoutLogs', logId), sanitizeData(updates));
+};
+
+export const deleteWorkoutLog = async (logId: string) => {
+    if (isOffline || !db || !logId) return;
+    await deleteDoc(doc(db, 'workoutLogs', logId));
+};
+
+export const listenToMemberLogs = (memberId: string, onUpdate: (logs: WorkoutLog[]) => void) => {
+    if (isOffline || !db || !memberId) {
+        onUpdate([]);
+        return () => {};
+    }
+    const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"), limit(50));
+    return onSnapshot(q, (snap) => {
+        onUpdate(snap.docs.map(d => d.data() as WorkoutLog));
+    });
+};
+
+export const listenToCommunityLogs = (orgId: string, onUpdate: (logs: WorkoutLog[]) => void) => {
+    if (isOffline || !db || !orgId) {
+        onUpdate([]);
+        return () => {};
+    }
+    const q = query(collection(db, 'workoutLogs'), where("organizationId", "==", orgId), orderBy("date", "desc"), limit(20));
+    return onSnapshot(q, (snap) => {
+        onUpdate(snap.docs.map(d => d.data() as WorkoutLog));
+    });
+};
+
+export const getMemberLogs = async (memberId: string): Promise<WorkoutLog[]> => {
+    if (isOffline || !db || !memberId) return []; 
+    const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"), limit(50));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as WorkoutLog);
+};
+
+export const getOrganizationLogs = async (orgId: string, limitCount: number = 100): Promise<WorkoutLog[]> => {
+    if (isOffline || !db || !orgId) return [];
+    const q = query(collection(db, 'workoutLogs'), where("organizationId", "==", orgId), orderBy("date", "desc"), limit(limitCount));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as WorkoutLog);
+};
+
+export const listenToPersonalBests = (userId: string, onUpdate: (pbs: PersonalBest[]) => void, onError?: (err: any) => void) => {
+    if (isOffline || !db || !userId) {
+        onUpdate([]);
+        return () => {};
+    }
+    return onSnapshot(collection(db, 'users', userId, 'personalBests'), (snap) => {
+        onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() }) as PersonalBest));
+    }, onError);
+};
+
+export const updatePersonalBest = async (userId: string, exerciseName: string, weight: number) => {
+    if (isOffline || !db || !userId) return;
+    const pbId = getPBId(exerciseName);
+    await setDoc(doc(db, 'users', userId, 'personalBests', pbId), { id: pbId, exerciseName: exerciseName.trim(), weight, date: Date.now() });
+};
+
+// --- STUDIO EVENTS ---
+
+export const listenForStudioEvents = (orgId: string, callback: (event: StudioEvent) => void) => {
+    if (isOffline || !db || !orgId) return () => {};
+    const startTime = Date.now() - 5000; 
+    const q = query(collection(db, 'studio_events'), where('organizationId', '==', orgId), orderBy('timestamp', 'desc'), limit(1));
+    return onSnapshot(q, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added') {
+                const data = change.doc.data() as StudioEvent;
+                if (data.timestamp > startTime) callback(data);
+            }
+        });
+    });
+};
+
+export const listenToWeeklyPBs = (orgId: string, onUpdate: (events: StudioEvent[]) => void) => {
+    if (isOffline || !db || !orgId) { onUpdate([]); return () => {}; }
+    const now = new Date();
+    const day = now.getDay() || 7;
+    if (day !== 1) now.setDate(now.getDate() - (day - 1));
+    now.setHours(0, 0, 0, 0);
+    const startOfWeek = now.getTime();
+
+    const q = query(collection(db, 'studio_events'), where('organizationId', '==', orgId), where('type', '==', 'pb'), where('timestamp', '>=', startOfWeek), orderBy('timestamp', 'desc'), limit(50));
+    return onSnapshot(q, (snap) => onUpdate(snap.docs.map(d => d.data() as StudioEvent)));
+};
+
+// --- CORE BUSINESS ---
+
+export const getOrganizations = async (): Promise<Organization[]> => {
+    if (isOffline || !db) return MOCK_ORGANIZATIONS;
+    const snap = await getDocs(collection(db, 'organizations'));
+    return snap.docs.map(d => d.data() as Organization);
+};
+
+export const getOrganizationById = async (id: string): Promise<Organization | null> => {
+    if (isOffline || !db || !id) return MOCK_ORGANIZATIONS.find(o => o.id === id) || null;
+    const snap = await getDoc(doc(db, 'organizations', id));
+    return snap.exists() ? snap.data() as Organization : null;
+};
+
+export const listenToOrganizationChanges = (id: string, onUpdate: (org: Organization) => void) => {
+    if (isOffline || !db || !id) return () => {}; 
+    return onSnapshot(doc(db, 'organizations', id), (snap) => {
+        if (snap.exists()) onUpdate(snap.data() as Organization);
+    });
+};
+
+export const createOrganization = async (name: string, subdomain: string): Promise<Organization> => {
+    if(isOffline || !db) throw new Error("Offline");
+    const id = `org_${subdomain}_${Date.now()}`;
+    const newOrg: Organization = { 
+        id, name, subdomain, passwords: { coach: '1234' }, studios: [], customPages: [], status: 'active',
+        inviteCode: generateInviteCode(),
+        globalConfig: { customCategories: [{ id: '1', name: 'Standard', prompt: '' }] } 
+    };
+    await setDoc(doc(db, 'organizations', id), newOrg);
+    return newOrg;
+};
+
+export const updateOrganization = async (id: string, name: string, subdomain: string, inviteCode?: string) => {
+    if(isOffline || !db || !id) return;
+    const updateData: any = { name, subdomain };
+    if (inviteCode) updateData.inviteCode = inviteCode.toUpperCase();
+    await updateDoc(doc(db, 'organizations', id), updateData);
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationPasswords = async (id: string, passwords: Organization['passwords']) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { passwords });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationLogos = async (id: string, logos: { light: string, dark: string }) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { logoUrlLight: logos.light, logoUrlDark: logos.dark });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationPrimaryColor = async (id: string, color: string) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { primaryColor: color });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationCustomPages = async (id: string, customPages: CustomPage[]) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { customPages: sanitizeData(customPages) });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationInfoCarousel = async (id: string, infoCarousel: InfoCarousel) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { infoCarousel: sanitizeData(infoCarousel) });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationCompanyDetails = async (id: string, details: CompanyDetails) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { companyDetails: sanitizeData(details) });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationDiscount = async (id: string, discount: { type: 'percentage' | 'fixed', value: number }) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { discountType: discount.type, discountValue: discount.value });
+    return getOrganizationById(id);
+};
+
+export const undoLastBilling = async (id: string) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { lastBilledMonth: deleteField(), lastBilledDate: deleteField() });
+    return getOrganizationById(id);
+};
+
+export const updateGlobalConfig = async (id: string, config: any) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { globalConfig: sanitizeData(config) });
+};
+
+export const createStudio = async (orgId: string, name: string) => {
+    if(isOffline || !db || !orgId) return { id: 'off', name };
+    const org = await getOrganizationById(orgId);
+    if (!org) throw new Error("Org missing");
+    const studio = { id: `st_${Date.now()}`, name, createdAt: Date.now(), configOverrides: {} };
+    await updateDoc(doc(db, 'organizations', orgId), { studios: [...org.studios, studio] });
+    return studio;
+};
+
+export const updateStudio = async (orgId: string, studioId: string, name: string) => {
+    if(isOffline || !db || !orgId) return;
+    const org = await getOrganizationById(orgId);
+    if (!org) throw new Error("Org missing");
+    const studios = org.studios.map(s => s.id === studioId ? { ...s, name } : s);
+    await updateDoc(doc(db, 'organizations', orgId), { studios });
+};
+
+export const deleteStudio = async (orgId: string, studioId: string) => {
+    if(isOffline || !db || !orgId) return;
+    const org = await getOrganizationById(orgId);
+    if (!org) throw new Error("Org missing");
+    const studios = org.studios.filter(s => s.id !== studioId);
+    await updateDoc(doc(db, 'organizations', orgId), { studios });
+};
+
+export const updateStudioConfig = async (orgId: string, studioId: string, overrides: any) => {
+    if(isOffline || !db || !orgId) return {} as Studio;
+    const org = await getOrganizationById(orgId);
+    if (!org) throw new Error("Org missing");
+    const studios = org.studios.map(s => s.id === studioId ? { ...s, configOverrides: sanitizeData(overrides) } : s);
+    await updateDoc(doc(db, 'organizations', orgId), { studios });
+    return studios.find(s => s.id === studioId) as Studio;
+};
+
+// --- TRÄNINGSMOTORN ---
+
+export const getWorkoutsForOrganization = async (orgId: string): Promise<Workout[]> => {
+    if (isOffline || !db || !orgId) return [];
+    const q = query(collection(db, 'workouts'), where("organizationId", "==", orgId));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as Workout).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+};
+
+export const saveWorkout = async (w: Workout) => {
+    if (isOffline || !db || !w.id) return;
+    await setDoc(doc(db, 'workouts', w.id), sanitizeData(w), { merge: true });
+};
+
+export const deleteWorkout = async (id: string) => {
+    if (isOffline || !db || !id) return;
+    await deleteDoc(doc(db, 'workouts', id));
+};
+
+export const getExerciseBank = async (): Promise<BankExercise[]> => {
+    if (isOffline || !db) return MOCK_EXERCISE_BANK;
+    const snap = await getDocs(query(collection(db, 'exerciseBank'), orderBy('name')));
+    return snap.docs.map(d => d.data() as BankExercise);
+};
+
+export const saveExerciseToBank = async (ex: BankExercise) => {
+    if (isOffline || !db || !ex.id) return;
+    await setDoc(doc(db, 'exerciseBank', ex.id), sanitizeData(ex), { merge: true });
+};
+
+export const deleteExerciseFromBank = async (id: string) => {
+    if (isOffline || !db || !id) return;
+    await deleteDoc(doc(db, 'exerciseBank', id));
+};
+
+export const updateExerciseImageOverride = async (orgId: string, exerciseId: string, imageUrl: string | null) => {
+    if (isOffline || !db || !orgId) return;
+    const orgRef = doc(db, 'organizations', orgId);
+    if (imageUrl) {
+        await updateDoc(orgRef, { [`exerciseOverrides.${exerciseId}`]: { imageUrl } });
+    } else {
+        await updateDoc(orgRef, { [`exerciseOverrides.${exerciseId}`]: deleteField() });
+    }
+    return getOrganizationById(orgId);
+};
+
+// --- BILLING ---
+
+export const getSmartScreenPricing = async () => {
+    if (isOffline || !db) return MOCK_SMART_SCREEN_PRICING;
+    const snap = await getDoc(doc(db, 'system', 'pricing'));
+    return snap.exists() ? snap.data() as SmartScreenPricing : MOCK_SMART_SCREEN_PRICING;
+};
+
+export const updateSmartScreenPricing = async (pricing: SmartScreenPricing) => {
+    if (isOffline || !db) return;
+    await setDoc(doc(db, 'system', 'pricing'), sanitizeData(pricing));
+};
+
+export const updateOrganizationBilledStatus = async (id: string, month: string) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { lastBilledMonth: month, lastBilledDate: Date.now() });
+    return getOrganizationById(id);
+};
+
+// --- IMAGES & THEMES ---
+
+export const uploadImage = async (path: string, image: File | string): Promise<string> => {
+    if (typeof image === 'string' && !image.startsWith('data:image')) return image;
+    if (isOffline || !storage) return "";
+    const blob = typeof image === 'string' ? await (await fetch(image)).blob() : image;
+    const snap = await uploadBytes(ref(storage, path), blob);
+    return getDownloadURL(snap.ref);
+};
+
+export const deleteImageByUrl = async (url: string): Promise<void> => {
+    if (isOffline || !storage || !url || !url.includes('firebasestorage')) return;
+    try { await deleteObject(ref(storage, url)); } catch (e) {}
+};
+
+export const getSeasonalThemes = async () => {
+    if (isOffline || !db) return [];
+    const snap = await getDoc(doc(db, 'system', 'seasonalThemes'));
+    return snap.exists() ? (snap.data() as any).themes : [];
+};
+
+export const updateSeasonalThemes = async (themes: SeasonalThemeSetting[]) => {
+    if (isOffline || !db) return;
+    await setDoc(doc(db, 'system', 'seasonalThemes'), { themes: sanitizeData(themes) }, { merge: true });
+};
+
+export const archiveOrganization = async (id: string) => {
+    if (isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { status: 'archived' });
+};
+
+export const restoreOrganization = async (id: string) => {
+    if (isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { status: 'active' });
+};
+
+export const deleteOrganizationPermanently = async (id: string) => {
+    if (isOffline || !db || !id) return;
+    await deleteDoc(doc(db, 'organizations', id));
+};
+
+export const updateOrganizationActivity = async (id: string): Promise<void> => {
+    if (isOffline || !db || !id) return;
+    try { await updateDoc(doc(db, 'organizations', id), { lastActiveAt: Date.now() }); } catch(e){}
+};
+
+// --- HYROX ---
+
+export const saveRace = async (data: any, orgId: string) => {
+    if(isOffline || !db || !orgId) return { id: 'off' };
+    const raceRef = doc(collection(db, 'races'));
+    const race = { ...sanitizeData(data), id: raceRef.id, organizationId: orgId, createdAt: Date.now() };
+    await setDoc(raceRef, race);
+    return race;
+};
+
+export const getPastRaces = async (orgId: string) => {
+    if (isOffline || !db || !orgId) return [];
+    const q = query(collection(db, 'races'), where("organizationId", "==", orgId));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as HyroxRace).sort((a,b) => b.createdAt - a.createdAt);
+};
+
+export const getRace = async (id: string) => {
+    if (isOffline || !db || !id) return null;
+    const snap = await getDoc(doc(db, 'races', id));
+    return snap.exists() ? snap.data() as HyroxRace : null;
+};
+
+// --- RESULTS ---
+export const saveWorkoutResult = async (result: WorkoutResult) => {
+    if (isOffline || !db) return;
+    await setDoc(doc(db, 'workout_results', result.id), sanitizeData(result));
+};
+
+export const getWorkoutResults = async (workoutId: string, orgId: string): Promise<WorkoutResult[]> => {
+    if (isOffline || !db || !workoutId) return [];
+    const q = query(collection(db, 'workout_results'), where('workoutId', '==', workoutId), where('organizationId', '==', orgId), orderBy('finishTime', 'asc'));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => d.data() as WorkoutResult);
+};
+
+// --- CHECK-INS ---
+
+export const sendCheckIn = async (orgId: string, userEmail: string) => {
+    if (isOffline || !db || !orgId) return;
+    const checkInRef = doc(collection(db, 'active_checkins'));
+    const event: CheckInEvent = {
+        id: checkInRef.id,
+        userId: userEmail,
+        firstName: userEmail.split('@')[0],
+        lastName: '',
+        timestamp: Date.now(),
+        organizationId: orgId,
+        streak: Math.floor(Math.random() * 20) + 1
+    };
+    await setDoc(checkInRef, event);
+};
+
+export const listenForCheckIns = (orgId: string, callback: (event: CheckInEvent) => void) => {
+    if (isOffline || !db || !orgId) return () => {};
+    const q = query(collection(db, 'active_checkins'), where('organizationId', '==', orgId), orderBy('timestamp', 'desc'), limit(1));
+    return onSnapshot(q, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added') {
+                const data = change.doc.data() as CheckInEvent;
+                if (Date.now() - data.timestamp < 10000) callback(data);
+            }
+        });
+    });
+};
+
+export const getSuggestedExercises = async () => {
+    if (isOffline || !db) return [];
+    const snap = await getDocs(collection(db, 'exerciseSuggestions'));
+    return snap.docs.map(d => ({ ...d.data(), id: d.id }) as SuggestedExercise);
+};
+
+export const approveExerciseSuggestion = async (s: SuggestedExercise) => {
+    const bankEx: BankExercise = { id: s.id, name: s.name, description: s.description, imageUrl: s.imageUrl, tags: s.tags };
+    await saveExerciseToBank(bankEx);
+    await deleteExerciseSuggestion(s.id);
+};
+
+export const deleteExerciseSuggestion = async (id: string) => {
+    if (isOffline || !db) return;
+    await deleteDoc(doc(db, 'exerciseSuggestions', id));
+};
+
+export const updateExerciseSuggestion = async (s: SuggestedExercise) => {
+    if (isOffline || !db) return;
+    await setDoc(doc(db, 'exerciseSuggestions', s.id), s, { merge: true });
+};

@@ -37,7 +37,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
         if (!selectedOrganization) return;
         setIsLoading(true);
         const unsubscribe = listenToCommunityLogs(selectedOrganization.id, (newLogs) => {
-            setLogs(newLogs.slice(0, 50)); // Hämta upp till 50
+            setLogs(newLogs.slice(0, 50)); 
             setIsLoading(false);
         });
         return () => unsubscribe();
@@ -57,8 +57,8 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
         );
     }
 
-    const itemHeight = 72; // Fast höjd per rad
-    const viewportHeight = itemHeight * 4; // Precis 4 rader
+    const itemHeight = 72; 
+    const viewportHeight = itemHeight * 4; 
 
     return (
         <div 
@@ -91,7 +91,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 className="bg-black/30 hover:bg-black/40 transition-colors rounded-2xl flex items-center gap-4 border border-white/5 group px-4"
-                                style={{ height: `${itemHeight - 8}px` }} // -8 för gap
+                                style={{ height: `${itemHeight - 8}px` }}
                             >
                                 <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-black text-sm shadow-lg flex-shrink-0 overflow-hidden border border-white/10">
                                     {log.memberPhotoUrl ? (
