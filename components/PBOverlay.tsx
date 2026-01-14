@@ -6,7 +6,8 @@ import { StudioEvent } from '../types';
 import { useStudio } from '../context/StudioContext';
 import { getAudioContext } from '../hooks/useWorkoutTimer';
 
-// Simple sound synthesis for a "Bell" like sound
+const DISPLAY_DURATION = 5000; // 5 sekunder
+
 const playBellSound = () => {
     const ctx = getAudioContext();
     if (!ctx) return;
@@ -15,9 +16,8 @@ const playBellSound = () => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     
-    // Bell-like: High frequency sine wave with long decay
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, ctx.currentTime); // A5
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 1.5);
     
     gain.gain.setValueAtTime(0, ctx.currentTime);
@@ -29,33 +29,17 @@ const playBellSound = () => {
     
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 2.5);
-    
-    // Add a second harmonic for richness
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = 'triangle';
-    osc2.frequency.setValueAtTime(1760, ctx.currentTime); // A6
-    gain2.gain.setValueAtTime(0, ctx.currentTime);
-    gain2.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.05);
-    gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.5);
-    
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-    
-    osc2.start(ctx.currentTime);
-    osc2.stop(ctx.currentTime + 1.5);
 };
 
 export const PBOverlay: React.FC = () => {
     const { selectedOrganization } = useStudio();
     const [currentEvent, setCurrentEvent] = useState<StudioEvent | null>(null);
     const [queue, setQueue] = useState<StudioEvent[]>([]);
-    const DISPLAY_DURATION = 5000; // 5 sekunder
 
+    // 1. Lyssna efter inkommande events från Firebase
     useEffect(() => {
         if (!selectedOrganization) return;
 
-        // Listen for new PB events
         const unsubscribe = listenForStudioEvents(selectedOrganization.id, (event) => {
             if (event.type === 'pb') {
                 setQueue(prev => [...prev, event]);
@@ -65,28 +49,26 @@ export const PBOverlay: React.FC = () => {
         return () => unsubscribe();
     }, [selectedOrganization]);
 
+    // 2. Hantera kön: Om inget visas men kön har innehåll -> plocka nästa
     useEffect(() => {
-        // Process queue: Om vi inte visar något just nu men det finns saker i kön
         if (!currentEvent && queue.length > 0) {
-            const nextEvent = queue[0];
-            
-            // Sätt det aktiva eventet
-            setCurrentEvent(nextEvent);
-            
-            // Ta bort det vi just plockade från kön
+            const next = queue[0];
             setQueue(prev => prev.slice(1));
-            
-            // Spela ljudet
+            setCurrentEvent(next);
             playBellSound();
+        }
+    }, [queue, currentEvent]);
 
-            // Auto-stäng efter angiven tid
+    // 3. Auto-hide: Stäng rutan efter DISPLAY_DURATION
+    useEffect(() => {
+        if (currentEvent) {
             const timer = setTimeout(() => {
                 setCurrentEvent(null);
             }, DISPLAY_DURATION);
 
             return () => clearTimeout(timer);
         }
-    }, [currentEvent, queue]);
+    }, [currentEvent]);
 
     return (
         <div className="fixed inset-0 pointer-events-none z-[9999] flex flex-col items-center justify-center">
@@ -101,7 +83,6 @@ export const PBOverlay: React.FC = () => {
                         className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 p-1 rounded-[2.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] overflow-hidden"
                     >
                         <div className="bg-black/90 backdrop-blur-md rounded-[2.3rem] px-12 py-10 text-center flex flex-col items-center border border-white/10 relative overflow-hidden">
-                            {/* Bakgrunds-glow */}
                             <div className="absolute inset-0 bg-yellow-500/10 animate-pulse rounded-[2.3rem]"></div>
                             
                             <motion.div 
@@ -126,7 +107,7 @@ export const PBOverlay: React.FC = () => {
                                 {currentEvent.data.exerciseName}
                             </p>
 
-                            {/* Visuell Progress Bar (Timer) */}
+                            {/* Visuell Progress Bar (Timer) som matchar 5 sekunder */}
                             <div className="absolute bottom-0 left-0 right-0 h-2 bg-white/10 overflow-hidden">
                                 <motion.div 
                                     initial={{ width: "100%" }}
