@@ -1,4 +1,4 @@
-import { GoogleGenAI, GenerateContentResponse, Type, Schema } from "@google/genai";
+import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai";
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise, SuggestedExercise, CustomCategoryWithPrompt, WorkoutLog, MemberGoals, WorkoutDiploma } from '../types';
 import { getExerciseBank } from './firebaseService';
 import { z } from 'zod';
@@ -41,7 +41,7 @@ const BankExerciseSuggestionSchema = z.object({
 const ExerciseSuggestionsResponseSchema = z.array(BankExerciseSuggestionSchema);
 
 // --- Google Schemas ---
-const googleExerciseSchema: Schema = {
+const googleExerciseSchema = {
     type: Type.ARRAY,
     items: {
         type: Type.OBJECT,
@@ -58,7 +58,7 @@ const googleExerciseSchema: Schema = {
     }
 };
 
-const googleWorkoutSchema: Schema = {
+const googleWorkoutSchema = {
   type: Type.OBJECT,
   required: ['title', 'coachTips', 'blocks'],
   properties: {
@@ -393,10 +393,8 @@ export async function enhancePageWithAI(rawContent: string): Promise<string> {
 }
 
 export async function generateCarouselImage(prompt: string): Promise<string> {
-    // Note: We're simulating this for now as per previous context, or use imagen if enabled.
     const ai = getAIClient();
     try {
-        // Placeholder for real image generation logic using Imagen if available
         const response = await ai.models.generateContent({
             model: model, 
             contents: { parts: [{ text: `Generate an image description for: ${prompt}.` }] }, 
@@ -405,7 +403,6 @@ export async function generateCarouselImage(prompt: string): Promise<string> {
     } catch (e) { throw new Error("Bildgenerering misslyckades."); }
 }
 
-// --- NEW IMAGE GENERATION FUNCTION FOR DIPLOMA ---
 export async function generateImage(prompt: string): Promise<string | null> {
     const ai = getAIClient();
     try {
@@ -844,7 +841,7 @@ export async function generateWorkoutDiploma(logData: WorkoutLog): Promise<Worko
        - Om data finns i input (t.ex. tunga vikter), nämn det! Ex: "Du hanterade tunga vikter i marklyft."
        - Om distans eller kalorier finns, inkludera detta (t.ex. "Du sprang 5 km idag!").
        - Om RPE var högt: "Du genomförde, trots att det var tungt."
-       - Annars: "Kontinuitet är nyckeln till resultat."
+       - Annars: "Kontinuitet är nykeysen till resultat."
 
     4. footer (Avslut): Kort, slående mening.
        - Ex: "Styrka är en färskvara. Du fyllde på idag."
@@ -912,5 +909,3 @@ export async function generateWorkoutDiploma(logData: WorkoutLog): Promise<Worko
         };
     }
 }
-
-export { getExerciseBank };
