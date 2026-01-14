@@ -268,6 +268,7 @@ export interface WorkoutDiploma {
   footer?: string;
   imagePrompt: string;
   imageUrl?: string;
+  newPBs?: { name: string; diff: number }[];
 }
 
 export interface BankExercise {

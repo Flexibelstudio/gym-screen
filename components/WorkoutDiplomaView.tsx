@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutDiploma } from '../types';
@@ -78,7 +79,7 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                 }}
                 onClick={e => e.stopPropagation()}
             >
-                {/* Bakgrundsdekorationer visas endast i mörkt läge för att behålla vit bakgrund i ljust läge */}
+                {/* Bakgrundsdekorationer */}
                 <div className="absolute top-0 right-0 w-64 h-64 hidden dark:block bg-primary/10 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
                 <div className="absolute bottom-0 left-0 w-64 h-64 hidden dark:block bg-purple-500/10 rounded-full blur-[80px] -ml-20 -mb-20 pointer-events-none"></div>
 
@@ -119,6 +120,20 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                             <p className="text-xl sm:text-2xl font-black text-black dark:text-white leading-tight mb-2">
                                 {achievement}
                             </p>
+                            
+                            {/* PB SECTION - Only shown if new PBs exist */}
+                            {diploma.newPBs && diploma.newPBs.length > 0 && (
+                                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
+                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Nya Rekord Satta! 🏆</p>
+                                    {diploma.newPBs.map((pb, i) => (
+                                        <div key={i} className="flex justify-between items-center text-xs font-bold text-gray-900 dark:text-white bg-white dark:bg-black/40 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-gray-800">
+                                            <span>{pb.name}</span>
+                                            <span className="text-primary">+{pb.diff} kg</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
                             <div className="w-12 h-1.5 bg-primary mx-auto my-4 rounded-full"></div>
                             <p className="text-sm font-bold text-gray-600 dark:text-gray-400 italic">
                                 {footer}

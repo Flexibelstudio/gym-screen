@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage } from '../../services/firebaseService';
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma } from '../../services/geminiService';
@@ -871,6 +872,7 @@ export const WorkoutLogScreen = ({
           const logDateMs = new Date(logDate).getTime();
           
           let totalVolume = 0;
+          const newPBs: { name: string; diff: number }[] = [];
 
           const finalLogRaw: any = {
               memberId: userId,
@@ -887,6 +889,12 @@ export const WorkoutLogScreen = ({
                   const validWeights = r.setDetails.map(s => parseFloat(s.weight)).filter(n => !isNaN(n));
                   const maxWeight = validWeights.length > 0 ? Math.max(...validWeights) : null;
                   
+                  // PB CHECK
+                  const previousPB = history[r.exerciseName];
+                  if (maxWeight && previousPB && maxWeight > previousPB) {
+                      newPBs.push({ name: r.exerciseName, diff: maxWeight - previousPB });
+                  }
+
                   r.setDetails.forEach(s => {
                       const weight = parseFloat(s.weight);
                       const reps = parseFloat(s.reps);
@@ -938,25 +946,31 @@ export const WorkoutLogScreen = ({
                   if (comparison) {
                       // Construct the Diploma instantly without AI
                       diplomaData = {
-                          title: "ENORM INSATS!",
+                          title: newPBs.length > 0 ? "NYTT REKORD!" : "ENORM INSATS!",
                           subtitle: `Du lyfte totalt ${totalVolume.toLocaleString()} kg`,
                           achievement: `Det motsvarar ca ${comparison.count} st ${comparison.name}`,
                           footer: `En ${comparison.single} väger ca ${comparison.weight} kg`,
-                          imagePrompt: comparison.emoji, // Storing the emoji here to pass it to the view
+                          imagePrompt: comparison.emoji, 
+                          newPBs: newPBs.length > 0 ? newPBs : undefined
                       };
                   }
               } else if (finalLogRaw.totalDistance > 0 || finalLogRaw.totalCalories > 0) {
                   // If no volume but we have cardio stats, generate a tailored diploma
                   try {
                       diplomaData = await generateWorkoutDiploma(finalLogRaw);
+                      if (diplomaData) {
+                          diplomaData.newPBs = newPBs.length > 0 ? newPBs : undefined;
+                          if (newPBs.length > 0) diplomaData.title = "NYTT REKORD!";
+                      }
                   } catch (e) {
                       // Fallback if AI fails
                       diplomaData = {
-                          title: "GRYMT JOBBAT!",
+                          title: newPBs.length > 0 ? "NYTT REKORD!" : "GRYMT JOBBAT!",
                           subtitle: "Passet är genomfört.",
                           achievement: `Distans: ${finalLogRaw.totalDistance} km | Kcal: ${finalLogRaw.totalCalories}`,
                           footer: "Starkt jobbat!",
-                          imagePrompt: "🔥"
+                          imagePrompt: "🔥",
+                          newPBs: newPBs.length > 0 ? newPBs : undefined
                       };
                   }
               }
@@ -964,11 +978,12 @@ export const WorkoutLogScreen = ({
               // Fallback if no specific data exists (e.g. bodyweight without stats)
               if (!diplomaData) {
                    diplomaData = {
-                      title: "BRA JOBBAT!",
+                      title: newPBs.length > 0 ? "NYTT REKORD!" : "BRA JOBBAT!",
                       subtitle: "Passet är genomfört.",
                       achievement: "Kontinuitet är nyckeln.",
                       footer: "Ses snart igen!",
-                      imagePrompt: "🔥"
+                      imagePrompt: "🔥",
+                      newPBs: newPBs.length > 0 ? newPBs : undefined
                    };
               }
 
@@ -1193,7 +1208,7 @@ export const WorkoutLogScreen = ({
                 <button 
                     onClick={handleSubmit}
                     disabled={!isFormValid}
-                    className="flex-[2] bg-primary hover:brightness-110 text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/30 transition-all transform active:scale-95 disabled:bg-gray-300 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 disabled:shadow-none disabled:transform-none text-lg uppercase tracking-tight"
+                    className="flex-[2] bg-primary hover:brightness-110 text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 disabled:bg-gray-300 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 disabled:shadow-none disabled:transform-none text-lg uppercase tracking-tight"
                 >
                     {isSubmitting 
                         ? 'Sparar...'
