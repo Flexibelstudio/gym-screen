@@ -41,42 +41,34 @@ const formatReps = (reps: string | undefined): string => {
 
 // --- BLOCK PRESENTATION MODAL ---
 const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => void }> = ({ block, onClose }) => {
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
 
-    // 1. Lås body-scroll så att bakgrunden inte kan störa
+    // 1. Förhindra att bakgrunden scrollar
     useEffect(() => {
-        const originalStyle = window.getComputedStyle(document.body).overflow;
+        const originalOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
         return () => {
-            document.body.style.overflow = originalStyle;
+            document.body.style.overflow = originalOverflow;
         };
     }, []);
 
-    // 2. Tvinga nollställning av scroll INNAN rendering (useLayoutEffect)
+    // 2. Hård nollställning av scrollen innan vi ritar ut modalen
     useLayoutEffect(() => {
-        if (scrollContainerRef.current) {
-            scrollContainerRef.current.scrollTop = 0;
+        if (containerRef.current) {
+            containerRef.current.scrollTop = 0;
         }
-        
-        // Dubbel säkerhet med en omedelbar nollställning
-        const reset = () => {
-            if (scrollContainerRef.current) scrollContainerRef.current.scrollTop = 0;
-        };
-        
-        reset();
-        const rafId = requestAnimationFrame(reset);
-        return () => cancelAnimationFrame(rafId);
     }, [block.id]);
 
     return (
         <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[10000] bg-white dark:bg-gray-950 flex flex-col overflow-hidden"
+            ref={containerRef}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed inset-0 z-[10000] bg-white dark:bg-gray-950 overflow-y-auto overscroll-contain"
         >
-            {/* Header */}
-            <div className="flex-shrink-0 flex justify-between items-start p-8 md:p-12 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+            {/* Header - Sticky på toppen */}
+            <div className="sticky top-0 z-30 flex justify-between items-start p-8 md:p-12 border-b border-gray-100 dark:border-gray-800 bg-white/95 dark:bg-gray-950/95 backdrop-blur-md">
                 <div className="max-w-4xl">
                     <div className="flex items-center gap-4 mb-4">
                          <span className={`inline-flex items-center px-4 py-2 rounded-xl text-lg font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
@@ -94,22 +86,17 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
                 </div>
                 <button 
                     onClick={onClose}
-                    className="p-4 bg-gray-200 dark:bg-gray-800 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors shadow-lg active:scale-95"
+                    className="p-4 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shadow-lg active:scale-95"
                 >
                     <CloseIcon className="w-10 h-10 text-gray-900 dark:text-white" />
                 </button>
             </div>
 
-            {/* Content - Giant List */}
-            {/* KEY={block.id} är den viktigaste fixen - den tvingar fram en ny DOM-nod */}
-            <div 
-                key={block.id}
-                ref={scrollContainerRef} 
-                className="flex-grow overflow-y-auto p-8 md:p-12"
-            >
+            {/* Content - Övningslistan */}
+            <div className="p-8 md:p-12 pb-32">
                 <div className="max-w-7xl mx-auto space-y-6">
                     {block.exercises.map((ex, index) => (
-                        <div key={ex.id} className="flex items-start gap-8 p-8 rounded-[2rem] bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800">
+                        <div key={ex.id} className="flex items-start gap-8 p-8 rounded-[2rem] bg-gray-50 dark:bg-gray-900/50 border-2 border-gray-100 dark:border-gray-800">
                              <div className="flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-2xl md:text-3xl font-black text-gray-500">
                                 {index + 1}
                             </div>
@@ -138,9 +125,12 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
                 </div>
             </div>
             
-            {/* Footer */}
-            <div className="flex-shrink-0 p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex justify-center">
-                 <button onClick={onClose} className="bg-black dark:bg-white text-white dark:text-black font-black text-xl py-4 px-12 rounded-full shadow-xl hover:scale-105 transition-transform uppercase tracking-widest">
+            {/* Footer - Fast i botten för enkel avslutning */}
+            <div className="sticky bottom-0 z-30 p-8 bg-gradient-to-t from-white dark:from-gray-950 via-white/80 dark:via-gray-950/80 to-transparent flex justify-center">
+                 <button 
+                    onClick={onClose} 
+                    className="bg-black dark:bg-white text-white dark:text-black font-black text-2xl py-5 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform uppercase tracking-widest border-4 border-white/20"
+                >
                      Stäng visningsläge
                  </button>
             </div>
@@ -695,6 +685,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
       <AnimatePresence>
           {visualizingBlock && (
               <BlockPresentationModal 
+                  key={visualizingBlock.id} 
                   block={visualizingBlock} 
                   onClose={() => setVisualizingBlock(null)} 
               />
