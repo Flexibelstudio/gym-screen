@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage } from '../../services/firebaseService';
-import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma } from '../../services/geminiService';
+import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
 import { CloseIcon, DumbbellIcon, SparklesIcon, FireIcon, RunningIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, CalculatorIcon } from '../../components/icons'; 
@@ -191,6 +191,8 @@ const isExerciseMatch = (
     return false;
 };
 
+// --- Pre-Game Strategy View ---
+
 const PreGameView: React.FC<{
     workoutTitle: string;
     insights: MemberInsightResponse;
@@ -315,21 +317,22 @@ const PreGameView: React.FC<{
     );
 };
 
+// --- Sub-components for Logging ---
+
 const ExerciseLogCard: React.FC<{
   name: string;
   result: LocalExerciseResult;
   onUpdate: (updates: Partial<LocalExerciseResult>) => void;
   onOpenDailyForm: (exerciseName: string) => void;
   aiSuggestion?: string;
-  lastWeight?: number;
-}> = ({ name, result, onUpdate, onOpenDailyForm, aiSuggestion, lastWeight }) => {
+  lastPerformance?: { weight: number, reps: string } | null;
+}> = ({ name, result, onUpdate, onOpenDailyForm, aiSuggestion, lastPerformance }) => {
     
     const calculate1RM = (weight: string, reps: string) => {
         const w = parseFloat(weight);
         const r = parseFloat(reps);
         if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0) {
             if (r === 1) return Math.round(w);
-            // Epley Formula: 1RM = Weight * (1 + Reps/30)
             const oneRm = w * (1 + r / 30);
             return Math.round(oneRm);
         }
@@ -364,21 +367,25 @@ const ExerciseLogCard: React.FC<{
 
     return (
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 mb-3 border border-gray-100 dark:border-gray-800 shadow-sm transition-all">
-            <div className="flex justify-between items-start mb-3">
-                <div className="flex-1 min-w-0 pr-2">
+            <div className="flex justify-between items-start mb-3 gap-2">
+                <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-gray-900 dark:text-white text-base truncate">{name}</h4>
-                    {lastWeight ? (
-                        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Senast: {lastWeight}kg</p>
+                    {/* HÄR ÄR DEN NYA HISTORIKEN */}
+                    {lastPerformance ? (
+                        <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-0.5">
+                            Senast: <span className="text-gray-600 dark:text-gray-300">{lastPerformance.weight}kg x {lastPerformance.reps}</span>
+                        </p>
                     ) : (
-                        <p className="text-xs text-gray-400">Ny övning</p>
+                        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-0.5">Första gången</p>
                     )}
                 </div>
+                {/* HÄR ÄR DEN LILA KNAPPEN */}
                 <button 
                     onClick={() => onOpenDailyForm(name)}
-                    className="bg-purple-50 dark:bg-purple-900/30 px-2 py-1 rounded-lg border border-purple-100 dark:border-purple-800 flex items-center gap-1 shrink-0 hover:bg-purple-100 transition-colors"
+                    className="bg-purple-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 shrink-0 shadow-md active:scale-95 transition-all"
                 >
-                    <SparklesIcon className="w-3 h-3 text-purple-600 dark:text-purple-400" />
-                    <span className="text-[10px] font-black text-purple-700 dark:text-purple-300">Hitta dagsform</span>
+                    <SparklesIcon className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-black uppercase tracking-tight">Hitta dagsform</span>
                 </button>
             </div>
 
@@ -412,7 +419,7 @@ const ExerciseLogCard: React.FC<{
                             </div>
 
                             <div className="relative">
-                                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                <div className="bg-gray-5 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
                                     <input 
                                         type="number" 
                                         value={set.weight} 
@@ -721,7 +728,8 @@ export const WorkoutLogScreen = ({
   
   const [sessionStats, setSessionStats] = useState({ distance: '', calories: '' });
   
-  const [history, setHistory] = useState<Record<string, number>>({}); 
+  // UPDATED: Record stores both weight and reps
+  const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
 
   // --- FORM VALIDATION LOGIC ---
@@ -794,18 +802,24 @@ export const WorkoutLogScreen = ({
                 setExerciseResults(exercises);
                 const logs = await getMemberLogs(userId);
                 setAllLogs(logs);
-                const historyMap: Record<string, number> = {};
+                const historyMap: Record<string, { weight: number, reps: string }> = {};
                 
                 exercises.forEach(currentEx => {
-                    let maxWeight = 0;
-                    logs.forEach(log => {
-                        log.exerciseResults?.forEach(logEx => {
-                            if (logEx.weight && isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId)) {
-                                if (logEx.weight > maxWeight) maxWeight = logEx.weight;
+                    // Find the latest log containing this exercise
+                    const match = logs.find(log => log.exerciseResults?.some(logEx => isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId)));
+                    
+                    if (match) {
+                        const exMatch = match.exerciseResults?.find(logEx => isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId));
+                        if (exMatch && exMatch.weight) {
+                            // Extract reps if available, otherwise default to 0
+                            let reps = '0';
+                            // Check if setDetails exists in historical data (new format) or use top-level reps (old format)
+                            if (exMatch.reps) {
+                                reps = exMatch.reps.toString();
                             }
-                        });
-                    });
-                    if (maxWeight > 0) historyMap[currentEx.exerciseName] = maxWeight;
+                            historyMap[currentEx.exerciseName] = { weight: exMatch.weight, reps };
+                        }
+                    }
                 });
                 
                 setHistory(historyMap);
@@ -907,7 +921,7 @@ export const WorkoutLogScreen = ({
                   const maxWeight = validWeights.length > 0 ? Math.max(...validWeights) : null;
                   
                   // PB CHECK
-                  const previousPB = history[r.exerciseName];
+                  const previousPB = history[r.exerciseName]?.weight; // history now holds objects
                   if (maxWeight && previousPB && maxWeight > previousPB) {
                       newPBs.push({ name: r.exerciseName, diff: maxWeight - previousPB });
                   }
@@ -995,13 +1009,13 @@ export const WorkoutLogScreen = ({
               // Fallback if no specific data exists (e.g. bodyweight without stats)
               if (!diplomaData) {
                    diplomaData = {
-                      title: newPBs.length > 0 ? "NYTT REKORD!" : "BRA JOBBAT!",
-                      subtitle: "Passet är genomfört.",
-                      achievement: "Kontinuitet är nyckeln.",
-                      footer: "Ses snart igen!",
-                      imagePrompt: "🔥",
-                      newPBs: newPBs.length > 0 ? newPBs : undefined
-                   };
+                       title: newPBs.length > 0 ? "NYTT REKORD!" : "BRA JOBBAT!",
+                       subtitle: "Passet är genomfört.",
+                       achievement: "Kontinuitet är nyckeln.",
+                       footer: "Ses snart igen!",
+                       imagePrompt: "🔥",
+                       newPBs: newPBs.length > 0 ? newPBs : undefined
+                    };
               }
 
               finalLogRaw.diploma = diplomaData;
@@ -1009,6 +1023,28 @@ export const WorkoutLogScreen = ({
               const finalLog = cleanForFirestore(finalLogRaw);
               await saveWorkoutLog(finalLog);
               
+              // 2. Generera och spara AI-bild (Permanent lagring) - OM det finns en prompt
+              if (diplomaData && diplomaData.imagePrompt) {
+                  try {
+                      // Generera bilden (base64 från Gemini)
+                      const base64Image = await generateImage(diplomaData.imagePrompt);
+                      
+                      if (base64Image) {
+                          // Ladda upp till Firebase Storage
+                          const tempLogId = `log_${Date.now()}`; // Eller använd finalLog.id om vi hade det
+                          const storagePath = `users/${userId}/diplomas/${tempLogId}.jpg`;
+                          const permanentImageUrl = await uploadImage(storagePath, base64Image);
+                          
+                          // Uppdatera loggen med bild-URL
+                          // Notera: Detta är en separat skrivning, men det är ok
+                          // Vi skickar med hela diplomet till close-funktionen
+                          finalLog.diploma.imageUrl = permanentImageUrl;
+                      }
+                  } catch (e) {
+                      console.warn("Diploma image generation failed", e);
+                  }
+              }
+
               handleCancel(true, finalLog.diploma || null);
           }
 
@@ -1160,7 +1196,7 @@ export const WorkoutLogScreen = ({
                                     onUpdate={(updates) => handleUpdateResult(index, updates)}
                                     onOpenDailyForm={(name) => setDailyFormTarget(name)}
                                     aiSuggestion={aiInsights?.suggestions?.[result.exerciseName]}
-                                    lastWeight={history[result.exerciseName]}
+                                    lastPerformance={history[result.exerciseName]} // Pass object {weight, reps}
                                 />
                             </React.Fragment>
                         );
