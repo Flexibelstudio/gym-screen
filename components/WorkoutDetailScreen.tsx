@@ -44,10 +44,20 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
     const scrollContainerRef = useRef<HTMLDivElement>(null);
 
     // Säkerställ att vi alltid hamnar högst upp när modalen öppnas eller byter block
+    // Vi använder requestAnimationFrame för att vänta på att animationen startat och layouten är klar
     useEffect(() => {
-        if (scrollContainerRef.current) {
-            scrollContainerRef.current.scrollTo(0, 0);
-        }
+        const scrollToTop = () => {
+            if (scrollContainerRef.current) {
+                scrollContainerRef.current.scrollTop = 0;
+            }
+        };
+
+        // Kör direkt
+        scrollToTop();
+        
+        // Och kör igen efter en frame för att vara helt säker (viktigt vid animationer)
+        const rafId = requestAnimationFrame(scrollToTop);
+        return () => cancelAnimationFrame(rafId);
     }, [block.id]);
 
     return (
@@ -83,7 +93,7 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
             </div>
 
             {/* Content - Giant List */}
-            <div ref={scrollContainerRef} className="flex-grow overflow-y-auto p-8 md:p-12">
+            <div ref={scrollContainerRef} className="flex-grow overflow-y-auto p-8 md:p-12 scroll-smooth">
                 <div className="max-w-7xl mx-auto space-y-6">
                     {block.exercises.map((ex, index) => (
                         <div key={ex.id} className="flex items-start gap-8 p-8 rounded-[2rem] bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800">
