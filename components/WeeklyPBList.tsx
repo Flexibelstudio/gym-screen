@@ -82,7 +82,7 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
                                 className="bg-black/30 hover:bg-black/40 transition-colors rounded-2xl flex items-center gap-4 border border-white/5 group px-4"
                                 style={{ height: `${itemHeight - 8}px` }}
                             >
-                                {/* Uppdaterad Avatar-rendering med Guld-kant */}
+                                {/* Avatar med Guld-kant och bildstöd */}
                                 <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center text-white font-black text-lg shadow-lg flex-shrink-0 overflow-hidden border border-yellow-400/50">
                                     {event.data.userPhotoUrl ? (
                                         <img src={event.data.userPhotoUrl} alt="" className="w-full h-full object-cover" />
