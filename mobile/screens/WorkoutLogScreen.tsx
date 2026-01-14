@@ -92,6 +92,7 @@ const WEIGHT_COMPARISONS = [
     { name: "Smart Cars", singular: "en Smart Car", weight: 900, emoji: "🚗" },
     { name: "Personbilar", singular: "en Personbil", weight: 1500, emoji: "🚘" },
     { name: "Flodhästar", singular: "en Flodhäst", weight: 1500, emoji: "🦛" },
+    { name: "Noshörningar", singular: "en Noshörning", weight: 2000, emoji: "🛏️" },
     { name: "Noshörningar", singular: "en Noshörning", weight: 2000, emoji: "🦏" },
     { name: "Vita Hajar", singular: "en Vit Haj", weight: 2000, emoji: "🦈" },
     { name: "Späckhuggare", singular: "en Späckhuggare", weight: 4000, emoji: "🐋" },
@@ -498,8 +499,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                 try {
                     const exerciseNames = exercises.map(e => e.exerciseName);
                     if (exerciseNames.length > 0) {
-                        const insights = await generateMemberInsights(logs, foundWorkout.title, exerciseNames);
-                        setAiInsights(insights);
+                        const insightsData = await generateMemberInsights(logs, foundWorkout.title, exerciseNames);
+                        setAiInsights(insightsData);
                     } else {
                         setViewMode('logging');
                     }
@@ -723,7 +724,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       return (
           <PreGameView 
             workoutTitle={workout.title}
-            insights={insights || aiInsights}
+            insights={aiInsights}
             onStart={handleStartWorkout}
             onCancel={() => handleCancel(false)}
             onFeelingChange={setDailyFeeling}
