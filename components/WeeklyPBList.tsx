@@ -18,6 +18,7 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
     useEffect(() => {
         if (!selectedOrganization) return;
         setIsLoading(true);
+        // Vi använder listenToWeeklyPBs men i komponenten låter vi den visa 50 senaste oavsett tidsram
         const unsubscribe = listenToWeeklyPBs(selectedOrganization.id, (newEvents) => {
             setEvents(newEvents.slice(0, 50)); 
             setIsLoading(false);
@@ -58,7 +59,7 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
                     <div className="p-2 bg-yellow-500/20 rounded-2xl text-yellow-400 border border-yellow-500/10 shadow-inner">
                         <TrophyIcon className="w-5 h-5" />
                     </div>
-                    <h3 className="text-xl font-black text-white uppercase tracking-tight leading-none">Veckans Rekord</h3>
+                    <h3 className="text-xl font-black text-white uppercase tracking-tight leading-none">Senaste Rekorden</h3>
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] bg-white/5 px-2 py-1 rounded-lg border border-white/5">Hof</span>
@@ -95,7 +96,7 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
                                         </span>
                                     </div>
                                     <p className="text-yellow-500 text-[10px] font-black uppercase tracking-[0.1em] truncate flex items-center gap-1">
-                                        🔥 NYTT PB I {event.data.exerciseName}
+                                        🔥 PB I {event.data.exerciseName.toUpperCase()}
                                     </p>
                                 </div>
                             </motion.div>
