@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage } from '../../services/firebaseService';
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma } from '../../services/geminiService';
@@ -10,6 +9,7 @@ import { OneRepMaxModal } from '../../components/OneRepMaxModal';
 import { WorkoutLogType, RepRange, ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, ExerciseSetDetail } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
+import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 
 // --- Local Types for Form State ---
 
@@ -319,9 +319,10 @@ const ExerciseLogCard: React.FC<{
   name: string;
   result: LocalExerciseResult;
   onUpdate: (updates: Partial<LocalExerciseResult>) => void;
+  onOpenDailyForm: (exerciseName: string) => void;
   aiSuggestion?: string;
   lastWeight?: number;
-}> = ({ name, result, onUpdate, aiSuggestion, lastWeight }) => {
+}> = ({ name, result, onUpdate, onOpenDailyForm, aiSuggestion, lastWeight }) => {
     
     const calculate1RM = (weight: string, reps: string) => {
         const w = parseFloat(weight);
@@ -372,12 +373,13 @@ const ExerciseLogCard: React.FC<{
                         <p className="text-xs text-gray-400">Ny övning</p>
                     )}
                 </div>
-                {aiSuggestion && (
-                    <div className="bg-purple-50 dark:bg-purple-900/30 px-2 py-1 rounded-lg border border-purple-100 dark:border-purple-800 flex items-center gap-1 shrink-0">
-                        <SparklesIcon className="w-3 h-3 text-purple-600 dark:text-purple-400" />
-                        <span className="text-[10px] font-black text-purple-700 dark:text-purple-300">{aiSuggestion}</span>
-                    </div>
-                )}
+                <button 
+                    onClick={() => onOpenDailyForm(name)}
+                    className="bg-purple-50 dark:bg-purple-900/30 px-2 py-1 rounded-lg border border-purple-100 dark:border-purple-800 flex items-center gap-1 shrink-0 hover:bg-purple-100 transition-colors"
+                >
+                    <SparklesIcon className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                    <span className="text-[10px] font-black text-purple-700 dark:text-purple-300">Hitta dagsform</span>
+                </button>
             </div>
 
             <div className="space-y-2">
@@ -670,7 +672,7 @@ const cleanForFirestore = (obj: any): any => {
   Object.keys(obj).forEach(key => {
     const val = obj[key];
     if (val !== undefined) {
-      result[key] = (val && typeof val === 'object' && !(val instanceof Date)) ? cleanForFirestore(val) : val;
+      result[key] = (val && typeof v === 'object' && !(val instanceof Date)) ? cleanForFirestore(val) : val;
     }
   });
   return result;
@@ -700,9 +702,12 @@ export const WorkoutLogScreen = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
-  const [celebrationStats, setCelebrationStats] = useState<{ volume: number, comparison: string, emoji: string, count: string } | null>(null);
   const [showCalculator, setShowCalculator] = useState(false);
   
+  // --- DAILY FORM MODAL ---
+  const [dailyFormTarget, setDailyFormTarget] = useState<string | null>(null);
+  const [allLogs, setAllLogs] = useState<WorkoutLog[]>([]);
+
   // --- PRE-GAME STATE ---
   const [viewMode, setViewMode] = useState<'pre-game' | 'logging'>(isManualMode ? 'logging' : 'pre-game');
   const [dailyFeeling, setDailyFeeling] = useState<'good' | 'neutral' | 'bad'>('neutral');
@@ -788,6 +793,7 @@ export const WorkoutLogScreen = ({
                 
                 setExerciseResults(exercises);
                 const logs = await getMemberLogs(userId);
+                setAllLogs(logs);
                 const historyMap: Record<string, number> = {};
                 
                 exercises.forEach(currentEx => {
@@ -861,6 +867,17 @@ export const WorkoutLogScreen = ({
           setExerciseResults(newResults);
       }
       setViewMode('logging');
+  };
+
+  const handleApplyDailyFormWeight = (exerciseName: string, weight: string) => {
+      const index = exerciseResults.findIndex(r => r.exerciseName === exerciseName);
+      if (index !== -1) {
+          const updatedSets = exerciseResults[index].setDetails.map(set => ({
+              ...set,
+              weight: weight
+          }));
+          handleUpdateResult(index, { setDetails: updatedSets });
+      }
   };
 
   const handleSubmit = async () => {
@@ -1141,6 +1158,7 @@ export const WorkoutLogScreen = ({
                                     name={result.exerciseName}
                                     result={result}
                                     onUpdate={(updates) => handleUpdateResult(index, updates)}
+                                    onOpenDailyForm={(name) => setDailyFormTarget(name)}
                                     aiSuggestion={aiInsights?.suggestions?.[result.exerciseName]}
                                     lastWeight={history[result.exerciseName]}
                                 />
@@ -1219,6 +1237,19 @@ export const WorkoutLogScreen = ({
       </div>
 
       {showCalculator && <OneRepMaxModal onClose={() => setShowCalculator(false)} />}
+      
+      <AnimatePresence>
+          {dailyFormTarget && (
+              <DailyFormInsightModal 
+                  isOpen={!!dailyFormTarget}
+                  onClose={() => setDailyFormTarget(null)}
+                  exerciseName={dailyFormTarget}
+                  feeling={dailyFeeling}
+                  allLogs={allLogs}
+                  onApplySuggestion={(weight) => handleApplyDailyFormWeight(dailyFormTarget, weight)}
+              />
+          )}
+      </AnimatePresence>
     </div>
   );
 }
