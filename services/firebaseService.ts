@@ -255,7 +255,7 @@ export const saveWorkoutLog = async (logData: any) => {
                         const eventData: StudioEvent = {
                             id: eventRef.id,
                             type: 'pb',
-                            organizationId: organizationId,
+                            organizationId: logData.organizationId, // FIXAD: Använder nu logData.organizationId istället för odefinierad variabel
                             timestamp: Date.now(),
                             data: { userName: newLog.memberName || 'En medlem', exerciseName: exResult.exerciseName.trim(), isNewRecord: true }
                         };
