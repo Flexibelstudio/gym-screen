@@ -236,6 +236,8 @@ export const saveWorkoutLog = async (logData: any) => {
             const currentPBs: Record<string, any> = {};
             currentPBsSnap.forEach(d => currentPBs[d.id] = d.data());
 
+            const newRecords: { exerciseName: string; weight: number; diff: number }[] = [];
+
             for (const exResult of logData.exerciseResults) {
                 let maxW = 0;
                 if (exResult.setDetails) {
@@ -247,27 +249,38 @@ export const saveWorkoutLog = async (logData: any) => {
 
                 if (maxW > 0 && exResult.exerciseName) {
                     const pbId = getPBId(exResult.exerciseName);
-                    if (pbId && (!currentPBs[pbId] || maxW > currentPBs[pbId].weight)) {
+                    const existingPBWeight = currentPBs[pbId]?.weight || 0;
+
+                    if (pbId && maxW > existingPBWeight) {
                         const pbData: PersonalBest = { id: pbId, exerciseName: exResult.exerciseName.trim(), weight: maxW, date: Date.now() };
                         batch.set(doc(db, 'users', logData.memberId, 'personalBests', pbId), pbData);
                         
-                        const eventRef = doc(collection(db, 'studio_events'));
-                        const eventData: StudioEvent = {
-                            id: eventRef.id,
-                            type: 'pb',
-                            organizationId: logData.organizationId,
-                            timestamp: Date.now(),
-                            data: { 
-                                userName: newLog.memberName || 'En medlem', 
-                                userPhotoUrl: newLog.memberPhotoUrl || null, 
-                                exerciseName: exResult.exerciseName.trim(), 
-                                isNewRecord: true 
-                            }
-                        };
-                        batch.set(eventRef, eventData);
+                        newRecords.push({
+                            exerciseName: exResult.exerciseName.trim(),
+                            weight: maxW,
+                            diff: maxW - existingPBWeight
+                        });
                     }
                 }
             }
+
+            // Emit ONE batch event if multiple PBs were hit
+            if (newRecords.length > 0) {
+                const eventRef = doc(collection(db, 'studio_events'));
+                const eventData: StudioEvent = {
+                    id: eventRef.id,
+                    type: 'pb_batch',
+                    organizationId: logData.organizationId,
+                    timestamp: Date.now(),
+                    data: { 
+                        userName: newLog.memberName || 'En medlem', 
+                        userPhotoUrl: newLog.memberPhotoUrl || null, 
+                        records: newRecords
+                    }
+                };
+                batch.set(eventRef, eventData);
+            }
+
             await batch.commit();
         } catch (e) { console.error("PB logic failed", e); }
     }
@@ -360,7 +373,7 @@ export const listenToWeeklyPBs = (orgId: string, onUpdate: (events: StudioEvent[
     now.setHours(0, 0, 0, 0);
     const startOfWeek = now.getTime();
 
-    const q = query(collection(db, 'studio_events'), where('organizationId', '==', orgId), where('type', '==', 'pb'), where('timestamp', '>=', startOfWeek), orderBy('timestamp', 'desc'), limit(50));
+    const q = query(collection(db, 'studio_events'), where('organizationId', '==', orgId), where('type', 'in', ['pb', 'pb_batch']), where('timestamp', '>=', startOfWeek), orderBy('timestamp', 'desc'), limit(50));
     return onSnapshot(q, (snap) => onUpdate(snap.docs.map(d => d.data() as StudioEvent)));
 };
 

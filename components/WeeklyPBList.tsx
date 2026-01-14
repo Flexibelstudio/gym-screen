@@ -73,39 +73,45 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
             >
                 <AnimatePresence initial={false}>
                     {events.length > 0 ? (
-                        events.map((event, index) => (
-                            <motion.div
-                                key={event.id}
-                                initial={{ opacity: 0, x: 20 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: index * 0.05 }}
-                                className="bg-black/30 hover:bg-black/40 transition-colors rounded-2xl flex items-center gap-4 border border-white/5 group px-4"
-                                style={{ height: `${itemHeight - 8}px` }}
-                            >
-                                {/* Avatar med Guld-kant och bildstöd */}
-                                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center text-white font-black text-lg shadow-lg flex-shrink-0 overflow-hidden border border-yellow-400/50">
-                                    {event.data.userPhotoUrl ? (
-                                        <img src={event.data.userPhotoUrl} alt="" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <span>{event.data.userName[0].toUpperCase()}</span>
-                                    )}
-                                </div>
-                                
-                                <div className="min-w-0 flex-grow">
-                                    <div className="flex justify-between items-baseline mb-0.5">
-                                        <p className="text-white font-bold text-sm truncate mr-2">
-                                            {event.data.userName}
-                                        </p>
-                                        <span className="text-[9px] text-white/30 font-bold uppercase whitespace-nowrap">
-                                            {formatEventTime(event.timestamp)}
-                                        </span>
+                        events.map((event, index) => {
+                            const isBatch = event.type === 'pb_batch' || (event.data.records && event.data.records.length > 1);
+                            const recordCount = event.data.records?.length || 1;
+                            const mainRecord = event.data.records?.[0] || { exerciseName: event.data.exerciseName, weight: 0 };
+
+                            return (
+                                <motion.div
+                                    key={event.id}
+                                    initial={{ opacity: 0, x: 20 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: index * 0.05 }}
+                                    className="bg-black/30 hover:bg-black/40 transition-colors rounded-2xl flex items-center gap-4 border border-white/5 group px-4"
+                                    style={{ height: `${itemHeight - 8}px` }}
+                                >
+                                    {/* Avatar */}
+                                    <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-yellow-400 to-orange-600 flex items-center justify-center text-white font-black text-lg shadow-lg flex-shrink-0 overflow-hidden border border-yellow-400/50">
+                                        {event.data.userPhotoUrl ? (
+                                            <img src={event.data.userPhotoUrl} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <span>{event.data.userName[0].toUpperCase()}</span>
+                                        )}
                                     </div>
-                                    <p className="text-yellow-500 text-[10px] font-black uppercase tracking-[0.1em] truncate flex items-center gap-1">
-                                        🔥 PB I {event.data.exerciseName.toUpperCase()}
-                                    </p>
-                                </div>
-                            </motion.div>
-                        ))
+                                    
+                                    <div className="min-w-0 flex-grow">
+                                        <div className="flex justify-between items-baseline mb-0.5">
+                                            <p className="text-white font-bold text-sm truncate mr-2">
+                                                {event.data.userName}
+                                            </p>
+                                            <span className="text-[9px] text-white/30 font-bold uppercase whitespace-nowrap">
+                                                {formatEventTime(event.timestamp)}
+                                            </span>
+                                        </div>
+                                        <p className="text-yellow-500 text-[10px] font-black uppercase tracking-[0.1em] truncate flex items-center gap-1">
+                                            🔥 {isBatch ? `${recordCount} NYA REKORD!` : `PB I ${mainRecord.exerciseName.toUpperCase()}`}
+                                        </p>
+                                    </div>
+                                </motion.div>
+                            );
+                        })
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
                             <DumbbellIcon className="w-8 h-8 text-white mb-2" />

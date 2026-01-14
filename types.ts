@@ -267,7 +267,7 @@ export interface WorkoutDiploma {
   footer?: string;
   imagePrompt: string;
   imageUrl?: string;
-  newPBs?: { name: string; diff: number }[];
+  newPBs?: { name: string; diff: number; current: number }[];
 }
 
 export interface BankExercise {
@@ -433,17 +433,23 @@ export interface CheckInEvent {
     streak: number;
 }
 
-// New type for PB Events
+// Updated type for batched PB Events
 export interface StudioEvent {
     id: string;
-    type: 'pb';
+    type: 'pb' | 'pb_batch';
     organizationId: string;
     timestamp: number;
     data: {
         userName: string;
-        userPhotoUrl?: string | null; // Added photoUrl
-        exerciseName: string;
-        isNewRecord: boolean;
+        userPhotoUrl?: string | null;
+        records: {
+            exerciseName: string;
+            weight: number;
+            diff?: number;
+        }[];
+        // Keep legacy fields for a short transition period if needed
+        exerciseName?: string;
+        isNewRecord?: boolean;
     };
 }
 

@@ -109,47 +109,19 @@ const WEIGHT_COMPARISONS = [
 
 const getFunComparison = (totalWeight: number) => {
     if (totalWeight <= 0) return null;
-    
-    // Find objects where the total weight lifted is at least equal to one of the item
     const suitableComparisons = WEIGHT_COMPARISONS.filter(item => totalWeight >= item.weight);
-    
     if (suitableComparisons.length === 0) {
-        // Fallback for very light weights
         const item = WEIGHT_COMPARISONS[0];
-        return {
-            count: (totalWeight / item.weight).toFixed(1),
-            name: item.name,
-            single: item.singular,
-            weight: item.weight,
-            emoji: item.emoji
-        };
+        return { count: (totalWeight / item.weight).toFixed(1), name: item.name, single: item.singular, weight: item.weight, emoji: item.emoji };
     }
-
-    // Prefer comparisons that result in a number between 1 and 20 for readability
     const niceMatches = suitableComparisons.filter(item => {
         const count = totalWeight / item.weight;
         return count >= 1 && count <= 50;
     });
-
-    let bestMatch;
-    if (niceMatches.length > 0) {
-        bestMatch = niceMatches[Math.floor(Math.random() * niceMatches.length)];
-    } else {
-        // If nothing fits perfectly in the range, take the heaviest possible item
-        bestMatch = suitableComparisons[suitableComparisons.length - 1];
-    }
-
+    let bestMatch = niceMatches.length > 0 ? niceMatches[Math.floor(Math.random() * niceMatches.length)] : suitableComparisons[suitableComparisons.length - 1];
     const rawCount = totalWeight / bestMatch.weight;
-    // Format: Use 1 decimal if less than 10, otherwise integer
     const formattedCount = rawCount < 10 ? rawCount.toFixed(1) : Math.round(rawCount).toString();
-
-    return {
-        count: formattedCount,
-        name: bestMatch.name,
-        single: bestMatch.singular,
-        weight: bestMatch.weight,
-        emoji: bestMatch.emoji
-    };
+    return { count: formattedCount, name: bestMatch.name, single: bestMatch.singular, weight: bestMatch.weight, emoji: bestMatch.emoji };
 };
 
 const COMMON_ACTIVITIES = ["Funktionell Träning", "HIIT", "Löpning", "Promenad", "Workout", "Yoga", "Cykling", "Simning", "Racketsport", "Vardagsmotion"];
@@ -432,7 +404,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [customActivity, setCustomActivity] = useState({ name: '', duration: '', distance: '', calories: '' });
   const [sessionStats, setSessionStats] = useState({ distance: '', calories: '' });
   
-  // UPDATED: Record stores both weight and reps
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
 
@@ -603,7 +574,42 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
           const logDateMs = new Date(logDate).getTime();
           
           let totalVolume = 0;
-          const newPBs: { name: string; diff: number }[] = [];
+          const newPBs: { name: string; diff: number; current: number }[] = [];
+
+          const exerciseResultsToSave = isQuickOrManual ? [] : exerciseResults.map(r => {
+              const validWeights = r.setDetails.map(s => parseFloat(s.weight)).filter(n => !isNaN(n));
+              const maxWeight = validWeights.length > 0 ? Math.max(...validWeights) : null;
+              
+              const previousPB = history[r.exerciseName]?.weight; 
+              if (maxWeight && previousPB && maxWeight > previousPB) {
+                  newPBs.push({ name: r.exerciseName, diff: maxWeight - previousPB, current: maxWeight });
+              }
+
+              r.setDetails.forEach(s => {
+                  const weight = parseFloat(s.weight);
+                  const reps = parseFloat(s.reps);
+                  if (!isNaN(weight) && !isNaN(reps)) {
+                      totalVolume += weight * reps;
+                  }
+              });
+
+              const repsValues = r.setDetails.map(s => s.reps).filter(Boolean);
+              const uniqueReps = [...new Set(repsValues)];
+              const repsSummary = uniqueReps.length === 1 ? uniqueReps[0] : (uniqueReps.length > 0 ? 'Mixed' : null);
+
+              return {
+                  exerciseId: r.exerciseId,
+                  exerciseName: r.exerciseName,
+                  setDetails: r.setDetails.map(s => ({
+                      weight: parseFloat(s.weight) || null,
+                      reps: s.reps || null
+                  })),
+                  weight: maxWeight, 
+                  reps: repsSummary, 
+                  sets: r.setDetails.length,
+                  blockId: r.blockId
+              };
+          });
 
           const finalLogRaw: any = {
               memberId: userId,
@@ -616,40 +622,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               feeling: logData.feeling,
               tags: logData.tags || [],
               comment: logData.comment || '',
-              exerciseResults: isQuickOrManual ? [] : exerciseResults.map(r => {
-                  const validWeights = r.setDetails.map(s => parseFloat(s.weight)).filter(n => !isNaN(n));
-                  const maxWeight = validWeights.length > 0 ? Math.max(...validWeights) : null;
-                  
-                  const previousPB = history[r.exerciseName]?.weight; 
-                  if (maxWeight && previousPB && maxWeight > previousPB) {
-                      newPBs.push({ name: r.exerciseName, diff: maxWeight - previousPB });
-                  }
-
-                  r.setDetails.forEach(s => {
-                      const weight = parseFloat(s.weight);
-                      const reps = parseFloat(s.reps);
-                      if (!isNaN(weight) && !isNaN(reps)) {
-                          totalVolume += weight * reps;
-                      }
-                  });
-
-                  const repsValues = r.setDetails.map(s => s.reps).filter(Boolean);
-                  const uniqueReps = [...new Set(repsValues)];
-                  const repsSummary = uniqueReps.length === 1 ? uniqueReps[0] : (uniqueReps.length > 0 ? 'Mixed' : null);
-
-                  return {
-                      exerciseId: r.exerciseId,
-                      exerciseName: r.exerciseName,
-                      setDetails: r.setDetails.map(s => ({
-                          weight: parseFloat(s.weight) || null,
-                          reps: s.reps || null
-                      })),
-                      weight: maxWeight, 
-                      reps: repsSummary, 
-                      sets: r.setDetails.length,
-                      blockId: r.blockId
-                  };
-              })
+              exerciseResults: exerciseResultsToSave
           };
 
           if (isQuickOrManual) {
@@ -660,7 +633,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               
               const finalLog = cleanForFirestore(finalLogRaw);
               await saveWorkoutLog(finalLog);
-              
               setShowCelebration(true);
           } else {
               finalLogRaw.totalDistance = parseFloat(sessionStats.distance) || 0;
@@ -670,7 +642,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
               if (totalVolume > 0) {
                   const comparison = getFunComparison(totalVolume);
-                  
                   if (comparison) {
                       diplomaData = {
                           title: newPBs.length > 0 ? "NYTT REKORD!" : "ENORM INSATS!",
@@ -704,7 +675,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                    diplomaData = {
                        title: newPBs.length > 0 ? "NYTT REKORD!" : "BRA JOBBAT!",
                        subtitle: "Passet är genomfört.",
-                       achievement: "Kontinuitet är nyckeln.",
+                       achievement: "Kontinuitet är nykeln.",
                        footer: "Ses snart igen!",
                        imagePrompt: "🔥",
                        newPBs: newPBs.length > 0 ? newPBs : undefined
@@ -713,6 +684,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
               finalLogRaw.diploma = diplomaData;
               const finalLog = cleanForFirestore(finalLogRaw);
+              
+              // This function also handles the Firestorepb_batch event creation
               await saveWorkoutLog(finalLog);
               
               if (diplomaData.imagePrompt) {
@@ -750,7 +723,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       return (
           <PreGameView 
             workoutTitle={workout.title}
-            insights={aiInsights}
+            insights={insights || aiInsights}
             onStart={handleStartWorkout}
             onCancel={() => handleCancel(false)}
             onFeelingChange={setDailyFeeling}
@@ -889,7 +862,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                     value={sessionStats.calories}
                                     onChange={(e) => setSessionStats(prev => ({ ...prev, calories: e.target.value }))}
                                     placeholder="T.ex. 350"
-                                    className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700"
+                                    className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700"
                                 />
                             </div>
                             <div>
@@ -899,7 +872,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                     value={sessionStats.distance}
                                     onChange={(e) => setSessionStats(prev => ({ ...prev, distance: e.target.value }))}
                                     placeholder="T.ex. 5.3"
-                                    className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700"
+                                    className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700"
                                 />
                             </div>
                         </div>
