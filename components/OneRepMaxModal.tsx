@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Modal } from './ui/Modal';
 
@@ -35,22 +34,22 @@ export const OneRepMaxModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
                 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Vikt (kg)</label>
+                        <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Reps</label>
                         <input 
                             type="number" 
-                            value={weight}
-                            onChange={(e) => setWeight(e.target.value)}
+                            value={reps}
+                            onChange={(e) => setReps(e.target.value)}
                             placeholder="0"
                             className="w-full bg-gray-100 dark:bg-gray-700 p-3 rounded-xl text-center font-black text-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
                             autoFocus
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Reps</label>
+                        <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Vikt (kg)</label>
                         <input 
                             type="number" 
-                            value={reps}
-                            onChange={(e) => setReps(e.target.value)}
+                            value={weight}
+                            onChange={(e) => setWeight(e.target.value)}
                             placeholder="0"
                             className="w-full bg-gray-100 dark:bg-gray-700 p-3 rounded-xl text-center font-black text-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
                         />
@@ -78,7 +77,7 @@ export const OneRepMaxModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
                     </div>
                 )}
                 
-                <button onClick={onClose} className="w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold py-3 rounded-xl transition-colors">
+                <button onClick={onClose} className="w-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-800 dark:text-white font-bold py-3 rounded-xl transition-colors">
                     Stäng
                 </button>
             </div>
