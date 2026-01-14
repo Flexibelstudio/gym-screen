@@ -425,6 +425,16 @@ const MainContent: React.FC = () => {
     else navigateTo(Page.WorkoutBuilder);
   };
 
+  const handleAdjustWorkout = (workoutToAdjust: Workout) => {
+    const newDraft = deepCopyAndPrepareAsNew(workoutToAdjust);
+    newDraft.title = `Justering: ${workoutToAdjust.title}`;
+    newDraft.isMemberDraft = true;
+    newDraft.isPublished = false;
+    setActiveWorkout(newDraft);
+    setIsEditingNewDraft(true);
+    navigateTo(Page.SimpleWorkoutBuilder);
+  };
+
   const handleSaveAndNavigate = async (workout: Workout, startFirstBlock?: boolean) => {
     const savedWorkout = await saveWorkout(workout);
     if (startFirstBlock && savedWorkout.blocks.length > 0) {
@@ -971,11 +981,12 @@ const MainContent: React.FC = () => {
                     setBackButtonHidden: setIsBackButtonHidden,
                     setRacePrepState: setRacePrepState,
                     setCompletionInfo: setCompletionInfo,
-                    setRegisteringHyroxTime: setIsRegisteringHyroxTime,
+                    setRegisteringHyroxTime: setRegisteringHyroxTime,
                     setFollowMeShowImage: setFollowMeShowImage,
                     
                     handleGeneratedWorkout: handleGeneratedWorkout,
                     handleWorkoutInterpreted: handleWorkoutInterpretedFromNote,
+                    handleAdjustWorkout: handleAdjustWorkout,
                     setAiGeneratorInitialTab: setAiGeneratorInitialTab,
                     setCustomBackHandler: setCustomBackHandler,
                     
@@ -1074,6 +1085,7 @@ const MainContent: React.FC = () => {
                                     onStartBlock={(block) => handleStartBlock(block, mobileViewData)} 
                                     onUpdateBlockSettings={() => {}}
                                     onEditWorkout={() => {}} 
+                                    onAdjustWorkout={handleAdjustWorkout}
                                     isCoachView={false} 
                                     onTogglePublish={() => {}}
                                     onToggleFavorite={handleToggleFavoriteStatus}

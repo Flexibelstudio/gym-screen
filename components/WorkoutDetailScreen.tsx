@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, Passkategori, StudioConfig, WorkoutResult, Organization, BankExercise } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
@@ -162,8 +161,9 @@ const MemberBlockView: React.FC<{ block: WorkoutBlock }> = ({ block }) => (
 const MemberWorkoutView: React.FC<{ 
     workout: Workout, 
     onClose?: () => void, 
-    onLog?: () => void 
-}> = ({ workout, onClose, onLog }) => {
+    onLog?: () => void,
+    onAdjust?: () => void
+}> = ({ workout, onClose, onLog, onAdjust }) => {
     return (
         <div className="pb-32 animate-fade-in">
             {/* Header Info */}
@@ -203,22 +203,31 @@ const MemberWorkoutView: React.FC<{
             </div>
 
             {/* Floating Action Buttons */}
-            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-lg px-6 z-50 flex gap-4">
+            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 w-full max-w-lg px-6 z-50 flex gap-3">
                 {onClose && (
                     <button 
                     onClick={onClose}
-                    className="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-black py-4 rounded-[2rem] shadow-2xl transition-all transform active:scale-95 text-lg uppercase tracking-tight border border-gray-200 dark:border-gray-700"
+                    className="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-black py-4 rounded-[2rem] shadow-2xl transition-all transform active:scale-95 text-xs uppercase tracking-widest border border-gray-200 dark:border-gray-700"
                     >
                         Stäng
+                    </button>
+                )}
+                {onAdjust && (
+                    <button 
+                    onClick={onAdjust}
+                    className="flex-[1.5] bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 font-black py-4 rounded-[2rem] shadow-xl transition-all transform active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-widest border border-indigo-200 dark:border-indigo-800"
+                    >
+                        <PencilIcon className="w-4 h-4" />
+                        <span>Anpassa</span>
                     </button>
                 )}
                 {onLog && (
                     <button 
                     onClick={onLog}
-                    className="flex-[2] bg-primary hover:brightness-110 text-white font-black py-4 rounded-[2rem] shadow-xl shadow-primary/40 transition-all transform active:scale-95 flex items-center justify-center gap-2 text-lg uppercase tracking-tight"
+                    className="flex-[2] bg-primary hover:brightness-110 text-white font-black py-4 rounded-[2rem] shadow-xl shadow-primary/40 transition-all transform active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-widest"
                     >
-                        <PencilIcon className="w-5 h-5" />
-                        <span>Logga pass</span>
+                        <ChartBarIcon className="w-4 h-4" />
+                        <span>Logga</span>
                     </button>
                 )}
             </div>
@@ -403,6 +412,7 @@ interface WorkoutDetailScreenProps {
   onStartBlock: (block: WorkoutBlock) => void;
   onUpdateBlockSettings: (blockId: string, newSettings: Partial<WorkoutBlock['settings']>) => void;
   onEditWorkout: (workout: Workout, blockId?: string) => void;
+  onAdjustWorkout?: (workout: Workout) => void;
   isCoachView: boolean;
   onTogglePublish: (workoutId: string, isPublished: boolean) => void;
   onToggleFavorite: (workoutId: string) => void;
@@ -421,7 +431,7 @@ interface WorkoutDetailScreenProps {
 }
 
 const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({ 
-    workout, onStartBlock, onUpdateBlockSettings, onEditWorkout, 
+    workout, onStartBlock, onUpdateBlockSettings, onEditWorkout, onAdjustWorkout,
     isCoachView, onTogglePublish, onToggleFavorite, onDuplicate, 
     onShowImage, isPresentationMode, studioConfig, onDelete,
     followMeShowImage, setFollowMeShowImage, onUpdateWorkout, onVisualize,
@@ -441,7 +451,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
   
   const personalBestName = useMemo(() => localStorage.getItem('hyrox-participant-name'), []);
-  const isHyroxRace = useMemo(() => workout.id.startsWith('hyrox-full-race'), [workout.id]);
+  const isHyroxRace = useMemo(() => workout.id.startsWith('hyrox-full-race') || workout.id.startsWith('custom-race'), [workout.id]);
 
   useEffect(() => {
     setSessionWorkout(JSON.parse(JSON.stringify(workout)));
@@ -507,6 +517,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                   workout={sessionWorkout} 
                   onClose={onClose} 
                   onLog={onLogWorkout ? () => onLogWorkout(workout.id, selectedOrganization.id) : undefined}
+                  onAdjust={onAdjustWorkout ? () => onAdjustWorkout(workout) : undefined}
               />
           </div>
       );
@@ -531,17 +542,30 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
       )}
 
       {/* --- HEADER SECTION --- */}
-      <div className="mb-10 text-center sm:text-left">
-          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black text-gray-900 dark:text-white leading-tight mb-2 tracking-tight">
-              {sessionWorkout.title}
-          </h1>
-          <div className="flex items-center justify-center sm:justify-start gap-3">
-              {sessionWorkout.category && (
-                  <span className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-gray-200 dark:border-gray-700">
-                      {sessionWorkout.category}
-                  </span>
-              )}
+      <div className="mb-10 text-center sm:text-left flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div>
+            <h1 className="text-4xl sm:text-5xl lg:text-7xl font-black text-gray-900 dark:text-white leading-tight mb-2 tracking-tight">
+                {sessionWorkout.title}
+            </h1>
+            <div className="flex items-center justify-center sm:justify-start gap-3">
+                {sessionWorkout.category && (
+                    <span className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-gray-200 dark:border-gray-700">
+                        {sessionWorkout.category}
+                    </span>
+                )}
+            </div>
           </div>
+
+          {/* Button for Studio Mode (Members/Coaches in-gym) */}
+          {isStudioMode && onAdjustWorkout && (
+            <button 
+                onClick={() => onAdjustWorkout(workout)}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 px-8 rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all transform active:scale-95"
+            >
+                <PencilIcon className="w-6 h-6" />
+                <span className="text-xl uppercase tracking-tight">Anpassa & Starta</span>
+            </button>
+          )}
       </div>
 
       {/* --- TIPS FRÅN COACHEN --- */}
@@ -609,6 +633,11 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                             <button onClick={() => onEditWorkout(workout)} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 hover:bg-primary/10 hover:text-primary transition-all font-bold">
                                 <PencilIcon className="w-5 h-5" /> Redigera Pass
                             </button>
+                            {onAdjustWorkout && (
+                                <button onClick={() => onAdjustWorkout(workout)} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-all font-bold">
+                                    <PencilIcon className="w-5 h-5" /> Anpassa & Kör
+                                </button>
+                            )}
                             <button onClick={() => onDuplicate(workout)} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 hover:bg-primary/10 hover:text-primary transition-all font-bold">
                                 <StarIcon className="w-5 h-5" /> Kopiera Pass
                             </button>

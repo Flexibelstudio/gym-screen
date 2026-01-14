@@ -101,6 +101,7 @@ interface AppRouterProps {
         
         handleGeneratedWorkout: (workout: Workout) => void;
         handleWorkoutInterpreted: (workout: Workout) => void;
+        handleAdjustWorkout: (workout: Workout) => void;
         setAiGeneratorInitialTab: (tab: any) => void;
         setCustomBackHandler: (handler: any) => void;
         
@@ -169,6 +170,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onStartBlock={(block) => onStartBlock(block, activeWorkout)} 
                 onUpdateBlockSettings={(blockId, settings) => { /* Implement update logic if needed locally or pass up */ }}
                 onEditWorkout={onEditWorkout} 
+                onAdjustWorkout={functions.handleAdjustWorkout}
                 isCoachView={isStudioMode || role === 'coach' || role === 'organizationadmin' || role === 'systemowner'}
                 onTogglePublish={onTogglePublish}
                 onToggleFavorite={onToggleFavorite}
