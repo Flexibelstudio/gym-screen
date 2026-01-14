@@ -50,6 +50,7 @@ export const PBOverlay: React.FC = () => {
     const { selectedOrganization } = useStudio();
     const [currentEvent, setCurrentEvent] = useState<StudioEvent | null>(null);
     const [queue, setQueue] = useState<StudioEvent[]>([]);
+    const DISPLAY_DURATION = 5000; // 5 sekunder
 
     useEffect(() => {
         if (!selectedOrganization) return;
@@ -65,22 +66,23 @@ export const PBOverlay: React.FC = () => {
     }, [selectedOrganization]);
 
     useEffect(() => {
-        // Process queue
+        // Process queue: Om vi inte visar något just nu men det finns saker i kön
         if (!currentEvent && queue.length > 0) {
             const nextEvent = queue[0];
             
-            // Only process events that are reasonably new (handled in service, but double check doesn't hurt)
-            // and avoid duplicates if logic runs twice
+            // Sätt det aktiva eventet
             setCurrentEvent(nextEvent);
+            
+            // Ta bort det vi just plockade från kön
             setQueue(prev => prev.slice(1));
             
-            // Play Sound
+            // Spela ljudet
             playBellSound();
 
-            // Auto-dismiss after 6 seconds
+            // Auto-stäng efter angiven tid
             const timer = setTimeout(() => {
                 setCurrentEvent(null);
-            }, 6000);
+            }, DISPLAY_DURATION);
 
             return () => clearTimeout(timer);
         }
@@ -88,23 +90,23 @@ export const PBOverlay: React.FC = () => {
 
     return (
         <div className="fixed inset-0 pointer-events-none z-[9999] flex flex-col items-center justify-center">
-            <AnimatePresence>
+            <AnimatePresence mode="wait">
                 {currentEvent && (
                     <motion.div
                         key={currentEvent.id}
                         initial={{ scale: 0.5, opacity: 0, y: 50 }}
                         animate={{ scale: 1, opacity: 1, y: 0 }}
-                        exit={{ scale: 1.2, opacity: 0, y: -50 }}
-                        transition={{ type: "spring", stiffness: 200, damping: 15 }}
-                        className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 p-1 rounded-[2.5rem] shadow-2xl overflow-hidden"
+                        exit={{ scale: 1.1, opacity: 0, y: -20 }}
+                        transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                        className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 p-1 rounded-[2.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)] overflow-hidden"
                     >
                         <div className="bg-black/90 backdrop-blur-md rounded-[2.3rem] px-12 py-10 text-center flex flex-col items-center border border-white/10 relative overflow-hidden">
-                            {/* Confetti / Glow effects */}
-                            <div className="absolute inset-0 bg-yellow-500/20 animate-pulse rounded-[2.3rem]"></div>
+                            {/* Bakgrunds-glow */}
+                            <div className="absolute inset-0 bg-yellow-500/10 animate-pulse rounded-[2.3rem]"></div>
                             
                             <motion.div 
-                                animate={{ rotate: [0, -10, 10, -10, 10, 0] }}
-                                transition={{ duration: 0.5, delay: 0.2 }}
+                                animate={{ rotate: [0, -15, 15, -15, 15, 0] }}
+                                transition={{ duration: 0.6, delay: 0.2 }}
                                 className="text-7xl mb-6 relative z-10"
                             >
                                 🔔
@@ -123,6 +125,16 @@ export const PBOverlay: React.FC = () => {
                             <p className="text-3xl md:text-4xl font-black text-white mt-2 uppercase tracking-wide relative z-10">
                                 {currentEvent.data.exerciseName}
                             </p>
+
+                            {/* Visuell Progress Bar (Timer) */}
+                            <div className="absolute bottom-0 left-0 right-0 h-2 bg-white/10 overflow-hidden">
+                                <motion.div 
+                                    initial={{ width: "100%" }}
+                                    animate={{ width: "0%" }}
+                                    transition={{ duration: DISPLAY_DURATION / 1000, ease: "linear" }}
+                                    className="h-full bg-gradient-to-r from-yellow-400 to-orange-500 shadow-[0_0_10px_rgba(251,191,36,0.8)]"
+                                />
+                            </div>
                         </div>
                     </motion.div>
                 )}
