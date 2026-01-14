@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
 import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, Passkategori, StudioConfig, WorkoutResult, Organization, BankExercise } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
-import { StarIcon, PencilIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, PencilIcon as DrawIcon, CloseIcon, ClockIcon, UsersIcon, ChartBarIcon, TrophyIcon } from './icons';
+import { StarIcon, PencilIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, PencilIcon as DrawIcon, CloseIcon, ClockIcon, UsersIcon } from './icons';
 import { getWorkoutResults } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -39,36 +39,28 @@ const formatReps = (reps: string | undefined): string => {
     return trimmed;
 };
 
-// --- BLOCK PRESENTATION MODAL ---
+// --- NEW COMPONENT: BLOCK PRESENTATION MODAL ---
+// NOTE: Scroll fix implemented by making the entire modal scrollable and using key-reset in parent
 const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => void }> = ({ block, onClose }) => {
     const containerRef = useRef<HTMLDivElement>(null);
 
-    // 1. Förhindra att bakgrunden scrollar
-    useEffect(() => {
-        const originalOverflow = document.body.style.overflow;
-        document.body.style.overflow = 'hidden';
-        return () => {
-            document.body.style.overflow = originalOverflow;
-        };
-    }, []);
-
-    // 2. Hård nollställning av scrollen innan vi ritar ut modalen
+    // Force scroll to top instantly on mount
     useLayoutEffect(() => {
         if (containerRef.current) {
             containerRef.current.scrollTop = 0;
         }
-    }, [block.id]);
+    }, []);
 
     return (
         <motion.div 
             ref={containerRef}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed inset-0 z-[10000] bg-white dark:bg-gray-950 overflow-y-auto overscroll-contain"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[10000] bg-white dark:bg-gray-950 flex flex-col overflow-y-auto overflow-x-hidden"
         >
-            {/* Header - Sticky på toppen */}
-            <div className="sticky top-0 z-30 flex justify-between items-start p-8 md:p-12 border-b border-gray-100 dark:border-gray-800 bg-white/95 dark:bg-gray-950/95 backdrop-blur-md">
+            {/* Sticky Header */}
+            <div className="sticky top-0 z-20 flex justify-between items-start p-8 md:p-12 border-b border-gray-100 dark:border-gray-800 bg-gray-50/95 dark:bg-gray-900/95 backdrop-blur-md">
                 <div className="max-w-4xl">
                     <div className="flex items-center gap-4 mb-4">
                          <span className={`inline-flex items-center px-4 py-2 rounded-xl text-lg font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
@@ -86,17 +78,17 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
                 </div>
                 <button 
                     onClick={onClose}
-                    className="p-4 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shadow-lg active:scale-95"
+                    className="p-4 bg-gray-200 dark:bg-gray-800 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors shadow-lg active:scale-95 flex-shrink-0"
                 >
                     <CloseIcon className="w-10 h-10 text-gray-900 dark:text-white" />
                 </button>
             </div>
 
-            {/* Content - Övningslistan */}
-            <div className="p-8 md:p-12 pb-32">
+            {/* Content - Giant List */}
+            <div className="flex-grow p-8 md:p-12">
                 <div className="max-w-7xl mx-auto space-y-6">
                     {block.exercises.map((ex, index) => (
-                        <div key={ex.id} className="flex items-start gap-8 p-8 rounded-[2rem] bg-gray-50 dark:bg-gray-900/50 border-2 border-gray-100 dark:border-gray-800">
+                        <div key={ex.id} className="flex items-start gap-8 p-8 rounded-[2rem] bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800">
                              <div className="flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-2xl md:text-3xl font-black text-gray-500">
                                 {index + 1}
                             </div>
@@ -125,12 +117,9 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
                 </div>
             </div>
             
-            {/* Footer - Fast i botten för enkel avslutning */}
-            <div className="sticky bottom-0 z-30 p-8 bg-gradient-to-t from-white dark:from-gray-950 via-white/80 dark:via-gray-950/80 to-transparent flex justify-center">
-                 <button 
-                    onClick={onClose} 
-                    className="bg-black dark:bg-white text-white dark:text-black font-black text-2xl py-5 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform uppercase tracking-widest border-4 border-white/20"
-                >
+            {/* Sticky Footer */}
+            <div className="sticky bottom-0 z-20 p-6 bg-gray-5/95 dark:bg-gray-900/95 backdrop-blur-md border-t border-gray-100 dark:border-gray-800 flex justify-center">
+                 <button onClick={onClose} className="bg-black dark:bg-white text-white dark:text-black font-black text-xl py-4 px-12 rounded-full shadow-xl hover:scale-105 transition-transform uppercase tracking-widest">
                      Stäng visningsläge
                  </button>
             </div>
@@ -207,7 +196,7 @@ const MemberWorkoutView: React.FC<{
 
             {/* Coach Tips */}
             {workout.coachTips && (
-                <div className="bg-yellow-50 dark:bg-yellow-900/10 p-6 rounded-2xl border border-yellow-100 dark:border-yellow-900/30 mb-10">
+                <div className="bg-yellow-5 dark:bg-yellow-900/10 p-6 rounded-2xl border border-yellow-100 dark:border-yellow-900/30 mb-10">
                     <h3 className="font-bold text-yellow-800 dark:text-yellow-200 uppercase tracking-widest text-xs mb-2 flex items-center gap-2">
                         <span>💡</span> Coach Tips
                     </h3>
@@ -682,6 +671,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
         />
       )}
       
+      {/* Scroll-Fix: Key reset on modal to force fresh mount */}
       <AnimatePresence>
           {visualizingBlock && (
               <BlockPresentationModal 
