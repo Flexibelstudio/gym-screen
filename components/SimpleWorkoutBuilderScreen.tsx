@@ -1,31 +1,22 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'export React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise } from '../types';
-import { ToggleSwitch, PencilIcon, ChartBarIcon, SparklesIcon, ChevronUpIcon, ChevronDownIcon } from './icons';
+import { ToggleSwitch, PencilIcon, ChartBarIcon, SparklesIcon, ChevronUpIcon, ChevronDownIcon, TrashIcon } from './icons';
 import { TimerSetupModal } from './TimerSetupModal';
-import { getExerciseBank, uploadImage } from '../services/firebaseService';
+import { getExerciseBank } from '../services/firebaseService';
 import { interpretHandwriting, generateExerciseDescription } from '../services/geminiService';
 import { useStudio } from '../context/StudioContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
-import { resizeImage } from '../utils/imageUtils';
 import { EditableField } from './workout-builder/EditableField';
 
+// --- Helpers ---
 const parseExerciseLine = (line: string): { reps: string; name: string } => {
     const trimmedLine = line.trim();
-    // Matches a number at the start of the string, followed by some text.
     const match = trimmedLine.match(/^(\d+)\s+(.*)/);
-
     if (match && match[2] && match[2].trim() !== '') {
-        return {
-            reps: match[1],      // The number part, e.g., "10"
-            name: match[2].trim() // The rest of the string, e.g., "Situps"
-        };
+        return { reps: match[1], name: match[2].trim() };
     }
-    
-    // If no number is found at the start, or no text follows the number,
-    // treat the whole line as the name.
     return { reps: '', name: trimmedLine };
 };
-
 
 // --- Handwriting Modal ---
 interface HandwritingInputModalProps {
@@ -37,19 +28,14 @@ const HandwritingInputModal: React.FC<HandwritingInputModalProps> = ({ onClose, 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [history, setHistory] = useState<ImageData[]>([]);
-    
-    // Use a ref to pass the latest history to the resize observer callback without re-triggering the effect.
     const historyRef = useRef(history);
     historyRef.current = history;
-    
-    // Refs to manage drawing state without causing re-renders
     const isDrawing = useRef(false);
     const points = useRef<{x: number, y: number}[]>([]);
 
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
-
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
         
@@ -57,59 +43,27 @@ const HandwritingInputModal: React.FC<HandwritingInputModalProps> = ({ onClose, 
             const dpr = window.devicePixelRatio || 1;
             const rect = canvas.getBoundingClientRect(); 
             if(rect.width === 0 || rect.height === 0) return;
-
-            // Set the actual pixel size of the canvas to match its display size
             canvas.width = Math.round(rect.width * dpr);
             canvas.height = Math.round(rect.height * dpr);
-            
-            // Re-apply drawing styles as they are reset when canvas size changes
             ctx.strokeStyle = '#FFFFFF';
             ctx.lineWidth = 3 * dpr;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
         };
 
-        const resizeObserver = new ResizeObserver(() => {
-            // Defer resize handling to the next animation frame to avoid resize loop errors.
-            window.requestAnimationFrame(() => {
-                const canvas = canvasRef.current;
-                if (!canvas) return;
-                const ctx = canvas.getContext('2d');
-                if (!ctx) return;
-
-                setupCanvas();
-                // Restore the last state from history after resize, using the ref for the latest value.
-                const currentHistory = historyRef.current;
-                if (currentHistory.length > 0) {
-                     const lastImageData = currentHistory[currentHistory.length - 1];
-                     const tempCanvas = document.createElement('canvas');
-                     const tempCtx = tempCanvas.getContext('2d');
-                     if (tempCtx) {
-                        tempCanvas.width = lastImageData.width;
-                        tempCanvas.height = lastImageData.height;
-                        tempCtx.putImageData(lastImageData, 0, 0);
-                        ctx.drawImage(tempCanvas, 0, 0, canvas.width, canvas.height);
-                     }
-                }
-            });
-        });
-        resizeObserver.observe(canvas);
+        setupCanvas();
 
         const getPointerPos = (e: PointerEvent) => {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
-            return { 
-                x: (e.clientX - rect.left) * scaleX, 
-                y: (e.clientY - rect.top) * scaleY 
-            };
+            return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
         };
 
         const startDrawing = (e: PointerEvent) => {
             e.preventDefault();
             isDrawing.current = true;
-            const pos = getPointerPos(e);
-            points.current = [pos];
+            points.current = [getPointerPos(e)];
         };
 
         const draw = (e: PointerEvent) => {
@@ -117,53 +71,19 @@ const HandwritingInputModal: React.FC<HandwritingInputModalProps> = ({ onClose, 
             e.preventDefault();
             const pos = getPointerPos(e);
             points.current.push(pos);
-
             if (points.current.length < 3) return;
-
-            // Draw a quadratic curve segment between midpoints
             const p1 = points.current[points.current.length - 3];
             const p2 = points.current[points.current.length - 2];
             const p3 = points.current[points.current.length - 1];
-
             const mid1 = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-            const mid2 = { x: (p2.x + p3.x) / 2, y: (p2.y + p3.y) / 2 };
-            
-            ctx.beginPath();
-            ctx.moveTo(mid1.x, mid1.y);
-            ctx.quadraticCurveTo(p2.x, p2.y, mid2.x, mid2.y);
-            ctx.stroke();
+            const mid2 = { x: (p2.y + p3.x) / 2, y: (p2.y + p3.y) / 2 };
+            ctx.beginPath(); ctx.moveTo(mid1.x, mid1.y); ctx.quadraticCurveTo(p2.x, p2.y, mid2.x, mid2.y); ctx.stroke();
         };
 
         const stopDrawing = () => {
             if (!isDrawing.current) return;
             isDrawing.current = false;
-            
-            const canvas = canvasRef.current;
-            if (!canvas) return;
-            const ctx = canvas.getContext('2d');
-            if (!ctx || points.current.length < 1) {
-                points.current = [];
-                return;
-            }
-
-            // Handle dots and short lines that didn't trigger curve drawing
-            if (points.current.length === 1) {
-                const p1 = points.current[0];
-                ctx.fillStyle = ctx.strokeStyle;
-                ctx.beginPath();
-                ctx.arc(p1.x, p1.y, ctx.lineWidth / 2, 0, Math.PI * 2);
-                ctx.fill();
-            } else if (points.current.length === 2) {
-                const p1 = points.current[0];
-                const p2 = points.current[1];
-                ctx.beginPath();
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.stroke();
-            }
-            
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            setHistory(prev => [...prev, imageData]);
+            setHistory(prev => [...prev, ctx.getImageData(0, 0, canvas.width, canvas.height)]);
             points.current = [];
         };
 
@@ -171,23 +91,27 @@ const HandwritingInputModal: React.FC<HandwritingInputModalProps> = ({ onClose, 
         canvas.addEventListener('pointermove', draw);
         canvas.addEventListener('pointerup', stopDrawing);
         canvas.addEventListener('pointerleave', stopDrawing);
-
         return () => {
-            resizeObserver.unobserve(canvas);
             canvas.removeEventListener('pointerdown', startDrawing);
             canvas.removeEventListener('pointermove', draw);
             canvas.removeEventListener('pointerup', stopDrawing);
             canvas.removeEventListener('pointerleave', stopDrawing);
         };
-    }, []); // Empty dependency array is correct as we use a ref to access latest history.
+    }, []);
 
-    const clearCanvas = () => {
-        const canvas = canvasRef.current;
-        if (canvas) {
-            const ctx = canvas.getContext('2d');
-            ctx?.clearRect(0, 0, canvas.width, canvas.height);
+    const handleInterpret = async () => {
+        if (!canvasRef.current) return;
+        setIsLoading(true);
+        try {
+            const dataUrl = canvasRef.current.toDataURL('image/png');
+            const base64Image = dataUrl.split(',')[1];
+            const text = await interpretHandwriting(base64Image);
+            onComplete(text);
+        } catch(e) {
+            alert(e instanceof Error ? e.message : 'Ett okänt fel inträffade.');
+        } finally {
+            setIsLoading(false);
         }
-        setHistory([]);
     };
     
     const handleUndo = () => {
@@ -204,20 +128,14 @@ const HandwritingInputModal: React.FC<HandwritingInputModalProps> = ({ onClose, 
             ctx.putImageData(newHistory[newHistory.length - 1], 0, 0);
         }
     };
-
-    const handleInterpret = async () => {
-        if (!canvasRef.current) return;
-        setIsLoading(true);
-        try {
-            const dataUrl = canvasRef.current.toDataURL('image/png');
-            const base64Image = dataUrl.split(',')[1];
-            const text = await interpretHandwriting(base64Image);
-            onComplete(text);
-        } catch(e) {
-            alert(e instanceof Error ? e.message : 'Ett okänt fel inträffade.');
-        } finally {
-            setIsLoading(false);
+    
+    const clearCanvas = () => {
+        const canvas = canvasRef.current;
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx?.clearRect(0, 0, canvas.width, canvas.height);
         }
+        setHistory([]);
     };
     
     return (
@@ -512,19 +430,19 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                 
                 <div className="relative">
                     <textarea
-                      value={exercise.description || ''}
-                      onChange={e => onUpdate(exercise.id, { description: e.target.value })}
-                      placeholder="Beskrivning (klicka på ✨ för AI-förslag)"
-                      className={`${baseClasses} text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-300 p-2 rounded-md border border-gray-300 dark:border-gray-600 focus:ring-1 focus:ring-primary h-16 pr-10`}
-                      rows={2}
+                        value={exercise.description || ''}
+                        onChange={e => onUpdate(exercise.id, { description: e.target.value })}
+                        placeholder="Beskrivning (klicka på ✨ för AI-förslag)"
+                        className={`${baseClasses} text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-300 p-2 rounded-md border border-gray-300 dark:border-gray-600 focus:ring-1 focus:ring-primary h-16 pr-10`}
+                        rows={2}
                     />
                     <button
-                      onClick={handleGenerateDescription}
-                      disabled={isGeneratingDesc}
-                      className="absolute top-2 right-2 text-gray-400 hover:text-purple-500 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
-                      title="Generera beskrivning med AI"
+                        onClick={handleGenerateDescription}
+                        disabled={isGeneratingDesc}
+                        className="absolute top-2 right-2 text-gray-400 hover:text-purple-500 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
+                        title="Generera beskrivning med AI"
                     >
-                      {isGeneratingDesc ? <div className="w-5 h-5 border-2 border-purple-500/50 border-t-purple-500 rounded-full animate-spin"></div> : <SparklesIcon className="w-5 h-5" />}
+                        {isGeneratingDesc ? <div className="w-5 h-5 border-2 border-purple-500/50 border-t-purple-500 rounded-full animate-spin"></div> : <SparklesIcon className="w-5 h-5" />}
                     </button>
                 </div>
             </div>
@@ -535,56 +453,32 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
 interface BlockCardProps {
     block: WorkoutBlock;
     index: number;
-    onUpdate: (blockId: string, updatedBlock: WorkoutBlock) => void;
-    onRemove: (blockId: string) => void;
+    onUpdate: (updatedBlock: WorkoutBlock) => void;
+    onRemove: () => void;
     onEditSettings: () => void;
-    onOpenHandwriting: (config: { callback: (text: string) => void; multiLine: boolean }) => void;
+    onOpenHandwriting: (cb: (text: string) => void) => void;
     exerciseBank: BankExercise[];
-    organizationId: string;
 }
-const BlockCard: React.FC<BlockCardProps> = ({ block, index, onUpdate, onRemove, onEditSettings, onOpenHandwriting, exerciseBank, organizationId }) => {
-    const [isExpanded, setIsExpanded] = useState(true);
-    
+const BlockCard: React.FC<BlockCardProps> = ({ block, index, onUpdate, onRemove, onEditSettings, onOpenHandwriting, exerciseBank }) => {
     const handleFieldChange = (field: keyof WorkoutBlock, value: any) => {
-        const updatedBlock = { ...block, [field]: value };
+        const updated = { ...block, [field]: value };
         if (field === 'title' && typeof value === 'string') {
-            const settingsFromTitle = parseSettingsFromTitle(value);
-            if (settingsFromTitle) {
-                updatedBlock.settings = { ...updatedBlock.settings, ...settingsFromTitle };
-            }
+            const settings = parseSettingsFromTitle(value);
+            if (settings) updated.settings = { ...updated.settings, ...settings };
         }
-        onUpdate(block.id, updatedBlock);
+        onUpdate(updated);
     };
 
-    const addExercise = () => {
-        const newExercises = [...block.exercises, createNewExercise()];
-        onUpdate(block.id, { ...block, exercises: newExercises });
-    };
-
-    const updateExercise = (exId: string, updatedValues: Partial<Exercise>) => {
-        const updatedExercises = block.exercises.map(ex => (ex.id === exId ? { ...ex, ...updatedValues } : ex));
-        onUpdate(block.id, { ...block, exercises: updatedExercises });
-    };
-
-    const removeExercise = (exId: string) => {
-        const updatedExercises = block.exercises.filter(ex => ex.id !== exId);
-        onUpdate(block.id, { ...block, exercises: updatedExercises });
-    };
-
-    const moveExercise = (exerciseIndex: number, direction: 'up' | 'down') => {
-        const newExercises = [...block.exercises];
-        if (direction === 'up' && exerciseIndex > 0) {
-            [newExercises[exerciseIndex], newExercises[exerciseIndex - 1]] = [newExercises[exerciseIndex - 1], newExercises[exerciseIndex]];
-        } else if (direction === 'down' && exerciseIndex < newExercises.length - 1) {
-            [newExercises[exerciseIndex], newExercises[exerciseIndex + 1]] = [newExercises[exerciseIndex + 1], newExercises[exerciseIndex]];
-        }
-        onUpdate(block.id, { ...block, exercises: newExercises });
+    const moveEx = (idx: number, dir: 'up' | 'down') => {
+        const exs = [...block.exercises];
+        if (dir === 'up' && idx > 0) [exs[idx], exs[idx-1]] = [exs[idx-1], exs[idx]];
+        else if (dir === 'down' && idx < exs.length - 1) [exs[idx], exs[idx+1]] = [exs[idx+1], exs[idx]];
+        onUpdate({ ...block, exercises: exs });
     };
 
     const settingsText = useMemo(() => {
         const { mode, workTime, restTime, rounds, specifiedLaps, specifiedIntervalsPerLap } = block.settings;
         if (mode === TimerMode.NoTimer) return "Ingen timer";
-        if (mode === TimerMode.Stopwatch) return "Stoppur";
         
         const formatTime = (t: number) => {
             const m = Math.floor(t / 60);
@@ -596,281 +490,166 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, onUpdate, onRemove,
 
         if (mode === TimerMode.AMRAP || mode === TimerMode.TimeCap) return `${mode}: ${formatTime(workTime)}`;
         if (mode === TimerMode.EMOM) return `EMOM: ${rounds} min`;
-
-        // Interval & Tabata Logic
+        
         let displayString = `${mode}: ${rounds}x`;
         if (specifiedLaps && specifiedIntervalsPerLap) {
             displayString = `${mode}: ${specifiedLaps} varv x ${specifiedIntervalsPerLap} intervaller`;
         }
-
         return `${displayString} (${formatTime(workTime)} / ${formatTime(restTime)})`;
     }, [block.settings]);
 
     return (
-        <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md border-2 border-gray-200 dark:border-gray-700">
-            <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-4 flex-grow min-h-[44px]">
-                    <EditableField 
-                        label="Blockets Titel" 
-                        value={block.title} 
-                        onChange={val => handleFieldChange('title', val)}
-                        isTitle
+        <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-6 shadow-sm border border-gray-100 dark:border-gray-800 space-y-5">
+            <div className="flex justify-between items-start">
+                <div className="flex-grow">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1 block">Block {index}</label>
+                    <input 
+                        type="text" value={block.title} 
+                        onChange={e => handleFieldChange('title', e.target.value)} 
+                        placeholder="Blockets titel..." 
+                        className="w-full bg-transparent text-2xl font-black text-gray-900 dark:text-white focus:outline-none placeholder-gray-200 dark:placeholder-gray-700" 
                     />
                 </div>
-                {index > 1 && (
-                    <button onClick={() => onRemove(block.id)} className="text-red-500 hover:text-red-400 ml-4 flex-shrink-0 font-semibold">Ta bort</button>
-                )}
+                <button onClick={onRemove} className="text-red-500 p-2"><TrashIcon className="w-5 h-5" /></button>
             </div>
 
-            <EditableField
-                label="Uppläggsbeskrivning"
-                value={block.setupDescription || ''}
-                onChange={val => handleFieldChange('setupDescription', val)}
-                isTextarea
+            <textarea 
+                value={block.setupDescription || ''} 
+                onChange={e => handleFieldChange('setupDescription', e.target.value)} 
+                placeholder="Upplägg/Instruktioner för blocket..." 
+                className="w-full bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 text-sm focus:ring-1 focus:ring-primary outline-none" 
+                rows={2}
             />
-            
-            <div className="my-4 flex flex-col gap-3">
-                <ToggleSwitch
-                    label="Visa beskrivning i timern"
-                    checked={!!block.showDescriptionInTimer}
-                    onChange={(isChecked) => handleFieldChange('showDescriptionInTimer', isChecked)}
+
+            {/* --- NY TOGGLE: VISA BESKRIVNING I TIMERN --- */}
+            <div className="flex flex-col gap-3">
+                <ToggleSwitch 
+                    label="Visa beskrivning i timern" 
+                    checked={!!block.showDescriptionInTimer} 
+                    onChange={v => handleFieldChange('showDescriptionInTimer', v)} 
                 />
-                <ToggleSwitch
-                    label="'Följ mig'-läge"
-                    checked={!!block.followMe}
-                    onChange={(isChecked) => handleFieldChange('followMe', isChecked)}
+                <ToggleSwitch 
+                    label="'Följ mig'-läge" 
+                    checked={!!block.followMe} 
+                    onChange={v => handleFieldChange('followMe', v)} 
                 />
                 <p className="text-xs text-gray-500 mt-1 pl-2">
                     <span className="font-bold">På:</span> Alla gör samma övning samtidigt. <span className="font-bold">Av:</span> För stationsbaserad cirkelträning.
                 </p>
             </div>
 
-            <div className="bg-gray-100 dark:bg-black p-3 my-4 rounded-md flex justify-between items-center text-sm">
-                <p className="text-gray-600 dark:text-gray-300">
-                    Inställningar: <span className="font-semibold text-gray-900 dark:text-white">{settingsText}</span>
-                </p>
-                <button onClick={onEditSettings} className="text-primary hover:underline font-semibold">Anpassa</button>
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl flex justify-between items-center border border-gray-100 dark:border-gray-700">
+                <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Timer: <span className="text-gray-900 dark:text-white">{block.settings.mode}</span></div>
+                <button onClick={onEditSettings} className="text-primary font-black text-xs uppercase tracking-widest">Ändra</button>
             </div>
 
-            <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Välj blockets primära tagg</label>
-                <div className="flex flex-wrap gap-2">
-                    {['Styrka', 'Kondition', 'Rörlighet', 'Teknik', 'Core/Bål', 'Balans', 'Uppvärmning'].map(tag => (
-                        <button
-                            key={tag}
-                            onClick={() => handleFieldChange('tag', tag)}
-                            className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${
-                                block.tag === tag
-                                ? 'bg-primary text-white'
-                                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                            }`}
-                        >
-                            {tag}
-                        </button>
-                    ))}
-                </div>
-            </div>
-            
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-                <button onClick={() => setIsExpanded(!isExpanded)} className="w-full flex justify-between items-center text-left text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                    <span>Övningar ({block.exercises.length})</span>
-                    <span>{isExpanded ? 'Dölj' : 'Visa'}</span>
-                </button>
-                {isExpanded && (
-                    <div className="space-y-3">
-                        {block.exercises.length === 0 ? (
-                            <p className="text-center text-sm text-gray-500 py-2">Blocket är tomt. Klicka på '+ Lägg till övning'.</p>
-                        ) : (
-                            block.exercises.map((ex, i) => (
-                                <ExerciseItem 
-                                    key={ex.id} 
-                                    exercise={ex} 
-                                    onUpdate={updateExercise} 
-                                    onRemove={() => removeExercise(ex.id)}
-                                    onOpenHandwriting={() => onOpenHandwriting({ 
-                                        callback: (text) => {
-                                            const parsed = parseExerciseLine(text);
-                                            updateExercise(ex.id, { name: parsed.name, reps: parsed.reps });
-                                        }, 
-                                        multiLine: false 
-                                    })}
-                                    exerciseBank={exerciseBank}
-                                    organizationId={organizationId}
-                                    index={i}
-                                    total={block.exercises.length}
-                                    onMove={(direction) => moveExercise(i, direction)}
-                                />
-                            ))
-                        )}
-                        <button onClick={addExercise} className="w-full flex items-center justify-center gap-2 py-2 px-4 mt-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-                            <span>Lägg till övning</span>
-                        </button>
-                    </div>
-                )}
+            <div className="space-y-3 pt-2">
+                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Övningar ({block.exercises.length})</h4>
+                {block.exercises.map((ex, i) => (
+                    <ExerciseItem 
+                        key={ex.id} exercise={ex} 
+                        onUpdate={(id, vals) => onUpdate({ ...block, exercises: block.exercises.map(e => e.id === id ? { ...e, ...vals } : e) })} 
+                        onRemove={id => onUpdate({ ...block, exercises: block.exercises.filter(e => e.id !== id) })} 
+                        onOpenHandwriting={() => onOpenHandwriting(t => { const p = parseExerciseLine(t); onUpdate({ ...block, exercises: block.exercises.map(e => e.id === ex.id ? { ...e, name: p.name, reps: p.reps } : e) }) })} 
+                        exerciseBank={exerciseBank} index={i} total={block.exercises.length} onMove={dir => moveEx(i, dir)} 
+                    />
+                ))}
+                <button onClick={() => onUpdate({ ...block, exercises: [...block.exercises, createNewExercise()] })} className="w-full py-3 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-2xl text-gray-400 text-sm font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">+ Lägg till övning</button>
             </div>
         </div>
     );
-}
-
-// --- Component Props ---
-interface SimpleWorkoutBuilderScreenProps {
-  initialWorkout: Workout | null;
-  onSave: (workout: Workout) => void;
-  onCancel: () => void;
-}
+};
 
 // --- Main Component ---
-export const SimpleWorkoutBuilderScreen: React.FC<SimpleWorkoutBuilderScreenProps> = ({ initialWorkout, onSave, onCancel }) => {
-  const { selectedOrganization } = useStudio();
-  const [workout, setWorkout] = useState<Workout>(() => initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
-  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
-  const [blockToDelete, setBlockToDelete] = useState<string | null>(null);
-  const [handwritingConfig, setHandwritingConfig] = useState<{ callback: (text: string) => void; multiLine: boolean } | null>(null);
-  const [exerciseBank, setExerciseBank] = useState<BankExercise[]>([]);
+export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | null; onSave: (w: Workout) => void; onCancel: () => void }> = ({ initialWorkout, onSave, onCancel }) => {
+    const { selectedOrganization } = useStudio();
+    const [workout, setWorkout] = useState<Workout>(() => initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
+    const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+    const [handwritingCb, setHandwritingCb] = useState<((t: string) => void) | null>(null);
+    const [exerciseBank, setExerciseBank] = useState<BankExercise[]>([]);
 
-  useEffect(() => {
-    const fetchBank = async () => {
-        try {
-            const bank = await getExerciseBank();
-            setExerciseBank(bank);
-        } catch (error) {
-            console.error("Failed to fetch exercise bank:", error);
-        }
+    useEffect(() => { getExerciseBank().then(setExerciseBank); }, []);
+
+    const handleSave = () => {
+        if (!workout.title.trim()) { alert("Passet måste ha ett namn."); return; }
+        onSave({ ...workout, organizationId: selectedOrganization?.id || '' });
     };
-    fetchBank();
-  }, []);
+    
+    // Helper to add block
+    const handleAddBlock = () => {
+        setWorkout(prev => ({ ...prev, blocks: [...prev.blocks, createNewBlock(prev.blocks.length + 1)] }));
+    };
 
-  useEffect(() => {
-    setWorkout(initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
-  }, [initialWorkout]);
+    // Helper to update block
+    const handleUpdateBlock = (updatedBlock: WorkoutBlock) => {
+        setWorkout(prev => ({
+            ...prev,
+            blocks: prev.blocks.map(b => b.id === updatedBlock.id ? updatedBlock : b)
+        }));
+    };
 
-  const isSavable = useMemo(() => {
-    return workout.title.trim() !== '' && workout.blocks.length > 0 && workout.blocks.some(b => b.exercises.length > 0 && b.exercises.some(ex => ex.name.trim() !== ''));
-  }, [workout]);
+    // Helper to remove block
+    const handleRemoveBlock = (blockId: string) => {
+         setWorkout(prev => ({
+            ...prev,
+            blocks: prev.blocks.filter(b => b.id !== blockId)
+         }));
+    };
 
-  const handleWorkoutChange = (field: keyof Workout, value: any) => {
-    setWorkout(prev => ({ ...prev, [field]: value }));
-  };
+    // Helper to update settings
+    const handleUpdateBlockSettings = (blockId: string, newSettings: Partial<TimerSettings>) => {
+        const b = workout.blocks.find(x => x.id === blockId);
+        if(b) setWorkout({ ...workout, blocks: workout.blocks.map(curr => curr.id === blockId ? { ...b, settings: { ...b.settings, ...newSettings } } : curr) });
+        setEditingBlockId(null);
+    };
 
-  const handleAddBlock = () => {
-    setWorkout(prev => {
-        const newBlock = createNewBlock(prev.blocks.length + 1);
-        return { ...prev, blocks: [...prev.blocks, newBlock] };
-    });
-  };
+    return (
+        <div className="w-full max-w-2xl mx-auto space-y-6 pb-24 animate-fade-in px-4">
+            <div className="bg-primary/10 p-6 rounded-[2rem] border border-primary/20">
+                <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1 block">Passinformation</label>
+                <input 
+                    type="text" value={workout.title} 
+                    onChange={e => setWorkout({ ...workout, title: e.target.value })} 
+                    placeholder="Namnge ditt pass..." 
+                    className="w-full bg-transparent text-3xl font-black text-gray-900 dark:text-white focus:outline-none placeholder-primary/20 mb-4" 
+                />
+                <textarea 
+                    value={workout.coachTips || ''} 
+                    onChange={e => setWorkout({ ...workout, coachTips: e.target.value })} 
+                    placeholder="Allmänna tips (valfritt)..." 
+                    className="w-full bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 text-sm focus:ring-1 focus:ring-primary outline-none" 
+                    rows={2}
+                />
+            </div>
 
-  const handleRemoveBlock = (blockId: string) => {
-    setBlockToDelete(blockId);
-  };
-  
-  const confirmRemoveBlock = () => {
-    if (!blockToDelete) return;
-    setWorkout(prev => ({
-        ...prev,
-        blocks: prev.blocks.filter(b => b.id !== blockToDelete)
-    }));
-    setBlockToDelete(null);
-  };
-  
-  const handleUpdateBlock = (blockId: string, updatedBlock: WorkoutBlock) => {
-    setWorkout(prev => ({
-      ...prev,
-      blocks: prev.blocks.map(b => (b.id === blockId ? updatedBlock : b)),
-    }));
-  };
+            <div className="space-y-6">
+                {workout.blocks.map((block, i) => (
+                    <BlockCard 
+                        key={block.id} block={block} index={i+1} 
+                        onUpdate={handleUpdateBlock} 
+                        onRemove={() => handleRemoveBlock(block.id)} 
+                        onEditSettings={() => setEditingBlockId(block.id)} 
+                        onOpenHandwriting={setHandwritingCb} exerciseBank={exerciseBank} 
+                    />
+                ))}
+            </div>
 
-  const handleUpdateBlockSettings = (blockId: string, newSettings: Partial<TimerSettings>) => {
-    const block = workout.blocks.find(b => b.id === blockId);
-    if(block) {
-        handleUpdateBlock(blockId, {...block, settings: { ...block.settings, ...newSettings }});
-    }
-    setEditingBlockId(null);
-  };
-  
-  const handleHandwritingComplete = (text: string) => {
-    if (handwritingConfig) {
-        const processedText = handwritingConfig.multiLine ? text : text.split('\n').join(' ');
-        handwritingConfig.callback(processedText);
-    }
-    setHandwritingConfig(null);
-  };
-  
-  const handleSave = () => {
-      if(isSavable) {
-        onSave(workout);
-    }
-  }
+            <button onClick={handleAddBlock} className="w-full py-5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-black rounded-[2rem] border-2 border-dashed border-gray-200 dark:border-gray-700 uppercase tracking-widest text-sm hover:bg-gray-200 transition-colors">Lägg till block</button>
 
-  return (
-    <div className="w-full max-w-5xl mx-auto space-y-6 animate-fade-in">
-        <WorkoutInfoCard 
-            workout={workout} 
-            onChange={handleWorkoutChange}
-            onOpenHandwriting={(field, multiLine) => {
-                 setHandwritingConfig({
-                    callback: (text) => handleWorkoutChange(field, text),
-                    multiLine,
-                });
-            }}
-        />
+            <div className="fixed bottom-6 left-4 right-4 max-w-2xl mx-auto z-40 flex gap-3">
+                <button onClick={onCancel} className="flex-1 bg-white dark:bg-gray-800 text-gray-500 py-4 rounded-2xl font-black border border-gray-200 dark:border-gray-700 shadow-xl uppercase tracking-widest text-xs">Avbryt</button>
+                <button onClick={handleSave} className="flex-[2] bg-primary text-white py-4 rounded-2xl font-black shadow-xl shadow-primary/30 uppercase tracking-widest text-xs">Spara Pass</button>
+            </div>
 
-        {workout.blocks.map((block, index) => (
-            <BlockCard
-                key={block.id}
-                block={block}
-                index={index + 1}
-                onUpdate={handleUpdateBlock}
-                onRemove={handleRemoveBlock}
-                onEditSettings={() => setEditingBlockId(block.id)}
-                onOpenHandwriting={(config) => setHandwritingConfig(config)}
-                exerciseBank={exerciseBank}
-                organizationId={selectedOrganization?.id || ''}
-            />
-        ))}
+            {editingBlockId && (
+                <TimerSetupModal 
+                    isOpen={!!editingBlockId} onClose={() => setEditingBlockId(null)} 
+                    block={workout.blocks.find(b => b.id === editingBlockId)!} 
+                    onSave={s => handleUpdateBlockSettings(editingBlockId, s)} 
+                />
+            )}
 
-        <button onClick={handleAddBlock} className="w-full flex items-center justify-center gap-2 py-4 px-4 rounded-lg text-white font-bold bg-purple-500 hover:bg-purple-600 transition-colors shadow-lg">
-            <span className="text-lg">Lägg till nytt block</span>
-        </button>
-
-        {!isSavable && (
-            <p className="text-center text-sm text-gray-500 dark:text-gray-400 px-4">
-                För att spara eller starta passet behöver det ha ett namn och innehålla minst ett block med minst en ifylld övning.
-            </p>
-        )}
-        
-        <div className="pt-6 flex items-center justify-end gap-4">
-           <button onClick={onCancel} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg transition-colors">
-                Avbryt
-           </button>
-           <button onClick={handleSave} disabled={!isSavable} className="bg-primary hover:brightness-95 text-white font-bold py-3 px-6 rounded-lg transition-colors disabled:bg-primary/50 disabled:cursor-not-allowed">
-                Spara Pass
-           </button>
+            {handwritingCb && <HandwritingInputModal onClose={() => setHandwritingCb(null)} onComplete={t => { handwritingCb(t); setHandwritingCb(null); }} />}
         </div>
-        
-        {!!blockToDelete && (
-            <ConfirmationModal
-                onConfirm={confirmRemoveBlock}
-                onCancel={() => setBlockToDelete(null)}
-                title="Ta bort block"
-                message="Är du säker på att du vill ta bort detta block? Detta kan inte ångras."
-            />
-        )}
-
-        {editingBlockId && (
-            <TimerSetupModal
-                isOpen={!!editingBlockId}
-                onClose={() => setEditingBlockId(null)}
-                block={workout.blocks.find(b => b.id === editingBlockId)!}
-                onSave={(newSettings) => handleUpdateBlockSettings(editingBlockId, newSettings)}
-            />
-        )}
-        
-        {handwritingConfig && (
-            <HandwritingInputModal
-                onClose={() => setHandwritingConfig(null)}
-                onComplete={handleHandwritingComplete}
-            />
-        )}
-    </div>
-  );
+    );
 };
