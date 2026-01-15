@@ -39,111 +39,106 @@ const formatReps = (reps: string | undefined): string => {
     return trimmed;
 };
 
-// --- NEW COMPONENT: FULLSCREEN BLOCK DASHBOARD ---
+// --- NEW COMPONENT: BROADCAST DASHBOARD (VERTICAL CENTERING & AUTO-SCALE) ---
 const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => void }> = ({ block, onClose }) => {
-    const exerciseCount = block.exercises.length;
+    const exerciseCount = block.exercises.length || 1;
 
-    // Dynamic scale logic for fonts
-    const getTitleSize = (count: number) => {
-        if (count <= 4) return 'text-5xl sm:text-7xl lg:text-8xl';
-        if (count <= 7) return 'text-4xl sm:text-5xl lg:text-6xl';
-        if (count <= 10) return 'text-3xl sm:text-4xl lg:text-5xl';
-        return 'text-2xl sm:text-3xl lg:text-4xl';
-    };
-
-    const getDescSize = (count: number) => {
-        if (count <= 5) return 'text-xl sm:text-2xl lg:text-3xl';
-        if (count <= 8) return 'text-lg sm:text-xl lg:text-2xl';
-        return 'text-sm sm:text-base lg:text-lg';
-    };
+    // Dynamisk skalning baserat på antal övningar för att garantera passform på en skärm
+    // Vi använder 'vh' (viewport height) för att texten ska krympa om skärmen är låg
+    const titleSize = `calc(min(6vh, 4.5rem) * ${Math.max(0.4, 7 / exerciseCount)})`;
+    const descSize = `calc(min(2.5vh, 1.8rem) * ${Math.max(0.6, 6 / exerciseCount)})`;
+    const repsSize = `calc(min(3.5vh, 2.5rem) * ${Math.max(0.5, 6 / exerciseCount)})`;
 
     return (
         <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[10000] bg-white dark:bg-gray-950 flex flex-col overflow-hidden select-none"
+            className="fixed inset-0 z-[10000] bg-white dark:bg-gray-950 flex flex-col h-[100dvh] overflow-hidden select-none"
         >
-            {/* Minimal HUD Header */}
-            <div className="flex-shrink-0 flex justify-between items-center px-8 py-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30">
-                <div className="flex items-center gap-6">
-                    <span className={`inline-flex items-center px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-[0.2em] shadow-sm ${getTagColor(block.tag)}`}>
+            {/* 1. PINNED HEADER (Fastställd höjd) */}
+            <div className="flex-shrink-0 flex justify-between items-start px-10 py-6 border-b border-gray-100 dark:border-gray-800 bg-gray-50/30 dark:bg-gray-900/20">
+                <div className="space-y-2">
+                    <span className={`inline-flex items-center px-4 py-1.5 rounded-xl text-[11px] font-black uppercase tracking-[0.25em] shadow-sm ${getTagColor(block.tag)}`}>
                         {block.tag}
                     </span>
-                    <h1 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">
+                    <h1 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">
                         {block.title}
                     </h1>
+                    {block.setupDescription && (
+                        <p className="text-xl text-gray-500 dark:text-gray-400 font-bold max-w-4xl leading-tight pt-2 border-t border-gray-100 dark:border-gray-800/50 mt-2">
+                            {block.setupDescription}
+                        </p>
+                    )}
                 </div>
                 <button 
                     onClick={onClose}
-                    className="p-3 bg-gray-200 dark:bg-gray-800 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-all active:scale-90 shadow-lg"
+                    className="p-3 bg-gray-200 dark:bg-gray-800 rounded-2xl hover:bg-gray-300 dark:hover:bg-gray-700 transition-all active:scale-90 shadow-lg"
                 >
-                    <CloseIcon className="w-6 h-6 text-gray-900 dark:text-white" />
+                    <CloseIcon className="w-8 h-8 text-gray-900 dark:text-white" />
                 </button>
             </div>
 
-            {/* Block Description Strip */}
-            {block.setupDescription && (
-                <div className="flex-shrink-0 px-8 py-5 bg-primary/5 dark:bg-primary/10 border-b border-gray-100 dark:border-gray-800">
-                    <div className="flex items-start gap-3">
-                        <span className="text-2xl">📋</span>
-                        <p className="text-xl lg:text-2xl text-gray-700 dark:text-gray-300 font-bold leading-snug">
-                            {block.setupDescription}
-                        </p>
-                    </div>
-                </div>
-            )}
+            {/* 2. CENTERED EXERCISE AREA (Fyller resten av skärmen och centrerar innehållet) */}
+            <div className="flex-grow flex flex-col justify-center min-h-0 px-10 lg:px-20">
+                <div className="space-y-4 lg:space-y-6 w-full max-w-7xl mx-auto">
+                    {block.exercises.map((ex) => (
+                        <div 
+                            key={ex.id} 
+                            className="flex items-center justify-between gap-10 py-4 border-b border-gray-50 dark:border-white/[0.03] last:border-0"
+                        >
+                            {/* Övningsnamn & Beskrivning */}
+                            <div className="flex-grow min-w-0">
+                                <h3 
+                                    className="font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-[0.9] truncate"
+                                    style={{ fontSize: titleSize }}
+                                >
+                                    {ex.name}
+                                </h3>
+                                {ex.description && (
+                                    <p 
+                                        className="text-gray-400 dark:text-gray-500 font-bold mt-2 truncate opacity-80"
+                                        style={{ fontSize: descSize }}
+                                    >
+                                        {ex.description}
+                                    </p>
+                                )}
+                            </div>
 
-            {/* Main Content Area - Distributes all available height to rows */}
-            <div className="flex-grow flex flex-col">
-                {block.exercises.map((ex, index) => (
-                    <div 
-                        key={ex.id} 
-                        className="flex-1 flex items-center px-10 lg:px-16 border-b border-gray-50 dark:border-white/[0.03] last:border-0 group hover:bg-gray-50 dark:hover:bg-white/[0.01] transition-colors"
-                    >
-                        {/* Station Number */}
-                        <div className="shrink-0 w-24 sm:w-32 lg:w-40 flex justify-center">
-                            <span className="text-5xl sm:text-7xl lg:text-8xl font-black text-gray-200 dark:text-gray-800 group-hover:text-primary transition-colors">
-                                {String(index + 1).padStart(2, '0')}
-                            </span>
-                        </div>
-
-                        {/* Exercise Name & Desc */}
-                        <div className="flex-grow min-w-0 px-8 lg:px-12">
-                            <h3 className={`${getTitleSize(exerciseCount)} font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-[0.9] truncate`}>
-                                {ex.name}
-                            </h3>
-                            {ex.description && (
-                                <p className={`${getDescSize(exerciseCount)} text-gray-500 dark:text-gray-400 font-medium mt-3 line-clamp-1 leading-tight`}>
-                                    {ex.description}
-                                </p>
+                            {/* Reps/Mängd */}
+                            {ex.reps && (
+                                <div className="shrink-0">
+                                    <div className="bg-primary/10 dark:bg-primary/5 border-2 border-primary/30 px-8 py-3 rounded-[2.5rem] shadow-sm">
+                                        <span 
+                                            className="font-mono font-black text-primary whitespace-nowrap block"
+                                            style={{ fontSize: repsSize }}
+                                        >
+                                            {formatReps(ex.reps)}
+                                        </span>
+                                    </div>
+                                </div>
                             )}
                         </div>
+                    ))}
 
-                        {/* Reps/Amount - Prominent box */}
-                        {ex.reps && (
-                            <div className="shrink-0 ml-4">
-                                <div className="bg-white dark:bg-gray-900 border-2 border-primary/30 dark:border-primary/50 text-primary px-8 py-4 rounded-[2rem] shadow-xl shadow-primary/10">
-                                    <span className={`${getDescSize(exerciseCount)} font-mono font-black whitespace-nowrap`}>
-                                        {formatReps(ex.reps)}
-                                    </span>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                ))}
-
-                {block.exercises.length === 0 && (
-                    <div className="flex-grow flex items-center justify-center text-3xl font-black text-gray-300 dark:text-gray-800 italic uppercase tracking-widest">
-                        Inga övningar i blocket
-                    </div>
-                )}
+                    {block.exercises.length === 0 && (
+                        <div className="text-center text-4xl font-black text-gray-200 dark:text-gray-800 italic uppercase tracking-widest">
+                            Inga övningar i blocket
+                        </div>
+                    )}
+                </div>
             </div>
             
-            {/* Very thin status/branding footer */}
-            <div className="flex-shrink-0 px-8 py-2 bg-gray-50 dark:bg-gray-950 border-t border-gray-100 dark:border-gray-900 flex justify-between items-center opacity-40">
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">SmartStudio Dashboard</span>
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">{new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}</span>
+            {/* 3. MINIMAL FOOTER */}
+            <div className="flex-shrink-0 px-10 py-4 bg-gray-50 dark:bg-gray-950 border-t border-gray-100 dark:border-gray-900 flex justify-between items-center opacity-40">
+                <div className="flex items-center gap-4">
+                    <span className="text-[11px] font-black uppercase tracking-[0.4em] text-gray-500">SmartStudio</span>
+                    <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></div>
+                    <span className="text-[11px] font-black uppercase tracking-[0.4em] text-gray-500">Live Dashboard</span>
+                </div>
+                <span className="text-xl font-black font-mono text-gray-700 dark:text-gray-300">
+                    {new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
+                </span>
             </div>
         </motion.div>
     );
