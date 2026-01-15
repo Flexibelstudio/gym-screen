@@ -18,12 +18,12 @@ const formatResultTime = (timeInSeconds: number) => {
 // Helper to get color based on workout tag
 const getTagColor = (tag: string) => {
   switch (tag.toLowerCase()) {
-    case 'styrka': return 'bg-red-200 text-red-800 dark:bg-red-900/50 dark:text-red-200';
-    case 'kondition': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200';
-    case 'rörlighet': return 'bg-teal-100 text-teal-900 dark:bg-teal-900/50 dark:text-teal-200';
-    case 'teknik': return 'bg-purple-100 text-purple-900 dark:bg-purple-900/50 dark:text-purple-200';
-    case 'core': case 'bål': case 'core/bål': return 'bg-yellow-200 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200';
-    case 'balans': return 'bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-200';
+    case 'styrka': return 'bg-red-500 text-white';
+    case 'kondition': return 'bg-blue-500 text-white';
+    case 'rörlighet': return 'bg-teal-500 text-white';
+    case 'teknik': return 'bg-purple-500 text-white';
+    case 'core': case 'bål': case 'core/bål': return 'bg-yellow-500 text-white';
+    case 'balans': return 'bg-pink-500 text-white';
     case 'uppvärmning': return 'bg-orange-500 text-white';
     default: return 'bg-gray-500 text-white';
   }
@@ -39,65 +39,69 @@ const formatReps = (reps: string | undefined): string => {
     return trimmed;
 };
 
-// --- NEW COMPONENT: CLEAN CARD BROADCAST DASHBOARD (Image 2 style) ---
+// --- NEW COMPONENT: FULLSCREEN BROADCAST DASHBOARD (Image 2 Style) ---
 const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => void }> = ({ block, onClose }) => {
     const exerciseCount = block.exercises.length || 1;
 
-    // Dynamisk skalning baserat på antal övningar
-    // Vi använder 'vh' för att fonten ska krympa om det blir för trångt på höjden
-    const titleSize = `calc(min(4.5vh, 3.5rem) * ${Math.max(0.6, 6 / exerciseCount)})`;
-    const descSize = `calc(min(2.2vh, 1.4rem) * ${Math.max(0.8, 6 / exerciseCount)})`;
-    const repsSize = `calc(min(3vh, 2rem) * ${Math.max(0.7, 6 / exerciseCount)})`;
+    // Dynamisk skalning baserat på antal övningar för att garantera passform
+    const titleSize = `calc(min(5vh, 4rem) * ${Math.max(0.5, 7 / exerciseCount)})`;
+    const descSize = `calc(min(2vh, 1.2rem) * ${Math.max(0.7, 7 / exerciseCount)})`;
+    const repsSize = `calc(min(3vh, 2rem) * ${Math.max(0.6, 7 / exerciseCount)})`;
 
     return (
         <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[10000] bg-gray-50 dark:bg-black flex flex-col h-[100dvh] overflow-hidden select-none"
+            className="fixed inset-0 z-[99999] bg-gray-50 dark:bg-black flex flex-col h-[100dvh] w-[100dvw] overflow-hidden select-none"
         >
+            {/* Background noise/texture for premium feel */}
+            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] pointer-events-none"></div>
+
             {/* 1. Header (Pinned at top) */}
-            <div className="flex-shrink-0 flex justify-between items-start px-10 py-8 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
-                <div className="space-y-3">
-                    <span className={`inline-flex items-center px-4 py-1.5 rounded-full text-[11px] font-black uppercase tracking-[0.2em] shadow-sm ${getTagColor(block.tag)}`}>
+            <div className="relative z-10 flex-shrink-0 flex justify-between items-center px-12 py-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
+                <div className="space-y-4">
+                    <span className={`inline-flex items-center px-6 py-2 rounded-xl text-xs font-black uppercase tracking-[0.3em] shadow-md ${getTagColor(block.tag)}`}>
                         {block.tag}
                     </span>
-                    <h1 className="text-4xl md:text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">
+                    <h1 className="text-5xl md:text-6xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-none">
                         {block.title}
                     </h1>
                     {block.setupDescription && (
-                        <p className="text-xl text-gray-500 dark:text-gray-400 font-bold max-w-5xl leading-tight pt-2">
+                        <p className="text-2xl text-gray-400 dark:text-gray-500 font-bold max-w-5xl leading-tight border-l-4 border-primary pl-4">
                             {block.setupDescription}
                         </p>
                     )}
                 </div>
                 <button 
                     onClick={onClose}
-                    className="p-4 bg-gray-100 dark:bg-gray-800 rounded-3xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-all active:scale-90 shadow-sm border border-gray-200 dark:border-gray-700"
+                    className="p-5 bg-gray-100 dark:bg-gray-800 rounded-[2rem] hover:bg-gray-200 dark:hover:bg-gray-700 transition-all active:scale-90 shadow-xl border border-gray-200 dark:border-gray-700 group"
                 >
-                    <CloseIcon className="w-8 h-8 text-gray-600 dark:text-white" />
+                    <CloseIcon className="w-10 h-10 text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" />
                 </button>
             </div>
 
-            {/* 2. Main Content (Vertically Centered List) */}
-            <div className="flex-grow flex flex-col justify-center min-h-0 px-10 lg:px-20">
-                <div className="w-full max-w-7xl mx-auto flex flex-col gap-4 lg:gap-6 py-10">
+            {/* 2. Main Content (Vertically Centered List of Cards) */}
+            <div className="relative z-10 flex-grow flex flex-col justify-center min-h-0 px-12 lg:px-24">
+                <div className="w-full max-w-[1400px] mx-auto flex flex-col gap-4 lg:gap-8 py-12">
                     {block.exercises.map((ex) => (
-                        <div 
+                        <motion.div 
                             key={ex.id} 
-                            className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-6 lg:p-8 flex items-center justify-between gap-10 shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800 flex-shrink min-h-0"
+                            initial={{ x: -20, opacity: 0 }}
+                            animate={{ x: 0, opacity: 1 }}
+                            className="bg-white dark:bg-gray-900 rounded-[3rem] p-8 lg:p-12 flex items-center justify-between gap-12 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.1)] dark:shadow-none border border-gray-100 dark:border-gray-800 flex-shrink min-h-0"
                         >
                             {/* Övningsnamn & Beskrivning */}
                             <div className="flex-grow min-w-0">
                                 <h3 
-                                    className="font-black text-gray-900 dark:text-white uppercase tracking-tight leading-[0.95] truncate"
+                                    className="font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-[0.9] truncate"
                                     style={{ fontSize: titleSize }}
                                 >
                                     {ex.name}
                                 </h3>
                                 {ex.description && (
                                     <p 
-                                        className="text-gray-400 dark:text-gray-500 font-bold mt-2 truncate max-w-[90%]"
+                                        className="text-gray-400 dark:text-gray-500 font-bold mt-4 truncate max-w-[95%] opacity-80"
                                         style={{ fontSize: descSize }}
                                     >
                                         {ex.description}
@@ -105,12 +109,12 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
                                 )}
                             </div>
 
-                            {/* Reps/Mängd Box */}
+                            {/* Reps/Mängd Box (Accent Color Style) */}
                             {ex.reps && (
                                 <div className="shrink-0">
-                                    <div className="bg-gray-50 dark:bg-gray-800 border-l-[12px] border-primary px-8 py-4 rounded-r-3xl shadow-inner">
+                                    <div className="bg-primary/5 dark:bg-primary/10 border-l-[16px] border-primary px-10 py-6 rounded-r-[2.5rem] shadow-inner">
                                         <span 
-                                            className="font-mono font-black text-primary whitespace-nowrap block"
+                                            className="font-mono font-black text-primary whitespace-nowrap block tracking-tighter"
                                             style={{ fontSize: repsSize }}
                                         >
                                             {formatReps(ex.reps)}
@@ -118,23 +122,29 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
                                     </div>
                                 </div>
                             )}
-                        </div>
+                        </motion.div>
                     ))}
 
                     {block.exercises.length === 0 && (
                         <div className="text-center py-20">
-                            <p className="text-4xl font-black text-gray-200 dark:text-gray-800 italic uppercase tracking-widest">Inga övningar i blocket</p>
+                            <p className="text-5xl font-black text-gray-200 dark:text-gray-800 italic uppercase tracking-widest opacity-30">Inga övningar i blocket</p>
                         </div>
                     )}
                 </div>
             </div>
             
-            {/* 3. Footer (Kompakt) */}
-            <div className="flex-shrink-0 px-10 py-6 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex justify-between items-center opacity-50">
-                <span className="text-[11px] font-black uppercase tracking-[0.4em] text-gray-400">SmartStudio Broadcast</span>
-                <span className="text-xl font-black font-mono text-gray-800 dark:text-white">
-                    {new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
-                </span>
+            {/* 3. Global Footer Overlay */}
+            <div className="relative z-10 flex-shrink-0 px-12 py-8 bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-900 flex justify-between items-center">
+                <div className="flex items-center gap-6">
+                    <span className="text-sm font-black uppercase tracking-[0.5em] text-gray-300 dark:text-gray-600">SmartStudio Broadcast</span>
+                    <div className="h-2 w-2 rounded-full bg-primary animate-pulse"></div>
+                </div>
+                <div className="flex items-baseline gap-4">
+                     <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Lokal tid</span>
+                     <span className="text-3xl font-black font-mono text-gray-900 dark:text-white tabular-nums">
+                        {new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                </div>
             </div>
         </motion.div>
     );
