@@ -18,12 +18,12 @@ const formatResultTime = (timeInSeconds: number) => {
 // Helper to get color based on workout tag
 const getTagColor = (tag: string) => {
   switch (tag.toLowerCase()) {
-    case 'styrka': return 'bg-red-500 text-white';
-    case 'kondition': return 'bg-blue-500 text-white';
-    case 'rörlighet': return 'bg-teal-500 text-white';
-    case 'teknik': return 'bg-purple-500 text-white';
-    case 'core': case 'bål': case 'core/bål': return 'bg-yellow-500 text-white';
-    case 'balans': return 'bg-pink-500 text-white';
+    case 'styrka': return 'bg-red-200 text-red-800 dark:bg-red-900/50 dark:text-red-200';
+    case 'kondition': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200';
+    case 'rörlighet': return 'bg-teal-100 text-teal-900 dark:bg-teal-900/50 dark:text-teal-200';
+    case 'teknik': return 'bg-purple-100 text-purple-900 dark:bg-purple-900/50 dark:text-purple-200';
+    case 'core': case 'bål': case 'core/bål': return 'bg-yellow-200 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200';
+    case 'balans': return 'bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-200';
     case 'uppvärmning': return 'bg-orange-500 text-white';
     default: return 'bg-gray-500 text-white';
   }
@@ -39,104 +39,78 @@ const formatReps = (reps: string | undefined): string => {
     return trimmed;
 };
 
-// --- NEW COMPONENT: REFINED BROADCAST DASHBOARD (Smarter scale) ---
+// --- NEW COMPONENT: BLOCK PRESENTATION MODAL ---
 const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => void }> = ({ block, onClose }) => {
-    const exerciseCount = block.exercises.length || 1;
-
-    // Nedskalad dynamisk typografi (ca 30% mindre än tidigare)
-    const titleSize = `calc(min(3.5vh, 2.8rem) * ${Math.max(0.7, 7 / exerciseCount)})`;
-    const descSize = `calc(min(1.8vh, 1.1rem) * ${Math.max(0.8, 7 / exerciseCount)})`;
-    const repsSize = `calc(min(2.5vh, 1.8rem) * ${Math.max(0.7, 7 / exerciseCount)})`;
-
     return (
         <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[99999] bg-gray-50 dark:bg-black flex flex-col h-[100dvh] w-[100dvw] overflow-hidden select-none"
+            className="fixed inset-0 z-[10000] bg-white dark:bg-gray-950 flex flex-col overflow-hidden"
         >
-            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.03] pointer-events-none"></div>
-
-            {/* 1. Refined Header (More compact) */}
-            <div className="relative z-10 flex-shrink-0 flex justify-between items-center px-12 py-8 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
-                <div className="space-y-2">
-                    <span className={`inline-flex items-center px-4 py-1 rounded-lg text-[10px] font-black uppercase tracking-[0.2em] shadow-sm ${getTagColor(block.tag)}`}>
-                        {block.tag}
-                    </span>
-                    <h1 className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">
+            {/* Header */}
+            <div className="flex justify-between items-start p-8 md:p-12 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
+                <div className="max-w-4xl">
+                    <div className="flex items-center gap-4 mb-4">
+                         <span className={`inline-flex items-center px-4 py-2 rounded-xl text-lg font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
+                            {block.tag}
+                        </span>
+                    </div>
+                    <h1 className="text-3xl md:text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">
                         {block.title}
                     </h1>
                     {block.setupDescription && (
-                        <p className="text-lg text-gray-400 dark:text-gray-500 font-bold max-w-4xl leading-tight border-l-2 border-primary/40 pl-4 mt-1">
+                        <p className="text-lg md:text-xl text-gray-500 dark:text-gray-400 mt-6 font-medium leading-relaxed max-w-5xl">
                             {block.setupDescription}
                         </p>
                     )}
                 </div>
                 <button 
                     onClick={onClose}
-                    className="p-4 bg-gray-100 dark:bg-gray-800 rounded-2xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-all active:scale-90 shadow-sm border border-gray-200 dark:border-gray-700 group"
+                    className="p-4 bg-gray-200 dark:bg-gray-800 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors shadow-lg active:scale-95"
                 >
-                    <CloseIcon className="w-8 h-8 text-gray-400 group-hover:text-gray-900 dark:group-hover:text-white" />
+                    <CloseIcon className="w-10 h-10 text-gray-900 dark:text-white" />
                 </button>
             </div>
 
-            {/* 2. Main Content (Centered and compact cards) */}
-            <div className="relative z-10 flex-grow flex flex-col justify-center min-h-0 px-12 lg:px-32">
-                <div className="w-full max-w-[1200px] mx-auto flex flex-col gap-3 lg:gap-4 py-8">
-                    {block.exercises.map((ex) => (
-                        <motion.div 
-                            key={ex.id} 
-                            initial={{ x: -10, opacity: 0 }}
-                            animate={{ x: 0, opacity: 1 }}
-                            className="bg-white dark:bg-gray-900 rounded-[2rem] p-5 lg:p-7 flex items-center justify-between gap-10 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.08)] dark:shadow-none border border-gray-100 dark:border-gray-800 flex-shrink min-h-0"
-                        >
-                            <div className="flex-grow min-w-0">
-                                <h3 
-                                    className="font-black text-gray-900 dark:text-white uppercase tracking-tight leading-[1] truncate"
-                                    style={{ fontSize: titleSize }}
-                                >
-                                    {ex.name}
-                                </h3>
+            {/* Content - Giant List */}
+            <div className="flex-grow overflow-y-auto p-8 md:p-12">
+                <div className="max-w-7xl mx-auto space-y-6">
+                    {block.exercises.map((ex, index) => (
+                        <div key={ex.id} className="flex items-start gap-8 p-8 rounded-[2rem] bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800">
+                             <div className="flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-2xl md:text-3xl font-black text-gray-500">
+                                {index + 1}
+                            </div>
+                            <div className="flex-grow">
+                                <div className="flex justify-between items-start gap-8">
+                                    <h3 className="text-2xl md:text-3xl font-black text-gray-900 dark:text-white leading-tight">
+                                        {ex.name}
+                                    </h3>
+                                    {ex.reps && (
+                                        <div className="bg-primary/10 text-primary px-6 py-3 rounded-2xl whitespace-nowrap">
+                                            <span className="text-xl md:text-2xl font-mono font-black">{formatReps(ex.reps)}</span>
+                                        </div>
+                                    )}
+                                </div>
                                 {ex.description && (
-                                    <p 
-                                        className="text-gray-400 dark:text-gray-500 font-bold mt-1 truncate max-w-[95%] opacity-70"
-                                        style={{ fontSize: descSize }}
-                                    >
+                                    <p className="text-2xl md:text-3xl text-gray-500 dark:text-gray-400 mt-4 leading-relaxed font-medium">
                                         {ex.description}
                                     </p>
                                 )}
                             </div>
-
-                            {/* Refined Reps Box */}
-                            {ex.reps && (
-                                <div className="shrink-0">
-                                    <div className="bg-primary/5 dark:bg-primary/10 border-l-[10px] border-primary px-8 py-3 rounded-r-2xl shadow-inner">
-                                        <span 
-                                            className="font-mono font-black text-primary whitespace-nowrap block tracking-tight"
-                                            style={{ fontSize: repsSize }}
-                                        >
-                                            {formatReps(ex.reps)}
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
-                        </motion.div>
-                    ))}
-
-                    {block.exercises.length === 0 && (
-                        <div className="text-center py-10 opacity-20">
-                            <p className="text-3xl font-black text-gray-400 italic uppercase tracking-widest">Tomt block</p>
                         </div>
+                    ))}
+                    {block.exercises.length === 0 && (
+                        <p className="text-center text-3xl text-gray-400 py-20 italic">Inga övningar i detta block.</p>
                     )}
                 </div>
             </div>
             
-            {/* 3. Footer */}
-            <div className="relative z-10 flex-shrink-0 px-12 py-5 bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-900 flex justify-between items-center opacity-40">
-                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-gray-400">SmartStudio Broadcast</span>
-                <span className="text-lg font-black font-mono text-gray-800 dark:text-white">
-                    {new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
-                </span>
+            {/* Footer */}
+            <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex justify-center">
+                 <button onClick={onClose} className="bg-black dark:bg-white text-white dark:text-black font-black text-xl py-4 px-12 rounded-full shadow-xl hover:scale-105 transition-transform uppercase tracking-widest">
+                     Stäng visningsläge
+                 </button>
             </div>
         </motion.div>
     );
@@ -242,7 +216,6 @@ const MemberWorkoutView: React.FC<{
                     onClick={onLog}
                     className="flex-[2] bg-primary hover:brightness-110 text-white font-black py-4 rounded-[2rem] shadow-xl shadow-primary/40 transition-all transform active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-widest"
                     >
-                        <ChartBarIcon className="w-4 h-4" />
                         <span>Logga</span>
                     </button>
                 )}
