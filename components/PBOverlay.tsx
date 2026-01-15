@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+
 import { motion, AnimatePresence } from 'framer-motion';
-import { listenForStudioEvents } from '../services/firebaseService';
-import { StudioEvent } from '../types';
+import React, { useEffect, useState } from 'react';
 import { useStudio } from '../context/StudioContext';
 import { getAudioContext } from '../hooks/useWorkoutTimer';
+import { listenForStudioEvents } from '../services/firebaseService';
+import { StudioEvent } from '../types';
 
 const DISPLAY_DURATION = 8000; 
 
@@ -67,70 +68,66 @@ export const PBOverlay: React.FC = () => {
     }, [currentEvent]);
 
     return (
-        <div className="fixed inset-0 pointer-events-none z-[9999] flex flex-col items-center justify-center p-6 sm:p-12">
+        <div className="fixed inset-0 pointer-events-none z-[9999] flex items-center justify-center p-4">
             <AnimatePresence mode="wait">
                 {currentEvent && (
                     <motion.div
                         key={currentEvent.id}
-                        initial={{ scale: 0.5, opacity: 0, y: 50 }}
-                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                        exit={{ scale: 1.1, opacity: 0, y: -20 }}
-                        transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                        className="bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 p-1.5 rounded-[3.5rem] shadow-[0_40px_120px_-15px_rgba(0,0,0,0.5)] overflow-hidden w-[90vw] max-w-2xl"
+                        initial={{ opacity: 0, y: 100 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -50 }}
+                        transition={{ duration: 0.5, ease: "easeOut" }}
+                        className="bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 p-2 rounded-[3.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.6)] w-full max-w-xl"
                     >
-                        <div className="bg-white/95 dark:bg-black/90 backdrop-blur-xl rounded-[3.3rem] px-6 py-10 sm:px-10 sm:py-12 text-center flex flex-col items-center border border-white/20 dark:border-white/10 relative overflow-hidden">
-                            <div className="absolute inset-0 bg-yellow-500/5 dark:bg-yellow-500/10 animate-pulse rounded-[3rem]"></div>
+                        {/* Solid bakgrund istället för sudd för att stödja TV-läsare bättre */}
+                        <div className="bg-white dark:bg-gray-900 rounded-[3.2rem] p-8 flex flex-col items-center border border-white/20 relative overflow-hidden min-h-[500px]">
                             
-                            <motion.div 
-                                animate={{ rotate: [0, -15, 15, -15, 15, 0] }}
-                                transition={{ duration: 0.6, delay: 0.2 }}
-                                className="text-7xl sm:text-8xl mb-4 sm:mb-6 relative z-10"
-                            >
-                                🔔
-                            </motion.div>
+                            <div className="absolute inset-0 bg-yellow-500/5 animate-pulse rounded-[3rem]"></div>
                             
-                            <h2 className="text-4xl sm:text-5xl md:text-6xl font-black text-gray-900 dark:text-white uppercase tracking-tighter mb-4 sm:mb-6 relative z-10 leading-none drop-shadow-sm">
+                            <div className="text-6xl sm:text-7xl mb-6 relative z-10">🔔</div>
+                            
+                            <h2 className="text-4xl sm:text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tighter mb-4 relative z-10 leading-none text-center">
                                 {currentEvent.data.records && currentEvent.data.records.length > 1 ? 'REKORDREGN! 🌧️' : 'NYTT REKORD! 🏆'}
                             </h2>
                             
-                            <div className="relative z-10 mb-6 sm:mb-8 flex flex-col items-center">
-                                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-[2rem] sm:rounded-[2.5rem] bg-gray-100 dark:bg-gray-800 overflow-hidden mb-3 sm:mb-4 border-4 border-yellow-400 shadow-xl">
+                            <div className="relative z-10 mb-8 flex flex-col items-center shrink-0">
+                                <div className="w-20 h-20 rounded-[2rem] bg-gray-100 dark:bg-gray-800 overflow-hidden mb-3 border-4 border-yellow-400 shadow-lg">
                                     {currentEvent.data.userPhotoUrl ? (
                                         <img src={currentEvent.data.userPhotoUrl} className="w-full h-full object-cover" alt="" />
                                     ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-4xl font-black text-gray-400">
+                                        <div className="w-full h-full flex items-center justify-center text-3xl font-black text-gray-300">
                                             {currentEvent.data.userName[0]}
                                         </div>
                                     )}
                                 </div>
-                                <p className="text-2xl sm:text-3xl md:text-4xl text-gray-600 dark:text-gray-200 font-medium leading-tight">
+                                <p className="text-2xl text-gray-600 dark:text-gray-300 font-medium">
                                     Grymt jobbat <span className="font-black text-yellow-600 dark:text-yellow-400">{currentEvent.data.userName}</span>!
                                 </p>
                             </div>
 
-                            {/* Rekordlista - Loopar ALLA rekord i data.records */}
-                            <div className="w-full space-y-3 sm:space-y-4 relative z-10 max-h-[40vh] overflow-y-auto px-2 custom-scrollbar pb-4">
+                            {/* Rekordlista - Anpassad för att inte svälla utanför rutan */}
+                            <div className="w-full space-y-3 relative z-10 max-h-[35vh] overflow-y-auto px-2 pb-4 custom-scrollbar">
                                 {currentEvent.data.records?.map((record, i) => (
                                     <motion.div 
                                         key={i}
-                                        initial={{ opacity: 0, x: -50 }}
+                                        initial={{ opacity: 0, x: -20 }}
                                         animate={{ opacity: 1, x: 0 }}
-                                        transition={{ delay: 0.6 + (i * 0.2) }}
-                                        className="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-[2rem] p-4 sm:p-5 flex justify-between items-center group shadow-md"
+                                        transition={{ delay: 0.4 + (i * 0.15) }}
+                                        className="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 rounded-3xl p-4 flex justify-between items-center shadow-sm"
                                     >
-                                        <div className="text-left min-w-0 flex-grow">
+                                        <div className="text-left min-w-0 flex-grow pr-4">
                                             <p className="text-gray-400 dark:text-gray-500 font-black uppercase text-[10px] tracking-widest mb-0.5">Övning</p>
-                                            <p className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white group-hover:text-yellow-500 transition-colors tracking-tight truncate">
+                                            <p className="text-xl font-black text-gray-900 dark:text-white tracking-tight truncate">
                                                 {record.exerciseName}
                                             </p>
                                         </div>
-                                        <div className="text-right shrink-0 ml-4">
-                                            <p className="text-gray-400 dark:text-gray-500 font-black uppercase text-[10px] tracking-widest mb-0.5">Nytt PB</p>
+                                        <div className="text-right shrink-0">
+                                            <p className="text-gray-400 dark:text-gray-500 font-black uppercase text-[10px] tracking-widest mb-0.5">Vikt</p>
                                             <div className="flex items-baseline gap-1">
-                                                <span className="text-3xl sm:text-4xl font-black text-primary">{record.weight}</span>
+                                                <span className="text-3xl font-black text-primary">{record.weight}</span>
                                                 <span className="text-xs font-bold text-gray-500">kg</span>
                                                 {record.diff > 0 && (
-                                                    <span className="ml-1 sm:ml-2 text-[10px] font-black text-green-500 bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 rounded-full">
+                                                    <span className="ml-2 text-[11px] font-black text-green-600 bg-green-100 dark:bg-green-900/40 px-2 py-0.5 rounded-full">
                                                         +{record.diff}
                                                     </span>
                                                 )}
@@ -140,12 +137,12 @@ export const PBOverlay: React.FC = () => {
                                 ))}
                             </div>
 
-                            <div className="absolute bottom-0 left-0 right-0 h-2.5 bg-gray-100 dark:bg-white/10 overflow-hidden">
+                            <div className="absolute bottom-0 left-0 right-0 h-2 bg-gray-100 dark:bg-white/5">
                                 <motion.div 
                                     initial={{ width: "100%" }}
                                     animate={{ width: "0%" }}
                                     transition={{ duration: DISPLAY_DURATION / 1000, ease: "linear" }}
-                                    className="h-full bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500"
+                                    className="h-full bg-gradient-to-r from-yellow-400 to-red-500"
                                 />
                             </div>
                         </div>
