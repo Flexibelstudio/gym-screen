@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise } from '../types';
-import { ToggleSwitch, PencilIcon, ChartBarIcon, SparklesIcon, ChevronUpIcon, ChevronDownIcon, CloseIcon } from './icons';
+import { ToggleSwitch, PencilIcon, ChartBarIcon, SparklesIcon, ChevronUpIcon, ChevronDownIcon } from './icons';
 import { TimerSetupModal } from './TimerSetupModal';
 import { getExerciseBank, uploadImage } from '../services/firebaseService';
 import { interpretHandwriting, generateExerciseDescription } from '../services/geminiService';
@@ -8,7 +9,6 @@ import { useStudio } from '../context/StudioContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
 import { resizeImage } from '../utils/imageUtils';
 import { EditableField } from './workout-builder/EditableField';
-import { Modal } from './ui/Modal';
 
 const parseExerciseLine = (line: string): { reps: string; name: string } => {
     const trimmedLine = line.trim();
@@ -365,6 +365,7 @@ interface ExerciseItemProps {
     onMove: (direction: 'up' | 'down') => void;
 }
 const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, onOpenHandwriting, exerciseBank, organizationId, index, total, onMove }) => {
+    const baseClasses = "w-full bg-transparent focus:outline-none disabled:bg-transparent";
     const textClasses = "text-gray-900 dark:text-white";
     
     const [searchQuery, setSearchQuery] = useState('');
@@ -460,7 +461,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                         value={exercise.reps || ''}
                         onChange={e => onUpdate(exercise.id, { reps: e.target.value })}
                         placeholder="Antal"
-                        className={`bg-white dark:bg-gray-600 rounded p-1 ${textClasses} w-24 font-bold text-center placeholder-gray-500 focus:ring-1 focus:ring-primary outline-none`}
+                        className={`${baseClasses.replace('w-full', '')} ${textClasses} w-24 font-semibold placeholder-gray-500`}
                     />
                     <input
                         type="text"
@@ -471,7 +472,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             setSearchQuery(exercise.name);
                         }}
                         placeholder="Sök eller skriv övningsnamn"
-                        className={`flex-grow bg-transparent focus:outline-none ${textClasses} font-semibold`}
+                        className={`${baseClasses} ${textClasses} font-semibold`}
                     />
                     
                     {/* LOGGNING TOGGLE */}
@@ -514,7 +515,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                       value={exercise.description || ''}
                       onChange={e => onUpdate(exercise.id, { description: e.target.value })}
                       placeholder="Beskrivning (klicka på ✨ för AI-förslag)"
-                      className={`w-full text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-300 p-2 rounded-md border border-gray-300 dark:border-gray-600 focus:ring-1 focus:ring-primary h-16 pr-10 outline-none`}
+                      className={`${baseClasses} text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-300 p-2 rounded-md border border-gray-300 dark:border-gray-600 focus:ring-1 focus:ring-primary h-16 pr-10`}
                       rows={2}
                     />
                     <button

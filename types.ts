@@ -109,13 +109,13 @@ export interface Workout {
   isPublished: boolean;
   isFavorite?: boolean;
   createdAt: number;
-  organizationId: string; // Made required based on usage context often assuming it
+  organizationId: string; 
   showDetailsToMember?: boolean;
   logType?: WorkoutLogType;
   isMemberDraft?: boolean;
-  participants?: string[]; // For races
-  startGroups?: StartGroup[]; // For races
-  startIntervalMinutes?: number; // For races
+  participants?: string[]; 
+  startGroups?: StartGroup[]; 
+  startIntervalMinutes?: number; 
   aiCoachSummary?: string;
 }
 
@@ -191,9 +191,9 @@ export interface InfoMessage {
   imageUrl?: string;
   animation: 'fade' | 'slide-left' | 'slide-right';
   durationSeconds: number;
-  visibleInStudios: string[]; // 'all' or studio IDs
-  startDate?: string; // ISO date string
-  endDate?: string; // ISO date string
+  visibleInStudios: string[]; 
+  startDate?: string; 
+  endDate?: string; 
 }
 
 export interface InfoCarousel {
@@ -243,11 +243,10 @@ export interface Organization {
   companyDetails?: CompanyDetails;
   inviteCode?: string;
   lastActiveAt?: number;
-  // Billing
   discountType?: 'percentage' | 'fixed';
-  discountValue?: number; // legacy?
+  discountValue?: number; 
   discountPercentage?: number;
-  lastBilledMonth?: string; // "YYYY-MM"
+  lastBilledMonth?: string; 
   lastBilledDate?: number;
 }
 
@@ -255,19 +254,26 @@ export interface StartGroup {
   id: string;
   name: string;
   participants: string;
-  startTime?: number; // timestamp or relative
+  startTime?: number; 
+}
+
+// Unified PB record for both Diploma and Studio Events
+export interface PBRecord {
+    exerciseName: string;
+    weight: number;
+    diff: number;
 }
 
 export interface WorkoutDiploma {
   title: string;
   subtitle?: string;
-  message?: string; // legacy
+  message?: string; 
   achievement?: string;
-  comparison?: string; // legacy
+  comparison?: string; 
   footer?: string;
   imagePrompt: string;
   imageUrl?: string;
-  newPBs?: { name: string; diff: number; current: number }[];
+  newPBs?: PBRecord[];
 }
 
 export interface BankExercise {
@@ -323,7 +329,7 @@ export interface Member extends UserData {
     createdAt: number;
     endDate?: string | null;
     isTrainingMember?: boolean;
-    id: string; // Alias for uid often used in lists
+    id: string; 
 }
 
 export interface WorkoutResult {
@@ -364,7 +370,7 @@ export interface ThemeDateRange {
 }
 
 export interface SeasonalThemeSetting {
-    id: string; // 'christmas', 'halloween' etc
+    id: string; 
     name: string;
     isEnabled: boolean;
     ranges: ThemeDateRange[];
@@ -389,8 +395,8 @@ export interface ExerciseSetDetail {
 export interface ExerciseResult {
     exerciseId: string;
     exerciseName: string;
-    weight: number | null; // Max weight summary
-    reps: string | null; // Summary reps
+    weight: number | null; 
+    reps: string | null; 
     sets: number;
     setDetails?: ExerciseSetDetail[];
     distance?: number | null;
@@ -418,7 +424,6 @@ export interface WorkoutLog {
     totalDistance?: number;
     totalCalories?: number;
     diploma?: WorkoutDiploma;
-    // Snapshot fields for community feed efficiency
     memberName?: string;
     memberPhotoUrl?: string;
 }
@@ -433,7 +438,6 @@ export interface CheckInEvent {
     streak: number;
 }
 
-// Updated type for batched PB Events
 export interface StudioEvent {
     id: string;
     type: 'pb' | 'pb_batch';
@@ -442,14 +446,10 @@ export interface StudioEvent {
     data: {
         userName: string;
         userPhotoUrl?: string | null;
-        records: {
-            exerciseName: string;
-            weight: number;
-            diff?: number;
-        }[];
-        // Keep legacy fields for a short transition period if needed
+        records: PBRecord[];
+        // Legacy
         exerciseName?: string;
-        isNewRecord?: boolean;
+        weight?: number;
     };
 }
 

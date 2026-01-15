@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutDiploma } from '../types';
@@ -79,7 +78,6 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                 }}
                 onClick={e => e.stopPropagation()}
             >
-                {/* Bakgrundsdekorationer */}
                 <div className="absolute top-0 right-0 w-64 h-64 hidden dark:block bg-primary/10 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
                 <div className="absolute bottom-0 left-0 w-64 h-64 hidden dark:block bg-purple-500/10 rounded-full blur-[80px] -ml-20 -mb-20 pointer-events-none"></div>
 
@@ -90,10 +88,7 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                     <CloseIcon className="w-5 h-5 text-gray-500 dark:text-white" />
                 </button>
 
-                {/* Content Layer */}
                 <div className="relative z-10 flex flex-col h-full justify-between p-8 sm:p-10 text-center">
-                    
-                    {/* Top Section */}
                     <div className="pt-8">
                         <h1 className="text-4xl sm:text-5xl font-black uppercase tracking-tighter leading-none mb-4 text-black dark:text-white">
                             {title}
@@ -105,7 +100,6 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                         </div>
                     </div>
 
-                    {/* Middle / Hero Section */}
                     <div className="flex-grow flex flex-col items-center justify-center py-6">
                         <motion.div 
                             initial={{ scale: 0.5, rotate: -10 }}
@@ -121,14 +115,14 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                                 {achievement}
                             </p>
                             
-                            {/* PB SECTION - Only shown if new PBs exist */}
+                            {/* PB SECTION - Unified Naming */}
                             {diploma.newPBs && diploma.newPBs.length > 0 && (
                                 <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
                                     <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Nya Rekord Satta! 🏆</p>
                                     {diploma.newPBs.map((pb, i) => (
                                         <div key={i} className="flex justify-between items-center text-xs font-bold text-gray-900 dark:text-white bg-white dark:bg-black/40 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-gray-800">
-                                            <span>{pb.name}</span>
-                                            <span className="text-primary">+{pb.diff} kg</span>
+                                            <span className="truncate pr-2">{pb.exerciseName}</span>
+                                            <span className="text-primary shrink-0">+{pb.diff} kg</span>
                                         </div>
                                     ))}
                                 </div>
@@ -141,7 +135,6 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                         </div>
                     </div>
 
-                    {/* Bottom Section */}
                     <div className="pb-4">
                         <div className="flex justify-between items-end px-2">
                             <div className="text-left">
@@ -157,7 +150,6 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                     </div>
                 </div>
 
-                {/* Final Button */}
                 <div className="relative z-10 px-8 pb-8">
                     <button 
                         onClick={onClose}
