@@ -41,13 +41,13 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
     const [showConfetti, setShowConfetti] = useState(true);
 
     useEffect(() => {
-        const timer = setTimeout(() => setShowConfetti(false), 6000);
+        const timer = setTimeout(() => setShowConfetti(false), 5000);
         return () => clearTimeout(timer);
     }, []);
 
     const pbCount = diploma.newPBs?.length || 0;
     
-    // Dynamisk rubriklogik
+    // Dynamisk rubrik baserat på antal PB
     const displayTitle = pbCount > 1 ? "NYA PB!" : "NYTT PB!";
     
     const subtitle = diploma.subtitle || diploma.message || "";
@@ -56,8 +56,12 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
     const studioName = selectedOrganization?.name || "SmartCoach";
     const icon = diploma.imagePrompt || "🏆"; 
 
-    // Skala ikonen baserat på antal rekord för att hålla allt på en skärm
-    const iconSizeClass = pbCount > 5 ? "text-7xl sm:text-8xl" : pbCount > 3 ? "text-8xl sm:text-9xl" : "text-[9rem] sm:text-[11rem]";
+    // Skala ikonen kraftigt nedåt om det är många PB:s för att undvika scroll
+    const iconSizeClass = pbCount > 5 
+        ? "text-7xl sm:text-8xl mb-2" 
+        : pbCount > 3 
+            ? "text-8xl sm:text-9xl mb-4" 
+            : "text-[10rem] sm:text-[12rem] mb-6";
 
     return (
         <motion.div 
@@ -79,14 +83,14 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                 className="relative w-full max-w-sm rounded-[3.5rem] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.6)] flex flex-col bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-800"
                 style={{ 
                     fontFamily: '"Inter", sans-serif',
-                    maxHeight: '96vh' // Täcker nästan hela skärmen för maximal plats
+                    maxHeight: '96vh' // Täcker nästan hela skärmen för screenshot
                 }}
                 onClick={e => e.stopPropagation()}
             >
-                {/* Dekorativa element för lyxkänsla */}
+                {/* Dekorativt ljus i mörkt läge */}
                 <div className="absolute top-0 right-0 w-64 h-64 hidden dark:block bg-primary/10 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
                 
-                {/* Kryssknappen (X) */}
+                {/* Stäng-kryss (X) - enda sättet att stänga för att spara plats */}
                 <button 
                     onClick={onClose}
                     className="absolute top-6 right-6 z-50 p-2.5 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 rounded-full shadow-sm border border-gray-200 dark:border-white/10 transition-all active:scale-90"
@@ -95,7 +99,7 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                 </button>
 
                 {/* HEADER */}
-                <div className="pt-12 pb-4 text-center px-8 flex-shrink-0">
+                <div className="pt-14 pb-4 text-center px-8 flex-shrink-0">
                     <h1 className="text-4xl sm:text-5xl font-black uppercase tracking-tighter leading-none mb-3 text-black dark:text-white">
                         {displayTitle}
                     </h1>
@@ -106,14 +110,15 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                     </div>
                 </div>
 
-                {/* INNEHÅLL (Scrollbar endast som sista utväg) */}
+                {/* HUVUDINNEHÅLL */}
                 <div className="flex-grow overflow-y-auto px-6 pb-6 custom-scrollbar">
                     <div className="flex flex-col items-center">
-                        {/* Dynamisk ikon-skalning */}
+                        {/* Den skalbara ikonen */}
                         <motion.div 
-                            initial={{ scale: 0.5 }}
-                            animate={{ scale: 1 }}
-                            className={`${iconSizeClass} leading-none filter drop-shadow-2xl mb-6 select-none`}
+                            initial={{ scale: 0.5, rotate: -5 }}
+                            animate={{ scale: 1, rotate: 0 }}
+                            transition={{ type: "spring", damping: 12, stiffness: 100, delay: 0.1 }}
+                            className={`${iconSizeClass} leading-none filter drop-shadow-2xl select-none`}
                         >
                             {icon}
                         </motion.div>
@@ -123,14 +128,14 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                                 {achievement}
                             </p>
                             
-                            {/* PB LISTA - Kompakt och snygg */}
+                            {/* PB-LISTA */}
                             {pbCount > 0 && (
                                 <div className="space-y-2 mb-4">
-                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary text-center mb-3 opacity-70">Nya rekord satta 🏆</p>
+                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary text-center mb-3 opacity-80">Nya PB satta 🏆</p>
                                     <div className="space-y-1.5">
                                         {diploma.newPBs?.map((pb, i) => (
-                                            <div key={i} className="flex justify-between items-center text-xs font-bold text-gray-900 dark:text-white bg-white dark:bg-black/40 px-4 py-2.5 rounded-2xl border border-gray-100 dark:border-white/5 shadow-sm">
-                                                <span className="truncate pr-4">{pb.exerciseName}</span>
+                                            <div key={i} className="flex justify-between items-center text-xs font-bold text-gray-900 dark:text-white bg-white dark:bg-black/40 px-4 py-3 rounded-2xl border border-gray-100 dark:border-white/5 shadow-sm">
+                                                <span className="truncate pr-4 uppercase tracking-tight">{pb.exerciseName}</span>
                                                 <span className="text-primary font-black shrink-0">+{pb.diff} kg</span>
                                             </div>
                                         ))}
@@ -147,16 +152,16 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                     </div>
                 </div>
 
-                {/* FOOTER META - Elegant och liten */}
-                <div className="px-10 pb-8 flex-shrink-0 flex justify-between items-center opacity-40">
+                {/* FOOTER INFO - Tydlig men diskret längst ner */}
+                <div className="px-10 pb-10 flex-shrink-0 flex justify-between items-center bg-white dark:bg-gray-950 border-t border-gray-50 dark:border-gray-900 pt-6">
                     <div className="text-left">
                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Datum</p>
-                        <p className="text-[9px] font-bold text-black dark:text-white">{new Date().toLocaleDateString('sv-SE')}</p>
+                        <p className="text-[10px] font-bold text-gray-900 dark:text-white">{new Date().toLocaleDateString('sv-SE')}</p>
                     </div>
                     
                     <div className="text-right">
                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Studio</p>
-                        <p className="text-[9px] font-black text-primary uppercase">{studioName}</p>
+                        <p className="text-[10px] font-black text-primary uppercase">{studioName}</p>
                     </div>
                 </div>
             </motion.div>
