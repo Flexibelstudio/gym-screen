@@ -110,7 +110,7 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                             {icon}
                         </motion.div>
                         
-                        <div className="bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-7 rounded-[2rem] w-full shadow-sm">
+                        <div className="bg-gray-5 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-7 rounded-[2rem] w-full shadow-sm">
                             <p className="text-xl sm:text-2xl font-black text-black dark:text-white leading-tight mb-2">
                                 {achievement}
                             </p>

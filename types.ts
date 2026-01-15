@@ -259,7 +259,7 @@ export interface StartGroup {
 
 // Unified PB record for both Diploma and Studio Events
 export interface PBRecord {
-    name: string; // Changed from exerciseName to match usage in components
+    exerciseName: string; // Synced with firebaseService
     diff: number;
     weight?: number; // Optional current weight
 }
