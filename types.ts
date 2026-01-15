@@ -259,21 +259,23 @@ export interface StartGroup {
 
 // Unified PB record for both Diploma and Studio Events
 export interface PBRecord {
-    exerciseName: string;
-    weight: number;
+    name: string; // Changed from exerciseName to match usage in components
     diff: number;
+    weight?: number; // Optional current weight
 }
 
 export interface WorkoutDiploma {
   title: string;
-  subtitle?: string;
-  message?: string; 
-  achievement?: string;
-  comparison?: string; 
-  footer?: string;
+  subtitle: string;     // REQUIRED
+  achievement: string;  // REQUIRED
+  footer: string;       // REQUIRED
   imagePrompt: string;
   imageUrl?: string;
   newPBs?: PBRecord[];
+  
+  // Legacy fields (optional if you still have old diplomas)
+  message?: string; 
+  comparison?: string; 
 }
 
 export interface BankExercise {
@@ -426,6 +428,7 @@ export interface WorkoutLog {
     diploma?: WorkoutDiploma;
     memberName?: string;
     memberPhotoUrl?: string;
+    newPBs?: PBRecord[]; // Added to match usage in Diploma Generator
 }
 
 export interface CheckInEvent {
@@ -446,10 +449,13 @@ export interface StudioEvent {
     data: {
         userName: string;
         userPhotoUrl?: string | null;
-        records: PBRecord[];
-        // Legacy
+        // Updated to support multiple records (or single via array)
+        records?: PBRecord[]; 
+        
+        // Legacy support
         exerciseName?: string;
         weight?: number;
+        isNewRecord?: boolean;
     };
 }
 
