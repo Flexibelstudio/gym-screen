@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, Passkategori, StudioConfig, WorkoutResult, Organization, BankExercise } from '../types';
+import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, StudioConfig, WorkoutResult } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
-import { StarIcon, PencilIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, PencilIcon as DrawIcon, CloseIcon, ClockIcon, UsersIcon, ChartBarIcon } from './icons';
+import { StarIcon, PencilIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, CloseIcon, ClockIcon, UsersIcon, ChartBarIcon } from './icons';
 import { getWorkoutResults } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
 import { AnimatePresence, motion } from 'framer-motion';
