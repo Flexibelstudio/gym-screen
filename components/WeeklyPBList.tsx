@@ -36,7 +36,7 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
     if (isLoading) {
         return (
             <div className="h-full bg-white/5 backdrop-blur-md rounded-[2.5rem] flex items-center justify-center text-white/30 text-sm font-bold uppercase tracking-widest border border-white/10">
-                Laddar rekord...
+                Laddar PB´s...
             </div>
         );
     }
@@ -58,7 +58,7 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
                     <div className="p-2 bg-yellow-500/20 rounded-2xl text-yellow-400 border border-yellow-500/10 shadow-inner">
                         <TrophyIcon className="w-5 h-5" />
                     </div>
-                    <h3 className="text-xl font-black text-white uppercase tracking-tight leading-none">Senaste Rekorden</h3>
+                    <h3 className="text-xl font-black text-white uppercase tracking-tight leading-none">Senaste personbästan</h3>
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] bg-white/5 px-2 py-1 rounded-lg border border-white/5">Hof</span>
@@ -106,7 +106,7 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
                                             </span>
                                         </div>
                                         <p className="text-yellow-500 text-[10px] font-black uppercase tracking-[0.1em] truncate flex items-center gap-1">
-                                            🔥 {isBatch ? `${recordCount} NYA REKORD!` : `PB I ${mainRecord.exerciseName.toUpperCase()}`}
+                                            🔥 {isBatch ? `${recordCount} NYA PB!` : `PB I ${mainRecord.exerciseName.toUpperCase()}`}
                                         </p>
                                     </div>
                                 </motion.div>
@@ -115,7 +115,7 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
                             <DumbbellIcon className="w-8 h-8 text-white mb-2" />
-                            <p className="text-white text-[10px] font-bold uppercase tracking-widest">Inga rekord satta än</p>
+                            <p className="text-white text-[10px] font-bold uppercase tracking-widest">Inga PB satta än</p>
                             <p className="text-white/60 text-[10px] mt-1 italic">Bli den första den här veckan!</p>
                         </div>
                     )}

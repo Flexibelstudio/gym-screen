@@ -87,7 +87,7 @@ export const PBOverlay: React.FC = () => {
                             <div className="text-6xl sm:text-7xl mb-6 relative z-10">🔔</div>
                             
                             <h2 className="text-4xl sm:text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tighter mb-4 relative z-10 leading-none text-center">
-                                {currentEvent.data.records && currentEvent.data.records.length > 1 ? 'REKORDREGN! 🌧️' : 'NYTT REKORD! 🏆'}
+                                {currentEvent.data.records && currentEvent.data.records.length > 1 ? 'PBREGN! 🌧️' : 'NYTT PB! 🏆'}
                             </h2>
                             
                             <div className="relative z-10 mb-8 flex flex-col items-center shrink-0">
