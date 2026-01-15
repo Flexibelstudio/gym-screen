@@ -39,78 +39,111 @@ const formatReps = (reps: string | undefined): string => {
     return trimmed;
 };
 
-// --- NEW COMPONENT: BLOCK PRESENTATION MODAL ---
+// --- NEW COMPONENT: FULLSCREEN BLOCK DASHBOARD ---
 const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => void }> = ({ block, onClose }) => {
+    const exerciseCount = block.exercises.length;
+
+    // Dynamic scale logic for fonts
+    const getTitleSize = (count: number) => {
+        if (count <= 4) return 'text-5xl sm:text-7xl lg:text-8xl';
+        if (count <= 7) return 'text-4xl sm:text-5xl lg:text-6xl';
+        if (count <= 10) return 'text-3xl sm:text-4xl lg:text-5xl';
+        return 'text-2xl sm:text-3xl lg:text-4xl';
+    };
+
+    const getDescSize = (count: number) => {
+        if (count <= 5) return 'text-xl sm:text-2xl lg:text-3xl';
+        if (count <= 8) return 'text-lg sm:text-xl lg:text-2xl';
+        return 'text-sm sm:text-base lg:text-lg';
+    };
+
     return (
         <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[10000] bg-white dark:bg-gray-950 flex flex-col overflow-hidden"
+            className="fixed inset-0 z-[10000] bg-white dark:bg-gray-950 flex flex-col overflow-hidden select-none"
         >
-            {/* Header */}
-            <div className="flex justify-between items-start p-8 md:p-12 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
-                <div className="max-w-4xl">
-                    <div className="flex items-center gap-4 mb-4">
-                         <span className={`inline-flex items-center px-4 py-2 rounded-xl text-lg font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
-                            {block.tag}
-                        </span>
-                    </div>
-                    <h1 className="text-5xl md:text-7xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">
+            {/* Minimal HUD Header */}
+            <div className="flex-shrink-0 flex justify-between items-center px-8 py-4 border-b border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30">
+                <div className="flex items-center gap-6">
+                    <span className={`inline-flex items-center px-4 py-1.5 rounded-xl text-xs font-black uppercase tracking-[0.2em] shadow-sm ${getTagColor(block.tag)}`}>
+                        {block.tag}
+                    </span>
+                    <h1 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">
                         {block.title}
                     </h1>
-                    {block.setupDescription && (
-                        <p className="text-2xl md:text-3xl text-gray-500 dark:text-gray-400 mt-6 font-medium leading-relaxed max-w-5xl">
-                            {block.setupDescription}
-                        </p>
-                    )}
                 </div>
                 <button 
                     onClick={onClose}
-                    className="p-4 bg-gray-200 dark:bg-gray-800 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors shadow-lg active:scale-95"
+                    className="p-3 bg-gray-200 dark:bg-gray-800 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-all active:scale-90 shadow-lg"
                 >
-                    <CloseIcon className="w-10 h-10 text-gray-900 dark:text-white" />
+                    <CloseIcon className="w-6 h-6 text-gray-900 dark:text-white" />
                 </button>
             </div>
 
-            {/* Content - Giant List */}
-            <div className="flex-grow overflow-y-auto p-8 md:p-12">
-                <div className="max-w-7xl mx-auto space-y-6">
-                    {block.exercises.map((ex, index) => (
-                        <div key={ex.id} className="flex items-start gap-8 p-8 rounded-[2rem] bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800">
-                             <div className="flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-2xl md:text-3xl font-black text-gray-500">
-                                {index + 1}
-                            </div>
-                            <div className="flex-grow">
-                                <div className="flex justify-between items-start gap-8">
-                                    <h3 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white leading-tight">
-                                        {ex.name}
-                                    </h3>
-                                    {ex.reps && (
-                                        <div className="bg-primary/10 text-primary px-6 py-3 rounded-2xl whitespace-nowrap">
-                                            <span className="text-3xl md:text-5xl font-mono font-black">{formatReps(ex.reps)}</span>
-                                        </div>
-                                    )}
-                                </div>
-                                {ex.description && (
-                                    <p className="text-2xl md:text-3xl text-gray-500 dark:text-gray-400 mt-4 leading-relaxed font-medium">
-                                        {ex.description}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                    ))}
-                    {block.exercises.length === 0 && (
-                        <p className="text-center text-3xl text-gray-400 py-20 italic">Inga övningar i detta block.</p>
-                    )}
+            {/* Block Description Strip */}
+            {block.setupDescription && (
+                <div className="flex-shrink-0 px-8 py-5 bg-primary/5 dark:bg-primary/10 border-b border-gray-100 dark:border-gray-800">
+                    <div className="flex items-start gap-3">
+                        <span className="text-2xl">📋</span>
+                        <p className="text-xl lg:text-2xl text-gray-700 dark:text-gray-300 font-bold leading-snug">
+                            {block.setupDescription}
+                        </p>
+                    </div>
                 </div>
+            )}
+
+            {/* Main Content Area - Distributes all available height to rows */}
+            <div className="flex-grow flex flex-col">
+                {block.exercises.map((ex, index) => (
+                    <div 
+                        key={ex.id} 
+                        className="flex-1 flex items-center px-10 lg:px-16 border-b border-gray-50 dark:border-white/[0.03] last:border-0 group hover:bg-gray-50 dark:hover:bg-white/[0.01] transition-colors"
+                    >
+                        {/* Station Number */}
+                        <div className="shrink-0 w-24 sm:w-32 lg:w-40 flex justify-center">
+                            <span className="text-5xl sm:text-7xl lg:text-8xl font-black text-gray-200 dark:text-gray-800 group-hover:text-primary transition-colors">
+                                {String(index + 1).padStart(2, '0')}
+                            </span>
+                        </div>
+
+                        {/* Exercise Name & Desc */}
+                        <div className="flex-grow min-w-0 px-8 lg:px-12">
+                            <h3 className={`${getTitleSize(exerciseCount)} font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-[0.9] truncate`}>
+                                {ex.name}
+                            </h3>
+                            {ex.description && (
+                                <p className={`${getDescSize(exerciseCount)} text-gray-500 dark:text-gray-400 font-medium mt-3 line-clamp-1 leading-tight`}>
+                                    {ex.description}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Reps/Amount - Prominent box */}
+                        {ex.reps && (
+                            <div className="shrink-0 ml-4">
+                                <div className="bg-white dark:bg-gray-900 border-2 border-primary/30 dark:border-primary/50 text-primary px-8 py-4 rounded-[2rem] shadow-xl shadow-primary/10">
+                                    <span className={`${getDescSize(exerciseCount)} font-mono font-black whitespace-nowrap`}>
+                                        {formatReps(ex.reps)}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                ))}
+
+                {block.exercises.length === 0 && (
+                    <div className="flex-grow flex items-center justify-center text-3xl font-black text-gray-300 dark:text-gray-800 italic uppercase tracking-widest">
+                        Inga övningar i blocket
+                    </div>
+                )}
             </div>
             
-            {/* Footer */}
-            <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex justify-center">
-                 <button onClick={onClose} className="bg-black dark:bg-white text-white dark:text-black font-black text-xl py-4 px-12 rounded-full shadow-xl hover:scale-105 transition-transform uppercase tracking-widest">
-                     Stäng visningsläge
-                 </button>
+            {/* Very thin status/branding footer */}
+            <div className="flex-shrink-0 px-8 py-2 bg-gray-50 dark:bg-gray-950 border-t border-gray-100 dark:border-gray-900 flex justify-between items-center opacity-40">
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">SmartStudio Dashboard</span>
+                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-500">{new Date().toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
         </motion.div>
     );
@@ -216,6 +249,7 @@ const MemberWorkoutView: React.FC<{
                     onClick={onLog}
                     className="flex-[2] bg-primary hover:brightness-110 text-white font-black py-4 rounded-[2rem] shadow-xl shadow-primary/40 transition-all transform active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-widest"
                     >
+                        <ChartBarIcon className="w-4 h-4" />
                         <span>Logga</span>
                     </button>
                 )}
