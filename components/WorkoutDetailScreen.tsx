@@ -216,7 +216,6 @@ const MemberWorkoutView: React.FC<{
                     onClick={onLog}
                     className="flex-[2] bg-primary hover:brightness-110 text-white font-black py-4 rounded-[2rem] shadow-xl shadow-primary/40 transition-all transform active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-widest"
                     >
-                        <ChartBarIcon className="w-4 h-4" />
                         <span>Logga</span>
                     </button>
                 )}
