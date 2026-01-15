@@ -1,6 +1,4 @@
-import { GoogleGenAI, GenerateContentResponse, SchemaType } from "@google/genai"; // OBS: SchemaType är det korrekta namnet i nya SDKn ibland, men vi kör Type om det funkar för dig, annars SchemaType.
-// För att vara säker på kompabilitet med din version kör vi "any" på Type om det behövs, eller behåller din import om den funkar.
-// Jag ser att du importerade Type i AI-studios förslag. Vi kör på det.
+import { GoogleGenAI, GenerateContentResponse } from "@google/genai"; 
 import { Type } from "@google/genai"; 
 
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise, SuggestedExercise, CustomCategoryWithPrompt, WorkoutLog, MemberGoals, WorkoutDiploma } from '../types';
@@ -466,9 +464,10 @@ export interface MemberInsightResponse {
     };
 }
 
+// Gemini structured response schema (without unsupported additionalProperties)
 const memberInsightSchema = {
     type: Type.OBJECT,
-    required: ['readiness', 'suggestions'],
+    required: ['readiness', 'suggestions', 'scaling', 'strategy'],
     properties: {
         readiness: {
             type: Type.OBJECT,
@@ -479,8 +478,29 @@ const memberInsightSchema = {
             }
         },
         strategy: { type: Type.STRING },
-        suggestions: { type: Type.OBJECT, additionalProperties: { type: Type.STRING } },
-        scaling: { type: Type.OBJECT, additionalProperties: { type: Type.STRING } }
+        // Use arrays of objects for maps to avoid "additionalProperties" error
+        suggestions: { 
+            type: Type.ARRAY, 
+            items: {
+                type: Type.OBJECT,
+                required: ['exerciseName', 'advice'],
+                properties: {
+                    exerciseName: { type: Type.STRING },
+                    advice: { type: Type.STRING }
+                }
+            }
+        },
+        scaling: { 
+            type: Type.ARRAY, 
+            items: {
+                type: Type.OBJECT,
+                required: ['exerciseName', 'advice'],
+                properties: {
+                    exerciseName: { type: Type.STRING },
+                    advice: { type: Type.STRING }
+                }
+            }
+        }
     }
 };
 
@@ -491,9 +511,6 @@ export async function generateMemberInsights(
 ): Promise<MemberInsightResponse> {
     const ai = getAIClient();
     
-    // ... (Behåll din logik för smartHistoryMap och filteredHistory här om du vill, annars förenklar jag nedan)
-    // Jag förenklar för att använda det nya schemat och spara plats, men logiken är densamma:
-
     const prompt = `
     Du är en expert PT och strateg. Analysera medlemmens historik och ge en "Pre-Game Strategy" inför DAGENS pass: "${currentWorkoutTitle}".
     
@@ -503,13 +520,13 @@ export async function generateMemberInsights(
     Historik: ${JSON.stringify(recentLogs.slice(0, 5))}
 
     Uppgift:
-    1. Readiness: Bedöm dagsform.
+    1. Readiness: Bedöm dagsform baserat på frekvens och kommentarer.
     2. Suggestions: Föreslå vikter för dagens övningar baserat på historik.
     3. Scaling: Ge alternativ för svåra övningar.
     `;
 
     try {
-        const response = await ai.models.generateContent({
+        const response: GenerateContentResponse = await ai.models.generateContent({
             model: model, 
             contents: prompt,
             config: {
@@ -519,7 +536,30 @@ export async function generateMemberInsights(
         });
 
         const jsonStr = response.text.trim();
-        return JSON.parse(jsonStr) as MemberInsightResponse;
+        const data = JSON.parse(jsonStr);
+
+        // Map array format back to expected object format for the frontend
+        const suggestions: Record<string, string> = {};
+        if (Array.isArray(data.suggestions)) {
+            data.suggestions.forEach((s: any) => {
+                suggestions[s.exerciseName] = s.advice;
+            });
+        }
+
+        const scaling: Record<string, string> = {};
+        if (Array.isArray(data.scaling)) {
+            data.scaling.forEach((s: any) => {
+                scaling[s.exerciseName] = s.advice;
+            });
+        }
+
+        return {
+            readiness: data.readiness,
+            strategy: data.strategy,
+            suggestions,
+            scaling
+        } as MemberInsightResponse;
+
     } catch (e) {
         console.error("Failed to generate member insights", e);
         return {
