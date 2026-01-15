@@ -686,7 +686,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       </div>
 
       {/* Standard Bottom Content */}
-      <div className={`absolute bottom-0 left-0 right-0 flex flex-col items-center justify-start px-4 z-0 ${showFullScreenColor ? 'top-[62%]' : 'top-[43%]'} ${isHyroxRace ? 'right-[30%]' : ''}`}>
+      <div className={`absolute bottom-0 left-0 right-0 flex flex-col items-center justify-start px-4 z-0 ${showFullScreenColor ? 'top-[65%]' : 'top-[46%]'} ${isHyroxRace ? 'right-[30%]' : ''}`}>
           
           {/* Block Description Pill - UPPDATERAD DESIGN FÖR BÄTTRE LÄSBARHET */}
           {block.showDescriptionInTimer && block.setupDescription && (
@@ -729,7 +729,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       )}
 
       {/* Bottom Controls Bar */}
-      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[62%]' : 'top-[46%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'left-[35%]' : ''}`}>
+      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[49%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'left-[35%]' : ''}`}>
             {status === TimerStatus.Idle || status === TimerStatus.Finished ? (
                 <>
                     <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-500 transition-colors text-xl backdrop-blur-md border-2 border-white/20">TILLBAKA</button>
