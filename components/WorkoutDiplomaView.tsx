@@ -41,24 +41,30 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
     const [showConfetti, setShowConfetti] = useState(true);
 
     useEffect(() => {
-        const timer = setTimeout(() => setShowConfetti(false), 5000);
+        const timer = setTimeout(() => setShowConfetti(false), 6000);
         return () => clearTimeout(timer);
     }, []);
 
-    const title = diploma.title;
+    const pbCount = diploma.newPBs?.length || 0;
+    
+    // Dynamisk rubriklogik
+    const displayTitle = pbCount > 1 ? "NYA PB!" : "NYTT PB!";
+    
     const subtitle = diploma.subtitle || diploma.message || "";
     const achievement = diploma.achievement || diploma.comparison || "";
     const footer = diploma.footer || "";
     const studioName = selectedOrganization?.name || "SmartCoach";
-    
     const icon = diploma.imagePrompt || "🏆"; 
+
+    // Skala ikonen baserat på antal rekord för att hålla allt på en skärm
+    const iconSizeClass = pbCount > 5 ? "text-7xl sm:text-8xl" : pbCount > 3 ? "text-8xl sm:text-9xl" : "text-[9rem] sm:text-[11rem]";
 
     return (
         <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[12000] bg-black/70 dark:bg-black/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-6"
+            className="fixed inset-0 z-[12000] bg-black/80 dark:bg-black/95 backdrop-blur-md flex items-center justify-center p-2 sm:p-6"
             onClick={onClose}
         >
             <AnimatePresence>
@@ -69,94 +75,89 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                 initial={{ scale: 0.9, opacity: 0, y: 40 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.9, opacity: 0, y: 40 }}
-                transition={{ type: "spring", damping: 20, stiffness: 120 }}
-                className="relative w-full max-w-sm rounded-[3rem] overflow-hidden shadow-[0_40px_80px_-15px_rgba(0,0,0,0.5)] flex flex-col bg-white dark:bg-gray-950 border border-gray-200 dark:border-gray-800"
+                transition={{ type: "spring", damping: 25, stiffness: 150 }}
+                className="relative w-full max-w-sm rounded-[3.5rem] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.6)] flex flex-col bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-800"
                 style={{ 
                     fontFamily: '"Inter", sans-serif',
-                    aspectRatio: '9/16',
-                    maxHeight: '90vh'
+                    maxHeight: '96vh' // Täcker nästan hela skärmen för maximal plats
                 }}
                 onClick={e => e.stopPropagation()}
             >
+                {/* Dekorativa element för lyxkänsla */}
                 <div className="absolute top-0 right-0 w-64 h-64 hidden dark:block bg-primary/10 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
-                <div className="absolute bottom-0 left-0 w-64 h-64 hidden dark:block bg-purple-500/10 rounded-full blur-[80px] -ml-20 -mb-20 pointer-events-none"></div>
-
+                
+                {/* Kryssknappen (X) */}
                 <button 
                     onClick={onClose}
-                    className="absolute top-6 right-6 z-50 p-3 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 rounded-full shadow-md border border-gray-200 dark:border-white/10 transition-all active:scale-90"
+                    className="absolute top-6 right-6 z-50 p-2.5 bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 rounded-full shadow-sm border border-gray-200 dark:border-white/10 transition-all active:scale-90"
                 >
                     <CloseIcon className="w-5 h-5 text-gray-500 dark:text-white" />
                 </button>
 
-                <div className="relative z-10 flex flex-col h-full justify-between p-8 sm:p-10 text-center">
-                    <div className="pt-8">
-                        <h1 className="text-4xl sm:text-5xl font-black uppercase tracking-tighter leading-none mb-4 text-black dark:text-white">
-                            {title}
-                        </h1>
-                        <div className="inline-block px-4 py-1.5 rounded-full bg-gray-100 dark:bg-white/10 border border-gray-200 dark:border-white/10 shadow-sm">
-                            <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-gray-700 dark:text-gray-300">
-                                {subtitle}
-                            </p>
-                        </div>
+                {/* HEADER */}
+                <div className="pt-12 pb-4 text-center px-8 flex-shrink-0">
+                    <h1 className="text-4xl sm:text-5xl font-black uppercase tracking-tighter leading-none mb-3 text-black dark:text-white">
+                        {displayTitle}
+                    </h1>
+                    <div className="inline-block px-4 py-1.5 rounded-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+                        <p className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-gray-700 dark:text-gray-400">
+                            {subtitle}
+                        </p>
                     </div>
+                </div>
 
-                    <div className="flex-grow flex flex-col items-center justify-center py-6">
+                {/* INNEHÅLL (Scrollbar endast som sista utväg) */}
+                <div className="flex-grow overflow-y-auto px-6 pb-6 custom-scrollbar">
+                    <div className="flex flex-col items-center">
+                        {/* Dynamisk ikon-skalning */}
                         <motion.div 
-                            initial={{ scale: 0.5, rotate: -10 }}
-                            animate={{ scale: 1, rotate: 0 }}
-                            transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.2 }}
-                            className="text-[8.5rem] sm:text-[10.5rem] leading-none filter drop-shadow-2xl mb-8 transform hover:scale-110 transition-transform cursor-default select-none"
+                            initial={{ scale: 0.5 }}
+                            animate={{ scale: 1 }}
+                            className={`${iconSizeClass} leading-none filter drop-shadow-2xl mb-6 select-none`}
                         >
                             {icon}
                         </motion.div>
                         
-                        <div className="bg-gray-5 dark:bg-white/5 border border-gray-200 dark:border-white/10 p-7 rounded-[2rem] w-full shadow-sm">
-                            <p className="text-xl sm:text-2xl font-black text-black dark:text-white leading-tight mb-2">
+                        <div className="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 p-6 rounded-[2.5rem] w-full shadow-sm">
+                            <p className="text-xl sm:text-2xl font-black text-black dark:text-white leading-tight mb-6 text-center">
                                 {achievement}
                             </p>
                             
-                            {/* PB SECTION - Unified Naming */}
-                            {diploma.newPBs && diploma.newPBs.length > 0 && (
-                                <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-2">
-                                    <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-2">Nya Rekord Satta! 🏆</p>
-                                    {diploma.newPBs.map((pb, i) => (
-                                        <div key={i} className="flex justify-between items-center text-xs font-bold text-gray-900 dark:text-white bg-white dark:bg-black/40 px-3 py-1.5 rounded-lg border border-gray-100 dark:border-gray-800">
-                                            <span className="truncate pr-2">{pb.exerciseName}</span>
-                                            <span className="text-primary shrink-0">+{pb.diff} kg</span>
-                                        </div>
-                                    ))}
+                            {/* PB LISTA - Kompakt och snygg */}
+                            {pbCount > 0 && (
+                                <div className="space-y-2 mb-4">
+                                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-primary text-center mb-3 opacity-70">Nya rekord satta 🏆</p>
+                                    <div className="space-y-1.5">
+                                        {diploma.newPBs?.map((pb, i) => (
+                                            <div key={i} className="flex justify-between items-center text-xs font-bold text-gray-900 dark:text-white bg-white dark:bg-black/40 px-4 py-2.5 rounded-2xl border border-gray-100 dark:border-white/5 shadow-sm">
+                                                <span className="truncate pr-4">{pb.exerciseName}</span>
+                                                <span className="text-primary font-black shrink-0">+{pb.diff} kg</span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
                             )}
 
-                            <div className="w-12 h-1.5 bg-primary mx-auto my-4 rounded-full"></div>
-                            <p className="text-sm font-bold text-gray-600 dark:text-gray-400 italic">
+                            <div className="w-12 h-1 bg-primary/20 mx-auto my-5 rounded-full"></div>
+                            
+                            <p className="text-[11px] font-bold text-gray-500 dark:text-gray-400 italic text-center leading-relaxed px-2">
                                 {footer}
                             </p>
                         </div>
                     </div>
-
-                    <div className="pb-4">
-                        <div className="flex justify-between items-end px-2">
-                            <div className="text-left">
-                                <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Datum</p>
-                                <p className="text-xs font-bold text-black dark:text-white">{new Date().toLocaleDateString('sv-SE')}</p>
-                            </div>
-                            
-                            <div className="text-right">
-                                <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1">Studio</p>
-                                <p className="text-xs font-black text-primary uppercase">{studioName}</p>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
-                <div className="relative z-10 px-8 pb-8">
-                    <button 
-                        onClick={onClose}
-                        className="w-full bg-black dark:bg-white text-white dark:text-black hover:brightness-110 font-black py-5 rounded-2xl shadow-xl transition-all transform active:scale-95 text-lg uppercase tracking-widest"
-                    >
-                        Stäng
-                    </button>
+                {/* FOOTER META - Elegant och liten */}
+                <div className="px-10 pb-8 flex-shrink-0 flex justify-between items-center opacity-40">
+                    <div className="text-left">
+                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Datum</p>
+                        <p className="text-[9px] font-bold text-black dark:text-white">{new Date().toLocaleDateString('sv-SE')}</p>
+                    </div>
+                    
+                    <div className="text-right">
+                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Studio</p>
+                        <p className="text-[9px] font-black text-primary uppercase">{studioName}</p>
+                    </div>
                 </div>
             </motion.div>
         </motion.div>
