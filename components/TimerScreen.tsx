@@ -688,15 +688,17 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       {/* Standard Bottom Content */}
       <div className={`absolute bottom-0 left-0 right-0 flex flex-col items-center justify-start px-4 z-0 ${showFullScreenColor ? 'top-[62%]' : 'top-[43%]'} ${isHyroxRace ? 'right-[30%]' : ''}`}>
           
-          {/* Block Description Pill */}
+          {/* Block Description Pill - UPPDATERAD DESIGN FÖR BÄTTRE LÄSBARHET */}
           {block.showDescriptionInTimer && block.setupDescription && (
               <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mb-4 px-6 py-3 bg-white/10 dark:bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 max-w-3xl flex items-center gap-3 shadow-lg z-10"
+                  className="mb-4 px-6 py-4 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 max-w-3xl flex items-center gap-4 shadow-2xl z-10 rounded-[2rem]"
               >
-                  <InformationCircleIcon className="w-5 h-5 text-primary shrink-0" />
-                  <p className="text-white text-base md:text-lg font-medium leading-tight">
+                  <div className="bg-primary/10 p-2 rounded-xl">
+                    <InformationCircleIcon className="w-6 h-6 text-primary shrink-0" />
+                  </div>
+                  <p className="text-gray-900 dark:text-white text-lg md:text-xl font-bold leading-tight">
                       {block.setupDescription}
                   </p>
               </motion.div>
