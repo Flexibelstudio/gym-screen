@@ -161,9 +161,8 @@ const MemberBlockView: React.FC<{ block: WorkoutBlock }> = ({ block }) => (
 const MemberWorkoutView: React.FC<{ 
     workout: Workout, 
     onClose?: () => void, 
-    onLog?: () => void,
-    onAdjust?: () => void
-}> = ({ workout, onClose, onLog, onAdjust }) => {
+    onLog?: () => void
+}> = ({ workout, onClose, onLog }) => {
     return (
         <div className="pb-32 animate-fade-in">
             {/* Header Info */}
@@ -210,15 +209,6 @@ const MemberWorkoutView: React.FC<{
                     className="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-black py-4 rounded-[2rem] shadow-2xl transition-all transform active:scale-95 text-xs uppercase tracking-widest border border-gray-200 dark:border-gray-700"
                     >
                         Stäng
-                    </button>
-                )}
-                {onAdjust && (
-                    <button 
-                    onClick={onAdjust}
-                    className="flex-[1.5] bg-indigo-100 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 font-black py-4 rounded-[2rem] shadow-xl transition-all transform active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-widest border border-indigo-200 dark:border-indigo-800"
-                    >
-                        <PencilIcon className="w-4 h-4" />
-                        <span>Anpassa</span>
                     </button>
                 )}
                 {onLog && (
@@ -517,7 +507,6 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                   workout={sessionWorkout} 
                   onClose={onClose} 
                   onLog={onLogWorkout ? () => onLogWorkout(workout.id, selectedOrganization.id) : undefined}
-                  onAdjust={onAdjustWorkout ? () => onAdjustWorkout(workout) : undefined}
               />
           </div>
       );
