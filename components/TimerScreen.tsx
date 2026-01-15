@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout } from '../types';
@@ -9,7 +8,7 @@ import { saveRace, updateOrganizationActivity } from '../services/firebaseServic
 import { Confetti } from './WorkoutCompleteModal';
 import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmationModal, RaceFinishAnimation, PauseOverlay } from './timer/TimerModals';
 import { ParticipantFinishList } from './timer/ParticipantFinishList';
-import { DumbbellIcon } from './icons';
+import { DumbbellIcon, InformationCircleIcon } from './icons';
 
 // --- Helper Components & Interfaces ---
 
@@ -688,6 +687,21 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
       {/* Standard Bottom Content */}
       <div className={`absolute bottom-0 left-0 right-0 flex flex-col items-center justify-start px-4 z-0 ${showFullScreenColor ? 'top-[62%]' : 'top-[43%]'} ${isHyroxRace ? 'right-[30%]' : ''}`}>
+          
+          {/* Block Description Pill */}
+          {block.showDescriptionInTimer && block.setupDescription && (
+              <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-4 px-6 py-3 bg-white/10 dark:bg-black/20 backdrop-blur-md rounded-2xl border border-white/10 max-w-3xl flex items-center gap-3 shadow-lg z-10"
+              >
+                  <InformationCircleIcon className="w-5 h-5 text-primary shrink-0" />
+                  <p className="text-white text-base md:text-lg font-medium leading-tight">
+                      {block.setupDescription}
+                  </p>
+              </motion.div>
+          )}
+
           <div className="w-full flex justify-center items-start h-full pt-4"> 
               {isHyroxRace ? (
                   <div className="w-full h-full flex items-center justify-center">
@@ -720,7 +734,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                     <button onClick={start} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50">STARTA</button>
                 </>
             ) : status === TimerStatus.Paused ? (
-                // Paused view has its own Overlay now, but we keep buttons for extra safety/accessibility if overlay is closed
                 <button onClick={resume} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-green-400 transition-colors text-xl border-2 border-green-400">FORTSÄTT</button>
             ) : (
                 <button onClick={pause} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50">PAUSA</button>

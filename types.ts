@@ -91,6 +91,7 @@ export interface WorkoutBlock {
   title: string;
   tag: string;
   setupDescription?: string;
+  showDescriptionInTimer?: boolean;
   followMe: boolean;
   settings: TimerSettings;
   exercises: Exercise[];

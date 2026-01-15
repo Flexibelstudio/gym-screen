@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { WorkoutBlock, Exercise, BankExercise, TimerMode } from '../../types';
 import { EditableField } from './EditableField';
@@ -293,7 +292,12 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                 isTextarea
             />
             
-            <div className="my-4">
+            <div className="my-4 flex flex-col gap-3">
+                <ToggleSwitch
+                    label="Visa beskrivning i timern"
+                    checked={!!block.showDescriptionInTimer}
+                    onChange={(isChecked) => handleFieldChange('showDescriptionInTimer', isChecked)}
+                />
                 <ToggleSwitch
                     label="'Följ mig'-läge"
                     checked={!!block.followMe}

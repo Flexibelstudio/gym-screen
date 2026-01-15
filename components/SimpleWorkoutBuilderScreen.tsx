@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'export React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise } from '../types';
 import { ToggleSwitch, PencilIcon, ChartBarIcon, SparklesIcon, ChevronUpIcon, ChevronDownIcon } from './icons';
 import { TimerSetupModal } from './TimerSetupModal';
@@ -263,6 +262,7 @@ const createNewBlock = (index: number): WorkoutBlock => ({
   title: `Block ${index}`,
   tag: 'Styrka',
   setupDescription: '',
+  showDescriptionInTimer: false,
   followMe: false,
   settings: {
     mode: TimerMode.NoTimer,
@@ -629,7 +629,12 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, onUpdate, onRemove,
                 isTextarea
             />
             
-            <div className="my-4">
+            <div className="my-4 flex flex-col gap-3">
+                <ToggleSwitch
+                    label="Visa beskrivning i timern"
+                    checked={!!block.showDescriptionInTimer}
+                    onChange={(isChecked) => handleFieldChange('showDescriptionInTimer', isChecked)}
+                />
                 <ToggleSwitch
                     label="'Följ mig'-läge"
                     checked={!!block.followMe}
