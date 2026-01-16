@@ -133,7 +133,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 navigateTo={navigateTo} 
                 onSelectWorkout={onSelectWorkout} 
                 onSelectPasskategori={onSelectPasskategori}
-                savedWorkouts={workouts.filter(w => w.isFavorite || (!w.isPublished && !w.isMemberDraft))}
+                savedWorkouts={workouts.filter(w => w.isMemberDraft || w.isFavorite || !w.isPublished)}
                 onCreateNewWorkout={onCreateNewWorkout}
                 onShowBoostModal={() => {}} 
                 studioConfig={studioConfig}
@@ -150,7 +150,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
 
         case Page.SavedWorkouts:
             return <SavedWorkoutsScreen 
-                workouts={workouts.filter(w => w.isFavorite || (!w.isPublished && !w.isMemberDraft))}
+                workouts={workouts.filter(w => w.isMemberDraft || w.isFavorite || !w.isPublished)}
                 onSelectWorkout={onSelectWorkout}
                 onEditWorkout={onEditWorkout}
                 onDeleteWorkout={onDeleteWorkout as any}

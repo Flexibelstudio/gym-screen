@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma } from './types';
 
@@ -123,8 +122,7 @@ const deepCopyAndPrepareAsNew = (workoutToCopy: Workout): Workout => {
 
 const THEME_STORAGE_KEY = 'flexibel-screen-theme';
 
-// Fixed Error: Rename MainContent to App to match export default
-const App: React.FC = () => {
+const MainContent: React.FC = () => {
   const { 
     selectedStudio, selectStudio, setAllStudios,
     selectedOrganization, selectOrganization, allOrganizations, setAllOrganizations,
@@ -397,6 +395,7 @@ const App: React.FC = () => {
     newDraft.title = `Justering: ${workoutToAdjust.title}`;
     newDraft.isMemberDraft = true;
     newDraft.isPublished = false;
+    // Sätt organizationId om det saknas
     if (!newDraft.organizationId && selectedOrganization) {
         newDraft.organizationId = selectedOrganization.id;
     }
