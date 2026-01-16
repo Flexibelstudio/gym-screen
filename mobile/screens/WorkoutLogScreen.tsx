@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage } from '../../services/firebaseService';
+import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog } from '../../services/firebaseService';
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
@@ -129,7 +129,7 @@ const KROPPSKANSLA_TAGS = ["Pigg", "Stark", "Seg", "Stel", "Ont", "Stressad", "B
 const RPE_LEVELS = [
     { range: '1-2', label: 'Mycket lätt', desc: 'Du kan sjunga eller prata helt obehindrat.', color: 'bg-emerald-500' },
     { range: '3-4', label: 'Lätt', desc: 'Du börjar bli varm men kan fortfarande prata enkelt.', color: 'bg-green-500' },
-    { range: '5-6', label: 'Måttligt', desc: 'Du flåsar lite och kan bara prata i korta meningar.', color: 'bg-yellow-500' },
+    { range: '5-6', label: 'Måttligt', desc: 'Du börjar bli djupt andfådd.', color: 'bg-yellow-500' },
     { range: '7-8', label: 'Hårt', desc: 'Det är ansträngande. Du kan bara svara med enstaka ord.', color: 'bg-orange-500' },
     { range: '9', label: 'Mycket hårt', desc: 'Nära ditt max. Du kan inte prata alls.', color: 'bg-red-500' },
     { range: '10', label: 'Maximalt', desc: 'Absolut max. Du kan inte göra en enda rep till.', color: 'bg-black' },
@@ -632,11 +632,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               finalLogRaw.totalDistance = parseFloat(sessionStats.distance) || 0;
               finalLogRaw.totalCalories = parseInt(sessionStats.calories) || 0;
 
-              // Save to Firestore and wait for PB calculation response
-              const { newRecords } = await saveWorkoutLog(cleanForFirestore(finalLogRaw));
+              // 1. Spara loggen först för att beräkna PBs
+              const { log: savedLog, newRecords } = await saveWorkoutLog(cleanForFirestore(finalLogRaw));
 
               let diplomaData: WorkoutDiploma | null = null;
 
+              // 2. Skapa diplom baserat på volym
               if (totalVolume > 0) {
                   const comparison = getFunComparison(totalVolume);
                   if (comparison) {
@@ -651,7 +652,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   }
               }
 
-              // Fallback if no volume (e.g., pure cardio but with records)
+              // 3. Fallback till AI-diplom om ingen volym hittades
               if (!diplomaData) {
                   try {
                       diplomaData = await generateWorkoutDiploma({ ...finalLogRaw, newPBs: newRecords });
@@ -671,6 +672,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   }
               }
 
+              // 4. Generera bild och ladda upp om prompt finns
               if (diplomaData && diplomaData.imagePrompt) {
                   try {
                       const base64Image = await generateImage(diplomaData.imagePrompt);
@@ -679,6 +681,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                           diplomaData.imageUrl = await uploadImage(storagePath, base64Image);
                       }
                   } catch (e) { console.warn(e); }
+              }
+
+              // 5. VIKTIGT: Uppdatera nu den sparade loggen med det färdiga diplomet
+              if (diplomaData) {
+                  await updateWorkoutLog(savedLog.id, { diploma: diplomaData });
               }
 
               handleCancel(true, diplomaData);
