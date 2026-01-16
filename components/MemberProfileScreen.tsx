@@ -61,7 +61,7 @@ const ResumeWorkoutBanner: React.FC<{
             <div className="flex items-center gap-3 w-full sm:w-auto">
                 <button 
                     onClick={onDismiss}
-                    className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs font-bold bg-black/5 hover:bg-black/10 transition-colors uppercase tracking-widest"
+                    className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs font-bold bg-black/5 hover:bg-black/10 transition-colors uppercase tracking-widest text-orange-900"
                 >
                     Släng
                 </button>
@@ -330,10 +330,77 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         }
     };
 
+    if (isEditing) {
+        return (
+            <div className="w-full max-w-2xl mx-auto px-4 py-8 animate-fade-in pb-24">
+                <div className="flex items-center justify-between mb-8">
+                    <div>
+                        <h1 className="text-3xl font-black text-gray-900 dark:text-white">Redigera Profil</h1>
+                        <p className="text-gray-500 dark:text-gray-400 mt-1">Uppdatera dina personuppgifter.</p>
+                    </div>
+                    {!isNewUser && (
+                        <button onClick={() => setIsEditing(false)} className="text-sm font-bold text-gray-500 bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-xl">Avbryt</button>
+                    )}
+                </div>
+
+                <div className="space-y-8 bg-white dark:bg-gray-900 p-6 sm:p-10 rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-gray-800">
+                    <div className="flex flex-col items-center">
+                        <div 
+                            className="w-32 h-32 rounded-full bg-gray-100 dark:bg-gray-800 border-4 border-primary/20 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary transition-all relative group shadow-inner"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            {photoUrl ? <img src={photoUrl} alt="Profil" className="w-full h-full object-cover" /> : <UserIcon className="w-16 h-16 text-gray-300" />}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                <span className="text-[10px] text-white font-black uppercase tracking-widest">Ändra</span>
+                            </div>
+                        </div>
+                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
+                        <p className="text-sm font-black text-primary mt-4 uppercase tracking-widest">Din Profilbild</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Förnamn</label>
+                            <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-2xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition font-bold" placeholder="Förnamn" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Efternamn</label>
+                            <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-2xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition font-bold" placeholder="Efternamn" />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Ålder</label>
+                            <input type="number" value={age} onChange={e => setAge(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-2xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition font-bold" placeholder="Ålder" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Kön</label>
+                            <select value={gender} onChange={e => setGender(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-2xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none appearance-none font-bold">
+                                <option value="prefer_not_to_say">Vill ej ange</option>
+                                <option value="male">Man</option>
+                                <option value="female">Kvinna</option>
+                                <option value="other">Annat</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button 
+                        onClick={handleSaveProfile} 
+                        disabled={isSaving || !firstName.trim() || !lastName.trim()}
+                        className="w-full bg-primary hover:brightness-110 text-white font-black py-5 rounded-[1.5rem] shadow-xl shadow-primary/20 transition-all transform active:scale-95 disabled:opacity-50 text-lg uppercase tracking-widest"
+                    >
+                        {isSaving ? 'Sparar...' : 'Spara'}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="w-full max-w-4xl mx-auto px-1 sm:px-6 py-6 animate-fade-in pb-24">
             
-            {/* 1. Resume Workout Banner (PLACED AT THE VERY TOP) */}
+            {/* 1. Resume Workout Banner (Updated Colors) */}
             {activeSession && (
                 <ResumeWorkoutBanner 
                     workoutTitle={activeSession.displayTitle}
@@ -486,7 +553,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 </div>
 
                 {/* Latest workouts section */}
-                <div className="bg-white dark:bg-gray-900 rounded-[2rem] shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
+                <div className="bg-white dark:bg-gray-900 rounded-[2rem] shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
                     <div className="p-5 sm:p-8 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/30 dark:bg-gray-900/50">
                         <h3 className="font-black text-xl text-gray-900 dark:text-white uppercase tracking-tight">Senaste Passen</h3>
                     </div>
