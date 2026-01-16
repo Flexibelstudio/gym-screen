@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Organization, Workout, UserData } from '../../types';
-import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon } from '../icons';
+import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon } from '../icons';
 import { motion } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
@@ -205,7 +205,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({ organization, worko
                                     {recentWorkouts.map(w => (
                                         <li key={w.id} className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-xl transition-colors">
                                             <div className={`w-2 h-2 rounded-full ${w.isPublished ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                                            <div className="flex-grow min-w-0">
+                                            <div className="flex-grow min-0">
                                                 <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">{w.title}</p>
                                                 <p className="text-xs text-gray-500 truncate">{w.category || 'Okategoriserad'}</p>
                                             </div>
@@ -328,6 +328,11 @@ const ManageWorkoutsView: React.FC<{
     
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [sortConfig, setSortConfig] = useState<{ key: 'title' | 'category' | 'createdAt' | 'isPublished', direction: 'asc' | 'desc' | 'none' }>({
+        key: 'createdAt',
+        direction: 'none'
+    });
+    
     const ITEMS_PER_PAGE = 50;
 
     // Filter only official workouts (not member drafts)
@@ -335,18 +340,48 @@ const ManageWorkoutsView: React.FC<{
         return workouts.filter(w => !w.isMemberDraft);
     }, [workouts]);
 
-    // Filter and Sort based on Search and Date
+    // Handle Sort Toggle
+    const handleSort = (key: typeof sortConfig.key) => {
+        setSortConfig(prev => {
+            if (prev.key !== key) return { key, direction: 'asc' };
+            if (prev.direction === 'asc') return { key, direction: 'desc' };
+            if (prev.direction === 'desc') return { key, direction: 'none' };
+            return { key, direction: 'asc' };
+        });
+    };
+
+    // Filter and Sort based on Search, Sort and Date
     const filteredWorkouts = useMemo(() => {
-        return officialWorkouts
-            .filter(w => {
-                const searchLower = searchTerm.toLowerCase();
-                return (
-                    w.title.toLowerCase().includes(searchLower) ||
-                    (w.category || '').toLowerCase().includes(searchLower)
-                );
-            })
-            .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    }, [officialWorkouts, searchTerm]);
+        let result = officialWorkouts.filter(w => {
+            const searchLower = searchTerm.toLowerCase();
+            return (
+                w.title.toLowerCase().includes(searchLower) ||
+                (w.category || '').toLowerCase().includes(searchLower)
+            );
+        });
+
+        // Apply Sorting
+        if (sortConfig.direction !== 'none') {
+            result.sort((a, b) => {
+                const aValue = a[sortConfig.key];
+                const bValue = b[sortConfig.key];
+
+                if (aValue === undefined || bValue === undefined) return 0;
+
+                // Secondary sort by date (newest first) for stability
+                const secondarySort = (b.createdAt || 0) - (a.createdAt || 0);
+
+                if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1;
+                if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1;
+                return secondarySort;
+            });
+        } else {
+            // Default sort: Newest first
+            result.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        }
+
+        return result;
+    }, [officialWorkouts, searchTerm, sortConfig]);
 
     // Pagination Logic
     const totalPages = Math.ceil(filteredWorkouts.length / ITEMS_PER_PAGE);
@@ -355,10 +390,19 @@ const ManageWorkoutsView: React.FC<{
         return filteredWorkouts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
     }, [filteredWorkouts, currentPage]);
 
-    // Reset to page 1 when search changes
+    // Reset to page 1 when search or sort changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm]);
+    }, [searchTerm, sortConfig]);
+
+    const SortIcon = ({ column }: { column: typeof sortConfig.key }) => {
+        if (sortConfig.key !== column || sortConfig.direction === 'none') {
+            return <div className="flex flex-col ml-1 opacity-20"><ChevronUpIcon className="w-2.5 h-2.5 mb-[-2px]" /><ChevronDownIcon className="w-2.5 h-2.5 mt-[-2px]" /></div>;
+        }
+        return sortConfig.direction === 'asc' 
+            ? <ChevronUpIcon className="w-3 h-3 ml-1 text-primary" /> 
+            : <ChevronDownIcon className="w-3 h-3 ml-1 text-primary" />;
+    };
 
     return (
         <div className="space-y-6 animate-fade-in pb-12 w-full">
@@ -395,10 +439,18 @@ const ManageWorkoutsView: React.FC<{
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead>
                             <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
-                                <th className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Titel</th>
-                                <th className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Kategori</th>
-                                <th className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Skapad</th>
-                                <th className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Status</th>
+                                <th onClick={() => handleSort('title')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
+                                    <div className="flex items-center">Titel <SortIcon column="title" /></div>
+                                </th>
+                                <th onClick={() => handleSort('category')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
+                                    <div className="flex items-center">Kategori <SortIcon column="category" /></div>
+                                </th>
+                                <th onClick={() => handleSort('createdAt')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
+                                    <div className="flex items-center">Skapad <SortIcon column="createdAt" /></div>
+                                </th>
+                                <th onClick={() => handleSort('isPublished')} className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] cursor-pointer hover:text-primary transition-colors">
+                                    <div className="flex items-center">Status <SortIcon column="isPublished" /></div>
+                                </th>
                                 <th className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] text-right">Åtgärder</th>
                             </tr>
                         </thead>
