@@ -16,6 +16,7 @@ interface MemberProfileScreenProps {
     onBack: () => void;
     profileEditTrigger: number;
     navigateTo: (page: Page) => void;
+    functions: any; // Added to access handleLogWorkoutRequest
 }
 
 // --- Helper Components ---
@@ -32,7 +33,7 @@ const SmartItem: React.FC<{ letter: string, color: string, title: string, text: 
     </div>
 );
 
-// --- Resume Banner Component ---
+// --- Resume Banner Component (Updated with Amber/Orange) ---
 const ResumeWorkoutBanner: React.FC<{ 
     workoutTitle: string, 
     onContinue: () => void, 
@@ -41,32 +42,32 @@ const ResumeWorkoutBanner: React.FC<{
     <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8 relative overflow-hidden bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-500/20 border border-white/10"
+        className="mb-8 relative overflow-hidden bg-gradient-to-r from-amber-400 to-orange-500 rounded-3xl p-6 text-orange-950 shadow-xl shadow-orange-500/20 border border-white/20"
     >
         {/* Animated background element */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-16 -mt-16 animate-pulse"></div>
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-2xl -mr-16 -mt-16 animate-pulse"></div>
         
         <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-4 text-center sm:text-left">
-                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center shadow-inner shrink-0">
-                    <ClockIcon className="w-6 h-6 text-white animate-pulse" />
+                <div className="w-12 h-12 bg-orange-950/10 rounded-2xl flex items-center justify-center shadow-inner shrink-0">
+                    <ClockIcon className="w-6 h-6 text-orange-900 animate-pulse" />
                 </div>
                 <div>
-                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-100 opacity-80 mb-0.5">Pågående pass</h4>
-                    <p className="text-lg font-black leading-tight truncate max-w-[200px] sm:max-w-md">{workoutTitle}</p>
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-900/60 mb-0.5">Du har ett pågående pass</h4>
+                    <p className="text-lg font-black leading-tight truncate max-w-[200px] sm:max-w-md text-orange-950">{workoutTitle}</p>
                 </div>
             </div>
             
             <div className="flex items-center gap-3 w-full sm:w-auto">
                 <button 
                     onClick={onDismiss}
-                    className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 transition-colors uppercase tracking-widest"
+                    className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs font-bold bg-black/5 hover:bg-black/10 transition-colors uppercase tracking-widest"
                 >
                     Släng
                 </button>
                 <button 
                     onClick={onContinue}
-                    className="flex-[2] sm:flex-none px-6 py-2.5 rounded-xl text-xs font-black bg-white text-indigo-600 shadow-lg hover:brightness-110 transition-all uppercase tracking-widest active:scale-95"
+                    className="flex-[2] sm:flex-none px-6 py-2.5 rounded-xl text-xs font-black bg-white text-orange-600 shadow-lg hover:brightness-110 transition-all uppercase tracking-widest active:scale-95"
                 >
                     Fortsätt logga
                 </button>
@@ -172,7 +173,7 @@ const LogDetailModal: React.FC<{ log: WorkoutLog, onClose: () => void, onUpdate:
     );
 };
 
-export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userData, onBack, profileEditTrigger, navigateTo }) => {
+export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userData, onBack, profileEditTrigger, navigateTo, functions }) => {
     const isNewUser = !userData.firstName || !userData.organizationId;
     
     const [logs, setLogs] = useState<WorkoutLog[]>([]);
@@ -316,14 +317,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const { level, progressToNext } = useMemo(() => getLevelInfo(logs.length), [logs]);
 
     const handleResumeWorkout = () => {
-        if (activeSession) {
-            // Check if it's a manual entry or a specific workoutId
+        if (activeSession && functions.handleLogWorkoutRequest) {
             const workoutId = activeSession.workoutId === 'manual' ? 'MANUAL_ENTRY' : activeSession.workoutId;
-            // Assuming your navigation handles this (it might be via URL in a real app, but here we use context/navigation)
-            // For now, we construct the URL payload logic manually if needed, or rely on App.tsx detecting localStorage.
-            // Since MobileLog is a component, we might need to pass data.
-            // A simpler way: Just navigate to MobileLog, and let it read from localStorage.
-             navigateTo(Page.MobileLog); 
+            functions.handleLogWorkoutRequest(workoutId, activeSession.organizationId);
         }
     };
 
@@ -333,73 +329,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             setActiveSession(null);
         }
     };
-
-    if (isEditing) {
-        return (
-            <div className="w-full max-w-2xl mx-auto px-4 py-8 animate-fade-in pb-24">
-                <div className="flex items-center justify-between mb-8">
-                    <div>
-                        <h1 className="text-3xl font-black text-gray-900 dark:text-white">Redigera Profil</h1>
-                        <p className="text-gray-500 dark:text-gray-400 mt-1">Uppdatera dina personuppgifter.</p>
-                    </div>
-                    {!isNewUser && (
-                        <button onClick={() => setIsEditing(false)} className="text-sm font-bold text-gray-500 bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-xl">Avbryt</button>
-                    )}
-                </div>
-
-                <div className="space-y-8 bg-white dark:bg-gray-900 p-6 sm:p-10 rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-gray-800">
-                    <div className="flex flex-col items-center">
-                        <div 
-                            className="w-32 h-32 rounded-full bg-gray-100 dark:bg-gray-800 border-4 border-primary/20 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary transition-all relative group shadow-inner"
-                            onClick={() => fileInputRef.current?.click()}
-                        >
-                            {photoUrl ? <img src={photoUrl} alt="Profil" className="w-full h-full object-cover" /> : <UserIcon className="w-16 h-16 text-gray-300" />}
-                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                <span className="text-[10px] text-white font-black uppercase tracking-widest">Ändra</span>
-                            </div>
-                        </div>
-                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
-                        <p className="text-sm font-black text-primary mt-4 uppercase tracking-widest">Din Profilbild</p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Förnamn</label>
-                            <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-2xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition font-bold" placeholder="Förnamn" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Efternamn</label>
-                            <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-2xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition font-bold" placeholder="Efternamn" />
-                        </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Ålder</label>
-                            <input type="number" value={age} onChange={e => setAge(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-2xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition font-bold" placeholder="Ålder" />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Kön</label>
-                            <select value={gender} onChange={e => setGender(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-2xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none appearance-none font-bold">
-                                <option value="prefer_not_to_say">Vill ej ange</option>
-                                <option value="male">Man</option>
-                                <option value="female">Kvinna</option>
-                                <option value="other">Annat</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <button 
-                        onClick={handleSaveProfile} 
-                        disabled={isSaving || !firstName.trim() || !lastName.trim()}
-                        className="w-full bg-primary hover:brightness-110 text-white font-black py-5 rounded-[1.5rem] shadow-xl shadow-primary/20 transition-all transform active:scale-95 disabled:opacity-50 text-lg uppercase tracking-widest"
-                    >
-                        {isSaving ? 'Sparar...' : 'Spara'}
-                    </button>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="w-full max-w-4xl mx-auto px-1 sm:px-6 py-6 animate-fade-in pb-24">
@@ -557,7 +486,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 </div>
 
                 {/* Latest workouts section */}
-                <div className="bg-white dark:bg-gray-900 rounded-[2rem] shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+                <div className="bg-white dark:bg-gray-900 rounded-[2rem] shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden">
                     <div className="p-5 sm:p-8 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/30 dark:bg-gray-900/50">
                         <h3 className="font-black text-xl text-gray-900 dark:text-white uppercase tracking-tight">Senaste Passen</h3>
                     </div>
@@ -606,7 +535,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             {isEditingGoals && <GoalsEditModal currentGoals={userData.goals} onSave={handleSaveGoals} onClose={() => setIsEditingGoals(false)} />}
             {selectedLog && <LogDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} onUpdate={handleUpdateLog} onDelete={handleDeleteLog} />}
             
-            {/* MIN STYRKA MODAL (REPLACED WITH FULL SCREEN SHEET STYLE) */}
+            {/* MIN STYRKA MODAL */}
             <AnimatePresence>
                 {isMyStrengthVisible && (
                     <>
