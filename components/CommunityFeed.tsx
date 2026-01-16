@@ -51,7 +51,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
 
     if (isLoading) {
         return (
-            <div className="h-full bg-white/5 backdrop-blur-md rounded-[2.5rem] flex items-center justify-center text-white/30 text-xs font-bold uppercase tracking-widest border border-white/10">
+            <div className="h-full bg-white/10 dark:bg-white/5 backdrop-blur-md rounded-[2.5rem] flex items-center justify-center text-gray-400 dark:text-white/30 text-xs font-bold uppercase tracking-widest border border-gray-200 dark:border-white/10">
                 Laddar gymflödet...
             </div>
         );
@@ -64,17 +64,17 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
         <div 
             onClick={!isExpanded ? onExpand : undefined}
             className={`
-                bg-white/10 backdrop-blur-md rounded-[2.5rem] p-6 border border-white/10 flex flex-col relative overflow-hidden shadow-2xl transition-all
-                ${!isExpanded ? 'h-full cursor-pointer hover:bg-white/15 active:scale-[0.99]' : 'h-full'}
+                bg-white/20 dark:bg-white/10 backdrop-blur-md rounded-[2.5rem] p-6 border border-gray-200 dark:border-white/10 flex flex-col relative overflow-hidden shadow-2xl transition-all
+                ${!isExpanded ? 'h-full cursor-pointer hover:bg-white/30 dark:hover:bg-white/15 active:scale-[0.99]' : 'h-full'}
             `}
         >
             <div className="flex items-center justify-between mb-4 relative z-10">
                 <div className="flex items-center gap-3">
                     <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.8)]"></div>
-                    <h3 className="text-xl font-black text-white uppercase tracking-tight leading-none">Gymflödet</h3>
+                    <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">Gymflödet</h3>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] bg-white/5 px-2 py-1 rounded-lg border border-white/5">Live</span>
+                    <span className="text-[10px] font-black text-gray-500 dark:text-white/40 uppercase tracking-[0.2em] bg-gray-100 dark:bg-white/5 px-2 py-1 rounded-lg border border-gray-200 dark:border-white/5">Live</span>
                     {!isExpanded && <span className="text-[10px] font-black text-primary uppercase">Visa mer</span>}
                 </div>
             </div>
@@ -90,7 +90,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
                                 key={log.id}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="bg-black/30 hover:bg-black/40 transition-colors rounded-2xl flex items-center gap-4 border border-white/5 group px-4"
+                                className="bg-white/40 dark:bg-black/30 hover:bg-white/50 dark:hover:bg-black/40 transition-colors rounded-2xl flex items-center gap-4 border border-gray-100 dark:border-white/5 group px-4"
                                 style={{ height: `${itemHeight - 8}px` }}
                             >
                                 <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-black text-sm shadow-lg flex-shrink-0 overflow-hidden border border-white/10">
@@ -103,15 +103,15 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
 
                                 <div className="flex-grow min-w-0">
                                     <div className="flex justify-between items-baseline">
-                                        <p className="text-white font-bold text-sm truncate mr-2">
+                                        <p className="text-gray-900 dark:text-white font-bold text-sm truncate mr-2">
                                             {log.memberName || 'Anonym'}
                                         </p>
-                                        <span className="text-[9px] text-white/30 font-bold uppercase whitespace-nowrap">
+                                        <span className="text-[9px] text-gray-500 dark:text-white/30 font-bold uppercase whitespace-nowrap">
                                             {getRelativeTime(log.date)}
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between mt-0.5">
-                                        <p className="text-white/60 text-[10px] truncate max-w-[85%] font-medium">
+                                        <p className="text-gray-600 dark:text-white/60 text-[10px] truncate max-w-[85%] font-medium">
                                             {log.workoutTitle}
                                         </p>
                                         {log.feeling && (
@@ -123,8 +123,8 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
                         ))
                     ) : (
                         <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
-                            <DumbbellIcon className="w-8 h-8 text-white mb-2" />
-                            <p className="text-white text-[10px] font-bold uppercase tracking-widest">Väntar på aktivitet...</p>
+                            <DumbbellIcon className="w-8 h-8 text-gray-400 dark:text-white mb-2" />
+                            <p className="text-gray-500 dark:text-white text-[10px] font-bold uppercase tracking-widest">Väntar på aktivitet...</p>
                         </div>
                     )}
                 </AnimatePresence>

@@ -1,16 +1,62 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Member, WorkoutLog, SmartGoalDetail } from '../types';
 import { Modal } from './ui/Modal';
 import { getMemberLogs } from '../services/firebaseService';
 import { analyzeMemberProgress, MemberProgressAnalysis } from '../services/geminiService';
 import { motion } from 'framer-motion';
-import { ChartBarIcon, SparklesIcon, InformationCircleIcon, DumbbellIcon } from './icons';
+import { ChartBarIcon, SparklesIcon, InformationCircleIcon, DumbbellIcon, FireIcon } from './icons';
 
 interface MemberDetailModalProps {
     visible: boolean;
     member: Member;
     onClose: () => void;
 }
+
+const getYearWeek = (date: Date) => {
+    const d = new Date(date.getTime());
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+    const yearStart = new Date(d.getFullYear(), 0, 1);
+    const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+    return `${d.getFullYear()}-W${weekNo}`;
+};
+
+const calculateWeeklyStreak = (logs: WorkoutLog[]) => {
+    if (logs.length === 0) return 0;
+    const activeWeeks = new Set(logs.map(log => getYearWeek(new Date(log.date))));
+    const now = new Date();
+    let streak = 0;
+    let checkDate = new Date(now);
+    
+    // Kolla om de tränat denna vecka
+    const currentWeekKey = getYearWeek(checkDate);
+    const hasTrainedThisWeek = activeWeeks.has(currentWeekKey);
+    
+    if (hasTrainedThisWeek) {
+        streak = 1;
+    } else {
+        // Om inte denna vecka, kolla förra veckan för att se om streaken fortfarande lever
+        checkDate.setDate(checkDate.getDate() - 7);
+        const lastWeekKey = getYearWeek(checkDate);
+        if (activeWeeks.has(lastWeekKey)) {
+            streak = 1;
+        } else {
+            return 0; // Ingen aktivitet varken denna eller förra veckan
+        }
+    }
+
+    // Räkna bakåt så länge vi hittar aktiva veckor
+    while (true) {
+        checkDate.setDate(checkDate.getDate() - 7);
+        const prevWeekKey = getYearWeek(checkDate);
+        if (activeWeeks.has(prevWeekKey)) {
+            streak++;
+        } else {
+            break;
+        }
+    }
+    return streak;
+};
 
 const SmartItem: React.FC<{ letter: string, color: string, title: string, text: string }> = ({ letter, color, title, text }) => (
     <div className="flex gap-4 group">
@@ -62,6 +108,8 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
         }
     }, [visible, member]);
 
+    const streak = useMemo(() => calculateWeeklyStreak(recentLogs), [recentLogs]);
+
     if (!visible) return null;
 
     const smart = member.goals?.smartCriteria;
@@ -69,25 +117,39 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
     return (
         <Modal isOpen={visible} onClose={onClose} title={`${member.firstName} ${member.lastName}`} size="lg">
             <div className="space-y-8 pb-4">
-                {/* Header Info - Visas alltid direkt */}
-                <div className="flex items-center gap-4 border-b border-gray-100 dark:border-gray-700 pb-6">
-                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-xl font-bold text-primary overflow-hidden border border-primary/20">
-                        {member.photoUrl ? (
-                            <img src={member.photoUrl} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                            <span>{member.firstName?.[0]}{member.lastName?.[0]}</span>
-                        )}
+                {/* Header Info */}
+                <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-6">
+                    <div className="flex items-center gap-4">
+                        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-xl font-bold text-primary overflow-hidden border border-primary/20">
+                            {member.photoUrl ? (
+                                <img src={member.photoUrl} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                                <span>{member.firstName?.[0]}{member.lastName?.[0]}</span>
+                            )}
+                        </div>
+                        <div>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">{member.email}</p>
+                            <div className="flex gap-2 mt-2">
+                                {member.role === 'coach' && <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-bold">Coach</span>}
+                                {member.isTrainingMember && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">Medlem</span>}
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{member.email}</p>
-                        <div className="flex gap-2 mt-2">
-                            {member.role === 'coach' && <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-bold">Coach</span>}
-                            {member.isTrainingMember && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">Medlem</span>}
+
+                    {/* Streak Indicator for Coach */}
+                    <div className="bg-orange-50 dark:bg-orange-900/20 px-4 py-2 rounded-2xl border border-orange-100 dark:border-orange-800/50 flex items-center gap-3 shadow-sm">
+                        <div className="relative">
+                            <FireIcon className={`w-6 h-6 ${streak > 0 ? 'text-orange-500 animate-pulse' : 'text-gray-300'}`} />
+                            {streak > 0 && <div className="absolute inset-0 bg-orange-400 blur-md opacity-20 animate-pulse"></div>}
+                        </div>
+                        <div className="text-right">
+                            <p className="text-[9px] font-black text-orange-600 dark:text-orange-400 uppercase tracking-widest leading-none mb-0.5">Streak</p>
+                            <p className="text-xl font-black text-orange-700 dark:text-orange-300 leading-none">{streak} <span className="text-[10px] font-bold">VECKOR</span></p>
                         </div>
                     </div>
                 </div>
 
-                {/* --- SMARTA MÅL (Från medlemsdata - Visas direkt) --- */}
+                {/* --- SMARTA MÅL --- */}
                 {member.goals?.hasSpecificGoals && (
                     <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden">
                         <div className="flex items-center justify-between mb-6">
@@ -204,7 +266,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                             </div>
                         </>
                     ) : !isLoadingAnalysis && recentLogs.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center py-8 text-center px-4 bg-gray-50 dark:bg-gray-800/50 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700">
+                        <div className="flex flex-col items-center justify-center py-8 text-center px-4 bg-gray-50 dark:bg-gray-800/50 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
                             <div className="bg-white dark:bg-gray-800 p-3 rounded-full mb-3 shadow-sm">
                                 <ChartBarIcon className="w-6 h-6 text-gray-300" />
                             </div>
@@ -216,7 +278,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                     ) : null}
                 </div>
 
-                {/* --- SEKTION: SENASTE PASS (Hämtas direkt - Visas oberoende av AI) --- */}
+                {/* --- SEKTION: SENASTE PASS --- */}
                 <div className="mt-8">
                     <div className="flex items-center justify-between mb-4">
                         <h4 className="font-black text-gray-400 uppercase tracking-widest text-[10px]">Senaste aktivitet</h4>
