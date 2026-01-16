@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutLog } from '../types';
@@ -83,13 +84,21 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
                 className={`flex-grow overflow-y-auto pr-1 space-y-2 relative z-10 custom-scrollbar scroll-smooth`}
                 style={{ height: !isExpanded ? `${viewportHeight}px` : 'auto', maxHeight: isExpanded ? '70vh' : undefined }}
             >
-                <AnimatePresence initial={false}>
+                <AnimatePresence initial={false} mode="popLayout">
                     {logs.length > 0 ? (
                         logs.map((log) => (
                             <motion.div
+                                layout
                                 key={log.id}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
+                                initial={{ opacity: 0, scale: 0.9, y: -20 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
+                                transition={{ 
+                                    type: "spring", 
+                                    stiffness: 400, 
+                                    damping: 30,
+                                    opacity: { duration: 0.2 }
+                                }}
                                 className="bg-white/40 dark:bg-black/30 hover:bg-white/50 dark:hover:bg-black/40 transition-colors rounded-2xl flex items-center gap-4 border border-gray-100 dark:border-white/5 group px-4"
                                 style={{ height: `${itemHeight - 8}px` }}
                             >

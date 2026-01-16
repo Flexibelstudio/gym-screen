@@ -92,7 +92,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
 
   // 2. COACHADMIN (Tidigare Pass & Program)
   items.push({
-      title: 'coachadmin',
+      title: 'Coachadmin',
       subTitle: 'Skapa & hantera pass',
       action: () => navigateTo(Page.SuperAdmin),
       icon: <DumbbellIcon className="w-8 h-8" />,
