@@ -340,7 +340,9 @@ const App: React.FC = () => {
           setIsReAuthModalOpen(true);
       } else {
           setProfileEditTrigger(0); 
-          navigateTo(Page.MemberProfile);
+          if (page !== Page.MemberProfile) {
+              navigateTo(Page.MemberProfile);
+          }
       }
   };
 
@@ -350,7 +352,9 @@ const App: React.FC = () => {
           setIsReAuthModalOpen(true);
       } else {
           setProfileEditTrigger(Date.now());
-          navigateTo(Page.MemberProfile);
+          if (page !== Page.MemberProfile) {
+              navigateTo(Page.MemberProfile);
+          }
       }
   };
 
@@ -1172,7 +1176,10 @@ const App: React.FC = () => {
                     stopImpersonation();
                     setHistory([Page.SuperAdmin]);
                 } else {
-                    navigateTo(Page.MemberProfile);
+                    setProfileEditTrigger(Date.now());
+                    if (page !== Page.MemberProfile) {
+                        navigateTo(Page.MemberProfile);
+                    }
                 }
             }}
         />
