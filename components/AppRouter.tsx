@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Page, Workout, WorkoutBlock, Passkategori, CustomPage, StartGroup, UserRole, UserData, StudioConfig, Organization, WorkoutDiploma, InfoCarousel } from '../types';
 import { HomeScreen } from './HomeScreen';
@@ -112,6 +113,7 @@ interface AppRouterProps {
         handleSelectCustomPage: (page: CustomPage) => void;
         
         handleMemberProfileRequest: () => void;
+        handleEditProfileRequest: () => void;
         handleLogWorkoutRequest: (workoutId: string, orgId: string) => void;
     }
 }
@@ -161,14 +163,13 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
 
         case Page.WorkoutDetail:
             if (!activeWorkout) return <div>Inget pass valt</div>;
-            // Check if it's a warm-up workout (usually short, one block, tag 'Uppvärmning')
             if (activeWorkout.blocks.length === 1 && activeWorkout.blocks[0].tag === 'Uppvärmning') {
                  return <WarmupScreen onStartWorkout={onStartBlock} />;
             }
             return <WorkoutDetailScreen 
                 workout={activeWorkout} 
                 onStartBlock={(block) => onStartBlock(block, activeWorkout)} 
-                onUpdateBlockSettings={(blockId, settings) => { /* Implement update logic if needed locally or pass up */ }}
+                onUpdateBlockSettings={() => {}}
                 onEditWorkout={onEditWorkout} 
                 onAdjustWorkout={functions.handleAdjustWorkout}
                 isCoachView={isStudioMode || role === 'coach' || role === 'organizationadmin' || role === 'systemowner'}
@@ -182,7 +183,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 followMeShowImage={followMeShowImage}
                 setFollowMeShowImage={functions.setFollowMeShowImage}
                 onUpdateWorkout={onSaveWorkoutNoNav}
-                onVisualize={() => { /* Visualize logic */ }}
+                onVisualize={() => {}}
                 onLogWorkout={functions.handleLogWorkoutRequest}
                 onClose={handleBack}
             />;
@@ -209,7 +210,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
             return <AIGeneratorScreen 
                 onWorkoutGenerated={functions.handleGeneratedWorkout} 
                 studioConfig={studioConfig}
-                initialMode={props.passkategoriFilter ? 'generate' : 'generate'} // Simplified
+                initialMode="generate"
                 setCustomBackHandler={functions.setCustomBackHandler}
                 workouts={workouts}
             />;
@@ -245,7 +246,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
             return <NotesScreen 
                 onWorkoutInterpreted={functions.handleWorkoutInterpreted}
                 studioConfig={studioConfig}
-                initialWorkoutToDraw={null} // Can pass activeWorkout if editing logic exists
+                initialWorkoutToDraw={null}
                 onBack={handleBack}
             />;
 
@@ -275,7 +276,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
             return <HyroxRaceDetailScreen raceId={activeRaceId} onBack={handleBack} />;
 
         case Page.MemberRegistry:
-            return <MemberManagementScreen onSelectMember={(id) => { /* Handle member selection if needed */ }} />;
+            return <MemberManagementScreen onSelectMember={() => {}} />;
 
         case Page.MobileLog:
             if (!mobileLogData) return <div>Ingen data för loggning</div>;
@@ -296,6 +297,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onBack={handleBack}
                 profileEditTrigger={profileEditTrigger}
                 navigateTo={navigateTo}
+                functions={functions}
             /> : <div>Laddar profil...</div>;
 
         case Page.CustomContent:
@@ -306,7 +308,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
             return <CustomPageEditorScreen 
                 onSave={functions.saveCustomPage} 
                 onCancel={handleBack} 
-                pageToEdit={props.activeCustomPage} // Using activeCustomPage as prop for editor
+                pageToEdit={activeCustomPage}
             />;
 
         case Page.SuperAdmin:
@@ -330,14 +332,14 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onEditCustomPage={functions.editCustomPage}
                 onDeleteCustomPage={functions.deleteCustomPage}
                 onUpdateInfoCarousel={functions.updateInfoCarousel}
-                onUpdateDisplayWindows={async () => {}} // Placeholder as it was not in functions prop
+                onUpdateDisplayWindows={async () => {}}
                 workouts={workouts}
-                workoutsLoading={false} // Assume loaded
+                workoutsLoading={false}
                 onSaveWorkout={onSaveWorkoutNoNav}
                 onDeleteWorkout={onDeleteWorkout}
                 onTogglePublish={onTogglePublish}
                 onDuplicateWorkout={onDuplicateWorkout}
-                onSelectMember={(id) => { /* ... */ }}
+                onSelectMember={() => {}}
                 onBack={functions.handleGoToSystemOwner}
                 onGoToSystemOwner={functions.handleGoToSystemOwner}
                 initialTab={preferredAdminTab}
