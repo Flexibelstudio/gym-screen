@@ -19,6 +19,7 @@ import { ReAuthModal } from './components/ReAuthModal';
 import { StudioSelectionScreen } from './components/StudioSelectionScreen';
 import { StudioConfigModal } from './components/AdminConfigScreen';
 import { LoginScreen } from './components/LoginScreen';
+import { LandingPage } from './components/LandingPage';
 import { DeveloperToolbar } from './components/DeveloperToolbar';
 import { InfoCarouselBanner } from './components/InfoCarouselBanner';
 import { TermsOfServiceModal } from './components/TermsOfServiceModal';
@@ -83,24 +84,6 @@ const CancelConfirmationModal: React.FC<{
     </motion.div>
 );
 
-// --- Suspended Screen ---
-const SuspendedScreen: React.FC<{ orgName: string; logoUrl?: string }> = ({ orgName, logoUrl }) => (
-    <div className="fixed inset-0 bg-gray-100 dark:bg-black z-[10000] flex flex-col items-center justify-center p-8 text-center animate-fade-in">
-        {logoUrl && <img src={logoUrl} alt="Logo" className="h-32 mb-8 grayscale opacity-50" />}
-        <div className="bg-white dark:bg-gray-900 p-10 rounded-[2.5rem] shadow-2xl border border-gray-200 dark:border-gray-800 max-w-lg">
-            <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                <span className="text-4xl">🔒</span>
-            </div>
-            <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-4 uppercase tracking-tight">Tjänsten är inaktiverad</h1>
-            <p className="text-gray-500 dark:text-gray-400 text-lg leading-relaxed mb-8">
-                Kontot för <span className="font-bold text-gray-900 dark:text-white">{orgName}</span> har tillfälligt stängts av eller arkiverats.
-            </p>
-            <p className="text-sm text-gray-400 mb-2">Vänligen kontakta din administratör eller supporten för mer information.</p>
-            <a href="mailto:support@smartskarm.se" className="text-primary font-bold hover:underline text-lg">support@smartskarm.se</a>
-        </div>
-    </div>
-);
-
 const deepCopyAndPrepareAsNew = (workoutToCopy: Workout): Workout => {
     const newWorkout = JSON.parse(JSON.stringify(workoutToCopy));
     newWorkout.id = `workout-${Date.now()}`;
@@ -123,7 +106,6 @@ const deepCopyAndPrepareAsNew = (workoutToCopy: Workout): Workout => {
 
 const THEME_STORAGE_KEY = 'flexibel-screen-theme';
 
-// Fixed Error: Rename MainContent to App to match export default
 const App: React.FC = () => {
   const { 
     selectedStudio, selectStudio, setAllStudios,
@@ -134,6 +116,7 @@ const App: React.FC = () => {
   const { workouts, activeWorkout, setActiveWorkout, saveWorkout, deleteWorkout } = useWorkout();
   
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
+  const [showLogin, setShowLogin] = useState(false);
   
   const [history, setHistory] = useState<Page[]>(() => {
       if (isStudioMode) return [Page.Home];
@@ -145,7 +128,7 @@ const App: React.FC = () => {
   const page = history[history.length - 1];
 
   useEffect(() => {
-    if (!authLoading && !isStudioMode) {
+    if (!authLoading && !isStudioMode && currentUser) {
       const isAtInitialPage = history.length === 1;
       const currentPage = history[history.length - 1];
 
@@ -157,7 +140,7 @@ const App: React.FC = () => {
         setHistory([Page.MemberProfile]);
       }
     }
-  }, [role, authLoading, isStudioMode, history]);
+  }, [role, authLoading, isStudioMode, history, currentUser]);
 
   const [customBackHandler, setCustomBackHandler] = useState<(() => void) | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
@@ -842,6 +825,26 @@ const App: React.FC = () => {
 
   const showSupportChat = !isStudioMode && isAdminOrCoach && isAdminFacingPage;
   const showScanButton = (!isStudioMode && isMemberFacingPage) || (page === Page.MemberProfile);
+
+  // OM INTE INLOGGAD OCH INTE STUDIO MODE -> VISA LANDNINGSSIDA
+  if (!authLoading && !currentUser && !isStudioMode) {
+      if (showLogin) {
+          return <LoginScreen onClose={() => setShowLogin(false)} />;
+      }
+      return <LandingPage onLoginClick={() => setShowLogin(true)} />;
+  }
+
+  // OM INLOGGAD MEN DATA SAKNAS (Firestore document inte skapat än)
+  if (currentUser && !userData && !isStudioMode && !authLoading) {
+    return (
+        <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Slutför din profil...</h2>
+            <p className="text-gray-500 mt-2">Hittade inget medlemskonto för {currentUser.email}.</p>
+            <button onClick={() => signOut()} className="mt-6 text-primary font-bold hover:underline">Logga ut och försök igen</button>
+        </div>
+    );
+  }
 
   return (
     <div className={`bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
