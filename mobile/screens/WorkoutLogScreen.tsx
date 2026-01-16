@@ -11,6 +11,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
 import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 
+// --- Local Storage Key ---
+const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
+
 // --- Local Types for Form State ---
 
 interface LocalSetDetail {
@@ -423,6 +426,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       return totalSets > 0 && uncheckedSetsCount === 0;
   }, [isSubmitting, isQuickWorkoutMode, isManualMode, customActivity, exerciseResults, uncheckedSetsCount]);
   
+  // --- LOAD INITIAL DATA ---
   useEffect(() => {
     if (!oId) { setLoading(false); return; }
     if (isManualMode) { setLoading(false); return; }
@@ -445,6 +449,25 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                     setViewMode('logging');
                 }
 
+                // Check for saved session in localStorage
+                const savedSessionRaw = localStorage.getItem(ACTIVE_LOG_STORAGE_KEY);
+                let loadedResults: LocalExerciseResult[] | null = null;
+                let loadedLogData: LogData | null = null;
+                let loadedSessionStats: any = null;
+                let loadedCustomActivity: any = null;
+
+                if (savedSessionRaw) {
+                    const saved = JSON.parse(savedSessionRaw);
+                    if (saved.workoutId === wId && saved.memberId === userId) {
+                        loadedResults = saved.exerciseResults;
+                        loadedLogData = saved.logData;
+                        loadedSessionStats = saved.sessionStats;
+                        loadedCustomActivity = saved.customActivity;
+                        // Skip pre-game if we have a saved session
+                        setViewMode('logging');
+                    }
+                }
+
                 const exercises: LocalExerciseResult[] = [];
                 const hasExplicitLogging = foundWorkout.blocks.some(b => 
                     b.exercises.some(e => e.loggingEnabled === true)
@@ -460,7 +483,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                             : ex.loggingEnabled !== false;
 
                         if (shouldInclude) {
-                            exercises.push({
+                            // Use loaded result if available, else new
+                            const savedRes = loadedResults?.find(lr => lr.exerciseId === ex.id);
+                            exercises.push(savedRes || {
                                 exerciseId: ex.id,
                                 exerciseName: ex.name,
                                 setDetails: [...defaultSets],
@@ -474,6 +499,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                 });
                 
                 setExerciseResults(exercises);
+                if (loadedLogData) setLogData(loadedLogData);
+                if (loadedSessionStats) setSessionStats(loadedSessionStats);
+                if (loadedCustomActivity) setCustomActivity(loadedCustomActivity);
+
                 const logs = await getMemberLogs(userId);
                 setAllLogs(logs);
                 const historyMap: Record<string, { weight: number, reps: string }> = {};
@@ -515,7 +544,30 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
     init();
   }, [wId, oId, userId, isManualMode, contextWorkouts]);
 
+  // --- AUTO-SAVE LOGIC ---
+  useEffect(() => {
+    if (loading || isSubmitting || !userId || (!wId && !isManualMode)) return;
+
+    const sessionData = {
+        workoutId: wId || 'manual',
+        organizationId: oId,
+        memberId: userId,
+        exerciseResults,
+        logData,
+        sessionStats,
+        customActivity,
+        timestamp: Date.now()
+    };
+
+    localStorage.setItem(ACTIVE_LOG_STORAGE_KEY, JSON.stringify(sessionData));
+  }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, userId, wId, oId, isManualMode]);
+
   const handleCancel = (isSuccess = false, diploma: WorkoutDiploma | null = null) => {
+    // We don't necessarily clear it here if the user just "backs out", 
+    // unless it's a success. User must "Släng" from profile to clear it otherwise.
+    if (isSuccess) {
+        localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
+    }
     if (onClose) onClose(isSuccess, diploma as any);
     else if (navigation) navigation.goBack();
   };
@@ -627,6 +679,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               
               const finalLog = cleanForFirestore(finalLogRaw);
               await saveWorkoutLog(finalLog);
+              localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
               setShowCelebration(true);
           } else {
               finalLogRaw.totalDistance = parseFloat(sessionStats.distance) || 0;
@@ -688,6 +741,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   await updateWorkoutLog(savedLog.id, { diploma: diplomaData });
               }
 
+              localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
               handleCancel(true, diplomaData);
           }
 

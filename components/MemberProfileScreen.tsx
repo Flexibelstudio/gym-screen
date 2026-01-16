@@ -1,13 +1,15 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma } from '../types';
 import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog } from '../services/firebaseService';
-import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch } from './icons';
+import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon } from './icons';
 import { Modal } from './ui/Modal';
 import { resizeImage } from '../utils/imageUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MyStrengthScreen } from './MyStrengthScreen';
 import { WorkoutDiplomaView } from './WorkoutDiplomaView';
+
+// --- Local Storage Key ---
+const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
 
 interface MemberProfileScreenProps {
     userData: UserData;
@@ -30,12 +32,54 @@ const SmartItem: React.FC<{ letter: string, color: string, title: string, text: 
     </div>
 );
 
+// --- Resume Banner Component ---
+const ResumeWorkoutBanner: React.FC<{ 
+    workoutTitle: string, 
+    onContinue: () => void, 
+    onDismiss: () => void 
+}> = ({ workoutTitle, onContinue, onDismiss }) => (
+    <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-8 relative overflow-hidden bg-gradient-to-r from-indigo-600 to-purple-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-500/20 border border-white/10"
+    >
+        {/* Animated background element */}
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-16 -mt-16 animate-pulse"></div>
+        
+        <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4 text-center sm:text-left">
+                <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center shadow-inner shrink-0">
+                    <ClockIcon className="w-6 h-6 text-white animate-pulse" />
+                </div>
+                <div>
+                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-100 opacity-80 mb-0.5">Pågående pass</h4>
+                    <p className="text-lg font-black leading-tight truncate max-w-[200px] sm:max-w-md">{workoutTitle}</p>
+                </div>
+            </div>
+            
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+                <button 
+                    onClick={onDismiss}
+                    className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/20 transition-colors uppercase tracking-widest"
+                >
+                    Släng
+                </button>
+                <button 
+                    onClick={onContinue}
+                    className="flex-[2] sm:flex-none px-6 py-2.5 rounded-xl text-xs font-black bg-white text-indigo-600 shadow-lg hover:brightness-110 transition-all uppercase tracking-widest active:scale-95"
+                >
+                    Fortsätt logga
+                </button>
+            </div>
+        </div>
+    </motion.div>
+);
+
 // --- Helper Functions ---
 
 const getYearWeek = (date: Date) => {
     const d = new Date(date.getTime());
     d.setHours(0, 0, 0, 0);
-    // Torsdag i samma vecka avgör året (ISO 8601)
     d.setDate(d.getDate() + 4 - (d.getDay() || 7));
     const yearStart = new Date(d.getFullYear(), 0, 1);
     const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
@@ -44,32 +88,18 @@ const getYearWeek = (date: Date) => {
 
 const calculateWeeklyStreak = (logs: WorkoutLog[]) => {
     if (logs.length === 0) return 0;
-
-    // Skapa ett set av alla veckor som har loggade pass
     const activeWeeks = new Set(logs.map(log => getYearWeek(new Date(log.date))));
-    
     const now = new Date();
-    const currentWeekKey = getYearWeek(now);
-    
-    // Vi börjar räkna från FÖRRA veckan (eftersom den nuvarande inte är klar än/ska inte uppdateras än enligt önskemål)
     let streak = 0;
     let checkDate = new Date(now);
-    
-    // Gå bakåt 7 dagar för att hamna i förra kalenderveckan
     checkDate.setDate(checkDate.getDate() - 7);
-
     while (true) {
         const weekKey = getYearWeek(checkDate);
         if (activeWeeks.has(weekKey)) {
             streak++;
-            // Gå bakåt ytterligare en vecka
             checkDate.setDate(checkDate.getDate() - 7);
-        } else {
-            // Gap hittat i historiken
-            break;
-        }
+        } else { break; }
     }
-
     return streak;
 };
 
@@ -81,22 +111,16 @@ const getLevelInfo = (count: number) => {
 
 const getAthleteArchetype = (logs: WorkoutLog[]) => {
     if (logs.length < 3) return { title: "Nykomling", icon: <SparklesIcon className="w-5 h-5" />, color: "from-blue-500 to-cyan-500", desc: "Du är i början av din resa. Fortsätt såhär!" };
-    
-    let strengthCount = 0;
-    let cardioCount = 0;
-    let hyroxCount = 0;
-
+    let strengthCount = 0, cardioCount = 0, hyroxCount = 0;
     logs.forEach(l => {
         const t = (l.workoutTitle + (l.tags?.join(' ') || '')).toLowerCase();
         if (t.includes('styrka') || t.includes('gym') || t.includes('power')) strengthCount++;
         if (t.includes('kondition') || t.includes('flås') || t.includes('löpning')) cardioCount++;
         if (t.includes('hyrox')) hyroxCount++;
     });
-
     if (hyroxCount > 3) return { title: "HYROX-Krigare", icon: <LightningIcon className="w-5 h-5" />, color: "from-yellow-500 to-orange-500", desc: "Du älskar funktionell fitness och tävlingsmomentet!" };
     if (strengthCount > cardioCount + 2) return { title: "Lyftaren", icon: <DumbbellIcon className="w-5 h-5" />, color: "from-red-500 to-pink-600", desc: "Tunga lyft är din grej. Starkt jobbat!" };
     if (cardioCount > strengthCount + 2) return { title: "Maskinen", icon: <FireIcon className="w-5 h-5" />, color: "from-orange-400 to-red-500", desc: "Uthållighet av stål. Du slutar aldrig!" };
-    
     return { title: "Hybridatlet", icon: <UserIcon className="w-5 h-5" />, color: "from-indigo-500 to-purple-600", desc: "Du behärskar både styrka och kondition. Den kompletta atleten." };
 };
 
@@ -106,107 +130,24 @@ const GoalsEditModal: React.FC<{ currentGoals?: MemberGoals, onSave: (goals: Mem
     const [selectedGoals, setSelectedGoals] = useState<string[]>(currentGoals?.selectedGoals || []);
     const [targetDate, setTargetDate] = useState(currentGoals?.targetDate || '');
     const [isSmartEnabled, setIsSmartEnabled] = useState(!!currentGoals?.smartCriteria);
-    
-    // Smart States
-    const [smart, setSmart] = useState<SmartGoalDetail>(currentGoals?.smartCriteria || {
-        specific: '',
-        measurable: '',
-        achievable: '',
-        relevant: '',
-        timeBound: ''
-    });
-    
-    const toggleGoal = (goal: string) => {
-        if (selectedGoals.includes(goal)) {
-            setSelectedGoals(selectedGoals.filter(g => g !== goal));
-        } else {
-            setSelectedGoals([...selectedGoals, goal]);
-        }
-    };
-
-    const handleSave = () => {
-        onSave({
-            hasSpecificGoals: selectedGoals.length > 0 || (isSmartEnabled && !!smart.specific),
-            selectedGoals,
-            targetDate,
-            startDate: currentGoals?.startDate || new Date().toISOString().split('T')[0],
-            smartCriteria: isSmartEnabled ? smart : undefined
-        });
-    };
-
+    const [smart, setSmart] = useState<SmartGoalDetail>(currentGoals?.smartCriteria || { specific: '', measurable: '', achievable: '', relevant: '', timeBound: '' });
+    const toggleGoal = (goal: string) => setSelectedGoals(selectedGoals.includes(goal) ? selectedGoals.filter(g => g !== goal) : [...selectedGoals, goal]);
+    const handleSave = () => onSave({ hasSpecificGoals: selectedGoals.length > 0 || (isSmartEnabled && !!smart.specific), selectedGoals, targetDate, startDate: currentGoals?.startDate || new Date().toISOString().split('T')[0], smartCriteria: isSmartEnabled ? smart : undefined });
     const inputClasses = "w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all font-medium";
     const labelClasses = "block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1";
-
     return (
         <Modal isOpen={true} onClose={onClose} title="Sätt dina mål" size="md">
             <div className="space-y-8">
-                {/* Snabbval / Taggar */}
-                <div>
-                    <label className={labelClasses}>Målkategorier</label>
-                    <div className="flex flex-wrap gap-2">
-                        {['Bli starkare', 'Bygga muskler', 'Gå ner i vikt', 'Bättre kondition', 'HYROX', 'Må bra', 'Rörlighet'].map(goal => (
-                            <button
-                                key={goal}
-                                onClick={() => toggleGoal(goal)}
-                                className={`px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${selectedGoals.includes(goal) ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-transparent hover:border-gray-300'}`}
-                            >
-                                {goal}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* SMART Toggle */}
-                <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800/50">
-                    <ToggleSwitch 
-                        label="Använd SMART-metoden" 
-                        checked={isSmartEnabled} 
-                        onChange={setIsSmartEnabled} 
-                    />
-                    <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider mt-2 ml-1">För dig som vill vara extra tydlig</p>
-                </div>
-
-                {/* SMART Fält */}
-                <AnimatePresence>
-                    {isSmartEnabled && (
-                        <motion.div 
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="space-y-4 overflow-hidden"
-                        >
-                            <div>
-                                <label className={labelClasses}>S - Specifikt (Vad exakt?)</label>
-                                <input value={smart.specific} onChange={e => setSmart({...smart, specific: e.target.value})} className={inputClasses} placeholder="T.ex. Klara 5 chins eller 100kg i knäböj" />
-                            </div>
-                            <div>
-                                <label className={labelClasses}>M - Mätbart (Hur vet vi?)</label>
-                                <input value={smart.measurable} onChange={e => setSmart({...smart, measurable: e.target.value})} className={inputClasses} placeholder="T.ex. Genom antal repetitioner eller kg på stången" />
-                            </div>
-                            <div>
-                                <label className={labelClasses}>A - Accepterat (Är det rimligt?)</label>
-                                <input value={smart.achievable} onChange={e => setSmart({...smart, achievable: e.target.value})} className={inputClasses} placeholder="T.ex. Ja, jag tränar 3 gånger i veckan" />
-                            </div>
-                            <div>
-                                <label className={labelClasses}>R - Relevant (Varför är det viktigt?)</label>
-                                <input value={smart.relevant} onChange={e => setSmart({...smart, relevant: e.target.value})} className={inputClasses} placeholder="T.ex. För att känna mig starkare i vardagen" />
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
-                {/* Datumväljare (Alltid synlig) */}
-                <div>
-                    <label className={labelClasses}>T - Tidsbestämt (Måldatum)</label>
-                    <input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} className={inputClasses} />
-                </div>
-
-                <button 
-                    onClick={handleSave} 
-                    className="w-full bg-primary hover:brightness-110 text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 text-lg uppercase tracking-widest"
-                >
-                    Spara Mål
-                </button>
+                <div><label className={labelClasses}>Målkategorier</label><div className="flex flex-wrap gap-2">{['Bli starkare', 'Bygga muskler', 'Gå ner i vikt', 'Bättre kondition', 'HYROX', 'Må bra', 'Rörlighet'].map(goal => (<button key={goal} onClick={() => toggleGoal(goal)} className={`px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${selectedGoals.includes(goal) ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-transparent hover:border-gray-300'}`}>{goal}</button>))}</div></div>
+                <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800/50"><ToggleSwitch label="Använd SMART-metoden" checked={isSmartEnabled} onChange={setIsSmartEnabled} /><p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider mt-2 ml-1">För dig som vill vara extra tydlig</p></div>
+                <AnimatePresence>{isSmartEnabled && (<motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="space-y-4 overflow-hidden">
+                    <div><label className={labelClasses}>S - Specifikt (Vad exakt?)</label><input value={smart.specific} onChange={e => setSmart({...smart, specific: e.target.value})} className={inputClasses} placeholder="T.ex. Klara 5 chins eller 100kg i knäböj" /></div>
+                    <div><label className={labelClasses}>M - Mätbart (Hur vet vi?)</label><input value={smart.measurable} onChange={e => setSmart({...smart, measurable: e.target.value})} className={inputClasses} placeholder="T.ex. Genom antal repetitioner eller kg på stången" /></div>
+                    <div><label className={labelClasses}>A - Accepterat (Är det rimligt?)</label><input value={smart.achievable} onChange={e => setSmart({...smart, achievable: e.target.value})} className={inputClasses} placeholder="T.ex. Ja, jag tränar 3 gånger i veckan" /></div>
+                    <div><label className={labelClasses}>R - Relevant (Varför är det viktigt?)</label><input value={smart.relevant} onChange={e => setSmart({...smart, relevant: e.target.value})} className={inputClasses} placeholder="T.ex. För att känna mig starkare i vardagen" /></div>
+                </motion.div>)}</AnimatePresence>
+                <div><label className={labelClasses}>T - Tidsbestämt (Måldatum)</label><input type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} className={inputClasses} /></div>
+                <button onClick={handleSave} className="w-full bg-primary hover:brightness-110 text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 text-lg uppercase tracking-widest">Spara Mål</button>
             </div>
         </Modal>
     );
@@ -215,85 +156,17 @@ const GoalsEditModal: React.FC<{ currentGoals?: MemberGoals, onSave: (goals: Mem
 const LogDetailModal: React.FC<{ log: WorkoutLog, onClose: () => void, onUpdate: (id: string, data: Partial<WorkoutLog>) => void, onDelete: (id: string) => void }> = ({ log, onClose, onUpdate, onDelete }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [comment, setComment] = useState(log.comment || '');
-    
-    const handleSave = () => {
-        onUpdate(log.id, { comment });
-        setIsEditing(false);
-    };
-
-    const handleDelete = () => {
-        if(confirm("Är du säker på att du vill ta bort detta pass?")) {
-            onDelete(log.id);
-            onClose();
-        }
-    };
-
+    const handleSave = () => { onUpdate(log.id, { comment }); setIsEditing(false); };
+    const handleDelete = () => { if(confirm("Är du säker på att du vill ta bort detta pass?")) { onDelete(log.id); onClose(); } };
     const isCustomActivity = log.activityType === 'custom_activity' || (!log.exerciseResults || log.exerciseResults.length === 0);
-
     return (
         <Modal isOpen={true} onClose={onClose} title={log.workoutTitle} size="lg">
             <div className="space-y-6">
-                <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400">
-                    <span>{new Date(log.date).toLocaleString()}</span>
-                    <div className="flex gap-2">
-                         {log.feeling && <span className="font-medium" title="Känsla">{log.feeling === 'good' ? '🔥' : log.feeling === 'bad' ? '🤕' : '🙂'}</span>}
-                         {log.rpe && <span className="font-bold bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded text-xs">RPE {log.rpe}</span>}
-                    </div>
-                </div>
-
-                {isCustomActivity && (
-                     <div className="bg-gray-50 dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700">
-                        <div className="grid grid-cols-3 gap-4 divide-x divide-gray-200 dark:divide-gray-700">
-                             <div className="text-center px-2">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tid</p>
-                                <p className="font-mono font-bold text-xl text-gray-900 dark:text-white">{log.durationMinutes || 0}<span className="text-xs ml-1 font-normal text-gray-500">min</span></p>
-                             </div>
-                             <div className="text-center px-2">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Distans</p>
-                                <p className="font-mono font-bold text-xl text-gray-900 dark:text-white">{log.totalDistance || 0}<span className="text-xs ml-1 font-normal text-gray-500">km</span></p>
-                             </div>
-                             <div className="text-center px-2">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Energi</p>
-                                <p className="font-mono font-bold text-xl text-gray-900 dark:text-white">{log.totalCalories || 0}<span className="text-xs ml-1 font-normal text-gray-500">kcal</span></p>
-                             </div>
-                        </div>
-                    </div>
-                )}
-                
-                {log.exerciseResults && log.exerciseResults.length > 0 && (
-                    <div className="space-y-2">
-                        <h4 className="font-bold text-gray-900 dark:text-white text-sm uppercase tracking-wider mb-2">Resultat</h4>
-                        {log.exerciseResults.map((ex, i) => (
-                            <div key={i} className="flex justify-between items-center bg-gray-50 dark:bg-gray-900 p-3 rounded-lg border border-gray-100 dark:border-gray-800">
-                                <span className="font-medium text-gray-800 dark:text-gray-200">{ex.exerciseName}</span>
-                                <span className="font-mono text-primary font-bold">
-                                    {ex.weight ? `${ex.weight}kg` : ''} 
-                                    {ex.reps ? ` ${ex.reps}` : ''}
-                                </span>
-                            </div>
-                        ))}
-                    </div>
-                )}
-
-                <div>
-                    <h4 className="font-bold text-gray-900 dark:text-white mb-2 text-sm uppercase tracking-wider">Kommentar</h4>
-                    {isEditing ? (
-                        <textarea value={comment} onChange={e => setComment(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition" rows={3} />
-                    ) : (
-                        <p className="text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg italic border border-gray-100 dark:border-gray-800">{log.comment || "Ingen kommentar."}</p>
-                    )}
-                </div>
-
-                <div className="flex gap-4 pt-4 border-t border-gray-100 dark:border-gray-800">
-                    {isEditing ? (
-                        <button onClick={handleSave} className="flex-1 bg-primary text-white font-bold py-3 rounded-xl hover:brightness-110 transition-colors">Spara ändringar</button>
-                    ) : (
-                        <button onClick={() => setIsEditing(true)} className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold py-3 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Redigera text</button>
-                    )}
-                    <button onClick={handleDelete} className="px-6 text-red-500 font-bold bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl transition-colors flex items-center justify-center border border-red-100 dark:border-red-900/30" title="Radera pass">
-                        <TrashIcon className="w-5 h-5" />
-                    </button>
-                </div>
+                <div className="flex justify-between items-center text-sm text-gray-500 dark:text-gray-400"><span>{new Date(log.date).toLocaleString()}</span><div className="flex gap-2">{log.feeling && <span className="font-medium" title="Känsla">{log.feeling === 'good' ? '🔥' : log.feeling === 'bad' ? '🤕' : '🙂'}</span>}{log.rpe && <span className="font-bold bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded text-xs">RPE {log.rpe}</span>}</div></div>
+                {isCustomActivity && (<div className="bg-gray-50 dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700"><div className="grid grid-cols-3 gap-4 divide-x divide-gray-200 dark:divide-gray-700"><div className="text-center px-2"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tid</p><p className="font-mono font-bold text-xl text-gray-900 dark:text-white">{log.durationMinutes || 0}<span className="text-xs ml-1 font-normal text-gray-500">min</span></p></div><div className="text-center px-2"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Distans</p><p className="font-mono font-bold text-xl text-gray-900 dark:text-white">{log.totalDistance || 0}<span className="text-xs ml-1 font-normal text-gray-500">km</span></p></div><div className="text-center px-2"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Energi</p><p className="font-mono font-bold text-xl text-gray-900 dark:text-white">{log.totalCalories || 0}<span className="text-xs ml-1 font-normal text-gray-500">kcal</span></p></div></div></div>)}
+                {log.exerciseResults && log.exerciseResults.length > 0 && (<div className="space-y-2"><h4 className="font-bold text-gray-900 dark:text-white text-sm uppercase tracking-wider mb-2">Resultat</h4>{log.exerciseResults.map((ex, i) => (<div key={i} className="flex justify-between items-center bg-gray-50 dark:bg-gray-900 p-3 rounded-lg border border-gray-100 dark:border-gray-800"><span className="font-medium text-gray-800 dark:text-gray-200">{ex.exerciseName}</span><span className="font-mono text-primary font-bold">{ex.weight ? `${ex.weight}kg` : ''} {ex.reps ? ` ${ex.reps}` : ''}</span></div>))}</div>)}
+                <div><h4 className="font-bold text-gray-900 dark:text-white mb-2 text-sm uppercase tracking-wider">Kommentar</h4>{isEditing ? (<textarea value={comment} onChange={e => setComment(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition" rows={3} />) : (<p className="text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg italic border border-gray-100 dark:border-gray-800">{log.comment || "Ingen kommentar."}</p>)}</div>
+                <div className="flex gap-4 pt-4 border-t border-gray-100 dark:border-gray-800">{isEditing ? (<button onClick={handleSave} className="flex-1 bg-primary text-white font-bold py-3 rounded-xl hover:brightness-110 transition-colors">Spara ändringar</button>) : (<button onClick={() => setIsEditing(true)} className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold py-3 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Redigera text</button>)}<button onClick={handleDelete} className="px-6 text-red-500 font-bold bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl transition-colors flex items-center justify-center border border-red-100 dark:border-red-900/30" title="Radera pass"><TrashIcon className="w-5 h-5" /></button></div>
             </div>
         </Modal>
     );
@@ -310,6 +183,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [isEditingGoals, setIsEditingGoals] = useState(false);
     const [isMyStrengthVisible, setIsMyStrengthVisible] = useState(false);
     const [viewingDiploma, setViewingDiploma] = useState<WorkoutDiploma | null>(null);
+    
+    // Resume session state
+    const [activeSession, setActiveSession] = useState<any | null>(null);
 
     // Form states
     const [firstName, setFirstName] = useState(userData.firstName || '');
@@ -323,6 +199,21 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     useEffect(() => {
         if (profileEditTrigger > 0) setIsEditing(true);
     }, [profileEditTrigger]);
+
+    // Check for active session in localStorage
+    useEffect(() => {
+        const saved = localStorage.getItem(ACTIVE_LOG_STORAGE_KEY);
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                if (parsed.memberId === userData.uid) {
+                    // Logic to find a title, even for manual entries
+                    const title = parsed.workoutTitle || "Namnlöst pass";
+                    setActiveSession({ ...parsed, displayTitle: title });
+                }
+            } catch(e) { console.warn(e); }
+        }
+    }, [userData.uid]);
 
     // Real-time log listening
     useEffect(() => {
@@ -394,18 +285,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             const date = new Date(l.date);
             return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
         }).length;
-        
-        // Vecko-streak logik
         const weeklyStreak = calculateWeeklyStreak(logs);
         const currentWeekKey = getYearWeek(now);
         const hasTrainedThisWeek = logs.some(l => getYearWeek(new Date(l.date)) === currentWeekKey);
-
-        return { 
-            totalWorkouts, 
-            thisMonth, 
-            weeklyStreak, 
-            hasTrainedThisWeek 
-        };
+        return { totalWorkouts, thisMonth, weeklyStreak, hasTrainedThisWeek };
     }, [logs]);
 
     const daysLeft = useMemo(() => {
@@ -422,7 +305,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         const start = new Date(userData.goals.startDate).getTime();
         const target = new Date(userData.goals.targetDate).getTime();
         const now = new Date().getTime();
-
         if (target <= start) return 100;
         const total = target - start;
         const elapsed = now - start;
@@ -433,8 +315,104 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const archetype = useMemo(() => getAthleteArchetype(logs), [logs]);
     const { level, progressToNext } = useMemo(() => getLevelInfo(logs.length), [logs]);
 
+    const handleResumeWorkout = () => {
+        if (activeSession) {
+            // Check if it's a manual entry or a specific workoutId
+            const workoutId = activeSession.workoutId === 'manual' ? 'MANUAL_ENTRY' : activeSession.workoutId;
+            // Assuming your navigation handles this (it might be via URL in a real app, but here we use context/navigation)
+            // For now, we construct the URL payload logic manually if needed, or rely on App.tsx detecting localStorage.
+            // Since MobileLog is a component, we might need to pass data.
+            // A simpler way: Just navigate to MobileLog, and let it read from localStorage.
+             navigateTo(Page.MobileLog); 
+        }
+    };
+
+    const handleDismissResume = () => {
+        if (confirm("Är du säker på att du vill kasta det sparade passet? All data du fyllt i kommer att försvinna.")) {
+            localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
+            setActiveSession(null);
+        }
+    };
+
+    if (isEditing) {
+        return (
+            <div className="w-full max-w-2xl mx-auto px-4 py-8 animate-fade-in pb-24">
+                <div className="flex items-center justify-between mb-8">
+                    <div>
+                        <h1 className="text-3xl font-black text-gray-900 dark:text-white">Redigera Profil</h1>
+                        <p className="text-gray-500 dark:text-gray-400 mt-1">Uppdatera dina personuppgifter.</p>
+                    </div>
+                    {!isNewUser && (
+                        <button onClick={() => setIsEditing(false)} className="text-sm font-bold text-gray-500 bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-xl">Avbryt</button>
+                    )}
+                </div>
+
+                <div className="space-y-8 bg-white dark:bg-gray-900 p-6 sm:p-10 rounded-[2.5rem] shadow-2xl border border-gray-100 dark:border-gray-800">
+                    <div className="flex flex-col items-center">
+                        <div 
+                            className="w-32 h-32 rounded-full bg-gray-100 dark:bg-gray-800 border-4 border-primary/20 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary transition-all relative group shadow-inner"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            {photoUrl ? <img src={photoUrl} alt="Profil" className="w-full h-full object-cover" /> : <UserIcon className="w-16 h-16 text-gray-300" />}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                <span className="text-[10px] text-white font-black uppercase tracking-widest">Ändra</span>
+                            </div>
+                        </div>
+                        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*" />
+                        <p className="text-sm font-black text-primary mt-4 uppercase tracking-widest">Din Profilbild</p>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Förnamn</label>
+                            <input type="text" value={firstName} onChange={e => setFirstName(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-2xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition font-bold" placeholder="Förnamn" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Efternamn</label>
+                            <input type="text" value={lastName} onChange={e => setLastName(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-2xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition font-bold" placeholder="Efternamn" />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Ålder</label>
+                            <input type="number" value={age} onChange={e => setAge(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-2xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none transition font-bold" placeholder="Ålder" />
+                        </div>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider ml-1">Kön</label>
+                            <select value={gender} onChange={e => setGender(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-2xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none appearance-none font-bold">
+                                <option value="prefer_not_to_say">Vill ej ange</option>
+                                <option value="male">Man</option>
+                                <option value="female">Kvinna</option>
+                                <option value="other">Annat</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button 
+                        onClick={handleSaveProfile} 
+                        disabled={isSaving || !firstName.trim() || !lastName.trim()}
+                        className="w-full bg-primary hover:brightness-110 text-white font-black py-5 rounded-[1.5rem] shadow-xl shadow-primary/20 transition-all transform active:scale-95 disabled:opacity-50 text-lg uppercase tracking-widest"
+                    >
+                        {isSaving ? 'Sparar...' : 'Spara'}
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="w-full max-w-4xl mx-auto px-1 sm:px-6 py-6 animate-fade-in pb-24">
+            
+            {/* 1. Resume Workout Banner (PLACED AT THE VERY TOP) */}
+            {activeSession && (
+                <ResumeWorkoutBanner 
+                    workoutTitle={activeSession.displayTitle}
+                    onContinue={handleResumeWorkout}
+                    onDismiss={handleDismissResume}
+                />
+            )}
+
             {/* Header section */}
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
