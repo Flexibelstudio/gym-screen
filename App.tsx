@@ -116,7 +116,7 @@ const App: React.FC = () => {
   const { workouts, activeWorkout, setActiveWorkout, saveWorkout, deleteWorkout } = useWorkout();
   
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
-  const [showLogin, setShowLogin] = useState(false);
+  const [showLogin, setShowLogin] = useState(true);
   
   const [history, setHistory] = useState<Page[]>(() => {
       if (isStudioMode) return [Page.Home];
