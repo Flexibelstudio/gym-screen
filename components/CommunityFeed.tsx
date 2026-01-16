@@ -52,7 +52,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
     if (isLoading) {
         return (
             <div className="h-full bg-white/5 backdrop-blur-md rounded-[2.5rem] flex items-center justify-center text-white/30 text-xs font-bold uppercase tracking-widest border border-white/10">
-                Laddar gymlödet...
+                Laddar gymflödet...
             </div>
         );
     }
@@ -71,7 +71,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
             <div className="flex items-center justify-between mb-4 relative z-10">
                 <div className="flex items-center gap-3">
                     <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.8)]"></div>
-                    <h3 className="text-xl font-black text-white uppercase tracking-tight leading-none">Gymlödet</h3>
+                    <h3 className="text-xl font-black text-white uppercase tracking-tight leading-none">Gymflödet</h3>
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] bg-white/5 px-2 py-1 rounded-lg border border-white/5">Live</span>
