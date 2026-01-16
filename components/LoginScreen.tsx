@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { registerMemberWithCode } from '../services/firebaseService';
 import { resizeImage } from '../utils/imageUtils';
@@ -47,6 +47,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
     const [regError, setRegError] = useState<string | null>(null);
     const [regLoading, setRegLoading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Kolla URL-parametrar vid start
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const invite = params.get('invite');
+        if (invite) {
+            setInviteCode(invite.toUpperCase());
+            setView('register');
+            // Rensa URL:en så den ser snygg ut efteråt
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+    }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -394,7 +406,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                     <p className="text-[10px] text-gray-500 leading-relaxed">
                         Genom att skapa ett konto godkänner du våra{' '}
                         <button type="button" onClick={() => setShowTerms(true)} className="text-primary font-bold hover:underline">Användarvillkor</button>
-                        {' '}och bekräftar att du läst vår{' '}
+                        {' '}och bekräftar att du läst vara{' '}
                         <button type="button" onClick={() => setShowPrivacy(true)} className="text-primary font-bold hover:underline">Integritetspolicy</button>.
                     </p>
                 </div>

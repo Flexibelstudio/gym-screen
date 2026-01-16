@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Member, UserRole } from '../types';
 import { UsersIcon, PencilIcon, ChartBarIcon, SearchIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from './icons';
@@ -190,7 +189,10 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
   const canEditRoles = currentUserRole === 'organizationadmin' || currentUserRole === 'systemowner';
 
   const inviteCode = selectedOrganization?.inviteCode;
-  const qrPayload = selectedOrganization ? JSON.stringify({ action: 'join', oid: selectedOrganization.id }) : '';
+  
+  // Skapa en URL istället för JSON för att medlems-onboardingen ska ske via webbläsaren
+  const baseUrl = window.location.origin;
+  const qrUrl = inviteCode ? `${baseUrl}/?invite=${inviteCode}` : '';
 
   if (isLoading) {
       return (
@@ -453,7 +455,7 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                 {inviteCode ? (
                     <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12 py-4">
                         <div className="bg-white p-5 rounded-[2.5rem] shadow-xl border border-gray-100 flex flex-col items-center">
-                            <QRCode value={qrPayload} size={200} fgColor="#000000" bgColor="#ffffff" level="L" />
+                            <QRCode value={qrUrl} size={200} fgColor="#000000" bgColor="#ffffff" level="L" />
                             <p className="mt-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Skanna i appen</p>
                         </div>
                         <div className="flex flex-col items-center">
