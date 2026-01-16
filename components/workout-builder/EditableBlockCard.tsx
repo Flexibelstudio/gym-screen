@@ -84,7 +84,14 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
     };
     
     return (
-        <div ref={searchContainerRef} className="group p-3 rounded-lg flex items-start gap-3 transition-all bg-gray-100 dark:bg-gray-700/50 relative">
+        <div 
+            ref={searchContainerRef} 
+            className={`group p-3 rounded-lg flex items-start gap-3 transition-all border-l-4 relative ${
+                exercise.loggingEnabled 
+                ? 'bg-green-50 dark:bg-green-900/10 border-green-500' 
+                : 'bg-gray-100 dark:bg-gray-700/50 border-transparent'
+            }`}
+        >
             <div className="flex flex-col gap-1 items-center justify-center self-center mr-2">
                 <button 
                     disabled={index === 0} 
@@ -125,16 +132,18 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                         className={`${baseClasses} ${textClasses} font-semibold`}
                     />
                     
+                    {/* LOGGNING PILL-BUTTON */}
                     <button 
                         onClick={() => onUpdate(exercise.id, { loggingEnabled: !exercise.loggingEnabled })}
-                        className={`flex-shrink-0 p-1.5 rounded-lg transition-all ${
+                        className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all border font-bold text-[10px] uppercase tracking-wider ${
                             exercise.loggingEnabled 
-                            ? 'text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400' 
-                            : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                            ? 'bg-green-500 border-green-600 text-white shadow-sm' 
+                            : 'bg-gray-200 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500'
                         }`}
                         title={exercise.loggingEnabled ? "Loggning aktiverad" : "Aktivera loggning för medlemmar"}
                     >
-                        <ChartBarIcon className="w-5 h-5" />
+                        <ChartBarIcon className={`w-3.5 h-3.5 ${exercise.loggingEnabled ? 'text-white' : 'text-gray-400'}`} />
+                        <span>{exercise.loggingEnabled ? 'Loggas' : 'Loggas ej'}</span>
                     </button>
 
                     <button onClick={() => onRemove(exercise.id)} className="flex-shrink-0 text-red-500 hover:text-red-400 transition-colors text-sm font-medium" title="Ta bort övning">
