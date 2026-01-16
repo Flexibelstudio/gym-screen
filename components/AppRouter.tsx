@@ -127,19 +127,13 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
         functions
     } = props;
 
-    // Filter för "Övriga pass" (inkluderar medlemsjusteringar)
-    const otherWorkouts = workouts.filter(w => w.isMemberDraft || w.isFavorite || !w.isPublished);
-    
-    // Filter för officiella gympass (exkluderar medlemsjusteringar)
-    const officialWorkouts = workouts.filter(w => !w.isMemberDraft);
-
     switch (page) {
         case Page.Home:
             return <HomeScreen 
                 navigateTo={navigateTo} 
                 onSelectWorkout={onSelectWorkout} 
                 onSelectPasskategori={onSelectPasskategori}
-                savedWorkouts={otherWorkouts}
+                savedWorkouts={workouts.filter(w => w.isFavorite || (!w.isPublished && !w.isMemberDraft))}
                 onCreateNewWorkout={onCreateNewWorkout}
                 onShowBoostModal={() => {}} 
                 studioConfig={studioConfig}
@@ -156,7 +150,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
 
         case Page.SavedWorkouts:
             return <SavedWorkoutsScreen 
-                workouts={otherWorkouts}
+                workouts={workouts.filter(w => w.isFavorite || (!w.isPublished && !w.isMemberDraft))}
                 onSelectWorkout={onSelectWorkout}
                 onEditWorkout={onEditWorkout}
                 onDeleteWorkout={onDeleteWorkout as any}
@@ -167,13 +161,14 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
 
         case Page.WorkoutDetail:
             if (!activeWorkout) return <div>Inget pass valt</div>;
+            // Check if it's a warm-up workout (usually short, one block, tag 'Uppvärmning')
             if (activeWorkout.blocks.length === 1 && activeWorkout.blocks[0].tag === 'Uppvärmning') {
                  return <WarmupScreen onStartWorkout={onStartBlock} />;
             }
             return <WorkoutDetailScreen 
                 workout={activeWorkout} 
                 onStartBlock={(block) => onStartBlock(block, activeWorkout)} 
-                onUpdateBlockSettings={() => {}}
+                onUpdateBlockSettings={(blockId, settings) => { /* Implement update logic if needed locally or pass up */ }}
                 onEditWorkout={onEditWorkout} 
                 onAdjustWorkout={functions.handleAdjustWorkout}
                 isCoachView={isStudioMode || role === 'coach' || role === 'organizationadmin' || role === 'systemowner'}
@@ -187,7 +182,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 followMeShowImage={followMeShowImage}
                 setFollowMeShowImage={functions.setFollowMeShowImage}
                 onUpdateWorkout={onSaveWorkoutNoNav}
-                onVisualize={() => {}}
+                onVisualize={() => { /* Visualize logic */ }}
                 onLogWorkout={functions.handleLogWorkoutRequest}
                 onClose={handleBack}
             />;
@@ -214,9 +209,9 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
             return <AIGeneratorScreen 
                 onWorkoutGenerated={functions.handleGeneratedWorkout} 
                 studioConfig={studioConfig}
-                initialMode="generate"
+                initialMode={props.passkategoriFilter ? 'generate' : 'generate'} // Simplified
                 setCustomBackHandler={functions.setCustomBackHandler}
-                workouts={officialWorkouts}
+                workouts={workouts}
             />;
 
         case Page.WorkoutBuilder:
@@ -250,7 +245,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
             return <NotesScreen 
                 onWorkoutInterpreted={functions.handleWorkoutInterpreted}
                 studioConfig={studioConfig}
-                initialWorkoutToDraw={null}
+                initialWorkoutToDraw={null} // Can pass activeWorkout if editing logic exists
                 onBack={handleBack}
             />;
 
@@ -280,7 +275,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
             return <HyroxRaceDetailScreen raceId={activeRaceId} onBack={handleBack} />;
 
         case Page.MemberRegistry:
-            return <MemberManagementScreen onSelectMember={() => {}} />;
+            return <MemberManagementScreen onSelectMember={(id) => { /* Handle member selection if needed */ }} />;
 
         case Page.MobileLog:
             if (!mobileLogData) return <div>Ingen data för loggning</div>;
@@ -301,7 +296,6 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onBack={handleBack}
                 profileEditTrigger={profileEditTrigger}
                 navigateTo={navigateTo}
-                functions={functions}
             /> : <div>Laddar profil...</div>;
 
         case Page.CustomContent:
@@ -312,7 +306,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
             return <CustomPageEditorScreen 
                 onSave={functions.saveCustomPage} 
                 onCancel={handleBack} 
-                pageToEdit={activeCustomPage}
+                pageToEdit={props.activeCustomPage} // Using activeCustomPage as prop for editor
             />;
 
         case Page.SuperAdmin:
@@ -336,14 +330,14 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onEditCustomPage={functions.editCustomPage}
                 onDeleteCustomPage={functions.deleteCustomPage}
                 onUpdateInfoCarousel={functions.updateInfoCarousel}
-                onUpdateDisplayWindows={async () => {}}
-                workouts={officialWorkouts}
-                workoutsLoading={false}
+                onUpdateDisplayWindows={async () => {}} // Placeholder as it was not in functions prop
+                workouts={workouts}
+                workoutsLoading={false} // Assume loaded
                 onSaveWorkout={onSaveWorkoutNoNav}
                 onDeleteWorkout={onDeleteWorkout}
                 onTogglePublish={onTogglePublish}
                 onDuplicateWorkout={onDuplicateWorkout}
-                onSelectMember={() => {}}
+                onSelectMember={(id) => { /* ... */ }}
                 onBack={functions.handleGoToSystemOwner}
                 onGoToSystemOwner={functions.handleGoToSystemOwner}
                 initialTab={preferredAdminTab}
