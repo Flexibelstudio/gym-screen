@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Member, UserRole } from '../types';
-import { UsersIcon, PencilIcon, ChartBarIcon, SearchIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from './icons';
+import { UsersIcon, PencilIcon, ChartBarIcon, SearchIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon } from './icons';
 import { MemberDetailModal } from './MemberDetailModal';
 import { useStudio } from '../context/StudioContext';
 import { listenToMembers, updateMemberEndDate, updateUserRole } from '../services/firebaseService';
@@ -445,24 +445,39 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
 
       {showInviteModal && selectedOrganization && (
         <Modal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} title="Anslut Medlemmar" size="lg">
-            <div className="text-center p-4 sm:p-6 space-y-8">
+            <div className="text-center p-2 sm:p-4 space-y-8">
                 <div className="space-y-2">
-                    <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Bjud in ditt team</h3>
-                    <p className="text-gray-500 dark:text-gray-400 text-lg">
-                        Medlemmar och personal ansluter sig till {selectedOrganization.name} via denna kod.
+                    <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter uppercase">Bjud in ditt team</h3>
+                    <p className="text-gray-500 dark:text-gray-400 text-base">
+                        Medlemmar och personal ansluter sig till <span className="font-bold text-gray-800 dark:text-white">{selectedOrganization.name}</span> via denna kod.
                     </p>
                 </div>
+                
                 {inviteCode ? (
-                    <div className="flex flex-col md:flex-row items-center justify-center gap-8 md:gap-12 py-4">
-                        <div className="bg-white p-5 rounded-[2.5rem] shadow-xl border border-gray-100 flex flex-col items-center">
-                            <QRCode value={qrUrl} size={200} fgColor="#000000" bgColor="#ffffff" level="L" />
-                            <p className="mt-4 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Skanna i appen</p>
-                        </div>
-                        <div className="flex flex-col items-center">
-                            <span className="text-xs font-black text-gray-400 uppercase tracking-[0.2em] mb-3">Eller använd kod</span>
-                            <div className="bg-gray-100 dark:bg-gray-800 px-10 py-6 rounded-[2rem] border-2 border-gray-200 dark:border-gray-700 shadow-inner">
-                                <span className="text-5xl font-black font-mono tracking-[0.2em] text-primary">{inviteCode}</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-2">
+                        {/* QR Section */}
+                        <div className="bg-white dark:bg-white p-6 rounded-[2.5rem] shadow-xl border border-gray-100 flex flex-col items-center group transition-all hover:scale-[1.02]">
+                            <div className="p-2 border-2 border-gray-50 rounded-2xl">
+                                <QRCode value={qrUrl} size={180} fgColor="#000000" bgColor="#ffffff" level="M" />
                             </div>
+                            <p className="mt-5 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 group-hover:text-primary transition-colors">Skanna för att öppna</p>
+                        </div>
+                        
+                        {/* Code Section */}
+                        <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 flex flex-col items-center justify-center">
+                            <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.25em] mb-4">Eller använd kod</span>
+                            <div className="bg-white dark:bg-gray-900 px-8 py-5 rounded-2xl border-2 border-primary/20 shadow-inner">
+                                <span className="text-4xl font-black font-mono tracking-[0.15em] text-primary">{inviteCode}</span>
+                            </div>
+                            <button 
+                                onClick={() => {
+                                    navigator.clipboard.writeText(inviteCode);
+                                    alert("Kod kopierad!");
+                                }}
+                                className="mt-4 text-[10px] font-black text-primary hover:underline uppercase tracking-widest"
+                            >
+                                Kopiera kod
+                            </button>
                         </div>
                     </div>
                 ) : (
@@ -471,15 +486,17 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                         <p className="text-yellow-700 dark:text-yellow-300 text-sm mt-2">Du måste först aktivera Passloggning i Globala Inställningar för att generera en kod.</p>
                     </div>
                 )}
-                <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-3xl text-sm text-indigo-800 dark:text-indigo-200 text-left border border-indigo-100 dark:border-indigo-800">
-                    <p className="leading-relaxed">
-                        <strong>Tips:</strong> När medlemmar scannar koden skapas deras konto och de kopplas direkt till ditt gym. Som admin kan du sedan uppgradera medlemmar till <strong>Coacher</strong> eller <strong>Admins</strong> genom att klicka på deras profil i listan.
+
+                <div className="bg-indigo-50 dark:bg-indigo-900/20 p-5 rounded-3xl text-sm text-indigo-800 dark:text-indigo-200 text-left border border-indigo-100 dark:border-indigo-800">
+                    <p className="leading-relaxed font-medium">
+                        <span className="font-black uppercase text-[10px] tracking-widest block mb-1">Tips:</span>
+                        När medlemmar scannar koden skapas deras konto och de kopplas direkt till ditt gym. Som admin kan du sedan uppgradera dem till <strong>Coacher</strong> eller <strong>Admins</strong> i listan.
                     </p>
                 </div>
                 
                 <button 
                     onClick={() => window.print()}
-                    className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-black py-5 px-8 rounded-2xl shadow-2xl hover:opacity-90 transition-all transform active:scale-95 uppercase tracking-widest text-sm"
+                    className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-black py-5 px-8 rounded-[2rem] shadow-2xl hover:brightness-110 transition-all transform active:scale-95 uppercase tracking-widest text-xs"
                 >
                     Skriv ut instruktions-poster
                 </button>

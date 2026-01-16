@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { StudioConfig, Studio, Organization, CustomPage, UserData, UserRole, InfoCarousel, DisplayWindow, Workout, CompanyDetails, ThemeOption } from '../types';
 import { ToggleSwitch, HomeIcon, DocumentTextIcon, SpeakerphoneIcon, SparklesIcon, UsersIcon, DumbbellIcon, BriefcaseIcon, BuildingIcon, SettingsIcon, ChartBarIcon, SaveIcon, CopyIcon, PencilIcon, TrashIcon, CloseIcon, InformationCircleIcon, CheckIcon } from './icons';
@@ -765,52 +764,65 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     const renderContent = () => {
         switch (activeTab) {
             case 'dashboard':
+                const qrUrl = organization.inviteCode ? `${window.location.origin}/?invite=${organization.inviteCode}` : '';
                 return (
                     <div className="space-y-8">
                         {/* INVITE CODE SECTION - ALWAYS VISIBLE */}
-                        <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-700 animate-fade-in">
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Bjud in team & medlemmar</h2>
-                            <p className="text-gray-500 text-sm mb-6">
-                                Använd denna QR-kod eller inbjudningskod för att låta dina medlemmar skapa konto i appen och kopplas till ditt gym.
-                            </p>
-                            
-                            {organization.inviteCode ? (
-                                <div className="flex flex-col sm:flex-row gap-8 items-center">
-                                    <div className="bg-white p-4 rounded-xl shadow-inner border border-gray-200">
-                                        <QRCode 
-                                            value={JSON.stringify({ action: 'join', oid: organization.id })} 
-                                            size={150} 
-                                        />
-                                    </div>
-                                    <div className="flex-1 w-full text-center sm:text-left">
-                                        <div className="mb-4">
-                                            <label className="text-xs font-bold uppercase tracking-wider text-gray-400">Inbjudningskod</label>
-                                            <div className="text-3xl font-mono font-bold text-primary tracking-widest mt-1 select-all">
-                                                {organization.inviteCode}
-                                            </div>
+                        <div className="bg-white dark:bg-gray-800 rounded-3xl p-8 shadow-sm border border-gray-200 dark:border-gray-700 animate-fade-in">
+                            <div className="flex flex-col md:flex-row gap-8 items-center">
+                                <div className="bg-white p-4 rounded-[2rem] shadow-xl border border-gray-100 flex flex-col items-center shrink-0">
+                                    {qrUrl ? (
+                                        <>
+                                            <QRCode 
+                                                value={qrUrl} 
+                                                size={160} 
+                                                fgColor="#000000"
+                                                bgColor="#ffffff"
+                                                level="M"
+                                            />
+                                            <p className="mt-3 text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Skanna för att ansluta</p>
+                                        </>
+                                    ) : (
+                                        <div className="w-[160px] h-[160px] bg-gray-100 rounded-xl flex items-center justify-center text-gray-300">
+                                            <SparklesIcon className="w-10 h-10" />
                                         </div>
-                                        <button 
-                                            onClick={() => {
-                                                navigator.clipboard.writeText(organization.inviteCode || '');
-                                                setToast({ message: "Kod kopierad!", visible: true });
-                                            }}
-                                            className="text-sm font-medium text-primary hover:text-primary/80 flex items-center justify-center sm:justify-start gap-2 bg-primary/10 px-4 py-2 rounded-lg transition-colors w-full sm:w-auto"
-                                        >
-                                            <CopyIcon className="w-4 h-4" /> Kopiera kod
-                                        </button>
-                                    </div>
+                                    )}
                                 </div>
-                            ) : (
-                                <div className="p-8 text-center bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-                                    <p className="text-gray-500 text-sm mb-4">Ingen inbjudningskod är skapad än.</p>
-                                    <button 
-                                        onClick={handleGenerateNewInviteCode}
-                                        className="bg-primary text-white px-6 py-2 rounded-lg font-bold shadow-md hover:brightness-110"
-                                    >
-                                        Generera inbjudningskod nu
-                                    </button>
+                                <div className="flex-1 w-full text-center sm:text-left">
+                                    <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2 tracking-tight uppercase">Bjud in team & medlemmar</h2>
+                                    <p className="text-gray-500 dark:text-gray-400 text-sm mb-6 max-w-lg">
+                                        Använd denna QR-kod eller inbjudningskod för att låta dina medlemmar skapa konto i appen och kopplas direkt till {organization.name}.
+                                    </p>
+                                    
+                                    {organization.inviteCode ? (
+                                        <div className="flex flex-col sm:flex-row items-center gap-4">
+                                            <div className="bg-gray-50 dark:bg-gray-900/50 px-8 py-3 rounded-2xl border-2 border-primary/20 shadow-inner">
+                                                <span className="text-4xl font-black font-mono tracking-[0.15em] text-primary">
+                                                    {organization.inviteCode}
+                                                </span>
+                                            </div>
+                                            <button 
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(organization.inviteCode || '');
+                                                    setToast({ message: "Kod kopierad!", visible: true });
+                                                }}
+                                                className="text-sm font-black text-primary hover:bg-primary/10 px-5 py-3 rounded-xl transition-all uppercase tracking-widest"
+                                            >
+                                                <CopyIcon className="w-4 h-4 inline mr-2" /> Kopiera
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="p-4 text-center bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                                            <button 
+                                                onClick={handleGenerateNewInviteCode}
+                                                className="bg-primary text-white px-6 py-2 rounded-lg font-bold shadow-md hover:brightness-110"
+                                            >
+                                                Generera inbjudningskod nu
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
-                            )}
+                            </div>
                         </div>
 
                         <DashboardContent 
