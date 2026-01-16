@@ -90,24 +90,13 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
       gradient: 'bg-gradient-to-br from-teal-500 to-emerald-700'
   });
 
-  // 2. PASS & PROGRAM (NEW)
+  // 2. COACHADMIN (Tidigare Pass & Program)
   items.push({
-      title: 'Pass & Program',
+      title: 'coachadmin',
       subTitle: 'Skapa & hantera pass',
       action: () => navigateTo(Page.SuperAdmin),
       icon: <DumbbellIcon className="w-8 h-8" />,
       gradient: 'bg-gradient-to-br from-blue-600 to-indigo-600'
-  });
-
-  // 3. MEDLEMSREGISTER (Med villkorlig logik)
-  const isLoggingEnabled = studioConfig.enableWorkoutLogging === true;
-  items.push({ 
-      title: 'Medlemsregister', 
-      subTitle: 'Hantera medlemmar',
-      action: isLoggingEnabled ? () => navigateTo(Page.MemberRegistry) : () => setShowLockedModal(true),
-      icon: <UsersIcon className="w-8 h-8" />,
-      gradient: isLoggingEnabled ? 'bg-gradient-to-br from-emerald-600 to-teal-800' : 'bg-gradient-to-br from-gray-500 to-gray-600',
-      isLocked: !isLoggingEnabled
   });
 
   // 4. CONTENT FOR ALL COACHES (Infosidor)
