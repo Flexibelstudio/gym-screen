@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+
+import React, { useState, useMemo, useEffect } from 'react';
 import { Organization, Workout, UserData } from '../../types';
-import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon } from '../icons';
+import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon } from '../icons';
 import { motion } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
@@ -325,111 +326,178 @@ const ManageWorkoutsView: React.FC<{
     onBack: () => void;
 }> = ({ workouts, onEdit, onDelete, onDuplicate, onTogglePublish, onBack }) => {
     
-    // Group only non-member drafts by category for the Admin Manage view
-    const filteredOfficialWorkouts = useMemo(() => workouts.filter(w => !w.isMemberDraft), [workouts]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 50;
 
-    const groupedWorkouts = useMemo(() => {
-        const groups: Record<string, Workout[]> = {};
-        filteredOfficialWorkouts.forEach(w => {
-            const cat = w.category || 'Okategoriserad';
-            if (!groups[cat]) groups[cat] = [];
-            groups[cat].push(w);
-        });
-        return groups;
-    }, [filteredOfficialWorkouts]);
+    // Filter only official workouts (not member drafts)
+    const officialWorkouts = useMemo(() => {
+        return workouts.filter(w => !w.isMemberDraft);
+    }, [workouts]);
 
-    const categories = Object.keys(groupedWorkouts).sort();
+    // Filter and Sort based on Search and Date
+    const filteredWorkouts = useMemo(() => {
+        return officialWorkouts
+            .filter(w => {
+                const searchLower = searchTerm.toLowerCase();
+                return (
+                    w.title.toLowerCase().includes(searchLower) ||
+                    (w.category || '').toLowerCase().includes(searchLower)
+                );
+            })
+            .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    }, [officialWorkouts, searchTerm]);
+
+    // Pagination Logic
+    const totalPages = Math.ceil(filteredWorkouts.length / ITEMS_PER_PAGE);
+    const paginatedWorkouts = useMemo(() => {
+        const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+        return filteredWorkouts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    }, [filteredWorkouts, currentPage]);
+
+    // Reset to page 1 when search changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm]);
 
     return (
-        <div className="space-y-8 animate-fade-in pb-12">
-            <div className="flex items-center gap-4">
-                <button 
-                    onClick={onBack}
-                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-500"
-                >
-                    <span className="text-lg font-bold">←</span>
-                </button>
-                <div>
-                    <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white">Hantera Pass</h3>
-                    <p className="text-gray-500 dark:text-gray-400">Gymmets officiella bibliotek.</p>
+        <div className="space-y-6 animate-fade-in pb-12 w-full">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <button 
+                        onClick={onBack}
+                        className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-500"
+                    >
+                        <span className="text-lg font-bold">←</span>
+                    </button>
+                    <div>
+                        <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white">Hantera Pass</h3>
+                        <p className="text-gray-500 dark:text-gray-400">Totalt {officialWorkouts.length} pass i biblioteket</p>
+                    </div>
+                </div>
+
+                <div className="relative w-full md:w-72">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <SearchIcon className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Sök pass..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl leading-5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm"
+                    />
                 </div>
             </div>
 
-            {filteredOfficialWorkouts.length === 0 ? (
-                <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700">
-                    <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
-                        <DumbbellIcon className="w-10 h-10" />
-                    </div>
-                    <p className="text-gray-500 dark:text-gray-400 font-medium">Du har inga pass i biblioteket än.</p>
+            <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse min-w-[800px]">
+                        <thead>
+                            <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
+                                <th className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Titel</th>
+                                <th className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Kategori</th>
+                                <th className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Skapad</th>
+                                <th className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Status</th>
+                                <th className="p-5 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] text-right">Åtgärder</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                            {paginatedWorkouts.length > 0 ? (
+                                paginatedWorkouts.map((workout) => (
+                                    <tr 
+                                        key={workout.id} 
+                                        className="group hover:bg-gray-50 dark:hover:bg-gray-900/40 transition-colors"
+                                    >
+                                        <td className="p-5">
+                                            <p className="font-bold text-gray-900 dark:text-white text-base truncate max-w-xs">{workout.title}</p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate max-w-xs">{workout.coachTips}</p>
+                                        </td>
+                                        <td className="p-5">
+                                            <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
+                                                {workout.category || 'Okategoriserad'}
+                                            </span>
+                                        </td>
+                                        <td className="p-5 text-sm text-gray-600 dark:text-gray-300 font-mono">
+                                            {new Date(workout.createdAt || 0).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' })}
+                                        </td>
+                                        <td className="p-5">
+                                            <button 
+                                                onClick={() => onTogglePublish(workout.id, !workout.isPublished)}
+                                                className={`text-xs font-bold px-2 py-1 rounded transition-colors uppercase tracking-wider ${
+                                                    workout.isPublished 
+                                                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-200' 
+                                                    : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400 hover:bg-gray-200'
+                                                }`}
+                                            >
+                                                {workout.isPublished ? 'Publicerad' : 'Utkast'}
+                                            </button>
+                                        </td>
+                                        <td className="p-5 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <button 
+                                                    onClick={() => onEdit(workout)} 
+                                                    className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" 
+                                                    title="Redigera"
+                                                >
+                                                    <PencilIcon className="w-4 h-4" />
+                                                </button>
+                                                <button 
+                                                    onClick={() => onDuplicate(workout)}
+                                                    className="p-2 text-gray-400 hover:text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
+                                                    title="Kopiera pass"
+                                                >
+                                                    <CopyIcon className="w-4 h-4" />
+                                                </button>
+                                                <button 
+                                                    onClick={() => {
+                                                        if(window.confirm(`Vill du ta bort passet "${workout.title}"?`)) onDelete(workout.id);
+                                                    }} 
+                                                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" 
+                                                    title="Ta bort"
+                                                >
+                                                    <TrashIcon className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={5} className="p-12 text-center text-gray-400 italic">
+                                        Inga pass hittades.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </table>
                 </div>
-            ) : (
-                categories.map(category => (
-                    <div key={category} className="space-y-4">
-                        <h4 className="text-xl font-bold text-gray-800 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2 flex justify-between items-end">
-                            {category}
-                            <span className="text-sm font-normal text-gray-500">{groupedWorkouts[category].length} pass</span>
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                            {groupedWorkouts[category].map(workout => (
-                                <div key={workout.id} className="bg-white dark:bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:border-primary/30 transition-colors flex flex-col h-full group">
-                                    <div className="flex-grow mb-4">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <h5 className="font-bold text-gray-900 dark:text-white text-lg leading-tight line-clamp-2" title={workout.title}>
-                                                {workout.title}
-                                            </h5>
-                                            {workout.isPublished && (
-                                                <span className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-[10px] font-bold uppercase px-2 py-1 rounded-full flex-shrink-0">
-                                                    Publicerad
-                                                </span>
-                                            )}
-                                        </div>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
-                                            {workout.coachTips || "Inga anteckningar."}
-                                        </p>
-                                    </div>
-                                    <div className="flex justify-between items-center pt-4 border-t border-gray-50 dark:border-gray-700/50 gap-2">
-                                        <div className="flex gap-1">
-                                            <button 
-                                                onClick={() => onEdit(workout)} 
-                                                className="p-2 text-gray-400 hover:text-primary hover:bg-primary/5 rounded-lg transition-colors" 
-                                                title="Redigera"
-                                            >
-                                                <PencilIcon className="w-5 h-5" />
-                                            </button>
-                                            <button 
-                                                onClick={() => onDuplicate(workout)}
-                                                className="p-2 text-gray-400 hover:text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
-                                                title="Kopiera pass"
-                                            >
-                                                <CopyIcon className="w-5 h-5" />
-                                            </button>
-                                            <button 
-                                                onClick={() => {
-                                                    if(window.confirm(`Vill du ta bort passet "${workout.title}"?`)) onDelete(workout.id);
-                                                }} 
-                                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" 
-                                                title="Ta bort"
-                                            >
-                                                <TrashIcon className="w-5 h-5" />
-                                            </button>
-                                        </div>
-                                        <button 
-                                            onClick={() => onTogglePublish(workout.id, !workout.isPublished)}
-                                            className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors ${
-                                                workout.isPublished 
-                                                ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20' 
-                                                : 'text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'
-                                            }`}
-                                        >
-                                            {workout.isPublished ? 'Avpublicera' : 'Publicera'}
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-between p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            <ChevronLeftIcon className="w-4 h-4" />
+                            Föregående
+                        </button>
+                        <span className="text-sm font-bold text-gray-500 dark:text-gray-400">
+                            Sida {currentPage} av {totalPages}
+                        </span>
+                        <button 
+                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                            disabled={currentPage === totalPages}
+                            className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        >
+                            Nästa
+                            <ChevronRightIcon className="w-4 h-4" />
+                        </button>
                     </div>
-                ))
-            )}
+                )}
+            </div>
         </div>
     );
 };
