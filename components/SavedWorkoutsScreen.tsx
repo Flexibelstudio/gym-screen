@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { Workout } from '../types';
-import { StarIcon, PencilIcon, InformationCircleIcon } from './icons';
+import { StarIcon, PencilIcon, InformationCircleIcon, ClockIcon } from './icons';
 
 interface SavedWorkoutsScreenProps {
     workouts: Workout[];
@@ -32,7 +31,7 @@ const SavedWorkoutsScreen: React.FC<SavedWorkoutsScreenProps> = ({ workouts, onS
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-4">
                 <div>
                     <h1 className="text-4xl lg:text-5xl font-black text-gray-900 dark:text-white tracking-tight">Övriga Pass</h1>
-                    <p className="text-gray-500 dark:text-gray-400 mt-2 text-lg">Dina sparade utkast och favoritmarkerade pass.</p>
+                    <p className="text-gray-500 dark:text-gray-400 mt-2 text-lg">Dina sparade utkast, justeringar och favoriter.</p>
                 </div>
             </div>
 
@@ -43,7 +42,7 @@ const SavedWorkoutsScreen: React.FC<SavedWorkoutsScreenProps> = ({ workouts, onS
                 <div>
                     <h3 className="font-bold text-yellow-800 dark:text-yellow-200 mb-1">Bra att veta</h3>
                     <p className="text-yellow-700 dark:text-yellow-300 text-sm leading-relaxed">
-                        Pass markerade som favoriter (⭐) sparas permanent. Övriga utkast rensas automatiskt efter 24 timmar om de inte uppdateras.
+                        Klicka på <StarIcon filled className="w-3 h-3 inline" /> för att spara en justering permanent. Pass utan stjärna betraktas som tillfälliga utkast.
                     </p>
                 </div>
             </div>
@@ -57,9 +56,16 @@ const SavedWorkoutsScreen: React.FC<SavedWorkoutsScreenProps> = ({ workouts, onS
                         >
                             {/* Header */}
                             <div className="flex justify-between items-start gap-4 mb-4">
-                                <h2 className="text-xl font-bold text-gray-900 dark:text-white line-clamp-2 leading-tight group-hover:text-primary transition-colors">
-                                    {workout.title}
-                                </h2>
+                                <div className="min-w-0">
+                                    {workout.isMemberDraft && (
+                                        <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-md mb-2">
+                                            <PencilIcon className="w-3 h-3" /> Justering
+                                        </span>
+                                    )}
+                                    <h2 className="text-xl font-bold text-gray-900 dark:text-white line-clamp-2 leading-tight group-hover:text-primary transition-colors">
+                                        {workout.title}
+                                    </h2>
+                                </div>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onToggleFavorite(workout.id); }}
                                     className={`p-2 rounded-full transition-all ${workout.isFavorite ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-500" : "bg-gray-100 dark:bg-gray-700 text-gray-400 hover:text-yellow-500"}`}
@@ -131,8 +137,8 @@ const SavedWorkoutsScreen: React.FC<SavedWorkoutsScreenProps> = ({ workouts, onS
                         <StarIcon className="w-10 h-10" />
                     </div>
                     <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Inga sparade pass</h3>
-                    <p className="text-gray-500 dark:text-gray-400 max-w-md text-center">
-                        Du har inga sparade utkast eller favoriter just nu. Skapa nya pass via Idé-tavlan eller adminpanelen.
+                    <p className="text-gray-500 dark:text-gray-400 max-w-md text-center text-sm">
+                        Justeringar du gör i passbyggaren hamnar här. Markera dem som favoriter för att spara dem permanent.
                     </p>
                 </div>
             )}

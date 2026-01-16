@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo } from 'react';
 import { Organization, Workout, UserData } from '../../types';
 import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon } from '../icons';
@@ -11,7 +10,7 @@ type AdminTab =
     'dashboard' | 
     'pass-program' | 'infosidor' | 'info-karusell' |
     'globala-installningar' | 'studios' | 'varumarke' | 'company-info' |
-    'anvandare' | 'ovningsbank';
+    'medlemmar' | 'ovningsbank';
 
 interface DashboardContentProps {
     organization: Organization;
@@ -48,7 +47,6 @@ const SetupProgressWidget: React.FC<{
     
     const steps = [
         { label: "Ladda upp logotyp", completed: !!(org.logoUrlLight || org.logoUrlDark) },
-        // Robust check: compare lowercase values to handle #RRGGBB vs #rrggbb differences
         { label: "Välj primärfärg", completed: (org.primaryColor || DEFAULT_COLOR).toLowerCase() !== DEFAULT_COLOR },
         { label: "Anpassa kategorier", completed: (org.globalConfig.customCategories || []).length > 0 },
         { label: "Skapa första skärmen", completed: studioCount > 0 },
@@ -101,7 +99,6 @@ const QuickAIWidget: React.FC<{ onGenerate: (prompt: string) => void }> = ({ onG
         if (!prompt.trim()) return;
         setIsLoading(true);
         await onGenerate(prompt);
-        // Loading state will be handled by unmounting/navigation usually, but just in case:
         setIsLoading(false);
     };
 
@@ -141,7 +138,6 @@ const QuickAIWidget: React.FC<{ onGenerate: (prompt: string) => void }> = ({ onG
                     </button>
                 </form>
             </div>
-            {/* Decorative elements */}
             <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-indigo-600/20 rounded-full blur-3xl"></div>
         </div>
     );
@@ -149,8 +145,10 @@ const QuickAIWidget: React.FC<{ onGenerate: (prompt: string) => void }> = ({ onG
 
 const DashboardContent: React.FC<DashboardContentProps> = ({ organization, workouts, workoutsLoading, setActiveTab, admins, coaches, usersLoading, onQuickGenerate }) => {
     
-    const publishedWorkouts = workouts.filter(w => w.isPublished);
-    const recentWorkouts = [...workouts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 5);
+    // Filtrera bort medlems-utkast (justeringar) från admin-översikten
+    const officialWorkouts = useMemo(() => workouts.filter(w => !w.isMemberDraft), [workouts]);
+    const publishedWorkouts = useMemo(() => officialWorkouts.filter(w => w.isPublished), [officialWorkouts]);
+    const recentWorkouts = useMemo(() => [...officialWorkouts].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 5), [officialWorkouts]);
 
     const stats = [
         { label: 'Publicerade Pass', value: workoutsLoading ? '...' : publishedWorkouts.length, icon: DumbbellIcon, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-900/20' },
@@ -164,7 +162,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({ organization, worko
             
             <SetupProgressWidget 
                 org={organization} 
-                workoutCount={workouts.length} 
+                workoutCount={officialWorkouts.length} 
                 studioCount={organization.studios.length} 
             />
 
@@ -187,7 +185,6 @@ const DashboardContent: React.FC<DashboardContentProps> = ({ organization, worko
                     </div>
                 </div>
 
-                {/* Right Column: Recent Activity / Quick Links */}
                 <div className="space-y-6">
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
                         <div className="p-5 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/50 dark:bg-gray-900/20">
@@ -224,7 +221,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({ organization, worko
                     <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-5">
                         <h3 className="font-bold text-gray-900 dark:text-white mb-4 text-sm uppercase tracking-wider">Genvägar</h3>
                         <div className="space-y-2">
-                            <button onClick={() => setActiveTab('anvandare')} className="w-full text-left p-3 rounded-xl bg-gray-50 dark:bg-gray-700/30 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 group">
+                            <button onClick={() => setActiveTab('medlemmar')} className="w-full text-left p-3 rounded-xl bg-gray-50 dark:bg-gray-700/30 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 group">
                                 <UsersIcon className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
                                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Hantera Team</span>
                             </button>
@@ -289,7 +286,6 @@ const PassProgramModule: React.FC<{
                     <p className="text-sm text-gray-500 dark:text-gray-400">Redigera, kopiera, publicera och ta bort dina befintliga pass.</p>
                 </button>
 
-                {/* Smart Remix Card */}
                 <button 
                     onClick={() => onNavigate('remix')} 
                     disabled={isRemixing || !hasWorkouts}
@@ -329,16 +325,18 @@ const ManageWorkoutsView: React.FC<{
     onBack: () => void;
 }> = ({ workouts, onEdit, onDelete, onDuplicate, onTogglePublish, onBack }) => {
     
-    // Group workouts by category
+    // Group only non-member drafts by category for the Admin Manage view
+    const filteredOfficialWorkouts = useMemo(() => workouts.filter(w => !w.isMemberDraft), [workouts]);
+
     const groupedWorkouts = useMemo(() => {
         const groups: Record<string, Workout[]> = {};
-        workouts.forEach(w => {
+        filteredOfficialWorkouts.forEach(w => {
             const cat = w.category || 'Okategoriserad';
             if (!groups[cat]) groups[cat] = [];
             groups[cat].push(w);
         });
         return groups;
-    }, [workouts]);
+    }, [filteredOfficialWorkouts]);
 
     const categories = Object.keys(groupedWorkouts).sort();
 
@@ -353,16 +351,16 @@ const ManageWorkoutsView: React.FC<{
                 </button>
                 <div>
                     <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white">Hantera Pass</h3>
-                    <p className="text-gray-500 dark:text-gray-400">Alla dina pass samlade och sorterade.</p>
+                    <p className="text-gray-500 dark:text-gray-400">Gymmets officiella bibliotek.</p>
                 </div>
             </div>
 
-            {workouts.length === 0 ? (
+            {filteredOfficialWorkouts.length === 0 ? (
                 <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-3xl border border-gray-100 dark:border-gray-700">
                     <div className="w-20 h-20 bg-gray-50 dark:bg-gray-900 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
                         <DumbbellIcon className="w-10 h-10" />
                     </div>
-                    <p className="text-gray-500 dark:text-gray-400 font-medium">Du har inga pass än.</p>
+                    <p className="text-gray-500 dark:text-gray-400 font-medium">Du har inga pass i biblioteket än.</p>
                 </div>
             ) : (
                 categories.map(category => (
@@ -451,11 +449,12 @@ const PassProgramContent: React.FC<DashboardContentProps & {
     onSaveWorkout: (workout: Workout) => Promise<Workout>;
     onDeleteWorkout: (id: string) => Promise<void>;
     onTogglePublish: (id: string, isPublished: boolean) => void;
+    onDuplicateWorkout: (workout: Workout) => void;
 }> = ({
     subView, setSubView, workoutToEdit, setWorkoutToEdit, isNewDraft, setIsNewDraft,
     aiGeneratorInitialTab, setAiGeneratorInitialTab, onReturnToHub,
     onSaveWorkout, workouts, workoutsLoading, onDeleteWorkout, onTogglePublish,
-    organization, autoExpandCategory, setAutoExpandCategory
+    organization, autoExpandCategory, setAutoExpandCategory, onDuplicateWorkout
 }) => {
     const [isRemixing, setIsRemixing] = useState(false);
 
@@ -475,27 +474,22 @@ const PassProgramContent: React.FC<DashboardContentProps & {
     };
 
     const handleSmartRemix = async () => {
-        if (workouts.length === 0) {
-            alert("Du behöver ha några pass sparade för att kunna remixa. Skapa ett först!");
+        const officialWorkouts = workouts.filter(w => !w.isMemberDraft);
+        if (officialWorkouts.length === 0) {
+            alert("Du behöver ha några officiella pass sparade för att kunna remixa. Skapa ett först!");
             return;
         }
         
         setIsRemixing(true);
         try {
-            // 1. Pick a random workout from history (simulating picking a "popular" one)
-            const randomWorkout = workouts[Math.floor(Math.random() * workouts.length)];
-            console.log("Remixing workout:", randomWorkout.title);
-            
-            // 2. Call AI Service to Remix it
+            const randomWorkout = officialWorkouts[Math.floor(Math.random() * officialWorkouts.length)];
             const remixedWorkout = await remixWorkout(randomWorkout);
-            
-            // 3. Open in Builder
             setWorkoutToEdit(remixedWorkout);
             setIsNewDraft(true);
             setSubView('builder');
         } catch (error) {
             console.error("Remix failed:", error);
-            alert("Kunde inte remixa passet just nu. Kontrollera din internetanslutning eller API-nyckel.");
+            alert("Kunde inte remixa passet just nu.");
         } finally {
             setIsRemixing(false);
         }
@@ -510,29 +504,6 @@ const PassProgramContent: React.FC<DashboardContentProps & {
     const handleEditWorkout = (workout: Workout) => {
         setWorkoutToEdit(workout);
         setIsNewDraft(false);
-        setSubView('builder');
-    };
-
-    const handleDuplicateWorkout = (workoutToCopy: Workout) => {
-        const newWorkout = JSON.parse(JSON.stringify(workoutToCopy));
-        newWorkout.id = `workout-${Date.now()}`;
-        newWorkout.title = `KOPIA - ${workoutToCopy.title}`;
-        newWorkout.isPublished = false;
-        newWorkout.isFavorite = false;
-        newWorkout.createdAt = Date.now();
-        delete newWorkout.participants; 
-
-        newWorkout.blocks = newWorkout.blocks.map((block: any, bIndex: number) => {
-            block.id = `block-${Date.now()}-${bIndex}`;
-            block.exercises = block.exercises.map((ex: any, eIndex: number) => {
-                ex.id = `ex-${Date.now()}-${bIndex}-${eIndex}`;
-                return ex;
-            });
-            return block;
-        });
-
-        setWorkoutToEdit(newWorkout);
-        setIsNewDraft(true);
         setSubView('builder');
     };
 
@@ -559,7 +530,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
                     initialMode={aiGeneratorInitialTab}
                     studioConfig={organization.globalConfig}
                     setCustomBackHandler={() => {}}
-                    workouts={workouts}
+                    workouts={workouts.filter(w => !w.isMemberDraft)}
                     workoutsLoading={workoutsLoading}
                     initialExpandedCategory={autoExpandCategory}
                 />
@@ -588,7 +559,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
                 workouts={workouts}
                 onEdit={handleEditWorkout}
                 onDelete={onDeleteWorkout}
-                onDuplicate={handleDuplicateWorkout}
+                onDuplicate={onDuplicateWorkout}
                 onTogglePublish={onTogglePublish}
                 onBack={onReturnToHub}
             />
@@ -600,7 +571,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
             <PassProgramModule 
                 onNavigate={handleNavigate} 
                 isRemixing={isRemixing} 
-                hasWorkouts={workouts.length > 0} 
+                hasWorkouts={workouts.filter(w => !w.isMemberDraft).length > 0} 
             />
         </div>
     );
