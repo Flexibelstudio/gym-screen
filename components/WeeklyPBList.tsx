@@ -58,7 +58,7 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
                     <div className="p-2 bg-yellow-500/20 rounded-2xl text-yellow-400 border border-yellow-500/10 shadow-inner">
                         <TrophyIcon className="w-5 h-5" />
                     </div>
-                    <h3 className="text-xl font-black text-white uppercase tracking-tight leading-none">Senaste personbästan</h3>
+                    <h3 className="text-xl font-black text-white uppercase tracking-tight leading-none">Personbästa</h3>
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] bg-white/5 px-2 py-1 rounded-lg border border-white/5">Hof</span>
