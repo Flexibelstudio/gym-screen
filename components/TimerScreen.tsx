@@ -308,7 +308,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const startIntervalSeconds = useMemo(() => (activeWorkout?.startIntervalMinutes ?? 2) * 60, [activeWorkout]);
 
   const nextGroupToStartIndex = useMemo(() => startGroups.findIndex(g => g.startTime === undefined), [startGroups]);
-  const nextGroupToStart = useMemo(() => (nextGroupToStartIndex !== -1 ? startGroups[nextGroupToStartIndex] : null), [startGroups, nextGroupToStartIndex]);
+  const nextGroupToStart = useMemo(() => (nextGroupToStartIndex !== -1 ? startGroups[nextGroupToStartIndex] : null), [startGroups, nextGroupToStart]);
 
   const groupForCountdownDisplay = useMemo(() => {
     if (!isHyroxRace) return null;
@@ -497,7 +497,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   }, [controlsVisible, restartHideTimer]);
 
   useEffect(() => {
-    if (status === TimerStatus.Running || status === TimerStatus.Resting || status === TimerStatus.Preparing) restartHideTimer();
+    if (status === TimerStatus.Running || status === TimerStatus.Preparing || status === TimerStatus.Resting) restartHideTimer();
     else { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); }
   }, [status, restartHideTimer, onHeaderVisibilityChange, setIsBackButtonHidden]);
 
@@ -628,10 +628,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       </AnimatePresence>
 
       <div 
-          className={`absolute flex flex-col items-center transition-all duration-500 z-10 
+          className={`absolute flex flex-col items-center transition-all duration-500 z-10 left-0 right-0 
               ${showFullScreenColor 
-                  ? `top-[12%] h-[50%] left-0 justify-center right-0` 
-                  : `justify-center top-4 h-[42%] left-4 right-4 sm:left-6 sm:right-6 rounded-[2.5rem] shadow-2xl ${timerStyle.bg} ${pulseAnimationClass}`
+                  ? `top-[12%] min-h-[50%] justify-center` 
+                  : `justify-center top-4 min-h-[42%] mx-4 sm:mx-6 rounded-[2.5rem] shadow-2xl ${timerStyle.bg} ${pulseAnimationClass}`
               }`}
           style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
       >
@@ -653,9 +653,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                  </span>
             </div>
             
-            {/* TIDSLINJE (Progress bar) - FIXAD */}
-            {block.settings.mode !== TimerMode.Stopwatch && totalBlockDuration > 0 && (
-                <div className="w-[80%] max-w-4xl h-5 bg-black/20 rounded-full mt-8 overflow-hidden border border-white/10 shadow-inner p-1 relative z-20">
+            {/* TIDSLINJE (Progress bar) - Originaldesign återställd och fixad synlighet */}
+            {block.settings.mode !== TimerMode.Stopwatch && (
+                <div className="w-[80%] max-w-4xl h-5 bg-black/20 rounded-full mt-8 overflow-hidden border border-white/10 shadow-inner p-1">
                     <div 
                         className="h-full bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.8)] transition-all duration-1000 ease-linear" 
                         style={{ width: `${progress}%` }} 
@@ -666,7 +666,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       </div>
 
       {/* Standard Bottom Content */}
-      <div className={`absolute bottom-0 left-0 right-0 flex flex-col items-center justify-start px-4 z-0 ${showFullScreenColor ? 'top-[65%]' : 'top-[46%]'} ${isHyroxRace ? 'right-[30%]' : ''}`}>
+      <div className={`absolute bottom-0 left-0 right-0 flex flex-col items-center justify-start px-4 z-0 ${showFullScreenColor ? 'top-[65%]' : 'top-[48%]'} ${isHyroxRace ? 'right-[30%]' : ''}`}>
           
           {/* Block Description Pill */}
           {block.showDescriptionInTimer && block.setupDescription && (
