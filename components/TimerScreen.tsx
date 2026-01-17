@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout } from '../types';
@@ -654,9 +653,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                  </span>
             </div>
             
-            {/* TIDSLINJE (Progress bar) - Originaldesign återställd */}
+            {/* TIDSLINJE (Progress bar) - FIXAD */}
             {block.settings.mode !== TimerMode.Stopwatch && totalBlockDuration > 0 && (
-                <div className="w-[80%] max-w-4xl h-5 bg-black/20 rounded-full mt-8 overflow-hidden border border-white/10 shadow-inner p-1">
+                <div className="w-[80%] max-w-4xl h-5 bg-black/20 rounded-full mt-8 overflow-hidden border border-white/10 shadow-inner p-1 relative z-20">
                     <div 
                         className="h-full bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.8)] transition-all duration-1000 ease-linear" 
                         style={{ width: `${progress}%` }} 
