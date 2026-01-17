@@ -559,7 +559,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       if (status === TimerStatus.Preparing) return currentTime;
       if (isHyroxRace || block.settings.mode === TimerMode.Stopwatch) return totalTimeElapsed;
       
-      // Standard: Räkna ner inom intervall
+      // Standard: Räkna ner inom intervall (om inte direction är 'up')
       if (!block.settings.direction || block.settings.direction === 'down') {
           return currentTime;
       }
@@ -655,7 +655,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                  </span>
             </div>
             
-            {/* TIDSLINJE (Progress bar) - FIXAD FYLLNING */}
+            {/* TIDSLINJE (Progress bar) */}
             {block.settings.mode !== TimerMode.Stopwatch && (
                 <div className="w-[80%] max-w-4xl h-5 bg-black/20 rounded-full mt-8 overflow-hidden border border-white/10 shadow-inner p-1">
                     <div 
