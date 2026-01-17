@@ -505,7 +505,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   const timerStyle = getTimerStyle(status, block.settings.mode, isHyroxRace);
   
-  // BERÄKNA PROGRESS
+  // Progress-beräkning
   const progress = totalBlockDuration > 0 ? (totalTimeElapsed / totalBlockDuration) * 100 : 0;
 
   const pulseAnimationClass = useMemo(() => {
@@ -554,17 +554,17 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       }
   }, [status, isHyroxRace]);
 
-  // Handle Counting UP or DOWN
+  // Räkna UP eller NER
   const timeToDisplay = useMemo(() => {
       if (status === TimerStatus.Preparing) return currentTime;
       if (isHyroxRace || block.settings.mode === TimerMode.Stopwatch) return totalTimeElapsed;
       
-      // Default to "Time Remaining" (count down)
+      // Standard: Räkna ner inom intervall
       if (!block.settings.direction || block.settings.direction === 'down') {
           return currentTime;
       }
       
-      // Handle "Count Up" within interval
+      // Räkna upp inom intervall
       return currentPhaseDuration - currentTime;
 
   }, [status, currentTime, isHyroxRace, block.settings.mode, block.settings.direction, currentPhaseDuration, totalTimeElapsed]);
@@ -680,7 +680,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                   <div className="bg-primary/10 p-2 rounded-xl">
                     <InformationCircleIcon className="w-6 h-6 text-primary shrink-0" />
                   </div>
-                  <p className="text-gray-900 dark:text-white text-lg md:text-xl font-bold leading-tight">
+                  <p className="text-gray-900 dark:text-white text-lg md:text-xl font-bold font-logo leading-tight">
                       {block.setupDescription}
                   </p>
               </motion.div>
