@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout } from '../types';
@@ -208,14 +209,14 @@ const BigRoundIndicator: React.FC<BigRoundIndicatorProps> = ({ currentRound, tot
 
     if (mode === TimerMode.EMOM) {
          return (
-            <div className="mt-6 flex flex-col items-center z-20">
-                <div className="bg-black/20 backdrop-blur-md rounded-2xl px-8 py-4 border border-white/10 shadow-xl">
-                    <span className="block text-white/70 font-bold text-xl uppercase tracking-[0.3em] mb-1 text-center">MINUT</span>
-                    <div className="flex items-baseline justify-center gap-2">
-                        <motion.span key={currentRound} initial={{ opacity: 0, y: 20, scale: 0.5 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="font-black text-8xl text-white drop-shadow-lg leading-none">
+            <div className="flex flex-col items-center">
+                <div className="bg-black/20 backdrop-blur-md rounded-2xl px-6 py-3 border border-white/10 shadow-xl">
+                    <span className="block text-white/70 font-bold text-xs uppercase tracking-[0.3em] mb-0.5 text-center">MINUT</span>
+                    <div className="flex items-baseline justify-center gap-1">
+                        <motion.span key={currentRound} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="font-black text-5xl text-white drop-shadow-lg leading-none">
                             {currentRound}
                         </motion.span>
-                        <span className="text-3xl font-bold text-white/60">/ {totalRounds}</span>
+                        <span className="text-xl font-bold text-white/60">/ {totalRounds}</span>
                     </div>
                 </div>
             </div>
@@ -225,33 +226,33 @@ const BigRoundIndicator: React.FC<BigRoundIndicatorProps> = ({ currentRound, tot
     if (specifiedLaps !== undefined && currentInterval !== undefined && intervalsPerRound !== undefined) {
         if (specifiedLaps === 1) {
              return (
-                <div className="mt-6 flex flex-col items-center z-20">
-                    <div className="bg-black/20 backdrop-blur-md rounded-2xl px-8 py-4 border border-white/10 shadow-xl">
-                        <span className="block text-white/70 font-bold text-xl uppercase tracking-[0.3em] mb-1 text-center">INTERVALL</span>
-                        <div className="flex items-baseline justify-center gap-2">
-                            <motion.span key={currentInterval} initial={{ opacity: 0, y: 20, scale: 0.5 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="font-black text-8xl text-white drop-shadow-lg leading-none">
+                <div className="flex flex-col items-center">
+                    <div className="bg-black/20 backdrop-blur-md rounded-2xl px-6 py-3 border border-white/10 shadow-xl">
+                        <span className="block text-white/70 font-bold text-xs uppercase tracking-[0.3em] mb-0.5 text-center">INTERVALL</span>
+                        <div className="flex items-baseline justify-center gap-1">
+                            <motion.span key={currentInterval} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="font-black text-5xl text-white drop-shadow-lg leading-none">
                                 {currentInterval}
                             </motion.span>
-                            <span className="text-3xl font-bold text-white/60">/ {intervalsPerRound}</span>
+                            <span className="text-xl font-bold text-white/60">/ {intervalsPerRound}</span>
                         </div>
                     </div>
                 </div>
             );
         } else {
              return (
-                <div className="mt-6 flex flex-col items-center gap-4 z-20">
-                    <div className="bg-black/20 backdrop-blur-md rounded-2xl px-10 py-4 border border-white/10 shadow-xl">
-                        <span className="block text-white/70 font-bold text-xl uppercase tracking-[0.3em] mb-1 text-center">VARV</span>
-                        <div className="flex items-baseline justify-center gap-2">
-                            <motion.span key={currentRound} initial={{ opacity: 0, y: 20, scale: 0.5 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="font-black text-8xl text-white drop-shadow-lg leading-none">
+                <div className="flex flex-col items-end gap-2">
+                    <div className="bg-black/20 backdrop-blur-md rounded-2xl px-8 py-3 border border-white/10 shadow-xl">
+                        <span className="block text-white/70 font-bold text-xs uppercase tracking-[0.3em] mb-0.5 text-center">VARV</span>
+                        <div className="flex items-baseline justify-center gap-1">
+                            <motion.span key={currentRound} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="font-black text-5xl text-white drop-shadow-lg leading-none">
                                 {currentRound}
                             </motion.span>
-                            <span className="text-3xl font-bold text-white/60">/ {totalRounds}</span>
+                            <span className="text-xl font-bold text-white/60">/ {totalRounds}</span>
                         </div>
                     </div>
-                    <div className="bg-black/20 backdrop-blur-md rounded-xl px-6 py-2 border border-white/10 shadow-lg">
-                         <span className="text-white/80 font-bold text-lg tracking-wider flex items-center gap-2">
-                            INTERVALL <span className="text-2xl text-white">{currentInterval}</span> <span className="text-white/60">/ {intervalsPerRound}</span>
+                    <div className="bg-black/20 backdrop-blur-md rounded-xl px-4 py-1.5 border border-white/10 shadow-lg">
+                         <span className="text-white/80 font-bold text-xs tracking-wider flex items-center gap-2">
+                            INTERVALL <span className="text-lg text-white">{currentInterval}</span> <span className="text-white/60">/ {intervalsPerRound}</span>
                         </span>
                     </div>
                 </div>
@@ -260,14 +261,14 @@ const BigRoundIndicator: React.FC<BigRoundIndicatorProps> = ({ currentRound, tot
     }
 
     return (
-        <div className="mt-6 flex flex-col items-center z-20">
-            <div className="bg-black/20 backdrop-blur-md rounded-2xl px-8 py-4 border border-white/10 shadow-xl">
-                <span className="block text-white/70 font-bold text-xl uppercase tracking-[0.3em] mb-1 text-center">RUNDA</span>
-                <div className="flex items-baseline justify-center gap-2">
-                    <motion.span key={currentRound} initial={{ opacity: 0, y: 20, scale: 0.5 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="font-black text-8xl text-white drop-shadow-lg leading-none">
+        <div className="flex flex-col items-center">
+            <div className="bg-black/20 backdrop-blur-md rounded-2xl px-6 py-3 border border-white/10 shadow-xl">
+                <span className="block text-white/70 font-bold text-xs uppercase tracking-[0.3em] mb-0.5 text-center">RUNDA</span>
+                <div className="flex items-baseline justify-center gap-1">
+                    <motion.span key={currentRound} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="font-black text-5xl text-white drop-shadow-lg leading-none">
                         {currentRound}
                     </motion.span>
-                    <span className="text-3xl font-bold text-white/60">/ {totalRounds}</span>
+                    <span className="text-xl font-bold text-white/60">/ {totalRounds}</span>
                 </div>
             </div>
         </div>
@@ -637,6 +638,20 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         {showBackToPrepConfirmation && <RaceBackToPrepConfirmationModal onConfirm={onBackToGroups} onCancel={() => setShowBackToPrepConfirmation(false)} />}
       </AnimatePresence>
 
+      {/* --- NEW POSITION: BigRoundIndicator in Top Right Corner --- */}
+      {status !== TimerStatus.Idle && (
+          <div className="absolute top-10 right-10 z-30">
+              <BigRoundIndicator 
+                  currentRound={currentRound} 
+                  totalRounds={totalRounds} 
+                  mode={block.settings.mode} 
+                  currentInterval={currentIntervalInLap} 
+                  intervalsPerRound={effectiveIntervalsPerLap} 
+                  specifiedLaps={block.settings.specifiedLaps} 
+              />
+          </div>
+      )}
+
       <div 
           className={`absolute flex flex-col items-center transition-all duration-500 z-10 
               ${showFullScreenColor 
@@ -674,9 +689,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
         {status !== TimerStatus.Idle && (
             <>
-                {(block.settings.mode === TimerMode.Interval || block.settings.mode === TimerMode.Tabata || block.settings.mode === TimerMode.EMOM) ? (
-                    <BigRoundIndicator currentRound={currentRound} totalRounds={totalRounds} mode={block.settings.mode} currentInterval={currentIntervalInLap} intervalsPerRound={effectiveIntervalsPerLap} specifiedLaps={block.settings.specifiedLaps} />
-                ) : (
+                {!(block.settings.mode === TimerMode.Interval || block.settings.mode === TimerMode.Tabata || block.settings.mode === TimerMode.EMOM) && (
                     <div className="mt-6 text-center z-20 text-white">
                         <p className={`font-bold drop-shadow-md text-white/90 text-xl sm:text-3xl`}><span>{block.title}</span></p>
                     </div>
