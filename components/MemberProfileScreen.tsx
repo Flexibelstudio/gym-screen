@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma } from '../types';
 import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog } from '../services/firebaseService';
@@ -347,10 +348,80 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         }
     };
 
+    // --- RENDER EDIT FORM ---
+    if (isEditing) {
+        return (
+            <div className="w-full max-w-2xl mx-auto px-6 py-12 animate-fade-in pb-32">
+                <div className="flex justify-between items-center mb-10">
+                    <h2 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Redigera profil</h2>
+                    {!isNewUser && (
+                        <button onClick={() => setIsEditing(false)} className="p-3 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all">
+                            <CloseIcon className="w-6 h-6 text-gray-500" />
+                        </button>
+                    )}
+                </div>
+
+                <div className="space-y-8">
+                    {/* Profilbild */}
+                    <div className="flex flex-col items-center gap-4">
+                        <div 
+                            className="w-32 h-32 rounded-full bg-gray-100 dark:bg-gray-800 border-4 border-white dark:border-gray-900 shadow-xl flex items-center justify-center overflow-hidden cursor-pointer relative group"
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            {photoUrl ? <img src={photoUrl} className="w-full h-full object-cover" /> : <UserIcon className="w-12 h-12 text-gray-300" />}
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <span className="text-white text-xs font-black uppercase tracking-widest">Ändra</span>
+                            </div>
+                            {isSaving && <div className="absolute inset-0 bg-white/50 dark:bg-black/50 flex items-center justify-center"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div></div>}
+                        </div>
+                        <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Förnamn</label>
+                            <input value={firstName} onChange={e => setFirstName(e.target.value)} className="w-full bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm font-bold" />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Efternamn</label>
+                            <input value={lastName} onChange={e => setLastName(e.target.value)} className="w-full bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm font-bold" />
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Ålder</label>
+                            <input type="number" value={age} onChange={e => setAge(e.target.value)} className="w-full bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm font-bold" />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Kön</label>
+                            <select value={gender} onChange={e => setGender(e.target.value)} className="w-full bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm font-bold appearance-none">
+                                <option value="prefer_not_to_say">Vill ej ange</option>
+                                <option value="male">Man</option>
+                                <option value="female">Kvinna</option>
+                                <option value="other">Annat</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div className="pt-8">
+                        <button 
+                            onClick={handleSaveProfile} 
+                            disabled={isSaving || !firstName.trim() || !lastName.trim()}
+                            className="w-full bg-primary hover:brightness-110 text-white font-black py-5 rounded-[2rem] shadow-xl shadow-primary/20 transition-all transform active:scale-95 text-lg uppercase tracking-tight disabled:opacity-50"
+                        >
+                            {isSaving ? 'Sparar...' : 'Spara ändringar'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="w-full max-w-4xl mx-auto px-1 sm:px-6 py-6 animate-fade-in pb-24">
             
-            {/* 1. Resume Workout Banner (PLACED AT THE VERY TOP) */}
+            {/* 1. Resume Workout Banner */}
             {activeSession && (
                 <ResumeWorkoutBanner 
                     workoutTitle={activeSession.displayTitle}
@@ -376,7 +447,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     </div>
                 </div>
 
-                {/* Achievement-knapp för styrka */}
                 <button
                     onClick={() => setIsMyStrengthVisible(true)}
                     className="flex flex-col items-center gap-1 group transition-all"
@@ -461,7 +531,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 ))}
                             </div>
 
-                            {/* SMART Breakdown on Profile */}
                             <div className="space-y-4 pt-2 border-t border-gray-50 dark:border-gray-800">
                                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em]">Målanalys (SMART)</p>
                                 <div className="space-y-4">
@@ -552,7 +621,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             {isEditingGoals && <GoalsEditModal currentGoals={userData.goals} onSave={handleSaveGoals} onClose={() => setIsEditingGoals(false)} />}
             {selectedLog && <LogDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} onUpdate={handleUpdateLog} onDelete={handleDeleteLog} />}
             
-            {/* MIN STYRKA MODAL */}
             <AnimatePresence>
                 {isMyStrengthVisible && (
                     <>

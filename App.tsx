@@ -974,6 +974,7 @@ const App: React.FC = () => {
                     handleSelectCustomPage: handleSelectCustomPage,
                     
                     handleMemberProfileRequest: handleMemberProfileRequest,
+                    handleEditProfileRequest: handleEditProfileRequest,
                     handleLogWorkoutRequest: handleLogWorkoutRequest
                 }}
             />
