@@ -505,18 +505,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   const timerStyle = getTimerStyle(status, block.settings.mode, isHyroxRace);
   
-  // Progress-beräkning
-  const progress = totalBlockDuration > 0 ? (totalTimeElapsed / totalBlockDuration) * 100 : 0;
-
-  const pulseAnimationClass = useMemo(() => {
-      if (status !== TimerStatus.Running) return '';
-      const isLastInterval = completedWorkIntervals + 1 >= totalWorkIntervals;
-      if (!isLastInterval) return '';
-      if (currentTime <= 5) return 'animate-pulse-bg-intense';
-      if (currentTime <= 10) return 'animate-pulse-bg-medium';
-      if (currentTime <= 15) return 'animate-pulse-bg-light';
-      return '';
-  }, [status, currentTime, completedWorkIntervals, totalWorkIntervals]);
+  // Progress-beräkning med säkerhetsmarginal för NaN
+  const safeTotalDuration = totalBlockDuration || 1;
+  const progress = Math.min(100, (totalTimeElapsed / safeTotalDuration) * 100);
 
   const modeLabel = useMemo(() => {
       if (isHyroxRace) return "TÄVLING";
@@ -577,7 +568,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   return (
     <div 
-        className={`fixed inset-0 w-full h-full overflow-hidden transition-colors duration-500 ${showFullScreenColor ? `${timerStyle.bg} ${pulseAnimationClass}` : 'bg-gray-100 dark:bg-black'}`}
+        className={`fixed inset-0 w-full h-full overflow-hidden transition-colors duration-500 ${showFullScreenColor ? `${timerStyle.bg}` : 'bg-gray-100 dark:bg-black'}`}
         style={{ '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties}
         onClick={handleInteraction}
         onMouseMove={handleInteraction}
@@ -633,7 +624,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           className={`absolute flex flex-col items-center transition-all duration-500 z-10 left-0 right-0 
               ${showFullScreenColor 
                   ? `top-[12%] min-h-[50%] justify-center` 
-                  : `justify-center top-4 min-h-[42%] mx-4 sm:mx-6 rounded-[2.5rem] shadow-2xl ${timerStyle.bg} ${pulseAnimationClass}`
+                  : `justify-center top-4 min-h-[42%] mx-4 sm:mx-6 rounded-[2.5rem] shadow-2xl ${timerStyle.bg}`
               }`}
           style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
       >
@@ -655,11 +646,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                  </span>
             </div>
             
-            {/* TIDSLINJE (Progress bar) */}
+            {/* TIDSLINJE (Progress bar) - REN OCH SOLID */}
             {block.settings.mode !== TimerMode.Stopwatch && (
-                <div className="w-[80%] max-w-4xl h-5 bg-black/20 rounded-full mt-8 overflow-hidden border border-white/10 shadow-inner p-1">
+                <div className="w-[80%] max-w-4xl h-5 bg-black/20 rounded-full mt-8 overflow-hidden border border-white/10 p-1">
                     <div 
-                        className="h-full bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.8)] transition-[width] duration-1000 ease-linear" 
+                        className="h-full bg-white rounded-full transition-[width] duration-1000 ease-linear" 
                         style={{ width: `${progress}%` }} 
                     />
                 </div>

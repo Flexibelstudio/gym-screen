@@ -85,24 +85,30 @@ export const parseSettingsFromTitle = (title: string): Partial<TimerSettings> | 
     return null;
 };
 
-const calculateTotalDuration = (settings: TimerSettings): number => {
+/**
+ * Beräknar total tid för ett block.
+ * Fallback-logik ser till att vi inte får NaN om rounds saknas i sparade pass.
+ */
+const calculateTotalDuration = (settings: TimerSettings, exercisesCount: number): number => {
     if (!settings) return 0;
+    
+    // Säkerställ giltiga värden även om passet laddas från gammalt database-format
+    const rounds = settings.rounds || (exercisesCount > 0 ? exercisesCount : 1);
+    const workTime = settings.workTime || 0;
+    const restTime = settings.restTime || 0;
+
     switch(settings.mode) {
         case TimerMode.Interval:
         case TimerMode.Tabata:
-            const totalWorkIntervals = settings.rounds;
-            if (totalWorkIntervals === 0) return 0;
-            const totalWork = totalWorkIntervals * settings.workTime;
-            // Vi räknar vila efter varje arbetsperiod utom den sista
-            const totalRestIntervals = totalWorkIntervals > 1 ? totalWorkIntervals - 1 : 0;
-            const totalRestTime = Math.max(0, totalRestIntervals * settings.restTime);
-            return totalWork + totalRestTime;
+            const totalWork = rounds * workTime;
+            const totalRest = rounds > 1 ? (rounds - 1) * restTime : 0;
+            return totalWork + totalRest;
         case TimerMode.AMRAP:
         case TimerMode.TimeCap:
         case TimerMode.Stopwatch:
-            return settings.workTime;
+            return workTime;
         case TimerMode.EMOM:
-            return settings.rounds * 60;
+            return rounds * 60;
         default:
             return 0;
     }
@@ -113,27 +119,30 @@ export const useWorkoutTimer = (block: WorkoutBlock | null) => {
   const [currentTime, setCurrentTime] = useState(0);
   const [currentPhaseDuration, setCurrentPhaseDuration] = useState(0);
   const [completedWorkIntervals, setCompletedWorkIntervals] = useState(0);
-  const [totalTimeElapsed, setTotalTimeElapsed] = useState(0); // Återställd state
+  const [totalTimeElapsed, setTotalTimeElapsed] = useState(0);
   const intervalRef = useRef<number | null>(null);
 
   const totalBlockDuration = useMemo(() => {
       if (!block) return 0;
-      return calculateTotalDuration(block.settings);
+      return calculateTotalDuration(block.settings, block.exercises.length);
   }, [block]);
 
-  // Beräkningar för framsteg och varv
+  // Avancerad varv-beräkning (Återställd komplexitet)
   const totalExercises = block?.exercises.length ?? 0;
-  const settingsRounds = block?.settings.rounds ?? 0;
-  
-  // Hur många intervaller utgör ett "varv"?
+  const settingsRounds = useMemo(() => {
+      if (!block) return 0;
+      return block.settings.rounds || (totalExercises > 0 ? totalExercises : 1);
+  }, [block, totalExercises]);
+
   const effectiveIntervalsPerLap = useMemo(() => {
       if (block?.settings.specifiedIntervalsPerLap) return block.settings.specifiedIntervalsPerLap;
       return totalExercises > 0 ? totalExercises : 1;
   }, [block, totalExercises]);
 
   const totalRounds = useMemo(() => {
-      if (block?.settings.mode === TimerMode.EMOM) return settingsRounds;
-      if (block?.settings.specifiedLaps) return block.settings.specifiedLaps;
+      if (!block) return 0;
+      if (block.settings.mode === TimerMode.EMOM) return settingsRounds;
+      if (block.settings.specifiedLaps) return block.settings.specifiedLaps;
       return totalExercises > 0 ? Math.ceil(settingsRounds / totalExercises) : settingsRounds;
   }, [block, totalExercises, settingsRounds]);
 
@@ -153,25 +162,26 @@ export const useWorkoutTimer = (block: WorkoutBlock | null) => {
   
   const startNextInterval = useCallback(() => {
     if (!block) return;
+    const { workTime, restTime } = block.settings;
+
     if (status === TimerStatus.Preparing) {
         setStatus(TimerStatus.Running);
-        setCurrentTime(block.settings.workTime);
-        setCurrentPhaseDuration(block.settings.workTime);
+        setCurrentTime(workTime);
+        setCurrentPhaseDuration(workTime);
     } else if (status === TimerStatus.Running) {
-      if (block.settings.restTime > 0) {
+      if (restTime > 0) {
         setStatus(TimerStatus.Resting);
-        setCurrentTime(block.settings.restTime);
-        setCurrentPhaseDuration(block.settings.restTime);
+        setCurrentTime(restTime);
+        setCurrentPhaseDuration(restTime);
       } else {
-        // Direkt till nästa arbete
         setStatus(TimerStatus.Running);
-        setCurrentTime(block.settings.workTime);
-        setCurrentPhaseDuration(block.settings.workTime);
+        setCurrentTime(workTime);
+        setCurrentPhaseDuration(workTime);
       }
     } else if (status === TimerStatus.Resting) {
       setStatus(TimerStatus.Running);
-      setCurrentTime(block.settings.workTime);
-      setCurrentPhaseDuration(block.settings.workTime);
+      setCurrentTime(workTime);
+      setCurrentPhaseDuration(workTime);
     }
   }, [block, status]);
 
@@ -179,7 +189,7 @@ export const useWorkoutTimer = (block: WorkoutBlock | null) => {
     if (status === TimerStatus.Running || status === TimerStatus.Resting || status === TimerStatus.Preparing) {
       intervalRef.current = window.setInterval(() => {
         
-        // Uppdatera total förfluten tid om vi är i arbete eller vila
+        // Uppdatera tidslinjen
         if (status === TimerStatus.Running || status === TimerStatus.Resting) {
             setTotalTimeElapsed(prev => {
                 const next = prev + 1;
@@ -189,12 +199,9 @@ export const useWorkoutTimer = (block: WorkoutBlock | null) => {
 
         setCurrentTime(prevTime => {
           const newTime = prevTime - 1;
-          
-          // Ljudsignaler vid nedräkning
           if ((status === TimerStatus.Preparing || status === TimerStatus.Resting) && newTime <= 3 && newTime >= 1) {
             playShortBeep();
           }
-          
           return Math.max(0, newTime);
         });
       }, 1000);
@@ -209,20 +216,16 @@ export const useWorkoutTimer = (block: WorkoutBlock | null) => {
     if (status === TimerStatus.Idle || status === TimerStatus.Finished || status === TimerStatus.Paused) return;
 
     if (block) {
-      const { mode, rounds } = block.settings;
-      
-      // Slut på hela blocket för AMRAP/TimeCap
+      const { mode } = block.settings;
       if ((mode === TimerMode.AMRAP || mode === TimerMode.TimeCap) && status === TimerStatus.Running) {
         playLongBeep();
         setStatus(TimerStatus.Finished);
         setTotalTimeElapsed(totalBlockDuration);
         return;
       }
-
-      // Hantera intervallskifte
       if (status === TimerStatus.Running) {
         const newCompletedCount = completedWorkIntervals + 1;
-        if (newCompletedCount >= rounds) {
+        if (newCompletedCount >= settingsRounds) {
           setCompletedWorkIntervals(newCompletedCount);
           playLongBeep();
           setStatus(TimerStatus.Finished);
@@ -232,10 +235,9 @@ export const useWorkoutTimer = (block: WorkoutBlock | null) => {
         setCompletedWorkIntervals(newCompletedCount);
       }
     }
-    
     playLongBeep();
     startNextInterval();
-  }, [currentTime, status, block, completedWorkIntervals, totalBlockDuration, startNextInterval]);
+  }, [currentTime, status, block, completedWorkIntervals, totalBlockDuration, settingsRounds, startNextInterval]);
 
   const start = useCallback(() => {
     if (!block) return;
@@ -248,19 +250,8 @@ export const useWorkoutTimer = (block: WorkoutBlock | null) => {
     setCurrentPhaseDuration(prepTime);
   }, [block]);
 
-  const pause = () => {
-      if (status !== TimerStatus.Idle && status !== TimerStatus.Finished) {
-          setStatus(TimerStatus.Paused);
-      }
-  };
-  
-  const resume = () => {
-      if (status === TimerStatus.Paused) {
-          // Vi behöver veta om vi var i vila eller arbete, men TimerStatus.Paused
-          // döljer det. För enkelhetens skull går vi till Running om vi inte har restTime.
-          setStatus(currentTime > 0 ? TimerStatus.Running : TimerStatus.Running);
-      }
-  };
+  const pause = () => { if (status !== TimerStatus.Idle && status !== TimerStatus.Finished) setStatus(TimerStatus.Paused); };
+  const resume = () => { if (status === TimerStatus.Paused) setStatus(TimerStatus.Running); };
   
   const reset = useCallback(() => {
     stopTimer();
