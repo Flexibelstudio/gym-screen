@@ -194,7 +194,7 @@ const StandardListView: React.FC<{
     );
 };
 
-interface BigRoundIndicatorProps {
+interface BigIndicatorProps {
     currentRound: number;
     totalRounds: number;
     mode: TimerMode;
@@ -202,45 +202,45 @@ interface BigRoundIndicatorProps {
     totalIntervalsInLap?: number;
 }
 
-const BigRoundIndicator: React.FC<BigRoundIndicatorProps> = ({ currentRound, totalRounds, mode, currentInterval, totalIntervalsInLap }) => {
+const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRounds, mode, currentInterval, totalIntervalsInLap }) => {
     if (mode === TimerMode.Stopwatch || mode === TimerMode.NoTimer) return null;
 
-    const showInterval = currentInterval !== undefined && totalIntervalsInLap !== undefined && totalIntervalsInLap > 1;
+    const showInterval = currentInterval !== undefined && totalIntervalsInLap !== undefined;
 
     return (
         <div className="flex flex-col items-end gap-3 animate-fade-in">
-            {/* Box 1: RUNDA / VARV */}
-            <div className="bg-black/30 backdrop-blur-xl rounded-[2.5rem] px-10 py-6 border border-white/10 shadow-2xl flex flex-col items-center min-w-[180px]">
-                <span className="block text-white/60 font-black text-xs sm:text-sm uppercase tracking-[0.4em] mb-2">
+            {/* Box 1: INTERVALL (Den stora grafiken överst) */}
+            {showInterval && (
+                <div className="bg-black/30 backdrop-blur-xl rounded-[2.5rem] px-10 py-6 border border-white/10 shadow-2xl flex flex-col items-center min-w-[200px]">
+                    <span className="block text-white/60 font-black text-xs sm:text-sm uppercase tracking-[0.4em] mb-2">INTERVALL</span>
+                    <div className="flex items-baseline justify-center gap-1">
+                        <motion.span 
+                            key={`interval-${currentInterval}`} 
+                            initial={{ opacity: 0, scale: 0.8 }} 
+                            animate={{ opacity: 1, scale: 1 }} 
+                            className="font-black text-6xl sm:text-7xl text-white drop-shadow-2xl leading-none"
+                        >
+                            {currentInterval}
+                        </motion.span>
+                        <span className="text-2xl sm:text-3xl font-black text-white/40">/ {totalIntervalsInLap}</span>
+                    </div>
+                </div>
+            )}
+
+            {/* Box 2: VARV (Den mindre grafiken underst) */}
+            <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-black/30 backdrop-blur-xl rounded-[1.5rem] px-6 py-3 border border-white/10 shadow-xl flex items-center justify-center gap-3 min-w-[140px]"
+            >
+                <span className="text-white/60 font-black text-[10px] uppercase tracking-[0.3em]">
                     {mode === TimerMode.EMOM ? 'MINUT' : 'VARV'}
                 </span>
-                <div className="flex items-baseline justify-center gap-1">
-                    <motion.span 
-                        key={`round-${currentRound}`} 
-                        initial={{ opacity: 0, scale: 0.8 }} 
-                        animate={{ opacity: 1, scale: 1 }} 
-                        className="font-black text-6xl sm:text-7xl text-white drop-shadow-2xl leading-none"
-                    >
-                        {currentRound}
-                    </motion.span>
-                    <span className="text-2xl sm:text-3xl font-black text-white/40">/ {totalRounds}</span>
+                <div className="flex items-baseline gap-1">
+                    <span className="text-2xl font-black text-white">{currentRound}</span>
+                    <span className="text-sm font-bold text-white/40">/ {totalRounds}</span>
                 </div>
-            </div>
-
-            {/* Box 2: INTERVALL (Om tillämpligt) */}
-            {showInterval && (
-                <motion.div 
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-black/30 backdrop-blur-xl rounded-[1.5rem] px-6 py-3 border border-white/10 shadow-xl flex items-center justify-center gap-3"
-                >
-                    <span className="text-white/60 font-black text-[10px] uppercase tracking-[0.3em]">INTERVALL</span>
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-2xl font-black text-white">{currentInterval}</span>
-                        <span className="text-sm font-bold text-white/40">/ {totalIntervalsInLap}</span>
-                    </div>
-                </motion.div>
-            )}
+            </motion.div>
         </div>
     );
 };
@@ -633,7 +633,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             <span className={`font-black tracking-[0.2em] text-white uppercase drop-shadow-md text-xl md:text-2xl`}>{modeLabel}</span>
         </div>
 
-        <div className="mb-2 text-center z-20 w-full">
+        {/* --- BLOCKNAMNET ÅTERINFÖRT HÄR --- */}
+        <div className="mb-2 text-center z-20 w-full px-10">
+            <h1 className="font-black text-white/90 uppercase tracking-tighter text-3xl sm:text-4xl md:text-5xl drop-shadow-lg mb-1 truncate">{block.title}</h1>
             <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-5xl sm:text-7xl`}>{statusLabel}</h2>
         </div>
 
