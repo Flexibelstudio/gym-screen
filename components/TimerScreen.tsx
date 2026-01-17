@@ -198,77 +198,27 @@ interface BigRoundIndicatorProps {
     currentRound: number;
     totalRounds: number;
     mode: TimerMode;
-    currentInterval?: number;
-    intervalsPerRound?: number;
-    specifiedLaps?: number;
 }
 
-const BigRoundIndicator: React.FC<BigRoundIndicatorProps> = ({ currentRound, totalRounds, mode, currentInterval, intervalsPerRound, specifiedLaps }) => {
-    const isRelevantMode = [TimerMode.Interval, TimerMode.Tabata, TimerMode.EMOM].includes(mode);
-    if (!isRelevantMode) return null;
-
-    if (mode === TimerMode.EMOM) {
-         return (
-            <div className="flex flex-col items-center">
-                <div className="bg-black/20 backdrop-blur-md rounded-2xl px-6 py-3 border border-white/10 shadow-xl">
-                    <span className="block text-white/70 font-bold text-xs uppercase tracking-[0.3em] mb-0.5 text-center">MINUT</span>
-                    <div className="flex items-baseline justify-center gap-1">
-                        <motion.span key={currentRound} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="font-black text-5xl text-white drop-shadow-lg leading-none">
-                            {currentRound}
-                        </motion.span>
-                        <span className="text-xl font-bold text-white/60">/ {totalRounds}</span>
-                    </div>
-                </div>
-            </div>
-         );
-    }
-
-    if (specifiedLaps !== undefined && currentInterval !== undefined && intervalsPerRound !== undefined) {
-        if (specifiedLaps === 1) {
-             return (
-                <div className="flex flex-col items-center">
-                    <div className="bg-black/20 backdrop-blur-md rounded-2xl px-6 py-3 border border-white/10 shadow-xl">
-                        <span className="block text-white/70 font-bold text-xs uppercase tracking-[0.3em] mb-0.5 text-center">INTERVALL</span>
-                        <div className="flex items-baseline justify-center gap-1">
-                            <motion.span key={currentInterval} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="font-black text-5xl text-white drop-shadow-lg leading-none">
-                                {currentInterval}
-                            </motion.span>
-                            <span className="text-xl font-bold text-white/60">/ {intervalsPerRound}</span>
-                        </div>
-                    </div>
-                </div>
-            );
-        } else {
-             return (
-                <div className="flex flex-col items-end gap-2">
-                    <div className="bg-black/20 backdrop-blur-md rounded-2xl px-8 py-3 border border-white/10 shadow-xl">
-                        <span className="block text-white/70 font-bold text-xs uppercase tracking-[0.3em] mb-0.5 text-center">VARV</span>
-                        <div className="flex items-baseline justify-center gap-1">
-                            <motion.span key={currentRound} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="font-black text-5xl text-white drop-shadow-lg leading-none">
-                                {currentRound}
-                            </motion.span>
-                            <span className="text-xl font-bold text-white/60">/ {totalRounds}</span>
-                        </div>
-                    </div>
-                    <div className="bg-black/20 backdrop-blur-md rounded-xl px-4 py-1.5 border border-white/10 shadow-lg">
-                         <span className="text-white/80 font-bold text-xs tracking-wider flex items-center gap-2">
-                            INTERVALL <span className="text-lg text-white">{currentInterval}</span> <span className="text-white/60">/ {intervalsPerRound}</span>
-                        </span>
-                    </div>
-                </div>
-            );
-        }
-    }
+const BigRoundIndicator: React.FC<BigRoundIndicatorProps> = ({ currentRound, totalRounds, mode }) => {
+    // Samma logik som förut - dölj för vissa lägen
+    if (mode === TimerMode.Stopwatch || mode === TimerMode.NoTimer) return null;
 
     return (
         <div className="flex flex-col items-center">
-            <div className="bg-black/20 backdrop-blur-md rounded-2xl px-6 py-3 border border-white/10 shadow-xl">
-                <span className="block text-white/70 font-bold text-xs uppercase tracking-[0.3em] mb-0.5 text-center">RUNDA</span>
+            {/* Design matchad efter bilden: mörk ruta med label och stora tal */}
+            <div className="bg-black/30 backdrop-blur-xl rounded-[2.5rem] px-10 py-6 border border-white/10 shadow-2xl flex flex-col items-center min-w-[180px]">
+                <span className="block text-white/60 font-black text-xs sm:text-sm uppercase tracking-[0.4em] mb-2">RUNDA</span>
                 <div className="flex items-baseline justify-center gap-1">
-                    <motion.span key={currentRound} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="font-black text-5xl text-white drop-shadow-lg leading-none">
+                    <motion.span 
+                        key={currentRound} 
+                        initial={{ opacity: 0, scale: 0.8 }} 
+                        animate={{ opacity: 1, scale: 1 }} 
+                        className="font-black text-6xl sm:text-7xl text-white drop-shadow-2xl leading-none"
+                    >
                         {currentRound}
                     </motion.span>
-                    <span className="text-xl font-bold text-white/60">/ {totalRounds}</span>
+                    <span className="text-2xl sm:text-3xl font-black text-white/40">/ {totalRounds}</span>
                 </div>
             </div>
         </div>
@@ -638,16 +588,13 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         {showBackToPrepConfirmation && <RaceBackToPrepConfirmationModal onConfirm={onBackToGroups} onCancel={() => setShowBackToPrepConfirmation(false)} />}
       </AnimatePresence>
 
-      {/* --- NEW POSITION: BigRoundIndicator in Top Right Corner --- */}
+      {/* --- RUNDA-INDIKATOR (Flyttad till övre högra hörnet) --- */}
       {status !== TimerStatus.Idle && (
-          <div className="absolute top-10 right-10 z-30">
+          <div className="absolute top-10 right-10 z-[100]">
               <BigRoundIndicator 
                   currentRound={currentRound} 
                   totalRounds={totalRounds} 
                   mode={block.settings.mode} 
-                  currentInterval={currentIntervalInLap} 
-                  intervalsPerRound={effectiveIntervalsPerLap} 
-                  specifiedLaps={block.settings.specifiedLaps} 
               />
           </div>
       )}
@@ -664,11 +611,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             <span className={`font-black tracking-[0.2em] text-white uppercase drop-shadow-md text-xl md:text-2xl`}>{modeLabel}</span>
         </div>
 
-        {(activeWorkout?.title || block.title).toLowerCase() !== block.settings.mode.toLowerCase() && (
-            <h1 className={`font-bold text-white/80 tracking-tight text-center leading-none mb-2 drop-shadow-lg max-w-[90%] z-20 text-2xl md:text-4xl`}>
-                {activeWorkout?.title || block.title}
-            </h1>
-        )}
+        {/* BORTTAGET: (activeWorkout?.title || block.title) - Vi visar inte blockets namn här längre */}
 
         <div className="mb-2 text-center z-20 w-full">
             <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-5xl sm:text-7xl`}>{statusLabel}</h2>
@@ -680,28 +623,20 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                     {minutesStr}:{secondsStr}
                  </span>
             </div>
+            
+            {/* TIDSLINJE (Progress bar) - Matchad efter bildens stil */}
             {block.settings.mode !== TimerMode.Stopwatch && totalBlockDuration > 0 && (
-                <div className="w-[70%] max-w-3xl h-4 bg-white/20 rounded-full mt-6 overflow-hidden">
+                <div className="w-[70%] max-w-3xl h-4 bg-white/20 rounded-full mt-6 overflow-hidden border border-white/10 shadow-inner">
                     <div className="h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)] transition-all duration-1000 ease-linear" style={{ width: `${progress}%` }} />
                 </div>
             )}
         </div>
-
-        {status !== TimerStatus.Idle && (
-            <>
-                {!(block.settings.mode === TimerMode.Interval || block.settings.mode === TimerMode.Tabata || block.settings.mode === TimerMode.EMOM) && (
-                    <div className="mt-6 text-center z-20 text-white">
-                        <p className={`font-bold drop-shadow-md text-white/90 text-xl sm:text-3xl`}><span>{block.title}</span></p>
-                    </div>
-                )}
-            </>
-        )}
       </div>
 
       {/* Standard Bottom Content */}
       <div className={`absolute bottom-0 left-0 right-0 flex flex-col items-center justify-start px-4 z-0 ${showFullScreenColor ? 'top-[65%]' : 'top-[46%]'} ${isHyroxRace ? 'right-[30%]' : ''}`}>
           
-          {/* Block Description Pill - UPPDATERAD DESIGN FÖR BÄTTRE LÄSBARHET */}
+          {/* Block Description Pill */}
           {block.showDescriptionInTimer && block.setupDescription && (
               <motion.div 
                   initial={{ opacity: 0, y: 10 }}
