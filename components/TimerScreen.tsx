@@ -504,6 +504,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const handleInteraction = () => { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); restartHideTimer(); };
 
   const timerStyle = getTimerStyle(status, block.settings.mode, isHyroxRace);
+  
+  // BERÄKNA PROGRESS
   const progress = totalBlockDuration > 0 ? (totalTimeElapsed / totalBlockDuration) * 100 : 0;
 
   const pulseAnimationClass = useMemo(() => {
@@ -653,11 +655,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                  </span>
             </div>
             
-            {/* TIDSLINJE (Progress bar) - Originaldesign återställd och fixad synlighet */}
+            {/* TIDSLINJE (Progress bar) - FIXAD FYLLNING */}
             {block.settings.mode !== TimerMode.Stopwatch && (
                 <div className="w-[80%] max-w-4xl h-5 bg-black/20 rounded-full mt-8 overflow-hidden border border-white/10 shadow-inner p-1">
                     <div 
-                        className="h-full bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.8)] transition-all duration-1000 ease-linear" 
+                        className="h-full bg-white rounded-full shadow-[0_0_15px_rgba(255,255,255,0.8)] transition-[width] duration-1000 ease-linear" 
                         style={{ width: `${progress}%` }} 
                     />
                 </div>
