@@ -96,7 +96,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <div className="flex-shrink-0 cursor-default">
                     {page !== Page.Home && (
                         studioLoading ? (
-                            <div className="h-10 md:h-12 w-32 animate-pulse bg-gray-100 dark:bg-gray-800 rounded-lg"></div>
+                            <div className="h-10 md:h-12 w-32 bg-transparent"></div>
                         ) : logoUrl ? (
                             <img src={logoUrl} alt="Logo" className="h-10 md:h-12 w-auto object-contain pointer-events-none" />
                         ) : (

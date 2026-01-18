@@ -506,7 +506,7 @@ const GlobalaInställningarContent: React.FC<SuperAdminScreenProps & ConfigProps
 
 export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     const { organization, theme, onSaveGlobalConfig, workouts, onSelectMember, userRole, onBack, onGoToSystemOwner, initialTab, onDuplicateWorkout } = props;
-    const { selectOrganization } = useStudio();
+    const { selectOrganization, studioLoading } = useStudio();
     const [activeTab, setActiveTab] = useState<AdminTab>((initialTab as AdminTab) || 'dashboard');
     const [isSidebarCollapsed, setSidebarCollapsed] = useState(false); 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -918,7 +918,9 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                             &larr; Systemvy
                         </button>
                     )}
-                    {displayLogoUrl ? (
+                    {studioLoading ? (
+                        <div className="h-8 w-24 bg-transparent"></div>
+                    ) : displayLogoUrl ? (
                         <img src={displayLogoUrl} alt={`${organization.name} logotyp`} className="max-h-8 object-contain" />
                     ) : (
                         <h1 className="text-lg font-bold text-gray-900 dark:text-white tracking-tight truncate">{organization.name}</h1>
@@ -945,7 +947,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                                 transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                                 className="fixed inset-y-0 left-0 w-[280px] bg-white dark:bg-gray-900 z-[70] lg:hidden shadow-2xl flex flex-col"
                             >
-                                <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                                <div className="p-4 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center">
                                     <h3 className="font-black text-gray-900 dark:text-white tracking-tighter uppercase text-sm">Administration</h3>
                                     <button onClick={() => setIsMobileMenuOpen(false)} className="text-gray-400 p-2">
                                         <CloseIcon className="w-6 h-6" />

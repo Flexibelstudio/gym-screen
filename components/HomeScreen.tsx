@@ -218,7 +218,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <div className="flex flex-shrink-0 justify-between items-start mb-6 w-full pt-4">
                 <div className="flex flex-col gap-3">
                     {studioLoading ? (
-                        <div className="h-16 md:h-24 w-48 animate-pulse bg-gray-200 dark:bg-gray-800 rounded-2xl"></div>
+                        <div className="h-16 md:h-24 w-48 bg-transparent"></div>
                     ) : logoUrl ? (
                         <motion.img 
                             initial={{ opacity: 0, x: -20 }}
