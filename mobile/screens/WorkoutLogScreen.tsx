@@ -33,7 +33,7 @@ const AIGenerationOverlay: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[10000] bg-white dark:bg-gray-900 flex flex-col items-center justify-center p-8 text-center"
+            className="fixed inset-0 z-[10000] bg-white/20 dark:bg-black/20 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center"
         >
             <div className="relative mb-8">
                 <div className="w-24 h-24 rounded-full border-4 border-primary/20 border-t-primary animate-spin"></div>
@@ -48,7 +48,7 @@ const AIGenerationOverlay: React.FC = () => {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
-                    className="text-gray-500 dark:text-gray-400 font-medium h-6"
+                    className="text-gray-700 dark:text-gray-300 font-bold h-6"
                 >
                     {messages[messageIndex]}
                 </motion.p>
@@ -162,7 +162,7 @@ const getFunComparison = (totalWeight: number) => {
     const suitableComparisons = WEIGHT_COMPARISONS.filter(item => totalWeight >= item.weight);
     if (suitableComparisons.length === 0) {
         const item = WEIGHT_COMPARISONS[0];
-        return { count: (totalWeight / item.weight).toFixed(1), name: item.name, single: item.singular, weight: item.weight, emoji: item.emoji };
+        return { count: (totalWeight / item.weight).toFixed(1), name: item.name, singular: item.singular, weight: item.weight, emoji: item.emoji };
     }
     const niceMatches = suitableComparisons.filter(item => {
         const count = totalWeight / item.weight;
