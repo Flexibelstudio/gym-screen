@@ -390,7 +390,7 @@ const ExerciseLogCard: React.FC<{
                                 )}
                             </div>
                             <div className="flex justify-center">
-                                <button onClick={handleToggleComplete(index)} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
+                                <button onClick={() => handleToggleComplete(index)} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
                                     <CheckIcon className="w-5 h-5" />
                                 </button>
                             </div>
@@ -712,12 +712,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
       setIsSubmitting(true);
       try {
-          const selectedDate = new Date(logDate);
-          const today = new Date();
-          const isActuallyToday = selectedDate.toDateString() === today.toDateString();
-          
-          // Använd Date.now() om datumet är idag för att få exakt kronologisk ordning i flödet
-          const logDateMs = isActuallyToday ? Date.now() : selectedDate.getTime();
+          const isQuickOrManual = isManualMode || workout?.logType === 'quick';
+          const logDateMs = new Date(logDate).getTime();
           
           let totalVolume = 0;
           
