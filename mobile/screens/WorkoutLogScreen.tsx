@@ -110,7 +110,7 @@ const WEIGHT_COMPARISONS = [
     { name: "Konsertflyglar", singular: "en Konsertflygel", weight: 500, emoji: "🎹" },
     { name: "Hästar", singular: "en Häst", weight: 500, emoji: "🐎" },
     { name: "Mjölkkor", singular: "en Mjölkko", weight: 600, emoji: "🐄" },
-    { name: "Stora Älgar", singular: "en Stor Älg", weight: 700, emoji: "🫎" },
+    { name: "Stora Älgar", singular: "en Stor Älg", weight: 700, emoji: "🫫" },
     { name: "Giraffer", singular: "en Giraff", weight: 800, emoji: "🦒" },
     { name: "Amerikanska Bisonoxar", singular: "en Bisonoxe", weight: 900, emoji: "🦬" },
     { name: "Smart Cars", singular: "en Smart Car", weight: 900, emoji: "🚗" },
@@ -644,7 +644,23 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       setIsSubmitting(true);
       try {
           const isQuickOrManual = isManualMode || workout?.logType === 'quick';
-          const logDateMs = new Date(logDate).getTime();
+          
+          // --- IMPROVED DATE LOGIC FOR FEED AND TIME ---
+          const now = new Date();
+          const selectedDate = new Date(logDate);
+          // Check if selected date matches today (local time)
+          const isToday = selectedDate.toDateString() === now.toDateString();
+          
+          let logDateMs: number;
+          if (isToday) {
+              logDateMs = Date.now(); // Use exact current time for today's logs
+          } else {
+              // For past dates, use selected date but add current hours/mins 
+              // to avoid sorting clumps and the "01:00" timezone offset issue
+              selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+              logDateMs = selectedDate.getTime();
+          }
+          // ----------------------------------------------
           
           let totalVolume = 0;
           
