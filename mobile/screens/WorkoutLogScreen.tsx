@@ -14,6 +14,96 @@ import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
 
+// --- Loading Overlay Component for AI Generation ---
+const AIGenerationOverlay: React.FC = () => {
+    const [messageIndex, setMessageIndex] = useState(0);
+    const messages = [
+        "Beräknar din totala volym...",
+        "AI-Coachen analyserar passet...",
+        "Skapar din personliga hyllning...",
+        "Genererar ditt unika diplom...",
+        "Färdigställer resultaten...",
+        "Hämtar kraft från molnen..."
+    ];
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setMessageIndex((prev) => (prev + 1) % messages.length);
+        }, 2500);
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex flex-col items-center justify-center bg-white/90 dark:bg-black/95 backdrop-blur-xl p-8 text-center"
+        >
+            <div className="relative mb-12">
+                {/* Outer pulsing ring */}
+                <motion.div 
+                    animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                    className="absolute inset-0 bg-purple-500 rounded-full blur-3xl"
+                />
+                
+                {/* Icon Container */}
+                <motion.div 
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                    className="relative w-32 h-32 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-[2.5rem] shadow-2xl flex items-center justify-center border-4 border-white/20"
+                >
+                    <SparklesIcon className="w-16 h-16 text-white" />
+                </motion.div>
+                
+                {/* Floating particles */}
+                {[...Array(5)].map((_, i) => (
+                    <motion.div
+                        key={i}
+                        animate={{ 
+                            y: [-20, -100], 
+                            x: [0, (i % 2 === 0 ? 30 : -30)],
+                            opacity: [0, 1, 0],
+                            scale: [0, 1, 0]
+                        }}
+                        transition={{ 
+                            duration: 2 + i, 
+                            repeat: Infinity, 
+                            delay: i * 0.4,
+                            ease: "easeOut"
+                        }}
+                        className="absolute top-1/2 left-1/2 w-2 h-2 bg-purple-400 rounded-full"
+                    />
+                ))}
+            </div>
+
+            <AnimatePresence mode="wait">
+                <motion.div
+                    key={messageIndex}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="space-y-2"
+                >
+                    <h3 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">AI-Coach Jobbar</h3>
+                    <p className="text-purple-600 dark:text-purple-400 font-bold text-lg italic">
+                        {messages[messageIndex]}
+                    </p>
+                </motion.div>
+            </AnimatePresence>
+
+            <div className="absolute bottom-12 w-48 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
+                <motion.div 
+                    animate={{ x: [-200, 200] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                    className="w-1/2 h-full bg-gradient-to-r from-transparent via-purple-500 to-transparent"
+                />
+            </div>
+        </motion.div>
+    );
+};
+
 // --- Local Types for Form State ---
 
 interface LocalSetDetail {
@@ -196,7 +286,7 @@ const PreGameView: React.FC<{
                         )}
                     </div>
                 </div>
-                <div className="mt-auto pt-4 pb-8"><button onClick={onStart} className="w-full bg-primary hover:brightness-110 text-white font-black text-lg py-5 rounded-2xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2"><span className="tracking-tight uppercase">Starta passet</span><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg></button></div>
+                <div className="mt-auto pt-4 pb-8"><button onClick={onStart} className="w-full bg-primary hover:brightness-110 text-white font-black text-lg py-5 rounded-2xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2"><span className="tracking-tight uppercase">Starta passet</span><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10.293 3.293a1 1.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg></button></div>
             </div>
         </div>
     );
@@ -779,6 +869,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   return (
     <div className="bg-gray-5 dark:bg-black text-gray-900 dark:text-white flex flex-col relative h-full">
       <AnimatePresence>
+        {isSubmitting && <AIGenerationOverlay />}
         {showCelebration && (
             <motion.div 
               initial={{ opacity: 0 }}
