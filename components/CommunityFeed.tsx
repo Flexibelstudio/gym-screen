@@ -7,12 +7,15 @@ import { useStudio } from '../context/StudioContext';
 import { DumbbellIcon } from './icons';
 
 const getRelativeTime = (timestamp: number) => {
-    const now = Date.now();
-    const diffInSeconds = Math.floor((now - timestamp) / 1000);
-    if (diffInSeconds < 60) return 'Nu';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} min sen`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h sen`;
-    return 'Igår'; 
+    const date = new Date(timestamp);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    
+    if (isToday) {
+        return `Idag ${date.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    
+    return date.toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short' });
 };
 
 const getFeelingIcon = (feeling: string | null) => {
