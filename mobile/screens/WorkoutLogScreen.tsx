@@ -27,6 +27,19 @@ const RPE_LEVELS = [
     { range: '10', label: 'Maximalt', desc: 'Absolut max. Du kan inte göra en enda rep till.', color: 'bg-black' },
 ];
 
+// --- Helper Functions ---
+const getFunComparison = (volume: number) => {
+    const comparisons = [
+        { name: "Afrikanska elefanter", single: "Afrikansk elefant", weight: 6000, emoji: "🐘" },
+        { name: "Personbilar", single: "Personbil", weight: 1500, emoji: "🚗" },
+        { name: "Grizzlybjörnar", single: "Grizzlybjörn", weight: 400, emoji: "🐻" },
+        { name: "Guldretrievrar", single: "Guldretriever", weight: 30, emoji: "🦮" },
+        { name: "Pizzakartonger", single: "Pizzakartong", weight: 0.5, emoji: "🍕" }
+    ];
+    const bestFit = comparisons.find(c => (volume / c.weight) >= 1 && (volume / c.weight) <= 100) || (volume > 10000 ? comparisons[0] : comparisons[comparisons.length - 1]);
+    return { ...bestFit, count: Math.round((volume / bestFit.weight) * 10) / 10 };
+};
+
 // --- Loading Overlay Component for AI Generation ---
 const AIGenerationOverlay: React.FC = () => {
     const [messageIndex, setMessageIndex] = useState(0);
@@ -54,14 +67,11 @@ const AIGenerationOverlay: React.FC = () => {
             className="fixed inset-0 z-[110] flex flex-col items-center justify-center bg-white/90 dark:bg-black/95 backdrop-blur-xl p-8 text-center"
         >
             <div className="relative mb-12">
-                {/* Outer pulsing ring */}
                 <motion.div 
                     animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
                     transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                     className="absolute inset-0 bg-purple-500 rounded-full blur-3xl"
                 />
-                
-                {/* Icon Container */}
                 <motion.div 
                     animate={{ rotate: 360 }}
                     transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
@@ -69,14 +79,12 @@ const AIGenerationOverlay: React.FC = () => {
                 >
                     <SparklesIcon className="w-16 h-16 text-white" />
                 </motion.div>
-                
-                {/* Floating particles */}
                 {[...Array(5)].map((_, i) => (
                     <motion.div
                         key={i}
                         animate={{ 
                             y: [-20, -100], 
-                            x: [0, (i % 2 === 0 ? 30 : -30)],
+                            x: [0, (i % i === 0 ? 30 : -30)],
                             opacity: [0, 1, 0],
                             scale: [0, 1, 0]
                         }}
@@ -716,39 +724,42 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
               let diplomaData: WorkoutDiploma | null = null;
 
-              // 2. Skapa diplom baserat på volym
+              // --- AI-Oberoende diplomgenerering (Progressive Enhancement) ---
+              // 2. Skapa diplom baserat på volym (Detta körs lokalt och kraschar inte pga AI)
               if (totalVolume > 0) {
                   const comparison = getFunComparison(totalVolume);
-                  if (comparison) {
-                      diplomaData = {
-                          title: newRecords.length > 0 ? "NYTT REKORD!" : "ENORM INSATS!",
-                          subtitle: `Du lyfte totalt ${totalVolume.toLocaleString()} kg`,
-                          achievement: `Det motsvarar ca ${comparison.count} st ${comparison.name}`,
-                          footer: `En ${comparison.single} väger ca ${comparison.weight} kg`,
-                          imagePrompt: comparison.emoji, 
-                          newPBs: newRecords.length > 0 ? newRecords : undefined
-                      };
-                  }
+                  diplomaData = {
+                      title: newRecords.length > 0 ? "NYTT REKORD!" : "ENORM INSATS!",
+                      subtitle: `Du lyfte totalt ${totalVolume.toLocaleString()} kg`,
+                      achievement: `Det motsvarar ca ${comparison.count} st ${comparison.name}`,
+                      footer: `En ${comparison.single} väger ca ${comparison.weight} kg`,
+                      imagePrompt: comparison.emoji, 
+                      newPBs: newRecords.length > 0 ? newRecords : undefined
+                  };
               }
 
-              // 3. Fallback till AI-diplom om ingen volym hittades
-              if (!diplomaData) {
-                  try {
-                      diplomaData = await generateWorkoutDiploma({ ...finalLogRaw, newPBs: newRecords });
-                      if (diplomaData) {
-                          diplomaData.newPBs = newRecords.length > 0 ? newRecords : undefined;
-                          if (newRecords.length > 0) diplomaData.title = "NYTT REKORD!";
-                      }
-                  } catch (e) {
+              // 3. Försök använda AI för att lyxa till diplomet om tid finns
+              try {
+                  const aiDiploma = await generateWorkoutDiploma({ ...finalLogRaw, newPBs: newRecords });
+                  if (aiDiploma) {
+                      // Uppdatera med AI-texter men behåll PB-datan
                       diplomaData = {
-                          title: newRecords.length > 0 ? "NYTT REKORD!" : "GRYMT JOBBAT!",
-                          subtitle: "Passet är genomfört.",
-                          achievement: `Distans: ${finalLogRaw.totalDistance} km | Kcal: ${finalLogRaw.totalCalories}`,
-                          footer: "Starkt jobbat!",
-                          imagePrompt: "🔥",
+                          ...aiDiploma,
                           newPBs: newRecords.length > 0 ? newRecords : undefined
                       };
                   }
+              } catch (e) { console.warn("AI Diploma Generation failed (using fallback)", e); }
+
+              // Fallback om varken volym eller AI fungerade
+              if (!diplomaData) {
+                  diplomaData = {
+                      title: newRecords.length > 0 ? "NYTT REKORD!" : "GRYMT JOBBAT!",
+                      subtitle: "Passet är genomfört.",
+                      achievement: `Distans: ${finalLogRaw.totalDistance} km | Kcal: ${finalLogRaw.totalCalories}`,
+                      footer: "Starkt jobbat!",
+                      imagePrompt: "🔥",
+                      newPBs: newRecords.length > 0 ? newRecords : undefined
+                  };
               }
 
               // 4. Generera bild och ladda upp om prompt finns
@@ -759,10 +770,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                           const storagePath = `users/${userId}/diplomas/log_${Date.now()}.jpg`;
                           diplomaData.imageUrl = await uploadImage(storagePath, base64Image);
                       }
-                  } catch (e) { console.warn(e); }
+                  } catch (e) { console.warn("AI Image generation failed", e); }
               }
 
-              // 5. VIKTIGT: Uppdatera nu den sparade loggen med det färdiga diplomet
+              // 5. Uppdatera sparade loggen med det färdiga diplomet
               if (diplomaData) {
                   await updateWorkoutLog(savedLog.id, { diploma: diplomaData });
               }
