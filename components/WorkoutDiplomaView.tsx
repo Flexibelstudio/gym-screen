@@ -47,31 +47,7 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
     }, []);
 
     const pbCount = diploma.newPBs?.length || 0;
-    
-    // Slumpmässig rubrik-generator om det inte är ett PB-pass
-    const displayTitle = useMemo(() => {
-        if (pbCount > 0) return pbCount > 1 ? "NYA PB!" : "NYTT PB!";
-        
-        const phrases = [
-            "Snyggt jobbat!",
-            "Vilken kämparinsats!",
-            "High-five!",
-            "Passet slutfört!",
-            "Du äger!",
-            "Kungligt!",
-            "Starkt kört!",
-            "Heja dig!",
-            "Vilken energi!",
-            "Du gjorde det!",
-            "Kraftpaket!",
-            "Magiskt!",
-            "Superstjärna!",
-            "Toppform!",
-            "Krigarinstinkt!"
-        ];
-        
-        return phrases[Math.floor(Math.random() * phrases.length)].toUpperCase();
-    }, [pbCount]);
+    const displayTitle = pbCount > 1 ? "NYA PB!" : "NYTT PB!";
     
     const subtitle = diploma.subtitle || diploma.message || "";
     const achievement = diploma.achievement || diploma.comparison || "";
@@ -90,7 +66,7 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[12000] bg-white/20 dark:bg-black/40 backdrop-blur-xl flex items-center justify-center p-4 sm:p-10"
+            className="fixed inset-0 z-[12000] bg-black/90 dark:bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 sm:p-10"
             onClick={onClose}
         >
             <AnimatePresence>
