@@ -351,6 +351,7 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText:
             contents: { parts: [{ inlineData: { mimeType: 'image/png', data: base64Image } }, { text: prompt }] },
             config: { 
                 responseMimeType: "application/json", 
+                // schema name corrected from googleWorkoutSchema
                 responseSchema: googleWorkoutSchema
             },
         });
@@ -770,16 +771,23 @@ export async function generateWorkoutDiploma(logData: any): Promise<WorkoutDiplo
     const pbText = logData.newPBs?.map((pb: any) => `${pb.name} (${pb.diff > 0 ? '+' + pb.diff + 'kg' : 'Nytt!'})`).join(', ') || 'Inga nya rekord.';
 
     const prompt = `
-    Skapa en premium "award" (JSON) för ett träningspass på SVENSKA.
+    Skapa en premium träningsbelöning ("award") i JSON-format för ett nyss avslutat pass på SVENSKA.
     Pass: "${logData.workoutTitle}"
-    REKORD SOM SATTS: ${pbText}
+    NYA REKORD SOM SATTS: ${pbText}
     Stats: Distans ${logData.totalDistance} km, Kcal ${logData.totalCalories}.
 
-    INSTRUKTION:
-    1. Om nya rekord finns, HYLLA dem specifikt i 'subtitle'.
-    2. 'title': Max 3 ord (t.ex. "REKORDPASS").
-    3. 'achievement': En kraftfull hyllning.
-    4. 'imagePrompt': Ett abstrakt 3D-motiv på ENGELSKA (t.ex. "Heavy steel chains, dramatic lighting").
+    INSTRUKTION FÖR RUBRIK (title):
+    - Skapa en engagerande och varierad rubrik.
+    - Om det finns nya rekord (newPBs), välj något kraftfullt som "LEGENDARISKT", "REKORDKROSSARE" eller "NY NIVÅ UPPNÅDD".
+    - Om inga rekord finns, fokusera på insatsen: "STARKARE ÄN IGÅR", "ENORM KÄMPAGLÖD" eller "SNYGGT JOBBAT".
+    - Undvik att bara skriva "Nytt PB" varje gång.
+
+    ÖVRIGT:
+    1. 'subtitle': Hylla specifika framsteg eller records.
+    2. 'achievement': En inspirerande text om medlemmens prestation.
+    3. 'imagePrompt': Ett abstrakt 3D-motiv på ENGELSKA som symboliserar styrka (t.ex. "Polished chrome dumbbell, cinematic lighting, neon teal accents").
+
+    Svara på SVENSKA.
     `;
 
     try {
@@ -791,7 +799,6 @@ export async function generateWorkoutDiploma(logData: any): Promise<WorkoutDiplo
         
         const result = JSON.parse(response.text.trim());
         
-        // VIKTIGT: Vi returnerar AI:ns texter men behåller ursprunglig data för rekordlistan
         return {
             ...result,
             newPBs: logData.newPBs
@@ -801,8 +808,8 @@ export async function generateWorkoutDiploma(logData: any): Promise<WorkoutDiplo
         return {
             title: logData.newPBs?.length > 0 ? "NYTT REKORD!" : "BRA JOBBAT",
             subtitle: "Passet genomfört.",
-            achievement: "Kontinuitet ger resultat.",
-            footer: "Vila nu.",
+            achievement: "Varje droppe svett tar dig närmare ditt mål.",
+            footer: "Vila och ladda om.",
             imagePrompt: "Heavy steel plate, dramatic lighting, monochrome",
             newPBs: logData.newPBs
         };

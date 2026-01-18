@@ -3,7 +3,7 @@ import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage,
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
-import { CloseIcon, DumbbellIcon, SparklesIcon, FireIcon, RunningIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, CalculatorIcon, ChartBarIcon } from '../../components/icons'; 
+import { CloseIcon, KettlebellIcon, SparklesIcon, FireIcon, RunningIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, CalculatorIcon, ChartBarIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
 import { OneRepMaxModal } from '../../components/OneRepMaxModal';
 import { WorkoutLogType, RepRange, ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, ExerciseSetDetail } from '../../types';
@@ -36,9 +36,9 @@ const SavingOverlay: React.FC = () => (
                 }}
                 className="text-primary drop-shadow-[0_0_30px_rgba(20,184,166,0.4)]"
             >
-                <DumbbellIcon className="w-32 h-32" />
+                <KettlebellIcon className="w-32 h-32" />
             </motion.div>
-            {/* Dekorativ "skugga" under hanteln */}
+            {/* Dekorativ "skugga" under kettlebellen */}
             <motion.div 
                 animate={{
                     scaleX: [1, 0.6, 1],
@@ -735,7 +735,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   const comparison = getFunComparison(totalVolume);
                   if (comparison) {
                       diplomaData = {
-                          title: newRecords.length > 0 ? "NYTT REKORD!" : "ENORM INSATS!",
+                          title: "ENORM INSATS", // Default rubrik om ingen AI rubrik finns
                           subtitle: `Du lyfte totalt ${totalVolume.toLocaleString()} kg`,
                           achievement: `Det motsvarar ca ${comparison.count} st ${comparison.name}`,
                           footer: `En ${comparison.single} väger ca ${comparison.weight} kg`,
@@ -745,18 +745,23 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   }
               }
 
-              // 3. Fallback till AI-diplom om ingen volym hittades
-              if (!diplomaData) {
-                  try {
-                      diplomaData = await generateWorkoutDiploma({ ...finalLogRaw, newPBs: newRecords });
-                      if (diplomaData) {
-                          diplomaData.newPBs = newRecords.length > 0 ? newRecords : undefined;
-                          if (newRecords.length > 0) diplomaData.title = "NYTT REKORD!";
-                      }
-                  } catch (e) {
+              // 3. Generera AI-diplom för mer personliga rubriker och texter
+              try {
+                  const aiDiploma = await generateWorkoutDiploma({ ...finalLogRaw, newPBs: newRecords });
+                  if (aiDiploma) {
+                      // Använd AI:ns mer kreativa rubriker
+                      diplomaData = {
+                          ...diplomaData, // Behåll volym-infon om den fanns
+                          ...aiDiploma,   // Men låt AI:ns texter styra rubrik/achievement
+                          newPBs: newRecords.length > 0 ? newRecords : undefined
+                      };
+                  }
+              } catch (e) {
+                  // Fallback om AI misslyckas
+                  if (!diplomaData) {
                       diplomaData = {
                           title: newRecords.length > 0 ? "NYTT REKORD!" : "GRYMT JOBBAT!",
-                          subtitle: "Passet är genomfört.",
+                          subtitle: "Passet genomfört.",
                           achievement: `Distans: ${finalLogRaw.totalDistance} km | Kcal: ${finalLogRaw.totalCalories}`,
                           footer: "Starkt jobbat!",
                           imagePrompt: "🔥",
