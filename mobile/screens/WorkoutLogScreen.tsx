@@ -11,52 +11,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
 import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 
-const AIGenerationOverlay: React.FC = () => {
-    const [messageIndex, setMessageIndex] = useState(0);
-    const messages = [
-        "Beräknar din totala volym...",
-        "AI-Coachen analyserar passet...",
-        "Genererar ditt diplom...",
-        "Letar efter nya rekord...",
-        "Slutför loggningen..."
-    ];
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setMessageIndex((prev) => (prev + 1) % messages.length);
-        }, 2500);
-        return () => clearInterval(interval);
-    }, []);
-
-    return (
-        <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[10000] bg-white dark:bg-gray-900 flex flex-col items-center justify-center p-8 text-center"
-        >
-            <div className="relative mb-8">
-                <div className="w-24 h-24 rounded-full border-4 border-primary/20 border-t-primary animate-spin"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                    <SparklesIcon className="w-8 h-8 text-primary animate-pulse" />
-                </div>
-            </div>
-            <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-2">AI-COACH JOBBAR</h2>
-            <AnimatePresence mode="wait">
-                <motion.p 
-                    key={messageIndex}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="text-gray-500 dark:text-gray-400 font-medium h-6"
-                >
-                    {messages[messageIndex]}
-                </motion.p>
-            </AnimatePresence>
-        </motion.div>
-    );
-};
-
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
 
@@ -140,7 +94,6 @@ const WEIGHT_COMPARISONS = [
     { name: "Amerikanska Bisonoxar", singular: "en Bisonoxe", weight: 900, emoji: "🦬" },
     { name: "Smart Cars", singular: "en Smart Car", weight: 900, emoji: "🚗" },
     { name: "Personbilar", singular: "en Personbil", weight: 1500, emoji: "🚘" },
-    { name: "Utfall", singular: "ett Utfall", weight: 1500, emoji: "🦛" },
     { name: "Flodhästar", singular: "en Flodhäst", weight: 1500, emoji: "🦛" },
     { name: "Noshörningar", singular: "en Noshörning", weight: 2000, emoji: "🦏" },
     { name: "Vita Hajar", singular: "en Vit Haj", weight: 2000, emoji: "🦈" },
@@ -826,7 +779,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   return (
     <div className="bg-gray-5 dark:bg-black text-gray-900 dark:text-white flex flex-col relative h-full">
       <AnimatePresence>
-        {isSubmitting && <AIGenerationOverlay />}
         {showCelebration && (
             <motion.div 
               initial={{ opacity: 0 }}
