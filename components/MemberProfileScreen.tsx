@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma } from '../types';
 import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog } from '../services/firebaseService';
@@ -43,6 +42,7 @@ const ResumeWorkoutBanner: React.FC<{
     <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, height: 0, marginBottom: 0 }}
         className="mb-8 relative overflow-hidden bg-gradient-to-br from-amber-400 via-orange-400 to-orange-500 rounded-[2rem] p-6 text-orange-950 shadow-xl shadow-orange-500/30 border border-white/40"
     >
         {/* Animated background highlights */}
@@ -189,6 +189,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     
     // Resume session state
     const [activeSession, setActiveSession] = useState<any | null>(null);
+    const dismissedThisSession = useRef(false);
 
     // Form states
     const [firstName, setFirstName] = useState(userData.firstName || '');
@@ -205,6 +206,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
     // Reactive LocalStorage checking
     const checkActiveSession = () => {
+        if (dismissedThisSession.current) return;
+        
         const saved = localStorage.getItem(ACTIVE_LOG_STORAGE_KEY);
         if (saved) {
             try {
@@ -222,13 +225,13 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     // 1. Initial check
     useEffect(() => { checkActiveSession(); }, [userData.uid]);
 
-    // 2. Refresh when window gains focus (e.g. after closing the log modal)
+    // 2. Refresh when window gains focus
     useEffect(() => {
         window.addEventListener('focus', checkActiveSession);
         return () => window.removeEventListener('focus', checkActiveSession);
     }, []);
 
-    // 3. Interval check if a session is currently displayed (to clear it immediately after save)
+    // 3. Interval check
     useEffect(() => {
         const interval = setInterval(checkActiveSession, 2000);
         return () => clearInterval(interval);
@@ -342,8 +345,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     };
 
     const handleDismissResume = () => {
-        if (confirm("Är du säker på att du vill kasta det sparade passet? All data du fyllt i kommer att försvinna.")) {
+        if (confirm("Är du säker på att du vill kasta det sparade passet?")) {
             localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
+            dismissedThisSession.current = true;
             setActiveSession(null);
         }
     };
@@ -421,14 +425,15 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     return (
         <div className="w-full max-w-4xl mx-auto px-1 sm:px-6 py-6 animate-fade-in pb-24">
             
-            {/* 1. Resume Workout Banner */}
-            {activeSession && (
-                <ResumeWorkoutBanner 
-                    workoutTitle={activeSession.displayTitle}
-                    onContinue={handleResumeWorkout}
-                    onDismiss={handleDismissResume}
-                />
-            )}
+            <AnimatePresence>
+                {activeSession && !dismissedThisSession.current && (
+                    <ResumeWorkoutBanner 
+                        workoutTitle={activeSession.displayTitle}
+                        onContinue={handleResumeWorkout}
+                        onDismiss={handleDismissResume}
+                    />
+                )}
+            </AnimatePresence>
 
             {/* Header section */}
             <div className="flex items-center justify-between mb-8">
