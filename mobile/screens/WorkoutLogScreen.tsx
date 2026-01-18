@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog } from '../../services/firebaseService';
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage } from '../../services/geminiService';
@@ -636,6 +637,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
   // --- AUTO-SAVE LOGIC ---
   useEffect(() => {
+    // Guard: Sluta spara om komponenten laddar, skickar in, eller saknar användardata
     if (loading || isSubmitting || !userId || (!wId && !isManualMode)) return;
 
     const sessionData = {

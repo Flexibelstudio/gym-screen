@@ -589,6 +589,7 @@ const App: React.FC = () => {
   };
 
   const confirmCancelLog = () => {
+      localStorage.removeItem('smart-skarm-active-log');
       setMobileLogData(null);
       setShowLogCancelModal(false);
   };

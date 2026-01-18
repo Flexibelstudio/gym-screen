@@ -215,7 +215,11 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
  * Returns an array of records that were broken during this session.
  */
 export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecords: { exerciseName: string, weight: number, diff: number }[] }> => {
-    if (isOffline || !db || !logData.organizationId) return { log: logData, newRecords: [] };
+    console.log("saveWorkoutLog triggered", logData); // Debug log
+    if (isOffline || !db || !logData.organizationId) {
+        console.warn("Save aborted: Offline or missing organizationId", logData.organizationId);
+        return { log: logData, newRecords: [] };
+    }
     
     const newLogRef = doc(collection(db, 'workoutLogs'));
     const newLog = { id: newLogRef.id, ...logData };
@@ -230,11 +234,12 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 newLog.memberName = `${userData.firstName || 'Medlem'} ${userData.lastName ? userData.lastName[0] + '.' : ''}`.trim();
                 newLog.memberPhotoUrl = userData.photoUrl || null;
             }
-        } catch (e) { console.warn(e); }
+        } catch (e) { console.warn("Failed to fetch user data for log enrichment", e); }
     }
 
     // 2. Save the log itself
     await setDoc(newLogRef, newLog);
+    console.log("Log saved to Firestore with ID:", newLogRef.id);
 
     // 3. Process Personal Bests
     if (logData.memberId && logData.memberId !== 'offline_member_uid' && logData.exerciseResults) {
@@ -278,6 +283,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
 
             // 4. Emit ONE batched PB event to the studio
             if (newRecords.length > 0) {
+                console.log("New records found! Creating studio event...", newRecords);
                 const eventRef = doc(collection(db, 'studio_events'));
                 const eventData: StudioEvent = {
                     id: eventRef.id,
@@ -294,6 +300,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
             }
 
             await batch.commit();
+            console.log("Firestore batch committed (PBs and events)");
         } catch (e) { console.error("PB logic failed", e); }
     }
 
