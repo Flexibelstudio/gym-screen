@@ -53,6 +53,27 @@ interface WorkoutData {
   }[];
 }
 
+// --- DIPLOMA TITLES ---
+const DIPLOMA_TITLES = [
+    "SNYGGT JOBBAT!",
+    "GRYMT KÖRT!",
+    "VILKEN KÄMPE!",
+    "STARKARE ÄN IGÅR!",
+    "VÄRLDSKLASS!",
+    "HELT OTROLIGT!",
+    "DU ÄGDE PASSET!",
+    "VILKEN INSATS!",
+    "HELT MAGISKT!",
+    "DU GJORDE DET!",
+    "GE DIG SJÄLV EN HIGH-FIVE!",
+    "PASSET ÄR DITT!",
+    "EN RIKTIG SEGER!",
+    "TOPPFORM!",
+    "OJ OJ OJ!"
+];
+
+const getRandomDiplomaTitle = () => DIPLOMA_TITLES[Math.floor(Math.random() * DIPLOMA_TITLES.length)];
+
 // --- FUN COMPARISON DATA ---
 const WEIGHT_COMPARISONS = [
     { name: "Hamstrar", singular: "en Hamster", weight: 0.15, emoji: "🐹" },
@@ -695,7 +716,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   const comparison = getFunComparison(totalVolume);
                   if (comparison) {
                       diplomaData = {
-                          title: newRecords.length > 0 ? "NYTT REKORD!" : "ENORM INSATS!",
+                          title: getRandomDiplomaTitle(),
                           subtitle: `Du lyfte totalt ${totalVolume.toLocaleString()} kg`,
                           achievement: `Det motsvarar ca ${comparison.count} st ${comparison.name}`,
                           footer: `En ${comparison.single} väger ca ${comparison.weight} kg`,
@@ -705,17 +726,18 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   }
               }
 
-              // 3. Fallback till AI-diplom om ingen volym hittades
+              // 3. Fallback till alternativt diplom om ingen volym hittades
               if (!diplomaData) {
                   try {
+                      // Använd fortfarande AI för texterna men välj rubrik från listan
                       diplomaData = await generateWorkoutDiploma({ ...finalLogRaw, newPBs: newRecords });
                       if (diplomaData) {
+                          diplomaData.title = getRandomDiplomaTitle();
                           diplomaData.newPBs = newRecords.length > 0 ? newRecords : undefined;
-                          if (newRecords.length > 0) diplomaData.title = "NYTT REKORD!";
                       }
                   } catch (e) {
                       diplomaData = {
-                          title: newRecords.length > 0 ? "NYTT REKORD!" : "GRYMT JOBBAT!",
+                          title: getRandomDiplomaTitle(),
                           subtitle: "Passet är genomfört.",
                           achievement: `Distans: ${finalLogRaw.totalDistance} km | Kcal: ${finalLogRaw.totalCalories}`,
                           footer: "Starkt jobbat!",
@@ -949,7 +971,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                       <button 
                           onClick={handleSubmit}
                           disabled={!isFormValid}
-                          className="flex-[2] bg-primary hover:brightness-110 text-white font-black py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 disabled:bg-gray-300 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 disabled:shadow-none disabled:transform-none text-xl uppercase tracking-tight"
+                          className="flex-[2] bg-primary text-white font-black py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 disabled:bg-gray-300 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 disabled:shadow-none disabled:transform-none text-xl uppercase tracking-tight"
                       >
                           {isSubmitting ? 'Sparar...' : (isManualMode || isQuickWorkoutMode ? 'Spara Aktivitet' : 'Spara Pass')}
                       </button>

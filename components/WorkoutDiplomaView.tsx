@@ -47,7 +47,8 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
     }, []);
 
     const pbCount = diploma.newPBs?.length || 0;
-    const displayTitle = pbCount > 1 ? "NYA PB!" : "NYTT PB!";
+    // Använder titeln från diplomet (som nu slumpas vid skapande) istället för hårdkodad PB-text
+    const displayTitle = diploma.title || (pbCount > 0 ? "NYTT REKORD!" : "SNYGGT JOBBAT!");
     
     const subtitle = diploma.subtitle || diploma.message || "";
     const achievement = diploma.achievement || diploma.comparison || "";
@@ -98,7 +99,7 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
 
                 {/* HEADER */}
                 <div className="pt-10 pb-4 text-center px-8 flex-shrink-0">
-                    <h1 className="text-4xl sm:text-5xl font-black uppercase tracking-tighter leading-none mb-2 text-black dark:text-white">
+                    <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tighter leading-none mb-2 text-black dark:text-white">
                         {displayTitle}
                     </h1>
                     <div className="inline-block px-4 py-1 rounded-full bg-gray-100 dark:bg-white/5 border border-gray-100 dark:border-white/10">
