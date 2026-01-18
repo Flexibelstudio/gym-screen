@@ -215,7 +215,7 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
  * Returns an array of records that were broken during this session.
  */
 export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecords: { exerciseName: string, weight: number, diff: number }[] }> => {
-    console.log("saveWorkoutLog triggered", logData); // Debug log
+    console.log("saveWorkoutLog triggered for Org:", logData.organizationId, logData); 
     if (isOffline || !db || !logData.organizationId) {
         console.warn("Save aborted: Offline or missing organizationId", logData.organizationId);
         return { log: logData, newRecords: [] };
@@ -239,7 +239,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
 
     // 2. Save the log itself
     await setDoc(newLogRef, newLog);
-    console.log("Log saved to Firestore with ID:", newLogRef.id);
+    console.log("Log successfully saved to Firestore with ID:", newLogRef.id);
 
     // 3. Process Personal Bests
     if (logData.memberId && logData.memberId !== 'offline_member_uid' && logData.exerciseResults) {
@@ -444,7 +444,7 @@ export const updateOrganizationPasswords = async (id: string, passwords: Organiz
     return getOrganizationById(id);
 };
 
-export const updateOrganizationLogos = async (id: string, logos: { light: string, dark: string }) => {
+export const updateOrganizationLogos = async (id: string, logos: { light: string; dark: string }) => {
     if(isOffline || !db || !id) return;
     await updateDoc(doc(db, 'organizations', id), { logoUrlLight: logos.light, logoUrlDark: logos.dark });
     return getOrganizationById(id);
