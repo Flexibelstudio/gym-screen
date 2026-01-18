@@ -90,7 +90,7 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[12000] bg-black/90 dark:bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 sm:p-10"
+            className="fixed inset-0 z-[12000] bg-white/20 dark:bg-black/40 backdrop-blur-xl flex items-center justify-center p-4 sm:p-10"
             onClick={onClose}
         >
             <AnimatePresence>
