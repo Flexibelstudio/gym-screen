@@ -14,46 +14,6 @@ import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
 
-// --- Sub-component: SavingOverlay ---
-const SavingOverlay: React.FC = () => (
-    <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[2000] flex items-center justify-center bg-white/90 dark:bg-black/95 backdrop-blur-xl"
-    >
-        <div className="flex flex-col items-center">
-            <motion.div
-                animate={{
-                    y: [0, -60, 0],
-                    scale: [1, 1.1, 1],
-                    rotate: [0, -5, 5, 0]
-                }}
-                transition={{
-                    duration: 1.8,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                }}
-                className="text-primary drop-shadow-[0_0_30px_rgba(20,184,166,0.4)]"
-            >
-                <DumbbellIcon className="w-32 h-32" />
-            </motion.div>
-            <motion.div 
-                animate={{
-                    scaleX: [1, 0.6, 1],
-                    opacity: [0.2, 0.1, 0.2]
-                }}
-                transition={{
-                    duration: 1.8,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                }}
-                className="w-20 h-3 bg-black dark:bg-white rounded-full blur-md mt-4"
-            />
-        </div>
-    </motion.div>
-);
-
 // --- Local Types for Form State ---
 
 interface LocalSetDetail {
@@ -219,7 +179,7 @@ const PreGameView: React.FC<{
                     <div className="space-y-4">
                         {!isInjuredMode && insights.suggestions && Object.keys(insights.suggestions).length > 0 && (
                             <div><h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Smart Load (Förslag)</h4><div className="space-y-2">
-                                {Object.entries(insights.suggestions).map(([exercise, suggestion]) => (
+                                {Object.entries(insights.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
                                     <div key={exercise} className="flex justify-between items-center bg-gray-50 dark:bg-gray-900/50 p-3 rounded-xl border border-gray-100 dark:border-gray-700/50"><span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{exercise}</span><span className="text-sm font-bold text-primary">{suggestion}</span></div>
                                 ))}
                             </div></div>
@@ -272,7 +232,7 @@ const ExerciseLogCard: React.FC<{
          const newSets = [...result.setDetails];
          newSets[index] = { ...newSets[index], completed: !newSets[index].completed };
          onUpdate({ setDetails: newSets });
-    };
+    }
 
     const handleAddSet = () => {
         const lastSet = result.setDetails[result.setDetails.length - 1];
@@ -586,9 +546,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
   // --- AUTO-SAVE LOGIC ---
   useEffect(() => {
-    // CRITICAL FIX: Stop auto-saving the moment we are submitting or celebrating
-    // This prevents overwriting the cleared localStorage with outdated data
-    if (loading || isSubmitting || showCelebration || !userId || (!wId && !isManualMode)) return;
+    if (loading || isSubmitting || !userId || (!wId && !isManualMode)) return;
 
     const sessionData = {
         workoutId: wId || 'manual',
@@ -602,9 +560,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
     };
 
     localStorage.setItem(ACTIVE_LOG_STORAGE_KEY, JSON.stringify(sessionData));
-  }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, showCelebration, userId, wId, oId, isManualMode]);
+  }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, userId, wId, oId, isManualMode]);
 
   const handleCancel = (isSuccess = false, diploma: WorkoutDiploma | null = null) => {
+    // We don't necessarily clear it here if the user just "backs out", 
+    // unless it's a success. User must "Släng" from profile to clear it otherwise.
     if (isSuccess) {
         localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
     }
@@ -661,15 +621,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       if (!isFormValid || !oId) return;
 
       setIsSubmitting(true);
-      // Immediately clear storage to stop resume banner in other windows
-      localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
-
       try {
           const isQuickOrManual = isManualMode || workout?.logType === 'quick';
-          
-          // --- TIDSHANTERING FIX ---
-          const todayStr = new Date().toISOString().split('T')[0];
-          const logDateMs = logDate === todayStr ? Date.now() : new Date(logDate).getTime();
+          const logDateMs = new Date(logDate).getTime();
           
           let totalVolume = 0;
           
@@ -725,6 +679,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               
               const finalLog = cleanForFirestore(finalLogRaw);
               await saveWorkoutLog(finalLog);
+              localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
               setShowCelebration(true);
           } else {
               finalLogRaw.totalDistance = parseFloat(sessionStats.distance) || 0;
@@ -740,7 +695,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   const comparison = getFunComparison(totalVolume);
                   if (comparison) {
                       diplomaData = {
-                          title: "ENORM INSATS", 
+                          title: newRecords.length > 0 ? "NYTT REKORD!" : "ENORM INSATS!",
                           subtitle: `Du lyfte totalt ${totalVolume.toLocaleString()} kg`,
                           achievement: `Det motsvarar ca ${comparison.count} st ${comparison.name}`,
                           footer: `En ${comparison.single} väger ca ${comparison.weight} kg`,
@@ -750,21 +705,18 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   }
               }
 
-              // 3. Generera AI-diplom för mer personliga rubriker och texter
-              try {
-                  const aiDiploma = await generateWorkoutDiploma({ ...finalLogRaw, newPBs: newRecords });
-                  if (aiDiploma) {
-                      diplomaData = {
-                          ...diplomaData, 
-                          ...aiDiploma,   
-                          newPBs: newRecords.length > 0 ? newRecords : undefined
-                      };
-                  }
-              } catch (e) {
-                  if (!diplomaData) {
+              // 3. Fallback till AI-diplom om ingen volym hittades
+              if (!diplomaData) {
+                  try {
+                      diplomaData = await generateWorkoutDiploma({ ...finalLogRaw, newPBs: newRecords });
+                      if (diplomaData) {
+                          diplomaData.newPBs = newRecords.length > 0 ? newRecords : undefined;
+                          if (newRecords.length > 0) diplomaData.title = "NYTT REKORD!";
+                      }
+                  } catch (e) {
                       diplomaData = {
                           title: newRecords.length > 0 ? "NYTT REKORD!" : "GRYMT JOBBAT!",
-                          subtitle: "Passet genomfört.",
+                          subtitle: "Passet är genomfört.",
                           achievement: `Distans: ${finalLogRaw.totalDistance} km | Kcal: ${finalLogRaw.totalCalories}`,
                           footer: "Starkt jobbat!",
                           imagePrompt: "🔥",
@@ -789,6 +741,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   await updateWorkoutLog(savedLog.id, { diploma: diplomaData });
               }
 
+              localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
               handleCancel(true, diplomaData);
           }
 
@@ -826,7 +779,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   return (
     <div className="bg-gray-5 dark:bg-black text-gray-900 dark:text-white flex flex-col relative h-full">
       <AnimatePresence>
-        {isSubmitting && <SavingOverlay />}
         {showCelebration && (
             <motion.div 
               initial={{ opacity: 0 }}
