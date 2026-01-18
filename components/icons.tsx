@@ -1,4 +1,3 @@
-
 import React from 'react';
 
 export const CloseIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
@@ -57,15 +56,22 @@ export const ShuffleIcon: React.FC<{ className?: string }> = ({ className = "w-6
 );
 
 export const DumbbellIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6.5 6.5l11 11M6.5 17.5l11-11M2 12h20M2 7h20M2 17h20" style={{display:'none'}}/> {/* Placeholder path, replacing with actual dumbbell icon path below */}
-        <path d="M4 10h16m-16 4h16m-4-10v16m-8-16v16" stroke="none" fill="none" />
-        <path d="M6 4h12M6 20h12M6 10h12M6 14h12" stroke="none"/>
-        <path d="m6.5 6.5 11 11m-11 0 11-11" strokeWidth="2" strokeLinecap="round"/> 
-        <path d="M7 4h10M7 20h10M4 9v6h16V9H4zm2-5h12M6 20h12" stroke="none" />
-        {/* Real Dumbbell Path */}
-        <path d="M14.4 14.4l-4.8 4.8m9.6-9.6l-4.8 4.8M4.8 4.8l14.4 14.4M6.5 6.5l11 11" stroke="none" />
-        <path d="M20 10c0-1.1.9-2 2-2V6c0-1.1-.9-2-2-2h-2c-1.1 0-2 .9-2 2v2c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h2c1.1 0 2-.9 2-2v-2c-1.1 0-2-.9-2-2zm-16 0c0-1.1.9-2 2-2V6c0-1.1-.9-2-2-2H2C.9 4 0 4.9 0 6v2c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h2c1.1 0 2-.9 2-2v-2c-1.1 0-2-.9-2-2zM8 10h8v4H8v-4z" fill="currentColor"/>
+    <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        className={className} 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+    >
+        {/* Connecting bar */}
+        <path d="M10 12h4" />
+        {/* Left Hex Head */}
+        <path d="M2 12l2-4h4l2 4-2 4h-4z" />
+        {/* Right Hex Head */}
+        <path d="M14 12l2-4h4l2 4-2 4h-4z" />
     </svg>
 );
 
@@ -270,7 +276,7 @@ export const TrophyIcon: React.FC<{ className?: string }> = ({ className = "w-6 
 export const QrCodeIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zm-6 0H6v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4z" style={{display:'none'}} />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zm-6 0H6v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zm-6 0H6v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4z" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zM14 14h6v6h-6v-6z" />
     </svg>
 );
