@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog } from '../../services/firebaseService';
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage } from '../../services/geminiService';
@@ -14,116 +13,6 @@ import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
-
-// --- Form Constants ---
-const COMMON_ACTIVITIES = ["Funktionell Träning", "HIIT", "Löpning", "Promenad", "Workout", "Yoga", "Cykling", "Simning", "Racketsport", "Vardagsmotion"];
-const KROPPSKANSLA_TAGS = ["Pigg", "Stark", "Seg", "Stel", "Ont", "Stressad", "Bra musik", "Bra pepp", "Grymt pass"];
-const RPE_LEVELS = [
-    { range: '1-2', label: 'Mycket lätt', desc: 'Du kan sjunga eller prata helt obehindrat.', color: 'bg-emerald-500' },
-    { range: '3-4', label: 'Lätt', desc: 'Du börjar bli varm men kan fortfarande prata enkelt.', color: 'bg-green-500' },
-    { range: '5-6', label: 'Måttligt', desc: 'Du börjar bli djupt andfådd.', color: 'bg-yellow-500' },
-    { range: '7-8', label: 'Hårt', desc: 'Det är ansträngande. Du kan bara svara med enstaka ord.', color: 'bg-orange-500' },
-    { range: '9', label: 'Mycket hårt', desc: 'Nära ditt max. Du kan inte prata alls.', color: 'bg-red-500' },
-    { range: '10', label: 'Maximalt', desc: 'Absolut max. Du kan inte göra en enda rep till.', color: 'bg-black' },
-];
-
-// --- Helper Functions ---
-const getFunComparison = (volume: number) => {
-    const comparisons = [
-        { name: "Afrikanska elefanter", single: "Afrikansk elefant", weight: 6000, emoji: "🐘" },
-        { name: "Personbilar", single: "Personbil", weight: 1500, emoji: "🚗" },
-        { name: "Grizzlybjörnar", single: "Grizzlybjörn", weight: 400, emoji: "🐻" },
-        { name: "Guldretrievrar", single: "Guldretriever", weight: 30, emoji: "🦮" },
-        { name: "Pizzakartonger", single: "Pizzakartong", weight: 0.5, emoji: "🍕" }
-    ];
-    const bestFit = comparisons.find(c => (volume / c.weight) >= 1 && (volume / c.weight) <= 100) || (volume > 10000 ? comparisons[0] : comparisons[comparisons.length - 1]);
-    return { ...bestFit, count: Math.round((volume / bestFit.weight) * 10) / 10 };
-};
-
-// --- Loading Overlay Component for AI Generation ---
-const AIGenerationOverlay: React.FC = () => {
-    const [messageIndex, setMessageIndex] = useState(0);
-    const messages = [
-        "Beräknar din totala volym...",
-        "AI-Coachen analyserar passet...",
-        "Skapar din personliga hyllning...",
-        "Genererar ditt unika diplom...",
-        "Färdigställer resultaten...",
-        "Hämtar kraft från molnen..."
-    ];
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setMessageIndex((prev) => (prev + 1) % messages.length);
-        }, 2500);
-        return () => clearInterval(interval);
-    }, []);
-
-    return (
-        <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[110] flex flex-col items-center justify-center bg-white/90 dark:bg-black/95 backdrop-blur-xl p-8 text-center"
-        >
-            <div className="relative mb-12">
-                <motion.div 
-                    animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
-                    transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                    className="absolute inset-0 bg-purple-500 rounded-full blur-3xl"
-                />
-                <motion.div 
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                    className="relative w-32 h-32 bg-gradient-to-br from-purple-600 to-indigo-700 rounded-[2.5rem] shadow-2xl flex items-center justify-center border-4 border-white/20"
-                >
-                    <SparklesIcon className="w-16 h-16 text-white" />
-                </motion.div>
-                {[...Array(5)].map((_, i) => (
-                    <motion.div
-                        key={i}
-                        animate={{ 
-                            y: [-20, -100], 
-                            x: [0, (i % i === 0 ? 30 : -30)],
-                            opacity: [0, 1, 0],
-                            scale: [0, 1, 0]
-                        }}
-                        transition={{ 
-                            duration: 2 + i, 
-                            repeat: Infinity, 
-                            delay: i * 0.4,
-                            ease: "easeOut"
-                        }}
-                        className="absolute top-1/2 left-1/2 w-2 h-2 bg-purple-400 rounded-full"
-                    />
-                ))}
-            </div>
-
-            <AnimatePresence mode="wait">
-                <motion.div
-                    key={messageIndex}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className="space-y-2"
-                >
-                    <h3 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight">AI-Coach Jobbar</h3>
-                    <p className="text-purple-600 dark:text-purple-400 font-bold text-lg italic">
-                        {messages[messageIndex]}
-                    </p>
-                </motion.div>
-            </AnimatePresence>
-
-            <div className="absolute bottom-12 w-48 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full overflow-hidden">
-                <motion.div 
-                    animate={{ x: [-200, 200] }}
-                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                    className="w-1/2 h-full bg-gradient-to-r from-transparent via-purple-500 to-transparent"
-                />
-            </div>
-        </motion.div>
-    );
-};
 
 // --- Local Types for Form State ---
 
@@ -163,6 +52,91 @@ interface WorkoutData {
       settings: { rounds: number; mode: string };
   }[];
 }
+
+// --- FUN COMPARISON DATA ---
+const WEIGHT_COMPARISONS = [
+    { name: "Hamstrar", singular: "en Hamster", weight: 0.15, emoji: "🐹" },
+    { name: "Fotbollar", singular: "en Fortboll", weight: 0.45, emoji: "⚽" },
+    { name: "Paket Smör", singular: "ett Paket Smör", weight: 0.5, emoji: "🧈" },
+    { name: "iPads", singular: "en iPad", weight: 0.5, emoji: "📱" },
+    { name: "Ananasar", singular: "en Ananas", weight: 1, emoji: "🍍" },
+    { name: "Chihuahuas", singular: "en Chihuahua", weight: 2, emoji: "🐕" },
+    { name: "Tegelstenar", singular: "en Tegelsten", weight: 3, emoji: "🧱" },
+    { name: "Katter", singular: "en Katt", weight: 5, emoji: "🐈" },
+    { name: "Bowlingklot", singular: "ett Bowlingklot", weight: 7, emoji: "🎳" },
+    { name: "Bildäck", singular: "ett Bildäck", weight: 10, emoji: "🛞" },
+    { name: "Vattenmeloner", singular: "en Vattenmelon", weight: 12, emoji: "🍉" },
+    { name: "Corgis", singular: "en Corgi", weight: 12, emoji: "🐶" },
+    { name: "Mikrovågsugnar", singular: "en Mikrovågsugn", weight: 15, emoji: "📟" },
+    { name: "Cyklar", singular: "en Cykel", weight: 15, emoji: "🚲" },
+    { name: "Säckar Cement", singular: "en Säck Cement", weight: 25, emoji: "🏗️" },
+    { name: "Golden Retrievers", singular: "en Golden Retriever", weight: 30, emoji: "🦮" },
+    { name: "Toalettstolar", singular: "en Toalettstol", weight: 40, emoji: "🚽" },
+    { name: "Diskmaskiner", singular: "en Diskmaskin", weight: 50, emoji: "🍽️" },
+    { name: "Vargar", singular: "en Varg", weight: 50, emoji: "🐺" },
+    { name: "Ölkaggar", singular: "en Ölkagge", weight: 60, emoji: "🍺" },
+    { name: "Tvättmaskiner", singular: "en Tvättmaskin", weight: 80, emoji: "🧺" },
+    { name: "Vuxna Män", singular: "en Genomsnittlig Man", weight: 80, emoji: "👨" },
+    { name: "Vuxna Kvinnor", singular: "en Genomsnittlig Kvinna", weight: 65, emoji: "👩" },
+    { name: "Kängurus", singular: "en Känguru", weight: 90, emoji: "🦘" },
+    { name: "Vespor", singular: "en Vespa", weight: 110, emoji: "🛵" },
+    { name: "Pandor", singular: "en Panda", weight: 120, emoji: "🐼" },
+    { name: "Kylskåp", singular: "ett Kylskåp", weight: 150, emoji: "🧊" },
+    { name: "Gorillor", singular: "en Gorilla", weight: 180, emoji: "🦍" },
+    { name: "Lejon", singular: "ett Lejon", weight: 200, emoji: "🦁" },
+    { name: "Varuautomater", singular: "en Varuautomat", weight: 300, emoji: "🎰" },
+    { name: "Sibiriska Tigrar", singular: "en Sibirisk Tiger", weight: 300, emoji: "🐅" },
+    { name: "Konsertflyglar", singular: "en Konsertflygel", weight: 500, emoji: "🎹" },
+    { name: "Hästar", singular: "en Häst", weight: 500, emoji: "🐎" },
+    { name: "Mjölkkor", singular: "en Mjölkko", weight: 600, emoji: "🐄" },
+    { name: "Stora Älgar", singular: "en Stor Älg", weight: 700, emoji: "🫎" },
+    { name: "Giraffer", singular: "en Giraff", weight: 800, emoji: "🦒" },
+    { name: "Amerikanska Bisonoxar", singular: "en Bisonoxe", weight: 900, emoji: "🦬" },
+    { name: "Smart Cars", singular: "en Smart Car", weight: 900, emoji: "🚗" },
+    { name: "Personbilar", singular: "en Personbil", weight: 1500, emoji: "🚘" },
+    { name: "Flodhästar", singular: "en Flodhäst", weight: 1500, emoji: "🦛" },
+    { name: "Noshörningar", singular: "en Noshörning", weight: 2000, emoji: "🦏" },
+    { name: "Vita Hajar", singular: "en Vit Haj", weight: 2000, emoji: "🦈" },
+    { name: "Späckhuggare", singular: "en Späckhuggare", weight: 4000, emoji: "🐋" },
+    { name: "Elefanter", singular: "en Elefant", weight: 5000, emoji: "🐘" },
+    { name: "T-Rex", singular: "en T-Rex", weight: 8000, emoji: "🦖" },
+    { name: "Skolbussar", singular: "en Skolbuss", weight: 12000, emoji: "🚌" },
+    { name: "Stridsvagnar", singular: "en Stridsvagn", weight: 60000, emoji: "🛡️" },
+    { name: "Lokomotiv", singular: "ett Lokomotiv", weight: 100000, emoji: "🚂" },
+    { name: "Blåvalar", singular: "en Blåval", weight: 150000, emoji: "🐳" },
+    { name: "Frihetsgudinnor", singular: "en Frihetsgudinna", weight: 225000, emoji: "🗽" },
+    { name: "Boeing 747", singular: "en Boeing 747", weight: 400000, emoji: "✈️" },
+    { name: "Rymdfärjor", singular: "en Rymdfärja", weight: 2000000, emoji: "🚀" },
+    { name: "Eiffeltorn", singular: "ett Eiffeltorn", weight: 10000000, emoji: "🗼" }
+];
+
+const getFunComparison = (totalWeight: number) => {
+    if (totalWeight <= 0) return null;
+    const suitableComparisons = WEIGHT_COMPARISONS.filter(item => totalWeight >= item.weight);
+    if (suitableComparisons.length === 0) {
+        const item = WEIGHT_COMPARISONS[0];
+        return { count: (totalWeight / item.weight).toFixed(1), name: item.name, single: item.singular, weight: item.weight, emoji: item.emoji };
+    }
+    const niceMatches = suitableComparisons.filter(item => {
+        const count = totalWeight / item.weight;
+        return count >= 1 && count <= 50;
+    });
+    let bestMatch = niceMatches.length > 0 ? niceMatches[Math.floor(Math.random() * niceMatches.length)] : suitableComparisons[suitableComparisons.length - 1];
+    const rawCount = totalWeight / bestMatch.weight;
+    const formattedCount = rawCount < 10 ? rawCount.toFixed(1) : Math.round(rawCount).toString();
+    return { count: formattedCount, name: bestMatch.name, single: bestMatch.singular, weight: bestMatch.weight, emoji: bestMatch.emoji };
+};
+
+const COMMON_ACTIVITIES = ["Funktionell Träning", "HIIT", "Löpning", "Promenad", "Workout", "Yoga", "Cykling", "Simning", "Racketsport", "Vardagsmotion"];
+const KROPPSKANSLA_TAGS = ["Pigg", "Stark", "Seg", "Stel", "Ont", "Stressad", "Bra musik", "Bra pepp", "Grymt pass"];
+const RPE_LEVELS = [
+    { range: '1-2', label: 'Mycket lätt', desc: 'Du kan sjunga eller prata helt obehindrat.', color: 'bg-emerald-500' },
+    { range: '3-4', label: 'Lätt', desc: 'Du börjar bli varm men kan fortfarande prata enkelt.', color: 'bg-green-500' },
+    { range: '5-6', label: 'Måttligt', desc: 'Du börjar bli djupt andfådd.', color: 'bg-yellow-500' },
+    { range: '7-8', label: 'Hårt', desc: 'Det är ansträngande. Du kan bara svara med enstaka ord.', color: 'bg-orange-500' },
+    { range: '9', label: 'Mycket hårt', desc: 'Nära ditt max. Du kan inte prata alls.', color: 'bg-red-500' },
+    { range: '10', label: 'Maximalt', desc: 'Absolut max. Du kan inte göra en enda rep till.', color: 'bg-black' },
+];
 
 const normalizeString = (str: string) => str.toLowerCase().trim().replace(/[^\w\såäöÅÄÖ]/g, ''); 
 
@@ -222,14 +196,7 @@ const PreGameView: React.FC<{
                         )}
                     </div>
                 </div>
-                <div className="mt-auto pt-4 pb-8">
-                  <button 
-                    onClick={onStart} 
-                    className="w-full bg-primary hover:brightness-110 text-white font-black text-lg py-5 rounded-2xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2"
-                  >
-                    <span className="tracking-tight uppercase">Starta passet</span>
-                  </button>
-                </div>
+                <div className="mt-auto pt-4 pb-8"><button onClick={onStart} className="w-full bg-primary hover:brightness-110 text-white font-black text-lg py-5 rounded-2xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2"><span className="tracking-tight uppercase">Starta passet</span><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg></button></div>
             </div>
         </div>
     );
@@ -579,7 +546,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
   // --- AUTO-SAVE LOGIC ---
   useEffect(() => {
-    // Guard: Sluta spara om komponenten laddar, skickar in, eller saknar användardata
     if (loading || isSubmitting || !userId || (!wId && !isManualMode)) return;
 
     const sessionData = {
@@ -724,42 +690,39 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
               let diplomaData: WorkoutDiploma | null = null;
 
-              // --- AI-Oberoende diplomgenerering (Progressive Enhancement) ---
-              // 2. Skapa diplom baserat på volym (Detta körs lokalt och kraschar inte pga AI)
+              // 2. Skapa diplom baserat på volym
               if (totalVolume > 0) {
                   const comparison = getFunComparison(totalVolume);
-                  diplomaData = {
-                      title: newRecords.length > 0 ? "NYTT REKORD!" : "ENORM INSATS!",
-                      subtitle: `Du lyfte totalt ${totalVolume.toLocaleString()} kg`,
-                      achievement: `Det motsvarar ca ${comparison.count} st ${comparison.name}`,
-                      footer: `En ${comparison.single} väger ca ${comparison.weight} kg`,
-                      imagePrompt: comparison.emoji, 
-                      newPBs: newRecords.length > 0 ? newRecords : undefined
-                  };
-              }
-
-              // 3. Försök använda AI för att lyxa till diplomet om tid finns
-              try {
-                  const aiDiploma = await generateWorkoutDiploma({ ...finalLogRaw, newPBs: newRecords });
-                  if (aiDiploma) {
-                      // Uppdatera med AI-texter men behåll PB-datan
+                  if (comparison) {
                       diplomaData = {
-                          ...aiDiploma,
+                          title: newRecords.length > 0 ? "NYTT REKORD!" : "ENORM INSATS!",
+                          subtitle: `Du lyfte totalt ${totalVolume.toLocaleString()} kg`,
+                          achievement: `Det motsvarar ca ${comparison.count} st ${comparison.name}`,
+                          footer: `En ${comparison.single} väger ca ${comparison.weight} kg`,
+                          imagePrompt: comparison.emoji, 
                           newPBs: newRecords.length > 0 ? newRecords : undefined
                       };
                   }
-              } catch (e) { console.warn("AI Diploma Generation failed (using fallback)", e); }
+              }
 
-              // Fallback om varken volym eller AI fungerade
+              // 3. Fallback till AI-diplom om ingen volym hittades
               if (!diplomaData) {
-                  diplomaData = {
-                      title: newRecords.length > 0 ? "NYTT REKORD!" : "GRYMT JOBBAT!",
-                      subtitle: "Passet är genomfört.",
-                      achievement: `Distans: ${finalLogRaw.totalDistance} km | Kcal: ${finalLogRaw.totalCalories}`,
-                      footer: "Starkt jobbat!",
-                      imagePrompt: "🔥",
-                      newPBs: newRecords.length > 0 ? newRecords : undefined
-                  };
+                  try {
+                      diplomaData = await generateWorkoutDiploma({ ...finalLogRaw, newPBs: newRecords });
+                      if (diplomaData) {
+                          diplomaData.newPBs = newRecords.length > 0 ? newRecords : undefined;
+                          if (newRecords.length > 0) diplomaData.title = "NYTT REKORD!";
+                      }
+                  } catch (e) {
+                      diplomaData = {
+                          title: newRecords.length > 0 ? "NYTT REKORD!" : "GRYMT JOBBAT!",
+                          subtitle: "Passet är genomfört.",
+                          achievement: `Distans: ${finalLogRaw.totalDistance} km | Kcal: ${finalLogRaw.totalCalories}`,
+                          footer: "Starkt jobbat!",
+                          imagePrompt: "🔥",
+                          newPBs: newRecords.length > 0 ? newRecords : undefined
+                      };
+                  }
               }
 
               // 4. Generera bild och ladda upp om prompt finns
@@ -770,10 +733,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                           const storagePath = `users/${userId}/diplomas/log_${Date.now()}.jpg`;
                           diplomaData.imageUrl = await uploadImage(storagePath, base64Image);
                       }
-                  } catch (e) { console.warn("AI Image generation failed", e); }
+                  } catch (e) { console.warn(e); }
               }
 
-              // 5. Uppdatera sparade loggen med det färdiga diplomet
+              // 5. VIKTIGT: Uppdatera nu den sparade loggen med det färdiga diplomet
               if (diplomaData) {
                   await updateWorkoutLog(savedLog.id, { diploma: diplomaData });
               }
@@ -816,7 +779,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   return (
     <div className="bg-gray-5 dark:bg-black text-gray-900 dark:text-white flex flex-col relative h-full">
       <AnimatePresence>
-        {isSubmitting && <AIGenerationOverlay />}
         {showCelebration && (
             <motion.div 
               initial={{ opacity: 0 }}
