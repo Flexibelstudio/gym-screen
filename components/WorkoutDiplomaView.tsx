@@ -47,7 +47,31 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
     }, []);
 
     const pbCount = diploma.newPBs?.length || 0;
-    const displayTitle = pbCount > 1 ? "NYA PB!" : "NYTT PB!";
+    
+    // Slumpmässig rubrik-generator om det inte är ett PB-pass
+    const displayTitle = useMemo(() => {
+        if (pbCount > 0) return pbCount > 1 ? "NYA PB!" : "NYTT PB!";
+        
+        const phrases = [
+            "Snyggt jobbat!",
+            "Vilken kämparinsats!",
+            "High-five!",
+            "Passet slutfört!",
+            "Du äger!",
+            "Kungligt!",
+            "Starkt kört!",
+            "Heja dig!",
+            "Vilken energi!",
+            "Du gjorde det!",
+            "Kraftpaket!",
+            "Magiskt!",
+            "Superstjärna!",
+            "Toppform!",
+            "Krigarinstinkt!"
+        ];
+        
+        return phrases[Math.floor(Math.random() * phrases.length)].toUpperCase();
+    }, [pbCount]);
     
     const subtitle = diploma.subtitle || diploma.message || "";
     const achievement = diploma.achievement || diploma.comparison || "";
