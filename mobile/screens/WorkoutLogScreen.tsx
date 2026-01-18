@@ -3,7 +3,7 @@ import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage,
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
-import { CloseIcon, KettlebellIcon, SparklesIcon, FireIcon, RunningIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, CalculatorIcon, ChartBarIcon } from '../../components/icons'; 
+import { CloseIcon, DumbbellIcon, SparklesIcon, FireIcon, RunningIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, CalculatorIcon, ChartBarIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
 import { OneRepMaxModal } from '../../components/OneRepMaxModal';
 import { WorkoutLogType, RepRange, ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, ExerciseSetDetail } from '../../types';
@@ -36,9 +36,9 @@ const SavingOverlay: React.FC = () => (
                 }}
                 className="text-primary drop-shadow-[0_0_30px_rgba(20,184,166,0.4)]"
             >
-                <KettlebellIcon className="w-32 h-32" />
+                <DumbbellIcon className="w-32 h-32" />
             </motion.div>
-            {/* Dekorativ "skugga" under kettlebellen */}
+            {/* Dekorativ "skugga" under hanteln */}
             <motion.div 
                 animate={{
                     scaleX: [1, 0.6, 1],
@@ -756,7 +756,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   } catch (e) {
                       diplomaData = {
                           title: newRecords.length > 0 ? "NYTT REKORD!" : "GRYMT JOBBAT!",
-                          subtitle: "Passet genomfört.",
+                          subtitle: "Passet är genomfört.",
                           achievement: `Distans: ${finalLogRaw.totalDistance} km | Kcal: ${finalLogRaw.totalCalories}`,
                           footer: "Starkt jobbat!",
                           imagePrompt: "🔥",
