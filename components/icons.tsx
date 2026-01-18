@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export const CloseIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
@@ -56,40 +57,15 @@ export const ShuffleIcon: React.FC<{ className?: string }> = ({ className = "w-6
 );
 
 export const DumbbellIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
-    <svg 
-        xmlns="http://www.w3.org/2000/svg" 
-        className={className} 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke="currentColor" 
-        strokeWidth="2" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-    >
-        {/* Connecting bar */}
-        <path d="M10 12h4" />
-        {/* Left Hex Head */}
-        <path d="M2 12l2-4h4l2 4-2 4h-4z" />
-        {/* Right Hex Head */}
-        <path d="M14 12l2-4h4l2 4-2 4h-4z" />
-    </svg>
-);
-
-export const KettlebellIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
-    <svg 
-        xmlns="http://www.w3.org/2000/svg" 
-        className={className} 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke="currentColor" 
-        strokeWidth="2" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-    >
-        {/* Handle */}
-        <path d="M8.5 11c0-2.5 1-5 3.5-5s3.5 2.5 3.5 5" />
-        {/* Body */}
-        <path d="M6 11.5c-1.5 1-2 3-2 5.5 0 3 2.5 5 8 5s8-2 8-5c0-2.5-0.5-4.5-2-5.5" />
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6.5 6.5l11 11M6.5 17.5l11-11M2 12h20M2 7h20M2 17h20" style={{display:'none'}}/> {/* Placeholder path, replacing with actual dumbbell icon path below */}
+        <path d="M4 10h16m-16 4h16m-4-10v16m-8-16v16" stroke="none" fill="none" />
+        <path d="M6 4h12M6 20h12M6 10h12M6 14h12" stroke="none"/>
+        <path d="m6.5 6.5 11 11m-11 0 11-11" strokeWidth="2" strokeLinecap="round"/> 
+        <path d="M7 4h10M7 20h10M4 9v6h16V9H4zm2-5h12M6 20h12" stroke="none" />
+        {/* Real Dumbbell Path */}
+        <path d="M14.4 14.4l-4.8 4.8m9.6-9.6l-4.8 4.8M4.8 4.8l14.4 14.4M6.5 6.5l11 11" stroke="none" />
+        <path d="M20 10c0-1.1.9-2 2-2V6c0-1.1-.9-2-2-2h-2c-1.1 0-2 .9-2 2v2c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h2c1.1 0 2-.9 2-2v-2c-1.1 0-2-.9-2-2zm-16 0c0-1.1.9-2 2-2V6c0-1.1-.9-2-2-2H2C.9 4 0 4.9 0 6v2c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h2c1.1 0 2-.9 2-2v-2c-1.1 0-2-.9-2-2zM8 10h8v4H8v-4z" fill="currentColor"/>
     </svg>
 );
 
@@ -320,7 +296,6 @@ export const BuildingIcon: React.FC<{ className?: string }> = ({ className = "w-
 export const getIconComponent = (iconKey: string): React.FC<{ className?: string }> => {
     switch(iconKey) {
         case 'dumbbell': return DumbbellIcon;
-        case 'kettlebell': return KettlebellIcon;
         case 'clock': return ClockIcon;
         case 'star': return StarIcon;
         case 'document': return DocumentTextIcon;
@@ -336,7 +311,6 @@ export const getIconComponent = (iconKey: string): React.FC<{ className?: string
 
 export const ICON_OPTIONS = [
     { key: 'dumbbell', label: 'Hantel', component: DumbbellIcon },
-    { key: 'kettlebell', label: 'Kettlebell', component: KettlebellIcon },
     { key: 'clock', label: 'Klocka', component: ClockIcon },
     { key: 'star', label: 'Stjärna', component: StarIcon },
     { key: 'fire', label: 'Eld', component: FireIcon },

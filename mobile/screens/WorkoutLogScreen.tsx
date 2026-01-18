@@ -3,7 +3,7 @@ import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage,
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
-import { CloseIcon, KettlebellIcon, SparklesIcon, FireIcon, RunningIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, CalculatorIcon, ChartBarIcon } from '../../components/icons'; 
+import { CloseIcon, DumbbellIcon, SparklesIcon, FireIcon, RunningIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, CalculatorIcon, ChartBarIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
 import { OneRepMaxModal } from '../../components/OneRepMaxModal';
 import { WorkoutLogType, RepRange, ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, ExerciseSetDetail } from '../../types';
@@ -14,53 +14,18 @@ import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
 
-// --- Sub-component: SavingOverlay ---
-const SavingOverlay: React.FC = () => (
-    <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[2000] flex items-center justify-center bg-white/90 dark:bg-black/95 backdrop-blur-xl"
-    >
-        <div className="flex flex-col items-center">
-            <motion.div
-                animate={{
-                    y: [0, -60, 0],
-                    scale: [1, 1.1, 1],
-                    rotate: [0, -5, 5, 0]
-                }}
-                transition={{
-                    duration: 1.8,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                }}
-                className="text-primary drop-shadow-[0_0_30px_rgba(20,184,166,0.4)]"
-            >
-                <KettlebellIcon className="w-32 h-32" />
-            </motion.div>
-            {/* Dekorativ "skugga" under kettlebellen */}
-            <motion.div 
-                animate={{
-                    scaleX: [1, 0.6, 1],
-                    opacity: [0.2, 0.1, 0.2]
-                }}
-                transition={{
-                    duration: 1.8,
-                    repeat: Infinity,
-                    ease: "easeInOut"
-                }}
-                className="w-20 h-3 bg-black dark:bg-white rounded-full blur-md mt-4"
-            />
-        </div>
-    </motion.div>
-);
-
 // --- Local Types for Form State ---
+
+interface LocalSetDetail {
+    weight: string;
+    reps: string;
+    completed: boolean;
+}
 
 interface LocalExerciseResult {
   exerciseId: string;
   exerciseName: string;
-  setDetails: { weight: string; reps: string; completed: boolean }[];
+  setDetails: LocalSetDetail[];
   distance?: string;
   kcal?: string;
   isBodyweight?: boolean;
@@ -267,7 +232,7 @@ const ExerciseLogCard: React.FC<{
          const newSets = [...result.setDetails];
          newSets[index] = { ...newSets[index], completed: !newSets[index].completed };
          onUpdate({ setDetails: newSets });
-    };
+    }
 
     const handleAddSet = () => {
         const lastSet = result.setDetails[result.setDetails.length - 1];
@@ -510,7 +475,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
                 foundWorkout.blocks.forEach(block => {
                     if (block.tag === 'Uppvärmning') return;
-                    const defaultSets = [{ weight: '', reps: '', completed: false }];
+                    const defaultSets: LocalSetDetail[] = [{ weight: '', reps: '', completed: false }];
 
                     block.exercises.forEach(ex => {
                         const shouldInclude = hasExplicitLogging 
@@ -658,12 +623,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       setIsSubmitting(true);
       try {
           const isQuickOrManual = isManualMode || workout?.logType === 'quick';
-          
-          // --- TIDSHANTERING FIX ---
-          // Om valt datum är idag, använd nuvarande timestamp (Date.now()) 
-          // för att flödet på skärmen ska visa "Nu".
-          const todayStr = new Date().toISOString().split('T')[0];
-          const logDateMs = logDate === todayStr ? Date.now() : new Date(logDate).getTime();
+          const logDateMs = new Date(logDate).getTime();
           
           let totalVolume = 0;
           
@@ -735,7 +695,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   const comparison = getFunComparison(totalVolume);
                   if (comparison) {
                       diplomaData = {
-                          title: "ENORM INSATS", // Default rubrik om ingen AI rubrik finns
+                          title: newRecords.length > 0 ? "NYTT REKORD!" : "ENORM INSATS!",
                           subtitle: `Du lyfte totalt ${totalVolume.toLocaleString()} kg`,
                           achievement: `Det motsvarar ca ${comparison.count} st ${comparison.name}`,
                           footer: `En ${comparison.single} väger ca ${comparison.weight} kg`,
@@ -745,23 +705,18 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   }
               }
 
-              // 3. Generera AI-diplom för mer personliga rubriker och texter
-              try {
-                  const aiDiploma = await generateWorkoutDiploma({ ...finalLogRaw, newPBs: newRecords });
-                  if (aiDiploma) {
-                      // Använd AI:ns mer kreativa rubriker
-                      diplomaData = {
-                          ...diplomaData, // Behåll volym-infon om den fanns
-                          ...aiDiploma,   // Men låt AI:ns texter styra rubrik/achievement
-                          newPBs: newRecords.length > 0 ? newRecords : undefined
-                      };
-                  }
-              } catch (e) {
-                  // Fallback om AI misslyckas
-                  if (!diplomaData) {
+              // 3. Fallback till AI-diplom om ingen volym hittades
+              if (!diplomaData) {
+                  try {
+                      diplomaData = await generateWorkoutDiploma({ ...finalLogRaw, newPBs: newRecords });
+                      if (diplomaData) {
+                          diplomaData.newPBs = newRecords.length > 0 ? newRecords : undefined;
+                          if (newRecords.length > 0) diplomaData.title = "NYTT REKORD!";
+                      }
+                  } catch (e) {
                       diplomaData = {
                           title: newRecords.length > 0 ? "NYTT REKORD!" : "GRYMT JOBBAT!",
-                          subtitle: "Passet genomfört.",
+                          subtitle: "Passet är genomfört.",
                           achievement: `Distans: ${finalLogRaw.totalDistance} km | Kcal: ${finalLogRaw.totalCalories}`,
                           footer: "Starkt jobbat!",
                           imagePrompt: "🔥",
@@ -824,7 +779,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   return (
     <div className="bg-gray-5 dark:bg-black text-gray-900 dark:text-white flex flex-col relative h-full">
       <AnimatePresence>
-        {isSubmitting && <SavingOverlay />}
         {showCelebration && (
             <motion.div 
               initial={{ opacity: 0 }}
