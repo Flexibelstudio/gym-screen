@@ -632,9 +632,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             <span className={`font-black tracking-[0.2em] text-white uppercase drop-shadow-md text-xl md:text-2xl`}>{modeLabel}</span>
         </div>
 
-        {/* --- BLOCKNAMN OCH STATUS --- */}
+        {/* --- STATUS --- */}
         <div className="text-center z-20 w-full px-10 mb-2">
-            <h1 className="font-black text-white/90 uppercase tracking-tighter text-3xl sm:text-4xl md:text-5xl drop-shadow-lg mb-1 truncate">{block.title}</h1>
             <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-5xl sm:text-7xl`}>{statusLabel}</h2>
         </div>
 
@@ -655,6 +654,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                     />
                 </div>
             )}
+        </div>
+
+        {/* --- BLOCKNAMN (Nu under tidslinjen) --- */}
+        <div className="text-center z-20 w-full px-10 mt-4">
+            <h1 className="font-black text-white/90 uppercase tracking-tighter text-2xl sm:text-3xl md:text-4xl drop-shadow-lg truncate">{block.title}</h1>
         </div>
       </div>
 
