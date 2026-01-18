@@ -666,12 +666,12 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               <motion.div 
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mb-4 px-6 py-4 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 max-w-3xl flex items-center gap-4 shadow-2xl z-10 rounded-[2rem]"
+                  className="mb-4 px-6 py-4 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 max-w-5xl flex items-center gap-4 shadow-2xl z-10 rounded-[2rem]"
               >
                   <div className="bg-primary/10 p-2 rounded-xl">
                     <InformationCircleIcon className="w-6 h-6 text-primary shrink-0" />
                   </div>
-                  <p className="text-gray-900 dark:text-white text-lg md:text-xl font-bold font-logo leading-tight">
+                  <p className="text-gray-900 dark:text-white text-xl md:text-2xl font-black leading-tight">
                       {block.setupDescription}
                   </p>
               </motion.div>
