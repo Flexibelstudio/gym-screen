@@ -47,14 +47,19 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
     }, []);
 
     const pbCount = diploma.newPBs?.length || 0;
-    
-    // Använd AI:ns rubrik i första hand, annars fallback
-    const displayTitle = diploma.title || (pbCount > 1 ? "NYA PB!" : "NYTT PB!");
+    const displayTitle = pbCount > 1 ? "NYA PB!" : "NYTT PB!";
     
     const subtitle = diploma.subtitle || diploma.message || "";
     const achievement = diploma.achievement || diploma.comparison || "";
     const footer = diploma.footer || "";
     const studioName = selectedOrganization?.name || "SmartCoach";
+    const icon = diploma.imagePrompt || "🏆"; 
+
+    const iconSizeClass = pbCount > 5 
+        ? "text-6xl sm:text-7xl mb-1" 
+        : pbCount > 3 
+            ? "text-7xl sm:text-8xl mb-3" 
+            : "text-[9rem] sm:text-[10rem] mb-4";
 
     const modalContent = (
         <motion.div 
@@ -106,27 +111,13 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                 {/* HUVUDINNEHÅLL */}
                 <div className="flex-grow overflow-y-auto px-6 pb-4 custom-scrollbar">
                     <div className="flex flex-col items-center">
-                        {/* BILD ELLER EMOJI */}
-                        <div className="w-full aspect-square flex items-center justify-center mb-4 px-4">
-                            {diploma.imageUrl ? (
-                                <motion.img 
-                                    initial={{ scale: 0.8, opacity: 0 }}
-                                    animate={{ scale: 1, opacity: 1 }}
-                                    src={diploma.imageUrl} 
-                                    alt="Achievement"
-                                    className="w-full h-full object-cover rounded-[2.5rem] shadow-2xl border-4 border-white dark:border-gray-800"
-                                />
-                            ) : (
-                                <motion.div 
-                                    initial={{ scale: 0.5 }}
-                                    animate={{ scale: 1 }}
-                                    className="text-[10rem] drop-shadow-2xl select-none"
-                                >
-                                    {/* Om imagePrompt är en emoji (kort sträng), visa den, annars visa en pokal */}
-                                    {diploma.imagePrompt && diploma.imagePrompt.length <= 4 ? diploma.imagePrompt : "🏆"}
-                                </motion.div>
-                            )}
-                        </div>
+                        <motion.div 
+                            initial={{ scale: 0.5, rotate: -3 }}
+                            animate={{ scale: 1, rotate: 0 }}
+                            className={`${iconSizeClass} leading-none filter drop-shadow-2xl select-none`}
+                        >
+                            {icon}
+                        </motion.div>
                         
                         <div className="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 p-5 rounded-[2rem] w-full shadow-sm">
                             <p className="text-xl sm:text-2xl font-black text-black dark:text-white leading-tight mb-4 text-center">
