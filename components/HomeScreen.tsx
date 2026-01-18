@@ -6,6 +6,7 @@ import { DumbbellIcon, SparklesIcon, StarIcon, PencilIcon, getIconComponent, Clo
 import { WeeklyPBList } from './WeeklyPBList'; 
 import { CommunityFeed } from './CommunityFeed';
 import { Modal } from './ui/Modal';
+import { useStudio } from '../context/StudioContext';
 
 const TimerIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -144,6 +145,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     theme,
     studioLoading = false
 }) => {
+  const { selectedOrganization } = useStudio();
   const [welcomeMessage, setWelcomeMessage] = useState({ title: "Hej på er!", subtitle: "Redo att köra?" });
   const [currentTime, setCurrentTime] = useState(new Date());
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -208,6 +210,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const logoUrl = theme === 'dark' ? organizationLogoUrlDark || organizationLogoUrlLight : organizationLogoUrlLight || organizationLogoUrlDark;
   const showQrCode = studioConfig.checkInImageEnabled && studioConfig.checkInImageUrl;
 
+  // Defensiv rendering: Visa text ENDAST om vi laddat klart, har en org, men ingen bild.
+  const renderBranding = () => {
+      if (studioLoading || (!selectedOrganization && !logoUrl)) {
+          return <div className="h-16 md:h-24 w-48 bg-transparent"></div>;
+      }
+      
+      if (logoUrl) {
+          return (
+            <motion.img 
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                src={logoUrl} 
+                alt="Logo" 
+                className="h-16 md:h-24 object-contain self-start" 
+            />
+          );
+      }
+
+      // Om ingen logga finns i databasen alls efter laddning
+      return <h1 className="text-2xl font-black text-primary uppercase tracking-tighter">Smart Skärm</h1>;
+  };
+
   return (
     <>
         <AmbientBackground />
@@ -217,19 +241,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             {/* Header Section - Fast höjd */}
             <div className="flex flex-shrink-0 justify-between items-start mb-6 w-full pt-4">
                 <div className="flex flex-col gap-3">
-                    {studioLoading ? (
-                        <div className="h-16 md:h-24 w-48 bg-transparent"></div>
-                    ) : logoUrl ? (
-                        <motion.img 
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            src={logoUrl} 
-                            alt="Logo" 
-                            className="h-16 md:h-24 object-contain self-start" 
-                        />
-                    ) : (
-                        <h1 className="text-2xl font-black text-primary uppercase tracking-tighter">Smart Skärm</h1>
-                    )}
+                    {renderBranding()}
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
                         <h2 className="text-3xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tight leading-none">{welcomeMessage.title}</h2>
                         <p className="text-base md:text-lg text-gray-400 font-medium mt-1">...{welcomeMessage.subtitle}</p>

@@ -89,22 +89,30 @@ export const Header: React.FC<HeaderProps> = ({
 
   const isMemberAppView = (!isStudioMode && page === Page.Home) || page === Page.MemberProfile;
 
+  const renderHeaderBranding = () => {
+      // Om vi laddar eller om vi inte har en organisation i state än, visa inget
+      if (studioLoading || (!selectedOrganization && !logoUrl)) {
+          return <div className="h-10 md:h-12 w-32 bg-transparent"></div>;
+      }
+
+      if (logoUrl) {
+          return <img src={logoUrl} alt="Logo" className="h-10 md:h-12 w-auto object-contain pointer-events-none" />;
+      }
+
+      // Sista utväg om laddning är klar men logga saknas helt
+      return (
+        <span className="text-2xl font-black tracking-tighter text-gray-900 dark:text-white pointer-events-none">
+            {selectedOrganization?.name || 'SMART'}
+        </span>
+      );
+  };
+
   if (isMemberAppView) {
       return (
         <header className="w-full max-w-6xl mx-auto flex justify-between items-center pt-6 pb-6 px-4 sm:px-6 z-30 relative">
             <div className="flex items-center gap-4">
                 <div className="flex-shrink-0 cursor-default">
-                    {page !== Page.Home && (
-                        studioLoading ? (
-                            <div className="h-10 md:h-12 w-32 bg-transparent"></div>
-                        ) : logoUrl ? (
-                            <img src={logoUrl} alt="Logo" className="h-10 md:h-12 w-auto object-contain pointer-events-none" />
-                        ) : (
-                            <span className="text-2xl font-black tracking-tighter text-gray-900 dark:text-white pointer-events-none">
-                                {selectedOrganization?.name || 'SMART'}
-                            </span>
-                        )
-                    )}
+                    {page !== Page.Home && renderHeaderBranding()}
                 </div>
             </div>
 
