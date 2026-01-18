@@ -15,6 +15,18 @@ import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
 
+// --- Form Constants ---
+const COMMON_ACTIVITIES = ["Funktionell Träning", "HIIT", "Löpning", "Promenad", "Workout", "Yoga", "Cykling", "Simning", "Racketsport", "Vardagsmotion"];
+const KROPPSKANSLA_TAGS = ["Pigg", "Stark", "Seg", "Stel", "Ont", "Stressad", "Bra musik", "Bra pepp", "Grymt pass"];
+const RPE_LEVELS = [
+    { range: '1-2', label: 'Mycket lätt', desc: 'Du kan sjunga eller prata helt obehindrat.', color: 'bg-emerald-500' },
+    { range: '3-4', label: 'Lätt', desc: 'Du börjar bli varm men kan fortfarande prata enkelt.', color: 'bg-green-500' },
+    { range: '5-6', label: 'Måttligt', desc: 'Du börjar bli djupt andfådd.', color: 'bg-yellow-500' },
+    { range: '7-8', label: 'Hårt', desc: 'Det är ansträngande. Du kan bara svara med enstaka ord.', color: 'bg-orange-500' },
+    { range: '9', label: 'Mycket hårt', desc: 'Nära ditt max. Du kan inte prata alls.', color: 'bg-red-500' },
+    { range: '10', label: 'Maximalt', desc: 'Absolut max. Du kan inte göra en enda rep till.', color: 'bg-black' },
+];
+
 // --- Loading Overlay Component for AI Generation ---
 const AIGenerationOverlay: React.FC = () => {
     const [messageIndex, setMessageIndex] = useState(0);
@@ -390,7 +402,7 @@ const cleanForFirestore = (obj: any): any => {
     const val = obj[key];
     if (val !== undefined && val !== null) {
         if (typeof val === 'number' && isNaN(val)) return;
-        result[key] = (val && typeof val === 'object' && !(val instanceof Date)) ? cleanForFirestore(val) : val;
+        result[key] = (val && typeof v === 'object' && !(val instanceof Date)) ? cleanForFirestore(val) : val;
     }
   });
   return result;
