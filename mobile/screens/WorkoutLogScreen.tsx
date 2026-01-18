@@ -3,7 +3,7 @@ import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage,
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
-import { CloseIcon, DumbbellIcon, SparklesIcon, FireIcon, RunningIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, CalculatorIcon, ChartBarIcon } from '../../components/icons'; 
+import { CloseIcon, KettlebellIcon, SparklesIcon, FireIcon, RunningIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, CalculatorIcon, ChartBarIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
 import { OneRepMaxModal } from '../../components/OneRepMaxModal';
 import { WorkoutLogType, RepRange, ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, ExerciseSetDetail } from '../../types';
@@ -36,9 +36,9 @@ const SavingOverlay: React.FC = () => (
                 }}
                 className="text-primary drop-shadow-[0_0_30px_rgba(20,184,166,0.4)]"
             >
-                <DumbbellIcon className="w-32 h-32" />
+                <KettlebellIcon className="w-32 h-32" />
             </motion.div>
-            {/* Dekorativ "skugga" under hanteln */}
+            {/* Dekorativ "skugga" under kettlebellen */}
             <motion.div 
                 animate={{
                     scaleX: [1, 0.6, 1],
@@ -57,16 +57,10 @@ const SavingOverlay: React.FC = () => (
 
 // --- Local Types for Form State ---
 
-interface LocalSetDetail {
-    weight: string;
-    reps: string;
-    completed: boolean;
-}
-
 interface LocalExerciseResult {
   exerciseId: string;
   exerciseName: string;
-  setDetails: LocalSetDetail[];
+  setDetails: { weight: string; reps: string; completed: boolean }[];
   distance?: string;
   kcal?: string;
   isBodyweight?: boolean;
@@ -341,7 +335,7 @@ const ExerciseLogCard: React.FC<{
                                 )}
                             </div>
                             <div className="flex justify-center">
-                                <button onClick={() => handleToggleComplete(index)} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
+                                <button onClick={handleToggleComplete(index)} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
                                     <CheckIcon className="w-5 h-5" />
                                 </button>
                             </div>
@@ -516,7 +510,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
                 foundWorkout.blocks.forEach(block => {
                     if (block.tag === 'Uppvärmning') return;
-                    const defaultSets: LocalSetDetail[] = [{ weight: '', reps: '', completed: false }];
+                    const defaultSets = [{ weight: '', reps: '', completed: false }];
 
                     block.exercises.forEach(ex => {
                         const shouldInclude = hasExplicitLogging 
@@ -664,7 +658,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       setIsSubmitting(true);
       try {
           const isQuickOrManual = isManualMode || workout?.logType === 'quick';
-          const logDateMs = new Date(logDate).getTime();
+          
+          // --- TIDSHANTERING FIX ---
+          // Om valt datum är idag, använd nuvarande timestamp (Date.now()) 
+          // för att flödet på skärmen ska visa "Nu".
+          const todayStr = new Date().toISOString().split('T')[0];
+          const logDateMs = logDate === todayStr ? Date.now() : new Date(logDate).getTime();
           
           let totalVolume = 0;
           
@@ -757,7 +756,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   } catch (e) {
                       diplomaData = {
                           title: newRecords.length > 0 ? "NYTT REKORD!" : "GRYMT JOBBAT!",
-                          subtitle: "Passet är genomfört.",
+                          subtitle: "Passet genomfört.",
                           achievement: `Distans: ${finalLogRaw.totalDistance} km | Kcal: ${finalLogRaw.totalCalories}`,
                           footer: "Starkt jobbat!",
                           imagePrompt: "🔥",

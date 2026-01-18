@@ -75,6 +75,24 @@ export const DumbbellIcon: React.FC<{ className?: string }> = ({ className = "w-
     </svg>
 );
 
+export const KettlebellIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg 
+        xmlns="http://www.w3.org/2000/svg" 
+        className={className} 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="currentColor" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+    >
+        {/* Handle */}
+        <path d="M8.5 11c0-2.5 1-5 3.5-5s3.5 2.5 3.5 5" />
+        {/* Body */}
+        <path d="M6 11.5c-1.5 1-2 3-2 5.5 0 3 2.5 5 8 5s8-2 8-5c0-2.5-0.5-4.5-2-5.5" />
+    </svg>
+);
+
 export const DocumentTextIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -224,7 +242,7 @@ export const PaperAirplaneIcon: React.FC<{ className?: string }> = ({ className 
 
 export const ChartBarIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
     </svg>
 );
 
@@ -276,7 +294,7 @@ export const TrophyIcon: React.FC<{ className?: string }> = ({ className = "w-6 
 export const QrCodeIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zm-6 0H6v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4z" style={{display:'none'}} />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zm-6 0H6v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4h2v-4zm-6 0H6v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4zm-6 0H2v4h2v-4z" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M4 4h6v6H4V4zm10 0h6v6h-6V4zM4 14h6v6H4v-6zM14 14h6v6h-6v-6z" />
     </svg>
 );
@@ -302,6 +320,7 @@ export const BuildingIcon: React.FC<{ className?: string }> = ({ className = "w-
 export const getIconComponent = (iconKey: string): React.FC<{ className?: string }> => {
     switch(iconKey) {
         case 'dumbbell': return DumbbellIcon;
+        case 'kettlebell': return KettlebellIcon;
         case 'clock': return ClockIcon;
         case 'star': return StarIcon;
         case 'document': return DocumentTextIcon;
@@ -317,6 +336,7 @@ export const getIconComponent = (iconKey: string): React.FC<{ className?: string
 
 export const ICON_OPTIONS = [
     { key: 'dumbbell', label: 'Hantel', component: DumbbellIcon },
+    { key: 'kettlebell', label: 'Kettlebell', component: KettlebellIcon },
     { key: 'clock', label: 'Klocka', component: ClockIcon },
     { key: 'star', label: 'Stjärna', component: StarIcon },
     { key: 'fire', label: 'Eld', component: FireIcon },
