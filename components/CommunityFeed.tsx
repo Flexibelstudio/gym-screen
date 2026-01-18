@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutLog } from '../types';
@@ -6,13 +5,12 @@ import { listenToCommunityLogs } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
 import { DumbbellIcon } from './icons';
 
-const getRelativeTime = (timestamp: number) => {
-    const now = Date.now();
-    const diffInSeconds = Math.floor((now - timestamp) / 1000);
-    if (diffInSeconds < 60) return 'Nu';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} min sen`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h sen`;
-    return 'Igår'; 
+const formatEventTime = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    if (isToday) return `Idag ${date.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}`;
+    return date.toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric', month: 'short' });
 };
 
 const getFeelingIcon = (feeling: string | null) => {
@@ -116,7 +114,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
                                             {log.memberName || 'Anonym'}
                                         </p>
                                         <span className="text-[9px] text-gray-500 dark:text-white/30 font-bold uppercase whitespace-nowrap">
-                                            {getRelativeTime(log.date)}
+                                            {formatEventTime(log.date)}
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between mt-0.5">
