@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Page, UserRole } from '../../types';
 import { DigitalClock } from '../common/DigitalClock';
@@ -43,7 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
     onEditProfileRequest,
     isStudioMode
 }) => {
-  const { selectedOrganization } = useStudio();
+  const { selectedOrganization, studioLoading } = useStudio();
   const { userData } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -95,9 +94,10 @@ export const Header: React.FC<HeaderProps> = ({
         <header className="w-full max-w-6xl mx-auto flex justify-between items-center pt-6 pb-6 px-4 sm:px-6 z-30 relative">
             <div className="flex items-center gap-4">
                 <div className="flex-shrink-0 cursor-default">
-                    {/* Loggan döljs i headern på Home eftersom den stora loggan syns där */}
                     {page !== Page.Home && (
-                        logoUrl ? (
+                        studioLoading ? (
+                            <div className="h-10 md:h-12 w-32 animate-pulse bg-gray-100 dark:bg-gray-800 rounded-lg"></div>
+                        ) : logoUrl ? (
                             <img src={logoUrl} alt="Logo" className="h-10 md:h-12 w-auto object-contain pointer-events-none" />
                         ) : (
                             <span className="text-2xl font-black tracking-tighter text-gray-900 dark:text-white pointer-events-none">

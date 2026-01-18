@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma } from './types';
 
@@ -110,7 +109,7 @@ const App: React.FC = () => {
   const { 
     selectedStudio, selectStudio, setAllStudios,
     selectedOrganization, selectOrganization, allOrganizations, setAllOrganizations,
-    studioConfig
+    studioConfig, studioLoading
   } = useStudio();
   const { role, userData, isStudioMode, signOut, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, currentUser, authLoading } = useAuth();
   const { workouts, activeWorkout, setActiveWorkout, saveWorkout, deleteWorkout } = useWorkout();

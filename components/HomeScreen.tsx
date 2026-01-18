@@ -128,6 +128,7 @@ interface HomeScreenProps {
     organizationLogoUrlLight?: string;
     organizationLogoUrlDark?: string;
     theme: string;
+    studioLoading?: boolean;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({ 
@@ -140,7 +141,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     studioConfig, 
     organizationLogoUrlLight, 
     organizationLogoUrlDark,
-    theme
+    theme,
+    studioLoading = false
 }) => {
   const [welcomeMessage, setWelcomeMessage] = useState({ title: "Hej på er!", subtitle: "Redo att köra?" });
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -215,7 +217,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             {/* Header Section - Fast höjd */}
             <div className="flex flex-shrink-0 justify-between items-start mb-6 w-full pt-4">
                 <div className="flex flex-col gap-3">
-                    {logoUrl ? (
+                    {studioLoading ? (
+                        <div className="h-16 md:h-24 w-48 animate-pulse bg-gray-200 dark:bg-gray-800 rounded-2xl"></div>
+                    ) : logoUrl ? (
                         <motion.img 
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
