@@ -14,6 +14,47 @@ import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
 
+// --- Sub-component: SavingOverlay ---
+const SavingOverlay: React.FC = () => (
+    <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[2000] flex items-center justify-center bg-white/90 dark:bg-black/95 backdrop-blur-xl"
+    >
+        <div className="flex flex-col items-center">
+            <motion.div
+                animate={{
+                    y: [0, -60, 0],
+                    scale: [1, 1.1, 1],
+                    rotate: [0, -5, 5, 0]
+                }}
+                transition={{
+                    duration: 1.8,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                }}
+                className="text-primary drop-shadow-[0_0_30px_rgba(20,184,166,0.4)]"
+            >
+                <DumbbellIcon className="w-32 h-32" />
+            </motion.div>
+            {/* Dekorativ "skugga" under hanteln */}
+            <motion.div 
+                animate={{
+                    scaleX: [1, 0.6, 1],
+                    opacity: [0.2, 0.1, 0.2]
+                }}
+                transition={{
+                    duration: 1.8,
+                    repeat: Infinity,
+                    ease: "easeInOut"
+                }}
+                className="w-20 h-3 bg-black dark:bg-white rounded-full blur-md mt-4"
+            />
+        </div>
+    </motion.div>
+);
+
 // --- Local Types for Form State ---
 
 interface LocalSetDetail {
@@ -779,6 +820,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   return (
     <div className="bg-gray-5 dark:bg-black text-gray-900 dark:text-white flex flex-col relative h-full">
       <AnimatePresence>
+        {isSubmitting && <SavingOverlay />}
         {showCelebration && (
             <motion.div 
               initial={{ opacity: 0 }}

@@ -657,8 +657,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         </div>
 
         {/* --- BLOCKNAMN (Nu under tidslinjen) --- */}
-        <div className="text-center z-20 w-full px-10 mt-4">
-            <h1 className="font-black text-white/90 uppercase tracking-tighter text-2xl sm:text-3xl md:text-4xl drop-shadow-lg truncate">{block.title}</h1>
+        <div className="text-center z-20 w-full px-10 mt-2">
+            <h1 className="font-black text-white/90 uppercase tracking-tighter text-2xl sm:text-3xl md:text-4xl drop-shadow-lg truncate py-2">{block.title}</h1>
         </div>
       </div>
 
