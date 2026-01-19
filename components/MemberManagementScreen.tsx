@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Member, UserRole } from '../types';
 import { UsersIcon, PencilIcon, ChartBarIcon, SearchIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon } from './icons';
@@ -14,7 +15,8 @@ interface MemberManagementScreenProps {
 
 type RoleFilter = 'all' | 'training' | 'coach' | 'admin';
 
-const ITEMS_PER_PAGE = 50;
+// Ändrat från 50 till 25 enligt önskemål
+const ITEMS_PER_PAGE = 25;
 
 // Helper component for the inline dropdown
 const RoleSwitcher: React.FC<{ 
@@ -186,11 +188,21 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
       }
   };
 
+  // Helper för att byta sida och scrolla upp
+  const goToPage = (page: number) => {
+      setCurrentPage(page);
+      const scrollContainer = document.querySelector('main');
+      if (scrollContainer) {
+          scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+  };
+
   const canEditRoles = currentUserRole === 'organizationadmin' || currentUserRole === 'systemowner';
 
   const inviteCode = selectedOrganization?.inviteCode;
   
-  // Skapa en URL istället för JSON för att medlems-onboardingen ska ske via webbläsaren
   const baseUrl = window.location.origin;
   const qrUrl = inviteCode ? `${baseUrl}/?invite=${inviteCode}` : '';
 
@@ -202,6 +214,10 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
           </div>
       );
   }
+
+  // Räkna ut vilka objekt som visas just nu för "Visar 1-25 av X"-texten
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE + 1;
+  const endIndex = Math.min(currentPage * ITEMS_PER_PAGE, filteredMembers.length);
 
   return (
     <div className="space-y-8 animate-fade-in pb-20">
@@ -221,9 +237,9 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
         </button>
       </div>
 
-      {/* Filter & Search Bar - Desktop optimization */}
+      {/* Filter & Search Bar */}
       <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-          <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full lg:w-auto">
+          <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full lg:w-auto overflow-x-auto scrollbar-hide">
               {[
                   { id: 'all', label: 'Alla', count: stats.all },
                   { id: 'training', label: 'Medlemmar', count: stats.training },
@@ -233,7 +249,7 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                   <button
                     key={f.id}
                     onClick={() => setRoleFilter(f.id as RoleFilter)}
-                    className={`flex-1 lg:flex-none px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                    className={`flex-1 lg:flex-none px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
                         roleFilter === f.id 
                         ? 'bg-white dark:bg-gray-700 text-primary shadow-md' 
                         : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
@@ -382,28 +398,39 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
               </table>
             </div>
             
-            {/* Pagination Controls */}
+            {/* Pagination Controls - Enhanced for better UX */}
             {totalPages > 1 && (
-                <div className="flex items-center justify-between p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
-                    <button 
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
-                        className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                        <ChevronLeftIcon className="w-4 h-4" />
-                        Föregående
-                    </button>
-                    <span className="text-sm font-bold text-gray-500 dark:text-gray-400">
-                        Sida {currentPage} av {totalPages}
-                    </span>
-                    <button 
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                        className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                        Nästa
-                        <ChevronRightIcon className="w-4 h-4" />
-                    </button>
+                <div className="flex flex-col sm:flex-row items-center justify-between p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 gap-4">
+                    <div className="text-sm font-bold text-gray-500 dark:text-gray-400 order-2 sm:order-1">
+                        Visar <span className="text-gray-900 dark:text-white">{startIndex}-{endIndex}</span> av <span className="text-gray-900 dark:text-white">{filteredMembers.length}</span> medlemmar
+                    </div>
+                    
+                    <div className="flex items-center gap-3 order-1 sm:order-2">
+                        <button 
+                            onClick={() => goToPage(Math.max(1, currentPage - 1))}
+                            disabled={currentPage === 1}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-black uppercase tracking-widest text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm active:scale-95"
+                        >
+                            <ChevronLeftIcon className="w-4 h-4" />
+                            <span>Föregående</span>
+                        </button>
+                        
+                        <div className="flex items-center gap-1.5 px-4 h-10 rounded-xl bg-gray-200/50 dark:bg-gray-700/50 text-xs font-black text-gray-500 dark:text-gray-400">
+                            <span>Sida</span>
+                            <span className="text-gray-900 dark:text-white">{currentPage}</span>
+                            <span>av</span>
+                            <span className="text-gray-900 dark:text-white">{totalPages}</span>
+                        </div>
+
+                        <button 
+                            onClick={() => goToPage(Math.min(totalPages, currentPage + 1))}
+                            disabled={currentPage === totalPages}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-sm font-black uppercase tracking-widest text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm active:scale-95"
+                        >
+                            <span>Nästa</span>
+                            <ChevronRightIcon className="w-4 h-4" />
+                        </button>
+                    </div>
                 </div>
             )}
           </div>
