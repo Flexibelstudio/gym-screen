@@ -321,7 +321,7 @@ const ExerciseLogCard: React.FC<{
                                 )}
                             </div>
                             <div className="flex justify-center">
-                                <button onClick={() => handleToggleComplete(index)} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
+                                <button onClick={handleToggleComplete(index)} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
                                     <CheckIcon className="w-5 h-5" />
                                 </button>
                             </div>
@@ -405,15 +405,13 @@ const cleanForFirestore = (obj: any): any => {
 };
 
 // --- NEW COMPONENT: AI SUBMIT OVERLAY ---
-const AiSubmitOverlay: React.FC<{ statusText: string }> = ({ statusText }) => (
+const AiSubmitOverlay: React.FC = () => (
     <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[12000] bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center"
+        className="fixed inset-0 z-[12000] bg-white/60 dark:bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center"
     >
-        <Confetti />
-        
         <div className="relative mb-12">
             {/* Animated Glow behind icon */}
             <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full scale-150 animate-pulse"></div>
@@ -424,7 +422,7 @@ const AiSubmitOverlay: React.FC<{ statusText: string }> = ({ statusText }) => (
                     rotate: [0, 5, -5, 0]
                 }}
                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="w-32 h-32 bg-white/10 rounded-[2.5rem] flex items-center justify-center border border-white/20 shadow-2xl relative z-10"
+                className="w-32 h-32 bg-white/10 dark:bg-white/10 rounded-[2.5rem] flex items-center justify-center border border-gray-200 dark:border-white/20 shadow-2xl relative z-10"
             >
                 <SparklesIcon className="w-16 h-16 text-primary" />
             </motion.div>
@@ -433,23 +431,14 @@ const AiSubmitOverlay: React.FC<{ statusText: string }> = ({ statusText }) => (
             <motion.div 
                 animate={{ rotate: 360 }}
                 transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-                className="absolute inset-0 border-2 border-dashed border-white/10 rounded-full scale-[1.8]"
+                className="absolute inset-0 border-2 border-dashed border-gray-300 dark:border-white/10 rounded-full scale-[1.8]"
             />
         </div>
 
-        <motion.h3 
-            key={statusText}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-white text-3xl font-black uppercase tracking-tighter mb-4 drop-shadow-lg"
-        >
-            {statusText}
-        </motion.h3>
-        
-        <div className="flex gap-1 items-center justify-center">
-            <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce"></span>
-            <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-            <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+        <div className="flex gap-2 items-center justify-center mt-8">
+            <span className="w-2 h-2 bg-primary rounded-full animate-bounce"></span>
+            <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+            <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
         </div>
     </motion.div>
 );
@@ -468,7 +457,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [exerciseResults, setExerciseResults] = useState<LocalExerciseResult[]>([]);
   const [logData, setLogData] = useState<LogData>({ rpe: null, feeling: null, tags: [], comment: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitStatusText, setSubmitStatusText] = useState('Sparar ditt pass...');
   const [showCelebration, setShowCelebration] = useState(false);
   const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
   const [showCalculator, setShowCalculator] = useState(false);
@@ -691,7 +679,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       if (!isFormValid || !oId) return;
 
       setIsSubmitting(true);
-      setSubmitStatusText('Sparar ditt pass...');
       
       try {
           const isQuickOrManual = isManualMode || workout?.logType === 'quick';
@@ -771,7 +758,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               // 1. Spara loggen först för att beräkna PBs
               const { log: savedLog, newRecords } = await saveWorkoutLog(cleanForFirestore(finalLogRaw));
 
-              setSubmitStatusText('Analyserar din prestation...');
               let diplomaData: WorkoutDiploma | null = null;
 
               // 2. Skapa diplom baserat på volym
@@ -809,7 +795,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   }
               }
 
-              setSubmitStatusText('Designar ditt diplom...');
               // 4. Generera bild och ladda upp om prompt finns
               if (diplomaData && diplomaData.imagePrompt) {
                   try {
@@ -865,7 +850,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
     <div className="bg-gray-5 dark:bg-black text-gray-900 dark:text-white flex flex-col relative h-full">
       <AnimatePresence>
         {isSubmitting && !showCelebration && (
-            <AiSubmitOverlay statusText={submitStatusText} />
+            <AiSubmitOverlay />
         )}
       </AnimatePresence>
       
