@@ -170,7 +170,7 @@ const App: React.FC = () => {
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const [customPageToEdit, setCustomPageToEdit] = useState<CustomPage | null>(null);
   const [studioToEditConfig, setStudioToEditConfig] = useState<Studio | null>(null);
-  const [completionInfo, setCompletionInfo] =<{ workout: Workout, isFinal: boolean, blockTag?: string, finishTime?: number } | null>(null);
+  const [completionInfo, setCompletionInfo] = useState<{ workout: Workout, isFinal: boolean, blockTag?: string, finishTime?: number } | null>(null);
   const [preferredAdminTab, setPreferredAdminTab] = useState<string>('dashboard');
   
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
