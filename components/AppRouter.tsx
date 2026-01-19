@@ -77,6 +77,7 @@ interface AppRouterProps {
         deleteStudio: (organizationId: string, studioId: string) => Promise<void>;
         updatePasswords: (organizationId: string, passwords: Organization['passwords']) => Promise<void>;
         updateLogos: (organizationId: string, logos: { light: string; dark: string }) => Promise<void>;
+        updateFavicon: (organizationId: string, faviconUrl: string) => Promise<void>;
         updatePrimaryColor: (organizationId: string, color: string) => Promise<void>;
         updateOrganization: (organizationId: string, name: string, subdomain: string, inviteCode?: string) => Promise<void>;
         updateCustomPages: (organizationId: string, customPages: CustomPage[]) => Promise<void>;
@@ -325,6 +326,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onDeleteStudio={functions.deleteStudio}
                 onUpdatePasswords={functions.updatePasswords}
                 onUpdateLogos={functions.updateLogos}
+                onUpdateFavicon={functions.updateFavicon}
                 onUpdatePrimaryColor={functions.updatePrimaryColor}
                 onUpdateOrganization={functions.updateOrganization}
                 onUpdateCustomPages={functions.updateCustomPages}

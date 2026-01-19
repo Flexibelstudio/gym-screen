@@ -764,6 +764,7 @@ const App: React.FC = () => {
         if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
     } catch (error) {
         console.error("Failed to update passwords:", error);
+        throw error;
     }
   };
 
@@ -774,6 +775,7 @@ const App: React.FC = () => {
         if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
     } catch (error) {
         console.error("Failed to update logos:", error);
+        throw error;
     }
   };
 
@@ -784,6 +786,7 @@ const App: React.FC = () => {
         if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
     } catch (error) {
         console.error("Failed to update favicon:", error);
+        throw error;
     }
   };
 
@@ -794,6 +797,7 @@ const App: React.FC = () => {
         if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
     } catch (error) {
         console.error("Failed to update primary color:", error);
+        throw error;
     }
   };
 
