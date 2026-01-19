@@ -404,6 +404,56 @@ const cleanForFirestore = (obj: any): any => {
   return result;
 };
 
+// --- NEW COMPONENT: AI SUBMIT OVERLAY ---
+const AiSubmitOverlay: React.FC<{ statusText: string }> = ({ statusText }) => (
+    <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[12000] bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center"
+    >
+        <Confetti />
+        
+        <div className="relative mb-12">
+            {/* Animated Glow behind icon */}
+            <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full scale-150 animate-pulse"></div>
+            
+            <motion.div
+                animate={{ 
+                    scale: [1, 1.1, 1],
+                    rotate: [0, 5, -5, 0]
+                }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                className="w-32 h-32 bg-white/10 rounded-[2.5rem] flex items-center justify-center border border-white/20 shadow-2xl relative z-10"
+            >
+                <SparklesIcon className="w-16 h-16 text-primary" />
+            </motion.div>
+            
+            {/* Orbiting particles */}
+            <motion.div 
+                animate={{ rotate: 360 }}
+                transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+                className="absolute inset-0 border-2 border-dashed border-white/10 rounded-full scale-[1.8]"
+            />
+        </div>
+
+        <motion.h3 
+            key={statusText}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-white text-3xl font-black uppercase tracking-tighter mb-4 drop-shadow-lg"
+        >
+            {statusText}
+        </motion.h3>
+        
+        <div className="flex gap-1 items-center justify-center">
+            <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce"></span>
+            <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+            <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+        </div>
+    </motion.div>
+);
+
 export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigation, route }: any) => {
   const { currentUser } = useAuth();
   const { workouts: contextWorkouts } = useWorkout();
@@ -418,6 +468,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [exerciseResults, setExerciseResults] = useState<LocalExerciseResult[]>([]);
   const [logData, setLogData] = useState<LogData>({ rpe: null, feeling: null, tags: [], comment: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatusText, setSubmitStatusText] = useState('Sparar ditt pass...');
   const [showCelebration, setShowCelebration] = useState(false);
   const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
   const [showCalculator, setShowCalculator] = useState(false);
@@ -584,8 +635,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, userId, wId, oId, isManualMode]);
 
   const handleCancel = (isSuccess = false, diploma: WorkoutDiploma | null = null) => {
-    // We don't necessarily clear it here if the user just "backs out", 
-    // unless it's a success. User must "Släng" from profile to clear it otherwise.
     if (isSuccess) {
         localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
     }
@@ -642,25 +691,22 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       if (!isFormValid || !oId) return;
 
       setIsSubmitting(true);
+      setSubmitStatusText('Sparar ditt pass...');
+      
       try {
           const isQuickOrManual = isManualMode || workout?.logType === 'quick';
           
-          // --- IMPROVED DATE LOGIC FOR FEED AND TIME ---
           const now = new Date();
           const selectedDate = new Date(logDate);
-          // Check if selected date matches today (local time)
           const isToday = selectedDate.toDateString() === now.toDateString();
           
           let logDateMs: number;
           if (isToday) {
-              logDateMs = Date.now(); // Use exact current time for today's logs
+              logDateMs = Date.now(); 
           } else {
-              // For past dates, use selected date but add current hours/mins 
-              // to avoid sorting clumps and the "01:00" timezone offset issue
               selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
               logDateMs = selectedDate.getTime();
           }
-          // ----------------------------------------------
           
           let totalVolume = 0;
           
@@ -725,6 +771,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               // 1. Spara loggen först för att beräkna PBs
               const { log: savedLog, newRecords } = await saveWorkoutLog(cleanForFirestore(finalLogRaw));
 
+              setSubmitStatusText('Analyserar din prestation...');
               let diplomaData: WorkoutDiploma | null = null;
 
               // 2. Skapa diplom baserat på volym
@@ -745,7 +792,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               // 3. Fallback till alternativt diplom om ingen volym hittades
               if (!diplomaData) {
                   try {
-                      // Använd fortfarande AI för texterna men välj rubrik från listan
                       diplomaData = await generateWorkoutDiploma({ ...finalLogRaw, newPBs: newRecords });
                       if (diplomaData) {
                           diplomaData.title = getRandomDiplomaTitle();
@@ -763,6 +809,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   }
               }
 
+              setSubmitStatusText('Designar ditt diplom...');
               // 4. Generera bild och ladda upp om prompt finns
               if (diplomaData && diplomaData.imagePrompt) {
                   try {
@@ -816,6 +863,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
   return (
     <div className="bg-gray-5 dark:bg-black text-gray-900 dark:text-white flex flex-col relative h-full">
+      <AnimatePresence>
+        {isSubmitting && !showCelebration && (
+            <AiSubmitOverlay statusText={submitStatusText} />
+        )}
+      </AnimatePresence>
+      
       <AnimatePresence>
         {showCelebration && (
             <motion.div 
