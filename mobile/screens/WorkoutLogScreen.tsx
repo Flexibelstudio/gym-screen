@@ -15,7 +15,7 @@ import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
 
-// --- Loading Component with AI Robot Animation ---
+// --- Loading Component with AI Robot Animation (Theme Aware) ---
 const LogLoadingView: React.FC = () => {
     const messages = [
         "Räknar ut din totala volym...",
@@ -37,16 +37,16 @@ const LogLoadingView: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[1000] bg-gray-950 flex flex-col items-center justify-center p-8 text-center"
+            className="fixed inset-0 z-[1000] bg-white dark:bg-gray-950 flex flex-col items-center justify-center p-8 text-center"
         >
             <div className="relative w-64 h-64 mb-12">
-                {/* Background glow */}
-                <div className="absolute inset-0 bg-primary/20 rounded-full blur-[60px] animate-pulse"></div>
+                {/* Background glow - primary color with reduced opacity in light mode */}
+                <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 rounded-full blur-[60px] animate-pulse"></div>
                 
                 {/* Robot/Pen Animation SVG */}
                 <svg viewBox="0 0 200 200" className="w-full h-full relative z-10">
-                    {/* Paper Area */}
-                    <rect x="50" y="60" width="100" height="120" rx="4" fill="white" fillOpacity="0.05" stroke="white" strokeOpacity="0.1" />
+                    {/* Paper Area - Slightly visible in both themes */}
+                    <rect x="50" y="60" width="100" height="120" rx="4" className="fill-gray-100 dark:fill-white/5 stroke-gray-200 dark:stroke-white/10" strokeWidth="1" />
                     
                     {/* Drawing Pattern */}
                     <motion.path 
@@ -69,8 +69,8 @@ const LogLoadingView: React.FC = () => {
                         transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                     >
                         {/* Stylus Body */}
-                        <path d="M 100,20 L 100,80" stroke="#4b5563" strokeWidth="8" strokeLinecap="round" />
-                        <circle cx="100" cy="20" r="15" fill="#374151" />
+                        <path d="M 100,20 L 100,80" className="stroke-gray-600 dark:stroke-gray-400" strokeWidth="8" strokeLinecap="round" />
+                        <circle cx="100" cy="20" r="15" className="fill-gray-700 dark:fill-gray-800" />
                         <circle cx="100" cy="20" r="6" fill="#14b8a6">
                             <animate attributeName="opacity" values="1;0.4;1" dur="1s" repeatCount="indefinite" />
                         </circle>
@@ -91,13 +91,13 @@ const LogLoadingView: React.FC = () => {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="text-xl font-bold text-white tracking-tight"
+                        className="text-xl font-bold text-gray-900 dark:text-white tracking-tight"
                     >
                         {messages[msgIndex]}
                     </motion.p>
                 </AnimatePresence>
                 
-                <div className="w-48 h-1.5 bg-white/10 rounded-full mx-auto overflow-hidden">
+                <div className="w-48 h-1.5 bg-gray-100 dark:bg-white/10 rounded-full mx-auto overflow-hidden">
                     <motion.div 
                         className="h-full bg-primary"
                         initial={{ width: "0%" }}
@@ -106,7 +106,7 @@ const LogLoadingView: React.FC = () => {
                     />
                 </div>
                 
-                <p className="text-gray-500 text-xs font-black uppercase tracking-[0.2em]">Din prestation förtjänar det bästa</p>
+                <p className="text-gray-400 dark:text-gray-500 text-xs font-black uppercase tracking-[0.2em]">Din prestation förtjänar det bästa</p>
             </div>
         </motion.div>
     );
@@ -1040,7 +1040,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                     <div className="mt-8 mb-6 bg-white dark:bg-gray-900 p-5 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Kalorier (kcal)</label>
+                                <label className="block text-11px font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Kalorier (kcal)</label>
                                 <input 
                                     type="number"
                                     value={sessionStats.calories}
@@ -1050,7 +1050,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                 />
                             </div>
                             <div>
-                                <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Distans (km)</label>
+                                <label className="block text-11px font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Distans (km)</label>
                                 <input 
                                     type="number"
                                     value={sessionStats.distance}
