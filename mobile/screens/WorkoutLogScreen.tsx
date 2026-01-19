@@ -177,7 +177,7 @@ const getFunComparison = (totalWeight: number) => {
     let bestMatch = niceMatches.length > 0 ? niceMatches[Math.floor(Math.random() * niceMatches.length)] : suitableComparisons[suitableComparisons.length - 1];
     const rawCount = totalWeight / bestMatch.weight;
     const formattedCount = rawCount < 10 ? rawCount.toFixed(1) : Math.round(rawCount).toString();
-    return { count: formattedCount, name: bestMatch.name, singular: bestMatch.singular, weight: bestMatch.weight, emoji: bestMatch.emoji };
+    return { count: formattedCount, name: bestMatch.name, single: bestMatch.singular, weight: bestMatch.weight, emoji: bestMatch.emoji };
 };
 
 const COMMON_ACTIVITIES = ["Funktionell Träning", "HIIT", "Löpning", "Promenad", "Workout", "Yoga", "Cykling", "Simning", "Racketsport", "Vardagsmotion"];
@@ -353,7 +353,10 @@ const ExerciseLogCard: React.FC<{
                                 )}
                             </div>
                             <div className="flex justify-center">
-                                <button onClick={handleToggleComplete(index)} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
+                                <button 
+                                    onClick={() => handleToggleComplete(index)} 
+                                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                                >
                                     <CheckIcon className="w-5 h-5" />
                                 </button>
                             </div>
