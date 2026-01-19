@@ -9,6 +9,28 @@ const TEXT_MODEL = 'gemini-3-flash-preview';
 const VISION_MODEL = 'gemini-3-flash-preview';
 const IMAGE_GEN_MODEL = 'gemini-2.5-flash-image';
 
+// TYPER
+export interface MemberInsightResponse {
+    readiness: {
+        status: 'high' | 'moderate' | 'low';
+        message: string;
+    };
+    strategy: string;
+    suggestions: Record<string, string>;
+    scaling: Record<string, string>;
+}
+
+export interface MemberProgressAnalysis {
+    strengths: string;
+    improvements: string;
+    actions: string[];
+    metrics: {
+        strength: number;
+        endurance: number;
+        frequency: number;
+    };
+}
+
 // SÄKERHET: Hämta nyckel exklusivt från process.env
 const getAIClient = () => {
     const apiKey = (typeof process !== 'undefined' && process.env?.API_KEY) || (import.meta as any).env.VITE_API_KEY;
@@ -256,6 +278,18 @@ export async function generateImage(prompt: string): Promise<string | null> {
     } catch (e) { return null; }
 }
 
+export async function generateCarouselImage(prompt: string): Promise<string> {
+    const ai = getAIClient();
+    const response = await ai.models.generateContent({
+        model: IMAGE_GEN_MODEL,
+        contents: prompt,
+        config: { imageConfig: { aspectRatio: "16:9" } }
+    });
+    const part = response.candidates[0].content.parts.find(p => p.inlineData);
+    if (!part) throw new Error("Ingen bild genererades.");
+    return `data:image/png;base64,${part.inlineData.data}`;
+}
+
 export async function interpretHandwriting(base64Image: string): Promise<string> {
     const ai = getAIClient();
     const response = await ai.models.generateContent({
@@ -298,7 +332,7 @@ export async function getExerciseDagsformAdvice(exerciseName: string, feeling: s
     return { ...data, history };
 }
 
-export async function analyzeMemberProgress(logs: WorkoutLog[], name: string, goals?: MemberGoals): Promise<any> {
+export async function analyzeMemberProgress(logs: WorkoutLog[], name: string, goals?: MemberGoals): Promise<MemberProgressAnalysis> {
     const logStr = JSON.stringify(logs.slice(0, 15));
     const goalStr = goals?.hasSpecificGoals ? goals.selectedGoals.join(', ') : 'Inga satta mål.';
     return await _callGeminiJSON(TEXT_MODEL, Prompts.MEMBER_PROGRESS_PROMPT(name, goalStr, logStr), progressAnalysisSchema);
