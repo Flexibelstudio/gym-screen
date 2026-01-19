@@ -21,7 +21,6 @@ interface AuthContextType {
     stopImpersonation: () => void;
     showTerms: boolean;
     acceptTerms: () => Promise<void>;
-    // Dev Tool logic
     switchSimulatedUser?: (type: 'systemowner' | 'organizationadmin' | 'studio') => void;
 }
 
@@ -30,6 +29,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const IMPERSONATION_KEY = 'ny-screen-impersonation';
 const LOCAL_STORAGE_ORG_KEY = 'ny-screen-selected-org';
 const DEVICE_LOCKED_KEY = 'ny-screen-device-locked';
+const MANUAL_SIGNOUT_FLAG = 'smart-skarm-manual-signout';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [currentUser, setCurrentUser] = useState<any | null>(null);
@@ -37,7 +37,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [authLoading, setAuthLoading] = useState(true);
     const [showTerms, setShowTerms] = useState(false);
     
-    // Simulerings-states för Dev Toolbar
     const [simulatedRole, setSimulatedRole] = useState<UserRole | null>(null);
     const [simulatedStudioMode, setSimulatedStudioMode] = useState<boolean | null>(null);
 
@@ -67,6 +66,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
 
             if (user) {
+                // Om vi lyckas logga in, rensa utloggningsflaggan
+                sessionStorage.removeItem(MANUAL_SIGNOUT_FLAG);
                 setCurrentUser(user);
                 if (!user.isAnonymous && db) {
                     const timeoutId = setTimeout(() => {
@@ -93,10 +94,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setAuthLoading(false);
                 }
             } else {
+                const isManualSignOut = sessionStorage.getItem(MANUAL_SIGNOUT_FLAG) === 'true';
                 const isDeviceLocked = localStorage.getItem(DEVICE_LOCKED_KEY) === 'true';
-                if (isDeviceLocked) {
-                    try { await signInAsStudio(); return; } catch (e) {}
+                
+                // Endast auto-inloggning om användaren INTE valt att logga ut manuellt
+                if (isDeviceLocked && !isManualSignOut) {
+                    try { 
+                        await signInAsStudio(); 
+                        return; 
+                    } catch (e) {
+                        console.error("Auto anonymous sign-in failed", e);
+                    }
                 }
+                
                 setCurrentUser(null);
                 setUserData(null);
                 setAuthLoading(false);
@@ -111,14 +121,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const handleSignIn = useCallback(async (email: string, password: string) => {
         setAuthLoading(true);
+        sessionStorage.removeItem(MANUAL_SIGNOUT_FLAG);
         try { await signIn(email, password); } catch (e) { setAuthLoading(false); throw e; }
     }, []);
     
     const handleSignInAsStudio = useCallback(async () => {
+        sessionStorage.removeItem(MANUAL_SIGNOUT_FLAG);
         await signInAsStudio();
     }, []);
 
     const handleSignOut = useCallback(async () => {
+        // Sätt flaggan i sessionStorage (försvinner när fliken stängs, men bryter loopen nu)
+        sessionStorage.setItem(MANUAL_SIGNOUT_FLAG, 'true');
+        
         localStorage.removeItem(IMPERSONATION_KEY);
         setImpersonationState(null);
         setSimulatedRole(null);
@@ -131,6 +146,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const clearDeviceProvisioning = useCallback(() => {
         localStorage.removeItem(DEVICE_LOCKED_KEY);
         localStorage.removeItem(LOCAL_STORAGE_ORG_KEY);
+        // Vid nollställning vill vi definitivt inte loggas in automatiskt igen
+        sessionStorage.setItem(MANUAL_SIGNOUT_FLAG, 'true');
     }, []);
 
     const startImpersonation = useCallback((impersonation: { role: UserRole, isStudioMode: boolean }) => {
@@ -161,7 +178,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }, [currentUser]);
 
-    // Dev Tool Funktion
     const switchSimulatedUser = useCallback((type: 'systemowner' | 'organizationadmin' | 'studio') => {
         if (type === 'studio') {
             setSimulatedRole('member');
@@ -173,13 +189,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const { role, isStudioMode } = useMemo(() => {
-        // 1. Kolla simulering (Dev Tool)
         if (simulatedRole !== null) {
             return { role: simulatedRole, isStudioMode: !!simulatedStudioMode };
         }
-        // 2. Kolla impersonering (Admin preview)
         if (impersonationState) return impersonationState;
-        // 3. Riktig auth-data
         if (!currentUser) return { role: 'member' as UserRole, isStudioMode: false };
         if (currentUser.isAnonymous) return { role: 'member' as UserRole, isStudioMode: true };
         if (userData) return { role: userData.role as UserRole, isStudioMode: false };
@@ -192,7 +205,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         clearDeviceProvisioning, reauthenticate, sendPasswordResetEmail: handleSendPasswordResetEmail,
         isImpersonating: !!impersonationState, startImpersonation, stopImpersonation,
         showTerms, acceptTerms,
-        switchSimulatedUser // Exponera för DeveloperToolbar
+        switchSimulatedUser
     }), [currentUser, userData, role, isStudioMode, authLoading, handleSignIn, handleSignInAsStudio, handleSignOut, impersonationState, showTerms, switchSimulatedUser]);
 
     return (

@@ -358,8 +358,13 @@ const App: React.FC = () => {
   };
 
   const handleReturnToAdminRequest = () => {
-      setReAuthPurpose('admin');
-      setIsReAuthModalOpen(true);
+      if (currentUser?.isAnonymous) {
+          // Om vi är helt anonyma, logga ut så vi ser inloggningssidan
+          signOut();
+      } else {
+          setReAuthPurpose('admin');
+          setIsReAuthModalOpen(true);
+      }
   };
 
   const handleCreateNewWorkout = () => {
@@ -1162,8 +1167,8 @@ const App: React.FC = () => {
           onSuccess={() => {
             setIsPasswordModalOpen(false);
             setSessionRole('coach');
-            if (selectedStudio) navigateTo(Page.Coach);
-            else navigateTo(Page.StudioSelection);
+            // Tvinga navigering direkt till coachvyn
+            navigateTo(Page.Coach);
           }}
         />
       )}
