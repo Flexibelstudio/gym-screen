@@ -12,6 +12,9 @@ import { AppRouter } from './components/AppRouter';
 // --- Services ---
 import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon } from './services/firebaseService';
 
+// --- Utils ---
+import { deepCopyAndPrepareAsNew } from './utils/workoutUtils';
+
 // --- Components ---
 import { WorkoutCompleteModal } from './components/WorkoutCompleteModal';
 import { PasswordModal } from './components/PasswordModal';
@@ -39,70 +42,8 @@ import WorkoutDetailScreen from './components/WorkoutDetailScreen';
 import { CloseIcon, PencilIcon } from './components/icons';
 import { WorkoutDiplomaView } from './components/WorkoutDiplomaView';
 
-// --- Global UI Components ---
-
-const CancelConfirmationModal: React.FC<{
-    onConfirm: () => void;
-    onCancel: () => void;
-}> = ({ onConfirm, onCancel }) => (
-    <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/60 backdrop-blur-md z-[11000] flex items-center justify-center p-4"
-        onClick={onCancel}
-    >
-        <motion.div 
-            initial={{ scale: 0.9, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 max-sm w-full shadow-2xl text-center border border-gray-100 dark:border-gray-800"
-            onClick={e => e.stopPropagation()}
-        >
-            <div className="w-20 h-20 bg-red-100 dark:bg-red-900/30 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                <span className="text-4xl">⚠️</span>
-            </div>
-            <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-2 uppercase tracking-tight">Avbryt loggning?</h3>
-            <p className="text-gray-500 dark:text-gray-400 mb-8 leading-relaxed">
-                Dina resultat för det här passet kommer inte att sparas.
-            </p>
-            <div className="flex flex-col gap-3">
-                <button 
-                    onClick={onConfirm}
-                    className="w-full bg-red-600 hover:bg-red-500 text-white font-black py-4 rounded-2xl shadow-lg shadow-red-500/20 transition-all active:scale-95"
-                >
-                    JA, AVBRYT
-                </button>
-                <button 
-                    onClick={onCancel}
-                    className="w-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold py-4 rounded-2xl transition-all active:scale-95"
-                >
-                    FORTSÄTT LOGGA
-                </button>
-            </div>
-        </motion.div>
-    </motion.div>
-);
-
-const deepCopyAndPrepareAsNew = (workoutToCopy: Workout): Workout => {
-    const newWorkout = JSON.parse(JSON.stringify(workoutToCopy));
-    newWorkout.id = `workout-${Date.now()}`;
-    newWorkout.title = `KOPIA - ${workoutToCopy.title}`;
-    newWorkout.isPublished = false;
-    newWorkout.isFavorite = false;
-    newWorkout.createdAt = Date.now();
-    delete newWorkout.participants; 
-
-    newWorkout.blocks = newWorkout.blocks.map((block: WorkoutBlock, bIndex: number) => {
-        block.id = `block-${Date.now()}-${bIndex}`;
-        block.exercises = block.exercises.map((ex: Exercise, eIndex: number) => {
-            ex.id = `ex-${Date.now()}-${bIndex}-${eIndex}`;
-            return ex;
-        });
-        return block;
-    });
-    return newWorkout;
-};
+// --- Modals ---
+import { CancelConfirmationModal } from './components/modals/CancelConfirmationModal';
 
 const THEME_STORAGE_KEY = 'flexibel-screen-theme';
 
