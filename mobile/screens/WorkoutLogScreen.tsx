@@ -386,7 +386,7 @@ const PostWorkoutForm: React.FC<{ data: LogData; onUpdate: (updates: Partial<Log
                 <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Kroppskänsla</h5><div className="flex flex-wrap gap-2">
                     {KROPPSKANSLA_TAGS.map(tag => (<button key={tag} onClick={() => toggleTag(tag)} className={`px-4 py-2.5 rounded-xl text-xs font-bold border-2 transition-all active:scale-95 ${data.tags.includes(tag) ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-100 dark:border-gray-700'}`}>{tag}</button>))}
                 </div></div>
-                <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3 ml-1">Kommentar</h5><textarea value={data.comment} onChange={(e) => onUpdate({ comment: e.target.value })} placeholder="Anteckningar..." rows={4} className="w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800 rounded-[1.5rem] p-5 text-gray-900 dark:text-white text-base focus:ring-2 focus:ring-primary outline-none transition-all shadow-inner" /></div>
+                <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3 ml-1">Kommentar</h5><textarea value={data.comment} onChange={(e) => onUpdate({ comment: e.target.value })} placeholder="Anteckningar..." rows={4} className="w-full bg-white dark:bg-gray-800 border border-gray-100 border-gray-800 rounded-[1.5rem] p-5 text-gray-900 dark:text-white text-base focus:ring-2 focus:ring-primary outline-none transition-all shadow-inner" /></div>
             </div>
             <Modal isOpen={showRpeInfo} onClose={() => setShowRpeInfo(false)} title="Vad är RPE?" size="sm"><div className="space-y-6"><p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">RPE (Rate of Perceived Exertion) är en skala mellan 1-10 som hjälper dig att skatta din ansträngning.</p><div className="space-y-2">
                 {RPE_LEVELS.map(level => (<div key={level.range} className="flex gap-4 p-3 rounded-2xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800"><div className={`w-12 h-12 rounded-xl ${level.color} flex items-center justify-center text-white font-black flex-shrink-0 shadow-sm`}>{level.range}</div><div><h6 className="font-bold text-gray-900 dark:text-white text-sm">{level.label}</h6><p className="text-xs text-gray-500 dark:text-gray-400">{level.desc}</p></div></div>))}
@@ -481,6 +481,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                 let loadedLogData: LogData | null = null;
                 let loadedSessionStats: any = null;
                 let loadedCustomActivity: any = null;
+                let skipInsights = false;
 
                 if (savedSessionRaw) {
                     const saved = JSON.parse(savedSessionRaw);
@@ -491,6 +492,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                         loadedCustomActivity = saved.customActivity;
                         // Skip pre-game if we have a saved session
                         setViewMode('logging');
+                        skipInsights = true;
                     }
                 }
 
@@ -544,17 +546,19 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                 
                 setHistory(historyMap);
 
-                try {
-                    const exerciseNames = exercises.map(e => e.exerciseName);
-                    if (exerciseNames.length > 0) {
-                        const insights = await generateMemberInsights(logs, foundWorkout.title, exerciseNames);
-                        setAiInsights(insights);
-                    } else {
-                        setViewMode('logging');
+                if (!skipInsights) {
+                    try {
+                        const exerciseNames = exercises.map(e => e.exerciseName);
+                        if (exerciseNames.length > 0) {
+                            const insights = await generateMemberInsights(logs, foundWorkout.title, exerciseNames);
+                            setAiInsights(insights);
+                        } else {
+                            setViewMode('logging');
+                        }
+                    } catch (err) { 
+                        console.log("AI Insight Error", err); 
+                        if (viewMode === 'pre-game') setViewMode('logging');
                     }
-                } catch (err) { 
-                    console.log("AI Insight Error", err); 
-                    if (viewMode === 'pre-game') setViewMode('logging');
                 }
             }
         } catch (error) { console.error(error); }
@@ -570,6 +574,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
     const sessionData = {
         workoutId: wId || 'manual',
+        workoutTitle: isQuickWorkoutMode ? customActivity.name : (workout?.title || 'Träningspass'),
         organizationId: oId,
         memberId: userId,
         exerciseResults,
@@ -580,7 +585,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
     };
 
     localStorage.setItem(ACTIVE_LOG_STORAGE_KEY, JSON.stringify(sessionData));
-  }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, userId, wId, oId, isManualMode]);
+  }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, userId, wId, oId, isManualMode, workout, isQuickWorkoutMode]);
 
   const handleCancel = (isSuccess = false, diploma: WorkoutDiploma | null = null) => {
     // We don't necessarily clear it here if the user just "backs out", 
