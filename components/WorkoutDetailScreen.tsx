@@ -1,3 +1,4 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, StudioConfig, WorkoutResult } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
@@ -161,8 +162,9 @@ const MemberBlockView: React.FC<{ block: WorkoutBlock }> = ({ block }) => (
 const MemberWorkoutView: React.FC<{ 
     workout: Workout, 
     onClose?: () => void, 
-    onLog?: () => void
-}> = ({ workout, onClose, onLog }) => {
+    onLog?: () => void,
+    isLoggable: boolean
+}> = ({ workout, onClose, onLog, isLoggable }) => {
     return (
         <div className="pb-32 animate-fade-in">
             {/* Header Info */}
@@ -179,6 +181,11 @@ const MemberWorkoutView: React.FC<{
                     <span className="text-gray-400 dark:text-gray-500 text-xs font-bold uppercase tracking-wider">
                         {workout.blocks.length} delar
                     </span>
+                    {!isLoggable && (
+                        <span className="bg-gray-50 dark:bg-gray-800 text-gray-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-gray-100 dark:border-gray-700">
+                            Endast visning
+                        </span>
+                    )}
                 </div>
             </div>
 
@@ -206,12 +213,12 @@ const MemberWorkoutView: React.FC<{
                 {onClose && (
                     <button 
                     onClick={onClose}
-                    className="flex-1 bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-black py-4 rounded-[2rem] shadow-2xl transition-all transform active:scale-95 text-xs uppercase tracking-widest border border-gray-200 dark:border-gray-700"
+                    className={`bg-white dark:bg-gray-800 text-gray-900 dark:text-white font-black py-4 rounded-[2rem] shadow-2xl transition-all transform active:scale-95 text-xs uppercase tracking-widest border border-gray-200 dark:border-gray-700 ${onLog && isLoggable ? 'flex-1' : 'w-full'}`}
                     >
                         Stäng
                     </button>
                 )}
-                {onLog && (
+                {onLog && isLoggable && (
                     <button 
                     onClick={onLog}
                     className="flex-[2] bg-primary hover:brightness-110 text-white font-black py-4 rounded-[2rem] shadow-xl shadow-primary/40 transition-all transform active:scale-95 flex items-center justify-center gap-2 text-xs uppercase tracking-widest"
@@ -442,6 +449,11 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   const personalBestName = useMemo(() => localStorage.getItem('hyrox-participant-name'), []);
   const isHyroxRace = useMemo(() => workout.id.startsWith('hyrox-full-race') || workout.id.startsWith('custom-race'), [workout.id]);
 
+  const isWorkoutLoggable = useMemo(() => {
+      if (workout.logType === 'quick') return true;
+      return workout.blocks.some(b => b.exercises.some(e => e.loggingEnabled === true));
+  }, [workout]);
+
   useEffect(() => {
     setSessionWorkout(JSON.parse(JSON.stringify(workout)));
   }, [workout]);
@@ -506,6 +518,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                   workout={sessionWorkout} 
                   onClose={onClose} 
                   onLog={onLogWorkout ? () => onLogWorkout(workout.id, selectedOrganization.id) : undefined}
+                  isLoggable={isWorkoutLoggable}
               />
           </div>
       );
@@ -515,7 +528,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
 
   const isLoggingEnabled = studioConfig.enableWorkoutLogging || false;
   const showSidebar = !isStudioMode; 
-  const showQR = isLoggingEnabled && !!selectedStudio && !isPresentationMode;
+  const showQR = isLoggingEnabled && isWorkoutLoggable && !!selectedStudio && !isPresentationMode;
 
   return (
     <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pb-40 relative animate-fade-in">
@@ -539,6 +552,11 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                 {sessionWorkout.category && (
                     <span className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-gray-200 dark:border-gray-700">
                         {sessionWorkout.category}
+                    </span>
+                )}
+                {!isWorkoutLoggable && (
+                    <span className="bg-gray-50 dark:bg-gray-900/50 text-gray-400 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-gray-100 dark:border-gray-800">
+                        Endast visning
                     </span>
                 )}
             </div>
