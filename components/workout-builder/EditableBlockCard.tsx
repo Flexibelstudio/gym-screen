@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { WorkoutBlock, Exercise, BankExercise, TimerMode } from '../../types';
 import { EditableField } from './EditableField';
@@ -223,6 +224,15 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
         onUpdate(updatedBlock);
     };
 
+    const handleToggleAllLogging = () => {
+        const allEnabled = block.exercises.length > 0 && block.exercises.every(ex => ex.loggingEnabled);
+        const updatedExercises = block.exercises.map(ex => ({
+            ...ex,
+            loggingEnabled: !allEnabled
+        }));
+        onUpdate({ ...block, exercises: updatedExercises });
+    };
+
     const createNewExercise = (): Exercise => ({
         id: `ex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         name: '',
@@ -269,6 +279,8 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
 
         return `${displayString} (${formatTime(workTime)} / ${formatTime(restTime)})`;
     }, [block.settings]);
+
+    const allExercisesLogged = block.exercises.length > 0 && block.exercises.every(ex => ex.loggingEnabled);
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md border-2 border-gray-200 dark:border-gray-700">
@@ -344,10 +356,21 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
             </div>
             
             <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-                <button onClick={() => setIsExpanded(!isExpanded)} className="w-full flex justify-between items-center text-left text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                    <span>Övningar ({block.exercises.length})</span>
-                    <span>{isExpanded ? 'Dölj' : 'Visa'}</span>
-                </button>
+                <div className="flex justify-between items-center mb-3">
+                    <button onClick={() => setIsExpanded(!isExpanded)} className="flex justify-between items-center text-left text-lg font-bold text-gray-900 dark:text-white">
+                        <span>Övningar ({block.exercises.length})</span>
+                        <span className="ml-2">{isExpanded ? '▼' : '▶'}</span>
+                    </button>
+                    {isExpanded && block.exercises.length > 0 && (
+                        <button 
+                            onClick={handleToggleAllLogging}
+                            className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline px-2 py-1 rounded bg-primary/5 border border-primary/10"
+                        >
+                            {allExercisesLogged ? 'Avmarkera alla för loggning' : 'Logga alla i blocket'}
+                        </button>
+                    )}
+                </div>
+
                 {isExpanded && (
                     <div className="space-y-3">
                         {block.exercises.length === 0 ? (

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise } from '../types';
 import { ToggleSwitch, PencilIcon, ChartBarIcon, SparklesIcon, ChevronUpIcon, ChevronDownIcon, TrashIcon } from './icons';
@@ -354,7 +355,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
     return (
         <div 
             ref={searchContainerRef} 
-            className={`group p-3 rounded-lg flex items-start gap-3 transition-all relative border-l-4 ${
+            className={`group p-3 rounded-lg flex items-start gap-3 transition-all border-l-4 ${
                 exercise.loggingEnabled 
                 ? 'bg-green-50 dark:bg-green-900/10 border-green-500' 
                 : 'bg-gray-100 dark:bg-gray-700/50 border-transparent'
@@ -477,6 +478,15 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, onUpdate, onRemove,
         onUpdate(updated);
     };
 
+    const handleToggleAllLogging = () => {
+        const allEnabled = block.exercises.length > 0 && block.exercises.every(ex => ex.loggingEnabled);
+        const updatedExercises = block.exercises.map(ex => ({
+            ...ex,
+            loggingEnabled: !allEnabled
+        }));
+        onUpdate({ ...block, exercises: updatedExercises });
+    };
+
     const moveEx = (idx: number, dir: 'up' | 'down') => {
         const exs = [...block.exercises];
         if (dir === 'up' && idx > 0) [exs[idx], exs[idx-1]] = [exs[idx-1], exs[idx]];
@@ -506,8 +516,10 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, onUpdate, onRemove,
         return `${displayString} (${formatTime(workTime)} / ${formatTime(restTime)})`;
     }, [block.settings]);
 
+    const allExercisesLogged = block.exercises.length > 0 && block.exercises.every(ex => ex.loggingEnabled);
+
     return (
-        <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-6 shadow-sm border border-gray-100 dark:border-gray-800 space-y-5">
+        <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-6 shadow-sm border border-gray-100 dark:border-gray-800 space-y-5">
             <div className="flex justify-between items-start">
                 <div className="flex-grow">
                     <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-1 block">Block {index}</label>
@@ -529,7 +541,6 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, onUpdate, onRemove,
                 rows={2}
             />
 
-            {/* --- NY TOGGLE: VISA BESKRIVNING I TIMERN --- */}
             <div className="flex flex-col gap-3">
                 <ToggleSwitch 
                     label="Visa beskrivning i timern" 
@@ -541,18 +552,25 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, onUpdate, onRemove,
                     checked={!!block.followMe} 
                     onChange={v => handleFieldChange('followMe', v)} 
                 />
-                <p className="text-xs text-gray-500 mt-1 pl-2">
-                    <span className="font-bold">På:</span> Alla gör samma övning samtidigt. <span className="font-bold">Av:</span> För stationsbaserad cirkelträning.
-                </p>
             </div>
 
-            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl flex justify-between items-center border border-gray-100 dark:border-gray-700">
+            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl flex justify-between items-center border border-gray-100 dark:border-gray-800">
                 <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Timer: <span className="text-gray-900 dark:text-white">{block.settings.mode}</span></div>
                 <button onClick={onEditSettings} className="text-primary font-black text-xs uppercase tracking-widest">Ändra</button>
             </div>
 
             <div className="space-y-3 pt-2">
-                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Övningar ({block.exercises.length})</h4>
+                <div className="flex justify-between items-center mb-1">
+                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Övningar ({block.exercises.length})</h4>
+                    {block.exercises.length > 0 && (
+                        <button 
+                            onClick={handleToggleAllLogging}
+                            className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline px-2 py-1 rounded bg-primary/5 border border-primary/10"
+                        >
+                            {allExercisesLogged ? 'Avmarkera alla för loggning' : 'Logga alla i blocket'}
+                        </button>
+                    )}
+                </div>
                 {block.exercises.map((ex, i) => (
                     <ExerciseItem 
                         key={ex.id} exercise={ex} 
@@ -562,7 +580,7 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, onUpdate, onRemove,
                         exerciseBank={exerciseBank} index={i} total={block.exercises.length} onMove={dir => moveEx(i, dir)} 
                     />
                 ))}
-                <button onClick={() => onUpdate({ ...block, exercises: [...block.exercises, createNewExercise()] })} className="w-full py-3 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-[2rem] text-gray-400 text-sm font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">+ Lägg till övning</button>
+                <button onClick={() => onUpdate({ ...block, exercises: [...block.exercises, createNewExercise()] })} className="w-full py-3 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-[2.5rem] text-gray-400 text-sm font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">+ Lägg till övning</button>
             </div>
         </div>
     );
@@ -612,37 +630,41 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
     };
 
     return (
-        <div className="w-full max-w-2xl mx-auto space-y-6 pb-24 animate-fade-in px-4">
-            <div className="bg-primary/10 p-6 rounded-[2rem] border border-primary/20">
-                <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1 block">Passinformation</label>
-                <input 
-                    type="text" value={workout.title} 
-                    onChange={e => setWorkout({ ...workout, title: e.target.value })} 
-                    placeholder="Namnge ditt pass..." 
-                    className="w-full bg-transparent text-3xl font-black text-gray-900 dark:text-white focus:outline-none placeholder-primary/20 mb-4" 
-                />
-                <textarea 
-                    value={workout.coachTips || ''} 
-                    onChange={e => setWorkout({ ...workout, coachTips: e.target.value })} 
-                    placeholder="Allmänna tips (valfritt)..." 
-                    className="w-full bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 text-sm focus:ring-1 focus:ring-primary outline-none" 
-                    rows={2}
-                />
-            </div>
+        <div className="w-full h-full flex flex-col animate-fade-in bg-gray-50 dark:bg-black">
+            <div className="flex-grow overflow-y-auto px-4 pb-24 pt-4 custom-scrollbar">
+                <div className="max-w-2xl mx-auto space-y-6">
+                    <div className="bg-primary/10 p-6 rounded-[2.5rem] border border-primary/20">
+                        <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] mb-1 block">Passinformation</label>
+                        <input 
+                            type="text" value={workout.title} 
+                            onChange={e => setWorkout({ ...workout, title: e.target.value })} 
+                            placeholder="Namnge ditt pass..." 
+                            className="w-full bg-transparent text-3xl font-black text-gray-900 dark:text-white focus:outline-none placeholder-primary/20 mb-4" 
+                        />
+                        <textarea 
+                            value={workout.coachTips || ''} 
+                            onChange={e => setWorkout({ ...workout, coachTips: e.target.value })} 
+                            placeholder="Allmänna tips (valfritt)..." 
+                            className="w-full bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 text-sm focus:ring-1 focus:ring-primary outline-none" 
+                            rows={2}
+                        />
+                    </div>
 
-            <div className="space-y-6">
-                {workout.blocks.map((block, i) => (
-                    <BlockCard 
-                        key={block.id} block={block} index={i+1} 
-                        onUpdate={handleUpdateBlock} 
-                        onRemove={() => handleRemoveBlock(block.id)} 
-                        onEditSettings={() => setEditingBlockId(block.id)} 
-                        onOpenHandwriting={setHandwritingCb} exerciseBank={exerciseBank} 
-                    />
-                ))}
-            </div>
+                    <div className="space-y-6">
+                        {workout.blocks.map((block, i) => (
+                            <BlockCard 
+                                key={block.id} block={block} index={i+1} 
+                                onUpdate={handleUpdateBlock} 
+                                onRemove={() => handleRemoveBlock(block.id)} 
+                                onEditSettings={() => setEditingBlockId(block.id)} 
+                                onOpenHandwriting={setHandwritingCb} exerciseBank={exerciseBank} 
+                            />
+                        ))}
+                    </div>
 
-            <button onClick={handleAddBlock} className="w-full py-5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-black rounded-[2rem] border-2 border-dashed border-gray-200 dark:border-gray-700 uppercase tracking-widest text-sm hover:bg-gray-200 transition-colors">Lägg till block</button>
+                    <button onClick={handleAddBlock} className="w-full py-5 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-black rounded-[2.5rem] border-2 border-dashed border-gray-200 dark:border-gray-700 uppercase tracking-widest text-sm hover:bg-gray-200 transition-colors">Lägg till block</button>
+                </div>
+            </div>
 
             <div className="fixed bottom-6 left-4 right-4 max-w-2xl mx-auto z-40 flex gap-3">
                 <button onClick={onCancel} className="flex-1 bg-white dark:bg-gray-800 text-gray-500 py-4 rounded-2xl font-black border border-gray-200 dark:border-gray-700 shadow-xl uppercase tracking-widest text-xs">Avbryt</button>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog } from '../../services/firebaseService';
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage } from '../../services/geminiService';
@@ -13,6 +14,37 @@ import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
+
+// --- Loading Component: Glassmorphism Pulsating Star ---
+const LogLoadingView: React.FC = () => {
+    return (
+        <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1000] bg-white/40 dark:bg-black/40 backdrop-blur-2xl flex flex-col items-center justify-center p-8"
+        >
+            <motion.div
+                animate={{ 
+                    scale: [1, 1.2, 1],
+                    opacity: [0.6, 1, 0.6],
+                    filter: ["drop-shadow(0 0 0px rgba(20,184,166,0))", "drop-shadow(0 0 20px rgba(20,184,166,0.5))", "drop-shadow(0 0 0px rgba(20,184,166,0))"]
+                }}
+                transition={{ 
+                    duration: 2, 
+                    repeat: Infinity, 
+                    ease: "easeInOut" 
+                }}
+                className="text-primary"
+            >
+                <SparklesIcon className="w-24 h-24" />
+            </motion.div>
+            
+            {/* Subtle light pulse behind the star */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/10 rounded-full blur-[80px] pointer-events-none"></div>
+        </motion.div>
+    );
+};
 
 // --- Local Types for Form State ---
 
@@ -136,7 +168,7 @@ const getFunComparison = (totalWeight: number) => {
     const suitableComparisons = WEIGHT_COMPARISONS.filter(item => totalWeight >= item.weight);
     if (suitableComparisons.length === 0) {
         const item = WEIGHT_COMPARISONS[0];
-        return { count: (totalWeight / item.weight).toFixed(1), name: item.name, single: item.singular, weight: item.weight, emoji: item.emoji };
+        return { count: (totalWeight / item.weight).toFixed(1), name: item.name, singular: item.singular, weight: item.weight, emoji: item.emoji };
     }
     const niceMatches = suitableComparisons.filter(item => {
         const count = totalWeight / item.weight;
@@ -145,7 +177,7 @@ const getFunComparison = (totalWeight: number) => {
     let bestMatch = niceMatches.length > 0 ? niceMatches[Math.floor(Math.random() * niceMatches.length)] : suitableComparisons[suitableComparisons.length - 1];
     const rawCount = totalWeight / bestMatch.weight;
     const formattedCount = rawCount < 10 ? rawCount.toFixed(1) : Math.round(rawCount).toString();
-    return { count: formattedCount, name: bestMatch.name, single: bestMatch.singular, weight: bestMatch.weight, emoji: bestMatch.emoji };
+    return { count: formattedCount, name: bestMatch.name, singular: bestMatch.singular, weight: bestMatch.weight, emoji: bestMatch.emoji };
 };
 
 const COMMON_ACTIVITIES = ["Funktionell Träning", "HIIT", "Löpning", "Promenad", "Workout", "Yoga", "Cykling", "Simning", "Racketsport", "Vardagsmotion"];
@@ -321,7 +353,7 @@ const ExerciseLogCard: React.FC<{
                                 )}
                             </div>
                             <div className="flex justify-center">
-                                <button onClick={() => handleToggleComplete(index)} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
+                                <button onClick={handleToggleComplete(index)} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
                                     <CheckIcon className="w-5 h-5" />
                                 </button>
                             </div>
@@ -490,20 +522,14 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                 }
 
                 const exercises: LocalExerciseResult[] = [];
-                const hasExplicitLogging = foundWorkout.blocks.some(b => 
-                    b.exercises.some(e => e.loggingEnabled === true)
-                );
 
                 foundWorkout.blocks.forEach(block => {
                     if (block.tag === 'Uppvärmning') return;
                     const defaultSets: LocalSetDetail[] = [{ weight: '', reps: '', completed: false }];
 
                     block.exercises.forEach(ex => {
-                        const shouldInclude = hasExplicitLogging 
-                            ? ex.loggingEnabled === true 
-                            : ex.loggingEnabled !== false;
-
-                        if (shouldInclude) {
+                        // STRICT FILTER: Only include exercises explicitly marked for logging
+                        if (ex.loggingEnabled === true) {
                             // Use loaded result if available, else new
                             const savedRes = loadedResults?.find(lr => lr.exerciseId === ex.id);
                             exercises.push(savedRes || {
@@ -801,6 +827,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       );
   }
 
+  if (isSubmitting) {
+      return <LogLoadingView />;
+  }
+
   if (viewMode === 'pre-game' && aiInsights && workout) {
       return (
           <PreGameView 
@@ -911,6 +941,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   />
               ) : (
                   <>
+                    {exerciseResults.length === 0 && (
+                        <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800 text-center mb-8">
+                            <p className="text-gray-500 text-sm">Inga övningar i detta pass är markerade för specifik loggning. Du kan fortfarande ange distans, kcal och skriva en kommentar nedan.</p>
+                        </div>
+                    )}
+                    
                     {exerciseResults.map((result, index) => {
                         const isNewBlock = index === 0 || result.blockId !== exerciseResults[index - 1].blockId;
                         return (
@@ -938,7 +974,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                     <div className="mt-8 mb-6 bg-white dark:bg-gray-900 p-5 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Kalorier (kcal)</label>
+                                <label className="block text-11px font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Kalorier (kcal)</label>
                                 <input 
                                     type="number"
                                     value={sessionStats.calories}
@@ -948,7 +984,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                 />
                             </div>
                             <div>
-                                <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Distans (km)</label>
+                                <label className="block text-11px font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Distans (km)</label>
                                 <input 
                                     type="number"
                                     value={sessionStats.distance}
@@ -969,7 +1005,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
               {/* ACTION BUTTONS - IN CONTENT FLOW */}
               <div className="mt-12 space-y-4 pb-12">
-                  {!isFormValid && !isQuickWorkoutMode && !isManualMode && (
+                  {!isFormValid && !isQuickWorkoutMode && !isManualMode && uncheckedSetsCount > 0 && (
                       <div className="text-center animate-fade-in">
                           <p className="text-orange-600 dark:text-orange-400 text-xs font-black uppercase tracking-widest mb-1 flex items-center justify-center gap-1">
                               <InformationCircleIcon className="w-3.5 h-3.5" /> {uncheckedSetsCount} set kvar att checka av
