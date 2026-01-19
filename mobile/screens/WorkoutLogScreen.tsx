@@ -321,7 +321,7 @@ const ExerciseLogCard: React.FC<{
                                 )}
                             </div>
                             <div className="flex justify-center">
-                                <button onClick={handleToggleComplete(index)} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
+                                <button onClick={() => handleToggleComplete(index)} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
                                     <CheckIcon className="w-5 h-5" />
                                 </button>
                             </div>
@@ -351,8 +351,8 @@ const CustomActivityForm: React.FC<{
                     </>
                 )}
                 <div className={`mt-4 space-y-5 ${isQuickMode ? 'mt-0' : 'mt-8'}`}>
-                    <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Aktivitet *</label><input value={activityName} onChange={(e) => onUpdate('name', e.target.value)} placeholder="T.ex. Powerwalk" disabled={isQuickMode} className={`w-full text-xl font-black text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 ${isQuickMode ? 'opacity-70' : ''}`} /></div>
-                    <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Tid (min) *</label><input type="number" value={duration} onChange={(e) => onUpdate('duration', e.target.value)} placeholder="T.ex. 60" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
+                    <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Aktivitet *</label><input value={activityName} onChange={(e) => onUpdate('name', e.target.value)} placeholder="T.ex. Powerwalk" disabled={isQuickMode} className={`w-full text-xl font-black text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 ${isQuickMode ? 'opacity-70' : ''}`} /></div>
+                    <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Tid (min) *</label><input type="number" value={duration} onChange={(e) => onUpdate('duration', e.target.value)} placeholder="T.ex. 60" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
                     <div className="grid grid-cols-2 gap-4">
                         <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Kalorier (kcal)</label><input type="number" value={calories} onChange={(e) => onUpdate('calories', e.target.value)} placeholder="T.ex. 350" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
                         <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Distans (km)</label><input type="number" value={distance} onChange={(e) => onUpdate('distance', e.target.value)} placeholder="T.ex. 5.3" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
@@ -405,14 +405,14 @@ const cleanForFirestore = (obj: any): any => {
 };
 
 // --- NEW COMPONENT: AI SUBMIT OVERLAY ---
-const AiSubmitOverlay: React.FC = () => (
+const AiSubmitOverlay: React.FC<{ statusText: string }> = ({ statusText }) => (
     <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[12000] bg-white/60 dark:bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center"
     >
-        <div className="relative mb-12">
+        <div className="relative">
             {/* Animated Glow behind icon */}
             <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full scale-150 animate-pulse"></div>
             
@@ -422,23 +422,10 @@ const AiSubmitOverlay: React.FC = () => (
                     rotate: [0, 5, -5, 0]
                 }}
                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="w-32 h-32 bg-white/10 dark:bg-white/10 rounded-[2.5rem] flex items-center justify-center border border-gray-200 dark:border-white/20 shadow-2xl relative z-10"
+                className="w-32 h-32 bg-white/10 rounded-[2.5rem] flex items-center justify-center border border-white/20 shadow-2xl relative z-10"
             >
                 <SparklesIcon className="w-16 h-16 text-primary" />
             </motion.div>
-            
-            {/* Orbiting particles */}
-            <motion.div 
-                animate={{ rotate: 360 }}
-                transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-                className="absolute inset-0 border-2 border-dashed border-gray-300 dark:border-white/10 rounded-full scale-[1.8]"
-            />
-        </div>
-
-        <div className="flex gap-2 items-center justify-center mt-8">
-            <span className="w-2 h-2 bg-primary rounded-full animate-bounce"></span>
-            <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-            <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
         </div>
     </motion.div>
 );
@@ -457,6 +444,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [exerciseResults, setExerciseResults] = useState<LocalExerciseResult[]>([]);
   const [logData, setLogData] = useState<LogData>({ rpe: null, feeling: null, tags: [], comment: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatusText, setSubmitStatusText] = useState('Sparar ditt pass...');
   const [showCelebration, setShowCelebration] = useState(false);
   const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
   const [showCalculator, setShowCalculator] = useState(false);
@@ -679,6 +667,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       if (!isFormValid || !oId) return;
 
       setIsSubmitting(true);
+      setSubmitStatusText('Sparar ditt pass...');
       
       try {
           const isQuickOrManual = isManualMode || workout?.logType === 'quick';
@@ -758,6 +747,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               // 1. Spara loggen först för att beräkna PBs
               const { log: savedLog, newRecords } = await saveWorkoutLog(cleanForFirestore(finalLogRaw));
 
+              setSubmitStatusText('Analyserar din prestation...');
               let diplomaData: WorkoutDiploma | null = null;
 
               // 2. Skapa diplom baserat på volym
@@ -795,6 +785,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   }
               }
 
+              setSubmitStatusText('Designar ditt diplom...');
               // 4. Generera bild och ladda upp om prompt finns
               if (diplomaData && diplomaData.imagePrompt) {
                   try {
@@ -850,7 +841,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
     <div className="bg-gray-5 dark:bg-black text-gray-900 dark:text-white flex flex-col relative h-full">
       <AnimatePresence>
         {isSubmitting && !showCelebration && (
-            <AiSubmitOverlay />
+            <AiSubmitOverlay statusText={submitStatusText} />
         )}
       </AnimatePresence>
       
