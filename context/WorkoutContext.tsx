@@ -1,3 +1,4 @@
+
 import React, { createContext, useReducer, useContext, useEffect, useCallback, ReactNode } from 'react';
 import { workoutReducer, initialState, WorkoutAction, WorkoutState } from './workoutReducer';
 import { useStudio } from './StudioContext';
@@ -21,8 +22,26 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
         if (selectedOrganization) {
             dispatch({ type: 'LOAD_WORKOUTS_START' });
             getWorkoutsForOrganization(selectedOrganization.id)
-                .then(workouts => {
-                    dispatch({ type: 'LOAD_WORKOUTS_SUCCESS', payload: workouts });
+                .then(async (workouts) => {
+                    // --- CLEANUP LOGIC: Delete drafts older than 24h ---
+                    const now = Date.now();
+                    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+                    
+                    const expiredDrafts = workouts.filter(w => 
+                        !w.isFavorite && 
+                        !w.isPublished && 
+                        w.createdAt < (now - TWENTY_FOUR_HOURS)
+                    );
+
+                    if (expiredDrafts.length > 0) {
+                        console.log(`Cleaning up ${expiredDrafts.length} expired drafts...`);
+                        await Promise.all(expiredDrafts.map(w => firebaseDeleteWorkout(w.id)));
+                        // Return filtered list immediately for UI snappiness
+                        const validWorkouts = workouts.filter(w => !expiredDrafts.find(ed => ed.id === w.id));
+                        dispatch({ type: 'LOAD_WORKOUTS_SUCCESS', payload: validWorkouts });
+                    } else {
+                        dispatch({ type: 'LOAD_WORKOUTS_SUCCESS', payload: workouts });
+                    }
                 })
                 .catch(error => {
                     dispatch({ type: 'LOAD_WORKOUTS_ERROR', payload: error.message });

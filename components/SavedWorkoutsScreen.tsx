@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Workout } from '../types';
 import { StarIcon, PencilIcon, InformationCircleIcon, ClockIcon } from './icons';
@@ -26,6 +27,13 @@ const PlayIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) =
 
 const SavedWorkoutsScreen: React.FC<SavedWorkoutsScreenProps> = ({ workouts, onSelectWorkout, onEditWorkout, onDeleteWorkout, onToggleFavorite, onCreateNewWorkout, isStudioMode }) => {
 
+    const getTimeLeft = (createdAt: number) => {
+        const now = Date.now();
+        const diff = (createdAt + 24 * 60 * 60 * 1000) - now;
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        return hours > 0 ? `${hours}h` : '<1h';
+    };
+
     return (
         <div className="w-full max-w-6xl mx-auto animate-fade-in pb-12 px-4 sm:px-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-10 gap-4">
@@ -40,9 +48,9 @@ const SavedWorkoutsScreen: React.FC<SavedWorkoutsScreenProps> = ({ workouts, onS
                     <InformationCircleIcon className="w-6 h-6" />
                 </div>
                 <div>
-                    <h3 className="font-bold text-yellow-800 dark:text-yellow-200 mb-1">Bra att veta</h3>
+                    <h3 className="font-bold text-yellow-800 dark:text-yellow-200 mb-1">Rensning av utkast</h3>
                     <p className="text-yellow-700 dark:text-yellow-300 text-sm leading-relaxed">
-                        Klicka på <StarIcon filled className="w-3 h-3 inline" /> för att spara en justering permanent. Pass utan stjärna betraktas som tillfälliga utkast.
+                        Här sparas dina utkast i 24 timmar. Klicka på stjärnan (<StarIcon filled className="w-3 h-3 inline" />) för att spara ett pass permanent.
                     </p>
                 </div>
             </div>
@@ -57,6 +65,11 @@ const SavedWorkoutsScreen: React.FC<SavedWorkoutsScreenProps> = ({ workouts, onS
                             {/* Header */}
                             <div className="flex justify-between items-start gap-4 mb-4">
                                 <div className="min-w-0">
+                                    {!workout.isFavorite && !workout.isPublished && (
+                                        <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 px-2 py-1 rounded-md mb-2 animate-pulse">
+                                            <ClockIcon className="w-3 h-3" /> Raderas om {getTimeLeft(workout.createdAt)}
+                                        </span>
+                                    )}
                                     {workout.isMemberDraft && (
                                         <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-md mb-2">
                                             <PencilIcon className="w-3 h-3" /> Justering
