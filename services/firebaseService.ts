@@ -1,3 +1,4 @@
+
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -449,6 +450,12 @@ export const updateOrganizationPasswords = async (id: string, passwords: Organiz
 export const updateOrganizationLogos = async (id: string, logos: { light: string; dark: string }) => {
     if(isOffline || !db || !id) return;
     await updateDoc(doc(db, 'organizations', id), { logoUrlLight: logos.light, logoUrlDark: logos.dark });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationFavicon = async (id: string, faviconUrl: string) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { faviconUrl });
     return getOrganizationById(id);
 };
 

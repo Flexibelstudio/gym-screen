@@ -10,7 +10,7 @@ import { useWorkout } from './context/WorkoutContext';
 import { AppRouter } from './components/AppRouter';
 
 // --- Services ---
-import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel } from './services/firebaseService';
+import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon } from './services/firebaseService';
 
 // --- Components ---
 import { WorkoutCompleteModal } from './components/WorkoutCompleteModal';
@@ -170,7 +170,7 @@ const App: React.FC = () => {
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const [customPageToEdit, setCustomPageToEdit] = useState<CustomPage | null>(null);
   const [studioToEditConfig, setStudioToEditConfig] = useState<Studio | null>(null);
-  const [completionInfo, setCompletionInfo] = useState<{ workout: Workout, isFinal: boolean, blockTag?: string, finishTime?: number } | null>(null);
+  const [completionInfo, setCompletionInfo] =<{ workout: Workout, isFinal: boolean, blockTag?: string, finishTime?: number } | null>(null);
   const [preferredAdminTab, setPreferredAdminTab] = useState<string>('dashboard');
   
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -210,6 +210,30 @@ const App: React.FC = () => {
   const [followMeShowImage, setFollowMeShowImage] = useState(true);
   const inactivityTimerRef = useRef<number | null>(null);
   const [profileEditTrigger, setProfileEditTrigger] = useState(0);
+
+  // Dynamically update favicon and apple-touch-icon based on organization branding
+  useEffect(() => {
+    const faviconUrl = selectedOrganization?.faviconUrl;
+    if (faviconUrl) {
+      // Update browser tab icon
+      let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.getElementsByTagName('head')[0].appendChild(link);
+      }
+      link.href = faviconUrl;
+
+      // Update PWA/iOS homescreen icon
+      let appleLink: HTMLLinkElement | null = document.querySelector("link[rel='apple-touch-icon']");
+      if (!appleLink) {
+        appleLink = document.createElement('link');
+        appleLink.rel = 'apple-touch-icon';
+        document.getElementsByTagName('head')[0].appendChild(appleLink);
+      }
+      appleLink.href = faviconUrl;
+    }
+  }, [selectedOrganization?.faviconUrl]);
 
   useEffect(() => {
       const params = new URLSearchParams(window.location.search);
@@ -753,6 +777,16 @@ const App: React.FC = () => {
     }
   };
 
+  const handleUpdateOrganizationFavicon = async (organizationId: string, faviconUrl: string) => {
+    try {
+        const updatedOrg = await updateOrganizationFavicon(organizationId, faviconUrl);
+        setAllOrganizations(prev => prev.map(o => (o.id === organizationId ? updatedOrg : o)));
+        if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
+    } catch (error) {
+        console.error("Failed to update favicon:", error);
+    }
+  };
+
   const handleUpdateOrganizationPrimaryColor = async (organizationId: string, color: string) => {
     try {
         const updatedOrg = await updateOrganizationPrimaryColor(organizationId, color);
@@ -944,6 +978,7 @@ const App: React.FC = () => {
                     deleteStudio: handleDeleteStudio,
                     updatePasswords: handleUpdateOrganizationPasswords,
                     updateLogos: handleUpdateOrganizationLogos,
+                    updateFavicon: handleUpdateOrganizationFavicon,
                     updatePrimaryColor: handleUpdateOrganizationPrimaryColor,
                     updateOrganization: handleUpdateOrganization,
                     updateCustomPages: handleUpdateOrganizationCustomPages,

@@ -1,3 +1,4 @@
+
 export type UserRole = 'member' | 'coach' | 'organizationadmin' | 'systemowner';
 
 export interface ExerciseOverride {
@@ -231,6 +232,7 @@ export interface Organization {
   status: 'active' | 'archived';
   logoUrlLight?: string;
   logoUrlDark?: string;
+  faviconUrl?: string;
   primaryColor?: string;
   passwords: {
     coach: string;

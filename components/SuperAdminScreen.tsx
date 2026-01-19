@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { StudioConfig, Studio, Organization, CustomPage, UserData, UserRole, InfoCarousel, DisplayWindow, Workout, CompanyDetails, ThemeOption } from '../types';
 import { ToggleSwitch, HomeIcon, DocumentTextIcon, SpeakerphoneIcon, SparklesIcon, UsersIcon, DumbbellIcon, BriefcaseIcon, BuildingIcon, SettingsIcon, ChartBarIcon, SaveIcon, CopyIcon, PencilIcon, TrashIcon, CloseIcon, InformationCircleIcon, CheckIcon } from './icons';
@@ -61,6 +62,7 @@ interface SuperAdminScreenProps {
     onDeleteStudio: (organizationId: string, studioId: string) => Promise<void>;
     onUpdatePasswords: (organizationId: string, passwords: Organization['passwords']) => Promise<void>;
     onUpdateLogos: (organizationId: string, logos: { light: string; dark: string }) => Promise<void>;
+    onUpdateFavicon: (organizationId: string, faviconUrl: string) => Promise<void>;
     onUpdatePrimaryColor: (organizationId: string, color: string) => Promise<void>;
     onUpdateOrganization: (organizationId: string, name: string, subdomain: string, inviteCode?: string) => Promise<void>;
     onUpdateOrganizationCompanyDetails?: (organizationId: string, details: CompanyDetails) => Promise<void>;
@@ -796,7 +798,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                                     
                                     {organization.inviteCode ? (
                                         <div className="flex flex-col sm:flex-row items-center gap-4">
-                                            <div className="bg-gray-50 dark:bg-gray-900/50 px-8 py-3 rounded-2xl border-2 border-primary/20 shadow-inner">
+                                            <div className="bg-gray-5 dark:bg-gray-900/50 px-8 py-3 rounded-2xl border-2 border-primary/20 shadow-inner">
                                                 <span className="text-4xl font-black font-mono tracking-[0.15em] text-primary">
                                                     {organization.inviteCode}
                                                 </span>
@@ -812,7 +814,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                                             </button>
                                         </div>
                                     ) : (
-                                        <div className="p-4 text-center bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                                        <div className="p-4 text-center bg-gray-5 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
                                             <button 
                                                 onClick={handleGenerateNewInviteCode}
                                                 className="bg-primary text-white px-6 py-2 rounded-lg font-bold shadow-md hover:brightness-110"
@@ -883,7 +885,13 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             case 'studios':
                 return <StudiosContent {...props} />;
             case 'varumarke':
-                return <VarumarkeContent {...props} />;
+                return <VarumarkeContent 
+                            organization={organization}
+                            onUpdatePasswords={props.onUpdatePasswords}
+                            onUpdateLogos={props.onUpdateLogos}
+                            onUpdateFavicon={props.onUpdateFavicon}
+                            onUpdatePrimaryColor={props.onUpdatePrimaryColor}
+                        />;
             case 'company-info':
                 return <CompanyInfoContent organization={organization} onEdit={() => setShowOnboardingModal(true)} />;
             case 'ovningsbank':

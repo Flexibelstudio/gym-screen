@@ -7,13 +7,17 @@ interface VarumarkeContentProps {
     organization: Organization;
     onUpdatePasswords: (organizationId: string, passwords: Organization['passwords']) => Promise<void>;
     onUpdateLogos: (organizationId: string, logos: { light: string; dark: string }) => Promise<void>;
+    onUpdateFavicon: (organizationId: string, faviconUrl: string) => Promise<void>;
     onUpdatePrimaryColor: (organizationId: string, color: string) => Promise<void>;
 }
 
-export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({ organization, onUpdatePasswords, onUpdateLogos, onUpdatePrimaryColor }) => {
+export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({ 
+    organization, onUpdatePasswords, onUpdateLogos, onUpdateFavicon, onUpdatePrimaryColor 
+}) => {
     const [passwords, setPasswords] = useState(organization.passwords);
     const [logoLight, setLogoLight] = useState(organization.logoUrlLight || '');
     const [logoDark, setLogoDark] = useState(organization.logoUrlDark || '');
+    const [favicon, setFavicon] = useState(organization.faviconUrl || '');
     const [primaryColor, setPrimaryColor] = useState(organization.primaryColor || '#14b8a6');
     const [isSaving, setIsSaving] = useState(false);
 
@@ -21,6 +25,7 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({ organization
         passwords.coach !== organization.passwords.coach ||
         logoLight !== (organization.logoUrlLight || '') ||
         logoDark !== (organization.logoUrlDark || '') ||
+        favicon !== (organization.faviconUrl || '') ||
         primaryColor !== (organization.primaryColor || '#14b8a6');
 
     const handleSave = async () => {
@@ -29,6 +34,7 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({ organization
             await Promise.all([
                 onUpdatePasswords(organization.id, passwords),
                 onUpdateLogos(organization.id, { light: logoLight, dark: logoDark }),
+                onUpdateFavicon(organization.id, favicon),
                 onUpdatePrimaryColor(organization.id, primaryColor)
             ]);
             alert("Ändringar sparade!");
@@ -94,6 +100,35 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({ organization
                                 organizationId={organization.id} 
                             />
                             <p className="text-xs text-gray-500 mt-2">Ladda upp en ljus logotyp (helst PNG med transparent bakgrund) som syns bra mot mörka bakgrunder.</p>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Favicon / App Icon */}
+                <section>
+                    <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">App-ikon & Favicon</h4>
+                    <div className="bg-gray-50 dark:bg-gray-900/30 p-6 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Ikon (512x512px rekommenderas)</label>
+                                <ImageUploaderForBanner 
+                                    imageUrl={favicon} 
+                                    onImageChange={setFavicon} 
+                                    organizationId={organization.id} 
+                                />
+                                <p className="text-xs text-gray-500 mt-2">Denna ikon visas när medlemmar sparar appen på sin hemskärm och som ikon i webbläsarfliken. Använd en kvadratisk bild utan transparens för bästa resultat.</p>
+                            </div>
+                            <div className="pt-8">
+                                <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-xl overflow-hidden bg-gray-100 shrink-0 border border-gray-100">
+                                        {favicon ? <img src={favicon} alt="Preview" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-primary/20"></div>}
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-sm text-gray-900 dark:text-white">Förhandsgranskning</p>
+                                        <p className="text-xs text-gray-500">Så här kommer er ikon se ut i mobilen.</p>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </section>
