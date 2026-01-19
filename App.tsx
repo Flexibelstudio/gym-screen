@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma } from './types';
 
@@ -522,7 +523,7 @@ const App: React.FC = () => {
   }
   
   const handleWorkoutInterpretedFromNote = (workout: Workout) => {
-    setActiveWorkout({ ...workout, isMemberDraft: true });
+    setActiveWorkout({ ...workout }); // Option 2: Remove isMemberDraft flag
     setIsEditingNewDraft(true);
     navigateTo(Page.SimpleWorkoutBuilder);
   };
@@ -975,8 +976,8 @@ const App: React.FC = () => {
                     handleStartFreestandingTimer: handleStartFreestandingTimer,
                     handleStartRace: handleStartRace,
                     handleSelectRace: handleSelectRace,
-                    handleReturnToGroupPrep: handleReturnToGroupPrep,
                     handleSelectCustomPage: handleSelectCustomPage,
+                    handleReturnToGroupPrep: handleReturnToGroupPrep,
                     
                     handleMemberProfileRequest: handleMemberProfileRequest,
                     handleEditProfileRequest: handleEditProfileRequest,
