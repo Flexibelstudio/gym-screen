@@ -30,7 +30,9 @@ import {
   writeBatch, 
   deleteField,
   serverTimestamp,
-  Firestore
+  Firestore,
+  DocumentData,
+  QuerySnapshot
 } from 'firebase/firestore';
 import { 
   getStorage, 
@@ -98,14 +100,26 @@ export const onAuthChange = (callback: (user: User | null) => void) => {
     return onAuthStateChanged(auth, callback);
 };
 
-export const signIn = (email: string, password: string): Promise<User> => {
-    if (isOffline || !auth) return Promise.reject("Offline");
-    return signInWithEmailAndPassword(auth, email, password).then(c => c.user);
+export const signIn = async (email: string, password: string): Promise<User> => {
+    if (isOffline || !auth) throw new Error("Appen är i offline-läge.");
+    try {
+        const credential = await signInWithEmailAndPassword(auth, email, password);
+        return credential.user;
+    } catch (error) {
+        console.error("SignIn failed:", error);
+        throw error;
+    }
 };
 
-export const signInAsStudio = (): Promise<User> => {
-    if (isOffline || !auth) return Promise.resolve({ uid: 'offline_studio_uid', isAnonymous: true } as User);
-    return signInAnonymously(auth).then(c => c.user);
+export const signInAsStudio = async (): Promise<User> => {
+    if (isOffline || !auth) return { uid: 'offline_studio_uid', isAnonymous: true } as User;
+    try {
+        const credential = await signInAnonymously(auth);
+        return credential.user;
+    } catch (error) {
+        console.error("Anonymous sign-in failed:", error);
+        throw error;
+    }
 };
 
 export const signOut = (): Promise<void> => (isOffline || !auth) ? Promise.resolve() : firebaseSignOut(auth);
@@ -120,30 +134,38 @@ export const reauthenticateUser = async (user: User, password: string) => {
 
 export const updateUserTermsAccepted = async (uid: string) => {
     if (isOffline || !db || !uid) return;
-    await updateDoc(doc(db, 'users', uid), { termsAcceptedAt: Date.now() });
+    try {
+        await updateDoc(doc(db, 'users', uid), { termsAcceptedAt: Date.now() });
+    } catch (e) { console.error("Terms update failed", e); }
 };
 
 // --- PEOPLE HUB (MEDLEMSHANTERING) ---
 
 export const getMembers = async (orgId: string): Promise<Member[]> => {
     if (isOffline || !db || !orgId) return MOCK_MEMBERS;
-    const q = query(collection(db, 'users'), where('organizationId', '==', orgId));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => ({ ...d.data(), uid: d.id, id: d.id }) as Member);
+    try {
+        const q = query(collection(db, 'users'), where('organizationId', '==', orgId));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ ...d.data(), uid: d.id, id: d.id }) as Member);
+    } catch (e) { console.error("getMembers failed", e); return []; }
 };
 
 export const getAdminsForOrganization = async (orgId: string): Promise<UserData[]> => {
     if (isOffline || !db || !orgId) return [MOCK_ORG_ADMIN];
-    const q = query(collection(db, 'users'), where('organizationId', '==', orgId), where('role', '==', 'organizationadmin'));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => ({ ...d.data(), uid: d.id }) as UserData);
+    try {
+        const q = query(collection(db, 'users'), where('organizationId', '==', orgId), where('role', '==', 'organizationadmin'));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ ...d.data(), uid: d.id }) as UserData);
+    } catch (e) { return []; }
 };
 
 export const getCoachesForOrganization = async (orgId: string): Promise<UserData[]> => {
     if (isOffline || !db || !orgId) return [];
-    const q = query(collection(db, 'users'), where('organizationId', '==', orgId), where('role', '==', 'coach'));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => ({ ...d.data(), uid: d.id }) as UserData);
+    try {
+        const q = query(collection(db, 'users'), where('organizationId', '==', orgId), where('role', '==', 'coach'));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ ...d.data(), uid: d.id }) as UserData);
+    } catch (e) { return []; }
 };
 
 export const listenToMembers = (orgId: string, onUpdate: (members: Member[]) => void) => {
@@ -155,7 +177,7 @@ export const listenToMembers = (orgId: string, onUpdate: (members: Member[]) => 
     return onSnapshot(q, (snap) => {
         const members = snap.docs.map(d => ({ ...d.data(), uid: d.id, id: d.id }) as Member);
         onUpdate(members);
-    });
+    }, (err) => console.error("listenToMembers failed", err));
 };
 
 export const updateUserGoals = async (uid: string, goals: MemberGoals) => {
@@ -179,7 +201,7 @@ export const updateMemberEndDate = async (uid: string, date: string | null) => {
 };
 
 export const registerMemberWithCode = async (email: string, pass: string, code: string, additionalData?: any) => {
-    if (isOffline || !db || !auth) throw new Error("Offline mode");
+    if (isOffline || !db || !auth) throw new Error("Systemet är i offline-läge.");
 
     const q = query(collection(db, 'organizations'), where('inviteCode', '==', code.toUpperCase()));
     const snap = await getDocs(q);
@@ -208,12 +230,10 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
     return user;
 };
 
-// --- DATA & MOTIVATION ---
+// --- DATA & MOTIVATION (LOGGNING & PB) ---
 
 export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecords: { exerciseName: string, weight: number, diff: number }[] }> => {
-    console.log("saveWorkoutLog triggered for Org:", logData.organizationId, logData); 
     if (isOffline || !db || !logData.organizationId) {
-        console.warn("Save aborted: Offline or missing organizationId", logData.organizationId);
         return { log: logData, newRecords: [] };
     }
     
@@ -221,6 +241,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
     const newLog = { id: newLogRef.id, ...logData };
     const newRecords: { exerciseName: string; weight: number; diff: number }[] = [];
 
+    // Berika loggen med användarnamn och bild
     if (logData.memberId) {
         try {
             const userSnap = await getDoc(doc(db, 'users', logData.memberId));
@@ -229,13 +250,14 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 newLog.memberName = `${userData.firstName || 'Medlem'} ${userData.lastName ? userData.lastName[0] + '.' : ''}`.trim();
                 newLog.memberPhotoUrl = userData.photoUrl || null;
             }
-        } catch (e) { console.warn("Failed to fetch user data for log enrichment", e); }
+        } catch (e) { console.warn("Failed to enrich log", e); }
     }
 
+    // Spara själva loggen
     await setDoc(newLogRef, newLog);
-    console.log("Log successfully saved to Firestore with ID:", newLogRef.id);
 
-    if (logData.memberId && logData.memberId !== 'offline_member_uid' && logData.exerciseResults) {
+    // Hantera PB-logik och Studio-events
+    if (logData.memberId && logData.exerciseResults) {
         try {
             const batch = writeBatch(db);
             const pbCollectionRef = collection(db, 'users', logData.memberId, 'personalBests');
@@ -256,7 +278,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                     const pbId = getPBId(exResult.exerciseName);
                     const existingPBWeight = currentPBs[pbId]?.weight || 0;
 
-                    if (pbId && maxW > existingPBWeight) {
+                    if (maxW > existingPBWeight) {
                         const pbData: PersonalBest = { 
                             id: pbId, 
                             exerciseName: exResult.exerciseName.trim(), 
@@ -274,8 +296,8 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 }
             }
 
+            // Skapa Studio Event om rekord satts
             if (newRecords.length > 0) {
-                console.log("New records found! Creating studio event...", newRecords);
                 const eventRef = doc(collection(db, 'studio_events'));
                 const eventData: StudioEvent = {
                     id: eventRef.id,
@@ -292,8 +314,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
             }
 
             await batch.commit();
-            console.log("Firestore batch committed (PBs and events)");
-        } catch (e) { console.error("PB logic failed", e); }
+        } catch (e) { console.error("PB Batch commit failed", e); }
     }
 
     return { log: newLog, newRecords };
@@ -301,12 +322,16 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
 
 export const updateWorkoutLog = async (logId: string, updates: Partial<WorkoutLog>) => {
     if (isOffline || !db || !logId) return;
-    await updateDoc(doc(db, 'workoutLogs', logId), sanitizeData(updates));
+    try {
+        await updateDoc(doc(db, 'workoutLogs', logId), sanitizeData(updates));
+    } catch (e) { console.error("updateWorkoutLog failed", e); }
 };
 
 export const deleteWorkoutLog = async (logId: string) => {
     if (isOffline || !db || !logId) return;
-    await deleteDoc(doc(db, 'workoutLogs', logId));
+    try {
+        await deleteDoc(doc(db, 'workoutLogs', logId));
+    } catch (e) { console.error("deleteWorkoutLog failed", e); }
 };
 
 export const listenToMemberLogs = (memberId: string, onUpdate: (logs: WorkoutLog[]) => void) => {
@@ -317,7 +342,7 @@ export const listenToMemberLogs = (memberId: string, onUpdate: (logs: WorkoutLog
     const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"), limit(50));
     return onSnapshot(q, (snap) => {
         onUpdate(snap.docs.map(d => d.data() as WorkoutLog));
-    });
+    }, (err) => console.error("listenToMemberLogs failed", err));
 };
 
 export const listenToCommunityLogs = (orgId: string, onUpdate: (logs: WorkoutLog[]) => void) => {
@@ -328,21 +353,25 @@ export const listenToCommunityLogs = (orgId: string, onUpdate: (logs: WorkoutLog
     const q = query(collection(db, 'workoutLogs'), where("organizationId", "==", orgId), orderBy("date", "desc"), limit(20));
     return onSnapshot(q, (snap) => {
         onUpdate(snap.docs.map(d => d.data() as WorkoutLog));
-    });
+    }, (err) => console.error("listenToCommunityLogs failed", err));
 };
 
 export const getMemberLogs = async (memberId: string): Promise<WorkoutLog[]> => {
     if (isOffline || !db || !memberId) return []; 
-    const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"), limit(50));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as WorkoutLog);
+    try {
+        const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"), limit(50));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => d.data() as WorkoutLog);
+    } catch (e) { return []; }
 };
 
 export const getOrganizationLogs = async (orgId: string, limitCount: number = 100): Promise<WorkoutLog[]> => {
     if (isOffline || !db || !orgId) return [];
-    const q = query(collection(db, 'workoutLogs'), where("organizationId", "==", orgId), orderBy("date", "desc"), limit(limitCount));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as WorkoutLog);
+    try {
+        const q = query(collection(db, 'workoutLogs'), where("organizationId", "==", orgId), orderBy("date", "desc"), limit(limitCount));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => d.data() as WorkoutLog);
+    } catch (e) { return []; }
 };
 
 export const listenToPersonalBests = (userId: string, onUpdate: (pbs: PersonalBest[]) => void, onError?: (err: any) => void) => {
@@ -352,16 +381,21 @@ export const listenToPersonalBests = (userId: string, onUpdate: (pbs: PersonalBe
     }
     return onSnapshot(collection(db, 'users', userId, 'personalBests'), (snap) => {
         onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() }) as PersonalBest));
-    }, onError);
+    }, (err) => {
+        console.error("listenToPersonalBests failed", err);
+        if (onError) onError(err);
+    });
 };
 
 export const updatePersonalBest = async (userId: string, exerciseName: string, weight: number) => {
     if (isOffline || !db || !userId) return;
     const pbId = getPBId(exerciseName);
-    await setDoc(doc(db, 'users', userId, 'personalBests', pbId), { id: pbId, exerciseName: exerciseName.trim(), weight, date: Date.now() });
+    try {
+        await setDoc(doc(db, 'users', userId, 'personalBests', pbId), { id: pbId, exerciseName: exerciseName.trim(), weight, date: Date.now() });
+    } catch (e) { console.error("updatePersonalBest failed", e); }
 };
 
-// --- STUDIO EVENTS ---
+// --- STUDIO EVENTS (PB-REGN) ---
 
 export const listenForStudioEvents = (orgId: string, callback: (event: StudioEvent) => void) => {
     if (isOffline || !db || !orgId) return () => {};
@@ -377,48 +411,43 @@ export const listenForStudioEvents = (orgId: string, callback: (event: StudioEve
     });
 };
 
-/**
- * Lyssnar på PB-händelser för en organisation.
- * Använder rullande 7 dagar istället för kalendervecka för att undvika tomma listor på måndagar.
- * Max-tak på 20 poster för att hålla listan fokuserad.
- */
 export const listenToWeeklyPBs = (orgId: string, onUpdate: (events: StudioEvent[]) => void) => {
     if (isOffline || !db || !orgId) { onUpdate([]); return () => {}; }
-    
-    // Rullande 7 dygn bakåt från nu
     const rollingStart = Date.now() - (7 * 24 * 60 * 60 * 1000);
-
     const q = query(
         collection(db, 'studio_events'), 
         where('organizationId', '==', orgId), 
         where('type', 'in', ['pb', 'pb_batch']), 
         where('timestamp', '>=', rollingStart), 
         orderBy('timestamp', 'desc'), 
-        limit(20) // Max-tak på 20 poster för att hålla det rent
+        limit(20)
     );
-    
     return onSnapshot(q, (snap) => onUpdate(snap.docs.map(d => d.data() as StudioEvent)));
 };
 
-// --- CORE BUSINESS ---
+// --- CORE BUSINESS (ORGS & STUDIOS) ---
 
 export const getOrganizations = async (): Promise<Organization[]> => {
     if (isOffline || !db) return MOCK_ORGANIZATIONS;
-    const snap = await getDocs(collection(db, 'organizations'));
-    return snap.docs.map(d => d.data() as Organization);
+    try {
+        const snap = await getDocs(collection(db, 'organizations'));
+        return snap.docs.map(d => d.data() as Organization);
+    } catch (e) { return []; }
 };
 
 export const getOrganizationById = async (id: string): Promise<Organization | null> => {
     if (isOffline || !db || !id) return MOCK_ORGANIZATIONS.find(o => o.id === id) || null;
-    const snap = await getDoc(doc(db, 'organizations', id));
-    return snap.exists() ? snap.data() as Organization : null;
+    try {
+        const snap = await getDoc(doc(db, 'organizations', id));
+        return snap.exists() ? snap.data() as Organization : null;
+    } catch (e) { return null; }
 };
 
 export const listenToOrganizationChanges = (id: string, onUpdate: (org: Organization) => void) => {
     if (isOffline || !db || !id) return () => {}; 
     return onSnapshot(doc(db, 'organizations', id), (snap) => {
         if (snap.exists()) onUpdate(snap.data() as Organization);
-    });
+    }, (err) => console.error("listenToOrganizationChanges failed", err));
 };
 
 export const createOrganization = async (name: string, subdomain: string): Promise<Organization> => {
@@ -503,7 +532,7 @@ export const updateGlobalConfig = async (id: string, config: any) => {
 export const createStudio = async (orgId: string, name: string) => {
     if(isOffline || !db || !orgId) return { id: 'off', name };
     const org = await getOrganizationById(orgId);
-    if (!org) throw new Error("Org missing");
+    if (!org) throw new Error("Organisationen hittades inte.");
     const studio = { id: `st_${Date.now()}`, name, createdAt: Date.now(), configOverrides: {} };
     await updateDoc(doc(db, 'organizations', orgId), { studios: [...org.studios, studio] });
     return studio;
@@ -512,7 +541,7 @@ export const createStudio = async (orgId: string, name: string) => {
 export const updateStudio = async (orgId: string, studioId: string, name: string) => {
     if(isOffline || !db || !orgId) return;
     const org = await getOrganizationById(orgId);
-    if (!org) throw new Error("Org missing");
+    if (!org) throw new Error("Organisationen hittades inte.");
     const studios = org.studios.map(s => s.id === studioId ? { ...s, name } : s);
     await updateDoc(doc(db, 'organizations', orgId), { studios });
 };
@@ -520,7 +549,7 @@ export const updateStudio = async (orgId: string, studioId: string, name: string
 export const deleteStudio = async (orgId: string, studioId: string) => {
     if(isOffline || !db || !orgId) return;
     const org = await getOrganizationById(orgId);
-    if (!org) throw new Error("Org missing");
+    if (!org) throw new Error("Organisationen hittades inte.");
     const studios = org.studios.filter(s => s.id !== studioId);
     await updateDoc(doc(db, 'organizations', orgId), { studios });
 };
@@ -528,75 +557,95 @@ export const deleteStudio = async (orgId: string, studioId: string) => {
 export const updateStudioConfig = async (orgId: string, studioId: string, overrides: any) => {
     if(isOffline || !db || !orgId) return {} as Studio;
     const org = await getOrganizationById(orgId);
-    if (!org) throw new Error("Org missing");
+    if (!org) throw new Error("Organisationen hittades inte.");
     const studios = org.studios.map(s => s.id === studioId ? { ...s, configOverrides: sanitizeData(overrides) } : s);
     await updateDoc(doc(db, 'organizations', orgId), { studios });
     return studios.find(s => s.id === studioId) as Studio;
 };
 
-// --- TRÄNINGSMOTORN ---
+// --- TRÄNINGSMOTORN (PASS & ÖVNINGAR) ---
 
 export const getWorkoutsForOrganization = async (orgId: string): Promise<Workout[]> => {
     if (isOffline || !db || !orgId) return [];
-    const q = query(collection(db, 'workouts'), where("organizationId", "==", orgId));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as Workout).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+    try {
+        const q = query(collection(db, 'workouts'), where("organizationId", "==", orgId));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => d.data() as Workout).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+    } catch (e) { return []; }
 };
 
 export const saveWorkout = async (w: Workout) => {
     if (isOffline || !db || !w.id) return;
-    await setDoc(doc(db, 'workouts', w.id), sanitizeData(w), { merge: true });
+    try {
+        await setDoc(doc(db, 'workouts', w.id), sanitizeData(w), { merge: true });
+    } catch (e) { console.error("saveWorkout failed", e); }
 };
 
 export const deleteWorkout = async (id: string) => {
     if (isOffline || !db || !id) return;
-    await deleteDoc(doc(db, 'workouts', id));
+    try {
+        await deleteDoc(doc(db, 'workouts', id));
+    } catch (e) { console.error("deleteWorkout failed", e); }
 };
 
 export const getExerciseBank = async (): Promise<BankExercise[]> => {
     if (isOffline || !db) return MOCK_EXERCISE_BANK;
-    const snap = await getDocs(query(collection(db, 'exerciseBank'), orderBy('name')));
-    return snap.docs.map(d => d.data() as BankExercise);
+    try {
+        const snap = await getDocs(query(collection(db, 'exerciseBank'), orderBy('name')));
+        return snap.docs.map(d => d.data() as BankExercise);
+    } catch (e) { return MOCK_EXERCISE_BANK; }
 };
 
 export const saveExerciseToBank = async (ex: BankExercise) => {
     if (isOffline || !db || !ex.id) return;
-    await setDoc(doc(db, 'exerciseBank', ex.id), sanitizeData(ex), { merge: true });
+    try {
+        await setDoc(doc(db, 'exerciseBank', ex.id), sanitizeData(ex), { merge: true });
+    } catch (e) { console.error("saveExerciseToBank failed", e); }
 };
 
 export const deleteExerciseFromBank = async (id: string) => {
     if (isOffline || !db || !id) return;
-    await deleteDoc(doc(db, 'exerciseBank', id));
+    try {
+        await deleteDoc(doc(db, 'exerciseBank', id));
+    } catch (e) { console.error("deleteExerciseFromBank failed", e); }
 };
 
 export const updateExerciseImageOverride = async (orgId: string, exerciseId: string, imageUrl: string | null) => {
     if (isOffline || !db || !orgId) return;
-    const orgRef = doc(db, 'organizations', orgId);
-    if (imageUrl) {
-        await updateDoc(orgRef, { [`exerciseOverrides.${exerciseId}`]: { imageUrl } });
-    } else {
-        await updateDoc(orgRef, { [`exerciseOverrides.${exerciseId}`]: deleteField() });
-    }
-    return getOrganizationById(orgId);
+    try {
+        const orgRef = doc(db, 'organizations', orgId);
+        if (imageUrl) {
+            await updateDoc(orgRef, { [`exerciseOverrides.${exerciseId}`]: { imageUrl } });
+        } else {
+            await updateDoc(orgRef, { [`exerciseOverrides.${exerciseId}`]: deleteField() });
+        }
+        return getOrganizationById(orgId);
+    } catch (e) { console.error("updateExerciseImageOverride failed", e); }
 };
 
-// --- BILLING ---
+// --- BILLING (PRISSÄTTNING) ---
 
 export const getSmartScreenPricing = async () => {
     if (isOffline || !db) return MOCK_SMART_SCREEN_PRICING;
-    const snap = await getDoc(doc(db, 'system', 'pricing'));
-    return snap.exists() ? snap.data() as SmartScreenPricing : MOCK_SMART_SCREEN_PRICING;
+    try {
+        const snap = await getDoc(doc(db, 'system', 'pricing'));
+        return snap.exists() ? snap.data() as SmartScreenPricing : MOCK_SMART_SCREEN_PRICING;
+    } catch (e) { return MOCK_SMART_SCREEN_PRICING; }
 };
 
 export const updateSmartScreenPricing = async (pricing: SmartScreenPricing) => {
     if (isOffline || !db) return;
-    await setDoc(doc(db, 'system', 'pricing'), sanitizeData(pricing));
+    try {
+        await setDoc(doc(db, 'system', 'pricing'), sanitizeData(pricing));
+    } catch (e) { console.error("updateSmartScreenPricing failed", e); }
 };
 
 export const updateOrganizationBilledStatus = async (id: string, month: string) => {
     if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { lastBilledMonth: month, lastBilledDate: Date.now() });
-    return getOrganizationById(id);
+    try {
+        await updateDoc(doc(db, 'organizations', id), { lastBilledMonth: month, lastBilledDate: Date.now() });
+        return getOrganizationById(id);
+    } catch (e) { console.error("updateOrganizationBilledStatus failed", e); }
 };
 
 // --- IMAGES & THEMES ---
@@ -604,9 +653,11 @@ export const updateOrganizationBilledStatus = async (id: string, month: string) 
 export const uploadImage = async (path: string, image: File | string): Promise<string> => {
     if (typeof image === 'string' && !image.startsWith('data:image')) return image;
     if (isOffline || !storage) return "";
-    const blob = typeof image === 'string' ? await (await fetch(image)).blob() : image;
-    const snap = await uploadBytes(ref(storage, path), blob);
-    return getDownloadURL(snap.ref);
+    try {
+        const blob = typeof image === 'string' ? await (await fetch(image)).blob() : image;
+        const snap = await uploadBytes(ref(storage, path), blob);
+        return getDownloadURL(snap.ref);
+    } catch (e) { console.error("uploadImage failed", e); return ""; }
 };
 
 export const deleteImageByUrl = async (url: string): Promise<void> => {
@@ -616,28 +667,38 @@ export const deleteImageByUrl = async (url: string): Promise<void> => {
 
 export const getSeasonalThemes = async () => {
     if (isOffline || !db) return [];
-    const snap = await getDoc(doc(db, 'system', 'seasonalThemes'));
-    return snap.exists() ? (snap.data() as any).themes : [];
+    try {
+        const snap = await getDoc(doc(db, 'system', 'seasonalThemes'));
+        return snap.exists() ? (snap.data() as any).themes : [];
+    } catch (e) { return []; }
 };
 
 export const updateSeasonalThemes = async (themes: SeasonalThemeSetting[]) => {
     if (isOffline || !db) return;
-    await setDoc(doc(db, 'system', 'seasonalThemes'), { themes: sanitizeData(themes) }, { merge: true });
+    try {
+        await setDoc(doc(db, 'system', 'seasonalThemes'), { themes: sanitizeData(themes) }, { merge: true });
+    } catch (e) { console.error("updateSeasonalThemes failed", e); }
 };
 
 export const archiveOrganization = async (id: string) => {
     if (isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { status: 'archived' });
+    try {
+        await updateDoc(doc(db, 'organizations', id), { status: 'archived' });
+    } catch (e) { console.error("archiveOrganization failed", e); }
 };
 
 export const restoreOrganization = async (id: string) => {
     if (isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { status: 'active' });
+    try {
+        await updateDoc(doc(db, 'organizations', id), { status: 'active' });
+    } catch (e) { console.error("restoreOrganization failed", e); }
 };
 
 export const deleteOrganizationPermanently = async (id: string) => {
     if (isOffline || !db || !id) return;
-    await deleteDoc(doc(db, 'organizations', id));
+    try {
+        await deleteDoc(doc(db, 'organizations', id));
+    } catch (e) { console.error("deleteOrganizationPermanently failed", e); }
 };
 
 export const updateOrganizationActivity = async (id: string): Promise<void> => {
@@ -645,57 +706,68 @@ export const updateOrganizationActivity = async (id: string): Promise<void> => {
     try { await updateDoc(doc(db, 'organizations', id), { lastActiveAt: Date.now() }); } catch(e){}
 };
 
-// --- HYROX ---
+// --- HYROX & RESULTAT ---
 
 export const saveRace = async (data: any, orgId: string) => {
     if(isOffline || !db || !orgId) return { id: 'off' };
-    const raceRef = doc(collection(db, 'races'));
-    const race = { ...sanitizeData(data), id: raceRef.id, organizationId: orgId, createdAt: Date.now() };
-    await setDoc(raceRef, race);
-    return race;
+    try {
+        const raceRef = doc(collection(db, 'races'));
+        const race = { ...sanitizeData(data), id: raceRef.id, organizationId: orgId, createdAt: Date.now() };
+        await setDoc(raceRef, race);
+        return race;
+    } catch (e) { console.error("saveRace failed", e); throw e; }
 };
 
 export const getPastRaces = async (orgId: string) => {
     if (isOffline || !db || !orgId) return [];
-    const q = query(collection(db, 'races'), where("organizationId", "==", orgId));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as HyroxRace).sort((a,b) => b.createdAt - a.createdAt);
+    try {
+        const q = query(collection(db, 'races'), where("organizationId", "==", orgId));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => d.data() as HyroxRace).sort((a,b) => b.createdAt - a.createdAt);
+    } catch (e) { return []; }
 };
 
 export const getRace = async (id: string) => {
     if (isOffline || !db || !id) return null;
-    const snap = await getDoc(doc(db, 'races', id));
-    return snap.exists() ? snap.data() as HyroxRace : null;
+    try {
+        const snap = await getDoc(doc(db, 'races', id));
+        return snap.exists() ? snap.data() as HyroxRace : null;
+    } catch (e) { return null; }
 };
 
-// --- RESULTS ---
 export const saveWorkoutResult = async (result: WorkoutResult) => {
     if (isOffline || !db) return;
-    await setDoc(doc(db, 'workout_results', result.id), sanitizeData(result));
+    try {
+        await setDoc(doc(db, 'workout_results', result.id), sanitizeData(result));
+    } catch (e) { console.error("saveWorkoutResult failed", e); }
 };
 
 export const getWorkoutResults = async (workoutId: string, orgId: string): Promise<WorkoutResult[]> => {
     if (isOffline || !db || !workoutId) return [];
-    const q = query(collection(db, 'workout_results'), where('workoutId', '==', workoutId), where('organizationId', '==', orgId), orderBy('finishTime', 'asc'));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => d.data() as WorkoutResult);
+    try {
+        const q = query(collection(db, 'workout_results'), where('workoutId', '==', workoutId), where('organizationId', '==', orgId), orderBy('finishTime', 'asc'));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => d.data() as WorkoutResult);
+    } catch (e) { return []; }
 };
 
-// --- CHECK-INS ---
+// --- CHECK-INS & SPOTS ---
 
 export const sendCheckIn = async (orgId: string, userEmail: string) => {
     if (isOffline || !db || !orgId) return;
-    const checkInRef = doc(collection(db, 'active_checkins'));
-    const event: CheckInEvent = {
-        id: checkInRef.id,
-        userId: userEmail,
-        firstName: userEmail.split('@')[0],
-        lastName: '',
-        timestamp: Date.now(),
-        organizationId: orgId,
-        streak: Math.floor(Math.random() * 20) + 1
-    };
-    await setDoc(checkInRef, event);
+    try {
+        const checkInRef = doc(collection(db, 'active_checkins'));
+        const event: CheckInEvent = {
+            id: checkInRef.id,
+            userId: userEmail,
+            firstName: userEmail.split('@')[0],
+            lastName: '',
+            timestamp: Date.now(),
+            organizationId: orgId,
+            streak: Math.floor(Math.random() * 20) + 1
+        };
+        await setDoc(checkInRef, event);
+    } catch (e) { console.error("sendCheckIn failed", e); }
 };
 
 export const listenForCheckIns = (orgId: string, callback: (event: CheckInEvent) => void) => {
@@ -708,27 +780,35 @@ export const listenForCheckIns = (orgId: string, callback: (event: CheckInEvent)
                 if (Date.now() - data.timestamp < 10000) callback(data);
             }
         });
-    });
+    }, (err) => console.error("listenForCheckIns failed", err));
 };
 
 export const getSuggestedExercises = async () => {
     if (isOffline || !db) return [];
-    const snap = await getDocs(collection(db, 'exerciseSuggestions'));
-    return snap.docs.map(d => ({ ...d.data(), id: d.id }) as SuggestedExercise);
+    try {
+        const snap = await getDocs(collection(db, 'exerciseSuggestions'));
+        return snap.docs.map(d => ({ ...d.data(), id: d.id }) as SuggestedExercise);
+    } catch (e) { return []; }
 };
 
 export const approveExerciseSuggestion = async (s: SuggestedExercise) => {
-    const bankEx: BankExercise = { id: s.id, name: s.name, description: s.description, imageUrl: s.imageUrl, tags: s.tags };
-    await saveExerciseToBank(bankEx);
-    await deleteExerciseSuggestion(s.id);
+    try {
+        const bankEx: BankExercise = { id: s.id, name: s.name, description: s.description, imageUrl: s.imageUrl, tags: s.tags };
+        await saveExerciseToBank(bankEx);
+        await deleteExerciseSuggestion(s.id);
+    } catch (e) { console.error("approveExerciseSuggestion failed", e); }
 };
 
 export const deleteExerciseSuggestion = async (id: string) => {
     if (isOffline || !db) return;
-    await deleteDoc(doc(db, 'exerciseSuggestions', id));
+    try {
+        await deleteDoc(doc(db, 'exerciseSuggestions', id));
+    } catch (e) { console.error("deleteExerciseSuggestion failed", e); }
 };
 
 export const updateExerciseSuggestion = async (s: SuggestedExercise) => {
     if (isOffline || !db) return;
-    await setDoc(doc(db, 'exerciseSuggestions', s.id), s, { merge: true });
+    try {
+        await setDoc(doc(db, 'exerciseSuggestions', s.id), s, { merge: true });
+    } catch (e) { console.error("updateExerciseSuggestion failed", e); }
 };
