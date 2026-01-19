@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog } from '../../services/firebaseService';
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage } from '../../services/geminiService';
@@ -13,6 +14,103 @@ import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
+
+// --- Loading Component with AI Robot Animation ---
+const LogLoadingView: React.FC = () => {
+    const messages = [
+        "Räknar ut din totala volym...",
+        "Jämför med dina tidigare rekord...",
+        "AI-coachen skriver en personlig hyllning...",
+        "Designar ditt unika diplom..."
+    ];
+    const [msgIndex, setMsgIndex] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setMsgIndex((prev) => (prev + 1) % messages.length);
+        }, 2000);
+        return () => clearInterval(interval);
+    }, []);
+
+    return (
+        <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[1000] bg-gray-950 flex flex-col items-center justify-center p-8 text-center"
+        >
+            <div className="relative w-64 h-64 mb-12">
+                {/* Background glow */}
+                <div className="absolute inset-0 bg-primary/20 rounded-full blur-[60px] animate-pulse"></div>
+                
+                {/* Robot/Pen Animation SVG */}
+                <svg viewBox="0 0 200 200" className="w-full h-full relative z-10">
+                    {/* Paper Area */}
+                    <rect x="50" y="60" width="100" height="120" rx="4" fill="white" fillOpacity="0.05" stroke="white" strokeOpacity="0.1" />
+                    
+                    {/* Drawing Pattern */}
+                    <motion.path 
+                        d="M 60,100 L 140,100 M 70,120 L 130,120 M 60,140 L 110,140 M 80,160 L 140,160"
+                        fill="none"
+                        stroke="#14b8a6"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        initial={{ pathLength: 0 }}
+                        animate={{ pathLength: 1 }}
+                        transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                    />
+
+                    {/* Robot Head / Stylus Hub */}
+                    <motion.g
+                        animate={{ 
+                            x: [0, 40, -40, 20, 0],
+                            y: [0, 20, -10, 30, 0]
+                        }}
+                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                        {/* Stylus Body */}
+                        <path d="M 100,20 L 100,80" stroke="#4b5563" strokeWidth="8" strokeLinecap="round" />
+                        <circle cx="100" cy="20" r="15" fill="#374151" />
+                        <circle cx="100" cy="20" r="6" fill="#14b8a6">
+                            <animate attributeName="opacity" values="1;0.4;1" dur="1s" repeatCount="indefinite" />
+                        </circle>
+                        
+                        {/* The Pen Tip */}
+                        <path d="M 100,80 L 100,95 L 95,85 Z" fill="#14b8a6" />
+                        <circle cx="100" cy="95" r="4" fill="#14b8a6">
+                            <animate attributeName="r" values="3;5;3" dur="0.5s" repeatCount="indefinite" />
+                        </circle>
+                    </motion.g>
+                </svg>
+            </div>
+
+            <div className="max-w-xs space-y-4">
+                <AnimatePresence mode="wait">
+                    <motion.p 
+                        key={messages[msgIndex]}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="text-xl font-bold text-white tracking-tight"
+                    >
+                        {messages[msgIndex]}
+                    </motion.p>
+                </AnimatePresence>
+                
+                <div className="w-48 h-1.5 bg-white/10 rounded-full mx-auto overflow-hidden">
+                    <motion.div 
+                        className="h-full bg-primary"
+                        initial={{ width: "0%" }}
+                        animate={{ width: "100%" }}
+                        transition={{ duration: 10, ease: "linear" }}
+                    />
+                </div>
+                
+                <p className="text-gray-500 text-xs font-black uppercase tracking-[0.2em]">Din prestation förtjänar det bästa</p>
+            </div>
+        </motion.div>
+    );
+};
 
 // --- Local Types for Form State ---
 
@@ -799,6 +897,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               </p>
           </div>
       );
+  }
+
+  if (isSubmitting) {
+      return <LogLoadingView />;
   }
 
   if (viewMode === 'pre-game' && aiInsights && workout) {
