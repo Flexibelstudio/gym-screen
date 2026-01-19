@@ -9,10 +9,11 @@ interface VarumarkeContentProps {
     onUpdateLogos: (organizationId: string, logos: { light: string; dark: string }) => Promise<void>;
     onUpdateFavicon: (organizationId: string, faviconUrl: string) => Promise<void>;
     onUpdatePrimaryColor: (organizationId: string, color: string) => Promise<void>;
+    onShowToast: (message: string) => void;
 }
 
 export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({ 
-    organization, onUpdatePasswords, onUpdateLogos, onUpdateFavicon, onUpdatePrimaryColor 
+    organization, onUpdatePasswords, onUpdateLogos, onUpdateFavicon, onUpdatePrimaryColor, onShowToast
 }) => {
     const [passwords, setPasswords] = useState(organization.passwords);
     const [logoLight, setLogoLight] = useState(organization.logoUrlLight || '');
@@ -37,9 +38,9 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({
                 onUpdateFavicon(organization.id, favicon),
                 onUpdatePrimaryColor(organization.id, primaryColor)
             ]);
-            alert("Ändringar sparade!");
+            onShowToast("Ändringar sparade!");
         } catch (error) {
-            alert("Kunde inte spara ändringar.");
+            onShowToast("Kunde inte spara ändringar.");
         } finally {
             setIsSaving(false);
         }

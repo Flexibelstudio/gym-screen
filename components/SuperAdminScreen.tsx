@@ -891,6 +891,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                             onUpdateLogos={props.onUpdateLogos}
                             onUpdateFavicon={props.onUpdateFavicon}
                             onUpdatePrimaryColor={props.onUpdatePrimaryColor}
+                            onShowToast={(msg) => setToast({ message: msg, visible: true })}
                         />;
             case 'company-info':
                 return <CompanyInfoContent organization={organization} onEdit={() => setShowOnboardingModal(true)} />;
