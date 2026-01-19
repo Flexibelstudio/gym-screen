@@ -58,12 +58,6 @@ export const ShuffleIcon: React.FC<{ className?: string }> = ({ className = "w-6
 
 export const DumbbellIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6.5 6.5l11 11M6.5 17.5l11-11M2 12h20M2 7h20M2 17h20" style={{display:'none'}}/> {/* Placeholder path, replacing with actual dumbbell icon path below */}
-        <path d="M4 10h16m-16 4h16m-4-10v16m-8-16v16" stroke="none" fill="none" />
-        <path d="M6 4h12M6 20h12M6 10h12M6 14h12" stroke="none"/>
-        <path d="m6.5 6.5 11 11m-11 0 11-11" strokeWidth="2" strokeLinecap="round"/> 
-        <path d="M7 4h10M7 20h10M4 9v6h16V9H4zm2-5h12M6 20h12" stroke="none" />
-        {/* Real Dumbbell Path */}
         <path d="M14.4 14.4l-4.8 4.8m9.6-9.6l-4.8 4.8M4.8 4.8l14.4 14.4M6.5 6.5l11 11" stroke="none" />
         <path d="M20 10c0-1.1.9-2 2-2V6c0-1.1-.9-2-2-2h-2c-1.1 0-2 .9-2 2v2c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h2c1.1 0 2-.9 2-2v-2c-1.1 0-2-.9-2-2zm-16 0c0-1.1.9-2 2-2V6c0-1.1-.9-2-2-2H2C.9 4 0 4.9 0 6v2c1.1 0 2 .9 2 2s-.9 2-2 2v4c0 1.1.9 2 2 2h2c1.1 0 2-.9 2-2v-2c-1.1 0-2-.9-2-2zM8 10h8v4H8v-4z" fill="currentColor"/>
     </svg>
@@ -249,7 +243,6 @@ export const CheckIcon: React.FC<{ className?: string }> = ({ className = "w-6 h
 
 export const RunningIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" style={{display:'none'}}/> {/* Placeholder */}
         <path d="M18.5 17a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5ZM3 13l3.5-2.5 1.5 2.5 3.5-3.5L16 11l4 4M2 20h20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
     </svg>
 );
@@ -290,6 +283,18 @@ export const UsersIcon: React.FC<{ className?: string }> = ({ className = "w-6 h
 export const BuildingIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+    </svg>
+);
+
+export const LockClosedIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+    </svg>
+);
+
+export const HistoryIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
     </svg>
 );
 

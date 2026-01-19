@@ -1,16 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { Modal } from './ui/Modal';
 import { ExerciseDagsformAdvice, getExerciseDagsformAdvice } from '../services/geminiService';
 import { WorkoutLog } from '../types';
 import { SparklesIcon, ChartBarIcon, HistoryIcon } from './icons';
 import { motion } from 'framer-motion';
-
-// Missing icon fallback
-const HistoryIconLocal = ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className={className}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-    </svg>
-);
 
 interface DailyFormInsightModalProps {
     isOpen: boolean;
@@ -63,7 +57,7 @@ export const DailyFormInsightModal: React.FC<DailyFormInsightModalProps> = ({
                         {/* Historik-sektion */}
                         <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl p-5 border border-gray-100 dark:border-gray-700">
                             <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                <HistoryIconLocal className="w-3 h-3" /> Senaste resultaten
+                                <HistoryIcon className="w-3 h-3" /> Senaste resultaten
                             </h4>
                             <div className="space-y-3">
                                 {advice?.history && advice.history.length > 0 ? (
