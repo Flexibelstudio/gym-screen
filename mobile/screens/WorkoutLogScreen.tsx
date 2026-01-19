@@ -15,37 +15,6 @@ import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
 
-// --- Loading Component: Glassmorphism Pulsating Star ---
-const LogLoadingView: React.FC = () => {
-    return (
-        <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[1000] bg-white/40 dark:bg-black/40 backdrop-blur-2xl flex flex-col items-center justify-center p-8"
-        >
-            <motion.div
-                animate={{ 
-                    scale: [1, 1.2, 1],
-                    opacity: [0.6, 1, 0.6],
-                    filter: ["drop-shadow(0 0 0px rgba(20,184,166,0))", "drop-shadow(0 0 20px rgba(20,184,166,0.5))", "drop-shadow(0 0 0px rgba(20,184,166,0))"]
-                }}
-                transition={{ 
-                    duration: 2, 
-                    repeat: Infinity, 
-                    ease: "easeInOut" 
-                }}
-                className="text-primary"
-            >
-                <SparklesIcon className="w-24 h-24" />
-            </motion.div>
-            
-            {/* Subtle light pulse behind the star */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/10 rounded-full blur-[80px] pointer-events-none"></div>
-        </motion.div>
-    );
-};
-
 // --- Local Types for Form State ---
 
 interface LocalSetDetail {
@@ -453,6 +422,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [exerciseResults, setExerciseResults] = useState<LocalExerciseResult[]>([]);
   const [logData, setLogData] = useState<LogData>({ rpe: null, feeling: null, tags: [], comment: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [saveStatus, setSaveStatus] = useState('');
   const [showCelebration, setShowCelebration] = useState(false);
   const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
   const [showCalculator, setShowCalculator] = useState(false);
@@ -671,6 +641,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       if (!isFormValid || !oId) return;
 
       setIsSubmitting(true);
+      setSaveStatus('Registrerar passet...');
+      
       try {
           const isQuickOrManual = isManualMode || workout?.logType === 'quick';
           
@@ -752,6 +724,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               finalLogRaw.totalCalories = parseInt(sessionStats.calories) || 0;
 
               // 1. Spara loggen först för att beräkna PBs
+              setSaveStatus('Letar efter nya rekord...');
               const { log: savedLog, newRecords } = await saveWorkoutLog(cleanForFirestore(finalLogRaw));
 
               let diplomaData: WorkoutDiploma | null = null;
@@ -773,6 +746,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
               // 3. Fallback till alternativt diplom om ingen volym hittades
               if (!diplomaData) {
+                  setSaveStatus('AI:n skriver ditt diplom...');
                   try {
                       // Använd fortfarande AI för texterna men välj rubrik från listan
                       diplomaData = await generateWorkoutDiploma({ ...finalLogRaw, newPBs: newRecords });
@@ -794,9 +768,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
               // 4. Generera bild och ladda upp om prompt finns
               if (diplomaData && diplomaData.imagePrompt) {
+                  setSaveStatus('Genererar medaljbild...');
                   try {
                       const base64Image = await generateImage(diplomaData.imagePrompt);
                       if (base64Image) {
+                          setSaveStatus('Färdigställer diplom...');
                           const storagePath = `users/${userId}/diplomas/log_${Date.now()}.jpg`;
                           diplomaData.imageUrl = await uploadImage(storagePath, base64Image);
                       }
@@ -816,6 +792,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
           console.error(err);
           alert("Kunde inte spara. Ett tekniskt fel uppstod.");
           setIsSubmitting(false);
+          setSaveStatus('');
       }
   };
 
@@ -830,32 +807,20 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       );
   }
 
-  if (isSubmitting) {
-      return <LogLoadingView />;
-  }
-
-  if (viewMode === 'pre-game' && aiInsights && workout) {
-      return (
-          <PreGameView 
-            workoutTitle={workout.title}
-            insights={aiInsights}
-            onStart={handleStartWorkout}
-            onCancel={() => handleCancel(false)}
-            onFeelingChange={setDailyFeeling}
-            currentFeeling={dailyFeeling}
-          />
-      );
-  }
-
   return (
     <div className="bg-gray-5 dark:bg-black text-gray-900 dark:text-white flex flex-col relative h-full">
+      {/* Submit Overlay - Blocks interaction during saving */}
+      {isSubmitting && (
+          <div className="absolute inset-0 z-[1000] bg-white/10 dark:bg-black/10 pointer-events-auto" />
+      )}
+
       <AnimatePresence>
         {showCelebration && (
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+              className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
             >
                 <Confetti />
                 <motion.div 
@@ -896,7 +861,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                     <span className="text-[10px] font-black uppercase tracking-wider">1RM Kalkylator</span>
                 </button>
             )}
-            <button onClick={() => handleCancel(false)} className="p-3 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all flex-shrink-0 shadow-sm active:scale-90">
+            <button onClick={() => handleCancel(false)} className="p-3 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all flex-shrink-0 shadow-sm active:scale-90" disabled={isSubmitting}>
                 <CloseIcon className="w-6 h-6 text-gray-500 dark:text-gray-400" />
             </button>
         </div>
@@ -1019,17 +984,40 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   <div className="flex flex-col sm:flex-row gap-4">
                       <button 
                           onClick={() => handleCancel(false)}
-                          className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-500 font-black py-5 rounded-2xl transition-all active:scale-95 uppercase tracking-widest text-sm"
+                          disabled={isSubmitting}
+                          className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-500 font-black py-5 rounded-2xl transition-all active:scale-95 uppercase tracking-widest text-sm disabled:opacity-50"
                       >
                           Avbryt
                       </button>
-                      <button 
-                          onClick={handleSubmit}
-                          disabled={!isFormValid}
-                          className="flex-[2] bg-primary text-white font-black py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 disabled:bg-gray-300 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 disabled:shadow-none disabled:transform-none text-xl uppercase tracking-tight"
-                      >
-                          {isSubmitting ? 'Sparar...' : (isManualMode || isQuickWorkoutMode ? 'Spara Aktivitet' : 'Spara Pass')}
-                      </button>
+                      <div className="flex-[2] flex flex-col items-center gap-3">
+                          <button 
+                              onClick={handleSubmit}
+                              disabled={!isFormValid || isSubmitting}
+                              className="w-full bg-primary text-white font-black py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 disabled:bg-gray-300 dark:disabled:bg-gray-800 disabled:text-gray-400 dark:disabled:text-gray-600 disabled:shadow-none disabled:transform-none text-xl uppercase tracking-tight flex items-center justify-center gap-3"
+                          >
+                              {isSubmitting ? (
+                                  <>
+                                      <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+                                      <span>Sparar...</span>
+                                  </>
+                              ) : (
+                                  <span>{isManualMode || isQuickWorkoutMode ? 'Spara Aktivitet' : 'Spara Pass'}</span>
+                              )}
+                          </button>
+                          
+                          <AnimatePresence>
+                              {isSubmitting && saveStatus && (
+                                  <motion.p 
+                                      initial={{ opacity: 0, y: 10 }}
+                                      animate={{ opacity: 1, y: 0 }}
+                                      exit={{ opacity: 0 }}
+                                      className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest animate-pulse"
+                                  >
+                                      {saveStatus}
+                                  </motion.p>
+                              )}
+                          </AnimatePresence>
+                      </div>
                   </div>
               </div>
           </div>
