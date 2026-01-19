@@ -5,7 +5,6 @@ import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, 
 import { motion } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
-import { remixWorkout } from '../../services/geminiService';
 
 type AdminTab = 
     'dashboard' | 
@@ -239,10 +238,8 @@ const DashboardContent: React.FC<DashboardContentProps> = ({ organization, worko
 };
 
 const PassProgramModule: React.FC<{ 
-    onNavigate: (mode: 'create' | 'generate' | 'parse' | 'manage' | 'remix') => void;
-    isRemixing: boolean;
-    hasWorkouts: boolean;
-}> = ({ onNavigate, isRemixing, hasWorkouts }) => {
+    onNavigate: (mode: 'create' | 'generate' | 'parse' | 'manage') => void;
+}> = ({ onNavigate }) => {
     return (
         <div className="space-y-8 py-4">
             <div className="text-center max-w-2xl mx-auto mb-10">
@@ -285,32 +282,6 @@ const PassProgramModule: React.FC<{
                     </div>
                     <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Hantera pass</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Redigera, kopiera, publicera och ta bort dina befintliga pass.</p>
-                </button>
-
-                <button 
-                    onClick={() => onNavigate('remix')} 
-                    disabled={isRemixing || !hasWorkouts}
-                    className={`md:col-span-2 group bg-gradient-to-r from-orange-50 to-pink-50 dark:from-orange-900/20 dark:to-pink-900/20 p-8 rounded-2xl shadow-sm border border-orange-100 dark:border-orange-900/30 text-left relative overflow-hidden transition-all ${
-                        !hasWorkouts ? 'opacity-50 cursor-not-allowed' : 'hover:border-orange-300 hover:shadow-lg'
-                    }`}
-                >
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-orange-200/20 dark:bg-orange-600/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
-                    <div className="flex items-center gap-4 mb-2">
-                        <div className="w-12 h-12 bg-orange-100 text-orange-600 dark:bg-orange-900/40 dark:text-orange-300 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
-                            {isRemixing ? (
-                                <div className="w-6 h-6 border-2 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
-                            ) : (
-                                <ShuffleIcon className="w-6 h-6" />
-                            )}
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white">Smart Remix</h3>
-                            {!hasWorkouts && <span className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded uppercase font-bold tracking-wider">Kräver sparade pass</span>}
-                        </div>
-                    </div>
-                    <p className="text-sm text-gray-600 dark:text-gray-300 max-w-lg">
-                        Låt systemet ta ett tidigare populärt pass, behålla strukturen, men byta ut övningarna för att skapa variation.
-                    </p>
                 </button>
             </div>
         </div>
@@ -576,42 +547,17 @@ const PassProgramContent: React.FC<DashboardContentProps & {
     onSaveWorkout, workouts, workoutsLoading, onDeleteWorkout, onTogglePublish,
     organization, autoExpandCategory, setAutoExpandCategory, onDuplicateWorkout
 }) => {
-    const [isRemixing, setIsRemixing] = useState(false);
 
-    const handleNavigate = async (mode: 'create' | 'generate' | 'parse' | 'manage' | 'remix') => {
+    const handleNavigate = async (mode: 'create' | 'generate' | 'parse' | 'manage') => {
         if (mode === 'create') {
             setWorkoutToEdit(null);
             setIsNewDraft(true);
             setSubView('builder');
         } else if (mode === 'manage') {
             setSubView('manage');
-        } else if (mode === 'remix') {
-            handleSmartRemix();
         } else {
             setAiGeneratorInitialTab(mode === 'parse' ? 'parse' : 'generate');
             setSubView('ai');
-        }
-    };
-
-    const handleSmartRemix = async () => {
-        const officialWorkouts = workouts.filter(w => !w.isMemberDraft);
-        if (officialWorkouts.length === 0) {
-            alert("Du behöver ha några officiella pass sparade för att kunna remixa. Skapa ett först!");
-            return;
-        }
-        
-        setIsRemixing(true);
-        try {
-            const randomWorkout = officialWorkouts[Math.floor(Math.random() * officialWorkouts.length)];
-            const remixedWorkout = await remixWorkout(randomWorkout);
-            setWorkoutToEdit(remixedWorkout);
-            setIsNewDraft(true);
-            setSubView('builder');
-        } catch (error) {
-            console.error("Remix failed:", error);
-            alert("Kunde inte remixa passet just nu.");
-        } finally {
-            setIsRemixing(false);
         }
     };
 
@@ -690,8 +636,6 @@ const PassProgramContent: React.FC<DashboardContentProps & {
         <div className="animate-fade-in">
             <PassProgramModule 
                 onNavigate={handleNavigate} 
-                isRemixing={isRemixing} 
-                hasWorkouts={workouts.filter(w => !w.isMemberDraft).length > 0} 
             />
         </div>
     );
