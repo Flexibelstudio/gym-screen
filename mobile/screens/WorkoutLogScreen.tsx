@@ -15,99 +15,33 @@ import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
 
-// --- Loading Component with AI Robot Animation (Theme Aware) ---
+// --- Loading Component: Glassmorphism Pulsating Star ---
 const LogLoadingView: React.FC = () => {
-    const messages = [
-        "Räknar ut din totala volym...",
-        "Jämför med dina tidigare rekord...",
-        "AI-coachen skriver en personlig hyllning...",
-        "Designar ditt unika diplom..."
-    ];
-    const [msgIndex, setMsgIndex] = useState(0);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setMsgIndex((prev) => (prev + 1) % messages.length);
-        }, 2000);
-        return () => clearInterval(interval);
-    }, []);
-
     return (
         <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[1000] bg-white dark:bg-gray-950 flex flex-col items-center justify-center p-8 text-center"
+            className="fixed inset-0 z-[1000] bg-white/40 dark:bg-black/40 backdrop-blur-2xl flex flex-col items-center justify-center p-8"
         >
-            <div className="relative w-64 h-64 mb-12">
-                {/* Background glow - primary color with reduced opacity in light mode */}
-                <div className="absolute inset-0 bg-primary/10 dark:bg-primary/20 rounded-full blur-[60px] animate-pulse"></div>
-                
-                {/* Robot/Pen Animation SVG */}
-                <svg viewBox="0 0 200 200" className="w-full h-full relative z-10">
-                    {/* Paper Area - Slightly visible in both themes */}
-                    <rect x="50" y="60" width="100" height="120" rx="4" className="fill-gray-100 dark:fill-white/5 stroke-gray-200 dark:stroke-white/10" strokeWidth="1" />
-                    
-                    {/* Drawing Pattern */}
-                    <motion.path 
-                        d="M 60,100 L 140,100 M 70,120 L 130,120 M 60,140 L 110,140 M 80,160 L 140,160"
-                        fill="none"
-                        stroke="#14b8a6"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        initial={{ pathLength: 0 }}
-                        animate={{ pathLength: 1 }}
-                        transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                    />
-
-                    {/* Robot Head / Stylus Hub */}
-                    <motion.g
-                        animate={{ 
-                            x: [0, 40, -40, 20, 0],
-                            y: [0, 20, -10, 30, 0]
-                        }}
-                        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                        {/* Stylus Body */}
-                        <path d="M 100,20 L 100,80" className="stroke-gray-600 dark:stroke-gray-400" strokeWidth="8" strokeLinecap="round" />
-                        <circle cx="100" cy="20" r="15" className="fill-gray-700 dark:fill-gray-800" />
-                        <circle cx="100" cy="20" r="6" fill="#14b8a6">
-                            <animate attributeName="opacity" values="1;0.4;1" dur="1s" repeatCount="indefinite" />
-                        </circle>
-                        
-                        {/* The Pen Tip */}
-                        <path d="M 100,80 L 100,95 L 95,85 Z" fill="#14b8a6" />
-                        <circle cx="100" cy="95" r="4" fill="#14b8a6">
-                            <animate attributeName="r" values="3;5;3" dur="0.5s" repeatCount="indefinite" />
-                        </circle>
-                    </motion.g>
-                </svg>
-            </div>
-
-            <div className="max-w-xs space-y-4">
-                <AnimatePresence mode="wait">
-                    <motion.p 
-                        key={messages[msgIndex]}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        className="text-xl font-bold text-gray-900 dark:text-white tracking-tight"
-                    >
-                        {messages[msgIndex]}
-                    </motion.p>
-                </AnimatePresence>
-                
-                <div className="w-48 h-1.5 bg-gray-100 dark:bg-white/10 rounded-full mx-auto overflow-hidden">
-                    <motion.div 
-                        className="h-full bg-primary"
-                        initial={{ width: "0%" }}
-                        animate={{ width: "100%" }}
-                        transition={{ duration: 10, ease: "linear" }}
-                    />
-                </div>
-                
-                <p className="text-gray-400 dark:text-gray-500 text-xs font-black uppercase tracking-[0.2em]">Din prestation förtjänar det bästa</p>
-            </div>
+            <motion.div
+                animate={{ 
+                    scale: [1, 1.2, 1],
+                    opacity: [0.6, 1, 0.6],
+                    filter: ["drop-shadow(0 0 0px rgba(20,184,166,0))", "drop-shadow(0 0 20px rgba(20,184,166,0.5))", "drop-shadow(0 0 0px rgba(20,184,166,0))"]
+                }}
+                transition={{ 
+                    duration: 2, 
+                    repeat: Infinity, 
+                    ease: "easeInOut" 
+                }}
+                className="text-primary"
+            >
+                <SparklesIcon className="w-24 h-24" />
+            </motion.div>
+            
+            {/* Subtle light pulse behind the star */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-primary/10 rounded-full blur-[80px] pointer-events-none"></div>
         </motion.div>
     );
 };
@@ -419,7 +353,7 @@ const ExerciseLogCard: React.FC<{
                                 )}
                             </div>
                             <div className="flex justify-center">
-                                <button onClick={() => handleToggleComplete(index)} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
+                                <button onClick={handleToggleComplete(index)} className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
                                     <CheckIcon className="w-5 h-5" />
                                 </button>
                             </div>
