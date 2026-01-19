@@ -180,8 +180,13 @@ const PreGameView: React.FC<{
     onFeelingChange: (feeling: 'good' | 'neutral' | 'bad') => void;
     currentFeeling: 'good' | 'neutral' | 'bad';
 }> = ({ workoutTitle, insights, onStart, onCancel, onFeelingChange, currentFeeling }) => {
-    const displayStrategy = currentFeeling === 'bad' ? "Lyssna på kroppen idag. Fokusera på teknik och sänk vikterna." : (insights.strategy || insights.readiness.message);
+    const displayStrategy = currentFeeling === 'bad' ? "Lyssna på kroppen idag. Fokusera på teknik och sänk vikterna." : (insights?.strategy || insights?.readiness?.message || "Ladda upp för ett bra pass!");
     const isInjuredMode = currentFeeling === 'bad';
+    
+    // Säkerställ att vi har objekt för suggestions och scaling för att undvika krasch vid Object.entries
+    const suggestions = insights?.suggestions || {};
+    const scaling = insights?.scaling || {};
+
     return (
         <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white relative overflow-hidden animate-fade-in">
             <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-indigo-50 dark:from-indigo-900/40 to-transparent z-0"></div>
@@ -198,19 +203,19 @@ const PreGameView: React.FC<{
                 <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-xl mb-6">
                     <div className="flex items-start gap-4 mb-6"><div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-lg"><SparklesIcon className="w-6 h-6 text-white" /></div><div><h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Dagens Fokus</h3><p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium italic">"{displayStrategy}"</p></div></div>
                     <div className="space-y-4">
-                        {!isInjuredMode && insights.suggestions && Object.keys(insights.suggestions).length > 0 && (
+                        {!isInjuredMode && Object.keys(suggestions).length > 0 && (
                             <div><h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Smart Load (Förslag)</h4><div className="space-y-2">
-                                {Object.entries(insights.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
+                                {Object.entries(suggestions).slice(0, 3).map(([exercise, suggestion]) => (
                                     <div key={exercise} className="flex justify-between items-center bg-gray-50 dark:bg-gray-900/50 p-3 rounded-xl border border-gray-100 dark:border-gray-700/50"><span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{exercise}</span><span className="text-sm font-bold text-primary">{suggestion}</span></div>
                                 ))}
                             </div></div>
                         )}
-                        {(isInjuredMode || (insights.scaling && Object.keys(insights.scaling).length > 0)) && (
+                        {(isInjuredMode || Object.keys(scaling).length > 0) && (
                             <div className="mt-4"><h4 className="text-xs font-bold text-orange-500 dark:text-orange-400 uppercase tracking-wider mb-2 flex items-center gap-1"><LightningIcon className="w-3 h-3" /> Alternativ / Skalning</h4><div className="space-y-2">
-                                {insights.scaling && Object.entries(insights.scaling).map(([exercise, alternative]) => (
+                                {Object.entries(scaling).map(([exercise, alternative]) => (
                                     <div key={exercise} className="bg-orange-50 dark:bg-orange-500/10 p-3 rounded-xl border border-orange-100 dark:border-orange-500/20"><div className="text-xs text-orange-600 dark:text-orange-300 line-through mb-0.5">{exercise}</div><div className="text-sm font-bold text-gray-900 dark:text-white">👉 {alternative}</div></div>
                                 ))}
-                                {isInjuredMode && (!insights.scaling || Object.keys(insights.scaling).length === 0) && (
+                                {isInjuredMode && Object.keys(scaling).length === 0 && (
                                     <div className="bg-orange-50 dark:bg-orange-500/10 p-3 rounded-xl border border-orange-100 dark:border-orange-500/20"><div className="text-sm font-bold text-gray-900 dark:text-white">Sänk vikterna med 30-50% och fokusera på fullt rörelseutslag.</div></div>
                                 )}
                             </div></div>
@@ -435,10 +440,11 @@ const AiSubmitOverlay: React.FC = () => (
             />
         </div>
 
+        {/* Studio-style Studsande prickar istället för text */}
         <div className="flex gap-2 items-center justify-center mt-8">
-            <span className="w-2 h-2 bg-primary rounded-full animate-bounce"></span>
-            <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-            <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+            <span className="w-2.5 h-2.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0s' }}></span>
+            <span className="w-2.5 h-2.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+            <span className="w-2.5 h-2.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
         </div>
     </motion.div>
 );
@@ -474,7 +480,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   
   const uncheckedSetsCount = useMemo(() => {
       if (isQuickWorkoutMode || isManualMode) return 0;
-      return exerciseResults.reduce((acc, ex) => acc + ex.setDetails.filter(s => !s.completed).length, 0);
+      return exerciseResults.reduce((acc, ex) => acc + (ex.setDetails ? ex.setDetails.filter(s => !s.completed).length : 0), 0);
   }, [isQuickWorkoutMode, isManualMode, exerciseResults]);
 
   const isFormValid = useMemo(() => {
@@ -482,7 +488,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       if (isQuickWorkoutMode || isManualMode) {
           return customActivity.name.trim() !== '' && customActivity.duration.trim() !== '';
       }
-      const totalSets = exerciseResults.reduce((acc, ex) => acc + ex.setDetails.length, 0);
+      const totalSets = exerciseResults.reduce((acc, ex) => acc + (ex.setDetails ? ex.setDetails.length : 0), 0);
       return totalSets > 0 && uncheckedSetsCount === 0;
   }, [isSubmitting, isQuickWorkoutMode, isManualMode, customActivity, exerciseResults, uncheckedSetsCount]);
   
@@ -637,7 +643,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const handleUpdateResult = (index: number, updates: Partial<LocalExerciseResult>) => {
     setExerciseResults(prev => {
         const next = [...prev];
-        next[index] = { ...next[index], ...updates };
+        if (next[index]) {
+            next[index] = { ...next[index], ...updates };
+        }
         return next;
     });
   };
@@ -645,6 +653,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const handleStartWorkout = () => {
       if (aiInsights?.suggestions && dailyFeeling !== 'bad') {
           const newResults = exerciseResults.map(res => {
+              if (!res.exerciseName || !res.setDetails) return res;
               const suggestion = aiInsights.suggestions[res.exerciseName];
               if (suggestion) {
                   const weightMatch = suggestion.match(/(\d+)/);
@@ -666,7 +675,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
   const handleApplyDailyFormWeight = (exerciseName: string, weight: string) => {
       const index = exerciseResults.findIndex(r => r.exerciseName === exerciseName);
-      if (index !== -1) {
+      if (index !== -1 && exerciseResults[index].setDetails) {
           const updatedSets = exerciseResults[index].setDetails.map(set => ({
               ...set,
               weight: weight
@@ -698,31 +707,33 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
           let totalVolume = 0;
           
           const exerciseResultsToSave = isQuickOrManual ? [] : exerciseResults.map(r => {
-              const validWeights = r.setDetails.map(s => parseFloat(s.weight)).filter(n => !isNaN(n));
+              const validWeights = r.setDetails ? r.setDetails.map(s => parseFloat(s.weight)).filter(n => !isNaN(n)) : [];
               const maxWeight = validWeights.length > 0 ? Math.max(...validWeights) : null;
               
-              r.setDetails.forEach(s => {
-                  const weight = parseFloat(s.weight);
-                  const reps = parseFloat(s.reps);
-                  if (!isNaN(weight) && !isNaN(reps)) {
-                      totalVolume += weight * reps;
-                  }
-              });
+              if (r.setDetails) {
+                  r.setDetails.forEach(s => {
+                      const weight = parseFloat(s.weight);
+                      const reps = parseFloat(s.reps);
+                      if (!isNaN(weight) && !isNaN(reps)) {
+                          totalVolume += weight * reps;
+                      }
+                  });
+              }
 
-              const repsValues = r.setDetails.map(s => s.reps).filter(Boolean);
+              const repsValues = r.setDetails ? r.setDetails.map(s => s.reps).filter(Boolean) : [];
               const uniqueReps = [...new Set(repsValues)];
               const repsSummary = uniqueReps.length === 1 ? uniqueReps[0] : (uniqueReps.length > 0 ? 'Mixed' : null);
 
               return {
                   exerciseId: r.exerciseId,
                   exerciseName: r.exerciseName,
-                  setDetails: r.setDetails.map(s => ({
+                  setDetails: r.setDetails ? r.setDetails.map(s => ({
                       weight: parseFloat(s.weight) || null,
                       reps: s.reps || null
-                  })),
+                  })) : [],
                   weight: maxWeight, 
                   reps: repsSummary, 
-                  sets: r.setDetails.length,
+                  sets: r.setDetails ? r.setDetails.length : 0,
                   blockId: r.blockId
               };
           });
@@ -950,9 +961,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               ) : (
                   <>
                     {exerciseResults.map((result, index) => {
-                        const isNewBlock = index === 0 || result.blockId !== exerciseResults[index - 1].blockId;
+                        const isNewBlock = index === 0 || (result.blockId && exerciseResults[index - 1] && result.blockId !== exerciseResults[index - 1].blockId);
                         return (
-                            <React.Fragment key={result.exerciseId}>
+                            <React.Fragment key={`${result.exerciseId}-${index}`}>
                                 {isNewBlock && (
                                     <div className="mt-8 mb-4 flex items-center gap-3">
                                         <div className="h-5 w-1.5 bg-primary rounded-full shadow-sm"></div>
