@@ -1,4 +1,3 @@
-
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -210,10 +209,6 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
 
 // --- DATA & MOTIVATION ---
 
-/**
- * Saves a workout log and calculates Personal Bests.
- * Returns an array of records that were broken during this session.
- */
 export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecords: { exerciseName: string, weight: number, diff: number }[] }> => {
     console.log("saveWorkoutLog triggered for Org:", logData.organizationId, logData); 
     if (isOffline || !db || !logData.organizationId) {
@@ -225,7 +220,6 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
     const newLog = { id: newLogRef.id, ...logData };
     const newRecords: { exerciseName: string; weight: number; diff: number }[] = [];
 
-    // 1. Enrich log with member name/photo for feed
     if (logData.memberId) {
         try {
             const userSnap = await getDoc(doc(db, 'users', logData.memberId));
@@ -237,11 +231,9 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
         } catch (e) { console.warn("Failed to fetch user data for log enrichment", e); }
     }
 
-    // 2. Save the log itself
     await setDoc(newLogRef, newLog);
     console.log("Log successfully saved to Firestore with ID:", newLogRef.id);
 
-    // 3. Process Personal Bests
     if (logData.memberId && logData.memberId !== 'offline_member_uid' && logData.exerciseResults) {
         try {
             const batch = writeBatch(db);
@@ -281,7 +273,6 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 }
             }
 
-            // 4. Emit ONE batched PB event to the studio
             if (newRecords.length > 0) {
                 console.log("New records found! Creating studio event...", newRecords);
                 const eventRef = doc(collection(db, 'studio_events'));
@@ -385,15 +376,26 @@ export const listenForStudioEvents = (orgId: string, callback: (event: StudioEve
     });
 };
 
+/**
+ * Lyssnar på PB-händelser för en organisation.
+ * Använder rullande 7 dagar istället för kalendervecka för att undvika tomma listor på måndagar.
+ * Max-tak på 20 poster för att hålla listan fokuserad.
+ */
 export const listenToWeeklyPBs = (orgId: string, onUpdate: (events: StudioEvent[]) => void) => {
     if (isOffline || !db || !orgId) { onUpdate([]); return () => {}; }
-    const now = new Date();
-    const day = now.getDay() || 7;
-    if (day !== 1) now.setDate(now.getDate() - (day - 1));
-    now.setHours(0, 0, 0, 0);
-    const startOfWeek = now.getTime();
+    
+    // Rullande 7 dygn bakåt från nu
+    const rollingStart = Date.now() - (7 * 24 * 60 * 60 * 1000);
 
-    const q = query(collection(db, 'studio_events'), where('organizationId', '==', orgId), where('type', 'in', ['pb', 'pb_batch']), where('timestamp', '>=', startOfWeek), orderBy('timestamp', 'desc'), limit(50));
+    const q = query(
+        collection(db, 'studio_events'), 
+        where('organizationId', '==', orgId), 
+        where('type', 'in', ['pb', 'pb_batch']), 
+        where('timestamp', '>=', rollingStart), 
+        orderBy('timestamp', 'desc'), 
+        limit(20) // Max-tak på 20 poster för att hålla det rent
+    );
+    
     return onSnapshot(q, (snap) => onUpdate(snap.docs.map(d => d.data() as StudioEvent)));
 };
 
