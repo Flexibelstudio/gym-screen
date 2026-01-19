@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -47,7 +48,6 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
     }, []);
 
     const pbCount = diploma.newPBs?.length || 0;
-    // Använder titeln från diplomet (som nu slumpas vid skapande) istället för hårdkodad PB-text
     const displayTitle = diploma.title || (pbCount > 0 ? "NYTT REKORD!" : "SNYGGT JOBBAT!");
     
     const subtitle = diploma.subtitle || diploma.message || "";
@@ -67,7 +67,7 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[12000] bg-black/90 dark:bg-black/95 backdrop-blur-xl flex items-center justify-center p-4 sm:p-10"
+            className="fixed inset-0 z-[12000] bg-slate-50/70 dark:bg-black/95 backdrop-blur-2xl flex items-center justify-center p-4 sm:p-10"
             onClick={onClose}
         >
             <AnimatePresence>
@@ -79,15 +79,16 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.9, opacity: 0, y: 40 }}
                 transition={{ type: "spring", damping: 25, stiffness: 150 }}
-                className="relative w-full max-w-sm rounded-[3rem] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.6)] flex flex-col bg-white dark:bg-gray-950 border border-transparent dark:border-gray-800"
+                className="relative w-full max-w-sm rounded-[3rem] overflow-hidden shadow-[0_40px_80px_-15px_rgba(20,184,166,0.15)] dark:shadow-[0_50px_100px_-20px_rgba(0,0,0,0.6)] flex flex-col bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-800"
                 style={{ 
                     fontFamily: '"Inter", sans-serif',
                     maxHeight: '85vh'
                 }}
                 onClick={e => e.stopPropagation()}
             >
-                {/* Dekorativt ljus */}
-                <div className="absolute top-0 right-0 w-64 h-64 hidden dark:block bg-primary/10 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
+                {/* Dekorativt ljus (varmare i light mode, subtilt i dark) */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-amber-100/40 dark:bg-primary/10 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
+                <div className="absolute bottom-0 left-0 w-48 h-48 bg-teal-100/30 dark:hidden rounded-full blur-[60px] -ml-10 -mb-10 pointer-events-none"></div>
                 
                 {/* Kryss (X) */}
                 <button 
@@ -98,7 +99,7 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                 </button>
 
                 {/* HEADER */}
-                <div className="pt-10 pb-4 text-center px-8 flex-shrink-0">
+                <div className="pt-10 pb-4 text-center px-8 flex-shrink-0 relative z-10">
                     <h1 className="text-3xl sm:text-4xl font-black uppercase tracking-tighter leading-none mb-2 text-black dark:text-white">
                         {displayTitle}
                     </h1>
@@ -110,7 +111,7 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                 </div>
 
                 {/* HUVUDINNEHÅLL */}
-                <div className="flex-grow overflow-y-auto px-6 pb-4 custom-scrollbar">
+                <div className="flex-grow overflow-y-auto px-6 pb-4 custom-scrollbar relative z-10">
                     <div className="flex flex-col items-center">
                         <motion.div 
                             initial={{ scale: 0.5, rotate: -3 }}
@@ -120,7 +121,7 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                             {icon}
                         </motion.div>
                         
-                        <div className="bg-gray-50 dark:bg-white/5 border border-gray-100 dark:border-white/10 p-5 rounded-[2rem] w-full shadow-sm">
+                        <div className="bg-gray-50/50 dark:bg-white/5 border border-gray-100 dark:border-white/10 p-5 rounded-[2rem] w-full shadow-sm backdrop-blur-sm">
                             <p className="text-xl sm:text-2xl font-black text-black dark:text-white leading-tight mb-4 text-center">
                                 {achievement}
                             </p>
@@ -150,7 +151,7 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                 </div>
 
                 {/* FOOTER INFO */}
-                <div className="px-8 pb-8 flex-shrink-0 flex justify-between items-center bg-white dark:bg-gray-950 border-t border-gray-50 dark:border-gray-900 pt-4">
+                <div className="px-8 pb-8 flex-shrink-0 flex justify-between items-center bg-white dark:bg-gray-950 border-t border-gray-50 dark:border-gray-900 pt-4 relative z-10">
                     <div className="text-left">
                         <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Datum</p>
                         <p className="text-[9px] font-bold text-gray-900 dark:text-white">{new Date().toLocaleDateString('sv-SE')}</p>
