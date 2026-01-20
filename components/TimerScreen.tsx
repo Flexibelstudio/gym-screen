@@ -697,7 +697,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
       {isHyroxRace && (
           <div 
-              className="absolute top-0 right-0 bottom-0 border-l-4 border-white/10 bg-gray-900/95 backdrop-blur-md flex flex-col z-40 shadow-2xl"
+              className="absolute top-0 right-0 bottom-0 border-l-4 border-gray-200 dark:border-white/10 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md flex flex-col z-40 shadow-2xl"
               style={{ width: HYROX_RIGHT_PANEL_WIDTH }}
           >
               <ParticipantFinishList 
@@ -708,11 +708,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 isSaving={(name) => savingParticipant === name} 
               />
               
-              <div className="p-6 mt-auto bg-gray-900/50 border-t border-white/10">
+              <div className="p-6 mt-auto bg-gray-50/50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-white/10">
                  <button 
                     onClick={handleRaceComplete}
                     disabled={isSavingRace || startedParticipants.length === 0}
-                    className={`w-full font-black py-5 rounded-2xl shadow-xl transition-all transform active:scale-95 flex items-center justify-center gap-3 text-lg uppercase tracking-tight disabled:opacity-50 ${isClockFrozen ? 'bg-green-600 hover:bg-green-500 shadow-green-500/20' : 'bg-primary hover:brightness-110 shadow-primary/20'}`}
+                    className={`w-full font-black py-5 rounded-2xl shadow-xl transition-all transform active:scale-95 flex items-center justify-center gap-3 text-lg uppercase tracking-tight disabled:opacity-50 ${isClockFrozen ? 'bg-green-600 hover:bg-green-500 shadow-green-500/20 text-white' : 'bg-primary hover:brightness-110 shadow-primary/20 text-white'}`}
                  >
                     {isSavingRace ? (
                         <>
@@ -725,7 +725,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                         </>
                     )}
                  </button>
-                 <p className="text-[10px] text-gray-500 font-bold uppercase text-center mt-3 tracking-widest opacity-60">
+                 <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase text-center mt-3 tracking-widest opacity-60">
                     {isClockFrozen ? 'Klicka för att stänga boken och spara' : 'Avbryt eller avsluta loppet manuellt'}
                  </p>
               </div>
