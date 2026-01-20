@@ -17,6 +17,7 @@ INSTRUKTIONER:
 2. Använd logiska timerinställningar (t.ex. AMRAP för flås, Intervall för styrka).
 3. Ge blocken tydliga namn som "Pulsfest" eller "Styrka: Pressar".
 4. Skriv pedagogiska beskrivningar för varje övning.
+5. Använd ALDRIG generiska namn som "Övning 1". Välj alltid riktiga, vedertagna övningar.
 `;
 
 export const WORKOUT_REMIX_PROMPT = (workoutJson: string) => `
@@ -38,17 +39,27 @@ ${workoutJson}
 `;
 
 export const TEXT_INTERPRETER_PROMPT = (text: string) => `
-Tolka och digitalisera följande träningsanteckning.
-Hitta övningar, reps/tid och struktur. Om det är en instruktion snarare än en lista, skapa ett pass som matchar instruktionen.
+Tolka och digitalisera följande träningsanteckning. 
+Hitta övningar, reps/tid och struktur. 
+
+Viktiga regler:
+1. Om texten är en instruktion (t.ex. 'benpass 5 övningar') snarare än en lista, använd din expertis som SmartCoach för att skapa ett pass som matchar instruktionen perfekt.
+2. Använd ALDRIG generiska namn som 'Övning 1' eller 'Station A'. Välj riktiga övningar.
+3. Om specifika övningar finns angivna, prioritera att transkribera dem exakt.
 
 TEXT:
 ${text}
 `;
 
 export const IMAGE_INTERPRETER_PROMPT = (additionalText?: string) => `
-Transkribera och strukturera träningspasset från bilden.
-${additionalText ? `EXTRA INSTRUKTION: ${additionalText}` : ''}
-Var noggrann med reps och tider. Hallucinera inte data som inte syns eller efterfrågas.
+Tolka och strukturera träningspasset från bilden.
+
+Viktiga regler:
+1. Om bilden innehåller en instruktion (t.ex. '5 övningar styrka' eller 'benpass') snarare än en lista med specifika övningsnamn, ska du använda din expertis som SmartCoach för att välja ut riktigt bra, utmanande och varierade övningar som passar instruktionen perfekt.
+2. Använd ALDRIG generiska namn som 'Övning 1' eller 'Station A'. 
+3. Om specifika övningar finns skrivna på bilden, transkribera dem noggrant med tillhörande reps och tider.
+
+${additionalText ? `EXTRA INSTRUKTION FRÅN ANVÄNDAREN: ${additionalText}` : ''}
 `;
 
 export const EXERCISE_DESCRIPTION_PROMPT = (name: string) => `
