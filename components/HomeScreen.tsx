@@ -266,8 +266,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
 
             {/* Meny-grid */}
-            <div className="flex-grow overflow-y-auto pr-2 mb-8 custom-scrollbar min-h-0">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 auto-rows-fr">
+            <div className={`flex-grow overflow-y-auto pr-2 custom-scrollbar min-h-0 ${!studioConfig.enableWorkoutLogging ? 'mb-12' : 'mb-8'}`}>
+                <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 ${studioConfig.enableWorkoutLogging ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-6 auto-rows-fr`}>
                     {menuItems.map((item, index) => (
                         <MenuCard
                             key={item.title}
@@ -284,7 +284,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
             </div>
 
-            {/* Botten-dashboard */}
+            {/* Botten-dashboard - Endast om loggning är på */}
             {studioConfig.enableWorkoutLogging && (
                 <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-[400px] mb-6">
                     <motion.div 
@@ -308,7 +308,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             )}
         </div>
 
-        {/* EXPANDED MODAL VIEW - ENHANCED FOR LIGHT MODE */}
+        {/* EXPANDED MODAL VIEW */}
         <AnimatePresence>
             {expandedList && (
                 <motion.div 
