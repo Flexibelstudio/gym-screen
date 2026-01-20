@@ -1,4 +1,4 @@
-// ... (imports remain the same)
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Note, Workout, StudioConfig, TimerMode, TimerStatus, WorkoutBlock, Exercise, TimerSettings } from '../types';
 import { interpretHandwriting, parseWorkoutFromImage } from '../services/geminiService';
@@ -16,7 +16,6 @@ interface NotesScreenProps {
     onBack: () => void;
 }
 
-// ... (BoilingCauldron, AILoadingSpinner, NoteArchiveModal components remain the same)
 const BoilingCauldron: React.FC<{ className?: string }> = ({ className }) => (
     <div className={`relative ${className}`}>
         <svg viewBox="0 0 100 100" className="w-full h-full">
@@ -1026,7 +1025,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             if (d < h) return { x: x + w, y: y + d, side: 'right' };
             d -= h;
             if (d < w) return { x: x + w - d, y: y + h, side: 'bottom' };
-            d -= w;
+            d -= h;
             if (d < h) return { x: x, y: y + h - d, side: 'left' };
             d -= h;
             return { x: x + d, y: y, side: 'top' };
@@ -1074,7 +1073,11 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             // Text processing
             const name = cleanExerciseName(ex.name);
             const lines = splitTextIntoLines(name);
-            const repsStr = ex.reps ? `(${ex.reps})` : '';
+
+            // Filter out "(Ej angivet)" or variations
+            const repsRaw = ex.reps || '';
+            const isInvalidReps = repsRaw.toLowerCase().includes('ej angivet') || repsRaw.trim() === '';
+            const repsStr = isInvalidReps ? '' : `(${repsRaw})`;
             
             let fontSize = 38 * dpr; // Much larger base font
             ctx.font = `bold ${fontSize}px sans-serif`;
