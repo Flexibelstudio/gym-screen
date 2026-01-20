@@ -10,26 +10,26 @@ import { Modal } from './ui/Modal';
 import { useStudio } from '../context/StudioContext';
 
 const TimerIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+  <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
   </svg>
 );
 
 const HyroxIcon = () => (
-  <span className="text-2xl font-black tracking-tighter">HX</span>
+  <span className="text-4xl font-black tracking-tighter">HX</span>
 );
 
 const getIconForCategory = (category: CustomCategoryWithPrompt) => {
     if (category.icon) {
         const IconComponent = getIconComponent(category.icon);
-        return <IconComponent className="w-8 h-8" />;
+        return <IconComponent className="w-10 h-10" />;
     }
     const lower = category.name.toLowerCase();
-    if (lower.includes('styrka')) return <DumbbellIcon className="w-8 h-8" />;
-    if (lower.includes('hiit') || lower.includes('puls')) return <SparklesIcon className="w-8 h-8" />;
-    if (lower.includes('rörlighet') || lower.includes('yoga')) return <div className="text-2xl">🧘</div>;
-    if (lower.includes('ide') || lower.includes('tavla')) return <PencilIcon className="w-8 h-8" />;
-    return <DumbbellIcon className="w-8 h-8" />;
+    if (lower.includes('styrka')) return <DumbbellIcon className="w-10 h-10" />;
+    if (lower.includes('hiit') || lower.includes('puls')) return <SparklesIcon className="w-10 h-10" />;
+    if (lower.includes('rörlighet') || lower.includes('yoga')) return <div className="text-4xl">🧘</div>;
+    if (lower.includes('ide') || lower.includes('tavla')) return <PencilIcon className="w-10 h-10" />;
+    return <DumbbellIcon className="w-10 h-10" />;
 };
 
 const MenuCard: React.FC<{
@@ -72,7 +72,7 @@ const MenuCard: React.FC<{
             variants={variants}
             onClick={onClick}
             className={`
-                relative overflow-hidden rounded-[2.5rem] p-6 text-left flex flex-col justify-between h-full min-h-[140px]
+                relative overflow-hidden rounded-[3rem] p-8 text-left flex flex-col justify-between h-full min-h-[220px]
                 bg-gradient-to-br from-primary to-teal-700 text-white
                 shadow-xl border-t border-l border-white/20 transition-all duration-300
                 hover:shadow-primary/20 hover:-translate-y-1
@@ -90,18 +90,18 @@ const MenuCard: React.FC<{
                 )}
             </AnimatePresence>
 
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none mix-blend-overlay"></div>
+            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none mix-blend-overlay"></div>
 
             <div className="z-10 flex flex-col h-full justify-between relative">
-                <div className="mb-2 p-2 bg-white/15 w-fit rounded-xl text-white backdrop-blur-md border border-white/10 shadow-inner">
-                    {icon || <DumbbellIcon className="w-6 h-6" />}
+                <div className="mb-4 p-3 bg-white/15 w-fit rounded-2xl text-white backdrop-blur-md border border-white/10 shadow-inner">
+                    {icon || <DumbbellIcon className="w-8 h-8" />}
                 </div>
                 <div>
-                    <h3 className="text-lg sm:text-xl font-black leading-tight drop-shadow-md tracking-tight uppercase">
+                    <h3 className="text-2xl sm:text-3xl font-black leading-none drop-shadow-md tracking-tight uppercase">
                         {title}
                     </h3>
                     {subTitle && (
-                        <p className="text-[9px] font-bold text-white/80 mt-0.5 uppercase tracking-widest">
+                        <p className="text-[10px] font-black text-white/80 mt-1.5 uppercase tracking-[0.2em]">
                             {subTitle}
                         </p>
                     )}
@@ -183,9 +183,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         });
     });
     if (studioConfig.enableHyrox) items.push({ title: 'HYROX', action: () => navigateTo(Page.Hyrox), icon: <HyroxIcon /> });
-    if (studioConfig.enableNotes) items.push({ title: 'Idé-tavlan', subTitle: 'Rita & Skissa', action: () => navigateTo(Page.IdeaBoard), icon: <PencilIcon className="w-8 h-8" /> });
+    if (studioConfig.enableNotes) items.push({ title: 'Idé-tavlan', subTitle: 'Rita & Skissa', action: () => navigateTo(Page.IdeaBoard), icon: <PencilIcon className="w-10 h-10" /> });
     items.push({ title: 'Timer', subTitle: 'Intervall', action: () => navigateTo(Page.FreestandingTimer), icon: <TimerIcon /> });
-    items.push({ title: 'Övriga pass', subTitle: 'Favoriter & Utkast', action: () => navigateTo(Page.SavedWorkouts), icon: <StarIcon className="w-8 h-8" filled={false} /> });
+    items.push({ title: 'Övriga pass', subTitle: 'Favoriter & Utkast', action: () => navigateTo(Page.SavedWorkouts), icon: <StarIcon className="w-10 h-10" filled={false} /> });
     return items;
   }, [studioConfig, navigateTo, onSelectPasskategori]);
 
@@ -266,8 +266,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
 
             {/* Meny-grid */}
-            <div className="flex-grow overflow-y-auto pr-2 mb-8 custom-scrollbar min-h-0">
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 auto-rows-fr">
+            <div className={`flex-grow overflow-y-auto pr-2 custom-scrollbar min-h-0 ${!studioConfig.enableWorkoutLogging ? 'mb-12' : 'mb-8'}`}>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6 auto-rows-fr">
                     {menuItems.map((item, index) => (
                         <MenuCard
                             key={item.title}
@@ -284,26 +284,28 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
             </div>
 
-            {/* Botten-dashboard */}
-            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-[400px] mb-6">
-                <motion.div 
-                    initial={{ opacity: 0, y: 30 }} 
-                    animate={{ opacity: 1, y: 0 }} 
-                    transition={{ delay: 0.6 }}
-                    className="h-full"
-                >
-                    <CommunityFeed onExpand={() => setExpandedList('feed')} />
-                </motion.div>
+            {/* Botten-dashboard - visas endast om loggning är på */}
+            {studioConfig.enableWorkoutLogging && (
+                <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-[400px] mb-6">
+                    <motion.div 
+                        initial={{ opacity: 0, y: 30 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        transition={{ delay: 0.6 }}
+                        className="h-full"
+                    >
+                        <CommunityFeed onExpand={() => setExpandedList('feed')} />
+                    </motion.div>
 
-                <motion.div 
-                    initial={{ opacity: 0, y: 30 }} 
-                    animate={{ opacity: 1, y: 0 }} 
-                    transition={{ delay: 0.7 }}
-                    className="h-full"
-                >
-                    <WeeklyPBList onExpand={() => setExpandedList('pb')} />
-                </motion.div>
-            </div>
+                    <motion.div 
+                        initial={{ opacity: 0, y: 30 }} 
+                        animate={{ opacity: 1, y: 0 }} 
+                        transition={{ delay: 0.7 }}
+                        className="h-full"
+                    >
+                        <WeeklyPBList onExpand={() => setExpandedList('pb')} />
+                    </motion.div>
+                </div>
+            )}
         </div>
 
         {/* EXPANDED MODAL VIEW - ENHANCED FOR LIGHT MODE */}
