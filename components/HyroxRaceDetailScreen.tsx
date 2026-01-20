@@ -66,16 +66,6 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
 
     return (
         <div className="w-full max-w-4xl mx-auto animate-fade-in relative">
-             <button 
-                onClick={onBack}
-                className="absolute left-0 top-0 sm:top-2 text-gray-500 dark:text-gray-400 hover:text-primary transition-colors flex items-center gap-2"
-             >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                <span className="hidden sm:inline font-medium">Tillbaka</span>
-             </button>
-
             <div className="text-center mb-8 pt-8 sm:pt-0">
                 <h1 className="text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white">Resultat – {race.raceName}</h1>
                 <p className="text-lg text-gray-500 dark:text-gray-400 mt-2">

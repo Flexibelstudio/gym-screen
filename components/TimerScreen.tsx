@@ -80,27 +80,27 @@ const NextStartIndicator: React.FC<{
             exit={{ opacity: 0, scale: 0.9, height: 0 }}
             className="w-full max-w-4xl mx-auto mb-8 relative"
         >
-            <div className={`bg-black/40 backdrop-blur-2xl rounded-[2.5rem] p-6 border-2 shadow-2xl flex items-center justify-between transition-colors duration-500 ${isUrgent ? 'border-orange-500 shadow-orange-500/20' : 'border-white/10'}`}>
+            <div className={`bg-white/90 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] p-6 border-2 shadow-xl dark:shadow-2xl flex items-center justify-between transition-colors duration-500 ${isUrgent ? 'border-orange-500 shadow-orange-500/20' : 'border-gray-200 dark:border-white/10'}`}>
                 <div className="flex items-center gap-6">
-                    <div className={`w-16 h-16 rounded-3xl flex items-center justify-center shadow-inner ${isUrgent ? 'bg-orange-500 text-white animate-pulse' : 'bg-white/10 text-white/40'}`}>
+                    <div className={`w-16 h-16 rounded-3xl flex items-center justify-center shadow-inner ${isUrgent ? 'bg-orange-500 text-white animate-pulse' : 'bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-white/40'}`}>
                         <LightningIcon className="w-8 h-8" />
                     </div>
                     <div>
-                        <span className="block text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mb-1">NÄSTA START</span>
-                        <h4 className="text-3xl font-black text-white uppercase tracking-tight truncate max-w-[250px] sm:max-w-md">
+                        <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">NÄSTA START</span>
+                        <h4 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight truncate max-w-[250px] sm:max-w-md">
                             {groupName}
                         </h4>
                     </div>
                 </div>
 
                 <div className="text-right">
-                    <span className="block text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mb-1">STARTAR OM</span>
-                    <div className={`font-mono text-5xl font-black tabular-nums leading-none ${isUrgent ? 'text-orange-500' : 'text-white'}`}>
+                    <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">STARTAR OM</span>
+                    <div className={`font-mono text-5xl font-black tabular-nums leading-none ${isUrgent ? 'text-orange-500' : 'text-gray-900 dark:text-white'}`}>
                         {minutes}:{seconds.toString().padStart(2, '0')}
                     </div>
                 </div>
             </div>
-            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gray-800 text-white/60 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10 shadow-lg">
+            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-white/60 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-gray-300 dark:border-white/10 shadow-lg">
                 {groupsLeft} {groupsLeft === 1 ? 'grupp' : 'grupper'} kvar i kön
             </div>
         </motion.div>
@@ -223,18 +223,18 @@ const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRou
     return (
         <div className="flex flex-col items-end gap-3 animate-fade-in">
             {showInterval && (
-                <div className="bg-black/30 backdrop-blur-xl rounded-[2.5rem] px-10 py-6 border border-white/10 shadow-2xl flex flex-col items-center min-w-[200px]">
-                    <span className="block text-white/60 font-black text-xs sm:text-sm uppercase tracking-[0.4em] mb-2">INTERVALL</span>
+                <div className="bg-white/80 dark:bg-black/30 backdrop-blur-xl rounded-[2.5rem] px-10 py-6 border border-gray-200 dark:border-white/10 shadow-2xl flex flex-col items-center min-w-[200px]">
+                    <span className="block text-gray-400 dark:text-white/60 font-black text-xs sm:text-sm uppercase tracking-[0.4em] mb-2">INTERVALL</span>
                     <div className="flex items-baseline justify-center gap-1">
                         <motion.span 
                             key={`interval-${currentInterval}`} 
                             initial={{ opacity: 0, scale: 0.8 }} 
                             animate={{ opacity: 1, scale: 1 }} 
-                            className="font-black text-6xl sm:text-7xl text-white drop-shadow-2xl leading-none"
+                            className="font-black text-6xl sm:text-7xl text-gray-900 dark:text-white drop-shadow-2xl leading-none"
                         >
                             {currentInterval}
                         </motion.span>
-                        <span className="text-2xl sm:text-3xl font-black text-white/40">/ {totalIntervalsInLap}</span>
+                        <span className="text-2xl sm:text-3xl font-black text-gray-300 dark:text-white/40">/ {totalIntervalsInLap}</span>
                     </div>
                 </div>
             )}
@@ -242,14 +242,14 @@ const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRou
             <motion.div 
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-black/30 backdrop-blur-xl rounded-full px-6 py-3 border border-white/10 shadow-xl flex items-center justify-center gap-3 min-w-[140px]"
+                className="bg-white/80 dark:bg-black/30 backdrop-blur-xl rounded-full px-6 py-3 border border-gray-200 dark:border-white/10 shadow-xl flex items-center justify-center gap-3 min-w-[140px]"
             >
-                <span className="text-white/60 font-black text-[10px] uppercase tracking-[0.3em]">
+                <span className="text-gray-400 dark:text-white/60 font-black text-[10px] uppercase tracking-[0.3em]">
                     {mode === TimerMode.EMOM ? 'MINUT' : 'VARV'}
                 </span>
                 <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-black text-white">{currentRound}</span>
-                    <span className="text-sm font-bold text-white/40">/ {totalRounds}</span>
+                    <span className="text-2xl font-black text-gray-900 dark:text-white">{currentRound}</span>
+                    <span className="text-sm font-bold text-gray-300 dark:text-white/40">/ {totalRounds}</span>
                 </div>
             </motion.div>
         </div>
