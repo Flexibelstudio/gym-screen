@@ -3,7 +3,6 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout } from '../types';
 import { useWorkoutTimer, playBeep, getAudioContext } from '../hooks/useWorkoutTimer';
-import { useRaceLogic } from '../hooks/useRaceLogic';
 import { useWorkout } from '../context/WorkoutContext';
 import { saveRace, updateOrganizationActivity } from '../services/firebaseService';
 import { Confetti } from './WorkoutCompleteModal';
@@ -269,6 +268,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [showBackToPrepConfirmation, setShowBackToPrepConfirmation] = useState(false);
   const [showFinishAnimation, setShowFinishAnimation] = useState(false);
   const [winnerName, setWinnerName] = useState<string | null>(null);
+  const [isSavingRace, setIsSavingRace] = useState(false);
+  const [finalRaceId, setFinalRaceId] = useState<string | null>(null);
   
   const isHyroxRace = useMemo(() => activeWorkout?.id.startsWith('hyrox-full-race') || activeWorkout?.id.startsWith('custom-race'), [activeWorkout]);
   const isFreestanding = block.tag === 'Fristående';
@@ -398,18 +399,30 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   }, [isHyroxRace, timeForCountdownDisplay, groupForCountdownDisplay, status]);
 
   const startedParticipants = useMemo(() => startGroups.filter(g => g.startTime !== undefined).flatMap(g => g.participants.split('\n').map(p => p.trim()).filter(Boolean)), [startGroups]);
-  
+  const totalParticipantsCount = startedParticipants.length;
+  const finishedParticipantsCount = Object.keys(finishedParticipants).length;
+  const allFinished = totalParticipantsCount > 0 && finishedParticipantsCount === totalParticipantsCount;
+
+  // Automatiskt pausa klockan när alla är i mål
+  useEffect(() => {
+      if (allFinished && status === TimerStatus.Running) {
+          pause();
+      }
+  }, [allFinished, status]);
+
     const handleRaceComplete = useCallback(async () => {
-        if (!isHyroxRace || !activeWorkout) { onFinish({ isNatural: true }); return; }
+        if (!isHyroxRace || !activeWorkout || !organization) { return; }
+        
+        setIsSavingRace(true);
         const sortedFinishers = Object.entries(finishedParticipants).sort(([, a], [, b]) => (a as FinishData).time - (b as FinishData).time);
         const winner = sortedFinishers.length > 0 ? sortedFinishers[0][0] : null;
         setWinnerName(winner);
-        setShowFinishAnimation(true);
-        if (winner) speak(`Och vinnaren är ${winner}! Bra jobbat alla!`);
+        
         const raceResults = sortedFinishers.map(([participant, data]) => {
             const group = startGroups.find(g => g.participants.includes(participant));
             return { participant, time: (data as FinishData).time, groupId: group?.id || 'unknown' };
         });
+
         try {
             const raceData: Omit<HyroxRace, 'id' | 'createdAt' | 'organizationId'> = {
                 raceName: activeWorkout.title,
@@ -417,12 +430,18 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 startGroups: startGroups.map(g => ({ id: g.id, name: g.name, participants: g.participants.split('\n').map(p => p.trim()).filter(Boolean) })),
                 results: raceResults
             };
-            if (organization) { const savedRace = await saveRace(raceData, organization.id); setTimeout(() => { onFinish({ isNatural: true, raceId: savedRace.id }); }, 5000); }
-            else { setTimeout(() => { onFinish({ isNatural: true }); }, 5000); }
-        } catch (error) { console.error("Failed to save race results:", error); }
-    }, [isHyroxRace, activeWorkout, finishedParticipants, block.exercises, startGroups, organization, onFinish, speak]);
-
-  useRaceLogic(startGroups.flatMap(g => g.participants.split('\n').map(p => p.trim()).filter(Boolean)).map(p => ({ isFinished: !!finishedParticipants[p] })), handleRaceComplete);
+            
+            const savedRace = await saveRace(raceData, organization.id);
+            setFinalRaceId(savedRace.id);
+            setShowFinishAnimation(true);
+            if (winner) speak(`Och vinnaren är ${winner}! Bra jobbat alla!`);
+        } catch (error) {
+            console.error("Failed to save race:", error);
+            alert("Kunde inte spara loppet. Kontrollera din anslutning.");
+        } finally {
+            setIsSavingRace(false);
+        }
+    }, [isHyroxRace, activeWorkout, finishedParticipants, block.exercises, startGroups, organization, speak]);
 
   const handleParticipantFinish = (participantName: string) => {
       if (savingParticipant) return;
@@ -537,10 +556,18 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         onTouchStart={handleInteraction}
     >
       {showConfetti && <Confetti />}
-      {showFinishAnimation && <RaceFinishAnimation winnerName={winnerName} onDismiss={() => setShowFinishAnimation(false)} />}
+      {showFinishAnimation && (
+          <RaceFinishAnimation 
+            winnerName={winnerName} 
+            onDismiss={() => {
+                setShowFinishAnimation(false);
+                if (finalRaceId) onFinish({ isNatural: true, raceId: finalRaceId });
+            }} 
+          />
+      )}
       
       <AnimatePresence>
-        {status === TimerStatus.Paused && (
+        {status === TimerStatus.Paused && !showFinishAnimation && (
             <PauseOverlay 
                 onResume={resume}
                 onRestart={handleConfirmReset}
@@ -563,7 +590,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       </AnimatePresence>
 
       <AnimatePresence>
-        {status !== TimerStatus.Idle && status !== TimerStatus.Paused && (
+        {status !== TimerStatus.Idle && status !== TimerStatus.Paused && !showFinishAnimation && (
             <motion.div 
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -657,7 +684,36 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               className="absolute top-0 right-0 bottom-0 border-l-4 border-white/10 bg-gray-900/95 backdrop-blur-md flex flex-col z-40 shadow-2xl"
               style={{ width: HYROX_RIGHT_PANEL_WIDTH }}
           >
-              <ParticipantFinishList participants={startedParticipants} finishData={finishedParticipants} onFinish={handleParticipantFinish} onEdit={handleEditParticipant} isSaving={(name) => savingParticipant === name} />
+              <ParticipantFinishList 
+                participants={startedParticipants} 
+                finishData={finishedParticipants} 
+                onFinish={handleParticipantFinish} 
+                onEdit={handleEditParticipant} 
+                isSaving={(name) => savingParticipant === name} 
+              />
+              
+              {/* NYTT: Manuell Slutför-knapp */}
+              <div className="p-6 mt-auto bg-gray-900/50 border-t border-white/10">
+                 <button 
+                    onClick={handleRaceComplete}
+                    disabled={isSavingRace || startedParticipants.length === 0}
+                    className="w-full bg-primary hover:brightness-110 text-white font-black py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-3 text-lg uppercase tracking-tight disabled:opacity-50"
+                 >
+                    {isSavingRace ? (
+                        <>
+                            <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            <span>Sparar...</span>
+                        </>
+                    ) : (
+                        <>
+                            <span>Slutför & Spara lopp</span>
+                        </>
+                    )}
+                 </button>
+                 <p className="text-[10px] text-gray-500 font-bold uppercase text-center mt-3 tracking-widest opacity-60">
+                    Avslutar loppet och skapar resultatlista
+                 </p>
+              </div>
           </div>
       )}
 

@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Page, Workout, WorkoutBlock, TimerMode, Exercise, StudioConfig, StartGroup } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Modal } from './ui/Modal';
+import { useStudio } from '../context/StudioContext';
 
 const RACE_CONFIG_STORAGE_KEY = 'hyrox-custom-race-config';
 
@@ -264,7 +266,8 @@ const StartGroupPrepModal: React.FC<{
 const createCustomRaceWorkout = (
     config: { name: string; exercises: Exercise[] },
     groups: StartGroup[],
-    interval: number
+    interval: number,
+    organizationId: string
 ): Workout => {
     const now = Date.now();
     
@@ -277,7 +280,7 @@ const createCustomRaceWorkout = (
         id: `block-custom-race-${now}`,
         title: config.name,
         tag: 'Kondition',
-        setupDescription: 'Utför alla stationer i ordning och i din egen takt. Klockan räknar uppåt tills du är klar.',
+        setupDescription: 'Utför alla stationer i ordning och i din egen takt. Klockan räknar uppåt till målgång.',
         followMe: false,
         settings: {
             mode: TimerMode.Stopwatch,
@@ -294,7 +297,7 @@ const createCustomRaceWorkout = (
     const workout: Workout = {
         id: `custom-race-${now}`,
         title: config.name,
-        coachTips: `Detta är ett anpassat lopp med uppräknande klocka. Klicka på "Jag är klar!" för att registrera din tid. Lycka till!`,
+        coachTips: `Detta är ett anpassat lopp med uppräknande klocka. Klicka på "I Mål" för deltagare för att spara deras tider. Lycka till!`,
         blocks: [singleBlock],
         category: 'HYROX',
         isPublished: false,
@@ -302,7 +305,7 @@ const createCustomRaceWorkout = (
         startGroups: groups.map(g => ({ ...g })),
         startIntervalMinutes: interval,
         createdAt: now,
-        organizationId: '' // Placeholder, context dependent or set elsewhere
+        organizationId: organizationId 
     };
 
     return workout;
@@ -310,6 +313,7 @@ const createCustomRaceWorkout = (
 
 
 export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWorkout, studioConfig, racePrepState, onPrepComplete }) => {
+    const { selectedOrganization } = useStudio();
     const [view, setView] = useState<'hub' | 'editor' | 'prep'>('hub');
     const [raceConfig, setRaceConfig] = useState<{ name: string; exercises: Exercise[] } | null>(() => {
         try {
@@ -345,7 +349,9 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
         // or create a default config if nothing has been saved yet.
         const configToUse = raceConfig || { name: 'HYROX Race', exercises: createDefaultExercises() };
 
-        const raceWorkout = createCustomRaceWorkout(configToUse, groups, interval);
+        // VIKTIGT: Skicka med orgId för att säkra sparande
+        const orgId = selectedOrganization?.id || '';
+        const raceWorkout = createCustomRaceWorkout(configToUse, groups, interval, orgId);
         onSelectWorkout(raceWorkout);
         
         setView('hub'); // Reset view for next time

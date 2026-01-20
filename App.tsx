@@ -505,12 +505,15 @@ const App: React.FC = () => {
 
   const handleTimerFinish = useCallback((finishData: { isNatural?: boolean; time?: number, raceId?: string } = {}) => {
     const { isNatural = false, time, raceId } = finishData;
+
+    // Om vi har ett raceId betyder det att ett lopp precis slutförts manuellt och sparats.
     if (raceId) {
         setIsBackButtonHidden(false);
         setActiveRaceId(raceId);
-        navigateReplace(Page.HyroxRaceDetail);
+        navigateTo(Page.HyroxRaceDetail);
         return;
     }
+
     if (completionInfo) return; 
     if (!isNatural) {
       handleBack();
