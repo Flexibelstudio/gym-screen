@@ -611,7 +611,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 50 }}
-                className="absolute top-10 z-[100]"
+                className="absolute top-16 z-[100]"
                 style={{ right: isHyroxRace ? `calc(${HYROX_RIGHT_PANEL_WIDTH} + 2.5rem)` : '2.5rem' }}
             >
                 <BigRoundIndicator 
@@ -630,7 +630,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'} 
               ${showFullScreenColor 
                   ? `top-[12%] min-h-[50%] justify-center` 
-                  : `justify-center top-1 min-h-[22%] mx-4 sm:mx-6 rounded-[2.5rem] shadow-2xl ${timerStyle.bg}`
+                  : `pt-12 top-1 min-h-[22%] mx-4 sm:mx-6 rounded-[2.5rem] shadow-2xl ${timerStyle.bg}`
               }`}
           style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
       >
@@ -726,7 +726,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                     )}
                  </button>
                  <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase text-center mt-3 tracking-widest opacity-60">
-                    {isClockFrozen ? : 'Avbryt eller avsluta loppet manuellt'}
+                    {isClockFrozen ? 'Klicka för att stänga boken och spara' : 'Avbryt eller avsluta loppet manuellt'}
                  </p>
               </div>
           </div>
