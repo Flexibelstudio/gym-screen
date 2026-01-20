@@ -510,7 +510,8 @@ const App: React.FC = () => {
     if (raceId) {
         setIsBackButtonHidden(false);
         setActiveRaceId(raceId);
-        navigateTo(Page.HyroxRaceDetail);
+        // Använd navigateReplace för att ta bort "Timer" från historikstacken
+        navigateReplace(Page.HyroxRaceDetail);
         return;
     }
 
@@ -947,7 +948,7 @@ const App: React.FC = () => {
                     setBackButtonHidden: setIsBackButtonHidden,
                     setRacePrepState: setRacePrepState,
                     setCompletionInfo: setCompletionInfo,
-                    setRegisteringHyroxTime: setIsRegisteringHyroxTime,
+                    setRegisteringHyroxTime: setRegisteringHyroxTime,
                     setFollowMeShowImage: setFollowMeShowImage,
                     
                     handleGeneratedWorkout: handleGeneratedWorkout,
