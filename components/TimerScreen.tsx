@@ -726,8 +726,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                     )}
                  </button>
                  <p className="text-[10px] text-gray-500 dark:text-gray-400 font-bold uppercase text-center mt-3 tracking-widest opacity-60">
-                    {isClockFrozen ? 'Klicka för att stänga boken och spara' : 'Avbryt eller avsluta loppet manuellt'}
-                 </p>
+                    {isClockFrozen ?
               </div>
           </div>
       )}
