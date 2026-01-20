@@ -813,7 +813,7 @@ const App: React.FC = () => {
   const isAdminFacingPage = [Page.Coach, Page.SuperAdmin, Page.SystemOwner, Page.AdminAnalytics, Page.MemberRegistry].includes(page);
 
   const showSupportChat = !isStudioMode && isAdminOrCoach && isAdminFacingPage;
-  const showScanButton = (!isStudioMode && isMemberFacingPage) || (page === Page.MemberProfile);
+  const showScanButton = ((!isStudioMode && isMemberFacingPage) || (page === Page.MemberProfile)) && studioConfig.enableWorkoutLogging;
 
   // OM INTE INLOGGAD OCH INTE STUDIO MODE -> VISA LANDNINGSSIDA
   if (!authLoading && !currentUser && !isStudioMode) {

@@ -299,6 +299,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 profileEditTrigger={profileEditTrigger}
                 navigateTo={navigateTo}
                 functions={functions}
+                studioConfig={studioConfig}
             /> : <div>Laddar profil...</div>;
 
         case Page.CustomContent:

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma } from '../types';
+import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma, StudioConfig } from '../types';
 import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog } from '../services/firebaseService';
 import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon } from './icons';
 import { Modal } from './ui/Modal';
@@ -18,6 +18,7 @@ interface MemberProfileScreenProps {
     profileEditTrigger: number;
     navigateTo: (page: Page) => void;
     functions: any;
+    studioConfig: StudioConfig;
 }
 
 // --- Helper Components ---
@@ -137,7 +138,7 @@ const GoalsEditModal: React.FC<{ currentGoals?: MemberGoals, onSave: (goals: Mem
     const toggleGoal = (goal: string) => setSelectedGoals(selectedGoals.includes(goal) ? selectedGoals.filter(g => g !== goal) : [...selectedGoals, goal]);
     const handleSave = () => onSave({ hasSpecificGoals: selectedGoals.length > 0 || (isSmartEnabled && !!smart.specific), selectedGoals, targetDate, startDate: currentGoals?.startDate || new Date().toISOString().split('T')[0], smartCriteria: isSmartEnabled ? smart : undefined });
     const inputClasses = "w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all font-medium";
-    const labelClasses = "block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1";
+    const labelClasses = "block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1";
     return (
         <Modal isOpen={true} onClose={onClose} title="Sätt dina mål" size="md">
             <div className="space-y-8">
@@ -175,7 +176,7 @@ const LogDetailModal: React.FC<{ log: WorkoutLog, onClose: () => void, onUpdate:
     );
 };
 
-export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userData, onBack, profileEditTrigger, navigateTo, functions }) => {
+export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userData, onBack, profileEditTrigger, navigateTo, functions, studioConfig }) => {
     const isNewUser = !userData.firstName || !userData.organizationId;
     
     const [logs, setLogs] = useState<WorkoutLog[]>([]);
@@ -571,51 +572,53 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     )}
                 </div>
 
-                {/* Latest workouts section */}
-                <div className="bg-white dark:bg-gray-900 rounded-[2rem] shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
-                    <div className="p-5 sm:p-8 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/30 dark:bg-gray-900/50">
-                        <h3 className="font-black text-xl text-gray-900 dark:text-white uppercase tracking-tight">Senaste Passen</h3>
+                {/* Latest workouts section - villkorligt styrt av enableWorkoutLogging */}
+                {studioConfig.enableWorkoutLogging && (
+                    <div className="bg-white dark:bg-gray-900 rounded-[2rem] shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+                        <div className="p-5 sm:p-8 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/30 dark:bg-gray-900/50">
+                            <h3 className="font-black text-xl text-gray-900 dark:text-white uppercase tracking-tight">Senaste Passen</h3>
+                        </div>
+                        <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-[500px] overflow-y-auto">
+                            {loading ? (
+                                <div className="p-12 text-center flex flex-col items-center">
+                                    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
+                                    <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">Hämtar historik...</p>
+                                </div>
+                            ) : logs.length === 0 ? (
+                                <div className="p-12 text-center">
+                                    <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300"><DumbbellIcon className="w-8 h-8" /></div>
+                                    <p className="text-gray-900 dark:text-white font-black text-lg mb-2">Inga loggade pass än.</p>
+                                    <p className="text-sm text-gray-500 max-w-xs mx-auto">Kör ett pass och logga det via QR-koden på skärmen för att se din historik här!</p>
+                                </div>
+                            ) : (
+                                logs.map(log => (
+                                    <button key={log.id} onClick={() => setSelectedLog(log)} className="w-full text-left p-4 sm:p-6 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex justify-between items-center group">
+                                        <div className="min-w-0 pr-4">
+                                            <p className="font-black text-gray-900 dark:text-white text-lg group-hover:text-primary transition-colors truncate">{log.workoutTitle}</p>
+                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">{new Date(log.date).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                                        </div>
+                                        <div className="flex gap-3 items-center flex-shrink-0">
+                                            {log.diploma && (
+                                                <button 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setViewingDiploma(log.diploma!);
+                                                    }}
+                                                    className="w-8 h-8 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-yellow-600 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors shadow-sm"
+                                                    title="Visa Diplom"
+                                                >
+                                                    <TrophyIcon className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                            {log.rpe && <div className="flex flex-col items-center"><span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">RPE</span><span className="bg-primary/10 text-primary text-sm px-3 py-1 rounded-full font-black border border-primary/20">{log.rpe}</span></div>}
+                                            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-300 dark:text-gray-600 group-hover:bg-primary group-hover:text-white transition-all"><span className="text-xl">→</span></div>
+                                        </div>
+                                    </button>
+                                ))
+                            )}
+                        </div>
                     </div>
-                    <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-[500px] overflow-y-auto">
-                        {loading ? (
-                            <div className="p-12 text-center flex flex-col items-center">
-                                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
-                                <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">Hämtar historik...</p>
-                            </div>
-                        ) : logs.length === 0 ? (
-                            <div className="p-12 text-center">
-                                <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300"><DumbbellIcon className="w-8 h-8" /></div>
-                                <p className="text-gray-900 dark:text-white font-black text-lg mb-2">Inga loggade pass än.</p>
-                                <p className="text-sm text-gray-500 max-w-xs mx-auto">Kör ett pass och logga det via QR-koden på skärmen för att se din historik här!</p>
-                            </div>
-                        ) : (
-                            logs.map(log => (
-                                <button key={log.id} onClick={() => setSelectedLog(log)} className="w-full text-left p-4 sm:p-6 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex justify-between items-center group">
-                                    <div className="min-w-0 pr-4">
-                                        <p className="font-black text-gray-900 dark:text-white text-lg group-hover:text-primary transition-colors truncate">{log.workoutTitle}</p>
-                                        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">{new Date(log.date).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-                                    </div>
-                                    <div className="flex gap-3 items-center flex-shrink-0">
-                                        {log.diploma && (
-                                            <button 
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setViewingDiploma(log.diploma!);
-                                                }}
-                                                className="w-8 h-8 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-yellow-600 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors shadow-sm"
-                                                title="Visa Diplom"
-                                            >
-                                                <TrophyIcon className="w-4 h-4" />
-                                            </button>
-                                        )}
-                                        {log.rpe && <div className="flex flex-col items-center"><span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">RPE</span><span className="bg-primary/10 text-primary text-sm px-3 py-1 rounded-full font-black border border-primary/20">{log.rpe}</span></div>}
-                                        <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-300 dark:text-gray-600 group-hover:bg-primary group-hover:text-white transition-all"><span className="text-xl">→</span></div>
-                                    </div>
-                                </button>
-                            ))
-                        )}
-                    </div>
-                </div>
+                )}
             </div>
 
             {isEditingGoals && <GoalsEditModal currentGoals={userData.goals} onSave={handleSaveGoals} onClose={() => setIsEditingGoals(false)} />}
