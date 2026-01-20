@@ -271,6 +271,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [isSavingRace, setIsSavingRace] = useState(false);
   const [finalRaceId, setFinalRaceId] = useState<string | null>(null);
   
+  // NYTT: "Frys" klockan istället för att pausa (för att undvika overlay)
+  const [isClockFrozen, setIsClockFrozen] = useState(false);
+  const [frozenTime, setFrozenTime] = useState(0);
+
   const isHyroxRace = useMemo(() => activeWorkout?.id.startsWith('hyrox-full-race') || activeWorkout?.id.startsWith('custom-race'), [activeWorkout]);
   const isFreestanding = block.tag === 'Fristående';
   const showFullScreenColor = isFreestanding;
@@ -356,6 +360,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     setShowResetConfirmation(false);
     stopAllAudio();
     setFinishedParticipants({});
+    setIsClockFrozen(false);
+    setFrozenTime(0);
     if (activeWorkout?.startGroups && activeWorkout.startGroups.length > 0) {
         setStartGroups(activeWorkout.startGroups.map(g => ({ ...g, startTime: undefined })));
     } else if (activeWorkout) {
@@ -403,15 +409,19 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const finishedParticipantsCount = Object.keys(finishedParticipants).length;
   const allFinished = totalParticipantsCount > 0 && finishedParticipantsCount === totalParticipantsCount;
 
-  // Automatiskt pausa klockan när alla är i mål
+  // Automatiskt frys klockan när alla är i mål
   useEffect(() => {
-      if (allFinished && status === TimerStatus.Running) {
-          pause();
+      if (isHyroxRace && allFinished && !isClockFrozen && status === TimerStatus.Running) {
+          setFrozenTime(totalTimeElapsed);
+          setIsClockFrozen(true);
       }
-  }, [allFinished, status]);
+  }, [allFinished, isHyroxRace, isClockFrozen, totalTimeElapsed, status]);
 
     const handleRaceComplete = useCallback(async () => {
-        if (!isHyroxRace || !activeWorkout || !organization) { return; }
+        if (!isHyroxRace || !activeWorkout || !organization) { 
+            if (!organization) console.error("Hyrox save failed: Missing organizationId");
+            return; 
+        }
         
         setIsSavingRace(true);
         const sortedFinishers = Object.entries(finishedParticipants).sort(([, a], [, b]) => (a as FinishData).time - (b as FinishData).time);
@@ -431,10 +441,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 results: raceResults
             };
             
+            // Vänta på att Firebase bekräftar sparning
             const savedRace = await saveRace(raceData, organization.id);
-            setFinalRaceId(savedRace.id);
-            setShowFinishAnimation(true);
-            if (winner) speak(`Och vinnaren är ${winner}! Bra jobbat alla!`);
+            if (savedRace && savedRace.id) {
+                setFinalRaceId(savedRace.id);
+                setShowFinishAnimation(true);
+                if (winner) speak(`Och vinnaren är ${winner}! Bra jobbat alla!`);
+            } else {
+                throw new Error("Missing raceId from server response");
+            }
         } catch (error) {
             console.error("Failed to save race:", error);
             alert("Kunde inte spara loppet. Kontrollera din anslutning.");
@@ -535,12 +550,13 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   const timeToDisplay = useMemo(() => {
       if (status === TimerStatus.Preparing) return currentTime;
+      if (isHyroxRace && isClockFrozen) return frozenTime;
       if (isHyroxRace || block.settings.mode === TimerMode.Stopwatch) return totalTimeElapsed;
       if (!block.settings.direction || block.settings.direction === 'down') {
           return currentTime;
       }
       return currentPhaseDuration - currentTime;
-  }, [status, currentTime, isHyroxRace, block.settings.mode, block.settings.direction, currentPhaseDuration, totalTimeElapsed]);
+  }, [status, currentTime, isHyroxRace, block.settings.mode, block.settings.direction, currentPhaseDuration, totalTimeElapsed, isClockFrozen, frozenTime]);
 
   const minutesStr = Math.floor(timeToDisplay / 60).toString().padStart(2, '0');
   const secondsStr = (timeToDisplay % 60).toString().padStart(2, '0');
@@ -692,12 +708,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 isSaving={(name) => savingParticipant === name} 
               />
               
-              {/* NYTT: Manuell Slutför-knapp */}
               <div className="p-6 mt-auto bg-gray-900/50 border-t border-white/10">
                  <button 
                     onClick={handleRaceComplete}
                     disabled={isSavingRace || startedParticipants.length === 0}
-                    className="w-full bg-primary hover:brightness-110 text-white font-black py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-3 text-lg uppercase tracking-tight disabled:opacity-50"
+                    className={`w-full font-black py-5 rounded-2xl shadow-xl transition-all transform active:scale-95 flex items-center justify-center gap-3 text-lg uppercase tracking-tight disabled:opacity-50 ${isClockFrozen ? 'bg-green-600 hover:bg-green-500 shadow-green-500/20' : 'bg-primary hover:brightness-110 shadow-primary/20'}`}
                  >
                     {isSavingRace ? (
                         <>
@@ -706,12 +721,12 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                         </>
                     ) : (
                         <>
-                            <span>Slutför & Spara lopp</span>
+                            <span>{isClockFrozen ? 'Slutför & Spara lopp' : 'Avsluta lopp i förtid'}</span>
                         </>
                     )}
                  </button>
                  <p className="text-[10px] text-gray-500 font-bold uppercase text-center mt-3 tracking-widest opacity-60">
-                    Avslutar loppet och skapar resultatlista
+                    {isClockFrozen ? 'Klicka för att stänga boken och spara' : 'Avbryt eller avsluta loppet manuellt'}
                  </p>
               </div>
           </div>
