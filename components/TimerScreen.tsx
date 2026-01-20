@@ -11,6 +11,9 @@ import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmation
 import { ParticipantFinishList } from './timer/ParticipantFinishList';
 import { DumbbellIcon, InformationCircleIcon } from './icons';
 
+// --- Constants ---
+const HYROX_RIGHT_PANEL_WIDTH = '450px';
+
 // --- Helper Components & Interfaces ---
 
 interface TimerStyle {
@@ -269,7 +272,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   
   const isHyroxRace = useMemo(() => activeWorkout?.id.startsWith('hyrox-full-race') || activeWorkout?.id.startsWith('custom-race'), [activeWorkout]);
   const isFreestanding = block.tag === 'Fristående';
-  // HYROX ska inte längre tvinga fullskärmsfärg, bara fristående timers gör det
   const showFullScreenColor = isFreestanding;
 
   const [startGroups, setStartGroups] = useState<StartGroup[]>([]);
@@ -566,8 +568,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 50 }}
-                className="absolute top-10 right-10 z-[100]"
-                style={{ right: isHyroxRace ? 'calc(30% + 2.5rem)' : '2.5rem' }}
+                className="absolute top-10 z-[100]"
+                style={{ right: isHyroxRace ? `calc(${HYROX_RIGHT_PANEL_WIDTH} + 2.5rem)` : '2.5rem' }}
             >
                 <BigRoundIndicator 
                     currentRound={currentRound} 
@@ -582,10 +584,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
       <div 
           className={`absolute flex flex-col items-center transition-all duration-500 z-10 left-0 
-              ${isHyroxRace ? 'right-[30%]' : 'right-0'} 
+              ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'} 
               ${showFullScreenColor 
                   ? `top-[12%] min-h-[50%] justify-center` 
-                  : `justify-center top-1 min-h-[28%] mx-4 sm:mx-6 rounded-[2.5rem] shadow-2xl ${timerStyle.bg}`
+                  : `justify-center top-1 min-h-[22%] mx-4 sm:mx-6 rounded-[2.5rem] shadow-2xl ${timerStyle.bg}`
               }`}
           style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
       >
@@ -619,7 +621,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         </div>
       </div>
 
-      <div className={`absolute bottom-0 left-0 flex flex-col items-center justify-start px-4 z-0 ${showFullScreenColor ? 'top-[65%]' : 'top-[30%]'} ${isHyroxRace ? 'right-[30%]' : 'right-0'}`}>
+      <div className={`absolute bottom-0 left-0 flex flex-col items-center justify-start px-4 z-0 
+          ${showFullScreenColor ? 'top-[65%]' : 'top-[28%]'} 
+          ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'}`}>
           {block.showDescriptionInTimer && block.setupDescription && (
               <motion.div 
                   initial={{ opacity: 0, y: 10 }}
@@ -649,12 +653,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       </div>
 
       {isHyroxRace && (
-          <div className="absolute top-0 right-0 bottom-0 w-[30%] min-w-[350px] border-l-4 border-white/10 bg-gray-900/95 backdrop-blur-md flex flex-col z-40 shadow-2xl">
+          <div 
+              className="absolute top-0 right-0 bottom-0 border-l-4 border-white/10 bg-gray-900/95 backdrop-blur-md flex flex-col z-40 shadow-2xl"
+              style={{ width: HYROX_RIGHT_PANEL_WIDTH }}
+          >
               <ParticipantFinishList participants={startedParticipants} finishData={finishedParticipants} onFinish={handleParticipantFinish} onEdit={handleEditParticipant} isSaving={(name) => savingParticipant === name} />
           </div>
       )}
 
-      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[32%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'left-[35%]' : ''}`}>
+      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[28%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
             {status === TimerStatus.Idle || status === TimerStatus.Finished ? (
                 <>
                     <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-500 transition-colors text-xl backdrop-blur-md border-2 border-white/20">TILLBAKA</button>
