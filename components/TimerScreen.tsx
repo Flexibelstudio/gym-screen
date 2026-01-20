@@ -223,18 +223,18 @@ const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRou
     return (
         <div className="flex flex-col items-end gap-3 animate-fade-in">
             {showInterval && (
-                <div className="bg-white/80 dark:bg-black/30 backdrop-blur-xl rounded-[2.5rem] px-10 py-6 border border-gray-200 dark:border-white/10 shadow-2xl flex flex-col items-center min-w-[200px]">
-                    <span className="block text-gray-400 dark:text-white/60 font-black text-xs sm:text-sm uppercase tracking-[0.4em] mb-2">INTERVALL</span>
+                <div className="bg-black/40 backdrop-blur-xl rounded-[2.5rem] px-10 py-6 shadow-2xl flex flex-col items-center min-w-[200px]">
+                    <span className="block text-white/40 font-black text-xs sm:text-sm uppercase tracking-[0.4em] mb-2">INTERVALL</span>
                     <div className="flex items-baseline justify-center gap-1">
                         <motion.span 
                             key={`interval-${currentInterval}`} 
                             initial={{ opacity: 0, scale: 0.8 }} 
                             animate={{ opacity: 1, scale: 1 }} 
-                            className="font-black text-6xl sm:text-7xl text-gray-900 dark:text-white drop-shadow-2xl leading-none"
+                            className="font-black text-6xl sm:text-7xl text-white drop-shadow-2xl leading-none"
                         >
                             {currentInterval}
                         </motion.span>
-                        <span className="text-2xl sm:text-3xl font-black text-gray-300 dark:text-white/40">/ {totalIntervalsInLap}</span>
+                        <span className="text-2xl sm:text-3xl font-black text-white/40">/ {totalIntervalsInLap}</span>
                     </div>
                 </div>
             )}
@@ -242,14 +242,14 @@ const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRou
             <motion.div 
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white/80 dark:bg-black/30 backdrop-blur-xl rounded-full px-6 py-3 border border-gray-200 dark:border-white/10 shadow-xl flex items-center justify-center gap-3 min-w-[140px]"
+                className="bg-black/40 backdrop-blur-xl rounded-full px-6 py-3 shadow-xl flex items-center justify-center gap-3 min-w-[140px]"
             >
-                <span className="text-gray-400 dark:text-white/60 font-black text-[10px] uppercase tracking-[0.3em]">
+                <span className="text-white/40 font-black text-[10px] uppercase tracking-[0.3em]">
                     {mode === TimerMode.EMOM ? 'MINUT' : 'VARV'}
                 </span>
                 <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-black text-gray-900 dark:text-white">{currentRound}</span>
-                    <span className="text-sm font-bold text-gray-300 dark:text-white/40">/ {totalRounds}</span>
+                    <span className="text-2xl font-black text-white">{currentRound}</span>
+                    <span className="text-sm font-bold text-white/40">/ {totalRounds}</span>
                 </div>
             </motion.div>
         </div>
@@ -314,7 +314,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [isSavingRace, setIsSavingRace] = useState(false);
   const [finalRaceId, setFinalRaceId] = useState<string | null>(null);
   
-  // NYTT: "Frys" klockan istället för att pausa (för att undvika overlay)
   const [isClockFrozen, setIsClockFrozen] = useState(false);
   const [frozenTime, setFrozenTime] = useState(0);
 
@@ -453,7 +452,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const finishedParticipantsCount = Object.keys(finishedParticipants).length;
   const allFinished = totalParticipantsCount > 0 && finishedParticipantsCount === totalParticipantsCount;
 
-  // Automatiskt frys klockan när alla är i mål
   useEffect(() => {
       if (isHyroxRace && allFinished && !isClockFrozen && status === TimerStatus.Running) {
           setFrozenTime(totalTimeElapsed);
@@ -472,9 +470,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         const winner = sortedFinishers.length > 0 ? sortedFinishers[0][0] : null;
         setWinnerName(winner);
         
-        const raceResults = sortedFinishers.map(([participant, data]) => {
+        const raceResults = sortedFinishers.map(([participant, name], index) => {
             const group = startGroups.find(g => g.participants.includes(participant));
-            return { participant, time: (data as FinishData).time, groupId: group?.id || 'unknown' };
+            return { participant, time: (finishedParticipants[participant] as FinishData).time, groupId: group?.id || 'unknown' };
         });
 
         try {
@@ -485,7 +483,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 results: raceResults
             };
             
-            // Vänta på att Firebase bekräftar sparning
             const savedRace = await saveRace(raceData, organization.id);
             if (savedRace && savedRace.id) {
                 setFinalRaceId(savedRace.id);
