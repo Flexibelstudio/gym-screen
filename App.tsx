@@ -905,7 +905,7 @@ const App: React.FC = () => {
                 profileEditTrigger={profileEditTrigger}
 
                 onSelectWorkout={handleSelectWorkout}
-                onSelectPasskategori={onSelectPasskategori}
+                onSelectPasskategori={handleSelectPasskategori}
                 onCreateNewWorkout={handleCreateNewWorkout}
                 onStartBlock={handleStartBlock}
                 onEditWorkout={handleEditWorkout}
