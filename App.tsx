@@ -505,16 +505,12 @@ const App: React.FC = () => {
 
   const handleTimerFinish = useCallback((finishData: { isNatural?: boolean; time?: number, raceId?: string } = {}) => {
     const { isNatural = false, time, raceId } = finishData;
-    
-    // Om vi har ett raceId, betyder det att ett lopp precis slutförts manuellt och sparats.
-    // Vi navigerar omedelbart till detaljvyn för det loppet.
     if (raceId) {
         setIsBackButtonHidden(false);
         setActiveRaceId(raceId);
-        setHistory([isStudioMode ? Page.Home : Page.MemberProfile, Page.HyroxRaceDetail]);
+        navigateReplace(Page.HyroxRaceDetail);
         return;
     }
-
     if (completionInfo) return; 
     if (!isNatural) {
       handleBack();
@@ -527,7 +523,7 @@ const App: React.FC = () => {
     } else if (activeWorkout) {
         setCompletionInfo({ workout: activeWorkout, isFinal: true, blockTag: activeWorkout.blocks[0]?.tag, finishTime: time });
     }
-  }, [completionInfo, handleBack, activeWorkout, activeBlock, isStudioMode]);
+  }, [completionInfo, handleBack, activeWorkout, activeBlock]);
 
   const handleCloseWorkoutCompleteModal = () => {
     const isFinalBlock = completionInfo?.isFinal;
@@ -943,7 +939,7 @@ const App: React.FC = () => {
                     handleCoachAccessRequest: handleCoachAccessRequest,
                     handleReturnToAdmin: handleReturnToAdminRequest, 
                     handleGoToSystemOwner: () => setHistory([Page.SystemOwner]),
-                    setShowImage: (url: string) => setPreviewImageUrl(url),
+                    setShowImage: (url) => setPreviewImageUrl(url),
                     setTimerHeaderVisible: setIsTimerHeaderVisible,
                     setBackButtonHidden: setIsBackButtonHidden,
                     setRacePrepState: setRacePrepState,
@@ -1058,7 +1054,7 @@ const App: React.FC = () => {
                                     onTogglePublish={() => {}}
                                     onToggleFavorite={handleToggleFavoriteStatus}
                                     onDuplicate={() => {}}
-                                    onShowImage={(url: string) => setPreviewImageUrl(url)} 
+                                    onShowImage={setPreviewImageUrl} 
                                     isPresentationMode={false}
                                     studioConfig={studioConfig}
                                     followMeShowImage={followMeShowImage}
