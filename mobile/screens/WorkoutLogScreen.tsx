@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog } from '../../services/firebaseService';
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage } from '../../services/geminiService';
@@ -218,7 +217,7 @@ const PreGameView: React.FC<{
                         )}
                     </div>
                 </div>
-                <div className="mt-auto pt-4 pb-8"><button onClick={onStart} className="w-full bg-primary hover:brightness-110 text-white font-black text-lg py-5 rounded-2xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2"><span className="tracking-tight uppercase">Starta passet</span><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg></button></div>
+                <div className="mt-auto pt-4 pb-8"><button onClick={onStart} className="w-full bg-primary hover:brightness-110 text-white font-black text-lg py-5 rounded-2xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2"><span className="tracking-tight uppercase">Starta passet</span><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 -1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg></button></div>
             </div>
         </div>
     );
@@ -836,21 +835,21 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/80 backdrop-blur-sm"
+              className="fixed inset-0 z-[1100] flex items-center justify-center bg-slate-900/40 dark:bg-black/80 backdrop-blur-md"
             >
                 <Confetti />
                 <motion.div 
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  className="bg-white p-10 rounded-[2.5rem] text-center shadow-2xl max-w-sm mx-4 relative z-10"
+                  initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                  animate={{ scale: 1, opacity: 1, y: 0 }}
+                  className="bg-white dark:bg-gray-950 p-10 rounded-[3rem] text-center shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] dark:shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8)] max-w-sm mx-4 relative z-10 border border-gray-100 dark:border-gray-800"
                 >
-                    <div className="text-7xl mb-6">🎉</div>
-                    <h2 className="text-3xl font-black text-gray-900 mb-2 uppercase tracking-tight">Snyggt jobbat!</h2>
-                    <p className="text-gray-500 font-medium leading-relaxed mb-8">Ditt pass är registrerat.</p>
+                    <div className="text-7xl mb-6 drop-shadow-xl">🎉</div>
+                    <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-2 uppercase tracking-tight">Snyggt jobbat!</h2>
+                    <p className="text-gray-500 dark:text-gray-400 font-medium leading-relaxed mb-8">Ditt pass är nu registrerat.</p>
                     
                     <button 
                         onClick={() => handleCancel(true)}
-                        className="w-full bg-primary hover:brightness-110 text-white font-black py-4 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 text-lg uppercase tracking-tight"
+                        className="w-full bg-primary hover:brightness-110 text-white font-black py-5 rounded-[2rem] shadow-xl shadow-primary/20 transition-all transform active:scale-95 text-lg uppercase tracking-tight"
                     >
                         Klar
                     </button>
