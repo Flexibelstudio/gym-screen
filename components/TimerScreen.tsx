@@ -8,7 +8,7 @@ import { saveRace, updateOrganizationActivity } from '../services/firebaseServic
 import { Confetti } from './WorkoutCompleteModal';
 import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmationModal, RaceFinishAnimation, PauseOverlay } from './timer/TimerModals';
 import { ParticipantFinishList } from './timer/ParticipantFinishList';
-import { DumbbellIcon, InformationCircleIcon } from './icons';
+import { DumbbellIcon, InformationCircleIcon, LightningIcon } from './icons';
 
 // --- Constants ---
 const HYROX_RIGHT_PANEL_WIDTH = '450px';
@@ -63,6 +63,49 @@ const formatReps = (reps: string | undefined): string => {
 };
 
 // --- Visualization Components ---
+
+const NextStartIndicator: React.FC<{
+    groupName: string;
+    timeLeft: number;
+    groupsLeft: number;
+}> = ({ groupName, timeLeft, groupsLeft }) => {
+    const minutes = Math.floor(Math.max(0, timeLeft) / 60);
+    const seconds = Math.max(0, timeLeft) % 60;
+    const isUrgent = timeLeft <= 30;
+
+    return (
+        <motion.div 
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9, height: 0 }}
+            className="w-full max-w-4xl mx-auto mb-8 relative"
+        >
+            <div className={`bg-black/40 backdrop-blur-2xl rounded-[2.5rem] p-6 border-2 shadow-2xl flex items-center justify-between transition-colors duration-500 ${isUrgent ? 'border-orange-500 shadow-orange-500/20' : 'border-white/10'}`}>
+                <div className="flex items-center gap-6">
+                    <div className={`w-16 h-16 rounded-3xl flex items-center justify-center shadow-inner ${isUrgent ? 'bg-orange-500 text-white animate-pulse' : 'bg-white/10 text-white/40'}`}>
+                        <LightningIcon className="w-8 h-8" />
+                    </div>
+                    <div>
+                        <span className="block text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mb-1">NÄSTA START</span>
+                        <h4 className="text-3xl font-black text-white uppercase tracking-tight truncate max-w-[250px] sm:max-w-md">
+                            {groupName}
+                        </h4>
+                    </div>
+                </div>
+
+                <div className="text-right">
+                    <span className="block text-[10px] font-black text-white/40 uppercase tracking-[0.3em] mb-1">STARTAR OM</span>
+                    <div className={`font-mono text-5xl font-black tabular-nums leading-none ${isUrgent ? 'text-orange-500' : 'text-white'}`}>
+                        {minutes}:{seconds.toString().padStart(2, '0')}
+                    </div>
+                </div>
+            </div>
+            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gray-800 text-white/60 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10 shadow-lg">
+                {groupsLeft} {groupsLeft === 1 ? 'grupp' : 'grupper'} kvar i kön
+            </div>
+        </motion.div>
+    );
+};
 
 const FollowMeView: React.FC<{ 
     exercise: Exercise | null, 
@@ -284,6 +327,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   const nextGroupToStartIndex = useMemo(() => startGroups.findIndex(g => g.startTime === undefined), [startGroups]);
   const nextGroupToStart = useMemo(() => (nextGroupToStartIndex !== -1 ? startGroups[nextGroupToStartIndex] : null), [startGroups, nextGroupToStartIndex]);
+  const remainingGroupsCount = useMemo(() => startGroups.filter(g => g.startTime === undefined).length, [startGroups]);
 
   const groupForCountdownDisplay = useMemo(() => {
     if (!isHyroxRace) return null;
@@ -667,6 +711,17 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       <div className={`absolute bottom-0 left-0 flex flex-col items-center justify-start px-4 z-0 
           ${showFullScreenColor ? 'top-[65%]' : 'top-[28%]'} 
           ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'}`}>
+          
+          <AnimatePresence>
+              {isHyroxRace && groupForCountdownDisplay && (
+                  <NextStartIndicator 
+                      groupName={groupForCountdownDisplay.name}
+                      timeLeft={timeForCountdownDisplay}
+                      groupsLeft={remainingGroupsCount}
+                  />
+              )}
+          </AnimatePresence>
+
           {block.showDescriptionInTimer && block.setupDescription && (
               <motion.div 
                   initial={{ opacity: 0, y: 10 }}
