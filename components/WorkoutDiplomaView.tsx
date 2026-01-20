@@ -67,7 +67,7 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[12000] bg-slate-50/70 dark:bg-black/95 backdrop-blur-2xl flex items-center justify-center p-4 sm:p-10"
+            className="fixed inset-0 z-[12000] bg-slate-50/40 dark:bg-black/60 backdrop-blur-md flex items-center justify-center p-4 sm:p-10"
             onClick={onClose}
         >
             <AnimatePresence>
@@ -79,14 +79,14 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.9, opacity: 0, y: 40 }}
                 transition={{ type: "spring", damping: 25, stiffness: 150 }}
-                className="relative w-full max-w-sm rounded-[3rem] overflow-hidden shadow-[0_40px_80px_-15px_rgba(20,184,166,0.15)] dark:shadow-[0_50px_100px_-20px_rgba(0,0,0,0.6)] flex flex-col bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-800"
+                className="relative w-full max-w-sm rounded-[3rem] overflow-hidden shadow-[0_40px_80px_-15px_rgba(20,184,166,0.25)] dark:shadow-[0_50px_100px_-20px_rgba(0,0,0,0.8)] flex flex-col bg-white dark:bg-gray-950 border border-gray-100 dark:border-gray-800"
                 style={{ 
                     fontFamily: '"Inter", sans-serif',
                     maxHeight: '85vh'
                 }}
                 onClick={e => e.stopPropagation()}
             >
-                {/* Dekorativt ljus (varmare i light mode, subtilt i dark) */}
+                {/* Dekorativt ljus */}
                 <div className="absolute top-0 right-0 w-64 h-64 bg-amber-100/40 dark:bg-primary/10 rounded-full blur-[80px] -mr-20 -mt-20 pointer-events-none"></div>
                 <div className="absolute bottom-0 left-0 w-48 h-48 bg-teal-100/30 dark:hidden rounded-full blur-[60px] -ml-10 -mb-10 pointer-events-none"></div>
                 
