@@ -83,6 +83,11 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         setIsSearchVisible(false);
         setSearchQuery('');
     };
+
+    const handleToggleLogging = () => {
+        if (window.navigator.vibrate) window.navigator.vibrate(5);
+        onUpdate(exercise.id, { loggingEnabled: !exercise.loggingEnabled });
+    };
     
     return (
         <div 
@@ -135,8 +140,8 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                     
                     {/* LOGGNING PILL-BUTTON */}
                     <button 
-                        onClick={() => onUpdate(exercise.id, { loggingEnabled: !exercise.loggingEnabled })}
-                        className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all border font-bold text-[10px] uppercase tracking-wider ${
+                        onClick={handleToggleLogging}
+                        className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all border font-bold text-[10px] uppercase tracking-wider transform active:scale-95 ${
                             exercise.loggingEnabled 
                             ? 'bg-green-500 border-green-600 text-white shadow-sm' 
                             : 'bg-gray-200 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500'
@@ -147,7 +152,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                         <span>{exercise.loggingEnabled ? 'Loggas' : 'Loggas ej'}</span>
                     </button>
 
-                    <button onClick={() => onRemove(exercise.id)} className="flex-shrink-0 text-red-500 hover:text-red-400 transition-colors text-sm font-medium" title="Ta bort övning">
+                    <button onClick={() => onRemove(exercise.id)} className="flex-shrink-0 text-red-500 hover:text-red-400 transition-colors text-sm font-medium p-1" title="Ta bort övning">
                         <TrashIcon className="w-5 h-5" />
                     </button>
                 </div>
@@ -225,6 +230,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
     };
 
     const handleToggleAllLogging = () => {
+        if (window.navigator.vibrate) window.navigator.vibrate(15);
         const allEnabled = block.exercises.length > 0 && block.exercises.every(ex => ex.loggingEnabled);
         const updatedExercises = block.exercises.map(ex => ({
             ...ex,
@@ -324,9 +330,6 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                     checked={!!block.followMe}
                     onChange={(isChecked) => handleFieldChange('followMe', isChecked)}
                 />
-                <p className="text-xs text-gray-500 mt-1 pl-2">
-                    <span className="font-bold">På:</span> Alla gör samma övning samtidigt. <span className="font-bold">Av:</span> För stationsbaserad cirkelträning.
-                </p>
             </div>
 
             <div className="bg-gray-100 dark:bg-black p-3 my-4 rounded-md flex justify-between items-center text-sm">
@@ -357,43 +360,53 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
             
             <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
                 <div className="flex justify-between items-center mb-3">
-                    <button onClick={() => setIsExpanded(!isExpanded)} className="flex justify-between items-center text-left text-lg font-bold text-gray-900 dark:text-white">
+                    <button onClick={() => setIsExpanded(!isExpanded)} className="flex justify-between items-center text-left text-lg font-bold text-gray-900 dark:text-white group">
                         <span>Övningar ({block.exercises.length})</span>
-                        <span className="ml-2">{isExpanded ? '▼' : '▶'}</span>
+                        <motion.span 
+                            animate={{ rotate: isExpanded ? 90 : 0 }}
+                            className="ml-2 inline-block"
+                        >▶</motion.span>
                     </button>
                     {isExpanded && block.exercises.length > 0 && (
                         <button 
                             onClick={handleToggleAllLogging}
-                            className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline px-2 py-1 rounded bg-primary/5 border border-primary/10"
+                            className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline px-2 py-1 rounded bg-primary/5 border border-primary/10 transition-colors"
                         >
-                            {allExercisesLogged ? 'Avmarkera alla för loggning' : 'Logga alla i blocket'}
+                            {allExercisesLogged ? 'Avmarkera alla' : 'Logga alla'}
                         </button>
                     )}
                 </div>
 
-                {isExpanded && (
-                    <div className="space-y-3">
-                        {block.exercises.length === 0 ? (
-                            <p className="text-center text-sm text-gray-500 py-2">Blocket är tomt. Klicka på '+ Lägg till övning'.</p>
-                        ) : (
-                            block.exercises.map((ex, i) => (
-                                <ExerciseItem 
-                                    key={ex.id} 
-                                    exercise={ex} 
-                                    onUpdate={updateExercise} 
-                                    onRemove={() => removeExercise(ex.id)}
-                                    exerciseBank={exerciseBank}
-                                    index={i}
-                                    total={block.exercises.length}
-                                    onMove={(direction) => onMoveExercise(i, direction)}
-                                />
-                            ))
-                        )}
-                        <button onClick={addExercise} className="w-full flex items-center justify-center gap-2 py-2 px-4 mt-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-                            <span>Lägg till övning</span>
-                        </button>
-                    </div>
-                )}
+                <AnimatePresence initial={false}>
+                    {isExpanded && (
+                        <motion.div 
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="space-y-3 overflow-hidden"
+                        >
+                            {block.exercises.length === 0 ? (
+                                <p className="text-center text-sm text-gray-500 py-2">Blocket är tomt. Klicka på '+ Lägg till övning'.</p>
+                            ) : (
+                                block.exercises.map((ex, i) => (
+                                    <ExerciseItem 
+                                        key={ex.id} 
+                                        exercise={ex} 
+                                        onUpdate={updateExercise} 
+                                        onRemove={() => removeExercise(ex.id)}
+                                        exerciseBank={exerciseBank}
+                                        index={i}
+                                        total={block.exercises.length}
+                                        onMove={(direction) => onMoveExercise(i, direction)}
+                                    />
+                                ))
+                            )}
+                            <button onClick={addExercise} className="w-full flex items-center justify-center gap-2 py-2 px-4 mt-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                                <span>Lägg till övning</span>
+                            </button>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
         </div>
     );

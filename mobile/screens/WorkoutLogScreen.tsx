@@ -251,6 +251,11 @@ const ExerciseLogCard: React.FC<{
     };
 
     const handleToggleComplete = (index: number) => {
+         // Haptic feedback for "Optimistic" confirmation
+         if (window.navigator.vibrate) {
+             window.navigator.vibrate(result.setDetails[index].completed ? 5 : 15);
+         }
+         
          const newSets = [...result.setDetails];
          newSets[index] = { ...newSets[index], completed: !newSets[index].completed };
          onUpdate({ setDetails: newSets });
@@ -301,9 +306,9 @@ const ExerciseLogCard: React.FC<{
                 {result.setDetails.map((set, index) => {
                     const oneRm = calculate1RM(set.weight, set.reps);
                     return (
-                        <div key={index} className={`grid grid-cols-[30px_1fr_1fr_40px_40px] gap-2 items-center transition-opacity ${set.completed ? 'opacity-50' : 'opacity-100'}`}>
+                        <div key={index} className={`grid grid-cols-[30px_1fr_1fr_40px_40px] gap-2 items-center transition-all ${set.completed ? 'opacity-50' : 'opacity-100'}`}>
                             <div className="flex justify-center items-center">
-                                <span className="text-xs font-bold text-gray-500 bg-gray-100 dark:bg-gray-800 rounded-full w-6 h-6 flex items-center justify-center">{index + 1}</span>
+                                <span className={`text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center transition-colors ${set.completed ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>{index + 1}</span>
                             </div>
                             <div className="bg-gray-5 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
                                 <input type="text" inputMode="numeric" value={set.reps} onChange={(e) => handleSetChange(index, 'reps', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" disabled={set.completed} />
@@ -313,7 +318,13 @@ const ExerciseLogCard: React.FC<{
                                     <input type="number" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" disabled={set.completed} />
                                 </div>
                                 {oneRm && !set.completed && (
-                                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow whitespace-nowrap z-10">🔥 1RM: {oneRm}</div>
+                                    <motion.div 
+                                        initial={{ scale: 0.8, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow whitespace-nowrap z-10"
+                                    >
+                                        🔥 1RM: {oneRm}
+                                    </motion.div>
                                 )}
                             </div>
                             <div className="flex justify-center">
@@ -324,9 +335,9 @@ const ExerciseLogCard: React.FC<{
                             <div className="flex justify-center">
                                 <button 
                                     onClick={() => handleToggleComplete(index)} 
-                                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all shadow-sm transform active:scale-90 ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
                                 >
-                                    <CheckIcon className="w-5 h-5" />
+                                    {set.completed ? <CheckIcon className="w-5 h-5" /> : <div className="w-2 h-2 rounded-full border border-current opacity-30" />}
                                 </button>
                             </div>
                         </div>
@@ -356,7 +367,7 @@ const CustomActivityForm: React.FC<{
                 )}
                 <div className={`mt-4 space-y-5 ${isQuickMode ? 'mt-0' : 'mt-8'}`}>
                     <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Aktivitet *</label><input value={activityName} onChange={(e) => onUpdate('name', e.target.value)} placeholder="T.ex. Powerwalk" disabled={isQuickMode} className={`w-full text-xl font-black text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 ${isQuickMode ? 'opacity-70' : ''}`} /></div>
-                    <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Tid (min) *</label><input type="number" value={duration} onChange={(e) => onUpdate('duration', e.target.value)} placeholder="T.ex. 60" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
+                    <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Tid (min) *</label><input type="number" value={duration} onChange={(e) => onUpdate('duration', e.target.value)} placeholder="T.ex. 60" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
                     <div className="grid grid-cols-2 gap-4">
                         <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Kalorier (kcal)</label><input type="number" value={calories} onChange={(e) => onUpdate('calories', e.target.value)} placeholder="T.ex. 350" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
                         <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Distans (km)</label><input type="number" value={distance} onChange={(e) => onUpdate('distance', e.target.value)} placeholder="T.ex. 5.3" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>

@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { motion } from 'framer-motion';
 
 export const CloseIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -23,14 +24,28 @@ export const ToggleSwitch: React.FC<{
     label: string;
     checked: boolean;
     onChange: (checked: boolean) => void;
-}> = ({ label, checked, onChange }) => (
-    <div className="flex items-center justify-between cursor-pointer" onClick={() => onChange(!checked)}>
-        <span className="text-gray-900 dark:text-gray-100 font-medium mr-3">{label}</span>
-        <div className={`w-11 h-6 bg-gray-200 rounded-full peer dark:bg-gray-700 peer-focus:ring-4 peer-focus:ring-teal-300 dark:peer-focus:ring-teal-800 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 ${checked ? 'bg-teal-600 after:translate-x-full' : ''} relative`}>
-            <div className={`absolute top-0.5 left-0.5 bg-white border border-gray-300 rounded-full h-5 w-5 transition-all ${checked ? 'translate-x-full border-white' : ''}`}></div>
+}> = ({ label, checked, onChange }) => {
+    const handleToggle = () => {
+        if (window.navigator.vibrate) {
+            window.navigator.vibrate(10);
+        }
+        onChange(!checked);
+    };
+
+    return (
+        <div className="flex items-center justify-between cursor-pointer group" onClick={handleToggle}>
+            <span className="text-gray-900 dark:text-gray-100 font-medium mr-3 transition-colors group-hover:text-primary">{label}</span>
+            <div className={`w-12 h-7 flex items-center rounded-full p-1 transition-colors duration-300 ${checked ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-700'}`}>
+                <motion.div 
+                    layout
+                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    className="bg-white w-5 h-5 rounded-full shadow-md"
+                    style={{ x: checked ? 20 : 0 }}
+                />
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 export const SaveIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
