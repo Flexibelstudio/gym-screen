@@ -78,7 +78,6 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
         const randomIndex = Math.floor(Math.random() * celebrationMessages.length);
         setMessage(celebrationMessages[randomIndex]);
       }
-      // Reset state when modal opens
       setParticipantName(localStorage.getItem(LOCAL_STORAGE_NAME_KEY) || '');
       setIsSaving(false);
       setResultSaved(false);
@@ -113,159 +112,113 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
           
           setLastSavedName(nameToSave);
           setResultSaved(true);
-          setParticipantName(''); // Clear input for next person
+          setParticipantName('');
 
-          // After a delay, reset the form to its initial state, ready for the next participant.
           setTimeout(() => {
             setResultSaved(false);
             setLastSavedName('');
-            setIsSaving(false); // Re-enable the form
-          }, 3000); // Display success message for 3 seconds
+            setIsSaving(false);
+          }, 3000);
 
       } catch (error) {
           console.error("Failed to save workout result:", error);
           alert("Kunde inte spara resultatet.");
-          setIsSaving(false); // Reset on error
+          setIsSaving(false);
       }
   };
 
   const hyroxResultContent = (
     <div 
-        className="relative bg-gradient-to-br from-purple-700 to-indigo-800 rounded-2xl p-8 w-full max-w-md text-white text-center shadow-2xl border-4 border-yellow-400 animate-zoom-fade-in"
+        className="relative bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 sm:p-10 w-full max-w-md text-gray-900 dark:text-white text-center shadow-2xl border-4 border-primary/30 animate-zoom-fade-in"
         onClick={e => e.stopPropagation()}
       >
         <Confetti />
-        <div className="text-6xl mb-4">🏆</div>
+        <div className="text-6xl mb-6">🏆</div>
         
-        <h2 id="workout-complete-title" className="text-4xl font-black tracking-wider uppercase drop-shadow-lg">{isRegistration ? 'Registrera din tid' : workout.title || 'Loppet Klart!'}</h2>
-        <p className="mt-4 text-xl text-white/90">Din tid blev:</p>
-        <p className="font-mono text-7xl font-black my-4">{formatTime(finishTime || 0)}</p>
+        <h2 id="workout-complete-title" className="text-4xl font-black tracking-tight uppercase mb-4 leading-tight">
+            {isRegistration ? 'Registrera Tid' : 'Loppet Klart!'}
+        </h2>
+        
+        <div className="bg-gray-50 dark:bg-black/40 rounded-3xl p-6 mb-8 border border-gray-100 dark:border-gray-800">
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-400 mb-2">Officiell Tid</p>
+            <p className="font-mono text-7xl font-black text-primary drop-shadow-sm">{formatTime(finishTime || 0)}</p>
+        </div>
         
         {!resultSaved ? (
-            <form onSubmit={handleSaveResult} className="mt-6 space-y-4">
-                <input
-                    type="text"
-                    value={participantName}
-                    onChange={(e) => setParticipantName(e.target.value)}
-                    placeholder="Skriv in ditt namn för topplistan"
-                    className="w-full bg-black/30 text-white text-center p-3 rounded-md border-2 border-cyan-400/50 focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/50 focus:outline-none transition font-semibold text-lg"
-                    required
-                    disabled={isSaving}
-                    autoFocus
-                />
+            <form onSubmit={handleSaveResult} className="space-y-4">
+                <div className="relative">
+                    <input
+                        type="text"
+                        value={participantName}
+                        onChange={(e) => setParticipantName(e.target.value)}
+                        placeholder="Ditt namn..."
+                        className="w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-center p-5 rounded-2xl border-2 border-gray-200 dark:border-gray-700 focus:border-primary focus:ring-4 focus:ring-primary/20 focus:outline-none transition-all font-black text-xl placeholder-gray-300 dark:placeholder-gray-600"
+                        required
+                        disabled={isSaving}
+                        autoFocus
+                    />
+                </div>
                  <button 
                     type="submit"
                     disabled={isSaving || !participantName.trim()}
-                    className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 rounded-lg transition-colors disabled:bg-gray-800 disabled:text-gray-500 text-lg"
+                    className="w-full bg-primary hover:brightness-110 text-white font-black py-5 rounded-2xl transition-all shadow-xl shadow-primary/20 disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 text-lg uppercase tracking-widest active:scale-95"
                 >
-                  {isSaving ? 'Sparar...' : 'Spara resultat'}
+                  {isSaving ? 'Sparar...' : 'Spara på topplistan'}
                 </button>
             </form>
         ) : (
-            <div className="mt-6 text-center animate-fade-in">
-                <p className="text-2xl font-bold text-green-400">Resultat sparat!</p>
-                <p className="text-lg">Bra kämpat, {lastSavedName}!</p>
+            <div className="py-6 text-center animate-fade-in">
+                <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-3xl text-green-600">✓</span>
+                </div>
+                <p className="text-2xl font-black text-green-600 dark:text-green-400 uppercase tracking-tight">Snyggt {lastSavedName}!</p>
+                <p className="text-gray-500 dark:text-gray-400 font-medium mt-1">Ditt resultat är sparat.</p>
             </div>
         )}
         
         <button 
             onClick={onClose} 
-            className="mt-6 font-semibold text-white/70 hover:text-white transition-colors"
+            className="mt-8 text-xs font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
         >
-          Stäng
+          Stäng fönstret
         </button>
       </div>
   );
 
-  // 1. FINAL WORKOUT COMPLETE (Confetti & Hearts)
-  const finalBlockContent = (
-    <>
-      <Confetti />
-      <Hearts />
-      <div 
-        className="relative bg-gradient-to-br from-primary to-teal-600 rounded-3xl p-10 w-full max-w-xl text-white text-center shadow-2xl border-4 border-yellow-300 animate-fade-in"
-        onClick={e => e.stopPropagation()}
-        style={{ textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}
-      >
-        <div className="text-7xl mb-6 animate-bounce">🏆</div>
-        
-        <h2 id="workout-complete-title" className="text-6xl font-black tracking-wider uppercase drop-shadow-lg mb-4">{message.title}</h2>
-        <p className="text-2xl text-white/95 font-semibold leading-relaxed">{message.subtitle}</p>
-        <p className="mt-4 text-lg text-white/80">Du är nu helt färdig med passet!</p>
-        
-        <button 
-            onClick={onClose} 
-            className="mt-10 bg-white text-primary hover:bg-gray-100 font-extrabold py-4 px-10 rounded-full text-xl shadow-lg transition-all transform hover:scale-105"
-        >
-          Avsluta Passet
-        </button>
-      </div>
-    </>
-  );
-
-  // 2. INTERMEDIATE BLOCK COMPLETE (Simple, Clean, Blue/Teal)
-  const intermediateBlockContent = (
-     <div 
-        className="relative bg-gradient-to-br from-blue-600 to-cyan-600 rounded-2xl p-8 w-full max-w-md text-white text-center shadow-2xl border border-white/20 animate-fade-in"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="text-5xl mb-4">👍</div>
-        <h2 id="workout-complete-title" className="text-4xl font-black tracking-wider uppercase mb-2">Block Avklarat!</h2>
-        <p className="text-xl text-blue-100 font-medium">Snyggt jobbat! Andas ut och ladda om.</p>
-         <button 
-            onClick={onClose} 
-            className="mt-8 w-full bg-white text-blue-700 hover:bg-blue-50 font-bold py-3 rounded-xl text-lg shadow-md transition-colors"
-        >
-          Gå vidare till nästa
-        </button>
-      </div>
-  );
-
-  // 3. WARMUP COMPLETE (Specific message)
-  const warmupContent = (
-    <div 
-       className="relative bg-gradient-to-br from-orange-500 to-red-500 rounded-2xl p-8 w-full max-w-md text-white text-center shadow-2xl border border-white/20 animate-fade-in"
-       onClick={e => e.stopPropagation()}
-     >
-       <div className="text-5xl mb-4">🔥</div>
-       <h2 id="workout-complete-title" className="text-4xl font-black tracking-wider uppercase mb-2">Uppvärmning klar!</h2>
-       <p className="text-xl text-orange-100 font-medium">Nu är kroppen redo. Dags att köra igång på riktigt!</p>
-        <button 
-           onClick={onClose} 
-           className="mt-8 w-full bg-white text-orange-700 hover:bg-orange-50 font-bold py-3 rounded-xl text-lg shadow-md transition-colors"
-       >
-         Starta passet
-       </button>
-     </div>
- );
- 
-  // Render registration view separately without an overlay
-  if (isRegistrationView) {
-    return (
-      <div
-        className="fixed top-0 right-0 h-full flex items-center p-8 z-50 pointer-events-none"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="workout-complete-title"
-      >
-        <div className="pointer-events-auto">
-          {hyroxResultContent}
-        </div>
-      </div>
-    );
-  }
-
-  // Render other views with the standard overlay
+  // Rendera innehåll
   let contentToRender;
-  
-  // Note: If it's the final block AND it happened to be a warmup (rare but possible in testing), 
-  // we treat it as final block to give the celebration.
   if (isFinalBlock) {
-      contentToRender = finalBlockContent;
+      contentToRender = (
+        <div 
+          className="relative bg-gradient-to-br from-primary to-teal-600 rounded-[3rem] p-10 w-full max-w-xl text-white text-center shadow-2xl border-4 border-white/20 animate-fade-in"
+          onClick={e => e.stopPropagation()}
+        >
+          <Confetti />
+          <Hearts />
+          <div className="text-7xl mb-6 animate-bounce">🏆</div>
+          <h2 id="workout-complete-title" className="text-6xl font-black tracking-wider uppercase drop-shadow-lg mb-4">{message.title}</h2>
+          <p className="text-2xl text-white/95 font-semibold leading-relaxed">{message.subtitle}</p>
+          <button onClick={onClose} className="mt-10 bg-white text-primary hover:bg-gray-100 font-extrabold py-4 px-10 rounded-full text-xl shadow-lg transition-all transform hover:scale-105 uppercase tracking-widest">Klar</button>
+        </div>
+      );
   } else if (isWarmup) {
-      contentToRender = warmupContent;
+      contentToRender = (
+        <div className="relative bg-gradient-to-br from-orange-500 to-red-500 rounded-[2.5rem] p-8 w-full max-w-md text-white text-center shadow-2xl animate-fade-in" onClick={e => e.stopPropagation()}>
+          <div className="text-5xl mb-4">🔥</div>
+          <h2 className="text-4xl font-black tracking-tight uppercase mb-2">Redo!</h2>
+          <p className="text-xl text-orange-100 font-medium">Uppvärmningen klar. Nu kör vi!</p>
+          <button onClick={onClose} className="mt-8 w-full bg-white text-orange-700 hover:bg-blue-50 font-black py-4 rounded-2xl text-lg shadow-md transition-colors uppercase tracking-widest">Starta passet</button>
+        </div>
+      );
   } else {
-      contentToRender = intermediateBlockContent;
+      contentToRender = (
+        <div className="relative bg-gradient-to-br from-blue-600 to-cyan-600 rounded-[2.5rem] p-8 w-full max-w-md text-white text-center shadow-2xl animate-fade-in" onClick={e => e.stopPropagation()}>
+          <div className="text-5xl mb-4">👍</div>
+          <h2 className="text-4xl font-black tracking-tight uppercase mb-2">Snyggt!</h2>
+          <p className="text-xl text-blue-100 font-medium">Blocket avklarat. Hämta andan!</p>
+          <button onClick={onClose} className="mt-8 w-full bg-white text-blue-700 hover:bg-blue-50 font-black py-4 rounded-2xl text-lg shadow-md transition-colors uppercase tracking-widest">Nästa Block</button>
+        </div>
+      );
   }
  
   return (
@@ -276,7 +229,7 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
         aria-modal="true"
         aria-labelledby="workout-complete-title"
     >
-      {contentToRender}
+      {isRegistrationView ? hyroxResultContent : contentToRender}
     </div>
   );
 };
