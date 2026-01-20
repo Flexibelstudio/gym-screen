@@ -68,8 +68,10 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
         <div 
             onClick={!isExpanded ? onExpand : undefined}
             className={`
-                bg-white/20 dark:bg-white/10 backdrop-blur-md rounded-[2.5rem] p-6 border border-gray-200 dark:border-white/10 flex flex-col relative overflow-hidden shadow-2xl transition-all
-                ${!isExpanded ? 'h-full cursor-pointer hover:bg-white/30 dark:hover:bg-white/15 active:scale-[0.99]' : 'h-full'}
+                rounded-[2.5rem] p-6 border flex flex-col relative overflow-hidden transition-all
+                ${!isExpanded 
+                    ? 'h-full cursor-pointer bg-white/20 dark:bg-white/10 backdrop-blur-md border-gray-200 dark:border-white/10 hover:bg-white/30 dark:hover:bg-white/15 active:scale-[0.99] shadow-2xl' 
+                    : 'h-full bg-transparent border-transparent'}
             `}
         >
             <div className="flex items-center justify-between mb-4 relative z-10">
@@ -102,7 +104,7 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
                                     damping: 30,
                                     opacity: { duration: 0.2 }
                                 }}
-                                className="bg-white/40 dark:bg-black/30 hover:bg-white/50 dark:hover:bg-black/40 transition-colors rounded-2xl flex items-center gap-4 border border-gray-100 dark:border-white/5 group px-4"
+                                className="bg-gray-50 dark:bg-black/30 hover:bg-gray-100 dark:hover:bg-black/40 transition-colors rounded-2xl flex items-center gap-4 border border-gray-100 dark:border-white/5 group px-4 shadow-sm"
                                 style={{ height: `${itemHeight - 8}px` }}
                             >
                                 <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center text-white font-black text-sm shadow-lg flex-shrink-0 overflow-hidden border border-white/10">

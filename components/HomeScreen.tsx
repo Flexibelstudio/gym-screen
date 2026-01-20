@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Page, Workout, MenuItem, StudioConfig, Passkategori, CustomCategoryWithPrompt } from '../types';
 import { welcomeMessages } from '../data/welcomeMessages';
@@ -210,7 +211,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const logoUrl = theme === 'dark' ? organizationLogoUrlDark || organizationLogoUrlLight : organizationLogoUrlLight || organizationLogoUrlDark;
   const showQrCode = studioConfig.checkInImageEnabled && studioConfig.checkInImageUrl;
 
-  // Defensiv rendering: Visa text ENDAST om vi laddat klart, har en org, men ingen bild.
   const renderBranding = () => {
       if (studioLoading || (!selectedOrganization && !logoUrl)) {
           return <div className="h-16 md:h-24 w-48 bg-transparent"></div>;
@@ -228,7 +228,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
           );
       }
 
-      // Om ingen logga finns i databasen alls efter laddning
       return <h1 className="text-2xl font-black text-primary uppercase tracking-tighter">Smart Skärm</h1>;
   };
 
@@ -238,7 +237,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         
         <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 flex flex-col h-full overflow-hidden">
             
-            {/* Header Section - Fast höjd */}
+            {/* Header Section */}
             <div className="flex flex-shrink-0 justify-between items-start mb-6 w-full pt-4">
                 <div className="flex flex-col gap-3">
                     {renderBranding()}
@@ -266,7 +265,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
             </div>
 
-            {/* Meny-grid - Flexibel höjd för att fylla utrymmet */}
+            {/* Meny-grid */}
             <div className="flex-grow overflow-y-auto pr-2 mb-8 custom-scrollbar min-h-0">
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 auto-rows-fr">
                     {menuItems.map((item, index) => (
@@ -285,7 +284,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
             </div>
 
-            {/* Botten-dashboard - Fast höjd (400px) för att garantera 4 rader + rubrik och rundat avslut */}
+            {/* Botten-dashboard */}
             <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-[400px] mb-6">
                 <motion.div 
                     initial={{ opacity: 0, y: 30 }} 
@@ -307,30 +306,37 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
         </div>
 
-        {/* EXPANDED MODAL VIEW */}
+        {/* EXPANDED MODAL VIEW - ENHANCED FOR LIGHT MODE */}
         <AnimatePresence>
             {expandedList && (
                 <motion.div 
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-md flex items-center justify-center p-6"
+                    className="fixed inset-0 z-[10000] bg-slate-900/40 dark:bg-black/80 backdrop-blur-md flex items-center justify-center p-6"
+                    onClick={() => setExpandedList(null)}
                 >
                     <motion.div 
                         initial={{ scale: 0.9, y: 20 }}
                         animate={{ scale: 1, y: 0 }}
                         exit={{ scale: 0.9, y: 20 }}
-                        className="w-full max-w-5xl h-[85vh] relative"
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full max-w-5xl h-[85vh] bg-white dark:bg-gray-950 rounded-[3rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] border border-gray-100 dark:border-gray-800 flex flex-col relative"
                     >
-                        <button 
-                            onClick={() => setExpandedList(null)}
-                            className="absolute -top-16 right-0 text-white hover:text-primary transition-colors flex items-center gap-2 font-black uppercase tracking-widest"
-                        >
-                            <span>Stäng</span>
-                            <CloseIcon className="w-8 h-8" />
-                        </button>
+                        {/* Internal Header with Close Button */}
+                        <div className="flex items-center justify-between p-8 border-b border-gray-100 dark:border-gray-800">
+                             <h3 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
+                                 {expandedList === 'feed' ? 'Fullständigt Flöde' : 'Veckans Hall of Fame'}
+                             </h3>
+                             <button 
+                                onClick={() => setExpandedList(null)}
+                                className="p-3 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all text-gray-500 dark:text-white shadow-sm active:scale-90"
+                            >
+                                <CloseIcon className="w-8 h-8" />
+                            </button>
+                        </div>
 
-                        <div className="h-full">
+                        <div className="flex-grow overflow-hidden p-6">
                             {expandedList === 'feed' ? (
                                 <CommunityFeed isExpanded />
                             ) : (
