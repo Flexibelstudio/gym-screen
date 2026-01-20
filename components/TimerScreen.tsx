@@ -128,11 +128,10 @@ const FollowMeView: React.FC<{
                 animate={{ x: 0, opacity: 1 }}
                 exit={{ x: 100, opacity: 0 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className={`w-full max-w-5xl bg-white dark:bg-gray-900 rounded-3xl shadow-2xl overflow-hidden border-l-[20px] ${isResting ? 'border-teal-400' : timerStyle.border.replace('border-', 'border-')}`}
-                style={{ borderColor: isResting ? undefined : `rgb(${timerStyle.pulseRgb})` }}
+                className={`w-full max-w-5xl bg-white/95 dark:bg-gray-900/90 backdrop-blur-md rounded-[2.5rem] shadow-2xl overflow-hidden border-l-[20px] ${isResting ? 'border-teal-400' : 'border-white/20'}`}
             >
                 <div className="p-10 md:p-14 flex flex-col items-center text-center">
-                    <span className="block text-xl md:text-2xl font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 mb-4">
+                    <span className="block text-xl md:text-2xl font-bold tracking-widest uppercase text-gray-400 dark:text-gray-500 mb-4">
                         {label}
                     </span>
                     <h3 className="text-5xl md:text-7xl font-black text-gray-900 dark:text-white leading-tight mb-6 tracking-tight">
@@ -183,21 +182,20 @@ const StandardListView: React.FC<{
             {exercises.map((ex) => (
                 <div 
                     key={ex.id} 
-                    className={`flex-1 min-h-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl ${padding} flex flex-col justify-center border-l-[10px] shadow-lg transition-all relative group`}
-                    style={{ borderLeftColor: `rgb(${timerStyle.pulseRgb})` }}
+                    className={`flex-1 min-h-0 bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl ${padding} flex flex-col justify-center border-l-[10px] border-white/20 shadow-lg transition-all relative group`}
                 >
                     <div className="flex justify-between items-center w-full gap-6">
                         <h4 className={`font-black text-gray-900 dark:text-white leading-none tracking-tight ${titleSize}`}>
                             {ex.name}
                         </h4>
                         {ex.reps && (
-                            <span className={`font-mono font-bold text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-lg whitespace-nowrap shadow-sm flex-shrink-0 border border-gray-200 dark:border-gray-700 ${repsSize}`}>
+                            <span className={`font-mono font-bold text-gray-900 dark:text-white bg-black/5 dark:bg-white/5 px-4 py-2 rounded-lg whitespace-nowrap shadow-sm flex-shrink-0 border border-black/5 dark:border-white/5 ${repsSize}`}>
                                 {formatReps(ex.reps)}
                             </span>
                         )}
                     </div>
                     {showDesc && ex.description && (
-                        <p className="text-gray-600 dark:text-gray-400 mt-2 line-clamp-1 text-lg md:text-xl font-medium">
+                        <p className="text-gray-500 dark:text-gray-400 mt-2 line-clamp-1 text-lg md:text-xl font-medium">
                             {ex.description}
                         </p>
                     )}
@@ -223,18 +221,18 @@ const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRou
     return (
         <div className="flex flex-col items-end gap-3 animate-fade-in">
             {showInterval && (
-                <div className="bg-white/80 dark:bg-black/30 backdrop-blur-xl rounded-[2.5rem] px-10 py-6 border border-gray-200 dark:border-white/10 shadow-2xl flex flex-col items-center min-w-[200px]">
-                    <span className="block text-gray-400 dark:text-white/60 font-black text-xs sm:text-sm uppercase tracking-[0.4em] mb-2">INTERVALL</span>
+                <div className="bg-black/40 backdrop-blur-xl rounded-[2.5rem] px-10 py-6 shadow-2xl flex flex-col items-center min-w-[200px]">
+                    <span className="block text-white/40 font-black text-xs sm:text-sm uppercase tracking-[0.4em] mb-2">INTERVALL</span>
                     <div className="flex items-baseline justify-center gap-1">
                         <motion.span 
                             key={`interval-${currentInterval}`} 
                             initial={{ opacity: 0, scale: 0.8 }} 
                             animate={{ opacity: 1, scale: 1 }} 
-                            className="font-black text-6xl sm:text-7xl text-gray-900 dark:text-white drop-shadow-2xl leading-none"
+                            className="font-black text-6xl sm:text-7xl text-white drop-shadow-sm leading-none"
                         >
                             {currentInterval}
                         </motion.span>
-                        <span className="text-2xl sm:text-3xl font-black text-gray-300 dark:text-white/40">/ {totalIntervalsInLap}</span>
+                        <span className="text-2xl sm:text-3xl font-black text-white/40">/ {totalIntervalsInLap}</span>
                     </div>
                 </div>
             )}
@@ -242,14 +240,14 @@ const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRou
             <motion.div 
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-white/80 dark:bg-black/30 backdrop-blur-xl rounded-full px-6 py-3 border border-gray-200 dark:border-white/10 shadow-xl flex items-center justify-center gap-3 min-w-[140px]"
+                className="bg-black/40 backdrop-blur-xl rounded-full px-6 py-3 shadow-xl flex items-center justify-center gap-3 min-w-[140px]"
             >
-                <span className="text-gray-400 dark:text-white/60 font-black text-[10px] uppercase tracking-[0.3em]">
+                <span className="text-white/40 font-black text-[10px] uppercase tracking-[0.3em]">
                     {mode === TimerMode.EMOM ? 'MINUT' : 'VARV'}
                 </span>
                 <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-black text-gray-900 dark:text-white">{currentRound}</span>
-                    <span className="text-sm font-bold text-gray-300 dark:text-white/40">/ {totalRounds}</span>
+                    <span className="text-2xl font-black text-white">{currentRound}</span>
+                    <span className="text-sm font-bold text-white/40">/ {totalRounds}</span>
                 </div>
             </motion.div>
         </div>
@@ -314,19 +312,18 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [isSavingRace, setIsSavingRace] = useState(false);
   const [finalRaceId, setFinalRaceId] = useState<string | null>(null);
   
-  // NYTT: "Frys" klockan istället för att pausa (för att undvika overlay)
   const [isClockFrozen, setIsClockFrozen] = useState(false);
   const [frozenTime, setFrozenTime] = useState(0);
 
   const isHyroxRace = useMemo(() => activeWorkout?.id.startsWith('hyrox-full-race') || activeWorkout?.id.startsWith('custom-race'), [activeWorkout]);
   const isFreestanding = block.tag === 'Fristående';
-  const showFullScreenColor = isFreestanding;
+  const showFullScreenColor = true;
 
   const [startGroups, setStartGroups] = useState<StartGroup[]>([]);
   const startIntervalSeconds = useMemo(() => (activeWorkout?.startIntervalMinutes ?? 2) * 60, [activeWorkout]);
 
   const nextGroupToStartIndex = useMemo(() => startGroups.findIndex(g => g.startTime === undefined), [startGroups]);
-  const nextGroupToStart = useMemo(() => (nextGroupToStartIndex !== -1 ? startGroups[nextGroupToStartIndex] : null), [startGroups, nextGroupToStartIndex]);
+  const nextGroupToStart = useMemo(() => (nextGroupToStartIndex !== -1 ? startGroups[nextGroupToStartInIndex] : null), [startGroups, nextGroupToStartIndex]);
   const remainingGroupsCount = useMemo(() => startGroups.filter(g => g.startTime === undefined).length, [startGroups]);
 
   const groupForCountdownDisplay = useMemo(() => {
@@ -453,7 +450,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const finishedParticipantsCount = Object.keys(finishedParticipants).length;
   const allFinished = totalParticipantsCount > 0 && finishedParticipantsCount === totalParticipantsCount;
 
-  // Automatiskt frys klockan när alla är i mål
   useEffect(() => {
       if (isHyroxRace && allFinished && !isClockFrozen && status === TimerStatus.Running) {
           setFrozenTime(totalTimeElapsed);
@@ -485,7 +481,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 results: raceResults
             };
             
-            // Vänta på att Firebase bekräftar sparning
             const savedRace = await saveRace(raceData, organization.id);
             if (savedRace && savedRace.id) {
                 setFinalRaceId(savedRace.id);
@@ -609,7 +604,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   return (
     <div 
-        className={`fixed inset-0 w-full h-full overflow-hidden transition-colors duration-500 ${showFullScreenColor ? `${timerStyle.bg}` : 'bg-gray-100 dark:bg-black'}`}
+        className={`fixed inset-0 w-full h-full overflow-hidden transition-colors duration-500 ${timerStyle.bg}`}
         style={{ '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties}
         onClick={handleInteraction}
         onMouseMove={handleInteraction}
@@ -672,11 +667,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       <div 
           className={`absolute flex flex-col items-center transition-all duration-500 z-10 left-0 
               ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'} 
-              ${showFullScreenColor 
-                  ? `top-[12%] min-h-[50%] justify-center` 
-                  : `pt-12 pb-12 top-1 min-h-[22%] mx-4 sm:mx-6 rounded-[2.5rem] shadow-2xl ${timerStyle.bg}`
-              }`}
-          style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
+              top-[12%] min-h-[50%] justify-center`}
+          style={{ '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties}
       >
         <div className="mb-4 px-8 py-2 rounded-full bg-black/40 backdrop-blur-xl border border-white/20 shadow-lg z-20">
             <span className={`font-black tracking-[0.2em] text-white uppercase drop-shadow-md text-xl md:text-2xl`}>{modeLabel}</span>
@@ -709,7 +701,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       </div>
 
       <div className={`absolute bottom-0 left-0 flex flex-col items-center justify-start px-4 z-0 
-          ${showFullScreenColor ? 'top-[65%]' : 'top-[28%]'} 
+          top-[65%]
           ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'}`}>
           
           <AnimatePresence>
@@ -784,7 +776,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           </div>
       )}
 
-      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[28%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
+      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 top-[65%] ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
             {status === TimerStatus.Idle || status === TimerStatus.Finished ? (
                 <>
                     <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-500 transition-colors text-xl backdrop-blur-md border-2 border-white/20">TILLBAKA</button>
