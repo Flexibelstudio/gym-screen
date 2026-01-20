@@ -351,6 +351,9 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
 
         // VIKTIGT: Hämta orgId direkt här för att garantera att det skickas med korrekt
         const orgId = selectedOrganization?.id || '';
+        if (!orgId) {
+            console.error("DEBUG: organizationId saknas vid skapande av lopp-workout!");
+        }
         
         const raceWorkout = createCustomRaceWorkout(configToUse, groups, interval, orgId);
         onSelectWorkout(raceWorkout);

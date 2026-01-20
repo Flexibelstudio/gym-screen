@@ -3,7 +3,6 @@ import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout } from '../types';
 import { useWorkoutTimer, playBeep, getAudioContext } from '../hooks/useWorkoutTimer';
-import { useRaceLogic } from '../hooks/useRaceLogic';
 import { useWorkout } from '../context/WorkoutContext';
 import { saveRace, updateOrganizationActivity } from '../services/firebaseService';
 import { Confetti } from './WorkoutCompleteModal';
@@ -423,12 +422,20 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   }, [isHyroxRace, timeForCountdownDisplay, groupForCountdownDisplay, status]);
 
   const startedParticipants = useMemo(() => startGroups.filter(g => g.startTime !== undefined).flatMap(g => g.participants.split('\n').map(p => p.trim()).filter(Boolean)), [startGroups]);
-  
+  const totalParticipantsCount = startedParticipants.length;
+  const finishedParticipantsCount = Object.keys(finishedParticipants).length;
+  const allFinished = totalParticipantsCount > 0 && finishedParticipantsCount === totalParticipantsCount;
+
+  // Automatiskt pausa klockan när alla är i mål, men stäng inte loppet
+  useEffect(() => {
+      if (allFinished && status === TimerStatus.Running) {
+          pause();
+      }
+  }, [allFinished, status, pause]);
+
     const handleRaceComplete = useCallback(async () => {
-        if (!isHyroxRace || !activeWorkout) { onFinish({ isNatural: true }); return; }
+        if (!isHyroxRace || !activeWorkout || !organization) { return; }
         
-        // Pausa klockan omedelbart så att slutresultatet fryses
-        pause();
         setIsSavingRace(true);
 
         const sortedFinishers = Object.entries(finishedParticipants).sort(([, a], [, b]) => (a as FinishData).time - (b as FinishData).time);
@@ -449,18 +456,17 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 startGroups: startGroups.map(g => ({ id: g.id, name: g.name, participants: g.participants.split('\n').map(p => p.trim()).filter(Boolean) })),
                 results: raceResults
             };
-            if (organization) { 
-                const savedRace = await saveRace(raceData, organization.id); 
-                setFinalRaceId(savedRace.id);
-            }
+            
+            const savedRace = await saveRace(raceData, organization.id); 
+            console.log("Loppet har sparats med ID:", savedRace.id);
+            setFinalRaceId(savedRace.id);
         } catch (error) { 
-          console.error("Failed to save race results:", error); 
+          console.error("Misslyckades att spara loppet:", error); 
+          alert("Ett fel uppstod när loppet skulle sparas. Kontrollera din anslutning.");
         } finally {
           setIsSavingRace(false);
         }
-    }, [isHyroxRace, activeWorkout, finishedParticipants, block.exercises, startGroups, organization, onFinish, speak, pause]);
-
-  useRaceLogic(startGroups.flatMap(g => g.participants.split('\n').map(p => p.trim()).filter(Boolean)).map(p => ({ isFinished: !!finishedParticipants[p] })), handleRaceComplete);
+    }, [isHyroxRace, activeWorkout, finishedParticipants, block.exercises, startGroups, organization, speak]);
 
   const handleParticipantFinish = (participantName: string) => {
       if (savingParticipant) return;
@@ -570,10 +576,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     setShowFinishAnimation(false);
     if (finalRaceId) {
         onFinish({ isNatural: true, raceId: finalRaceId });
-    } else if (!isHyroxRace) {
-        onFinish({ isNatural: true });
+    } else {
+        // Fallback om sparande mot förmodan misslyckades
+        onFinish({ isNatural: false });
     }
-    // Vid lopp: Om raceId fortfarande saknas stannar vi kvar tills isSavingRace är klar.
   };
 
   return (
@@ -706,7 +712,40 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               className="absolute top-0 right-0 bottom-0 border-l-4 border-white/10 bg-gray-900/95 backdrop-blur-md flex flex-col z-40 shadow-2xl"
               style={{ width: HYROX_RIGHT_PANEL_WIDTH }}
           >
-              <ParticipantFinishList participants={startedParticipants} finishData={finishedParticipants} onFinish={handleParticipantFinish} onEdit={handleEditParticipant} isSaving={(name) => savingParticipant === name} />
+              <ParticipantFinishList 
+                participants={startedParticipants} 
+                finishData={finishedParticipants} 
+                onFinish={handleParticipantFinish} 
+                onEdit={handleEditParticipant} 
+                isSaving={(name) => savingParticipant === name} 
+              />
+              
+              {/* Manuell Slutför-knapp som dyker upp när alla är i mål */}
+              <AnimatePresence>
+                {allFinished && (
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-6 bg-gray-900 border-t border-white/10 flex flex-col gap-2"
+                    >
+                        <p className="text-xs text-green-400 font-bold uppercase text-center mb-2">Alla deltagare i mål!</p>
+                        <button 
+                            onClick={handleRaceComplete}
+                            disabled={isSavingRace}
+                            className="w-full bg-primary hover:brightness-110 text-white font-black py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 text-lg uppercase tracking-tight flex items-center justify-center gap-3"
+                        >
+                            {isSavingRace ? (
+                                <>
+                                    <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    <span>Sparar...</span>
+                                </>
+                            ) : (
+                                <span>Slutför & Spara lopp</span>
+                            )}
+                        </button>
+                    </motion.div>
+                )}
+              </AnimatePresence>
           </div>
       )}
 
