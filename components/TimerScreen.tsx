@@ -12,7 +12,7 @@ import { ParticipantFinishList } from './timer/ParticipantFinishList';
 import { DumbbellIcon, InformationCircleIcon } from './icons';
 
 // --- Constants ---
-const HYROX_RIGHT_PANEL_WIDTH = '450px';
+const HYROX_RIGHT_PANEL_WIDTH = '350px';
 
 // --- Helper Components & Interfaces ---
 
@@ -65,97 +65,43 @@ const formatReps = (reps: string | undefined): string => {
 
 // --- Visualization Components ---
 
-const FollowMeView: React.FC<{ 
-    exercise: Exercise | null, 
-    nextExercise: Exercise | null, 
-    timerStyle: TimerStyle, 
-    status: TimerStatus
-}> = ({ exercise, nextExercise, timerStyle, status }) => {
-    const isResting = status === TimerStatus.Resting;
-    const isPreparing = status === TimerStatus.Preparing;
-    const displayExercise = exercise;
-    const label = (isResting || isPreparing) ? "NÄSTA ÖVNING" : "AKTUELL ÖVNING";
-
-    if (!displayExercise) return null;
-
-    return (
-        <AnimatePresence mode="wait">
-            <motion.div
-                key={displayExercise.id}
-                initial={{ x: -100, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: 100, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className={`w-full max-w-5xl bg-white dark:bg-gray-900 rounded-3xl shadow-2xl overflow-hidden border-l-[20px] ${isResting ? 'border-teal-400' : timerStyle.border.replace('border-', 'border-')}`}
-                style={{ borderColor: isResting ? undefined : `rgb(${timerStyle.pulseRgb})` }}
-            >
-                <div className="p-10 md:p-14 flex flex-col items-center text-center">
-                    <span className="block text-xl md:text-2xl font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 mb-4">
-                        {label}
-                    </span>
-                    <h3 className="text-5xl md:text-7xl font-black text-gray-900 dark:text-white leading-tight mb-6 tracking-tight">
-                        {displayExercise.name}
-                    </h3>
-                    {displayExercise.reps && (
-                        <p className="text-4xl md:text-6xl font-black text-primary mb-6">{formatReps(displayExercise.reps)}</p>
-                    )}
-                    {displayExercise.description && (
-                        <p className="text-gray-600 dark:text-gray-300 text-2xl md:text-3xl leading-relaxed max-w-4xl font-medium">
-                            {displayExercise.description}
-                        </p>
-                    )}
-                </div>
-            </motion.div>
-        </AnimatePresence>
-    );
-};
-
 const StandardListView: React.FC<{ 
     exercises: Exercise[], 
-    timerStyle: TimerStyle 
-}> = ({ exercises, timerStyle }) => {
+    timerStyle: TimerStyle,
+    isHyrox?: boolean
+}> = ({ exercises, timerStyle, isHyrox }) => {
     const count = exercises.length;
-    let titleSize = 'text-3xl';
-    let repsSize = 'text-xl';
-    let padding = 'px-6 py-4';
-    let gap = 'gap-3';
-    let showDesc = true;
+    let titleSize = 'text-2xl md:text-3xl';
+    let repsSize = 'text-lg md:text-xl';
+    let padding = 'px-5 py-2';
+    let gap = 'gap-2';
+    let showDesc = count <= 10;
 
-    if (count <= 4) {
-        titleSize = 'text-4xl md:text-5xl';
-        repsSize = 'text-2xl md:text-3xl';
-        padding = 'px-8 py-6';
-        gap = 'gap-5';
-    } else if (count <= 7) {
-        titleSize = 'text-3xl md:text-4xl';
-        repsSize = 'text-xl md:text-2xl';
-        gap = 'gap-4';
-    } else {
-        titleSize = 'text-2xl md:text-3xl';
-        repsSize = 'text-lg md:text-xl';
-        showDesc = false; 
-    }
+    // För HYROX vill vi att alla kort ska dela på ytan
+    const itemClass = isHyrox 
+        ? "flex-1 min-h-0" // Tvingar alla att vara lika stora och dela på höjden
+        : "min-h-[80px]";
 
     return (
-        <div className={`w-full max-w-6xl h-full flex flex-col ${gap} overflow-y-auto pb-4`}>
+        <div className={`w-full max-w-6xl h-full flex flex-col ${gap} pb-4 overflow-hidden`}>
             {exercises.map((ex) => (
                 <div 
                     key={ex.id} 
-                    className={`flex-1 min-h-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl ${padding} flex flex-col justify-center border-l-[10px] shadow-lg transition-all relative group`}
+                    className={`${itemClass} bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl ${padding} flex flex-col justify-center border-l-[8px] shadow-sm transition-all relative group`}
                     style={{ borderLeftColor: `rgb(${timerStyle.pulseRgb})` }}
                 >
-                    <div className="flex justify-between items-center w-full gap-6">
-                        <h4 className={`font-black text-gray-900 dark:text-white leading-none tracking-tight ${titleSize}`}>
+                    <div className="flex justify-between items-center w-full gap-4">
+                        <h4 className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight ${titleSize} truncate`}>
                             {ex.name}
                         </h4>
                         {ex.reps && (
-                            <span className={`font-mono font-bold text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-lg whitespace-nowrap shadow-sm flex-shrink-0 border border-gray-200 dark:border-gray-700 ${repsSize}`}>
+                            <span className={`font-mono font-bold text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 px-3 py-1 rounded-lg whitespace-nowrap shadow-sm flex-shrink-0 border border-gray-200 dark:border-gray-700 ${repsSize}`}>
                                 {formatReps(ex.reps)}
                             </span>
                         )}
                     </div>
                     {showDesc && ex.description && (
-                        <p className="text-gray-600 dark:text-gray-400 mt-2 line-clamp-1 text-lg md:text-xl font-medium">
+                        <p className="text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1 text-sm md:text-base font-medium">
                             {ex.description}
                         </p>
                     )}
@@ -269,6 +215,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [showBackToPrepConfirmation, setShowBackToPrepConfirmation] = useState(false);
   const [showFinishAnimation, setShowFinishAnimation] = useState(false);
   const [winnerName, setWinnerName] = useState<string | null>(null);
+  const [finalRaceId, setFinalRaceId] = useState<string | null>(null);
   
   const isHyroxRace = useMemo(() => activeWorkout?.id.startsWith('hyrox-full-race') || activeWorkout?.id.startsWith('custom-race'), [activeWorkout]);
   const isFreestanding = block.tag === 'Fristående';
@@ -401,6 +348,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   
     const handleRaceComplete = useCallback(async () => {
         if (!isHyroxRace || !activeWorkout) { onFinish({ isNatural: true }); return; }
+        
+        // Pausa klockan omedelbart så att slutresultatet fryses
+        pause();
+
         const sortedFinishers = Object.entries(finishedParticipants).sort(([, a], [, b]) => (a as FinishData).time - (b as FinishData).time);
         const winner = sortedFinishers.length > 0 ? sortedFinishers[0][0] : null;
         setWinnerName(winner);
@@ -417,10 +368,12 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 startGroups: startGroups.map(g => ({ id: g.id, name: g.name, participants: g.participants.split('\n').map(p => p.trim()).filter(Boolean) })),
                 results: raceResults
             };
-            if (organization) { const savedRace = await saveRace(raceData, organization.id); setTimeout(() => { onFinish({ isNatural: true, raceId: savedRace.id }); }, 5000); }
-            else { setTimeout(() => { onFinish({ isNatural: true }); }, 5000); }
+            if (organization) { 
+                const savedRace = await saveRace(raceData, organization.id); 
+                setFinalRaceId(savedRace.id);
+            }
         } catch (error) { console.error("Failed to save race results:", error); }
-    }, [isHyroxRace, activeWorkout, finishedParticipants, block.exercises, startGroups, organization, onFinish, speak]);
+    }, [isHyroxRace, activeWorkout, finishedParticipants, block.exercises, startGroups, organization, onFinish, speak, pause]);
 
   useRaceLogic(startGroups.flatMap(g => g.participants.split('\n').map(p => p.trim()).filter(Boolean)).map(p => ({ isFinished: !!finishedParticipants[p] })), handleRaceComplete);
 
@@ -528,6 +481,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   const currentIntervalInLap = (completedWorkIntervals % effectiveIntervalsPerLap) + 1;
 
+  const handleDismissFinishAnimation = () => {
+    setShowFinishAnimation(false);
+    if (finalRaceId) {
+        onFinish({ isNatural: true, raceId: finalRaceId });
+    } else {
+        onFinish({ isNatural: true });
+    }
+  };
+
   return (
     <div 
         className={`fixed inset-0 w-full h-full overflow-hidden transition-colors duration-500 ${showFullScreenColor ? `${timerStyle.bg}` : 'bg-gray-100 dark:bg-black'}`}
@@ -537,10 +499,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         onTouchStart={handleInteraction}
     >
       {showConfetti && <Confetti />}
-      {showFinishAnimation && <RaceFinishAnimation winnerName={winnerName} onDismiss={() => setShowFinishAnimation(false)} />}
+      {showFinishAnimation && <RaceFinishAnimation winnerName={winnerName} onDismiss={handleDismissFinishAnimation} />}
       
       <AnimatePresence>
-        {status === TimerStatus.Paused && (
+        {status === TimerStatus.Paused && !showFinishAnimation && (
             <PauseOverlay 
                 onResume={resume}
                 onRestart={handleConfirmReset}
@@ -563,7 +525,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       </AnimatePresence>
 
       <AnimatePresence>
-        {status !== TimerStatus.Idle && status !== TimerStatus.Paused && (
+        {status !== TimerStatus.Idle && status !== TimerStatus.Paused && !showFinishAnimation && (
             <motion.div 
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -582,74 +544,75 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         )}
       </AnimatePresence>
 
+      {/* VÄNSTERSIDA - TIMER & LISTA */}
       <div 
-          className={`absolute flex flex-col items-center transition-all duration-500 z-10 left-0 
-              ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'} 
-              ${showFullScreenColor 
-                  ? `top-[12%] min-h-[50%] justify-center` 
-                  : `justify-center top-1 min-h-[22%] mx-4 sm:mx-6 rounded-[2.5rem] shadow-2xl ${timerStyle.bg}`
-              }`}
-          style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
+        className={`absolute left-0 top-0 bottom-0 flex flex-col transition-all duration-500 z-10 
+            ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-6` : 'right-0'}`}
       >
-        <div className="mb-4 px-8 py-2 rounded-full bg-black/40 backdrop-blur-xl border border-white/20 shadow-lg z-20">
-            <span className={`font-black tracking-[0.2em] text-white uppercase drop-shadow-md text-xl md:text-2xl`}>{modeLabel}</span>
-        </div>
-
-        <div className="text-center z-20 w-full px-10 mb-2">
-            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-5xl sm:text-7xl`}>{statusLabel}</h2>
-        </div>
-
-        <div className="z-20 relative flex flex-col items-center w-full text-white">
-            <div className="flex items-center justify-center w-full gap-2">
-                 <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[8rem] sm:text-[10rem] md:text-[12rem]">
-                    {minutesStr}:{secondsStr}
-                 </span>
+        {/* TIMER-KORTET */}
+        <div 
+            className={`flex flex-col items-center justify-center transition-all duration-500 
+                ${showFullScreenColor 
+                    ? `mt-[12%] h-[40%]` 
+                    : `mt-2 mx-4 sm:mx-6 rounded-[2.5rem] shadow-2xl ${timerStyle.bg} h-[25%] shrink-0`
+                }`}
+            style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
+        >
+            <div className="mb-2 px-8 py-1.5 rounded-full bg-black/40 backdrop-blur-xl border border-white/20 shadow-lg z-20">
+                <span className={`font-black tracking-[0.2em] text-white uppercase drop-shadow-md text-lg md:text-xl`}>{modeLabel}</span>
             </div>
-            
-            {block.settings.mode !== TimerMode.Stopwatch && (
-                <div className="w-[80%] max-w-4xl h-5 bg-black/20 rounded-full mt-8 overflow-hidden border border-white/10 p-1">
-                    <div 
-                        className="h-full bg-white rounded-full transition-[width] duration-1000 ease-linear" 
-                        style={{ width: `${progress}%` }} 
-                    />
+
+            <div className="text-center z-20 w-full px-10 mb-1">
+                <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-4xl sm:text-5xl`}>{statusLabel}</h2>
+            </div>
+
+            <div className="z-20 relative flex flex-col items-center w-full text-white">
+                <div className="flex items-center justify-center w-full gap-2">
+                     <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[6rem] sm:text-[8rem] md:text-[9rem]">
+                        {minutesStr}:{secondsStr}
+                     </span>
                 </div>
+                
+                {block.settings.mode !== TimerMode.Stopwatch && (
+                    <div className="w-[80%] max-w-2xl h-4 bg-black/20 rounded-full mt-4 overflow-hidden border border-white/10 p-1">
+                        <div 
+                            className="h-full bg-white rounded-full transition-[width] duration-1000 ease-linear" 
+                            style={{ width: `${progress}%` }} 
+                        />
+                    </div>
+                )}
+            </div>
+
+            <div className="text-center z-20 w-full px-10 mt-1">
+                <h1 className="font-black text-white/90 uppercase tracking-tighter text-xl sm:text-2xl md:text-3xl drop-shadow-lg truncate">{block.title}</h1>
+            </div>
+        </div>
+
+        {/* ÖVNINGSLISTA */}
+        <div className="flex-grow overflow-hidden flex flex-col items-center justify-start px-4 pt-4">
+            {block.showDescriptionInTimer && block.setupDescription && !showFullScreenColor && (
+                <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-4 px-6 py-3 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 max-w-5xl flex items-center gap-4 shadow-xl z-10 rounded-[2rem]"
+                >
+                    <InformationCircleIcon className="w-5 h-5 text-primary shrink-0" />
+                    <p className="text-gray-900 dark:text-white text-lg md:text-xl font-black leading-tight">
+                        {block.setupDescription}
+                    </p>
+                </motion.div>
             )}
+
+            <div className="w-full flex justify-center items-stretch flex-grow pb-4"> 
+                {block.followMe ? (
+                    <FollowMeView exercise={currentExercise} nextExercise={nextExercise} timerStyle={timerStyle} status={status} />
+                ) : (
+                    !isFreestanding && (
+                        <StandardListView exercises={block.exercises} timerStyle={timerStyle} isHyrox={isHyroxRace} />
+                    )
+                )}
+            </div>
         </div>
-
-        <div className="text-center z-20 w-full px-10 mt-2">
-            <h1 className="font-black text-white/90 uppercase tracking-tighter text-2xl sm:text-3xl md:text-4xl drop-shadow-lg truncate py-2">{block.title}</h1>
-        </div>
-      </div>
-
-      <div className={`absolute bottom-0 left-0 flex flex-col items-center justify-start px-4 z-0 
-          ${showFullScreenColor ? 'top-[65%]' : 'top-[28%]'} 
-          ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'}`}>
-          {block.showDescriptionInTimer && block.setupDescription && (
-              <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mb-4 px-6 py-4 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 max-w-5xl flex items-center gap-4 shadow-2xl z-10 rounded-[2rem]"
-              >
-                  <div className="bg-primary/10 p-2 rounded-xl">
-                    <InformationCircleIcon className="w-6 h-6 text-primary shrink-0" />
-                  </div>
-                  <p className="text-gray-900 dark:text-white text-xl md:text-2xl font-black leading-tight">
-                      {block.setupDescription}
-                  </p>
-              </motion.div>
-          )}
-
-          <div className="w-full flex justify-center items-start h-full pt-4"> 
-              {block.followMe ? (
-                  <FollowMeView exercise={currentExercise} nextExercise={nextExercise} timerStyle={timerStyle} status={status} />
-              ) : (
-                  !isFreestanding && (
-                      <div className="w-full flex flex-col items-center gap-6 max-w-7xl h-full">
-                          <StandardListView exercises={block.exercises} timerStyle={timerStyle} />
-                      </div>
-                  )
-              )}
-          </div>
       </div>
 
       {isHyroxRace && (
@@ -661,7 +624,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           </div>
       )}
 
-      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[28%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
+      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 bottom-8 ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12 pointer-events-none'} ${isHyroxRace ? 'ml-[-175px]' : ''}`}>
             {status === TimerStatus.Idle || status === TimerStatus.Finished ? (
                 <>
                     <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-500 transition-colors text-xl backdrop-blur-md border-2 border-white/20">TILLBAKA</button>
