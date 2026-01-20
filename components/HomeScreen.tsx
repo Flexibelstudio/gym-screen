@@ -72,7 +72,7 @@ const MenuCard: React.FC<{
             variants={variants}
             onClick={onClick}
             className={`
-                relative overflow-hidden rounded-[2.5rem] p-6 text-left flex flex-col justify-between h-full min-h-[140px]
+                relative overflow-hidden rounded-[2.5rem] p-6 text-left flex flex-col justify-between aspect-square w-full
                 bg-gradient-to-br from-primary to-teal-700 text-white
                 shadow-xl border-t border-l border-white/20 transition-all duration-300
                 hover:shadow-primary/20 hover:-translate-y-1
@@ -97,11 +97,11 @@ const MenuCard: React.FC<{
                     {icon || <DumbbellIcon className="w-6 h-6" />}
                 </div>
                 <div>
-                    <h3 className="text-lg sm:text-xl font-black leading-tight drop-shadow-md tracking-tight uppercase">
+                    <h3 className="text-lg sm:text-xl md:text-2xl font-black leading-tight drop-shadow-md tracking-tight uppercase">
                         {title}
                     </h3>
                     {subTitle && (
-                        <p className="text-[9px] font-bold text-white/80 mt-0.5 uppercase tracking-widest">
+                        <p className="text-[10px] md:text-xs font-bold text-white/80 mt-1 uppercase tracking-widest">
                             {subTitle}
                         </p>
                     )}
@@ -267,7 +267,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             {/* Meny-grid */}
             <div className={`flex-grow overflow-y-auto pr-2 custom-scrollbar min-h-0 ${!studioConfig.enableWorkoutLogging ? 'mb-12' : 'mb-8'}`}>
-                <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 ${studioConfig.enableWorkoutLogging ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-6 auto-rows-fr`}>
+                <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 ${studioConfig.enableWorkoutLogging ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-4 sm:gap-6`}>
                     {menuItems.map((item, index) => (
                         <MenuCard
                             key={item.title}
