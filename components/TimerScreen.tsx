@@ -293,6 +293,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [showFinishAnimation, setShowFinishAnimation] = useState(false);
   const [winnerName, setWinnerName] = useState<string | null>(null);
   const [finalRaceId, setFinalRaceId] = useState<string | null>(null);
+  const [isSavingRace, setIsSavingRace] = useState(false);
   
   const isHyroxRace = useMemo(() => activeWorkout?.id.startsWith('hyrox-full-race') || activeWorkout?.id.startsWith('custom-race'), [activeWorkout]);
   const isFreestanding = block.tag === 'Fristående';
@@ -428,16 +429,19 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         
         // Pausa klockan omedelbart så att slutresultatet fryses
         pause();
+        setIsSavingRace(true);
 
         const sortedFinishers = Object.entries(finishedParticipants).sort(([, a], [, b]) => (a as FinishData).time - (b as FinishData).time);
         const winner = sortedFinishers.length > 0 ? sortedFinishers[0][0] : null;
         setWinnerName(winner);
         setShowFinishAnimation(true);
         if (winner) speak(`Och vinnaren är ${winner}! Bra jobbat alla!`);
+        
         const raceResults = sortedFinishers.map(([participant, data]) => {
             const group = startGroups.find(g => g.participants.includes(participant));
             return { participant, time: (data as FinishData).time, groupId: group?.id || 'unknown' };
         });
+
         try {
             const raceData: Omit<HyroxRace, 'id' | 'createdAt' | 'organizationId'> = {
                 raceName: activeWorkout.title,
@@ -449,7 +453,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 const savedRace = await saveRace(raceData, organization.id); 
                 setFinalRaceId(savedRace.id);
             }
-        } catch (error) { console.error("Failed to save race results:", error); }
+        } catch (error) { 
+          console.error("Failed to save race results:", error); 
+        } finally {
+          setIsSavingRace(false);
+        }
     }, [isHyroxRace, activeWorkout, finishedParticipants, block.exercises, startGroups, organization, onFinish, speak, pause]);
 
   useRaceLogic(startGroups.flatMap(g => g.participants.split('\n').map(p => p.trim()).filter(Boolean)).map(p => ({ isFinished: !!finishedParticipants[p] })), handleRaceComplete);
@@ -562,9 +570,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     setShowFinishAnimation(false);
     if (finalRaceId) {
         onFinish({ isNatural: true, raceId: finalRaceId });
-    } else {
+    } else if (!isHyroxRace) {
         onFinish({ isNatural: true });
     }
+    // Vid lopp: Om raceId fortfarande saknas stannar vi kvar tills isSavingRace är klar.
   };
 
   return (
@@ -576,7 +585,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         onTouchStart={handleInteraction}
     >
       {showConfetti && <Confetti />}
-      {showFinishAnimation && <RaceFinishAnimation winnerName={winnerName} onDismiss={handleDismissFinishAnimation} />}
+      {showFinishAnimation && <RaceFinishAnimation winnerName={winnerName} onDismiss={handleDismissFinishAnimation} isSaving={isSavingRace} />}
       
       <AnimatePresence>
         {status === TimerStatus.Paused && !showFinishAnimation && (

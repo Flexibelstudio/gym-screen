@@ -213,8 +213,12 @@ export const RaceBackToPrepConfirmationModal: React.FC<{
     </div>
 );
 
-export const RaceFinishAnimation: React.FC<{ winnerName: string | null; onDismiss: () => void }> = ({ winnerName, onDismiss }) => (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] animate-fade-in" onClick={onDismiss}>
+export const RaceFinishAnimation: React.FC<{ 
+  winnerName: string | null; 
+  onDismiss: () => void;
+  isSaving?: boolean;
+}> = ({ winnerName, onDismiss, isSaving }) => (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] animate-fade-in" onClick={!isSaving ? onDismiss : undefined}>
         <Confetti />
         <div className="text-center text-white p-8" onClick={e => e.stopPropagation()}>
             <h1 className="text-6xl md:text-8xl font-black text-yellow-400 drop-shadow-lg mb-4 animate-bounce">MÅL!</h1>
@@ -225,8 +229,13 @@ export const RaceFinishAnimation: React.FC<{ winnerName: string | null; onDismis
                     <p className="text-4xl md:text-6xl font-black text-white">{winnerName}</p>
                 </div>
             )}
-            <button onClick={onDismiss} className="mt-12 bg-white text-black font-bold py-3 px-8 rounded-full text-lg hover:bg-gray-200 transition-colors shadow-lg">
-                Visa Resultat
+            <button 
+                onClick={onDismiss} 
+                disabled={isSaving}
+                className="mt-12 bg-white text-black font-black py-4 px-12 rounded-full text-xl hover:bg-gray-200 transition-all shadow-xl disabled:opacity-50 disabled:cursor-wait flex items-center justify-center gap-3 mx-auto uppercase tracking-widest"
+            >
+                {isSaving && <div className="w-5 h-5 border-4 border-gray-300 border-t-black rounded-full animate-spin"></div>}
+                {isSaving ? 'Sparar...' : 'Visa Resultat'}
             </button>
         </div>
     </div>
