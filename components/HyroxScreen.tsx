@@ -349,7 +349,9 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
         // or create a default config if nothing has been saved yet.
         const configToUse = raceConfig || { name: 'HYROX Race', exercises: createDefaultExercises() };
 
+        // VIKTIGT: Hämta orgId direkt här för att garantera att det skickas med korrekt
         const orgId = selectedOrganization?.id || '';
+        
         const raceWorkout = createCustomRaceWorkout(configToUse, groups, interval, orgId);
         onSelectWorkout(raceWorkout);
         

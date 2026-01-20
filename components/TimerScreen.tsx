@@ -12,7 +12,7 @@ import { ParticipantFinishList } from './timer/ParticipantFinishList';
 import { DumbbellIcon, InformationCircleIcon } from './icons';
 
 // --- Constants ---
-const HYROX_RIGHT_PANEL_WIDTH = '350px';
+const HYROX_RIGHT_PANEL_WIDTH = '450px';
 
 // --- Helper Components & Interfaces ---
 
@@ -73,21 +73,30 @@ const StandardListView: React.FC<{
     const count = exercises.length;
     let titleSize = 'text-2xl md:text-3xl';
     let repsSize = 'text-lg md:text-xl';
-    let padding = 'px-5 py-2';
-    let gap = 'gap-2';
-    let showDesc = count <= 10;
+    let padding = 'px-5 py-4';
+    let gap = 'gap-4';
+    let showDesc = count <= 8;
 
-    // För HYROX vill vi att alla kort ska dela på ytan
-    const itemClass = isHyrox 
-        ? "flex-1 min-h-0" // Tvingar alla att vara lika stora och dela på höjden
-        : "min-h-[80px]";
+    if (count > 12) {
+        titleSize = 'text-lg md:text-xl';
+        repsSize = 'text-sm md:text-base';
+        padding = 'px-4 py-2';
+        gap = 'gap-2';
+        showDesc = false;
+    } else if (count > 8) {
+        titleSize = 'text-xl md:text-2xl';
+        repsSize = 'text-base md:text-lg';
+        padding = 'px-4 py-3';
+        gap = 'gap-3';
+        showDesc = false;
+    }
 
     return (
-        <div className={`w-full max-w-6xl h-full flex flex-col ${gap} pb-4 overflow-hidden`}>
+        <div className={`w-full max-w-6xl flex flex-col ${gap} pb-8`}>
             {exercises.map((ex) => (
                 <div 
                     key={ex.id} 
-                    className={`${itemClass} bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl ${padding} flex flex-col justify-center border-l-[8px] shadow-sm transition-all relative group`}
+                    className={`bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl ${padding} flex flex-col justify-center border-l-[8px] shadow-sm transition-all relative group`}
                     style={{ borderLeftColor: `rgb(${timerStyle.pulseRgb})` }}
                 >
                     <div className="flex justify-between items-center w-full gap-4">
@@ -101,12 +110,80 @@ const StandardListView: React.FC<{
                         )}
                     </div>
                     {showDesc && ex.description && (
-                        <p className="text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1 text-sm md:text-base font-medium">
+                        <p className="text-gray-500 dark:text-gray-400 mt-1 line-clamp-1 text-sm md:text-base font-medium">
                             {ex.description}
                         </p>
                     )}
                 </div>
             ))}
+        </div>
+    );
+};
+
+const FollowMeView: React.FC<{ 
+    exercise: Exercise | null, 
+    nextExercise: Exercise | null,
+    timerStyle: TimerStyle,
+    status: TimerStatus
+}> = ({ exercise, nextExercise, timerStyle, status }) => {
+    if (!exercise) return null;
+
+    const isResting = status === TimerStatus.Resting;
+    const isPreparing = status === TimerStatus.Preparing;
+
+    return (
+        <div className="w-full max-w-6xl flex flex-col gap-6 animate-fade-in">
+            {/* CURRENT EXERCISE */}
+            <div className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-md rounded-[3rem] p-10 shadow-2xl border-b-8 border-gray-200 dark:border-gray-800 relative overflow-hidden flex flex-col md:flex-row gap-10 items-center">
+                <div className="flex-1 text-center md:text-left space-y-4">
+                    <span className="inline-block px-5 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-black uppercase tracking-[0.2em] border border-primary/20">
+                        {isPreparing ? 'Gör dig redo' : isResting ? 'Vila inför' : 'Just nu'}
+                    </span>
+                    <h3 className="text-5xl md:text-7xl font-black text-gray-900 dark:text-white leading-none tracking-tighter">
+                        {exercise.name}
+                    </h3>
+                    {exercise.reps && (
+                        <div className="inline-flex items-center bg-gray-100 dark:bg-gray-800 px-6 py-2 rounded-2xl shadow-inner border border-gray-200 dark:border-gray-700">
+                             <span className="text-3xl md:text-4xl font-mono font-black text-gray-900 dark:text-white">{formatReps(exercise.reps)}</span>
+                        </div>
+                    )}
+                    {exercise.description && (
+                        <p className="text-xl md:text-2xl text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-2xl">
+                            {exercise.description}
+                        </p>
+                    )}
+                </div>
+                
+                {exercise.imageUrl && (
+                    <div className="w-full md:w-1/3 aspect-square rounded-[2.5rem] overflow-hidden shadow-xl border-4 border-white dark:border-gray-800 bg-gray-100 dark:bg-gray-800">
+                        <img src={exercise.imageUrl} alt={exercise.name} className="w-full h-full object-cover" />
+                    </div>
+                )}
+            </div>
+
+            {/* NEXT EXERCISE PREVIEW */}
+            {nextExercise && !isPreparing && (
+                <div className="bg-white/60 dark:bg-gray-900/60 backdrop-blur-sm rounded-[2rem] p-6 border border-white/20 dark:border-gray-800 flex items-center justify-between group">
+                    <div className="flex items-center gap-6">
+                        <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400 font-black">
+                            {nextExercise.imageUrl ? (
+                                <img src={nextExercise.imageUrl} className="w-full h-full object-cover rounded-2xl" alt="" />
+                            ) : (
+                                <DumbbellIcon className="w-6 h-6" />
+                            )}
+                        </div>
+                        <div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">Nästa övning</span>
+                            <p className="text-xl font-bold text-gray-700 dark:text-gray-300">{nextExercise.name}</p>
+                        </div>
+                    </div>
+                    {nextExercise.reps && (
+                        <span className="font-mono font-bold text-lg text-gray-500 dark:text-gray-400 bg-gray-100/50 dark:bg-gray-800/50 px-4 py-1 rounded-xl">
+                            {formatReps(nextExercise.reps)}
+                        </span>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
@@ -603,7 +680,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 </motion.div>
             )}
 
-            <div className="w-full flex justify-center items-stretch flex-grow pb-4"> 
+            <div className="w-full flex justify-center items-stretch flex-grow pb-4 overflow-y-auto custom-scrollbar"> 
                 {block.followMe ? (
                     <FollowMeView exercise={currentExercise} nextExercise={nextExercise} timerStyle={timerStyle} status={status} />
                 ) : (
@@ -624,7 +701,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           </div>
       )}
 
-      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 bottom-8 ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12 pointer-events-none'} ${isHyroxRace ? 'ml-[-175px]' : ''}`}>
+      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 bottom-8 ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
             {status === TimerStatus.Idle || status === TimerStatus.Finished ? (
                 <>
                     <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-500 transition-colors text-xl backdrop-blur-md border-2 border-white/20">TILLBAKA</button>
