@@ -210,9 +210,9 @@ const ConfirmationModal: React.FC<{
 }> = ({ onConfirm, onCancel, title, message }) => {
     return (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onCancel}>
-            <div className="bg-gray-800 rounded-xl p-6 sm:p-8 w-full max-w-md text-white shadow-2xl border border-gray-700" onClick={e => e.stopPropagation()}>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 sm:p-8 w-full max-w-md text-gray-900 dark:text-white shadow-2xl border border-gray-200 dark:border-gray-700" onClick={e => e.stopPropagation()}>
                 <h2 className="text-2xl font-bold mb-4">{title}</h2>
-                <p className="text-gray-300 mb-6">{message}</p>
+                <p className="text-gray-600 dark:text-gray-300 mb-6">{message}</p>
                 <div className="flex gap-4">
                     <button onClick={onCancel} className="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 rounded-lg transition-colors">Avbryt</button>
                     <button onClick={onConfirm} className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-lg transition-colors">Ja, ta bort</button>
@@ -244,7 +244,7 @@ const WorkoutInfoCard: React.FC<{
                         value={workout.title}
                         onChange={e => onChange('title', e.target.value)}
                         placeholder="T.ex. 'Mitt grymma benpass'"
-                        className="w-full bg-white dark:bg-purple-900 text-purple-800 dark:text-white p-3 rounded-md border border-purple-300 dark:border-purple-700 focus:ring-2 focus:ring-purple-500 focus:outline-none transition font-semibold"
+                        className="w-full bg-white dark:bg-purple-900 text-gray-900 dark:text-white p-3 rounded-md border border-purple-300 dark:border-purple-700 focus:ring-2 focus:ring-purple-500 focus:outline-none transition font-semibold"
                     />
                     <button onClick={() => onOpenHandwriting('title', false)} className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400 hover:text-primary transition-colors p-1" title="Skriv för hand">
                         <PencilIcon className="w-5 h-5" />
@@ -260,7 +260,7 @@ const WorkoutInfoCard: React.FC<{
                         value={workout.coachTips}
                         onChange={e => onChange('coachTips', e.target.value)}
                         placeholder="T.ex. fokusområden, utrustning som behövs..."
-                        className="w-full bg-white dark:bg-purple-900 text-purple-800 dark:text-gray-300 p-3 rounded-md border border-purple-300 dark:border-purple-700 focus:ring-2 focus:ring-purple-500 focus:outline-none transition"
+                        className="w-full bg-white dark:bg-purple-900 text-gray-900 dark:text-white p-3 rounded-md border border-purple-300 dark:border-purple-700 focus:ring-2 focus:ring-purple-500 focus:outline-none transition placeholder-gray-400 dark:placeholder-purple-400/50"
                         rows={2}
                     />
                      <button onClick={() => onOpenHandwriting('coachTips', true)} className="absolute top-3 right-3 text-gray-400 hover:text-primary transition-colors p-1" title="Skriv för hand">
@@ -387,7 +387,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                         value={exercise.reps || ''}
                         onChange={e => onUpdate(exercise.id, { reps: e.target.value })}
                         placeholder="Antal"
-                        className={`${baseClasses.replace('w-full', '')} ${textClasses} w-24 font-semibold placeholder-gray-500`}
+                        className={`${baseClasses.replace('w-full', '')} ${textClasses} w-24 font-semibold placeholder-gray-500 dark:placeholder-gray-500`}
                     />
                     <input
                         type="text"
@@ -398,7 +398,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             setSearchQuery(exercise.name);
                         }}
                         placeholder="Sök eller skriv övningsnamn"
-                        className={`${baseClasses} ${textClasses} font-semibold`}
+                        className={`${baseClasses} ${textClasses} font-semibold placeholder-gray-500 dark:placeholder-gray-500`}
                     />
                     
                     {/* LOGGNING PILL-BUTTON */}
@@ -442,7 +442,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                         value={exercise.description || ''}
                         onChange={e => onUpdate(exercise.id, { description: e.target.value })}
                         placeholder="Beskrivning (klicka på ✨ för AI-förslag)"
-                        className={`${baseClasses} text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-300 p-2 rounded-md border border-gray-300 dark:border-gray-600 focus:ring-1 focus:ring-primary h-16 pr-10`}
+                        className={`${baseClasses} text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white p-2 rounded-md border border-gray-300 dark:border-gray-600 focus:ring-1 focus:ring-primary h-16 pr-10 placeholder-gray-400 dark:placeholder-gray-500`}
                         rows={2}
                     />
                     <button
@@ -537,7 +537,7 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, onUpdate, onRemove,
                 value={block.setupDescription || ''} 
                 onChange={e => handleFieldChange('setupDescription', e.target.value)} 
                 placeholder="Upplägg/Instruktioner för blocket..." 
-                className="w-full bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 text-sm focus:ring-1 focus:ring-primary outline-none" 
+                className="w-full bg-gray-50 dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none placeholder-gray-400 dark:placeholder-gray-500 transition-all" 
                 rows={2}
             />
 
@@ -645,7 +645,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                             value={workout.coachTips || ''} 
                             onChange={e => setWorkout({ ...workout, coachTips: e.target.value })} 
                             placeholder="Allmänna tips (valfritt)..." 
-                            className="w-full bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 text-sm focus:ring-1 focus:ring-primary outline-none" 
+                            className="w-full bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none placeholder-gray-400 dark:placeholder-gray-500 transition-all" 
                             rows={2}
                         />
                     </div>
