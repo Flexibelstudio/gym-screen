@@ -932,7 +932,7 @@ const App: React.FC = () => {
                 onTogglePublish={handleTogglePublishStatus}
                 onToggleFavorite={handleToggleFavoriteStatus}
                 onDuplicateWorkout={handleDuplicateWorkout}
-                onTimerFinish={onTimerFinish}
+                onTimerFinish={handleTimerFinish}
                 
                 functions={{
                     selectOrganization: handleSelectOrganization,
