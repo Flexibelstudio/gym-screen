@@ -168,7 +168,7 @@ const App: React.FC = () => {
       // Update PWA/iOS homescreen icon
       let appleLink: HTMLLinkElement | null = document.querySelector("link[rel='apple-touch-icon']");
       if (!appleLink) {
-        appleLink = document.createElement('link');
+        appleLink = document.createElement('apple-touch-icon');
         appleLink.rel = 'apple-touch-icon';
         document.getElementsByTagName('head')[0].appendChild(appleLink);
       }
@@ -971,7 +971,7 @@ const App: React.FC = () => {
           </main>
           
           {isInfoBannerVisible && (
-              <div className="flex-shrink-0 w-full h-[320px] lg:h-[480px] xl:h-[512px] relative z-[40]">
+              <div className={`flex-shrink-0 w-full h-[320px] lg:h-[480px] xl:h-[512px] relative ${isScreensaverActive ? 'z-[1001]' : 'z-[40]'}`}>
                   <InfoCarouselBanner 
                     messages={activeInfoMessages} 
                     className="relative !h-full" 
