@@ -23,20 +23,22 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
             dispatch({ type: 'LOAD_WORKOUTS_START' });
             getWorkoutsForOrganization(selectedOrganization.id)
                 .then(async (workouts) => {
-                    // --- CLEANUP LOGIC: Delete drafts older than 24h ---
+                    // --- CLEANUP LOGIC: Delete temporary drafts older than 24h ---
                     const now = Date.now();
                     const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
                     
+                    // VIKTIGT: Endast pass som är markerade som medlemsutkast ska raderas automatiskt.
+                    // Admin-pass och officiella pass ska alltid sparas.
                     const expiredDrafts = workouts.filter(w => 
+                        w.isMemberDraft === true && 
                         !w.isFavorite && 
                         !w.isPublished && 
                         w.createdAt < (now - TWENTY_FOUR_HOURS)
                     );
 
                     if (expiredDrafts.length > 0) {
-                        console.log(`Cleaning up ${expiredDrafts.length} expired drafts...`);
+                        console.log(`Cleaning up ${expiredDrafts.length} expired member drafts...`);
                         await Promise.all(expiredDrafts.map(w => firebaseDeleteWorkout(w.id)));
-                        // Return filtered list immediately for UI snappiness
                         const validWorkouts = workouts.filter(w => !expiredDrafts.find(ed => ed.id === w.id));
                         dispatch({ type: 'LOAD_WORKOUTS_SUCCESS', payload: validWorkouts });
                     } else {

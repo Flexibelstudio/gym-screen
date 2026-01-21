@@ -24,6 +24,7 @@ import {
   deleteDoc, 
   query, 
   where, 
+  or,
   orderBy, 
   limit, 
   onSnapshot, 
@@ -568,10 +569,20 @@ export const updateStudioConfig = async (orgId: string, studioId: string, overri
 export const getWorkoutsForOrganization = async (orgId: string): Promise<Workout[]> => {
     if (isOffline || !db || !orgId) return [];
     try {
-        const q = query(collection(db, 'workouts'), where("organizationId", "==", orgId));
+        // Hämta pass som antingen tillhör organisationen ELLER saknar organizationId (för migration)
+        const q = query(
+          collection(db, 'workouts'), 
+          or(
+            where("organizationId", "==", orgId),
+            where("organizationId", "==", "")
+          )
+        );
         const snap = await getDocs(q);
         return snap.docs.map(d => d.data() as Workout).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
-    } catch (e) { return []; }
+    } catch (e) { 
+        console.error("getWorkoutsForOrganization failed", e);
+        return []; 
+    }
 };
 
 export const saveWorkout = async (w: Workout) => {

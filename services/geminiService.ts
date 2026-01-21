@@ -185,12 +185,13 @@ async function _callGeminiJSON<T>(modelName: string, prompt: string, schema: any
     return JSON.parse(response.text.trim()) as T;
 }
 
-const transformWorkout = (data: any, orgId: string): Workout => ({
+const transformWorkout = (data: any, orgId: string, isDraft: boolean = false): Workout => ({
     ...data,
     id: data.id || `ai-${Date.now()}`,
     organizationId: orgId,
     createdAt: Date.now(),
     isPublished: false,
+    isMemberDraft: isDraft,
     category: data.category || 'AI Genererat',
     blocks: data.blocks.map((b: any, i: number) => ({
         ...b,
@@ -222,7 +223,8 @@ export async function analyzeCurrentWorkout(currentWorkout: Workout): Promise<Wo
 
 export async function parseWorkoutFromText(text: string): Promise<Workout> {
     const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.TEXT_INTERPRETER_PROMPT(text), workoutSchema);
-    return transformWorkout(data, '');
+    // Tolkad text från coachen bör inte vara ett "medlemsutkast" som raderas
+    return transformWorkout(data, '', false);
 }
 
 export async function parseWorkoutFromImage(base64Image: string, additionalText?: string): Promise<Workout> {
@@ -239,7 +241,8 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
             responseSchema: workoutSchema,
         }
     });
-    return transformWorkout(JSON.parse(response.text.trim()), '');
+    // Tolkad bild (från t.ex. Idétavlan) markeras som draft så den städas om den inte sparas
+    return transformWorkout(JSON.parse(response.text.trim()), '', true);
 }
 
 export async function generateExerciseDescription(name: string): Promise<string> {
