@@ -164,9 +164,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
 
         case Page.WorkoutDetail:
             if (!activeWorkout) return <div>Inget pass valt</div>;
-            if (activeWorkout.blocks.length === 1 && activeWorkout.blocks[0].tag === 'Uppvärmning') {
-                 return <WarmupScreen onStartWorkout={onStartBlock} />;
-            }
+            // Borttaget: Automatisk redirect till WarmupScreen för enkel-block uppvärmning
             return <WorkoutDetailScreen 
                 workout={activeWorkout} 
                 onStartBlock={(block) => onStartBlock(block, activeWorkout)} 

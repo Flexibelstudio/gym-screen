@@ -570,11 +570,13 @@ export const getWorkoutsForOrganization = async (orgId: string): Promise<Workout
     if (isOffline || !db || !orgId) return [];
     try {
         // Hämta pass som antingen tillhör organisationen ELLER saknar organizationId (för migration)
+        // Vi letar efter både tom sträng och fältet som helt saknas (undefined/null hanteras bäst via or-query här)
         const q = query(
           collection(db, 'workouts'), 
           or(
             where("organizationId", "==", orgId),
-            where("organizationId", "==", "")
+            where("organizationId", "==", ""),
+            where("organizationId", "==", null)
           )
         );
         const snap = await getDocs(q);
