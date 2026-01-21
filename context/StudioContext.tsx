@@ -1,10 +1,10 @@
+
 import React, { createContext, useState, useContext, useEffect, useMemo, useCallback } from 'react';
 import { Studio, Organization, StudioConfig } from '../types';
 import { getOrganizations, getOrganizationById, listenToOrganizationChanges } from '../services/firebaseService';
 import { useAuth } from './AuthContext'; // Import useAuth
 
 const DEFAULT_CONFIG: StudioConfig = {
-    enableWarmup: true,
     customCategories: [
         { id: 'default_cat_1', name: 'HIIT', prompt: 'Skapa ett standard HIIT pass.' },
         { id: 'default_cat_2', name: 'Workout', prompt: 'Skapa ett standard Workout pass.' },
@@ -43,11 +43,9 @@ interface StudioContextType {
 const StudioContext = createContext<StudioContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_ORG_KEY = 'ny-screen-selected-org';
-// Studio key is now dynamic based on user ID to support multiple anonymous users on one device
 const getLocalStorageStudioKey = (uid: string) => `ny-screen-selected-studio_${uid}`;
 const PENDING_STUDIO_KEY = 'ny-screen-pending-studio-id';
 
-// Helper to safely parse JSON from localStorage
 const safeJsonParse = (jsonString: string | null) => {
     if (!jsonString) return null;
     try {
@@ -59,7 +57,7 @@ const safeJsonParse = (jsonString: string | null) => {
 };
 
 export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const { currentUser, userData, isStudioMode, authLoading, isImpersonating } = useAuth(); // Use the auth context
+    const { currentUser, userData, isStudioMode, authLoading, isImpersonating } = useAuth();
 
     const [allOrganizations, setAllOrganizations] = useState<Organization[]>([]);
     const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
@@ -70,22 +68,31 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     useEffect(() => {
         const loadInitialData = async () => {
-            if (authLoading) return; // Wait for auth to be ready
+            if (authLoading) return;
             
             setStudioLoading(true);
             try {
                 let fetchedOrgs: Organization[] = [];
                 let orgToUse: Organization | null = null;
 
+                // 1. Hantera Roll-baserad laddning
                 if (userData?.role === 'systemowner') {
-                    // System Owner gets access to everything
                     fetchedOrgs = await getOrganizations();
                 } else if (userData?.organizationId) {
-                    // Organization Admin or Coach gets access ONLY to their org
                     const org = await getOrganizationById(userData.organizationId);
-                    if (org) fetchedOrgs = [org];
+                    if (org) {
+                        fetchedOrgs = [org];
+                        orgToUse = org;
+                        
+                        // SÄKERHET: Om inloggad användare har en org, rensa localStorage om den pekar fel
+                        const storedOrgJSON = localStorage.getItem(LOCAL_STORAGE_ORG_KEY);
+                        const storedOrgData = safeJsonParse(storedOrgJSON);
+                        if (storedOrgData && storedOrgData.id !== userData.organizationId) {
+                            localStorage.removeItem(LOCAL_STORAGE_ORG_KEY);
+                            if (currentUser) localStorage.removeItem(getLocalStorageStudioKey(currentUser.uid));
+                        }
+                    }
                 } else if (isStudioMode && !isImpersonating) {
-                    // Normal Studio Mode - Fetch ONLY the provisioned org
                     const storedOrgJSON = localStorage.getItem(LOCAL_STORAGE_ORG_KEY);
                     const storedOrgData = safeJsonParse(storedOrgJSON);
                     
@@ -95,28 +102,18 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                             fetchedOrgs = [org];
                             orgToUse = org;
                         } else {
-                            // Org not found (maybe deleted), clean up
                             localStorage.removeItem(LOCAL_STORAGE_ORG_KEY);
                         }
                     }
                 }
 
-                // If we are impersonating (viewing as studio from admin), we should 
-                // prioritize keeping the currently selected org in state if it exists.
                 if (isImpersonating && selectedOrganization) {
                     orgToUse = selectedOrganization;
                 }
 
-                // If no org found yet and we have fetched results, determine best match
-                if (!orgToUse && fetchedOrgs.length > 0) {
-                    if (userData?.organizationId) {
-                          orgToUse = fetchedOrgs.find(o => o.id === userData.organizationId) || null;
-                    }
-                    if (!orgToUse && fetchedOrgs.length > 0) {
-                        // For system owners, fallback to the first org or stay null if none matches.
-                        // However, if we were already managing one, keep it.
-                        orgToUse = selectedOrganization || fetchedOrgs[0];
-                    }
+                // Fallback för Systemägare som inte valt org än
+                if (!orgToUse && fetchedOrgs.length > 0 && userData?.role === 'systemowner') {
+                    orgToUse = selectedOrganization || fetchedOrgs[0];
                 }
                 
                 setAllOrganizations(fetchedOrgs);
@@ -161,13 +158,10 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             }
         };
         loadInitialData();
-    }, [authLoading, currentUser, isStudioMode, userData, isImpersonating]);
+    }, [authLoading, currentUser?.uid, isStudioMode, userData?.organizationId, userData?.role, isImpersonating]);
     
-    // Effect to listen for real-time updates on the selected organization
     useEffect(() => {
-        if (authLoading || !selectedOrganization?.id) {
-            return;
-        }
+        if (authLoading || !selectedOrganization?.id) return;
 
         const unsubscribe = listenToOrganizationChanges(selectedOrganization.id, (updatedOrg) => {
             setSelectedOrganization(updatedOrg);

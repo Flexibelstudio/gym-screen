@@ -68,6 +68,13 @@ const App: React.FC = () => {
 
   const page = history[history.length - 1];
 
+  // Vänta med att visa innehåll tills profilen OCH organisationen är laddad
+  const isGlobalLoading = authLoading || (currentUser && !userData && !isStudioMode);
+  const isOrgMismatch = useMemo(() => {
+      if (!currentUser || !userData?.organizationId || !selectedOrganization) return false;
+      return userData.organizationId !== selectedOrganization.id;
+  }, [userData?.organizationId, selectedOrganization?.id, currentUser]);
+
   useEffect(() => {
     if (!authLoading && !isStudioMode && currentUser) {
       const isAtInitialPage = history.length === 1;
@@ -839,6 +846,16 @@ const App: React.FC = () => {
     );
   }
 
+  // Visuell blockering vid org-missmatch för att förhindra flashing
+  if (isOrgMismatch && !isGlobalLoading && !isStudioMode) {
+      return (
+        <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-gray-500 font-bold uppercase tracking-widest text-sm">Hämtar organisation...</p>
+        </div>
+      );
+  }
+
   return (
     <div className={`bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
        <SeasonalOverlay page={page} />
@@ -915,7 +932,7 @@ const App: React.FC = () => {
                 onTogglePublish={handleTogglePublishStatus}
                 onToggleFavorite={handleToggleFavoriteStatus}
                 onDuplicateWorkout={handleDuplicateWorkout}
-                onTimerFinish={handleTimerFinish}
+                onTimerFinish={onTimerFinish}
                 
                 functions={{
                     selectOrganization: handleSelectOrganization,
