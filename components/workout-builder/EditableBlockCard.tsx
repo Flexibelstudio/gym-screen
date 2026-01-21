@@ -5,6 +5,7 @@ import { EditableField } from './EditableField';
 import { ToggleSwitch, ChevronUpIcon, ChevronDownIcon, ChartBarIcon, PencilIcon, TrashIcon, SparklesIcon } from '../icons';
 import { generateExerciseDescription } from '../../services/geminiService';
 import { parseSettingsFromTitle } from '../../hooks/useWorkoutTimer';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ExerciseItemProps {
     exercise: Exercise;
@@ -124,7 +125,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                         value={exercise.reps || ''}
                         onChange={e => onUpdate(exercise.id, { reps: e.target.value })}
                         placeholder="Antal"
-                        className={`${baseClasses.replace('w-full', '')} ${textClasses} w-24 font-semibold placeholder-gray-500`}
+                        className={`appearance-none !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500 w-24 font-semibold placeholder-gray-500`}
                     />
                     <input
                         type="text"
@@ -135,10 +136,9 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             setSearchQuery(exercise.name);
                         }}
                         placeholder="Sök eller skriv övningsnamn"
-                        className={`${baseClasses} ${textClasses} font-semibold`}
+                        className={`appearance-none !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500 w-full font-semibold`}
                     />
                     
-                    {/* LOGGNING PILL-BUTTON */}
                     <button 
                         onClick={handleToggleLogging}
                         className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all border font-bold text-[10px] uppercase tracking-wider transform active:scale-95 ${
@@ -177,7 +177,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                       value={exercise.description || ''}
                       onChange={e => onUpdate(exercise.id, { description: e.target.value })}
                       placeholder="Beskrivning (klicka på ✨ för AI-förslag)"
-                      className={`${baseClasses} text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-300 p-2 rounded-md border border-gray-300 dark:border-gray-600 focus:ring-1 focus:ring-primary h-16 pr-10`}
+                      className={`appearance-none !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500 w-full text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-300 p-2 rounded-md border border-gray-300 dark:border-gray-600 focus:ring-1 focus:ring-primary h-16 pr-10`}
                       rows={2}
                     />
                     <button
