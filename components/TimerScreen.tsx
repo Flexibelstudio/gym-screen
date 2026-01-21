@@ -179,11 +179,11 @@ const StandardListView: React.FC<{
     }
 
     return (
-        <div className={`w-full max-w-6xl flex-1 flex flex-col ${gap} overflow-y-auto pb-4 custom-scrollbar`}>
+        <div className={`w-full max-w-6xl h-full flex flex-col ${gap} overflow-y-auto pb-4`}>
             {exercises.map((ex) => (
                 <div 
                     key={ex.id} 
-                    className={`flex-1 min-h-[100px] bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl ${padding} flex flex-col justify-center border-l-[10px] shadow-lg transition-all relative group`}
+                    className={`flex-1 min-h-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl ${padding} flex flex-col justify-center border-l-[10px] shadow-lg transition-all relative group`}
                     style={{ borderLeftColor: `rgb(${timerStyle.pulseRgb})` }}
                 >
                     <div className="flex justify-between items-center w-full gap-6">
@@ -705,45 +705,45 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         </div>
       </div>
 
-      <div className={`absolute bottom-0 left-0 flex flex-col items-center justify-start px-4 z-0 pt-8
-          ${showFullScreenColor ? 'top-[65%]' : 'top-[34%]'} 
+      <div className={`absolute bottom-0 left-0 flex flex-col items-center justify-start px-4 z-0 
+          ${showFullScreenColor ? 'top-[65%]' : 'top-[28%]'} 
           ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'}`}>
           
-          <div className="w-full max-w-7xl flex flex-col items-center gap-8 h-full">
-              <AnimatePresence>
-                  {isHyroxRace && groupForCountdownDisplay && (
-                      <NextStartIndicator 
-                          groupName={groupForCountdownDisplay.name}
-                          timeLeft={timeForCountdownDisplay}
-                          groupsLeft={remainingGroupsCount}
-                      />
-                  )}
-              </AnimatePresence>
-
-              {block.showDescriptionInTimer && block.setupDescription && (
-                  <motion.div 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="px-8 py-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full max-w-5xl flex items-center gap-6 shadow-2xl z-10 rounded-[2.5rem]"
-                  >
-                      <div className="bg-primary/10 p-3 rounded-2xl">
-                        <InformationCircleIcon className="w-8 h-8 text-primary shrink-0" />
-                      </div>
-                      <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight">
-                          {block.setupDescription}
-                      </p>
-                  </motion.div>
+          <AnimatePresence>
+              {isHyroxRace && groupForCountdownDisplay && (
+                  <NextStartIndicator 
+                      groupName={groupForCountdownDisplay.name}
+                      timeLeft={timeForCountdownDisplay}
+                      groupsLeft={remainingGroupsCount}
+                  />
               )}
+          </AnimatePresence>
 
-              <div className="w-full flex justify-center items-start flex-grow"> 
-                  {block.followMe ? (
-                      <FollowMeView exercise={currentExercise} nextExercise={nextExercise} timerStyle={timerStyle} status={status} />
-                  ) : (
-                      !isFreestanding && (
+          {block.showDescriptionInTimer && block.setupDescription && (
+              <motion.div 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mb-4 px-6 py-4 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 max-w-5xl flex items-center gap-4 shadow-2xl z-10 rounded-[2rem]"
+              >
+                  <div className="bg-primary/10 p-2 rounded-xl">
+                    <InformationCircleIcon className="w-6 h-6 text-primary shrink-0" />
+                  </div>
+                  <p className="text-gray-900 dark:text-white text-xl md:text-2xl font-black leading-tight">
+                      {block.setupDescription}
+                  </p>
+              </motion.div>
+          )}
+
+          <div className="w-full flex justify-center items-start h-full pt-4"> 
+              {block.followMe ? (
+                  <FollowMeView exercise={currentExercise} nextExercise={nextExercise} timerStyle={timerStyle} status={status} />
+              ) : (
+                  !isFreestanding && (
+                      <div className="w-full flex flex-col items-center gap-6 max-w-7xl h-full">
                           <StandardListView exercises={block.exercises} timerStyle={timerStyle} />
-                      )
-                  )}
-              </div>
+                      </div>
+                  )
+              )}
           </div>
       </div>
 
@@ -781,7 +781,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           </div>
       )}
 
-      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[34%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
+      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[28%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
             {status === TimerStatus.Idle || status === TimerStatus.Finished ? (
                 <>
                     <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-500 transition-colors text-xl backdrop-blur-md border-2 border-white/20">TILLBAKA</button>
