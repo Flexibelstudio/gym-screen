@@ -432,7 +432,7 @@ export const getOrganizations = async (): Promise<Organization[]> => {
     if (isOffline || !db) return MOCK_ORGANIZATIONS;
     try {
         const snap = await getDocs(collection(db, 'organizations'));
-        return snap.docs.map(d => d.data() as Organization);
+        return snap.docs.map(d => ({ id: d.id, ...d.data() } as Organization));
     } catch (e) { return []; }
 };
 
@@ -440,14 +440,14 @@ export const getOrganizationById = async (id: string): Promise<Organization | nu
     if (isOffline || !db || !id) return MOCK_ORGANIZATIONS.find(o => o.id === id) || null;
     try {
         const snap = await getDoc(doc(db, 'organizations', id));
-        return snap.exists() ? snap.data() as Organization : null;
+        return snap.exists() ? { id: snap.id, ...snap.data() } as Organization : null;
     } catch (e) { return null; }
 };
 
 export const listenToOrganizationChanges = (id: string, onUpdate: (org: Organization) => void) => {
     if (isOffline || !db || !id) return () => {}; 
     return onSnapshot(doc(db, 'organizations', id), (snap) => {
-        if (snap.exists()) onUpdate(snap.data() as Organization);
+        if (snap.exists()) onUpdate({ id: snap.id, ...snap.data() } as Organization);
     }, (err) => console.error("listenToOrganizationChanges failed", err));
 };
 

@@ -68,6 +68,13 @@ const App: React.FC = () => {
 
   const page = history[history.length - 1];
 
+  // Vänta med att visa innehåll tills profilen OCH organisationen är laddad
+  const isGlobalLoading = authLoading || (currentUser && !userData && !isStudioMode);
+  const isOrgMismatch = useMemo(() => {
+      if (!currentUser || !userData?.organizationId || !selectedOrganization) return false;
+      return userData.organizationId !== selectedOrganization.id;
+  }, [userData?.organizationId, selectedOrganization?.id, currentUser]);
+
   useEffect(() => {
     if (!authLoading && !isStudioMode && currentUser) {
       const isAtInitialPage = history.length === 1;
@@ -168,7 +175,7 @@ const App: React.FC = () => {
       // Update PWA/iOS homescreen icon
       let appleLink: HTMLLinkElement | null = document.querySelector("link[rel='apple-touch-icon']");
       if (!appleLink) {
-        appleLink = document.createElement('link');
+        appleLink = document.createElement('apple-touch-icon');
         appleLink.rel = 'apple-touch-icon';
         document.getElementsByTagName('head')[0].appendChild(appleLink);
       }
@@ -839,6 +846,16 @@ const App: React.FC = () => {
     );
   }
 
+  // Visuell blockering vid org-missmatch för att förhindra flashing
+  if (isOrgMismatch && !isGlobalLoading && !isStudioMode) {
+      return (
+        <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-gray-500 font-bold uppercase tracking-widest text-sm">Hämtar organisation...</p>
+        </div>
+      );
+  }
+
   return (
     <div className={`bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
        <SeasonalOverlay page={page} />
@@ -971,7 +988,7 @@ const App: React.FC = () => {
           </main>
           
           {isInfoBannerVisible && (
-              <div className="flex-shrink-0 w-full h-[320px] lg:h-[480px] xl:h-[512px] relative z-[40]">
+              <div className={`flex-shrink-0 w-full h-[320px] lg:h-[480px] xl:h-[512px] relative ${isScreensaverActive ? 'z-[1001]' : 'z-[40]'}`}>
                   <InfoCarouselBanner 
                     messages={activeInfoMessages} 
                     className="relative !h-full" 
