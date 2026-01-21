@@ -18,8 +18,8 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
     const filteredWorkouts = useMemo(() => {
         return workouts.filter(w => {
             const matchesCategory = !passkategori || w.category === passkategori;
-            const matchesSearch = w.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                                (w.coachTips && w.coachTips.toLowerCase().includes(searchTerm.toLowerCase()));
+            const matchesSearch = (w.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+                                (w.coachTips && (w.coachTips || '').toLowerCase().includes(searchTerm.toLowerCase()));
             return w.isPublished && matchesCategory && matchesSearch;
         });
     }, [workouts, passkategori, searchTerm]);

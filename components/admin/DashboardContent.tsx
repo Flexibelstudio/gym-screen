@@ -326,7 +326,7 @@ const ManageWorkoutsView: React.FC<{
         let result = officialWorkouts.filter(w => {
             const searchLower = searchTerm.toLowerCase();
             return (
-                w.title.toLowerCase().includes(searchLower) ||
+                (w.title || '').toLowerCase().includes(searchLower) ||
                 (w.category || '').toLowerCase().includes(searchLower)
             );
         });

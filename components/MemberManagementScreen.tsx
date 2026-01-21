@@ -122,9 +122,9 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
   const filteredMembers = useMemo(() => {
       return members.filter(m => {
           const matchesSearch = 
-              m.firstName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-              m.lastName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-              m.email.toLowerCase().includes(searchTerm.toLowerCase());
+              (m.firstName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+              (m.lastName || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
+              (m.email || '').toLowerCase().includes(searchTerm.toLowerCase());
           
           let matchesRole = true;
           if (roleFilter === 'training') matchesRole = m.isTrainingMember !== false;
