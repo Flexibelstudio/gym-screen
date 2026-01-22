@@ -70,30 +70,35 @@ const formatSeconds = (totalSeconds: number) => {
 
 // --- Visualization Components ---
 
-const ComingUpBanner: React.FC<{ block: WorkoutBlock; transitionTime?: number }> = ({ block, transitionTime }) => (
-    <motion.div 
-        initial={{ y: 100, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        exit={{ y: 100, opacity: 0 }}
-        className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] w-full max-w-2xl px-6"
-    >
-        <div className="bg-black/80 backdrop-blur-2xl rounded-[2.5rem] p-6 border-2 border-white/20 shadow-2xl flex items-center justify-between text-white">
-            <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
-                    <SparklesIcon className="w-6 h-6 text-primary" />
+const ComingUpBanner: React.FC<{ block: WorkoutBlock; transitionTime?: number; nextBlockTitle: string }> = ({ block, transitionTime, nextBlockTitle }) => {
+    const hasTransition = transitionTime && transitionTime > 0;
+    return (
+        <motion.div 
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] w-full max-w-2xl px-6"
+        >
+            <div className="bg-black/80 backdrop-blur-2xl rounded-[2.5rem] p-6 border-2 border-white/20 shadow-2xl flex items-center justify-between text-white">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
+                        <SparklesIcon className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                        <span className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-0.5">NÄSTA</span>
+                        <h4 className="text-xl font-black uppercase truncate max-w-[250px]">
+                            {hasTransition ? `VILA (${transitionTime}s)` : nextBlockTitle}
+                        </h4>
+                    </div>
                 </div>
-                <div>
-                    <span className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-0.5">NÄSTA DEL</span>
-                    <h4 className="text-xl font-black uppercase truncate max-w-[250px]">{block.title}</h4>
+                <div className="text-right">
+                    <span className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-0.5">FÖLJT AV</span>
+                    <p className="text-sm font-black text-primary uppercase truncate max-w-[150px]">{hasTransition ? nextBlockTitle : 'KLART'}</p>
                 </div>
             </div>
-            <div className="text-right">
-                <span className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-0.5">VILA INFÖR</span>
-                <p className="text-2xl font-mono font-black text-primary">{transitionTime || 0}s</p>
-            </div>
-        </div>
-    </motion.div>
-);
+        </motion.div>
+    );
+};
 
 const NextStartIndicator: React.FC<{
     groupName: string;
@@ -383,7 +388,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           currentBlockInChain: index - startIdx + 1,
           totalBlocksInChain: chain.length
       };
-  }, [activeWorkout, block, calculateBlockDuration]);
+  }, [activeWorkout, block]);
 
   const totalChainElapsed = useMemo(() => {
       if (!chainInfo) return 0;
@@ -757,8 +762,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 className="text-center space-y-12 max-w-4xl"
               >
                   <div className="space-y-4">
-                      <span className="inline-block px-8 py-2 rounded-full bg-white/10 border border-white/20 text-2xl font-black uppercase tracking-[0.3em] mb-4">Vila</span>
-                      <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tight opacity-70">Gör er redo för nästa del</h2>
+                      <span className="inline-block px-8 py-2 rounded-full bg-white/10 border border-white/20 text-2xl font-black uppercase tracking-[0.3em] mb-4">VILA</span>
+                      <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tight opacity-70">Gör er redo för</h2>
                       <h1 className="text-5xl md:text-8xl font-black text-primary uppercase tracking-tighter drop-shadow-2xl">
                           {nextBlock?.title}
                       </h1>
@@ -827,7 +832,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         
         {/* Next Block Banner */}
         {block.autoAdvance && nextBlock && status === TimerStatus.Running && currentTime <= 30 && (
-            <ComingUpBanner block={nextBlock} transitionTime={block.transitionTime} />
+            <ComingUpBanner block={block} transitionTime={block.transitionTime} nextBlockTitle={nextBlock.title} />
         )}
       </AnimatePresence>
 
@@ -856,7 +861,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'} 
               ${showFullScreenColor 
                   ? `top-[12%] min-h-[50%] justify-center` 
-                  : `pt-12 pb-12 top-1 min-h-[22%] mx-4 sm:mx-6 rounded-[2.5rem] shadow-2xl ${timerStyle.bg}`
+                  : `pt-10 pb-10 top-4 min-h-[22%] mx-4 sm:mx-6 rounded-[2.5rem] shadow-2xl ${timerStyle.bg}`
               }`}
           style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
       >
@@ -877,7 +882,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             
             {/* Total Chain Progress */}
             {chainInfo && (
-                <div className="w-[80%] max-w-4xl mt-8">
+                <div className="w-[80%] max-w-4xl mt-6">
                     <div className="flex justify-between items-end mb-2 px-2">
                         <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Del {chainInfo.currentBlockInChain} av {chainInfo.totalBlocksInChain}</span>
                         <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Totaltid: {formatSeconds(totalChainElapsed)} / {formatSeconds(chainInfo.totalChainTime)}</span>
@@ -898,7 +903,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       </div>
 
       <div className={`absolute bottom-0 left-0 flex flex-col items-center justify-start px-4 z-0 pt-8
-          ${showFullScreenColor ? 'top-[65%]' : 'top-[34%]'} 
+          ${showFullScreenColor ? 'top-[65%]' : 'top-[31%]'} 
           ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'}`}>
           
           <div className="w-full max-w-7xl flex flex-col items-center gap-8 h-full">
@@ -973,7 +978,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           </div>
       )}
 
-      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[34%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
+      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[31%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
             {status === TimerStatus.Idle || status === TimerStatus.Finished ? (
                 <>
                     <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-500 transition-colors text-xl backdrop-blur-md border-2 border-white/20">TILLBAKA</button>
