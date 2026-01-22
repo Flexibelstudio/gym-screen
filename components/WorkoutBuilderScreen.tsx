@@ -232,21 +232,27 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   };
 
 
-  const handleUpdateBlockSettings = (blockId: string, newSettings: Partial<TimerSettings>) => {
+  const handleUpdateBlockSettings = (blockId: string, updates: Partial<TimerSettings> & { autoAdvance?: boolean; transitionTime?: number }) => {
     setWorkout(prev => ({
         ...prev,
-        blocks: prev.blocks.map(b =>
-            b.id === blockId ? { ...b, settings: { ...b.settings, ...newSettings } } : b
-        )
+        blocks: prev.blocks.map(b => {
+            if (b.id !== blockId) return b;
+            
+            // Extract autoAdvance/transitionTime as they go on block level, others on settings level
+            const { autoAdvance, transitionTime, ...settingsUpdates } = updates;
+            
+            return { 
+                ...b, 
+                autoAdvance: autoAdvance !== undefined ? autoAdvance : b.autoAdvance,
+                transitionTime: transitionTime !== undefined ? transitionTime : b.transitionTime,
+                settings: { ...b.settings, ...settingsUpdates } 
+            };
+        })
     }));
     setEditingBlockId(null);
   };
   
   const handleAddExerciseFromBank = (bankExercise: BankExercise) => {
-    // Add to the last block by default if no specific focus, or just prompt user to select block?
-    // Simplified: Always add to the last block for now, or find the "focused" one if we had tracking.
-    // Better UX: If we are in single block mode, use that. Else last block.
-    
     const targetBlock = isSingleBlockMode 
         ? workout.blocks.find(b => b.id === initialFocusedBlockId)
         : workout.blocks[workout.blocks.length - 1];

@@ -234,7 +234,7 @@ interface ExerciseItemProps {
     total: number;
     onMove: (direction: 'up' | 'down') => void;
 }
-const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, onOpenHandwriting, exerciseBank, organizationId, index, total, onMove }) => {
+const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, onOpenHandwriting, exerciseBank, index, total, onMove }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState<BankExercise[]>([]);
     const [isSearchVisible, setIsSearchVisible] = useState(false);
@@ -434,7 +434,6 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, onUpdate, onRemove,
         onUpdate({ ...block, exercises: exs });
     };
 
-    // Tvingade färger och solid bakgrund för Flip-skärmen
     const inputBaseClasses = "appearance-none !bg-white dark:!bg-gray-800 !text-gray-900 dark:!text-white border border-gray-200 dark:border-gray-700 rounded-2xl p-4 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-black placeholder-gray-300 dark:placeholder-gray-600 shadow-inner";
 
     return (
@@ -556,9 +555,20 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
          }));
     };
 
-    const handleUpdateBlockSettings = (blockId: string, newSettings: Partial<TimerSettings>) => {
-        const b = workout.blocks.find(x => x.id === blockId);
-        if(b) setWorkout({ ...workout, blocks: workout.blocks.map(curr => curr.id === blockId ? { ...b, settings: { ...b.settings, ...newSettings } } : curr) });
+    const handleUpdateBlockSettings = (blockId: string, updates: Partial<TimerSettings> & { autoAdvance?: boolean; transitionTime?: number }) => {
+        setWorkout(prev => ({
+            ...prev,
+            blocks: prev.blocks.map(b => {
+                if (b.id !== blockId) return b;
+                const { autoAdvance, transitionTime, ...settingsUpdates } = updates;
+                return {
+                    ...b,
+                    autoAdvance: autoAdvance !== undefined ? autoAdvance : b.autoAdvance,
+                    transitionTime: transitionTime !== undefined ? transitionTime : b.transitionTime,
+                    settings: { ...b.settings, ...settingsUpdates }
+                };
+            })
+        }));
         setEditingBlockId(null);
     };
 
@@ -606,6 +616,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                                 onEditSettings={() => setEditingBlockId(block.id)} 
                                 onOpenHandwriting={(cb) => setHandwritingCb(() => cb)} 
                                 exerciseBank={exerciseBank} 
+                                organizationId=""
                             />
                         ))}
                     </div>

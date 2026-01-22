@@ -242,8 +242,8 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
             return (
               <div className={`flex flex-col items-center gap-y-6 w-full ${animationClass}`}>
                   <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">
-                      <button onClick={() => setCountMode('laps')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${countMode === 'laps' ? 'bg-white dark:bg-black shadow-sm' : 'text-gray-600 dark:text-gray-300'}`}>Räkna Varv & Intervaller</button>
-                      <button onClick={() => setCountMode('rounds')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${countMode === 'rounds' ? 'bg-white dark:bg-black shadow-sm' : 'text-gray-600 dark:text-gray-300'}`}>Räkna Omgångar</button>
+                      <button onClick={() => setCountMode('laps')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${countMode === 'laps' ? 'bg-white dark:bg-black shadow-sm' : 'text-gray-600 dark:text-gray-300'}`}>Varv & Intervaller</button>
+                      <button onClick={() => setCountMode('rounds')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${countMode === 'rounds' ? 'bg-white dark:bg-black shadow-sm' : 'text-gray-600 dark:text-gray-300'}`}>Omgångar</button>
                   </div>
                   
                   {countMode === 'laps' ? (
@@ -330,7 +330,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
              <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-2xl border border-purple-100 dark:border-purple-800/50">
                  <div className="flex items-center gap-3">
                      <SparklesIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                     <span className="font-bold text-gray-900 dark:text-white">Auto-avancera</span>
+                     <span className="font-bold text-gray-900 dark:text-white">Automatisk övergång</span>
                  </div>
                  <ToggleSwitch 
                     label="" 
@@ -342,7 +342,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
              {autoAdvance && (
                  <div className="animate-fade-in p-4 bg-white dark:bg-black/40 rounded-2xl border border-gray-200 dark:border-gray-700">
                      <ValueAdjuster 
-                        label="Vila inför nästa block (sekunder)" 
+                        label="Vila inför nästa del (sekunder)" 
                         value={transitionTime} 
                         onchange={setTransitionTime} 
                         step={5}

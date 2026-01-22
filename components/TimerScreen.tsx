@@ -88,7 +88,7 @@ const ComingUpBanner: React.FC<{ block: WorkoutBlock; transitionTime?: number }>
                 </div>
             </div>
             <div className="text-right">
-                <span className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-0.5">VILA EFTER</span>
+                <span className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-0.5">VILA INFÖR</span>
                 <p className="text-2xl font-mono font-black text-primary">{transitionTime || 0}s</p>
             </div>
         </div>
@@ -423,15 +423,22 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   }, [status, nextBlock, block.autoAdvance, block.transitionTime, handleStartNextBlock]);
 
   // --- PRE-START LOGIC ---
+  const lastBlockIdRef = useRef<string | null>(null);
   const hasStartedRef = useRef(false);
+  
   useEffect(() => {
-    if (!hasStartedRef.current && status === TimerStatus.Idle) {
+    // Reset flag if block ID changes (essential for auto-advance)
+    if (lastBlockIdRef.current !== block.id) {
+        hasStartedRef.current = false;
+        lastBlockIdRef.current = block.id;
+    }
+
+    if (!hasStartedRef.current && (status === TimerStatus.Idle || status === TimerStatus.Finished)) {
         if (organization) updateOrganizationActivity(organization.id);
         
-        // Start without prep if coming from an auto-advance (Check for flag on block or state)
-        // For simplicity: If it's not the first block in the workout, skip prep
-        const isFirstBlock = !activeWorkout || activeWorkout.blocks[0].id === block.id;
-        start({ skipPrep: !isFirstBlock });
+        // Skip prep if it's NOT the first block in the entire workout
+        const isFirstBlockInWorkout = !activeWorkout || activeWorkout.blocks[0].id === block.id;
+        start({ skipPrep: !isFirstBlockInWorkout });
         
         hasStartedRef.current = true;
         onHeaderVisibilityChange(false);

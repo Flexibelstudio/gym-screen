@@ -527,8 +527,11 @@ const App: React.FC = () => {
         const blockIndex = activeWorkout.blocks.findIndex(b => b.id === activeBlock.id);
         const nextBlockInWorkout = activeWorkout.blocks[blockIndex + 1];
         if (nextBlockInWorkout) {
-            // Se till att TimerScreen rensas och startas om med nya blocket
-            setActiveBlock(nextBlockInWorkout);
+            // Se till att TimerScreen rensas och startas om med nya blocket genom att nollställa tillfälligt
+            setActiveBlock(null);
+            setTimeout(() => {
+                setActiveBlock(nextBlockInWorkout);
+            }, 50);
             return;
         }
     }
