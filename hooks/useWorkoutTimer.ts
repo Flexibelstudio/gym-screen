@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { WorkoutBlock, TimerStatus, Exercise, TimerSettings, TimerMode } from '../types';
 
@@ -87,12 +88,10 @@ export const parseSettingsFromTitle = (title: string): Partial<TimerSettings> | 
 
 /**
  * Beräknar total tid för ett block.
- * Fallback-logik ser till att vi inte får NaN om rounds saknas i sparade pass.
  */
-const calculateTotalDuration = (settings: TimerSettings, exercisesCount: number): number => {
+export const calculateBlockDuration = (settings: TimerSettings, exercisesCount: number): number => {
     if (!settings) return 0;
     
-    // Säkerställ giltiga värden även om passet laddas från gammalt database-format
     const rounds = settings.rounds || (exercisesCount > 0 ? exercisesCount : 1);
     const workTime = settings.workTime || 0;
     const restTime = settings.restTime || 0;
@@ -124,10 +123,9 @@ export const useWorkoutTimer = (block: WorkoutBlock | null) => {
 
   const totalBlockDuration = useMemo(() => {
       if (!block) return 0;
-      return calculateTotalDuration(block.settings, block.exercises.length);
+      return calculateBlockDuration(block.settings, block.exercises.length);
   }, [block]);
 
-  // Avancerad varv-beräkning (Återställd komplexitet)
   const totalExercises = block?.exercises.length ?? 0;
   const settingsRounds = useMemo(() => {
       if (!block) return 0;
@@ -188,8 +186,6 @@ export const useWorkoutTimer = (block: WorkoutBlock | null) => {
   useEffect(() => {
     if (status === TimerStatus.Running || status === TimerStatus.Resting || status === TimerStatus.Preparing) {
       intervalRef.current = window.setInterval(() => {
-        
-        // Uppdatera tidslinjen
         if (status === TimerStatus.Running || status === TimerStatus.Resting) {
             setTotalTimeElapsed(prev => {
                 const next = prev + 1;
@@ -239,15 +235,23 @@ export const useWorkoutTimer = (block: WorkoutBlock | null) => {
     startNextInterval();
   }, [currentTime, status, block, completedWorkIntervals, totalBlockDuration, settingsRounds, startNextInterval]);
 
-  const start = useCallback(() => {
+  const start = useCallback((options?: { skipPrep?: boolean }) => {
     if (!block) return;
     getAudioContext();
     setTotalTimeElapsed(0);
     setCompletedWorkIntervals(0);
-    setStatus(TimerStatus.Preparing);
-    const prepTime = block.settings.prepareTime || 10;
-    setCurrentTime(prepTime);
-    setCurrentPhaseDuration(prepTime);
+    
+    if (options?.skipPrep) {
+        setStatus(TimerStatus.Running);
+        const workTime = block.settings.workTime || 60;
+        setCurrentTime(workTime);
+        setCurrentPhaseDuration(workTime);
+    } else {
+        setStatus(TimerStatus.Preparing);
+        const prepTime = block.settings.prepareTime || 10;
+        setCurrentTime(prepTime);
+        setCurrentPhaseDuration(prepTime);
+    }
   }, [block]);
 
   const pause = () => { if (status !== TimerStatus.Idle && status !== TimerStatus.Finished) setStatus(TimerStatus.Paused); };

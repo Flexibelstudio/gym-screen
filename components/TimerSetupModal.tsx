@@ -2,13 +2,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { WorkoutBlock, TimerMode, TimerSettings } from '../types';
-import { ValueAdjuster, ChevronDownIcon, ChevronUpIcon } from './icons';
+import { ValueAdjuster, ChevronDownIcon, ChevronUpIcon, ToggleSwitch, SparklesIcon } from './icons';
 
 interface TimerSetupModalProps {
   isOpen: boolean;
   onClose: () => void;
   block: WorkoutBlock;
-  onSave: (newSettings: Partial<WorkoutBlock['settings']>) => void;
+  onSave: (newSettings: Partial<WorkoutBlock['settings']> & { autoAdvance?: boolean; transitionTime?: number }) => void;
 }
 
 type CountMode = 'laps' | 'rounds';
@@ -65,7 +65,9 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
           totalOmgångar: iTotalOmgångar,
           countMode: iCountMode,
           totalMinutes: iTotalMinutes,
-          direction: direction || 'down'
+          direction: direction || 'down',
+          autoAdvance: block.autoAdvance || false,
+          transitionTime: block.transitionTime || 0
       };
   });
 
@@ -89,13 +91,15 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
   const [restSeconds, setRestSeconds] = useState(initialState.restSeconds);
   
   const [direction, setDirection] = useState<'up' | 'down'>(initialState.direction);
+  const [autoAdvance, setAutoAdvance] = useState(initialState.autoAdvance);
+  const [transitionTime, setTransitionTime] = useState(initialState.transitionTime);
 
-  // Check for unsaved changes
   const hasUnsavedChanges = useMemo(() => {
       if (mode !== initialState.mode) return true;
       if (direction !== initialState.direction) return true;
+      if (autoAdvance !== initialState.autoAdvance) return true;
+      if (transitionTime !== initialState.transitionTime) return true;
 
-      // Check specific fields based on mode
       switch (mode) {
           case TimerMode.Interval:
           case TimerMode.Tabata:
@@ -124,7 +128,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
       }
   }, [
       mode, countMode, varv, intervallerPerVarv, totalOmgångar, totalMinutes, 
-      workMinutes, workSeconds, restMinutes, restSeconds, direction, initialState
+      workMinutes, workSeconds, restMinutes, restSeconds, direction, autoAdvance, transitionTime, initialState
   ]);
 
   useEffect(() => {
@@ -153,7 +157,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
   if (!isOpen) return null;
 
   const handleSave = () => {
-    const newSettings: Partial<TimerSettings> = { mode, direction };
+    const newSettings: any = { mode, direction };
 
     switch(mode) {
       case TimerMode.Interval:
@@ -188,7 +192,11 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
         break;
     }
 
-    onSave(newSettings);
+    onSave({ 
+        ...newSettings, 
+        autoAdvance, 
+        transitionTime 
+    });
     onClose();
   };
   
@@ -204,7 +212,6 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
   }
 
   const renderDirectionToggle = () => {
-      // Don't show for NoTimer or Stopwatch (Stopwatch is always up)
       if (mode === TimerMode.NoTimer || mode === TimerMode.Stopwatch) return null;
       
       return (
@@ -277,7 +284,6 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                 <div className={`text-center text-gray-600 dark:text-gray-300 p-4 rounded-lg ${animationClass}`}>
                     <h4 className="font-bold text-gray-800 dark:text-white text-lg">Ingen Timer</h4>
                     <p className="mt-2">Detta block kommer inte att ha någon klocka.</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-500 mt-4">Enbart listan med övningar kommer att visas, för att utföras i egen takt.</p>
                 </div>
             );
         default: return null;
@@ -296,7 +302,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
         className="bg-gray-100 dark:bg-gray-800 rounded-xl p-6 sm:p-8 w-full max-w-lg text-gray-900 dark:text-white shadow-2xl border border-gray-200 dark:border-gray-700 max-h-[calc(100dvh-2rem)] overflow-y-auto z-[1001]" 
         onClick={e => e.stopPropagation()}
       >
-        <h2 id="timer-setup-title" className="text-2xl font-bold mb-1">Anpassa tider för</h2>
+        <h2 id="timer-setup-title" className="text-2xl font-bold mb-1">Anpassa klocka</h2>
         <h3 className="text-lg text-primary mb-6 font-semibold">{`"${block.title}"`}</h3>
         
         <div className="mb-6">
@@ -317,6 +323,35 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
         <div className="bg-white dark:bg-black rounded-lg p-6 border border-gray-200 dark:border-gray-700 min-h-[350px] flex flex-col justify-center items-center">
             {renderDirectionToggle()}
             {renderSettingsInputs()}
+        </div>
+
+        {/* --- AUTO ADVANCE SETTINGS --- */}
+        <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
+             <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-2xl border border-purple-100 dark:border-purple-800/50">
+                 <div className="flex items-center gap-3">
+                     <SparklesIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                     <span className="font-bold text-gray-900 dark:text-white">Auto-avancera</span>
+                 </div>
+                 <ToggleSwitch 
+                    label="" 
+                    checked={autoAdvance} 
+                    onChange={setAutoAdvance} 
+                 />
+             </div>
+             
+             {autoAdvance && (
+                 <div className="animate-fade-in p-4 bg-white dark:bg-black/40 rounded-2xl border border-gray-200 dark:border-gray-700">
+                     <ValueAdjuster 
+                        label="Vila inför nästa block (sekunder)" 
+                        value={transitionTime} 
+                        onchange={setTransitionTime} 
+                        step={5}
+                     />
+                     <p className="text-[10px] text-gray-500 mt-2 text-center uppercase tracking-widest font-bold italic">
+                        Nästa block startar automatiskt efter denna tid.
+                     </p>
+                 </div>
+             )}
         </div>
 
         <div className="mt-8 flex gap-4">

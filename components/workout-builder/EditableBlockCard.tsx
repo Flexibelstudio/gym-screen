@@ -330,6 +330,19 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                     checked={!!block.followMe}
                     onChange={(isChecked) => handleFieldChange('followMe', isChecked)}
                 />
+                <div className="flex items-center gap-2">
+                    <ToggleSwitch
+                        label="Auto-avancera efter block"
+                        checked={!!block.autoAdvance}
+                        onChange={(isChecked) => handleFieldChange('autoAdvance', isChecked)}
+                    />
+                    {block.autoAdvance && (
+                        <div className="flex items-center gap-1.5 ml-4 bg-purple-50 dark:bg-purple-900/30 px-3 py-1 rounded-lg border border-purple-100 dark:border-purple-800">
+                             <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase">Vila:</span>
+                             <span className="text-sm font-black text-purple-700 dark:text-purple-300">{block.transitionTime || 0}s</span>
+                        </div>
+                    )}
+                </div>
             </div>
 
             <div className="bg-gray-100 dark:bg-black p-3 my-4 rounded-md flex justify-between items-center text-sm">
