@@ -238,7 +238,6 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
         blocks: prev.blocks.map(b => {
             if (b.id !== blockId) return b;
             
-            // Extract autoAdvance/transitionTime as they go on block level, others on settings level
             const { autoAdvance, transitionTime, ...settingsUpdates } = updates;
             
             return { 

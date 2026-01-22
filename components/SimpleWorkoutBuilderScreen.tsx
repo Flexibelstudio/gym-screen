@@ -299,7 +299,6 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         setSearchQuery('');
     };
     
-    // Tvingade färger och solid bakgrund för Flip-skärmen
     const inputBaseClasses = "appearance-none !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500";
     
     return (
