@@ -38,6 +38,28 @@ export const Confetti = React.memo(() => {
     );
 });
 
+export const Hearts = React.memo(() => {
+    const heartParticles = useMemo(() => Array.from({ length: 25 }).map((_, i) => ({
+        id: i,
+        style: {
+            left: `${Math.random() * 100}%`,
+            animationDelay: `${Math.random() * 6}s`,
+            animationDuration: `${6 + Math.random() * 5}s`,
+            fontSize: `${20 + Math.random() * 30}px`,
+            transform: `rotate(${Math.random() * 20 - 10}deg)`
+        }
+    })), []);
+
+    return createPortal(
+        <div className="fixed inset-0 pointer-events-none z-[10999] overflow-hidden" aria-hidden="true">
+            {heartParticles.map(p => (
+                <div key={p.id} className="heart-piece" style={p.style}>♥</div>
+            ))}
+        </div>,
+        document.body
+    );
+});
+
 const formatTime = (timeInSeconds: number) => {
     const minutes = Math.floor(timeInSeconds / 60);
     const seconds = timeInSeconds % 60;
@@ -207,6 +229,7 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
         aria-labelledby="workout-complete-title"
     >
       <Confetti />
+      <Hearts />
       {isRegistrationView ? hyroxResultContent : contentToRender}
     </div>
   );

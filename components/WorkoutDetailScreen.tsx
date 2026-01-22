@@ -324,7 +324,7 @@ const WorkoutBlockCard: React.FC<{
             <span>Inställningar: {settingsText}</span>
           </div>
           {isCoachView && (
-              <button onClick={onEditSettings} className="text-primary hover:underline font-black uppercase tracking-widest text-[10px]">Ändra tider</button>
+              <button onClick={onEditSettings} className="text-primary hover:underline font-black uppercase tracking-widest text-[10px]">Anpassa klockan</button>
           )}
         </div>
 
@@ -484,20 +484,27 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   const handleUpdateBlock = (updatedBlock: WorkoutBlock) => {
     setSessionWorkout(prevWorkout => {
       if (!prevWorkout) return null;
-      return {
+      const updatedWorkout = {
         ...prevWorkout,
         blocks: prevWorkout.blocks.map(b => b.id === updatedBlock.id ? updatedBlock : b)
       };
+      // PERSIST THE CHANGE GLOBALLY
+      onUpdateWorkout(updatedWorkout);
+      return updatedWorkout;
     });
   };
 
-  const handleUpdateSettings = (blockId: string, newSettings: Partial<TimerSettings>) => {
-      onUpdateBlockSettings(blockId, newSettings);
+  const handleUpdateSettings = (blockId: string, newSettings: Partial<TimerSettings> & { autoAdvance?: boolean; transitionTime?: number }) => {
+      // Logic to handle both block level fields (autoAdvance) and timer settings
       const blockToUpdate = sessionWorkout.blocks.find(b => b.id === blockId);
       if (blockToUpdate) {
+          const { autoAdvance, transitionTime, ...settingsUpdates } = newSettings;
+          
           const updatedBlock = {
               ...blockToUpdate,
-              settings: { ...blockToUpdate.settings, ...newSettings }
+              autoAdvance: autoAdvance !== undefined ? autoAdvance : blockToUpdate.autoAdvance,
+              transitionTime: transitionTime !== undefined ? transitionTime : blockToUpdate.transitionTime,
+              settings: { ...blockToUpdate.settings, ...settingsUpdates }
           };
           handleUpdateBlock(updatedBlock);
       }
@@ -637,7 +644,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                         <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-4">Administration</h3>
                         <div className="space-y-2">
                             <button onClick={() => onEditWorkout(workout)} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 hover:bg-primary/10 hover:text-primary transition-all font-bold">
-                                <PencilIcon className="w-5 h-5" /> Redigera Pass
+                                <PencilIcon className="w-4 h-4" /> Redigera Pass
                             </button>
                             {onAdjustWorkout && (
                                 <button onClick={() => onAdjustWorkout(workout)} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-all font-bold">
