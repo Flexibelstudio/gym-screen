@@ -50,7 +50,11 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
             {filteredWorkouts.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                     {filteredWorkouts.map(workout => {
-                        const isLoggable = workout.logType === 'quick' || workout.blocks.some(b => b.exercises.some(e => e.loggingEnabled === true));
+                        // Defensiv check: Säkerställ att blocks och exercises existerar innan vi kör .some()
+                        const blocks = workout.blocks || [];
+                        const isLoggable = workout.logType === 'quick' || blocks.some(b => 
+                            (b.exercises || []).some(e => e.loggingEnabled === true)
+                        );
                         
                         return (
                             <div
@@ -62,7 +66,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                     <button 
                                         className="absolute inset-0 z-10 w-full h-full cursor-pointer"
                                         onClick={() => onSelectWorkout(workout, 'view')}
-                                        aria-label={`Visa ${workout.title}`}
+                                        aria-label={`Visa ${workout.title || 'Namnlöst pass'}`}
                                     />
                                 )}
 
@@ -91,7 +95,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                         </div>
                                     </div>
                                     <h3 className="text-2xl font-black text-primary dark:text-primary leading-tight mb-4 line-clamp-2">
-                                        {workout.title}
+                                        {workout.title || 'Namnlöst pass'}
                                     </h3>
                                     <p className="text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-4 font-medium">
                                         {workout.coachTips || "Välkommen till dagens pass. Fokusera på teknik och intensitet!"}

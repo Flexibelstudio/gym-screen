@@ -6,21 +6,37 @@ import { Workout, WorkoutBlock, Exercise } from '../types';
  * med nya unika ID:n för alla block och övningar.
  */
 export const deepCopyAndPrepareAsNew = (workoutToCopy: Workout): Workout => {
-    const newWorkout = JSON.parse(JSON.stringify(workoutToCopy));
+    // 1. Skapa en djup kopia
+    const newWorkout: Workout = JSON.parse(JSON.stringify(workoutToCopy));
+    
+    // 2. Nollställ/Uppdatera metadata
     newWorkout.id = `workout-${Date.now()}`;
-    newWorkout.title = `KOPIA - ${workoutToCopy.title}`;
+    newWorkout.title = workoutToCopy.title ? `Kopia av ${workoutToCopy.title}` : 'Ny Kopia';
     newWorkout.isPublished = false;
     newWorkout.isFavorite = false;
     newWorkout.createdAt = Date.now();
-    delete newWorkout.participants; 
+    
+    // 3. Behåll organisationstillhörighet om den finns
+    newWorkout.organizationId = workoutToCopy.organizationId || '';
+    
+    // 4. Rensa bort sessionsspecifik data
+    delete (newWorkout as any).participants; 
 
-    newWorkout.blocks = newWorkout.blocks.map((block: WorkoutBlock, bIndex: number) => {
-        block.id = `block-${Date.now()}-${bIndex}`;
-        block.exercises = block.exercises.map((ex: Exercise, eIndex: number) => {
-            ex.id = `ex-${Date.now()}-${bIndex}-${eIndex}`;
-            return ex;
-        });
-        return block;
+    // 5. Säkerställ att blocks är en array och regenerera ID:n
+    const sourceBlocks = workoutToCopy.blocks || [];
+    newWorkout.blocks = sourceBlocks.map((block: WorkoutBlock, bIndex: number) => {
+        const newBlock = { ...block };
+        newBlock.id = `block-${Date.now()}-${bIndex}`;
+        
+        // Säkerställ att exercises är en array
+        const sourceExercises = block.exercises || [];
+        newBlock.exercises = sourceExercises.map((ex: Exercise, eIndex: number) => ({
+            ...ex,
+            id: `ex-${Date.now()}-${bIndex}-${eIndex}`
+        }));
+        
+        return newBlock;
     });
+
     return newWorkout;
 };
