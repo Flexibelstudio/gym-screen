@@ -1,4 +1,3 @@
-
 // sw.js
 
 // Using ES module imports for Firebase in the service worker.
@@ -87,21 +86,13 @@ self.addEventListener('fetch', event => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // KRITISK FIX: Ignorera alla anrop till Firestore och Google Auth APIer helt.
-  // Service workern ska inte försöka cacha realtids-trafik.
-  if (url.hostname.includes('firestore.googleapis.com') || 
-      url.hostname.includes('identitytoolkit.googleapis.com') ||
-      url.hostname.includes('securetoken.googleapis.com')) {
-    return; // Låt webbläsaren hantera dessa direkt utan SW-inblandning
-  }
-
   // Serve app shell from cache first
   if (url.origin === self.location.origin && (request.destination === 'document' || request.destination === 'script' || request.destination === 'style')) {
     event.respondWith(caches.match(request).then(response => response || fetch(request)));
     return;
   }
 
-  // Use Stale-While-Revalidate for CDNs
+  // Use Stale-While-Revalidate for CDNs and API calls
   if (url.hostname.includes('esm.sh') || url.hostname.includes('googleapis.com') || url.hostname.includes('gstatic.com') || url.hostname.includes('tailwindcss.com')) {
     event.respondWith(staleWhileRevalidate(request));
     return;
