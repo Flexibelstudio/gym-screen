@@ -7,6 +7,8 @@
 export const SYSTEM_COACH_CONTEXT = `
 Du är SmartCoach, en världsledande expert på funktionell träning, HYROX och coaching. 
 Ditt språk är alltid svenska. Du är peppande men professionell.
+
+Ditt viktigaste uppdrag är FULLSTÄNDIG DATAEXTRAHERING. När du tolkar texter eller bilder får du ALDRIG hoppa över information, förkorta listor eller utelämna varianter (som Rx/Intermediate/Beginner). Varje unik del av ett pass ska bevaras och struktureras.
 `;
 
 export const WORKOUT_GENERATOR_PROMPT = (userPrompt: string) => `
@@ -17,7 +19,6 @@ INSTRUKTIONER:
 2. Använd logiska timerinställningar (t.ex. AMRAP för flås, Intervall för styrka).
 3. Ge blocken tydliga namn som "Pulsfest" eller "Styrka: Pressar".
 4. Skriv pedagogiska beskrivningar för varje övning.
-5. Använd ALDRIG generiska namn som "Övning 1". Välj alltid riktiga, vedertagna övningar.
 `;
 
 export const WORKOUT_REMIX_PROMPT = (workoutJson: string) => `
@@ -39,27 +40,30 @@ ${workoutJson}
 `;
 
 export const TEXT_INTERPRETER_PROMPT = (text: string) => `
-Tolka och digitalisera följande träningsanteckning. 
-Hitta övningar, reps/tid och struktur. 
+Ditt uppdrag är att EXTRAHERA ABSOLUT ALLT innehåll från följande träningsanteckning och strukturera det i JSON-format.
 
-Viktiga regler:
-1. Om texten är en instruktion (t.ex. 'benpass 5 övningar') snarare än en lista, använd din expertis som SmartCoach för att skapa ett pass som matchar instruktionen perfekt.
-2. Använd ALDRIG generiska namn som 'Övning 1' eller 'Station A'. Välj riktiga övningar.
-3. Om specifika övningar finns angivna, prioritera att transkribera dem exakt.
+STRIKTA KRAV:
+1. FULLSTÄNDIGHET: Om texten beskriver olika nivåer (t.ex. Rx, Intermediate, Beginner), SKA du skapa ett unikt block i 'blocks'-arrayen för VARJE nivå. Hoppa aldrig över en variant för att de är lika.
+2. COACH TIPS & STRATEGI: All text som beskriver syfte, 'Stimulus', 'Strategy', 'Scaling' eller utrustning SKA placeras i fältet 'coachTips'. Inget får gå förlorat.
+3. STEGE-LOGIK (LADDERS): Om övningarna är i form av en stege (t.ex. 1, 2, 3... reps), förklara exakt hur stegen fungerar i fältet 'setupDescription' för det blocket (t.ex. "Öka med 1 repetition per runda").
+4. ÖVNINGAR: Varje övning ska mappas korrekt med namn, reps och en kort instruktion.
 
-TEXT:
+Här är texten att extrahera:
 ${text}
 `;
 
 export const IMAGE_INTERPRETER_PROMPT = (additionalText?: string) => `
-Tolka och strukturera träningspasset från bilden.
+Transkribera och strukturera ALLT innehåll från bilden till ett digitalt träningspass.
+Ditt mål är 100% täckning av all text som syns.
 
-Viktiga regler:
-1. Om bilden innehåller en instruktion (t.ex. '5 övningar styrka' eller 'benpass') snarare än en lista med specifika övningsnamn, ska du använda din expertis som SmartCoach för att välja ut riktigt bra, utmanande och varierade övningar som passar instruktionen perfekt.
-2. Använd ALDRIG generiska namn som 'Övning 1' eller 'Station A'. 
-3. Om specifika övningar finns skrivna på bilden, transkribera dem noggrant med tillhörande reps och tider.
+STRIKTA REGLER:
+1. VARIANTER: Om bilden visar olika nivåer (t.ex. Rx, Int, Beg), skapa ett separat block för varje nivå.
+2. STEGAR (LADDERS): Om passet är en stege (t.ex. 1, 2, 3... eller 10-9-8...), förklara logiken tydligt i varje blocks 'setupDescription' (t.ex. "Öka med 1 rep per varv").
+3. COACH TIPS: All kringtext om stimulus, utförande eller strategi SKA inkluderas i fältet 'coachTips'.
+4. DETALJER: Var extremt noggrann med vikter (kg/lbs) och reps.
+${additionalText ? `EXTRA ANVÄNDARINSTRUKTION: ${additionalText}` : ''}
 
-${additionalText ? `EXTRA INSTRUKTION FRÅN ANVÄNDAREN: ${additionalText}` : ''}
+Var extremt noggrann. Hallucinera inte data, men utelämna absolut ingenting som står skrivet.
 `;
 
 export const EXERCISE_DESCRIPTION_PROMPT = (name: string) => `
