@@ -55,24 +55,23 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const loadInitialData = async () => {
             if (authLoading) return;
             
-            // Sätt loading direkt när vi börjar en ny inläsning för att förhindra flimmer
             setStudioLoading(true);
-            
             try {
                 let orgToUse: Organization | null = null;
                 const storedOrgData = safeJsonParse(localStorage.getItem(LOCAL_STORAGE_ORG_KEY));
 
-                // 1. Prioritera det som finns i localStorage (viktigt för Studio Mode)
-                if (storedOrgData?.id) {
-                    orgToUse = await getOrganizationById(storedOrgData.id);
+                // 1. Logik för att bestämma vilket ID vi letar efter
+                // Om vi är i StudioMode (låst skärm) litar vi på localStorage.
+                // Annars litar vi på userData (inloggad person).
+                const targetOrgId = isStudioMode 
+                    ? (storedOrgData?.id || userData?.organizationId)
+                    : (userData?.organizationId || storedOrgData?.id);
+
+                if (targetOrgId) {
+                    orgToUse = await getOrganizationById(targetOrgId);
                 }
 
-                // 2. Fallback till userData om localStorage var tomt
-                if (!orgToUse && userData?.organizationId) {
-                    orgToUse = await getOrganizationById(userData.organizationId);
-                }
-
-                // 3. Om vi är System Owner, hämta hela listan men tvinga inte fram ett val
+                // 2. Om vi är System Owner, hämta alla men tvinga inte fram ett val om orgToUse saknas
                 if (userData?.role === 'systemowner') {
                     const fetchedOrgs = await getOrganizations();
                     setAllOrganizations(fetchedOrgs);
@@ -80,11 +79,12 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     setAllOrganizations([orgToUse]);
                 }
 
-                // 4. Sätt den valda organisationen ENDAST om vi faktiskt hittat en specifik träff
+                // 3. Applicera vald organisation
                 if (orgToUse) {
                     setSelectedOrganization(orgToUse);
                     setAllStudios(orgToUse.studios);
 
+                    // Hantera studio-val (skärm-nivå)
                     if (isStudioMode && currentUser) {
                         const pendingStudioId = localStorage.getItem(PENDING_STUDIO_KEY);
                         const studioKey = getLocalStorageStudioKey(currentUser.uid);
@@ -104,10 +104,13 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                             }
                         }
                     }
-                } else if (!isStudioMode) {
-                    setSelectedOrganization(null);
-                    setAllStudios([]);
-                    setSelectedStudio(null);
+                } else {
+                    // Om ingen org hittades och vi inte är systemägare, rensa tillstånd
+                    if (userData?.role !== 'systemowner') {
+                        setSelectedOrganization(null);
+                        setAllStudios([]);
+                        setSelectedStudio(null);
+                    }
                 }
             } catch (error) {
                 console.error("StudioContext load error:", error);
