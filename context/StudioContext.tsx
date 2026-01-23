@@ -78,7 +78,6 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 // 1. Hantera Roll-baserad laddning
                 if (userData?.role === 'systemowner') {
                     fetchedOrgs = await getOrganizations();
-                    
                     // Systemägare: prioritera redan vald org (från state eller localStorage) framför profil-ID
                     const storedOrgJSON = localStorage.getItem(LOCAL_STORAGE_ORG_KEY);
                     const storedOrgData = safeJsonParse(storedOrgJSON);
@@ -89,7 +88,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                         orgToUse = await getOrganizationById(storedOrgData.id);
                     }
                     
-                    // Fallback: Om inget valts, använd profil-org. Men gissa ALDRIG fetchedOrgs[0] (viktigt!)
+                    // Fallback: Om inget valts, använd profil-org. Men vi gissar ALDRIG på fetchedOrgs[0] längre.
                     if (!orgToUse && userData?.organizationId) {
                         orgToUse = await getOrganizationById(userData.organizationId);
                     }
@@ -156,7 +155,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                         }
                     }
                 } else {
-                    // Om vi inte hittade någon org att auto-ladda, nollställ states
+                    // Om vi inte kunde landa i en org automatiskt, nollställ allt men fortsätt
                     setSelectedOrganization(null);
                     setAllStudios([]);
                     setSelectedStudio(null);
