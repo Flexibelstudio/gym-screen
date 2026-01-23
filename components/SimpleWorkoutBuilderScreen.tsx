@@ -237,7 +237,6 @@ interface ExerciseItemProps {
 }
 const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, onOpenHandwriting, exerciseBank, index, total, onMove }) => {
     const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState<BankExercise[]>([]);
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement>(null);
     const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
@@ -259,15 +258,31 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         }
     };
 
-    useEffect(() => {
-        if (searchQuery.length > 1 && isSearchVisible) {
-            const filtered = exerciseBank.filter(ex =>
-                ex.name.toLowerCase().includes(searchQuery.toLowerCase())
-            );
-            setSearchResults(filtered);
-        } else {
-            setSearchResults([]);
-        }
+    // Smart filtering and sorting
+    const searchResults = useMemo(() => {
+        if (searchQuery.length < 2 || !isSearchVisible) return [];
+        
+        const query = searchQuery.toLowerCase();
+        return exerciseBank
+            .filter(ex => ex.name.toLowerCase().includes(query))
+            .sort((a, b) => {
+                const aName = a.name.toLowerCase();
+                const bName = b.name.toLowerCase();
+                
+                // 1. Exact match first
+                if (aName === query) return -1;
+                if (bName === query) return 1;
+                
+                // 2. Starts with query first
+                const aStarts = aName.startsWith(query);
+                const bStarts = bName.startsWith(query);
+                if (aStarts && !bStarts) return -1;
+                if (!aStarts && bStarts) return 1;
+                
+                // 3. Alphabetical for the rest
+                return aName.localeCompare(bName, 'sv');
+            })
+            .slice(0, 15);
     }, [searchQuery, exerciseBank, isSearchVisible]);
 
     useEffect(() => {
@@ -305,7 +320,9 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
     return (
         <div 
             ref={searchContainerRef} 
-            className={`group p-3 rounded-2xl flex items-start gap-3 transition-all border-l-4 ${
+            className={`group p-3 rounded-2xl flex items-start gap-3 transition-all border-l-4 relative ${
+                isSearchVisible ? 'z-[100]' : 'z-0'
+            } ${
                 exercise.loggingEnabled 
                 ? 'bg-green-50 dark:bg-green-900/10 border-green-500' 
                 : 'bg-gray-100 dark:bg-gray-700/50 border-transparent'
@@ -350,12 +367,12 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             className={`${inputBaseClasses} w-full`}
                         />
                         {isSearchVisible && searchResults.length > 0 && (
-                            <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl shadow-2xl z-[100] max-h-60 overflow-y-auto">
+                            <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl shadow-2xl z-[1000] max-h-80 overflow-y-auto ring-1 ring-black/5">
                                 {searchResults.map(result => (
                                     <li key={result.id}>
                                         <button
                                             onClick={() => handleSelectExercise(result)}
-                                            className="w-full text-left px-4 py-3 hover:bg-primary/20 text-gray-900 dark:text-white transition-colors font-bold"
+                                            className="w-full text-left px-4 py-3 hover:bg-primary/20 text-gray-900 dark:text-white transition-colors font-bold border-b border-gray-50 dark:border-gray-700 last:border-0"
                                         >
                                             {result.name}
                                         </button>
