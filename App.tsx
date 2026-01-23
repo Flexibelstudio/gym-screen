@@ -68,13 +68,18 @@ const App: React.FC = () => {
 
   const page = history[history.length - 1];
 
-  // Inkludera studioLoading i isGlobalLoading för att förhindra flimmer
+  // Global laddnings-guard
   const isGlobalLoading = authLoading || studioLoading || (currentUser && !userData && !isStudioMode);
   
   const isOrgMismatch = useMemo(() => {
-      if (!currentUser || !userData?.organizationId || !selectedOrganization) return false;
-      return userData.organizationId !== selectedOrganization.id;
-  }, [userData?.organizationId, selectedOrganization?.id, currentUser]);
+      if (!currentUser || isStudioMode || !userData?.organizationId) return false;
+      
+      // Undantag för Systemägare: De behöver inte ha en vald org för att komma in i systemvyn
+      if (role === 'systemowner' && !selectedOrganization) return false;
+
+      // Om profilens org inte matchar den laddade org-datan
+      return userData.organizationId !== selectedOrganization?.id;
+  }, [userData?.organizationId, selectedOrganization?.id, currentUser, isStudioMode, role]);
 
   useEffect(() => {
     if (!authLoading && !isStudioMode && currentUser) {
@@ -695,6 +700,10 @@ const App: React.FC = () => {
     try {
         const newOrg = await createOrganization(name, subdomain);
         setAllOrganizations(prev => [...prev, newOrg]);
+        // Efter att en ny org skapats, välj den automatiskt om vi är systemägare
+        if (role === 'systemowner') {
+            selectOrganization(newOrg);
+        }
     } catch (error) {
         console.error("Failed to create organization:", error);
         alert(`Kunde inte skapa organisation: ${error instanceof Error ? error.message : "Okänt fel"}`);

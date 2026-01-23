@@ -51,6 +51,25 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const [selectedStudio, setSelectedStudio] = useState<Studio | null>(null);
     const [studioLoading, setStudioLoading] = useState(true);
 
+    // Hjälpfunktion för att ladda en specifik organisation
+    const loadOrganization = useCallback(async (orgId: string) => {
+        setStudioLoading(true);
+        try {
+            const org = await getOrganizationById(orgId);
+            if (org) {
+                setSelectedOrganization(org);
+                setAllStudios(org.studios);
+                return org;
+            }
+        } catch (error) {
+            console.error("Error loading organization:", error);
+        } finally {
+            setStudioLoading(false);
+        }
+        return null;
+    }, []);
+
+    // 1. Initial laddning och synk mot profil
     useEffect(() => {
         const loadInitialData = async () => {
             if (authLoading) return;
@@ -60,9 +79,9 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 let orgToUse: Organization | null = null;
                 const storedOrgData = safeJsonParse(localStorage.getItem(LOCAL_STORAGE_ORG_KEY));
 
-                // 1. Logik för att bestämma vilket ID vi letar efter
-                // Om vi är i StudioMode (låst skärm) litar vi på localStorage.
-                // Annars litar vi på userData (inloggad person).
+                // Prioritering:
+                // 1. Användarens uttryckliga organisation i profil (userData)
+                // 2. Sparad org i localStorage (viktigt för låsta skärmar)
                 const targetOrgId = isStudioMode 
                     ? (storedOrgData?.id || userData?.organizationId)
                     : (userData?.organizationId || storedOrgData?.id);
@@ -71,7 +90,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     orgToUse = await getOrganizationById(targetOrgId);
                 }
 
-                // 2. Om vi är System Owner, hämta alla men tvinga inte fram ett val om orgToUse saknas
+                // Om vi är System Owner, hämta hela listan oavsett
                 if (userData?.role === 'systemowner') {
                     const fetchedOrgs = await getOrganizations();
                     setAllOrganizations(fetchedOrgs);
@@ -79,12 +98,11 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     setAllOrganizations([orgToUse]);
                 }
 
-                // 3. Applicera vald organisation
                 if (orgToUse) {
                     setSelectedOrganization(orgToUse);
                     setAllStudios(orgToUse.studios);
 
-                    // Hantera studio-val (skärm-nivå)
+                    // Hantera studio-val för skärmar
                     if (isStudioMode && currentUser) {
                         const pendingStudioId = localStorage.getItem(PENDING_STUDIO_KEY);
                         const studioKey = getLocalStorageStudioKey(currentUser.uid);
@@ -104,27 +122,33 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                             }
                         }
                     }
-                } else {
-                    // Om ingen org hittades och vi inte är systemägare, rensa tillstånd
-                    if (userData?.role !== 'systemowner') {
-                        setSelectedOrganization(null);
-                        setAllStudios([]);
-                        setSelectedStudio(null);
-                    }
                 }
             } catch (error) {
-                console.error("StudioContext load error:", error);
+                console.error("StudioContext initial load error:", error);
             } finally {
                 setStudioLoading(false);
             }
         };
         loadInitialData();
-    }, [authLoading, currentUser?.uid, isStudioMode, userData?.organizationId, userData?.role, isImpersonating]);
+    }, [authLoading, currentUser?.uid, isStudioMode]); // Vi kör denna bara vid start eller auth-ändring
+
+    // 2. REAKTIV SYNK: Lyssna på ändringar i userData.organizationId
+    // Detta löser problemet när en ny org skapas eller man byter org i profilen
+    useEffect(() => {
+        if (authLoading || isStudioMode || !userData?.organizationId) return;
+
+        if (selectedOrganization?.id !== userData.organizationId) {
+            console.log("Org mismatch detected, syncing to profile...", userData.organizationId);
+            loadOrganization(userData.organizationId);
+        }
+    }, [userData?.organizationId, authLoading, isStudioMode, selectedOrganization?.id, loadOrganization]);
     
+    // 3. Realtidsuppdateringar för den valda organisationen
     useEffect(() => {
         if (authLoading || !selectedOrganization?.id) return;
         const unsubscribe = listenToOrganizationChanges(selectedOrganization.id, (updatedOrg) => {
             setSelectedOrganization(updatedOrg);
+            // Uppdatera även i listan om den finns där
             setAllOrganizations(prevOrgs => prevOrgs.map(o => o.id === updatedOrg.id ? updatedOrg : o));
             setAllStudios(updatedOrg.studios);
         });
