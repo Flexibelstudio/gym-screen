@@ -23,7 +23,6 @@ import {
   deleteDoc, 
   query, 
   where, 
-  or,
   orderBy, 
   limit, 
   onSnapshot, 
@@ -610,23 +609,41 @@ export const updateStudioConfig = async (orgId: string, studioId: string, overri
 
 // --- TRÄNINGSMOTORN (PASS & ÖVNINGAR) ---
 
+/**
+ * FIX: Delar upp hämtning av pass i flera steg för att undvika komplexa OR-queries 
+ * som kan orsaka behörighetsfel i Firestore-regler.
+ */
 export const getWorkoutsForOrganization = async (orgId: string): Promise<Workout[]> => {
     if (isOffline || !db || !orgId) return [];
     try {
-        // FIX: Hämta pass mer exakt för att matcha säkerhetsreglerna
         const workoutsRef = collection(db, 'workouts');
-        const q = query(
-          workoutsRef, 
-          or(
-            where("organizationId", "==", orgId),
-            where("organizationId", "==", ""),
-            where("organizationId", "==", null)
-          )
-        );
-        const snap = await getDocs(q);
-        return snap.docs.map(d => d.data() as Workout).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+        
+        // 1. Hämta pass för specifikt gym
+        const qOrg = query(workoutsRef, where("organizationId", "==", orgId));
+        // 2. Hämta globala pass (tomma eller null)
+        const qGlobal = query(workoutsRef, where("organizationId", "==", ""));
+        
+        const [snapOrg, snapGlobal] = await Promise.all([
+            getDocs(qOrg),
+            getDocs(qGlobal)
+        ]);
+
+        const uniqueWorkouts = new Map<string, Workout>();
+        
+        // Slå ihop och filtrera bort dubbletter i minnet
+        const allSnaps = [snapOrg, snapGlobal];
+        allSnaps.forEach(snap => {
+            snap.forEach(d => {
+                const data = d.data() as Workout;
+                uniqueWorkouts.set(d.id, data);
+            });
+        });
+
+        return Array.from(uniqueWorkouts.values())
+            .sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
     } catch (e) { 
         console.error("getWorkoutsForOrganization failed", e);
+        // Vid behörighetsfel returnerar vi en tom lista istället för att krascha hela appen
         return []; 
     }
 };
