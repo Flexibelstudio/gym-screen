@@ -2,8 +2,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, StudioConfig, UserRole, BankExercise, WorkoutLogType } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
-import { getExerciseBank, deleteImageByUrl } from '../services/firebaseService';
+import { getExerciseBank, deleteImageByUrl, saveAdminActivity } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
+import { useAuth } from '../context/AuthContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
 import { EditableField } from './workout-builder/EditableField';
 import { ExerciseBankPanel, ExercisePreviewModal } from './workout-builder/ExerciseBankPanel';
@@ -90,6 +91,7 @@ interface WorkoutBuilderScreenProps {
 
 export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ initialWorkout, onSave, onCancel, focusedBlockId: initialFocusedBlockId, studioConfig, sessionRole, isNewDraft = false }) => {
   const { selectedOrganization } = useStudio();
+  const { userData } = useAuth();
   const [workout, setWorkout] = useState<Workout>(() => initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
   const [initialSnapshot, setInitialSnapshot] = useState<string>('');
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
@@ -153,6 +155,18 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   };
 
   const handleSave = () => {
+    // LOG ACTIVITY
+    if (selectedOrganization && userData) {
+        saveAdminActivity({
+            organizationId: selectedOrganization.id,
+            userId: userData.uid,
+            userName: userData.firstName || 'Coach',
+            type: 'WORKOUT',
+            action: initialWorkout ? 'UPDATE' : 'CREATE',
+            description: `${initialWorkout ? 'Uppdaterade' : 'Skapade'} passet "${workout.title}"`,
+            timestamp: Date.now()
+        });
+    }
     onSave(workout);
   };
   

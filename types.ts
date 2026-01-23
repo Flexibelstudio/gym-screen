@@ -1,6 +1,17 @@
 
 export type UserRole = 'member' | 'coach' | 'organizationadmin' | 'systemowner';
 
+export interface AdminActivity {
+  id: string;
+  organizationId: string;
+  userId: string;
+  userName: string;
+  type: 'WORKOUT' | 'MEMBER' | 'BRAND' | 'SYSTEM';
+  action: 'CREATE' | 'UPDATE' | 'DELETE' | 'PUBLISH' | 'UNPUBLISH';
+  description: string;
+  timestamp: number;
+}
+
 export interface ExerciseOverride {
   imageUrl?: string;
 }
@@ -203,21 +214,6 @@ export interface InfoMessage {
 export interface InfoCarousel {
   isEnabled: boolean;
   messages: InfoMessage[];
-}
-
-export interface DisplayPost {
-    id: string;
-    internalTitle: string;
-    layout: 'text-only' | 'image-fullscreen' | 'video-fullscreen' | 'image-left';
-    headline?: string;
-    body?: string;
-    imageUrl?: string;
-    videoUrl?: string;
-    disableOverlay?: boolean;
-    durationSeconds: number;
-    startDate?: string;
-    endDate?: string;
-    visibleInStudios: string[];
 }
 
 export interface DisplayWindow {

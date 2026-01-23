@@ -50,7 +50,7 @@ import {
   BankExercise, SuggestedExercise, WorkoutResult, CompanyDetails, 
   SmartScreenPricing, HyroxRace, SeasonalThemeSetting, MemberGoals, 
   WorkoutLog, CheckInEvent, Member, UserRole, PersonalBest, StudioEvent,
-  CustomPage
+  CustomPage, AdminActivity
 } from '../types';
 import { MOCK_ORGANIZATIONS, MOCK_SYSTEM_OWNER, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_MEMBERS, MOCK_SMART_SCREEN_PRICING } from '../data/mockData';
 
@@ -93,6 +93,51 @@ const generateInviteCode = () => {
 };
 
 const getPBId = (name: string) => name.toLowerCase().trim().replace(/[^\w]/g, '_');
+
+// --- ADMIN AKTIVITETSLOGG ---
+
+export const saveAdminActivity = async (activity: Omit<AdminActivity, 'id'>) => {
+    if (isOffline || !db) return;
+    try {
+        const ref = doc(collection(db, 'admin_activity'));
+        await setDoc(ref, {
+            ...sanitizeData(activity),
+            id: ref.id
+        });
+    } catch (e) {
+        console.error("Failed to save admin activity:", e);
+    }
+};
+
+export const getAdminActivities = async (orgId: string, limitCount = 100): Promise<AdminActivity[]> => {
+    if (isOffline || !db || !orgId) return [];
+    try {
+        const q = query(
+            collection(db, 'admin_activity'), 
+            where('organizationId', '==', orgId),
+            orderBy('timestamp', 'desc'),
+            limit(limitCount)
+        );
+        const snap = await getDocs(q);
+        return snap.docs.map(d => d.data() as AdminActivity);
+    } catch (e) {
+        console.error("getAdminActivities failed", e);
+        return [];
+    }
+};
+
+export const listenToAdminActivities = (orgId: string, onUpdate: (activities: AdminActivity[]) => void) => {
+    if (isOffline || !db || !orgId) return () => {};
+    const q = query(
+        collection(db, 'admin_activity'), 
+        where('organizationId', '==', orgId),
+        orderBy('timestamp', 'desc'),
+        limit(100)
+    );
+    return onSnapshot(q, (snap) => {
+        onUpdate(snap.docs.map(d => d.data() as AdminActivity));
+    });
+};
 
 // --- AUTHENTICERING ---
 
@@ -302,7 +347,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 const eventRef = doc(collection(db, 'studio_events'));
                 const eventData: StudioEvent = {
                     id: eventRef.id,
-                    type: 'pb_batch',
+                    type: 'pb',
                     organizationId: logData.organizationId,
                     timestamp: Date.now(),
                     data: { 

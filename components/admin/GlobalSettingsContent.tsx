@@ -5,6 +5,8 @@ import { ToggleSwitch, SparklesIcon, InformationCircleIcon } from '../icons';
 import { SelectField } from './AdminShared';
 import { CategoryPromptManager } from '../CategoryPromptManager';
 import { FeatureInfoModal } from './AdminModals';
+import { saveAdminActivity } from '../../services/firebaseService';
+import { useAuth } from '../../context/AuthContext';
 
 interface GlobalSettingsContentProps {
     organization: Organization;
@@ -19,6 +21,7 @@ interface GlobalSettingsContentProps {
 export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({ 
     config, isSavingConfig, isConfigDirty, handleUpdateConfigField, handleSaveConfig, organization, onTriggerUpgrade 
 }) => {
+    const { userData } = useAuth();
     const [showFeatureInfo, setShowFeatureInfo] = useState(false);
 
     const handleAiChange = (field: 'instructions' | 'tone', value: string) => {
