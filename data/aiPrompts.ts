@@ -7,6 +7,8 @@
 export const SYSTEM_COACH_CONTEXT = `
 Du är SmartCoach, en världsledande expert på funktionell träning, HYROX och coaching. 
 Ditt språk är alltid svenska. Du är peppande men professionell.
+
+Ditt viktigaste uppdrag är FULLSTÄNDIG DATAEXTRAHERING. När du tolkar texter eller bilder får du ALDRIG hoppa över information eller förkorta listor. Varje unik del av ett pass ska bevaras och struktureras korrekt.
 `;
 
 export const WORKOUT_GENERATOR_PROMPT = (userPrompt: string) => `
@@ -17,7 +19,6 @@ INSTRUKTIONER:
 2. Använd logiska timerinställningar (t.ex. AMRAP för flås, Intervall för styrka).
 3. Ge blocken tydliga namn som "Pulsfest" eller "Styrka: Pressar".
 4. Skriv pedagogiska beskrivningar för varje övning.
-5. Använd ALDRIG generiska namn som "Övning 1". Välj alltid riktiga, vedertagna övningar.
 `;
 
 export const WORKOUT_REMIX_PROMPT = (workoutJson: string) => `
@@ -39,27 +40,32 @@ ${workoutJson}
 `;
 
 export const TEXT_INTERPRETER_PROMPT = (text: string) => `
-Tolka och digitalisera följande träningsanteckning. 
-Hitta övningar, reps/tid och struktur. 
+Ditt uppdrag är att EXTRAHERA ABSOLUT ALLT innehåll från följande träningsanteckning och strukturera det i JSON-format.
 
-Viktiga regler:
-1. Om texten är en instruktion (t.ex. 'benpass 5 övningar') snarare än en lista, använd din expertis som SmartCoach för att skapa ett pass som matchar instruktionen perfekt.
-2. Använd ALDRIG generiska namn som 'Övning 1' eller 'Station A'. Välj riktiga övningar.
-3. Om specifika övningar finns angivna, prioritera att transkribera dem exakt.
+STRIKTA LOGIKREGLER FÖR VARIANTER & SKALNING:
+1. SMARTA BLOCK: Identifiera om passet består av olika nivåer (t.ex. Rx, Intermediate, Beginner) för SAMMA tidsfönster/timer. Om så är fallet, slå ihop dem till ETT (1) block. 
+2. HUVUDÖVNINGAR: Använd "Rx" (standardnivån) som de primära övningarna i blockets 'exercises'-lista.
+3. SKALNINGSINSTRUKTIONER: Skriv ut de andra nivåernas (Intermediate/Beginner) specifika ändringar och vikter tydligt i fältet 'setupDescription' för det blocket.
+4. COACH TIPS & STRATEGI: All text som beskriver syfte, 'Stimulus', 'Strategy' eller allmän utrustning SKA placeras i fältet 'coachTips' på pass-nivå. Inget får gå förlorat.
+5. STEGE-LOGIK (LADDERS): Om övningarna är i form av en stege (t.ex. 1, 2, 3... reps), förklara exakt hur stegen fungerar i fältet 'setupDescription'.
+6. SEPARATA BLOCK: Skapa endast flera block om det faktiskt är helt olika delar av ett pass (t.ex. Uppvärmning -> Styrka -> Metcon).
 
-TEXT:
+Här är texten att extrahera:
 ${text}
 `;
 
 export const IMAGE_INTERPRETER_PROMPT = (additionalText?: string) => `
-Tolka och strukturera träningspasset från bilden.
+Transkribera och strukturera ALLT innehåll från bilden till ett digitalt träningspass.
+Ditt mål är 100% täckning av all text som syns.
 
-Viktiga regler:
-1. Om bilden innehåller en instruktion (t.ex. '5 övningar styrka' eller 'benpass') snarare än en lista med specifika övningsnamn, ska du använda din expertis som SmartCoach för att välja ut riktigt bra, utmanande och varierade övningar som passar instruktionen perfekt.
-2. Använd ALDRIG generiska namn som 'Övning 1' eller 'Station A'. 
-3. Om specifika övningar finns skrivna på bilden, transkribera dem noggrant med tillhörande reps och tider.
+STRIKTA LOGIKREGLER:
+1. SMARTA BLOCK: Om bilden visar nivåer som Rx, Int och Beg för samma del av passet, slå ihop dem till ett block. Sätt Rx som huvudövningar och lägg de andra nivåernas instruktioner i 'setupDescription'.
+2. COACH TIPS: All kringtext om stimulus, utförande eller strategi SKA inkluderas i fältet 'coachTips'.
+3. STEGAR (LADDERS): Förklara logiken tydligt i 'setupDescription' (t.ex. "Öka med 1 rep per varv").
+4. DETALJER: Var extremt noggrann med vikter (kg/lbs) och reps.
+${additionalText ? `EXTRA ANVÄNDARINSTRUKTION: ${additionalText}` : ''}
 
-${additionalText ? `EXTRA INSTRUKTION FRÅN ANVÄNDAREN: ${additionalText}` : ''}
+Var extremt noggrann. Hallucinera inte data, men utelämna absolut ingenting som står skrivet.
 `;
 
 export const EXERCISE_DESCRIPTION_PROMPT = (name: string) => `

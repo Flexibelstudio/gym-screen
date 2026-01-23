@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { StudioConfig, Studio, Organization, CustomPage, UserData, UserRole, InfoCarousel, DisplayWindow, Workout, CompanyDetails } from '../types';
-import { HomeIcon, DocumentTextIcon, SpeakerphoneIcon, UsersIcon, DumbbellIcon, BriefcaseIcon, BuildingIcon, SettingsIcon, ChartBarIcon, CopyIcon, CloseIcon, SparklesIcon } from './icons';
-import { getAdminsForOrganization, getCoachesForOrganization } from '../services/firebaseService';
+import { HomeIcon, DocumentTextIcon, SpeakerphoneIcon, UsersIcon, DumbbellIcon, BriefcaseIcon, BuildingIcon, SettingsIcon, ChartBarIcon, CopyIcon, CloseIcon, SparklesIcon, HistoryIcon } from './icons';
+import { getAdminsForOrganization, getCoachesForOrganization, saveAdminActivity } from '../services/firebaseService';
 import { OvningsbankContent } from './OvningsbankContent';
 import { useStudio } from '../context/StudioContext';
 import { CompanyDetailsOnboardingModal } from './CompanyDetailsOnboardingModal';
@@ -16,6 +16,8 @@ import { CompanyInfoContent } from './admin/CompanyInfoContent';
 import { generateWorkout } from '../services/geminiService';
 import { MemberManagementScreen } from './MemberManagementScreen';
 import { AdminAnalyticsScreen } from './AdminAnalyticsScreen';
+import { ActivityLogContent } from './admin/ActivityLogContent';
+import { useAuth } from '../context/AuthContext';
 import QRCode from "react-qr-code"; 
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -44,7 +46,7 @@ type AdminTab =
     'dashboard' | 
     'pass-program' | 'infosidor' | 'info-karusell' | 'medlemmar' |
     'globala-installningar' | 'studios' | 'varumarke' | 'company-info' |
-    'ovningsbank' | 'analytics';
+    'ovningsbank' | 'analytics' | 'activity-log';
 
 interface SuperAdminScreenProps {
     organization: Organization;
@@ -83,6 +85,7 @@ interface SuperAdminScreenProps {
 export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     const { organization, theme, onSaveGlobalConfig, workouts, onSelectMember, userRole, onBack, onGoToSystemOwner, initialTab, onDuplicateWorkout } = props;
     const { selectOrganization, studioLoading } = useStudio();
+    const { userData } = useAuth();
     const [activeTab, setActiveTab] = useState<AdminTab>((initialTab as AdminTab) || 'dashboard');
     const [isSidebarCollapsed, setSidebarCollapsed] = useState(false); 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -146,6 +149,17 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             setShowOnboardingBanner(false);
             sessionStorage.removeItem(onboardingSkippedKey);
             setToast({ message: "Uppgifter sparade!", visible: true });
+
+            // LOG
+            saveAdminActivity({
+                organizationId: organization.id,
+                userId: userData?.uid || 'unknown',
+                userName: userData?.firstName || 'Admin',
+                type: 'BRAND',
+                action: 'UPDATE',
+                description: 'Uppdaterade företagsinformation',
+                timestamp: Date.now()
+            });
         } catch (e) {
             alert("Kunde inte spara uppgifterna. Försök igen.");
             throw e;
@@ -196,6 +210,17 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
         try {
             await onSaveGlobalConfig(organization.id, configOverride || config);
             setToast({ message: "Inställningar sparade!", visible: true });
+
+            // LOG
+            saveAdminActivity({
+                organizationId: organization.id,
+                userId: userData?.uid || 'unknown',
+                userName: userData?.firstName || 'Admin',
+                type: 'SYSTEM',
+                action: 'UPDATE',
+                description: 'Uppdaterade globala inställningar',
+                timestamp: Date.now()
+            });
         } catch (error) {
             console.error(error);
             setToast({ message: "Kunde inte spara inställningar.", visible: true });
@@ -216,6 +241,17 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             await handleSaveConfig(newConfig); 
             setIsUpgradeModalOpen(false);
             setToast({ message: "Funktioner aktiverade! 🎉", visible: true });
+
+            // LOG
+            saveAdminActivity({
+                organizationId: organization.id,
+                userId: userData?.uid || 'unknown',
+                userName: userData?.firstName || 'Admin',
+                type: 'SYSTEM',
+                action: 'UPDATE',
+                description: 'Aktiverade passloggning och medlemsfunktioner',
+                timestamp: Date.now()
+            });
         } catch (error) {
             console.error("Failed to enable features:", error);
             setToast({ message: "Ett fel uppstod.", visible: true });
@@ -228,6 +264,17 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
         const newCode = generateInviteCode();
         await props.onUpdateOrganization(organization.id, organization.name, organization.subdomain, newCode);
         setToast({ message: "Ny kod skapad!", visible: true });
+
+        // LOG
+        saveAdminActivity({
+            organizationId: organization.id,
+            userId: userData?.uid || 'unknown',
+            userName: userData?.firstName || 'Admin',
+            type: 'BRAND',
+            action: 'UPDATE',
+            description: 'Genererade ny inbjudningskod',
+            timestamp: Date.now()
+        });
     };
 
     const handleQuickGenerate = async (prompt: string) => {
@@ -252,6 +299,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
         const allItems: any[] = [
             { type: 'link', id: 'dashboard', label: 'Översikt', icon: HomeIcon },
             { type: 'link', id: 'analytics', label: 'Analys & Trender', icon: ChartBarIcon },
+            { type: 'link', id: 'activity-log', label: 'Historik', icon: HistoryIcon },
             { type: 'header', label: 'Innehåll' },
             { type: 'link', id: 'pass-program', label: 'Pass & Program', icon: DumbbellIcon },
             { type: 'link', id: 'infosidor', label: 'Infosidor', icon: DocumentTextIcon },
@@ -389,6 +437,8 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                     );
                 }
                 return <AdminAnalyticsScreen />;
+            case 'activity-log':
+                return <ActivityLogContent organizationId={organization.id} />;
             case 'pass-program':
                 return <PassProgramContent {...props} subView={passProgramSubView} setSubView={setPassProgramSubView} workoutToEdit={workoutToEdit} setWorkoutToEdit={setWorkoutToEdit} isNewDraft={isNewDraft} setIsNewDraft={setIsNewDraft} aiGeneratorInitialTab={aiGeneratorInitialTab} setAiGeneratorInitialTab={setAiGeneratorInitialTab} autoExpandCategory={autoExpandCategory} setAutoExpandCategory={setAutoExpandCategory} onReturnToHub={() => { setPassProgramSubView('hub'); setWorkoutToEdit(null); setIsNewDraft(false); }} onDuplicateWorkout={onDuplicateWorkout} />;
             case 'infosidor':

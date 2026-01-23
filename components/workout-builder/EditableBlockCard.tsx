@@ -18,11 +18,7 @@ interface ExerciseItemProps {
 }
 
 const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove }) => {
-    const baseClasses = "w-full bg-transparent focus:outline-none disabled:bg-transparent";
-    const textClasses = "text-gray-900 dark:text-white";
-    
     const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState<BankExercise[]>([]);
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement>(null);
     const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
@@ -44,15 +40,31 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         }
     };
 
-    useEffect(() => {
-        if (searchQuery.length > 1 && isSearchVisible) {
-            const filtered = exerciseBank.filter(ex =>
-                ex.name.toLowerCase().includes(searchQuery.toLowerCase())
-            );
-            setSearchResults(filtered);
-        } else {
-            setSearchResults([]);
-        }
+    // Smartare sökning och sortering
+    const searchResults = useMemo(() => {
+        if (searchQuery.length < 2 || !isSearchVisible) return [];
+        
+        const query = searchQuery.toLowerCase();
+        return exerciseBank
+            .filter(ex => ex.name.toLowerCase().includes(query))
+            .sort((a, b) => {
+                const aName = a.name.toLowerCase();
+                const bName = b.name.toLowerCase();
+                
+                // 1. Exakt träff först
+                if (aName === query) return -1;
+                if (bName === query) return 1;
+                
+                // 2. Börjar med sökordet först
+                const aStarts = aName.startsWith(query);
+                const bStarts = bName.startsWith(query);
+                if (aStarts && !bStarts) return -1;
+                if (!aStarts && bStarts) return 1;
+                
+                // 3. Alfabetiskt för resten
+                return aName.localeCompare(bName, 'sv');
+            })
+            .slice(0, 15); // Visa max 15 för prestanda
     }, [searchQuery, exerciseBank, isSearchVisible]);
 
     useEffect(() => {
@@ -78,7 +90,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             name: bankExercise.name,
             description: bankExercise.description,
             imageUrl: bankExercise.imageUrl,
-            reps: exercise.reps, // Keep existing reps
+            reps: exercise.reps, 
             isFromBank: true,
         });
         setIsSearchVisible(false);
@@ -94,6 +106,8 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         <div 
             ref={searchContainerRef} 
             className={`group p-3 rounded-lg flex items-start gap-3 transition-all border-l-4 relative ${
+                isSearchVisible ? 'z-[1000]' : 'z-0'
+            } ${
                 exercise.loggingEnabled 
                 ? 'bg-green-50 dark:bg-green-900/10 border-green-500' 
                 : 'bg-gray-100 dark:bg-gray-700/50 border-transparent'
@@ -104,7 +118,6 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                     disabled={index === 0} 
                     onClick={() => onMove('up')} 
                     className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-                    title="Flytta upp"
                 >
                     <ChevronUpIcon className="w-5 h-5" />
                 </button>
@@ -112,7 +125,6 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                     disabled={index === total - 1} 
                     onClick={() => onMove('down')} 
                     className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-                    title="Flytta ner"
                 >
                     <ChevronDownIcon className="w-5 h-5" />
                 </button>
@@ -125,19 +137,35 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                         value={exercise.reps || ''}
                         onChange={e => onUpdate(exercise.id, { reps: e.target.value })}
                         placeholder="Antal"
-                        className={`appearance-none !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500 w-24 font-semibold placeholder-gray-500`}
+                        className={`appearance-none !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500 w-24`}
                     />
-                    <input
-                        type="text"
-                        value={exercise.name}
-                        onChange={handleNameChange}
-                        onFocus={() => {
-                            setIsSearchVisible(true);
-                            setSearchQuery(exercise.name);
-                        }}
-                        placeholder="Sök eller skriv övningsnamn"
-                        className={`appearance-none !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500 w-full font-semibold`}
-                    />
+                    <div className="relative flex-grow">
+                        <input
+                            type="text"
+                            value={exercise.name}
+                            onChange={handleNameChange}
+                            onFocus={() => {
+                                setIsSearchVisible(true);
+                                setSearchQuery(exercise.name);
+                            }}
+                            placeholder="Sök eller skriv övningsnamn"
+                            className={`appearance-none w-full !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500`}
+                        />
+                        {isSearchVisible && searchResults.length > 0 && (
+                            <ul className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] z-[2000] max-h-80 overflow-y-auto ring-1 ring-black/5 p-1 animate-fade-in">
+                                {searchResults.map(result => (
+                                    <li key={result.id}>
+                                        <button
+                                            onClick={() => handleSelectExercise(result)}
+                                            className="w-full text-left px-4 py-3 hover:bg-primary/10 text-gray-900 dark:text-white transition-colors font-bold rounded-xl border-b border-gray-50 dark:border-gray-700/50 last:border-0"
+                                        >
+                                            {result.name}
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
                     
                     <button 
                         onClick={handleToggleLogging}
@@ -152,39 +180,23 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                         <span>{exercise.loggingEnabled ? 'Loggas' : 'Loggas ej'}</span>
                     </button>
 
-                    <button onClick={() => onRemove(exercise.id)} className="flex-shrink-0 text-red-500 hover:text-red-400 transition-colors text-sm font-medium p-1" title="Ta bort övning">
+                    <button onClick={() => onRemove(exercise.id)} className="flex-shrink-0 text-red-500 hover:text-red-400 transition-colors text-sm font-medium p-1">
                         <TrashIcon className="w-5 h-5" />
                     </button>
                 </div>
-
-                {isSearchVisible && searchResults.length > 0 && (
-                    <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
-                        {searchResults.map(result => (
-                            <li key={result.id}>
-                                <button
-                                    onClick={() => handleSelectExercise(result)}
-                                    className="w-full text-left px-4 py-2 hover:bg-primary/20 text-gray-800 dark:text-white transition-colors"
-                                >
-                                    {result.name}
-                                </button>
-                            </li>
-                        ))}
-                    </ul>
-                )}
                 
                 <div className="relative">
                     <textarea
                       value={exercise.description || ''}
                       onChange={e => onUpdate(exercise.id, { description: e.target.value })}
                       placeholder="Beskrivning (klicka på ✨ för AI-förslag)"
-                      className={`appearance-none !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500 w-full text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-300 p-2 rounded-md border border-gray-300 dark:border-gray-600 focus:ring-1 focus:ring-primary h-16 pr-10`}
+                      className={`appearance-none !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500 w-full text-sm h-16 pr-10`}
                       rows={2}
                     />
                     <button
                       onClick={handleGenerateDescription}
                       disabled={isGeneratingDesc}
                       className="absolute top-2 right-2 text-gray-400 hover:text-purple-500 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
-                      title="Generera beskrivning med AI"
                     >
                       {isGeneratingDesc ? <div className="w-5 h-5 border-2 border-purple-500/50 border-t-purple-500 rounded-full animate-spin"></div> : <SparklesIcon className="w-5 h-5" />}
                     </button>
@@ -287,6 +299,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
     }, [block.settings]);
 
     const allExercisesLogged = block.exercises.length > 0 && block.exercises.every(ex => ex.loggingEnabled);
+    const isLastBlock = index === totalBlocks - 1;
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md border-2 border-gray-200 dark:border-gray-700">
@@ -330,19 +343,42 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                     checked={!!block.followMe}
                     onChange={(isChecked) => handleFieldChange('followMe', isChecked)}
                 />
-                <div className="flex items-center gap-2">
-                    <ToggleSwitch
-                        label="Auto-avancera efter block"
-                        checked={!!block.autoAdvance}
-                        onChange={(isChecked) => handleFieldChange('autoAdvance', isChecked)}
-                    />
-                    {block.autoAdvance && (
-                        <div className="flex items-center gap-1.5 ml-4 bg-purple-50 dark:bg-purple-900/30 px-3 py-1 rounded-lg border border-purple-100 dark:border-purple-800">
-                             <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase">Vila:</span>
-                             <span className="text-sm font-black text-purple-700 dark:text-purple-300">{block.transitionTime || 0}s</span>
-                        </div>
-                    )}
-                </div>
+                
+                {!isLastBlock && (
+                    <div className="flex flex-col gap-3 p-4 bg-purple-50/50 dark:bg-purple-900/10 rounded-2xl border border-purple-100 dark:border-purple-800/50">
+                        <ToggleSwitch
+                            label="Automatisk start av nästa block"
+                            checked={!!block.autoAdvance}
+                            onChange={(isChecked) => handleFieldChange('autoAdvance', isChecked)}
+                        />
+                        {block.autoAdvance && (
+                            <motion.div 
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                className="flex items-center gap-4 pl-2 pt-2 border-t border-purple-100 dark:border-purple-800/50"
+                            >
+                                <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Vila</span>
+                                <div className="flex items-center gap-2">
+                                    <button 
+                                        onClick={() => handleFieldChange('transitionTime', Math.max(0, (block.transitionTime || 0) - 5))}
+                                        className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 active:scale-95 transition-all"
+                                    >
+                                        -
+                                    </button>
+                                    <div className="min-w-[40px] text-center font-mono font-black text-purple-600 dark:text-purple-400">
+                                        {block.transitionTime || 0}s
+                                    </div>
+                                    <button 
+                                        onClick={async () => handleFieldChange('transitionTime', (block.transitionTime || 0) + 5)}
+                                        className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 active:scale-95 transition-all"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div className="bg-gray-100 dark:bg-black p-3 my-4 rounded-md flex justify-between items-center text-sm">
@@ -396,7 +432,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            className="space-y-3 overflow-hidden"
+                            className="space-y-3"
                         >
                             {block.exercises.length === 0 ? (
                                 <p className="text-center text-sm text-gray-500 py-2">Blocket är tomt. Klicka på '+ Lägg till övning'.</p>
