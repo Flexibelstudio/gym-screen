@@ -215,7 +215,7 @@ const ConfirmationModal: React.FC<{
                 <p className="text-gray-600 dark:text-gray-300 mb-6">{message}</p>
                 <div className="flex gap-4">
                     <button onClick={onCancel} className="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 rounded-lg transition-colors">Avbryt</button>
-                    <button onClick={onConfirm} className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-lg transition-colors">Ja, ta bort</button>
+                    <button onClick={onConfirm} className="flex-1 bg-red-600 hover:bg-red-50 text-white font-bold py-3 rounded-lg transition-colors">Ja, ta bort</button>
                 </div>
             </div>
         </div>
@@ -258,7 +258,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         }
     };
 
-    // Smart filtering and sorting
+    // Smartare sökning och sortering
     const searchResults = useMemo(() => {
         if (searchQuery.length < 2 || !isSearchVisible) return [];
         
@@ -269,17 +269,14 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                 const aName = a.name.toLowerCase();
                 const bName = b.name.toLowerCase();
                 
-                // 1. Exact match first
                 if (aName === query) return -1;
                 if (bName === query) return 1;
                 
-                // 2. Starts with query first
                 const aStarts = aName.startsWith(query);
                 const bStarts = bName.startsWith(query);
                 if (aStarts && !bStarts) return -1;
                 if (!aStarts && bStarts) return 1;
                 
-                // 3. Alphabetical for the rest
                 return aName.localeCompare(bName, 'sv');
             })
             .slice(0, 15);
@@ -321,7 +318,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         <div 
             ref={searchContainerRef} 
             className={`group p-3 rounded-2xl flex items-start gap-3 transition-all border-l-4 relative ${
-                isSearchVisible ? 'z-[100]' : 'z-0'
+                isSearchVisible ? 'z-[1000]' : 'z-0'
             } ${
                 exercise.loggingEnabled 
                 ? 'bg-green-50 dark:bg-green-900/10 border-green-500' 
@@ -367,12 +364,12 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             className={`${inputBaseClasses} w-full`}
                         />
                         {isSearchVisible && searchResults.length > 0 && (
-                            <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl shadow-2xl z-[1000] max-h-80 overflow-y-auto ring-1 ring-black/5">
+                            <ul className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] z-[2000] max-h-80 overflow-y-auto ring-1 ring-black/5 p-1 animate-fade-in">
                                 {searchResults.map(result => (
                                     <li key={result.id}>
                                         <button
                                             onClick={() => handleSelectExercise(result)}
-                                            className="w-full text-left px-4 py-3 hover:bg-primary/20 text-gray-900 dark:text-white transition-colors font-bold border-b border-gray-50 dark:border-gray-700 last:border-0"
+                                            className="w-full text-left px-4 py-3 hover:bg-primary/10 text-gray-900 dark:text-white transition-colors font-bold rounded-xl border-b border-gray-50 dark:border-gray-700/50 last:border-0"
                                         >
                                             {result.name}
                                         </button>

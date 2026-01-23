@@ -40,7 +40,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         }
     };
 
-    // Smart filtering and sorting
+    // Smartare sökning och sortering
     const searchResults = useMemo(() => {
         if (searchQuery.length < 2 || !isSearchVisible) return [];
         
@@ -51,20 +51,20 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                 const aName = a.name.toLowerCase();
                 const bName = b.name.toLowerCase();
                 
-                // 1. Exact match first
+                // 1. Exakt träff först
                 if (aName === query) return -1;
                 if (bName === query) return 1;
                 
-                // 2. Starts with query first
+                // 2. Börjar med sökordet först
                 const aStarts = aName.startsWith(query);
                 const bStarts = bName.startsWith(query);
                 if (aStarts && !bStarts) return -1;
                 if (!aStarts && bStarts) return 1;
                 
-                // 3. Alphabetical for the rest
+                // 3. Alfabetiskt för resten
                 return aName.localeCompare(bName, 'sv');
             })
-            .slice(0, 15); // Limit to top 15 matches
+            .slice(0, 15); // Visa max 15 för prestanda
     }, [searchQuery, exerciseBank, isSearchVisible]);
 
     useEffect(() => {
@@ -106,7 +106,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         <div 
             ref={searchContainerRef} 
             className={`group p-3 rounded-lg flex items-start gap-3 transition-all border-l-4 relative ${
-                isSearchVisible ? 'z-[100]' : 'z-0'
+                isSearchVisible ? 'z-[1000]' : 'z-0'
             } ${
                 exercise.loggingEnabled 
                 ? 'bg-green-50 dark:bg-green-900/10 border-green-500' 
@@ -131,7 +131,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             </div>
 
             <div className="flex-grow space-y-2">
-                <div className="flex items-center gap-2 relative">
+                <div className="flex items-center gap-2">
                     <input
                         type="text"
                         value={exercise.reps || ''}
@@ -152,12 +152,12 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                             className={`appearance-none w-full !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500`}
                         />
                         {isSearchVisible && searchResults.length > 0 && (
-                            <ul className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-xl shadow-2xl z-[1000] max-h-80 overflow-y-auto ring-1 ring-black/5">
+                            <ul className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] z-[2000] max-h-80 overflow-y-auto ring-1 ring-black/5 p-1 animate-fade-in">
                                 {searchResults.map(result => (
                                     <li key={result.id}>
                                         <button
                                             onClick={() => handleSelectExercise(result)}
-                                            className="w-full text-left px-4 py-3 hover:bg-primary/20 text-gray-900 dark:text-white transition-colors font-bold border-b border-gray-50 dark:border-gray-700 last:border-0"
+                                            className="w-full text-left px-4 py-3 hover:bg-primary/10 text-gray-900 dark:text-white transition-colors font-bold rounded-xl border-b border-gray-50 dark:border-gray-700/50 last:border-0"
                                         >
                                             {result.name}
                                         </button>
@@ -369,7 +369,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                                         {block.transitionTime || 0}s
                                     </div>
                                     <button 
-                                        onClick={() => handleFieldChange('transitionTime', (block.transitionTime || 0) + 5)}
+                                        onClick={async () => handleFieldChange('transitionTime', (block.transitionTime || 0) + 5)}
                                         className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 active:scale-95 transition-all"
                                     >
                                         +
@@ -432,7 +432,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            className="space-y-3 overflow-hidden"
+                            className="space-y-3"
                         >
                             {block.exercises.length === 0 ? (
                                 <p className="text-center text-sm text-gray-500 py-2">Blocket är tomt. Klicka på '+ Lägg till övning'.</p>
