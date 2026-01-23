@@ -68,18 +68,11 @@ const App: React.FC = () => {
 
   const page = history[history.length - 1];
 
-  // Global laddnings-guard
-  const isGlobalLoading = authLoading || studioLoading || (currentUser && !userData && !isStudioMode);
-  
+  const isGlobalLoading = authLoading || (currentUser && !userData && !isStudioMode);
   const isOrgMismatch = useMemo(() => {
-      if (!currentUser || isStudioMode || !userData?.organizationId) return false;
-      
-      // Undantag för Systemägare: De behöver inte ha en vald org för att komma in i systemvyn
-      if (role === 'systemowner' && !selectedOrganization) return false;
-
-      // Om profilens org inte matchar den laddade org-datan
-      return userData.organizationId !== selectedOrganization?.id;
-  }, [userData?.organizationId, selectedOrganization?.id, currentUser, isStudioMode, role]);
+      if (!currentUser || !userData?.organizationId || !selectedOrganization) return false;
+      return userData.organizationId !== selectedOrganization.id;
+  }, [userData?.organizationId, selectedOrganization?.id, currentUser]);
 
   useEffect(() => {
     if (!authLoading && !isStudioMode && currentUser) {
@@ -372,6 +365,7 @@ const App: React.FC = () => {
   };
 
   const handleSaveAndNavigate = async (workout: Workout, startFirstBlock?: boolean) => {
+    // VIKTIGT: När vi sparar ett pass manuellt via byggaren ska det sluta vara ett temporärt utkast.
     const workoutToSave = { ...workout, isMemberDraft: false };
     const savedWorkout = await saveWorkout(workoutToSave);
     
@@ -387,6 +381,7 @@ const App: React.FC = () => {
   };
 
   const handleSaveOnly = async (workout: Workout) => {
+      // VIKTIGT: Samma här, manuell sparning = ej utkast längre
       return await saveWorkout({ ...workout, isMemberDraft: false });
   };
   
@@ -537,10 +532,12 @@ const App: React.FC = () => {
       return;
     }
 
+    // --- AUTO-ADVANCE CHECK ---
     if (activeWorkout && activeBlock && activeBlock.autoAdvance) {
         const blockIndex = activeWorkout.blocks.findIndex(b => b.id === activeBlock.id);
         const nextBlockInWorkout = activeWorkout.blocks[blockIndex + 1];
         if (nextBlockInWorkout) {
+            // Se till att TimerScreen rensas och startas om med nya blocket genom att nollställa tillfälligt
             setActiveBlock(null);
             setTimeout(() => {
                 setActiveBlock(nextBlockInWorkout);
@@ -700,32 +697,28 @@ const App: React.FC = () => {
     try {
         const newOrg = await createOrganization(name, subdomain);
         setAllOrganizations(prev => [...prev, newOrg]);
-        // Efter att en ny org skapats, välj den automatiskt om vi är systemägare
-        if (role === 'systemowner') {
-            selectOrganization(newOrg);
-        }
     } catch (error) {
         console.error("Failed to create organization:", error);
         alert(`Kunde inte skapa organisation: ${error instanceof Error ? error.message : "Okänt fel"}`);
     }
   };
   
-  const handleUpdateOrganization = async (id: string, name: string, subdomain: string, inviteCode?: string) => {
+  const handleUpdateOrganization = async (organizationId: string, name: string, subdomain: string, inviteCode?: string) => {
     try {
-        const updatedOrg = await updateOrganization(id, name, subdomain, inviteCode);
-        setAllOrganizations(prev => prev.map(o => (o.id === id ? updatedOrg : o)));
-        if (selectedOrganization?.id === id) selectOrganization(updatedOrg);
+        const updatedOrg = await updateOrganization(organizationId, name, subdomain, inviteCode);
+        setAllOrganizations(prev => prev.map(o => (o.id === organizationId ? updatedOrg : o)));
+        if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
     } catch (error) {
         console.error("Failed to update organization:", error);
         throw error;
     }
   };
 
-  const handleDeleteOrganization = async (id: string) => {
+  const handleDeleteOrganization = async (organizationId: string) => {
     try {
-        await deleteOrganization(id);
-        setAllOrganizations(prev => prev.filter(o => o.id !== id));
-        if (selectedOrganization?.id === id) {
+        await deleteOrganization(organizationId);
+        setAllOrganizations(prev => prev.filter(o => o.id !== organizationId));
+        if (selectedOrganization?.id === organizationId) {
             selectOrganization(null);
             setHistory([Page.SystemOwner]);
         }
@@ -735,65 +728,65 @@ const App: React.FC = () => {
     }
   };
   
-  const handleUpdateOrganizationPasswords = async (id: string, passwords: Organization['passwords']) => {
+  const handleUpdateOrganizationPasswords = async (organizationId: string, passwords: Organization['passwords']) => {
     try {
-        const updatedOrg = await updateOrganizationPasswords(id, passwords);
-        setAllOrganizations(prev => prev.map(o => (o.id === id ? updatedOrg : o)));
-        if (selectedOrganization?.id === id) selectOrganization(updatedOrg);
+        const updatedOrg = await updateOrganizationPasswords(organizationId, passwords);
+        setAllOrganizations(prev => prev.map(o => (o.id === organizationId ? updatedOrg : o)));
+        if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
     } catch (error) {
         console.error("Failed to update passwords:", error);
         throw error;
     }
   };
 
-  const handleUpdateOrganizationLogos = async (id: string, logos: { light: string; dark: string }) => {
+  const handleUpdateOrganizationLogos = async (organizationId: string, logos: { light: string; dark: string }) => {
     try {
-        const updatedOrg = await updateOrganizationLogos(id, logos);
-        setAllOrganizations(prev => prev.map(o => (o.id === id ? updatedOrg : o)));
-        if (selectedOrganization?.id === id) selectOrganization(updatedOrg);
+        const updatedOrg = await updateOrganizationLogos(organizationId, logos);
+        setAllOrganizations(prev => prev.map(o => (o.id === organizationId ? updatedOrg : o)));
+        if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
     } catch (error) {
         console.error("Failed to update logos:", error);
         throw error;
     }
   };
 
-  const handleUpdateOrganizationFavicon = async (id: string, faviconUrl: string) => {
+  const handleUpdateOrganizationFavicon = async (organizationId: string, faviconUrl: string) => {
     try {
-        const updatedOrg = await updateOrganizationFavicon(id, faviconUrl);
-        setAllOrganizations(prev => prev.map(o => (o.id === id ? updatedOrg : o)));
-        if (selectedOrganization?.id === id) selectOrganization(updatedOrg);
+        const updatedOrg = await updateOrganizationFavicon(organizationId, faviconUrl);
+        setAllOrganizations(prev => prev.map(o => (o.id === organizationId ? updatedOrg : o)));
+        if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
     } catch (error) {
         console.error("Failed to update favicon:", error);
         throw error;
     }
   };
 
-  const handleUpdateOrganizationPrimaryColor = async (id: string, color: string) => {
+  const handleUpdateOrganizationPrimaryColor = async (organizationId: string, color: string) => {
     try {
-        const updatedOrg = await updateOrganizationPrimaryColor(id, color);
-        setAllOrganizations(prev => prev.map(o => (o.id === id ? updatedOrg : o)));
-        if (selectedOrganization?.id === id) selectOrganization(updatedOrg);
+        const updatedOrg = await updateOrganizationPrimaryColor(organizationId, color);
+        setAllOrganizations(prev => prev.map(o => (o.id === organizationId ? updatedOrg : o)));
+        if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
     } catch (error) {
         console.error("Failed to update primary color:", error);
         throw error;
     }
   };
 
-  const handleUpdateOrganizationCustomPages = async (id: string, customPages: CustomPage[]) => {
+  const handleUpdateOrganizationCustomPages = async (organizationId: string, customPages: CustomPage[]) => {
     try {
-        const updatedOrg = await updateOrganizationCustomPages(id, customPages);
-        setAllOrganizations(prev => prev.map(o => o.id === id ? updatedOrg : o));
-        if (selectedOrganization?.id === id) selectOrganization(updatedOrg);
+        const updatedOrg = await updateOrganizationCustomPages(organizationId, customPages);
+        setAllOrganizations(prev => prev.map(o => o.id === organizationId ? updatedOrg : o));
+        if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
     } catch (error) {
         console.error("Failed to update custom pages:", error);
     }
   };
 
-    const handleUpdateOrganizationInfoCarousel = async (id: string, infoCarousel: InfoCarousel) => {
+    const handleUpdateOrganizationInfoCarousel = async (organizationId: string, infoCarousel: InfoCarousel) => {
         try {
-            const updatedOrg = await updateOrganizationInfoCarousel(id, infoCarousel);
-            setAllOrganizations(prev => prev.map(o => o.id === id ? updatedOrg : o));
-            if (selectedOrganization?.id === id) selectOrganization(updatedOrg);
+            const updatedOrg = await updateOrganizationInfoCarousel(organizationId, infoCarousel);
+            setAllOrganizations(prev => prev.map(o => o.id === organizationId ? updatedOrg : o));
+            if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
         } catch (error) {
             console.error("Failed to update info carousel:", error);
             throw error;
@@ -846,26 +839,20 @@ const App: React.FC = () => {
   const paddingClass = isFullScreenPage ? '' : 'p-4 sm:p-6 lg:p-8';
   
   const isAdminOrCoach = role === 'systemowner' || role === 'organizationadmin' || role === 'coach';
+  const isMemberFacingPage = [Page.Home, Page.WorkoutDetail, Page.SavedWorkouts, Page.MemberProfile, Page.WorkoutList].includes(page);
   const isAdminFacingPage = [Page.Coach, Page.SuperAdmin, Page.SystemOwner, Page.AdminAnalytics, Page.MemberRegistry].includes(page);
 
   const showSupportChat = !isStudioMode && isAdminOrCoach && isAdminFacingPage;
-  const showScanButton = ((!isStudioMode && [Page.Home, Page.WorkoutDetail, Page.SavedWorkouts, Page.MemberProfile, Page.WorkoutList].includes(page)) || (page === Page.MemberProfile)) && studioConfig.enableWorkoutLogging;
+  const showScanButton = ((!isStudioMode && isMemberFacingPage) || (page === Page.MemberProfile)) && studioConfig.enableWorkoutLogging;
 
-  if (isGlobalLoading) {
-      return (
-        <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-gray-500 font-bold uppercase tracking-widest text-sm">Laddar upplevelsen...</p>
-        </div>
-      );
-  }
-
-  if (!currentUser && !isStudioMode) {
-      if (showLogin) return <LoginScreen onClose={() => setShowLogin(false)} />;
+  if (!authLoading && !currentUser && !isStudioMode) {
+      if (showLogin) {
+          return <LoginScreen onClose={() => setShowLogin(false)} />;
+      }
       return <LandingPage onLoginClick={() => setShowLogin(true)} />;
   }
 
-  if (currentUser && !userData && !isStudioMode) {
+  if (currentUser && !userData && !isStudioMode && !authLoading) {
     return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -876,7 +863,7 @@ const App: React.FC = () => {
     );
   }
 
-  if (isOrgMismatch && !isStudioMode) {
+  if (isOrgMismatch && !isGlobalLoading && !isStudioMode) {
       return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>

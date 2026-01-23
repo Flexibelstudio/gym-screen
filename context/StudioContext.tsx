@@ -2,7 +2,7 @@
 import React, { createContext, useState, useContext, useEffect, useMemo, useCallback } from 'react';
 import { Studio, Organization, StudioConfig } from '../types';
 import { getOrganizations, getOrganizationById, listenToOrganizationChanges } from '../services/firebaseService';
-import { useAuth } from './AuthContext';
+import { useAuth } from './AuthContext'; // Import useAuth
 
 const DEFAULT_CONFIG: StudioConfig = {
     customCategories: [
@@ -15,7 +15,13 @@ const DEFAULT_CONFIG: StudioConfig = {
 const getEffectiveConfig = (studio: Studio | null, org: Organization | null): StudioConfig => {
     const orgConfig = org ? org.globalConfig : DEFAULT_CONFIG;
     if (!studio || !studio.configOverrides) return orgConfig;
-    return { ...orgConfig, ...studio.configOverrides };
+
+    const studioOverrides = studio.configOverrides;
+
+    return {
+        ...orgConfig,
+        ...studioOverrides,
+    };
 };
 
 interface StudioContextType {
@@ -23,11 +29,13 @@ interface StudioContextType {
     allOrganizations: Organization[];
     selectOrganization: (organization: Organization | null) => void;
     setAllOrganizations: React.Dispatch<React.SetStateAction<Organization[]>>;
+
     selectedStudio: Studio | null;
     allStudios: Studio[];
     setAllStudios: React.Dispatch<React.SetStateAction<Studio[]>>;
     selectStudio: (studio: Studio) => void;
     clearStudio: () => void;
+    
     studioConfig: StudioConfig;
     studioLoading: boolean;
 }
@@ -40,69 +48,80 @@ const PENDING_STUDIO_KEY = 'ny-screen-pending-studio-id';
 
 const safeJsonParse = (jsonString: string | null) => {
     if (!jsonString) return null;
-    try { return JSON.parse(jsonString); } catch (e) { return null; }
+    try {
+        return JSON.parse(jsonString);
+    } catch (e) {
+        console.warn("Failed to parse JSON from localStorage:", e);
+        return null;
+    }
 };
 
 export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const { currentUser, userData, isStudioMode, authLoading, isImpersonating } = useAuth();
+
     const [allOrganizations, setAllOrganizations] = useState<Organization[]>([]);
     const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
+
     const [allStudios, setAllStudios] = useState<Studio[]>([]);
     const [selectedStudio, setSelectedStudio] = useState<Studio | null>(null);
     const [studioLoading, setStudioLoading] = useState(true);
 
-    // Hjälpfunktion för att ladda en specifik organisation
-    const loadOrganization = useCallback(async (orgId: string) => {
-        setStudioLoading(true);
-        try {
-            const org = await getOrganizationById(orgId);
-            if (org) {
-                setSelectedOrganization(org);
-                setAllStudios(org.studios);
-                return org;
-            }
-        } catch (error) {
-            console.error("Error loading organization:", error);
-        } finally {
-            setStudioLoading(false);
-        }
-        return null;
-    }, []);
-
-    // 1. Initial laddning och synk mot profil
     useEffect(() => {
         const loadInitialData = async () => {
             if (authLoading) return;
             
             setStudioLoading(true);
             try {
+                let fetchedOrgs: Organization[] = [];
                 let orgToUse: Organization | null = null;
-                const storedOrgData = safeJsonParse(localStorage.getItem(LOCAL_STORAGE_ORG_KEY));
 
-                // Prioritering:
-                // 1. Användarens uttryckliga organisation i profil (userData)
-                // 2. Sparad org i localStorage (viktigt för låsta skärmar)
-                const targetOrgId = isStudioMode 
-                    ? (storedOrgData?.id || userData?.organizationId)
-                    : (userData?.organizationId || storedOrgData?.id);
-
-                if (targetOrgId) {
-                    orgToUse = await getOrganizationById(targetOrgId);
-                }
-
-                // Om vi är System Owner, hämta hela listan oavsett
+                // 1. Hantera Roll-baserad laddning
                 if (userData?.role === 'systemowner') {
-                    const fetchedOrgs = await getOrganizations();
-                    setAllOrganizations(fetchedOrgs);
-                } else if (orgToUse) {
-                    setAllOrganizations([orgToUse]);
+                    fetchedOrgs = await getOrganizations();
+                } else if (userData?.organizationId) {
+                    const org = await getOrganizationById(userData.organizationId);
+                    if (org) {
+                        fetchedOrgs = [org];
+                        orgToUse = org;
+                        
+                        // SÄKERHET: Om inloggad användare har en org, rensa localStorage om den pekar fel
+                        const storedOrgJSON = localStorage.getItem(LOCAL_STORAGE_ORG_KEY);
+                        const storedOrgData = safeJsonParse(storedOrgJSON);
+                        if (storedOrgData && storedOrgData.id !== userData.organizationId) {
+                            localStorage.removeItem(LOCAL_STORAGE_ORG_KEY);
+                            if (currentUser) localStorage.removeItem(getLocalStorageStudioKey(currentUser.uid));
+                        }
+                    }
+                } else if (isStudioMode && !isImpersonating) {
+                    const storedOrgJSON = localStorage.getItem(LOCAL_STORAGE_ORG_KEY);
+                    const storedOrgData = safeJsonParse(storedOrgJSON);
+                    
+                    if (storedOrgData?.id) {
+                        const org = await getOrganizationById(storedOrgData.id);
+                        if (org) {
+                            fetchedOrgs = [org];
+                            orgToUse = org;
+                        } else {
+                            localStorage.removeItem(LOCAL_STORAGE_ORG_KEY);
+                        }
+                    }
                 }
+
+                if (isImpersonating && selectedOrganization) {
+                    orgToUse = selectedOrganization;
+                }
+
+                // Fallback för Systemägare som inte valt org än
+                if (!orgToUse && fetchedOrgs.length > 0 && userData?.role === 'systemowner') {
+                    orgToUse = selectedOrganization || fetchedOrgs[0];
+                }
+                
+                setAllOrganizations(fetchedOrgs);
 
                 if (orgToUse) {
                     setSelectedOrganization(orgToUse);
                     setAllStudios(orgToUse.studios);
 
-                    // Hantera studio-val för skärmar
                     if (isStudioMode && currentUser) {
                         const pendingStudioId = localStorage.getItem(PENDING_STUDIO_KEY);
                         const studioKey = getLocalStorageStudioKey(currentUser.uid);
@@ -115,43 +134,43 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                             }
                             localStorage.removeItem(PENDING_STUDIO_KEY);
                         } else {
-                            const storedStudio = safeJsonParse(localStorage.getItem(studioKey));
+                            const storedStudioJSON = localStorage.getItem(studioKey);
+                            const storedStudio = safeJsonParse(storedStudioJSON);
+                            
                             if (storedStudio?.id) {
                                 const correspondingStudio = orgToUse.studios.find(s => s.id === storedStudio.id);
-                                if (correspondingStudio) setSelectedStudio(correspondingStudio);
+                                if (correspondingStudio) {
+                                    setSelectedStudio(correspondingStudio);
+                                }
                             }
                         }
                     }
+                } else if (!isStudioMode) {
+                    setSelectedOrganization(null);
+                    setAllStudios([]);
+                    setSelectedStudio(null);
                 }
+
             } catch (error) {
-                console.error("StudioContext initial load error:", error);
+                console.error("Failed to load initial data", error);
             } finally {
                 setStudioLoading(false);
             }
         };
         loadInitialData();
-    }, [authLoading, currentUser?.uid, isStudioMode]); // Vi kör denna bara vid start eller auth-ändring
-
-    // 2. REAKTIV SYNK: Lyssna på ändringar i userData.organizationId
-    // Detta löser problemet när en ny org skapas eller man byter org i profilen
-    useEffect(() => {
-        if (authLoading || isStudioMode || !userData?.organizationId) return;
-
-        if (selectedOrganization?.id !== userData.organizationId) {
-            console.log("Org mismatch detected, syncing to profile...", userData.organizationId);
-            loadOrganization(userData.organizationId);
-        }
-    }, [userData?.organizationId, authLoading, isStudioMode, selectedOrganization?.id, loadOrganization]);
+    }, [authLoading, currentUser?.uid, isStudioMode, userData?.organizationId, userData?.role, isImpersonating]);
     
-    // 3. Realtidsuppdateringar för den valda organisationen
     useEffect(() => {
         if (authLoading || !selectedOrganization?.id) return;
+
         const unsubscribe = listenToOrganizationChanges(selectedOrganization.id, (updatedOrg) => {
             setSelectedOrganization(updatedOrg);
-            // Uppdatera även i listan om den finns där
-            setAllOrganizations(prevOrgs => prevOrgs.map(o => o.id === updatedOrg.id ? updatedOrg : o));
+            setAllOrganizations(prevOrgs => 
+                prevOrgs.map(o => o.id === updatedOrg.id ? updatedOrg : o)
+            );
             setAllStudios(updatedOrg.studios);
         });
+
         return () => unsubscribe();
     }, [selectedOrganization?.id, authLoading]);
 
@@ -160,7 +179,9 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (organization) {
             localStorage.setItem(LOCAL_STORAGE_ORG_KEY, JSON.stringify({ id: organization.id, name: organization.name }));
             setAllStudios(organization.studios);
-            if (isStudioMode && currentUser) localStorage.removeItem(getLocalStorageStudioKey(currentUser.uid));
+            if (isStudioMode && currentUser) {
+                 localStorage.removeItem(getLocalStorageStudioKey(currentUser.uid));
+            }
             setSelectedStudio(null);
         } else {
             localStorage.removeItem(LOCAL_STORAGE_ORG_KEY);
@@ -171,27 +192,45 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const selectStudio = useCallback((studio: Studio) => {
         setSelectedStudio(studio);
-        if (currentUser && isStudioMode) localStorage.setItem(getLocalStorageStudioKey(currentUser.uid), JSON.stringify(studio));
+        if (currentUser && isStudioMode) {
+            localStorage.setItem(getLocalStorageStudioKey(currentUser.uid), JSON.stringify(studio));
+        }
     }, [currentUser, isStudioMode]);
     
     const clearStudio = useCallback(() => {
         setSelectedStudio(null);
-        if (currentUser && isStudioMode) localStorage.removeItem(getLocalStorageStudioKey(currentUser.uid));
+        if (currentUser && isStudioMode) {
+            localStorage.removeItem(getLocalStorageStudioKey(currentUser.uid));
+        }
     }, [currentUser, isStudioMode]);
 
     const studioConfig = useMemo(() => getEffectiveConfig(selectedStudio, selectedOrganization), [selectedStudio, selectedOrganization]);
 
     const value = useMemo(() => ({
-        selectedOrganization, allOrganizations, selectOrganization, setAllOrganizations,
-        selectedStudio, allStudios, setAllStudios, selectStudio, clearStudio,
-        studioConfig, studioLoading
+        selectedOrganization,
+        allOrganizations,
+        selectOrganization,
+        setAllOrganizations,
+        selectedStudio,
+        allStudios,
+        setAllStudios,
+        selectStudio,
+        clearStudio,
+        studioConfig,
+        studioLoading
     }), [selectedOrganization, allOrganizations, selectOrganization, selectedStudio, allStudios, selectStudio, clearStudio, studioConfig, studioLoading]);
 
-    return <StudioContext.Provider value={value}>{children}</StudioContext.Provider>;
+    return (
+        <StudioContext.Provider value={value}>
+            {children}
+        </StudioContext.Provider>
+    );
 };
 
 export const useStudio = (): StudioContextType => {
     const context = useContext(StudioContext);
-    if (context === undefined) throw new Error('useStudio must be used within a StudioProvider');
+    if (context === undefined) {
+        throw new Error('useStudio must be used within a StudioProvider');
+    }
     return context;
 };
