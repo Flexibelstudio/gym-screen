@@ -68,7 +68,7 @@ const App: React.FC = () => {
 
   const page = history[history.length - 1];
 
-  const isGlobalLoading = authLoading || (currentUser && !userData && !isStudioMode);
+  const isGlobalLoading = authLoading || studioLoading || (currentUser && !userData && !isStudioMode);
   
   const isOrgMismatch = useMemo(() => {
       if (!currentUser || !userData?.organizationId || !selectedOrganization) return false;
@@ -869,6 +869,15 @@ const App: React.FC = () => {
             <p className="text-gray-500 font-bold uppercase tracking-widest text-sm">Hämtar organisation...</p>
         </div>
       );
+  }
+
+  if (isGlobalLoading && !isStudioMode) {
+    return (
+        <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-gray-500 font-bold uppercase tracking-widest text-sm">Laddar SmartSkärm...</p>
+        </div>
+    );
   }
 
   return (
