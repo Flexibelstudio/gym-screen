@@ -287,6 +287,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
     }, [block.settings]);
 
     const allExercisesLogged = block.exercises.length > 0 && block.exercises.every(ex => ex.loggingEnabled);
+    const isLastBlock = index === totalBlocks - 1;
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md border-2 border-gray-200 dark:border-gray-700">
@@ -330,19 +331,42 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                     checked={!!block.followMe}
                     onChange={(isChecked) => handleFieldChange('followMe', isChecked)}
                 />
-                <div className="flex items-center gap-2">
-                    <ToggleSwitch
-                        label="Auto-avancera efter block"
-                        checked={!!block.autoAdvance}
-                        onChange={(isChecked) => handleFieldChange('autoAdvance', isChecked)}
-                    />
-                    {block.autoAdvance && (
-                        <div className="flex items-center gap-1.5 ml-4 bg-purple-50 dark:bg-purple-900/30 px-3 py-1 rounded-lg border border-purple-100 dark:border-purple-800">
-                             <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 uppercase">Vila:</span>
-                             <span className="text-sm font-black text-purple-700 dark:text-purple-300">{block.transitionTime || 0}s</span>
-                        </div>
-                    )}
-                </div>
+                
+                {!isLastBlock && (
+                    <div className="flex flex-col gap-3 p-4 bg-purple-50/50 dark:bg-purple-900/10 rounded-2xl border border-purple-100 dark:border-purple-800/50">
+                        <ToggleSwitch
+                            label="Automatisk start av nästa block"
+                            checked={!!block.autoAdvance}
+                            onChange={(isChecked) => handleFieldChange('autoAdvance', isChecked)}
+                        />
+                        {block.autoAdvance && (
+                            <motion.div 
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                className="flex items-center gap-4 pl-2 pt-2 border-t border-purple-100 dark:border-purple-800/50"
+                            >
+                                <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Vila</span>
+                                <div className="flex items-center gap-2">
+                                    <button 
+                                        onClick={() => handleFieldChange('transitionTime', Math.max(0, (block.transitionTime || 0) - 5))}
+                                        className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 active:scale-95 transition-all"
+                                    >
+                                        -
+                                    </button>
+                                    <div className="min-w-[40px] text-center font-mono font-black text-purple-600 dark:text-purple-400">
+                                        {block.transitionTime || 0}s
+                                    </div>
+                                    <button 
+                                        onClick={() => handleFieldChange('transitionTime', (block.transitionTime || 0) + 5)}
+                                        className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-50 active:scale-95 transition-all"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div className="bg-gray-100 dark:bg-black p-3 my-4 rounded-md flex justify-between items-center text-sm">

@@ -7,6 +7,7 @@ import { getExerciseBank } from '../services/firebaseService';
 import { interpretHandwriting, generateExerciseDescription } from '../services/geminiService';
 import { useStudio } from '../context/StudioContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Helpers ---
 const parseExerciseLine = (line: string): { reps: string; name: string } => {
@@ -410,13 +411,14 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
 interface BlockCardProps {
     block: WorkoutBlock;
     index: number;
+    totalBlocks: number;
     onUpdate: (updatedBlock: WorkoutBlock) => void;
     onRemove: () => void;
     onEditSettings: () => void;
     onOpenHandwriting: (cb: (text: string) => void) => void;
     exerciseBank: BankExercise[];
 }
-const BlockCard: React.FC<BlockCardProps> = ({ block, index, onUpdate, onRemove, onEditSettings, onOpenHandwriting, exerciseBank }) => {
+const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpdate, onRemove, onEditSettings, onOpenHandwriting, exerciseBank }) => {
     const handleFieldChange = (field: keyof WorkoutBlock, value: any) => {
         const updated = { ...block, [field]: value };
         if (field === 'title' && typeof value === 'string') {
@@ -433,7 +435,8 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, onUpdate, onRemove,
         onUpdate({ ...block, exercises: exs });
     };
 
-    const inputBaseClasses = "appearance-none !bg-white dark:!bg-gray-800 !text-gray-900 dark:!text-white border border-gray-200 dark:border-gray-700 rounded-2xl p-4 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-black placeholder-gray-300 dark:placeholder-gray-600 shadow-inner";
+    const inputBaseClasses = "appearance-none !bg-white dark:!bg-gray-900 !text-gray-900 dark:!text-white border border-gray-100 dark:border-gray-800 rounded-2xl p-4 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-black placeholder-gray-300 dark:placeholder-gray-600 shadow-inner";
+    const isLastBlock = index === totalBlocks;
 
     return (
         <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-6 sm:p-8 shadow-xl border border-gray-100 dark:border-gray-800 space-y-6">
@@ -447,9 +450,11 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, onUpdate, onRemove,
                         className={`${inputBaseClasses} w-full text-2xl tracking-tight`} 
                     />
                 </div>
-                <button onClick={onRemove} className="text-red-500 p-3 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors">
-                    <TrashIcon className="w-6 h-6" />
-                </button>
+                {totalBlocks > 1 && (
+                    <button onClick={onRemove} className="text-red-500 p-3 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors">
+                        <TrashIcon className="w-6 h-6" />
+                    </button>
+                )}
             </div>
 
             <div>
@@ -478,6 +483,38 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, onUpdate, onRemove,
                         onChange={v => handleFieldChange('followMe', v)} 
                     />
                 </div>
+                
+                {!isLastBlock && (
+                     <div className="col-span-1 sm:col-span-2 p-4 rounded-2xl bg-purple-50/30 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800/50 flex flex-col gap-4">
+                        <ToggleSwitch 
+                            label="Automatisk start av nästa block" 
+                            checked={!!block.autoAdvance} 
+                            onChange={v => handleFieldChange('autoAdvance', v)} 
+                        />
+                        {block.autoAdvance && (
+                            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4 pl-2 pt-2 border-t border-purple-100 dark:border-purple-800/50">
+                                <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Vila</span>
+                                <div className="flex items-center gap-2">
+                                    <button 
+                                        onClick={() => handleFieldChange('transitionTime', Math.max(0, (block.transitionTime || 0) - 5))}
+                                        className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300"
+                                    >
+                                        -
+                                    </button>
+                                    <div className="min-w-[40px] text-center font-mono font-black text-purple-600 dark:text-purple-400">
+                                        {block.transitionTime || 0}s
+                                    </div>
+                                    <button 
+                                        onClick={() => handleFieldChange('transitionTime', (block.transitionTime || 0) + 5)}
+                                        className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div className="bg-primary/5 dark:bg-primary/10 p-5 rounded-3xl flex justify-between items-center border border-primary/20">
@@ -610,6 +647,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                         {workout.blocks.map((block, i) => (
                             <BlockCard 
                                 key={block.id} block={block} index={i+1} 
+                                totalBlocks={workout.blocks.length}
                                 onUpdate={handleUpdateBlock} 
                                 onRemove={() => handleRemoveBlock(block.id)} 
                                 onEditSettings={() => setEditingBlockId(block.id)} 
