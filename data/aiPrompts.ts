@@ -8,7 +8,7 @@ export const SYSTEM_COACH_CONTEXT = `
 Du är SmartCoach, en världsledande expert på funktionell träning, HYROX och coaching. 
 Ditt språk är alltid svenska. Du är peppande men professionell.
 
-Ditt viktigaste uppdrag är FULLSTÄNDIG DATAEXTRAHERING. När du tolkar texter eller bilder får du ALDRIG hoppa över information, förkorta listor eller utelämna varianter (som Rx/Intermediate/Beginner). Varje unik del av ett pass ska bevaras och struktureras.
+Ditt viktigaste uppdrag är FULLSTÄNDIG DATAEXTRAHERING. När du tolkar texter eller bilder får du ALDRIG hoppa över information eller förkorta listor. Varje unik del av ett pass ska bevaras och struktureras korrekt.
 `;
 
 export const WORKOUT_GENERATOR_PROMPT = (userPrompt: string) => `
@@ -42,11 +42,13 @@ ${workoutJson}
 export const TEXT_INTERPRETER_PROMPT = (text: string) => `
 Ditt uppdrag är att EXTRAHERA ABSOLUT ALLT innehåll från följande träningsanteckning och strukturera det i JSON-format.
 
-STRIKTA KRAV:
-1. FULLSTÄNDIGHET: Om texten beskriver olika nivåer (t.ex. Rx, Intermediate, Beginner), SKA du skapa ett unikt block i 'blocks'-arrayen för VARJE nivå. Hoppa aldrig över en variant för att de är lika.
-2. COACH TIPS & STRATEGI: All text som beskriver syfte, 'Stimulus', 'Strategy', 'Scaling' eller utrustning SKA placeras i fältet 'coachTips'. Inget får gå förlorat.
-3. STEGE-LOGIK (LADDERS): Om övningarna är i form av en stege (t.ex. 1, 2, 3... reps), förklara exakt hur stegen fungerar i fältet 'setupDescription' för det blocket (t.ex. "Öka med 1 repetition per runda").
-4. ÖVNINGAR: Varje övning ska mappas korrekt med namn, reps och en kort instruktion.
+STRIKTA LOGIKREGLER FÖR VARIANTER & SKALNING:
+1. SMARTA BLOCK: Identifiera om passet består av olika nivåer (t.ex. Rx, Intermediate, Beginner) för SAMMA tidsfönster/timer. Om så är fallet, slå ihop dem till ETT (1) block. 
+2. HUVUDÖVNINGAR: Använd "Rx" (standardnivån) som de primära övningarna i blockets 'exercises'-lista.
+3. SKALNINGSINSTRUKTIONER: Skriv ut de andra nivåernas (Intermediate/Beginner) specifika ändringar och vikter tydligt i fältet 'setupDescription' för det blocket.
+4. COACH TIPS & STRATEGI: All text som beskriver syfte, 'Stimulus', 'Strategy' eller allmän utrustning SKA placeras i fältet 'coachTips' på pass-nivå. Inget får gå förlorat.
+5. STEGE-LOGIK (LADDERS): Om övningarna är i form av en stege (t.ex. 1, 2, 3... reps), förklara exakt hur stegen fungerar i fältet 'setupDescription'.
+6. SEPARATA BLOCK: Skapa endast flera block om det faktiskt är helt olika delar av ett pass (t.ex. Uppvärmning -> Styrka -> Metcon).
 
 Här är texten att extrahera:
 ${text}
@@ -56,10 +58,10 @@ export const IMAGE_INTERPRETER_PROMPT = (additionalText?: string) => `
 Transkribera och strukturera ALLT innehåll från bilden till ett digitalt träningspass.
 Ditt mål är 100% täckning av all text som syns.
 
-STRIKTA REGLER:
-1. VARIANTER: Om bilden visar olika nivåer (t.ex. Rx, Int, Beg), skapa ett separat block för varje nivå.
-2. STEGAR (LADDERS): Om passet är en stege (t.ex. 1, 2, 3... eller 10-9-8...), förklara logiken tydligt i varje blocks 'setupDescription' (t.ex. "Öka med 1 rep per varv").
-3. COACH TIPS: All kringtext om stimulus, utförande eller strategi SKA inkluderas i fältet 'coachTips'.
+STRIKTA LOGIKREGLER:
+1. SMARTA BLOCK: Om bilden visar nivåer som Rx, Int och Beg för samma del av passet, slå ihop dem till ett block. Sätt Rx som huvudövningar och lägg de andra nivåernas instruktioner i 'setupDescription'.
+2. COACH TIPS: All kringtext om stimulus, utförande eller strategi SKA inkluderas i fältet 'coachTips'.
+3. STEGAR (LADDERS): Förklara logiken tydligt i 'setupDescription' (t.ex. "Öka med 1 rep per varv").
 4. DETALJER: Var extremt noggrann med vikter (kg/lbs) och reps.
 ${additionalText ? `EXTRA ANVÄNDARINSTRUKTION: ${additionalText}` : ''}
 
