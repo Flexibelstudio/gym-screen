@@ -87,88 +87,6 @@ const workoutSchema = {
     }
 };
 
-const memberInsightSchema = {
-    type: Type.OBJECT,
-    required: ['readiness', 'strategy', 'suggestions', 'scaling'],
-    properties: {
-        readiness: {
-            type: Type.OBJECT,
-            required: ['status', 'message'],
-            properties: {
-                status: { type: Type.STRING, enum: ['high', 'moderate', 'low'] },
-                message: { type: Type.STRING }
-            }
-        },
-        strategy: { type: Type.STRING },
-        suggestions: {
-            type: Type.ARRAY,
-            items: {
-                type: Type.OBJECT,
-                required: ['exerciseName', 'advice'],
-                properties: {
-                    exerciseName: { type: Type.STRING },
-                    advice: { type: Type.STRING }
-                }
-            }
-        },
-        scaling: {
-            type: Type.ARRAY,
-            items: {
-                type: Type.OBJECT,
-                required: ['exerciseName', 'advice'],
-                properties: {
-                    exerciseName: { type: Type.STRING },
-                    advice: { type: Type.STRING }
-                }
-            }
-        }
-    }
-};
-
-const progressAnalysisSchema = {
-    type: Type.OBJECT,
-    required: ['strengths', 'improvements', 'actions', 'metrics'],
-    properties: {
-        strengths: { type: Type.STRING },
-        improvements: { type: Type.STRING },
-        actions: { type: Type.ARRAY, items: { type: Type.STRING } },
-        metrics: {
-            type: Type.OBJECT,
-            required: ['strength', 'endurance', 'frequency'],
-            properties: {
-                strength: { type: Type.NUMBER },
-                endurance: { type: Type.NUMBER },
-                frequency: { type: Type.NUMBER }
-            }
-        }
-    }
-};
-
-const diplomaSchema = {
-    type: Type.OBJECT,
-    required: ['title', 'subtitle', 'achievement', 'footer', 'imagePrompt'],
-    properties: {
-        title: { type: Type.STRING },
-        subtitle: { type: Type.STRING },
-        achievement: { type: Type.STRING },
-        footer: { type: Type.STRING },
-        imagePrompt: { type: Type.STRING }
-    }
-};
-
-const exerciseBankSchema = {
-    type: Type.ARRAY,
-    items: {
-        type: Type.OBJECT,
-        required: ['name', 'description', 'tags'],
-        properties: {
-            name: { type: Type.STRING },
-            description: { type: Type.STRING },
-            tags: { type: Type.ARRAY, items: { type: Type.STRING } }
-        }
-    }
-};
-
 // --- CORE HANDLERS ---
 
 async function _callGeminiJSON<T>(modelName: string, prompt: string, schema: any): Promise<T> {
@@ -193,10 +111,10 @@ const transformWorkout = (data: any, orgId: string, isDraft: boolean = false): W
     isPublished: false,
     isMemberDraft: isDraft,
     category: data.category || 'AI Genererat',
-    blocks: data.blocks.map((b: any, i: number) => ({
+    blocks: (data.blocks || []).map((b: any, i: number) => ({
         ...b,
         id: b.id || `block-${Date.now()}-${i}`,
-        exercises: b.exercises.map((ex: any, j: number) => ({
+        exercises: (b.exercises || []).map((ex: any, j: number) => ({
             ...ex,
             id: ex.id || `ex-${Date.now()}-${i}-${j}`,
             isFromAI: true
@@ -221,13 +139,12 @@ export async function analyzeCurrentWorkout(currentWorkout: Workout): Promise<Wo
     return transformWorkout({ ...currentWorkout, ...data }, currentWorkout.organizationId);
 }
 
-export async function parseWorkoutFromText(text: string): Promise<Workout> {
+export async function parseWorkoutFromText(text: string, orgId: string = ''): Promise<Workout> {
     const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.TEXT_INTERPRETER_PROMPT(text), workoutSchema);
-    // Tolkad text från coachen bör inte vara ett "medlemsutkast" som raderas
-    return transformWorkout(data, '', false);
+    return transformWorkout(data, orgId, false);
 }
 
-export async function parseWorkoutFromImage(base64Image: string, additionalText?: string): Promise<Workout> {
+export async function parseWorkoutFromImage(base64Image: string, orgId: string = '', additionalText?: string): Promise<Workout> {
     const ai = getAIClient();
     const response = await ai.models.generateContent({
         model: VISION_MODEL,
@@ -241,8 +158,7 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
             responseSchema: workoutSchema,
         }
     });
-    // Tolkad bild (från t.ex. Idétavlan) markeras som draft så den städas om den inte sparas
-    return transformWorkout(JSON.parse(response.text.trim()), '', true);
+    return transformWorkout(JSON.parse(response.text.trim()), orgId, true);
 }
 
 export async function generateExerciseDescription(name: string): Promise<string> {
@@ -256,6 +172,18 @@ export async function generateExerciseDescription(name: string): Promise<string>
 }
 
 export async function generateExerciseSuggestions(prompt: string): Promise<Partial<BankExercise>[]> {
+    const exerciseBankSchema = {
+        type: Type.ARRAY,
+        items: {
+            type: Type.OBJECT,
+            required: ['name', 'description', 'tags'],
+            properties: {
+                name: { type: Type.STRING },
+                description: { type: Type.STRING },
+                tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+            }
+        }
+    };
     return await _callGeminiJSON<any[]>(TEXT_MODEL, `Föreslå övningar för: ${prompt}`, exerciseBankSchema);
 }
 
@@ -306,14 +234,51 @@ export async function interpretHandwriting(base64Image: string): Promise<string>
 }
 
 export async function generateMemberInsights(logs: WorkoutLog[], title: string, exercises: string[]): Promise<MemberInsightResponse> {
+    const memberInsightSchema = {
+        type: Type.OBJECT,
+        required: ['readiness', 'strategy', 'suggestions', 'scaling'],
+        properties: {
+            readiness: {
+                type: Type.OBJECT,
+                required: ['status', 'message'],
+                properties: {
+                    status: { type: Type.STRING, enum: ['high', 'moderate', 'low'] },
+                    message: { type: Type.STRING }
+                }
+            },
+            strategy: { type: Type.STRING },
+            suggestions: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    required: ['exerciseName', 'advice'],
+                    properties: {
+                        exerciseName: { type: Type.STRING },
+                        advice: { type: Type.STRING }
+                    }
+                }
+            },
+            scaling: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    required: ['exerciseName', 'advice'],
+                    properties: {
+                        exerciseName: { type: Type.STRING },
+                        advice: { type: Type.STRING }
+                    }
+                }
+            }
+        }
+    };
     const logStr = JSON.stringify(logs.slice(0, 5));
     const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.MEMBER_INSIGHTS_PROMPT(title, exercises, logStr), memberInsightSchema);
     
     // Map arrays back to objects for frontend compatibility
     const suggestions: Record<string, string> = {};
-    data.suggestions.forEach((s: any) => suggestions[s.exerciseName] = s.advice);
+    (data.suggestions || []).forEach((s: any) => suggestions[s.exerciseName] = s.advice);
     const scaling: Record<string, string> = {};
-    data.scaling.forEach((s: any) => scaling[s.exerciseName] = s.advice);
+    (data.scaling || []).forEach((s: any) => scaling[s.exerciseName] = s.advice);
 
     return { ...data, suggestions, scaling };
 }
@@ -336,6 +301,24 @@ export async function getExerciseDagsformAdvice(exerciseName: string, feeling: s
 }
 
 export async function analyzeMemberProgress(logs: WorkoutLog[], name: string, goals?: MemberGoals): Promise<MemberProgressAnalysis> {
+    const progressAnalysisSchema = {
+        type: Type.OBJECT,
+        required: ['strengths', 'improvements', 'actions', 'metrics'],
+        properties: {
+            strengths: { type: Type.STRING },
+            improvements: { type: Type.STRING },
+            actions: { type: Type.ARRAY, items: { type: Type.STRING } },
+            metrics: {
+                type: Type.OBJECT,
+                required: ['strength', 'endurance', 'frequency'],
+                properties: {
+                    strength: { type: Type.NUMBER },
+                    endurance: { type: Type.NUMBER },
+                    frequency: { type: Type.NUMBER }
+                }
+            }
+        }
+    };
     const logStr = JSON.stringify(logs.slice(0, 15));
     const goalStr = goals?.hasSpecificGoals ? goals.selectedGoals.join(', ') : 'Inga satta mål.';
     return await _callGeminiJSON(TEXT_MODEL, Prompts.MEMBER_PROGRESS_PROMPT(name, goalStr, logStr), progressAnalysisSchema);
@@ -363,6 +346,17 @@ export async function generateBusinessActions(logs: WorkoutLog[]): Promise<strin
 }
 
 export async function generateWorkoutDiploma(logData: any): Promise<WorkoutDiploma> {
+    const diplomaSchema = {
+        type: Type.OBJECT,
+        required: ['title', 'subtitle', 'achievement', 'footer', 'imagePrompt'],
+        properties: {
+            title: { type: Type.STRING },
+            subtitle: { type: Type.STRING },
+            achievement: { type: Type.STRING },
+            footer: { type: Type.STRING },
+            imagePrompt: { type: Type.STRING }
+        }
+    };
     const stats = `Distans: ${logData.totalDistance}km, Kcal: ${logData.totalCalories}`;
     const pbText = logData.newPBs?.map((pb: any) => `${pb.exerciseName} (+${pb.diff}kg)`).join(', ') || 'Inga nya PB.';
     const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.DIPLOMA_GENERATOR_PROMPT(logData.workoutTitle, pbText, stats), diplomaSchema);
