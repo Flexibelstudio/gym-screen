@@ -6,13 +6,9 @@ import { useStudio } from '../context/StudioContext';
 import { useAuth } from '../context/AuthContext';
 import { resizeImage } from '../utils/imageUtils';
 
-// --- LOKALA KOMPONENTER FÖR ATT UNDVIKA KRASCH ---
-
 const Spinner = () => (
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary dark:border-white"></div>
 );
-
-// ---------------------------------------------------
 
 interface AIGeneratorScreenProps {
     onWorkoutGenerated: (workout: Workout) => void;
@@ -35,8 +31,6 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
     studioConfig
 }) => {
     const { selectedOrganization } = useStudio();
-    
-    // Determine initial active tab based on prop
     const [activeTab, setActiveTab] = useState<'generate' | 'parse'>(
         initialMode === 'parse' ? 'parse' : 'generate'
     );
@@ -47,35 +41,30 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [generatedWorkout, setGeneratedWorkout] = useState<Workout | null>(null);
     
-    // Image Handling State
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const dropZoneRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
 
-    // Sync state if prop changes
     useEffect(() => {
         if (initialMode === 'parse' || initialMode === 'generate') {
             setActiveTab(initialMode);
         }
     }, [initialMode]);
 
-    // Select first category by default if available
     useEffect(() => {
         if (studioConfig?.customCategories && studioConfig.customCategories.length > 0 && !selectedCategory) {
             setSelectedCategory(studioConfig.customCategories[0]);
         }
     }, [studioConfig]);
 
-    // --- Image Handling Logic ---
     const handleFile = async (file: File) => {
         if (!file.type.startsWith('image/')) {
             setError("Endast bildfiler är tillåtna.");
             return;
         }
-        setIsProcessing(true); // Temporary loading state for resize
+        setIsProcessing(true);
         try {
-            // Resize for optimal AI processing (max 1024px is usually sufficient)
             const base64 = await resizeImage(file, 1024, 1024, 0.8);
             setSelectedImage(base64);
             setError(null);
@@ -99,11 +88,6 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
         setIsDragging(false);
     };
 
-    const handleDragOver = (e: React.DragEvent) => {
-        e.preventDefault(); // Necessary to allow dropping
-        e.stopPropagation();
-    };
-
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         e.stopPropagation();
@@ -114,18 +98,21 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
         }
     };
 
-    // ----------------------------
-
     const handleAction = async () => {
+        if (!selectedOrganization) {
+            setError("Ingen organisation vald. Logga ut och in igen.");
+            return;
+        }
+
         setIsProcessing(true);
         setError(null);
         setGeneratedWorkout(null);
 
         try {
             let workout: Workout;
+            const orgId = selectedOrganization.id;
 
             if (activeTab === 'generate') {
-                // Kombinera kategorins prompt med användarens tillägg
                 let finalPrompt = prompt;
                 if (selectedCategory) {
                     finalPrompt = `Skapa ett pass av typen "${selectedCategory.name}". 
@@ -135,44 +122,24 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                     throw new Error("Du måste välja en kategori eller skriva ett önskemål.");
                 }
 
-                // Generera nytt pass med AI
                 const contextWorkouts = workouts.slice(0, 5); 
-                workout = await generateWorkout(finalPrompt, contextWorkouts);
+                workout = await generateWorkout(finalPrompt, orgId, contextWorkouts);
             } else {
-                // PARSE MODE logic
                 if (selectedImage) {
-                    // Vision capabilities
                     const base64Data = selectedImage.split(',')[1];
-                    workout = await parseWorkoutFromImage(base64Data, prompt);
+                    workout = await parseWorkoutFromImage(base64Data, orgId, prompt);
                 } else {
                     if (!prompt.trim()) throw new Error("Klistra in text eller ladda upp en bild för att tolka.");
-                    // Text interpretation
-                    workout = await parseWorkoutFromText(prompt);
+                    workout = await parseWorkoutFromText(prompt, orgId);
                 }
             }
             
-            // --- SAFETY CHECK ---
             if (!workout) throw new Error("Inget pass returnerades.");
 
             const safeWorkout: Workout = {
                 ...workout,
-                id: workout.id || `ai-${Date.now()}`,
-                organizationId: selectedOrganization?.id || 'unknown-org',
-                title: workout.title || (activeTab === 'parse' ? 'Tolkat Pass' : 'Namnlöst AI-pass'),
-                isPublished: false,
-                isFavorite: false,
-                createdAt: Date.now(),
+                organizationId: orgId,
                 category: activeTab === 'generate' && selectedCategory ? selectedCategory.name : (workout.category || 'AI Genererat'),
-                blocks: (workout.blocks || []).map((block: WorkoutBlock, bIdx: number) => ({
-                    ...block,
-                    id: block.id || `block-${Date.now()}-${bIdx}`,
-                    title: block.title || 'Block',
-                    exercises: (block.exercises || []).map((ex: Exercise, eIdx: number) => ({
-                        ...ex,
-                        id: ex.id || `ex-${Date.now()}-${bIdx}-${eIdx}`,
-                        name: ex.name || 'Övning'
-                    }))
-                }))
             };
 
             setGeneratedWorkout(safeWorkout);
@@ -203,10 +170,7 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                 </p>
             </div>
 
-            {/* Input Section */}
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-xl relative overflow-hidden transition-colors">
-                
-                {/* Tabs */}
                 <div className="flex gap-4 mb-6 border-b border-gray-200 dark:border-gray-800 pb-4">
                     <button 
                         onClick={() => setActiveTab('generate')}
@@ -233,7 +197,6 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                     </div>
                 )}
                 
-                {/* CATEGORY SELECTOR (Only in generate mode) */}
                 {activeTab === 'generate' && studioConfig?.customCategories && (
                     <div className="mb-6">
                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-3">
@@ -258,7 +221,6 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                     </div>
                 )}
 
-                {/* DROP ZONE (Only in parse mode) */}
                 {activeTab === 'parse' && (
                     <div 
                         ref={dropZoneRef}
@@ -288,7 +250,6 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                                 <button 
                                     onClick={() => { setSelectedImage(null); if(fileInputRef.current) fileInputRef.current.value = ''; }}
                                     className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition-colors"
-                                    title="Ta bort bild"
                                 >
                                     <CloseIcon className="w-4 h-4" />
                                 </button>
@@ -303,9 +264,6 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                                 <p className="text-gray-700 dark:text-gray-300 font-bold text-sm">
                                     {isDragging ? 'Släpp bilden här!' : 'Klicka eller dra en bild hit'}
                                 </p>
-                                <p className="text-gray-500 dark:text-gray-400 text-xs mt-1">
-                                    T.ex. foto på whiteboard eller anteckningsblock
-                                </p>
                             </div>
                         )}
                     </div>
@@ -319,87 +277,39 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
                         placeholder={activeTab === 'generate' 
-                            ? "Lägg till egna önskemål här, t.ex. specifik utrustning, tidslängd eller fokusområde." 
-                            : (selectedImage ? "T.ex. 'Ignorera uppvärmningen' eller 'Det är 4 varv'" : "Klistra in ditt pass här...\n\nUppvärmning:\n...")}
-                        className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-xl border border-gray-200 dark:border-gray-700 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none resize-none min-h-[120px] text-base transition-colors placeholder-gray-400 dark:placeholder-gray-500"
+                            ? "Lägg till egna önskemål här..." 
+                            : "Klistra in ditt pass här..."}
+                        className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-xl border border-gray-200 dark:border-gray-700 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none resize-none min-h-[120px] text-base transition-colors"
                         disabled={isProcessing}
                     />
                 </div>
                 
-                <div className="mt-6 flex justify-between items-center">
-                    {activeTab === 'generate' ? (
-                        <div className="text-xs text-gray-500 italic hidden sm:block">
-                            AI:n använder din valda kategori som grund.
-                        </div>
-                    ) : (
-                        <span className="text-xs text-gray-500 italic">Jag hittar automatiskt övningar, reps och tider.</span>
-                    )}
-                    
+                <div className="mt-6 flex justify-end">
                     <button
                         onClick={handleAction}
                         disabled={isProcessing || (activeTab === 'generate' && !selectedCategory && !prompt.trim()) || (activeTab === 'parse' && !prompt.trim() && !selectedImage)}
                         className={`
-                            ${activeTab === 'generate' ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500'}
-                            text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 w-full sm:w-auto justify-center
+                            ${activeTab === 'generate' ? 'bg-gradient-to-r from-purple-600 to-pink-600' : 'bg-gradient-to-r from-blue-600 to-indigo-600'}
+                            text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all transform active:scale-95 disabled:opacity-50 flex items-center gap-2
                         `}
                     >
-                        {activeTab === 'generate' ? <SparklesIcon className="w-5 h-5" /> : <DocumentTextIcon className="w-5 h-5" />}
-                        {activeTab === 'generate' ? 'Skapa Pass med AI' : (selectedImage ? 'Tolka Bild' : 'Tolka Text')}
+                        {activeTab === 'generate' ? 'Skapa Pass med AI' : 'Tolka'}
                     </button>
                 </div>
                 
-                {error && (
-                    <div className="mt-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-200 rounded-lg text-sm text-center">
-                        {error}
-                    </div>
-                )}
+                {error && <div className="mt-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm text-center">{error}</div>}
             </div>
 
-            {/* Preview Section */}
             {generatedWorkout && (
                 <div className="animate-slide-up space-y-6">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-                            <span className="bg-blue-100 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300 px-3 py-1 rounded-lg text-sm uppercase tracking-wider font-extrabold border border-blue-200 dark:border-blue-500/30">Förslag:</span> 
-                            <span className="truncate max-w-[300px] sm:max-w-md">{generatedWorkout.title}</span>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                            Förslag: {generatedWorkout.title}
                         </h3>
                         <div className="flex gap-4 w-full sm:w-auto">
-                            <button 
-                                onClick={() => setGeneratedWorkout(null)} 
-                                className="text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 px-4 py-3 font-medium transition-colors"
-                            >
-                                Kasta
-                            </button>
-                            <button 
-                                onClick={handleAccept} 
-                                className="flex-grow sm:flex-grow-0 bg-white dark:bg-white text-black hover:bg-gray-100 font-black py-3 px-8 rounded-xl shadow-xl transition-all transform hover:scale-105 flex items-center justify-center gap-2"
-                            >
-                                <span>Använd detta pass</span>
-                                <span className="text-lg">&rarr;</span>
-                            </button>
+                            <button onClick={() => setGeneratedWorkout(null)} className="text-gray-500 hover:text-red-500 px-4 py-3 font-medium transition-colors">Kasta</button>
+                            <button onClick={handleAccept} className="flex-grow sm:flex-grow-0 bg-white dark:bg-white text-black hover:bg-gray-100 font-black py-3 px-8 rounded-xl shadow-xl transition-all transform hover:scale-105">Använd detta pass &rarr;</button>
                         </div>
-                    </div>
-
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                        {generatedWorkout.blocks.map((block, i) => (
-                            <div key={block.id || i} className="bg-white dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-5 hover:border-gray-300 dark:hover:border-gray-600 transition-colors shadow-sm">
-                                <div className="flex justify-between items-start mb-3">
-                                    <h4 className="font-bold text-purple-700 dark:text-purple-300 text-lg">{block.title}</h4>
-                                    <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded uppercase font-bold tracking-wider">{block.settings?.mode || 'Standard'}</span>
-                                </div>
-                                <ul className="space-y-2">
-                                    {(block.exercises || []).map((ex, j) => (
-                                        <li key={ex.id || j} className="text-sm text-gray-700 dark:text-gray-300 flex items-start gap-2">
-                                            <DumbbellIcon className="w-4 h-4 mt-0.5 text-gray-400 dark:text-gray-500 shrink-0" />
-                                            <span>
-                                                <strong className="text-gray-900 dark:text-white">{ex.name}</strong>
-                                                {ex.reps && <span className="text-gray-500 mx-1">• {ex.reps}</span>}
-                                            </span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        ))}
                     </div>
                 </div>
             )}
