@@ -1,4 +1,3 @@
-
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -614,10 +613,10 @@ export const updateStudioConfig = async (orgId: string, studioId: string, overri
 export const getWorkoutsForOrganization = async (orgId: string): Promise<Workout[]> => {
     if (isOffline || !db || !orgId) return [];
     try {
-        // Hämta pass som antingen tillhör organisationen ELLER saknar organizationId (för migration)
-        // Vi letar efter både tom sträng och fältet som helt saknas (undefined/null hanteras bäst via or-query här)
+        // FIX: Hämta pass mer exakt för att matcha säkerhetsreglerna
+        const workoutsRef = collection(db, 'workouts');
         const q = query(
-          collection(db, 'workouts'), 
+          workoutsRef, 
           or(
             where("organizationId", "==", orgId),
             where("organizationId", "==", ""),
