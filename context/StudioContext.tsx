@@ -78,6 +78,21 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 // 1. Hantera Roll-baserad laddning
                 if (userData?.role === 'systemowner') {
                     fetchedOrgs = await getOrganizations();
+                    // Systemägare: prioritera redan vald org (från state eller localStorage) framför profil-ID
+                    const storedOrgJSON = localStorage.getItem(LOCAL_STORAGE_ORG_KEY);
+                    const storedOrgData = safeJsonParse(storedOrgJSON);
+                    
+                    if (selectedOrganization) {
+                        orgToUse = selectedOrganization;
+                    } else if (storedOrgData?.id) {
+                        orgToUse = await getOrganizationById(storedOrgData.id);
+                    }
+                    
+                    // Fallback för Systemägare: Om inget valts i localStorage, kolla profilens ID.
+                    // Men gissa ALDRIG fetchedOrgs[0].
+                    if (!orgToUse && userData?.organizationId) {
+                        orgToUse = await getOrganizationById(userData.organizationId);
+                    }
                 } else if (userData?.organizationId) {
                     const org = await getOrganizationById(userData.organizationId);
                     if (org) {
@@ -110,11 +125,6 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 if (isImpersonating && selectedOrganization) {
                     orgToUse = selectedOrganization;
                 }
-
-                // Fallback för Systemägare som inte valt org än
-                if (!orgToUse && fetchedOrgs.length > 0 && userData?.role === 'systemowner') {
-                    orgToUse = selectedOrganization || fetchedOrgs[0];
-                }
                 
                 setAllOrganizations(fetchedOrgs);
 
@@ -145,7 +155,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                             }
                         }
                     }
-                } else if (!isStudioMode) {
+                } else {
+                    // Ingen organisation hittades att auto-ladda. 
                     setSelectedOrganization(null);
                     setAllStudios([]);
                     setSelectedStudio(null);

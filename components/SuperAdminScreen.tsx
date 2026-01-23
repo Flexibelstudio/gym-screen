@@ -340,7 +340,16 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     };
 
     const handleNavClick = (tabId: AdminTab) => {
-        setActiveTab(tabId);
+        if (tabId === activeTab) {
+            // Återställ vyn om användaren klickar på den redan aktiva fliken
+            if (tabId === 'pass-program') {
+                setPassProgramSubView('hub');
+                setWorkoutToEdit(null);
+                setIsNewDraft(false);
+            }
+        } else {
+            setActiveTab(tabId);
+        }
         setIsMobileMenuOpen(false);
     };
 
