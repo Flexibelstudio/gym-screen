@@ -68,6 +68,7 @@ const App: React.FC = () => {
 
   const page = history[history.length - 1];
 
+  // Global laddning inkluderar nu studioLoading för att täcka inläsning av organisationens data
   const isGlobalLoading = authLoading || studioLoading || (currentUser && !userData && !isStudioMode);
   
   const isOrgMismatch = useMemo(() => {
@@ -862,7 +863,8 @@ const App: React.FC = () => {
     );
   }
 
-  if (isGlobalLoading && !isStudioMode) {
+  // Guard för alla lägen som säkerställer att vi väntar in organisationens data
+  if (isGlobalLoading) {
     return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>

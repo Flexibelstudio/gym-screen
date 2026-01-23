@@ -88,7 +88,8 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                         orgToUse = await getOrganizationById(storedOrgData.id);
                     }
                     
-                    // Fallback: Om inget valts, använd profil-org. Men vi gissar ALDRIG på fetchedOrgs[0] längre.
+                    // Fallback för Systemägare: Om inget valts i localStorage, kolla profilens ID.
+                    // Men gissa ALDRIG fetchedOrgs[0].
                     if (!orgToUse && userData?.organizationId) {
                         orgToUse = await getOrganizationById(userData.organizationId);
                     }
@@ -155,7 +156,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                         }
                     }
                 } else {
-                    // Om vi inte kunde landa i en org automatiskt, nollställ allt men fortsätt
+                    // Ingen organisation hittades att auto-ladda. 
                     setSelectedOrganization(null);
                     setAllStudios([]);
                     setSelectedStudio(null);
