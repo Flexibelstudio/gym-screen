@@ -69,10 +69,13 @@ const App: React.FC = () => {
   const page = history[history.length - 1];
 
   const isGlobalLoading = authLoading || (currentUser && !userData && !isStudioMode);
+  
   const isOrgMismatch = useMemo(() => {
       if (!currentUser || !userData?.organizationId || !selectedOrganization) return false;
+      // Systemägare ska alltid kunna se vilken org som helst utan mismatch-spärr
+      if (role === 'systemowner') return false;
       return userData.organizationId !== selectedOrganization.id;
-  }, [userData?.organizationId, selectedOrganization?.id, currentUser]);
+  }, [userData?.organizationId, selectedOrganization?.id, currentUser, role]);
 
   useEffect(() => {
     if (!authLoading && !isStudioMode && currentUser) {
@@ -365,7 +368,6 @@ const App: React.FC = () => {
   };
 
   const handleSaveAndNavigate = async (workout: Workout, startFirstBlock?: boolean) => {
-    // VIKTIGT: När vi sparar ett pass manuellt via byggaren ska det sluta vara ett temporärt utkast.
     const workoutToSave = { ...workout, isMemberDraft: false };
     const savedWorkout = await saveWorkout(workoutToSave);
     
@@ -381,7 +383,6 @@ const App: React.FC = () => {
   };
 
   const handleSaveOnly = async (workout: Workout) => {
-      // VIKTIGT: Samma här, manuell sparning = ej utkast längre
       return await saveWorkout({ ...workout, isMemberDraft: false });
   };
   
@@ -532,12 +533,10 @@ const App: React.FC = () => {
       return;
     }
 
-    // --- AUTO-ADVANCE CHECK ---
     if (activeWorkout && activeBlock && activeBlock.autoAdvance) {
         const blockIndex = activeWorkout.blocks.findIndex(b => b.id === activeBlock.id);
         const nextBlockInWorkout = activeWorkout.blocks[blockIndex + 1];
         if (nextBlockInWorkout) {
-            // Se till att TimerScreen rensas och startas om med nya blocket genom att nollställa tillfälligt
             setActiveBlock(null);
             setTimeout(() => {
                 setActiveBlock(nextBlockInWorkout);
@@ -863,7 +862,7 @@ const App: React.FC = () => {
     );
   }
 
-  if (isOrgMismatch && !isGlobalLoading && !isStudioMode) {
+  if (isOrgMismatch && !isStudioMode) {
       return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -1058,7 +1057,7 @@ const App: React.FC = () => {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10010]"
+                      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-10010"
                       onClick={() => setMobileViewData(null)}
                   />
                   <motion.div 
@@ -1066,7 +1065,7 @@ const App: React.FC = () => {
                       animate={{ y: '0%', opacity: 1 }}
                       exit={{ y: '100%', opacity: 0 }}
                       transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                      className="fixed inset-x-0 top-[8vh] bottom-0 z-[10020] px-1 pointer-events-none"
+                      className="fixed inset-x-0 top-[8vh] bottom-0 z-10020 px-1 pointer-events-none"
                   >
                       <div className="bg-white dark:bg-gray-900 rounded-t-[2.5rem] h-full max-w-2xl mx-auto shadow-2xl overflow-hidden flex flex-col pointer-events-auto border-t border-gray-200 dark:border-gray-800">
                           <div className="flex-shrink-0 p-4 flex justify-center items-center relative">
@@ -1116,7 +1115,7 @@ const App: React.FC = () => {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10030]"
+                      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-10030"
                       onClick={() => handleCancelLog(false)}
                   />
                   <motion.div 
@@ -1124,7 +1123,7 @@ const App: React.FC = () => {
                       animate={{ y: '0%', opacity: 1 }}
                       exit={{ y: '100%', opacity: 0 }}
                       transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                      className="fixed inset-x-0 top-[5vh] bottom-[5vh] z-[10040] px-1 pointer-events-none"
+                      className="fixed inset-x-0 top-[5vh] bottom-[5vh] z-10040 px-1 pointer-events-none"
                   >
                       <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] h-full max-w-2xl mx-auto shadow-2xl overflow-hidden flex flex-col pointer-events-auto">
                           <WorkoutLogScreen 
