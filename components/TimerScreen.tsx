@@ -2,13 +2,13 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout } from '../types';
-import { useWorkoutTimer, playBeep, getAudioContext } from '../hooks/useWorkoutTimer';
+import { useWorkoutTimer, playBeep, getAudioContext, calculateBlockDuration } from '../hooks/useWorkoutTimer';
 import { useWorkout } from '../context/WorkoutContext';
 import { saveRace, updateOrganizationActivity } from '../services/firebaseService';
 import { Confetti } from './WorkoutCompleteModal';
 import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmationModal, RaceFinishAnimation, PauseOverlay } from './timer/TimerModals';
 import { ParticipantFinishList } from './timer/ParticipantFinishList';
-import { DumbbellIcon, InformationCircleIcon, LightningIcon } from './icons';
+import { DumbbellIcon, InformationCircleIcon, LightningIcon, SparklesIcon, ChevronRightIcon } from './icons';
 
 // --- Constants ---
 const HYROX_RIGHT_PANEL_WIDTH = '450px';
@@ -62,7 +62,43 @@ const formatReps = (reps: string | undefined): string => {
     return trimmed;
 };
 
+const formatSeconds = (totalSeconds: number) => {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+};
+
 // --- Visualization Components ---
+
+const ComingUpBanner: React.FC<{ block: WorkoutBlock; transitionTime?: number; nextBlockTitle: string }> = ({ block, transitionTime, nextBlockTitle }) => {
+    const hasTransition = transitionTime && transitionTime > 0;
+    return (
+        <motion.div 
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] w-full max-w-2xl px-6"
+        >
+            <div className="bg-black/80 backdrop-blur-2xl rounded-[2.5rem] p-6 border-2 border-white/20 shadow-2xl flex items-center justify-between text-white">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
+                        <SparklesIcon className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                        <span className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-0.5">NÄSTA</span>
+                        <h4 className="text-xl font-black uppercase truncate max-w-[250px]">
+                            {hasTransition ? `VILA (${transitionTime}s)` : nextBlockTitle}
+                        </h4>
+                    </div>
+                </div>
+                <div className="text-right">
+                    <span className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-0.5">FÖLJT AV</span>
+                    <p className="text-sm font-black text-primary uppercase truncate max-w-[150px]">{hasTransition ? nextBlockTitle : 'KLART'}</p>
+                </div>
+            </div>
+        </motion.div>
+    );
+};
 
 const NextStartIndicator: React.FC<{
     groupName: string;
@@ -179,11 +215,11 @@ const StandardListView: React.FC<{
     }
 
     return (
-        <div className={`w-full max-w-6xl h-full flex flex-col ${gap} overflow-y-auto pb-4`}>
+        <div className={`w-full max-w-6xl flex-1 flex flex-col ${gap} overflow-y-auto pb-4 custom-scrollbar`}>
             {exercises.map((ex) => (
                 <div 
                     key={ex.id} 
-                    className={`flex-1 min-h-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl ${padding} flex flex-col justify-center border-l-[10px] shadow-lg transition-all relative group`}
+                    className={`flex-1 min-h-[100px] bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl ${padding} flex flex-col justify-center border-l-[10px] shadow-lg transition-all relative group`}
                     style={{ borderLeftColor: `rgb(${timerStyle.pulseRgb})` }}
                 >
                     <div className="flex justify-between items-center w-full gap-6">
@@ -277,7 +313,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     setCompletionInfo, setIsRegisteringHyroxTime,
     setIsBackButtonHidden, followMeShowImage, organization, onBackToGroups
 }) => {
-  const { activeWorkout } = useWorkout();
+  const { activeWorkout, setActiveWorkout } = useWorkout();
   const { 
     status, currentTime, currentPhaseDuration, currentRound, currentExercise, nextExercise,
     start, pause, resume, reset, 
@@ -292,16 +328,128 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const hideTimeoutRef = React.useRef<number | null>(null);
   const wakeLockRef = useRef<any>(null);
 
-  const hasStartedRef = useRef(false);
+  // --- TRANSITION LOGIC ---
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [transitionTimeLeft, setTransitionTimeLeft] = useState(0);
+  const transitionIntervalRef = useRef<number | null>(null);
+
+  const nextBlock = useMemo(() => {
+    if (!activeWorkout || !block.autoAdvance) return null;
+    const index = activeWorkout.blocks.findIndex(b => b.id === block.id);
+    if (index === -1 || index >= activeWorkout.blocks.length - 1) return null;
+    return activeWorkout.blocks[index + 1];
+  }, [activeWorkout, block]);
+
+  // Calculate current chain stats
+  const chainInfo = useMemo(() => {
+      if (!activeWorkout) return null;
+      const index = activeWorkout.blocks.findIndex(b => b.id === block.id);
+      if (index === -1) return null;
+
+      // Find start of chain
+      let startIdx = index;
+      while (startIdx > 0 && activeWorkout.blocks[startIdx-1].autoAdvance) {
+          startIdx--;
+      }
+
+      // Find end of chain
+      let endIdx = index;
+      while (endIdx < activeWorkout.blocks.length - 1 && activeWorkout.blocks[endIdx].autoAdvance) {
+          endIdx++;
+      }
+
+      const chain = activeWorkout.blocks.slice(startIdx, endIdx + 1);
+      
+      let totalDuration = 0;
+      let elapsedTimeBeforeCurrent = 0;
+      
+      chain.forEach((b, i) => {
+          const bDur = calculateBlockDuration(b.settings, b.exercises.length);
+          totalDuration += bDur;
+          
+          if (i < index - startIdx) {
+              elapsedTimeBeforeCurrent += bDur;
+          }
+
+          // Add transition times except for the last one in chain
+          if (i < chain.length - 1) {
+              const transTime = activeWorkout.blocks[startIdx + i].transitionTime || 0;
+              totalDuration += transTime;
+              if (i < index - startIdx) {
+                  elapsedTimeBeforeCurrent += transTime;
+              }
+          }
+      });
+
+      return {
+          totalDuration,
+          elapsedTimeBeforeCurrent,
+          totalChainTime: totalDuration,
+          currentBlockInChain: index - startIdx + 1,
+          totalBlocksInChain: chain.length
+      };
+  }, [activeWorkout, block]);
+
+  const totalChainElapsed = useMemo(() => {
+      if (!chainInfo) return 0;
+      return chainInfo.elapsedTimeBeforeCurrent + totalTimeElapsed;
+  }, [chainInfo, totalTimeElapsed]);
+
+  const handleStartNextBlock = useCallback(() => {
+      if (transitionIntervalRef.current) clearInterval(transitionIntervalRef.current);
+      setIsTransitioning(false);
+      
+      if (nextBlock) {
+          // Tell the parent to switch block and start without prep
+          onFinish({ isNatural: true, time: totalTimeElapsed }); 
+      }
+  }, [nextBlock, totalTimeElapsed, onFinish]);
+
   useEffect(() => {
-    if (!hasStartedRef.current && status === TimerStatus.Idle) {
+      if (status === TimerStatus.Finished && nextBlock && block.autoAdvance) {
+          const waitTime = block.transitionTime || 0;
+          if (waitTime === 0) {
+              handleStartNextBlock();
+          } else {
+              setIsTransitioning(true);
+              setTransitionTimeLeft(waitTime);
+              transitionIntervalRef.current = window.setInterval(() => {
+                  setTransitionTimeLeft(prev => {
+                      if (prev <= 1) {
+                          handleStartNextBlock();
+                          return 0;
+                      }
+                      return prev - 1;
+                  });
+              }, 1000);
+          }
+      }
+      return () => { if (transitionIntervalRef.current) clearInterval(transitionIntervalRef.current); };
+  }, [status, nextBlock, block.autoAdvance, block.transitionTime, handleStartNextBlock]);
+
+  // --- PRE-START LOGIC ---
+  const lastBlockIdRef = useRef<string | null>(null);
+  const hasStartedRef = useRef(false);
+  
+  useEffect(() => {
+    // Reset flag if block ID changes (essential for auto-advance)
+    if (lastBlockIdRef.current !== block.id) {
+        hasStartedRef.current = false;
+        lastBlockIdRef.current = block.id;
+    }
+
+    if (!hasStartedRef.current && (status === TimerStatus.Idle || status === TimerStatus.Finished)) {
         if (organization) updateOrganizationActivity(organization.id);
-        start();
+        
+        // Skip prep if it's NOT the first block in the entire workout
+        const isFirstBlockInWorkout = !activeWorkout || activeWorkout.blocks[0].id === block.id;
+        start({ skipPrep: !isFirstBlockInWorkout });
+        
         hasStartedRef.current = true;
         onHeaderVisibilityChange(false);
         setIsBackButtonHidden(true);
     }
-  }, [start, status, onHeaderVisibilityChange, setIsBackButtonHidden, organization]);
+  }, [start, status, onHeaderVisibilityChange, setIsBackButtonHidden, organization, activeWorkout, block.id]);
 
   const [finishedParticipants, setFinishedParticipants] = useState<Record<string, FinishData>>({});
   const [savingParticipant, setSavingParticipant] = useState<string | null>(null);
@@ -392,12 +540,12 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   const hasCalledFinishRef = useRef(false);
   useEffect(() => {
-    if (status === TimerStatus.Finished && !isHyroxRace && block.settings.mode !== TimerMode.Stopwatch) {
+    if (status === TimerStatus.Finished && !isHyroxRace && block.settings.mode !== TimerMode.Stopwatch && !block.autoAdvance) {
         if (hasCalledFinishRef.current) return;
         const timerId = setTimeout(() => { onFinish({ isNatural: true, time: totalTimeElapsed }); hasCalledFinishRef.current = true; }, 500);
         return () => clearTimeout(timerId);
     } else if (status !== TimerStatus.Finished) { hasCalledFinishRef.current = false; }
-  }, [status, isHyroxRace, block.settings.mode, onFinish, totalTimeElapsed]);
+  }, [status, isHyroxRace, block.settings.mode, block.autoAdvance, onFinish, totalTimeElapsed]);
 
   const handleConfirmReset = () => {
     setShowResetConfirmation(false);
@@ -604,6 +752,43 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   const currentIntervalInLap = (completedWorkIntervals % effectiveIntervalsPerLap) + 1;
 
+  // Render Transition View
+  if (isTransitioning) {
+      return (
+          <div className="fixed inset-0 bg-gradient-to-br from-purple-800 to-indigo-950 flex flex-col items-center justify-center p-8 text-white z-[200]">
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="text-center space-y-12 max-w-4xl"
+              >
+                  <div className="space-y-4">
+                      <span className="inline-block px-8 py-2 rounded-full bg-white/10 border border-white/20 text-2xl font-black uppercase tracking-[0.3em] mb-4">VILA</span>
+                      <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tight opacity-70">Gör er redo för</h2>
+                      <h1 className="text-5xl md:text-8xl font-black text-primary uppercase tracking-tighter drop-shadow-2xl">
+                          {nextBlock?.title}
+                      </h1>
+                  </div>
+
+                  <div className="relative flex flex-col items-center">
+                       <div className="font-mono text-[12rem] md:text-[18rem] font-black leading-none tabular-nums animate-pulse drop-shadow-2xl">
+                          {formatSeconds(transitionTimeLeft)}
+                       </div>
+                  </div>
+
+                  <div className="flex flex-col items-center gap-8">
+                       <button 
+                          onClick={handleStartNextBlock}
+                          className="bg-white text-indigo-900 font-black py-6 px-16 rounded-[2.5rem] text-3xl shadow-[0_20px_50px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95 transition-all uppercase tracking-widest border-b-8 border-gray-300"
+                       >
+                          Starta Nu
+                       </button>
+                       <button onClick={() => onFinish({ isNatural: false })} className="text-white/40 font-bold uppercase tracking-widest hover:text-white transition-colors">Avsluta passet</button>
+                  </div>
+              </motion.div>
+          </div>
+      );
+  }
+
   return (
     <div 
         className={`fixed inset-0 w-full h-full overflow-hidden transition-colors duration-500 ${showFullScreenColor ? `${timerStyle.bg}` : 'bg-gray-100 dark:bg-black'}`}
@@ -644,6 +829,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         )}
         {showResetConfirmation && <RaceResetConfirmationModal onConfirm={handleConfirmReset} onCancel={() => setShowResetConfirmation(false)} onExit={() => onFinish({ isNatural: false })} />}
         {showBackToPrepConfirmation && <RaceBackToPrepConfirmationModal onConfirm={onBackToGroups} onCancel={() => setShowBackToPrepConfirmation(false)} />}
+        
+        {/* Next Block Banner */}
+        {block.autoAdvance && nextBlock && status === TimerStatus.Running && currentTime <= 30 && (
+            <ComingUpBanner block={block} transitionTime={block.transitionTime} nextBlockTitle={nextBlock.title} />
+        )}
       </AnimatePresence>
 
       <AnimatePresence>
@@ -671,7 +861,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'} 
               ${showFullScreenColor 
                   ? `top-[12%] min-h-[50%] justify-center` 
-                  : `pt-12 pb-12 top-1 min-h-[22%] mx-4 sm:mx-6 rounded-[2.5rem] shadow-2xl ${timerStyle.bg}`
+                  : `pt-10 pb-10 top-4 min-h-[22%] mx-4 sm:mx-6 rounded-[2.5rem] shadow-2xl ${timerStyle.bg}`
               }`}
           style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
       >
@@ -690,12 +880,19 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                  </span>
             </div>
             
-            {block.settings.mode !== TimerMode.Stopwatch && (
-                <div className="w-[80%] max-w-4xl h-5 bg-black/20 rounded-full mt-8 overflow-hidden border border-white/10 p-1">
-                    <div 
-                        className="h-full bg-white rounded-full transition-[width] duration-1000 ease-linear" 
-                        style={{ width: `${progress}%` }} 
-                    />
+            {/* Total Chain Progress */}
+            {chainInfo && (
+                <div className="w-[80%] max-w-4xl mt-6">
+                    <div className="flex justify-between items-end mb-2 px-2">
+                        <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Del {chainInfo.currentBlockInChain} av {chainInfo.totalBlocksInChain}</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Totaltid: {formatSeconds(totalChainElapsed)} / {formatSeconds(chainInfo.totalChainTime)}</span>
+                    </div>
+                    <div className="h-5 bg-black/20 rounded-full overflow-hidden border border-white/10 p-1">
+                        <div 
+                            className="h-full bg-white rounded-full transition-[width] duration-1000 ease-linear shadow-[0_0_15px_rgba(255,255,255,0.5)]" 
+                            style={{ width: `${(totalChainElapsed / chainInfo.totalChainTime) * 100}%` }} 
+                        />
+                    </div>
                 </div>
             )}
         </div>
@@ -705,45 +902,45 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         </div>
       </div>
 
-      <div className={`absolute bottom-0 left-0 flex flex-col items-center justify-start px-4 z-0 
-          ${showFullScreenColor ? 'top-[65%]' : 'top-[28%]'} 
+      <div className={`absolute bottom-0 left-0 flex flex-col items-center justify-start px-4 z-0 pt-8
+          ${showFullScreenColor ? 'top-[65%]' : 'top-[31%]'} 
           ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'}`}>
           
-          <AnimatePresence>
-              {isHyroxRace && groupForCountdownDisplay && (
-                  <NextStartIndicator 
-                      groupName={groupForCountdownDisplay.name}
-                      timeLeft={timeForCountdownDisplay}
-                      groupsLeft={remainingGroupsCount}
-                  />
-              )}
-          </AnimatePresence>
+          <div className="w-full max-w-7xl flex flex-col items-center gap-8 h-full">
+              <AnimatePresence>
+                  {isHyroxRace && groupForCountdownDisplay && (
+                      <NextStartIndicator 
+                          groupName={groupForCountdownDisplay.name}
+                          timeLeft={timeForCountdownDisplay}
+                          groupsLeft={remainingGroupsCount}
+                      />
+                  )}
+              </AnimatePresence>
 
-          {block.showDescriptionInTimer && block.setupDescription && (
-              <motion.div 
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mb-4 px-6 py-4 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 max-w-5xl flex items-center gap-4 shadow-2xl z-10 rounded-[2rem]"
-              >
-                  <div className="bg-primary/10 p-2 rounded-xl">
-                    <InformationCircleIcon className="w-6 h-6 text-primary shrink-0" />
-                  </div>
-                  <p className="text-gray-900 dark:text-white text-xl md:text-2xl font-black leading-tight">
-                      {block.setupDescription}
-                  </p>
-              </motion.div>
-          )}
-
-          <div className="w-full flex justify-center items-start h-full pt-4"> 
-              {block.followMe ? (
-                  <FollowMeView exercise={currentExercise} nextExercise={nextExercise} timerStyle={timerStyle} status={status} />
-              ) : (
-                  !isFreestanding && (
-                      <div className="w-full flex flex-col items-center gap-6 max-w-7xl h-full">
-                          <StandardListView exercises={block.exercises} timerStyle={timerStyle} />
+              {block.showDescriptionInTimer && block.setupDescription && (
+                  <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="px-8 py-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full max-w-5xl flex items-center gap-6 shadow-2xl z-10 rounded-[2.5rem]"
+                  >
+                      <div className="bg-primary/10 p-3 rounded-2xl">
+                        <InformationCircleIcon className="w-8 h-8 text-primary shrink-0" />
                       </div>
-                  )
+                      <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight">
+                          {block.setupDescription}
+                      </p>
+                  </motion.div>
               )}
+
+              <div className="w-full flex justify-center items-start flex-grow"> 
+                  {block.followMe ? (
+                      <FollowMeView exercise={currentExercise} nextExercise={nextExercise} timerStyle={timerStyle} status={status} />
+                  ) : (
+                      !isFreestanding && (
+                          <StandardListView exercises={block.exercises} timerStyle={timerStyle} />
+                      )
+                  )}
+              </div>
           </div>
       </div>
 
@@ -781,11 +978,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           </div>
       )}
 
-      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[28%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
+      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[31%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
             {status === TimerStatus.Idle || status === TimerStatus.Finished ? (
                 <>
                     <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-500 transition-colors text-xl backdrop-blur-md border-2 border-white/20">TILLBAKA</button>
-                    <button onClick={start} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50">STARTA</button>
+                    <button onClick={() => start()} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50">STARTA</button>
                 </>
             ) : status === TimerStatus.Paused ? (
                 <button onClick={resume} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-green-400 transition-colors text-xl border-2 border-green-400">FORTSÄTT</button>

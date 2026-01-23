@@ -68,7 +68,6 @@ const App: React.FC = () => {
 
   const page = history[history.length - 1];
 
-  // Vänta med att visa innehåll tills profilen OCH organisationen är laddad
   const isGlobalLoading = authLoading || (currentUser && !userData && !isStudioMode);
   const isOrgMismatch = useMemo(() => {
       if (!currentUser || !userData?.organizationId || !selectedOrganization) return false;
@@ -159,11 +158,9 @@ const App: React.FC = () => {
   const inactivityTimerRef = useRef<number | null>(null);
   const [profileEditTrigger, setProfileEditTrigger] = useState(0);
 
-  // Dynamically update favicon and apple-touch-icon based on organization branding
   useEffect(() => {
     const faviconUrl = selectedOrganization?.faviconUrl;
     if (faviconUrl) {
-      // Update browser tab icon
       let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
       if (!link) {
         link = document.createElement('link');
@@ -172,7 +169,6 @@ const App: React.FC = () => {
       }
       link.href = faviconUrl;
 
-      // Update PWA/iOS homescreen icon
       let appleLink: HTMLLinkElement | null = document.querySelector("link[rel='apple-touch-icon']");
       if (!appleLink) {
         appleLink = document.createElement('apple-touch-icon');
@@ -332,7 +328,6 @@ const App: React.FC = () => {
 
   const handleReturnToAdminRequest = () => {
       if (currentUser?.isAnonymous) {
-          // Om vi är helt anonyma, logga ut så vi ser inloggningssidan
           signOut();
       } else {
           setReAuthPurpose('admin');
@@ -495,7 +490,7 @@ const App: React.FC = () => {
   }
   
   const handleWorkoutInterpretedFromNote = (workout: Workout) => {
-    setActiveWorkout({ ...workout }); // Option 2: Remove isMemberDraft flag
+    setActiveWorkout({ ...workout }); 
     setIsEditingNewDraft(true);
     navigateTo(Page.SimpleWorkoutBuilder);
   };
@@ -513,20 +508,34 @@ const App: React.FC = () => {
   const handleTimerFinish = useCallback((finishData: { isNatural?: boolean; time?: number, raceId?: string } = {}) => {
     const { isNatural = false, time, raceId } = finishData;
 
-    // Om vi har ett raceId betyder det att ett lopp precis slutförts manuellt och sparats.
     if (raceId) {
         setIsBackButtonHidden(false);
         setActiveRaceId(raceId);
-        // Använd navigateReplace för att ta bort "Timer" från historikstacken
         navigateReplace(Page.HyroxRaceDetail);
         return;
     }
 
     if (completionInfo) return; 
+    
     if (!isNatural) {
       handleBack();
       return;
     }
+
+    // --- AUTO-ADVANCE CHECK ---
+    if (activeWorkout && activeBlock && activeBlock.autoAdvance) {
+        const blockIndex = activeWorkout.blocks.findIndex(b => b.id === activeBlock.id);
+        const nextBlockInWorkout = activeWorkout.blocks[blockIndex + 1];
+        if (nextBlockInWorkout) {
+            // Se till att TimerScreen rensas och startas om med nya blocket genom att nollställa tillfälligt
+            setActiveBlock(null);
+            setTimeout(() => {
+                setActiveBlock(nextBlockInWorkout);
+            }, 50);
+            return;
+        }
+    }
+
     if (activeWorkout && activeBlock) {
         const blockIndex = activeWorkout.blocks.findIndex(b => b.id === activeBlock.id);
         const isLastBlock = blockIndex === activeWorkout.blocks.length - 1;
@@ -826,7 +835,6 @@ const App: React.FC = () => {
   const showSupportChat = !isStudioMode && isAdminOrCoach && isAdminFacingPage;
   const showScanButton = ((!isStudioMode && isMemberFacingPage) || (page === Page.MemberProfile)) && studioConfig.enableWorkoutLogging;
 
-  // OM INTE INLOGGAD OCH INTE STUDIO MODE -> VISA LANDNINGSSIDA
   if (!authLoading && !currentUser && !isStudioMode) {
       if (showLogin) {
           return <LoginScreen onClose={() => setShowLogin(false)} />;
@@ -834,7 +842,6 @@ const App: React.FC = () => {
       return <LandingPage onLoginClick={() => setShowLogin(true)} />;
   }
 
-  // OM INLOGGAD MEN DATA SAKNAS (Firestore document inte skapat än)
   if (currentUser && !userData && !isStudioMode && !authLoading) {
     return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
@@ -846,7 +853,6 @@ const App: React.FC = () => {
     );
   }
 
-  // Visuell blockering vid org-missmatch för att förhindra flashing
   if (isOrgMismatch && !isGlobalLoading && !isStudioMode) {
       return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
@@ -1169,7 +1175,6 @@ const App: React.FC = () => {
           onSuccess={() => {
             setIsPasswordModalOpen(false);
             setSessionRole('coach');
-            // Tvinga navigering direkt till coachvyn
             navigateTo(Page.Coach);
           }}
         />

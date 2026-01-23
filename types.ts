@@ -98,6 +98,8 @@ export interface WorkoutBlock {
   exercises: Exercise[];
   aiCoachNotes?: string;
   aiMagicPenSuggestions?: string[];
+  autoAdvance?: boolean;     // NEW: Automatically start next block
+  transitionTime?: number;   // NEW: Rest time between blocks in seconds
 }
 
 export type WorkoutLogType = 'detailed' | 'quick';

@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { celebrationMessages } from '../data/celebrationMessages';
 import { Workout, WorkoutResult } from '../types';
 import { saveWorkoutResult } from '../services/firebaseService';
@@ -16,7 +17,7 @@ interface WorkoutCompleteModalProps {
 }
 
 export const Confetti = React.memo(() => {
-    const particles = useMemo(() => Array.from({ length: 50 }).map((_, i) => ({
+    const particles = useMemo(() => Array.from({ length: 80 }).map((_, i) => ({
         id: i,
         style: {
             left: `${Math.random() * 100}%`,
@@ -27,33 +28,35 @@ export const Confetti = React.memo(() => {
         }
     })), []);
 
-    return (
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-50" aria-hidden="true">
+    return createPortal(
+        <div className="fixed inset-0 pointer-events-none z-[11000] overflow-hidden" aria-hidden="true">
             {particles.map(p => (
                 <div key={p.id} className="confetti-piece" style={p.style}></div>
             ))}
-        </div>
+        </div>,
+        document.body
     );
 });
 
-
-const Hearts = React.memo(() => {
-    const particles = useMemo(() => Array.from({ length: 30 }).map((_, i) => ({
+export const Hearts = React.memo(() => {
+    const heartParticles = useMemo(() => Array.from({ length: 25 }).map((_, i) => ({
         id: i,
         style: {
             left: `${Math.random() * 100}%`,
-            animationDelay: `${Math.random() * 5}s`,
-            animationDuration: `${6 + Math.random() * 4}s`,
-            fontSize: `${20 + Math.random() * 20}px`
+            animationDelay: `${Math.random() * 6}s`,
+            animationDuration: `${6 + Math.random() * 5}s`,
+            fontSize: `${20 + Math.random() * 30}px`,
+            transform: `rotate(${Math.random() * 20 - 10}deg)`
         }
     })), []);
 
-    return (
-        <div className="absolute bottom-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0" aria-hidden="true">
-            {particles.map(p => (
+    return createPortal(
+        <div className="fixed inset-0 pointer-events-none z-[10999] overflow-hidden" aria-hidden="true">
+            {heartParticles.map(p => (
                 <div key={p.id} className="heart-piece" style={p.style}>♥</div>
             ))}
-        </div>
+        </div>,
+        document.body
     );
 });
 
@@ -129,10 +132,9 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
 
   const hyroxResultContent = (
     <div 
-        className="relative bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 sm:p-10 w-full max-w-md text-gray-900 dark:text-white text-center shadow-2xl border-4 border-primary/30 animate-zoom-fade-in"
+        className="relative bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 sm:p-10 w-full max-w-md text-gray-900 dark:text-white text-center shadow-2xl border-4 border-primary/30 animate-zoom-fade-in z-[11001]"
         onClick={e => e.stopPropagation()}
       >
-        <Confetti />
         <div className="text-6xl mb-6">🏆</div>
         
         <h2 id="workout-complete-title" className="text-4xl font-black tracking-tight uppercase mb-4 leading-tight">
@@ -185,16 +187,13 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
       </div>
   );
 
-  // Rendera innehåll
   let contentToRender;
   if (isFinalBlock) {
       contentToRender = (
         <div 
-          className="relative bg-gradient-to-br from-primary to-teal-600 rounded-[3rem] p-10 w-full max-w-xl text-white text-center shadow-2xl border-4 border-white/20 animate-fade-in"
+          className="relative bg-gradient-to-br from-primary to-teal-600 rounded-[3rem] p-10 w-full max-w-xl text-white text-center shadow-2xl border-4 border-white/20 animate-fade-in z-[11001]"
           onClick={e => e.stopPropagation()}
         >
-          <Confetti />
-          <Hearts />
           <div className="text-7xl mb-6 animate-bounce">🏆</div>
           <h2 id="workout-complete-title" className="text-6xl font-black tracking-wider uppercase drop-shadow-lg mb-4">{message.title}</h2>
           <p className="text-2xl text-white/95 font-semibold leading-relaxed">{message.subtitle}</p>
@@ -203,7 +202,7 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
       );
   } else if (isWarmup) {
       contentToRender = (
-        <div className="relative bg-gradient-to-br from-orange-500 to-red-500 rounded-[2.5rem] p-8 w-full max-w-md text-white text-center shadow-2xl animate-fade-in" onClick={e => e.stopPropagation()}>
+        <div className="relative bg-gradient-to-br from-orange-500 to-red-500 rounded-[2.5rem] p-8 w-full max-w-md text-white text-center shadow-2xl animate-fade-in z-[11001]" onClick={e => e.stopPropagation()}>
           <div className="text-5xl mb-4">🔥</div>
           <h2 className="text-4xl font-black tracking-tight uppercase mb-2">Redo!</h2>
           <p className="text-xl text-orange-100 font-medium">Uppvärmningen klar. Nu kör vi!</p>
@@ -212,7 +211,7 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
       );
   } else {
       contentToRender = (
-        <div className="relative bg-gradient-to-br from-blue-600 to-cyan-600 rounded-[2.5rem] p-8 w-full max-w-md text-white text-center shadow-2xl animate-fade-in" onClick={e => e.stopPropagation()}>
+        <div className="relative bg-gradient-to-br from-blue-600 to-cyan-600 rounded-[2.5rem] p-8 w-full max-w-md text-white text-center shadow-2xl animate-fade-in z-[11001]" onClick={e => e.stopPropagation()}>
           <div className="text-5xl mb-4">👍</div>
           <h2 className="text-4xl font-black tracking-tight uppercase mb-2">Snyggt!</h2>
           <p className="text-xl text-blue-100 font-medium">Blocket avklarat. Hämta andan!</p>
@@ -229,6 +228,8 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
         aria-modal="true"
         aria-labelledby="workout-complete-title"
     >
+      <Confetti />
+      <Hearts />
       {isRegistrationView ? hyroxResultContent : contentToRender}
     </div>
   );
