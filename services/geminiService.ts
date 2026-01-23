@@ -1,18 +1,15 @@
+
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai"; 
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise, SuggestedExercise, CustomCategoryWithPrompt, WorkoutLog, MemberGoals, WorkoutDiploma } from '../types';
 import { getExerciseBank } from './firebaseService';
 import * as Prompts from '../data/aiPrompts';
 
+// MODELLER
 const TEXT_MODEL = 'gemini-3-flash-preview'; 
 const VISION_MODEL = 'gemini-3-flash-preview';
 const IMAGE_GEN_MODEL = 'gemini-2.5-flash-image';
 
-export interface ExerciseDagsformAdvice {
-    suggestion: string;
-    reasoning: string;
-    history: any[];
-}
-
+// TYPER
 export interface MemberInsightResponse {
     readiness: {
         status: 'high' | 'moderate' | 'low';
@@ -34,11 +31,14 @@ export interface MemberProgressAnalysis {
     };
 }
 
+// SÄKERHET: Hämta nyckel exklusivt från process.env
 const getAIClient = () => {
     const apiKey = (typeof process !== 'undefined' && process.env?.API_KEY) || (import.meta as any).env.VITE_API_KEY;
     if (!apiKey) throw new Error("API-nyckel saknas.");
     return new GoogleGenAI({ apiKey });
 };
+
+// --- SCHEMAS ---
 
 const workoutSchema = {
     type: Type.OBJECT,
@@ -169,6 +169,8 @@ const exerciseBankSchema = {
     }
 };
 
+// --- CORE HANDLERS ---
+
 async function _callGeminiJSON<T>(modelName: string, prompt: string, schema: any): Promise<T> {
     const ai = getAIClient();
     const response = await ai.models.generateContent({
@@ -202,27 +204,30 @@ const transformWorkout = (data: any, orgId: string, isDraft: boolean = false): W
     }))
 });
 
-export async function generateWorkout(prompt: string, orgId: string, contextWorkouts?: Workout[]): Promise<Workout> {
+// --- EXPORTED FUNCTIONS ---
+
+export async function generateWorkout(prompt: string, contextWorkouts?: Workout[]): Promise<Workout> {
     const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.WORKOUT_GENERATOR_PROMPT(prompt), workoutSchema);
-    return transformWorkout(data, orgId, false);
+    return transformWorkout(data, '');
 }
 
 export async function remixWorkout(originalWorkout: Workout): Promise<Workout> {
     const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.WORKOUT_REMIX_PROMPT(JSON.stringify(originalWorkout)), workoutSchema);
-    return transformWorkout(data, originalWorkout.organizationId, false);
+    return transformWorkout(data, originalWorkout.organizationId);
 }
 
 export async function analyzeCurrentWorkout(currentWorkout: Workout): Promise<Workout> {
     const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.WORKOUT_ANALYSIS_PROMPT(JSON.stringify(currentWorkout)), workoutSchema);
-    return transformWorkout({ ...currentWorkout, ...data }, currentWorkout.organizationId, false);
+    return transformWorkout({ ...currentWorkout, ...data }, currentWorkout.organizationId);
 }
 
-export async function parseWorkoutFromText(text: string, orgId: string): Promise<Workout> {
+export async function parseWorkoutFromText(text: string): Promise<Workout> {
     const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.TEXT_INTERPRETER_PROMPT(text), workoutSchema);
-    return transformWorkout(data, orgId, false);
+    // Tolkad text från coachen bör inte vara ett "medlemsutkast" som raderas
+    return transformWorkout(data, '', false);
 }
 
-export async function parseWorkoutFromImage(base64Image: string, orgId: string, additionalText?: string): Promise<Workout> {
+export async function parseWorkoutFromImage(base64Image: string, additionalText?: string): Promise<Workout> {
     const ai = getAIClient();
     const response = await ai.models.generateContent({
         model: VISION_MODEL,
@@ -236,7 +241,8 @@ export async function parseWorkoutFromImage(base64Image: string, orgId: string, 
             responseSchema: workoutSchema,
         }
     });
-    return transformWorkout(JSON.parse(response.text.trim()), orgId, false);
+    // Tolkad bild (från t.ex. Idétavlan) markeras som draft så den städas om den inte sparas
+    return transformWorkout(JSON.parse(response.text.trim()), '', true);
 }
 
 export async function generateExerciseDescription(name: string): Promise<string> {
@@ -302,14 +308,17 @@ export async function interpretHandwriting(base64Image: string): Promise<string>
 export async function generateMemberInsights(logs: WorkoutLog[], title: string, exercises: string[]): Promise<MemberInsightResponse> {
     const logStr = JSON.stringify(logs.slice(0, 5));
     const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.MEMBER_INSIGHTS_PROMPT(title, exercises, logStr), memberInsightSchema);
+    
+    // Map arrays back to objects for frontend compatibility
     const suggestions: Record<string, string> = {};
     data.suggestions.forEach((s: any) => suggestions[s.exerciseName] = s.advice);
     const scaling: Record<string, string> = {};
     data.scaling.forEach((s: any) => scaling[s.exerciseName] = s.advice);
+
     return { ...data, suggestions, scaling };
 }
 
-export async function getExerciseDagsformAdvice(exerciseName: string, feeling: string, logs: WorkoutLog[]): Promise<ExerciseDagsformAdvice> {
+export async function getExerciseDagsformAdvice(exerciseName: string, feeling: string, logs: WorkoutLog[]): Promise<any> {
     const history = logs.flatMap(log => 
         (log.exerciseResults || [])
             .filter(ex => ex.exerciseName.toLowerCase().includes(exerciseName.toLowerCase()))
