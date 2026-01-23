@@ -365,7 +365,10 @@ const App: React.FC = () => {
   };
 
   const handleSaveAndNavigate = async (workout: Workout, startFirstBlock?: boolean) => {
-    const savedWorkout = await saveWorkout(workout);
+    // VIKTIGT: När vi sparar ett pass manuellt via byggaren ska det sluta vara ett temporärt utkast.
+    const workoutToSave = { ...workout, isMemberDraft: false };
+    const savedWorkout = await saveWorkout(workoutToSave);
+    
     if (startFirstBlock && savedWorkout.blocks.length > 0) {
         handleStartBlock(savedWorkout.blocks[0], savedWorkout);
     } else {
@@ -378,17 +381,18 @@ const App: React.FC = () => {
   };
 
   const handleSaveOnly = async (workout: Workout) => {
-      return await saveWorkout(workout);
+      // VIKTIGT: Samma här, manuell sparning = ej utkast längre
+      return await saveWorkout({ ...workout, isMemberDraft: false });
   };
   
   const handleTogglePublishStatus = async (workoutId: string, isPublished: boolean) => {
     const workoutToToggle = workouts.find(w => w.id === workoutId);
-    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isPublished });
+    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isPublished, isMemberDraft: false });
   };
 
   const handleToggleFavoriteStatus = async (workoutId: string) => {
     const workoutToToggle = workouts.find(w => w.id === workoutId);
-    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isFavorite: !workoutToToggle.isFavorite });
+    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isFavorite: !workoutToToggle.isFavorite, isMemberDraft: false });
   };
 
   const handleDeleteWorkout = async (workoutId: string) => {
@@ -491,6 +495,12 @@ const App: React.FC = () => {
   
   const handleWorkoutInterpretedFromNote = (workout: Workout) => {
     setActiveWorkout({ ...workout }); 
+    setIsEditingNewDraft(true);
+    navigateTo(Page.SimpleWorkoutBuilder);
+  };
+  
+  const handleWorkoutInterpretedFromAIPrompt = (workout: Workout) => {
+    setActiveWorkout({ ...workout });
     setIsEditingNewDraft(true);
     navigateTo(Page.SimpleWorkoutBuilder);
   };
