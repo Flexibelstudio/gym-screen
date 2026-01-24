@@ -63,7 +63,7 @@ export const playBoxingBell = (strikes: number) => {
   }
 };
 
-const playShortBeep = () => {
+export const playShortBeep = () => {
     const ctx = getAudioContext();
     if (!ctx) return;
     if (ctx.state === 'suspended') ctx.resume();

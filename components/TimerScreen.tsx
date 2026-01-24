@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout } from '../types';
-import { useWorkoutTimer, playBeep, getAudioContext, calculateBlockDuration } from '../hooks/useWorkoutTimer';
+import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration } from '../hooks/useWorkoutTimer';
 import { useWorkout } from '../context/WorkoutContext';
 import { saveRace, updateOrganizationActivity } from '../services/firebaseService';
 import { Confetti } from './WorkoutCompleteModal';
@@ -595,7 +595,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   useEffect(() => {
       if (status === TimerStatus.Preparing) return;
-      if (isHyroxRace && groupForCountdownDisplay && timeForCountdownDisplay > 0 && timeForCountdownDisplay <= 3) playBeep(880, 150, 'triangle');
+      if (isHyroxRace && groupForCountdownDisplay && timeForCountdownDisplay > 0 && timeForCountdownDisplay <= 3) playShortBeep();
   }, [isHyroxRace, timeForCountdownDisplay, groupForCountdownDisplay, status]);
 
   const startedParticipants = useMemo(() => startGroups.filter(g => g.startTime !== undefined).flatMap(g => g.participants.split('\n').map(p => p.trim()).filter(Boolean)), [startGroups]);
@@ -988,7 +988,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                     <button onClick={() => start()} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50">STARTA</button>
                 </>
             ) : status === TimerStatus.Paused ? (
-                <button onClick={resume} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-green-400 transition-colors text-xl border-2 border-green-400">FORTSÄTT</button>
+                <button onClick={resume} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400">FORTSÄTT</button>
             ) : (
                 <button onClick={pause} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50">PAUSA</button>
             )}
@@ -999,123 +999,4 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       {/* (Vi använder inte CompactTimer här men behåller referens för konsekvens) */}
     </div>
   );
-};
-
-const CompactTimer: React.FC<{ 
-    timer: any, 
-    block: WorkoutBlock, 
-    onClose: () => void, 
-    isClosing: boolean,
-    onFinish: () => void 
-}> = ({ timer, block, onClose, isClosing, onFinish }) => {
-    const minutes = Math.floor(timer.currentTime / 60).toString().padStart(2, '0');
-    const seconds = (timer.currentTime % 60).toString().padStart(2, '0');
-    
-    useEffect(() => {
-        if (timer.status === TimerStatus.Finished) {
-            onFinish();
-        }
-    }, [timer.status, onFinish]);
-
-    const timerColor = getTimerHexColor(timer.status, block.settings.mode);
-    const statusText = timer.status === TimerStatus.Resting ? 'Vila' : 
-                      timer.status === TimerStatus.Preparing ? 'Gör dig redo' : 'Arbete';
-
-    const progressPercentage = timer.totalBlockDuration > 0 
-        ? Math.min(100, Math.max(0, (timer.totalTimeElapsed / timer.totalBlockDuration) * 100))
-        : 0;
-
-    const currentIntervalInLap = (timer.completedWorkIntervals % timer.effectiveIntervalsPerLap) + 1;
-
-    return (
-        <div 
-            className={`w-[95%] md:w-[90%] mx-auto mt-4 rounded-[2rem] p-6 sm:p-8 flex flex-col items-center justify-center shadow-2xl transition-all duration-300 relative ${isClosing ? 'opacity-0 -translate-y-10' : 'opacity-100 translate-y-0'}`}
-            style={{ backgroundColor: timerColor, minHeight: '220px' }}
-        >
-            <button 
-                onClick={onClose}
-                className="absolute top-4 right-4 text-white/50 hover:text-white pointer-events-auto transition-colors"
-            >
-                <CloseIcon className="w-8 h-8" />
-            </button>
-            
-            <div className="flex w-full items-center justify-center mb-2 relative">
-                <div className="px-4 py-1 rounded-full bg-black/20 backdrop-blur-md border border-white/20 shadow-sm">
-                    <span className="font-black tracking-[0.2em] text-white uppercase text-xs sm:text-sm">
-                        {block.settings.mode.toUpperCase()}
-                    </span>
-                </div>
-            </div>
-            
-            <div className="flex flex-col items-center flex-grow justify-center">
-                <p className="text-white font-bold tracking-[0.3em] uppercase text-sm sm:text-base mb-1 drop-shadow-md opacity-90">
-                    {statusText}
-                </p>
-                <div className="font-mono text-7xl sm:text-8xl md:text-9xl leading-none font-black text-white tabular-nums drop-shadow-2xl my-2">
-                    {minutes}:{seconds}
-                </div>
-            </div>
-
-            {/* Round / Interval Display */}
-            {(block.settings.mode === TimerMode.Interval || block.settings.mode === TimerMode.Tabata || block.settings.mode === TimerMode.EMOM) && (
-                <div className="flex items-center gap-4 mt-2">
-                    {/* Lap Box */}
-                    <div className="bg-black/20 backdrop-blur-md rounded-xl py-2 px-6 flex flex-col items-center justify-center border border-white/10 shadow-lg">
-                        <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">
-                            {block.settings.mode === TimerMode.EMOM ? 'MINUT' : 'VARV'}
-                        </span>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-black text-white leading-none">{timer.currentRound}</span>
-                            <span className="text-sm font-bold text-white/60">/ {timer.totalRounds}</span>
-                        </div>
-                    </div>
-                    
-                    {/* Interval Pill - Dölj för EMOM */}
-                    {block.settings.mode !== TimerMode.EMOM && (
-                        <div className="bg-black/20 backdrop-blur-md rounded-xl px-5 py-2 flex items-center border border-white/10 h-full shadow-lg">
-                            <div className="flex flex-col items-center">
-                                 <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">INTERVALL</span>
-                                 <span className="text-xl font-bold text-white leading-none mt-0.5">{currentIntervalInLap} / {timer.effectiveIntervalsPerLap}</span>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* PROGRESS BAR */}
-            {timer.totalBlockDuration > 0 && (
-                <div className="w-full h-2 bg-black/30 rounded-full overflow-hidden backdrop-blur-md border border-white/20 shadow-inner mt-6">
-                    <motion.div 
-                        className="h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)] relative"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progressPercentage}%` }}
-                        transition={{ duration: 1, ease: "linear" }}
-                    />
-                </div>
-            )}
-            
-            <button 
-                onClick={timer.status === TimerStatus.Paused ? timer.resume : timer.pause}
-                className="absolute bottom-6 right-6 w-14 h-14 rounded-2xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-all active:scale-95 shadow-xl border border-white/20 pointer-events-auto backdrop-blur-sm"
-            >
-                {timer.status === TimerStatus.Paused ? (
-                    <svg className="w-8 h-8 fill-current" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.333-5.89a1.5 1.5 0 000-2.538L6.3 2.841z"/></svg>
-                ) : (
-                    <svg className="w-8 h-8 fill-current" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
-                )}
-            </button>
-        </div>
-    );
-};
-
-const getTimerHexColor = (status: TimerStatus, mode: TimerMode) => {
-    if (status === TimerStatus.Resting) return '#2dd4bf';
-    if (status === TimerStatus.Preparing) return '#3b82f6';
-    if (status === TimerStatus.Paused) return '#6b7280';
-    switch (mode) {
-        case TimerMode.Tabata: return '#ef4444';
-        case TimerMode.AMRAP: return '#db2777';
-        case TimerMode.EMOM: return '#9333ea';
-        default: return '#f97316';
-    }
 };
