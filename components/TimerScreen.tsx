@@ -72,7 +72,7 @@ const formatSeconds = (totalSeconds: number) => {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
-// Hjälpfunktion för att visa längd/typ på nästa block (Fixad NaN bugg)
+// Hjälpfunktion för att visa längd/typ på nästa block
 const getBlockTimeLabel = (block: WorkoutBlock): string => {
     const s = block.settings;
     if (!s) return "";
@@ -130,8 +130,8 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
     );
 };
 
-// Fullbredds-vy för transition (Nu enhetlig lista istället för kort)
-const TransitionFullWidthPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
+// Fullbredds-vy för transition (Fixad för Ljust/Mörkt tema + Starta Nu knapp)
+const TransitionFullWidthPreview: React.FC<{ block: WorkoutBlock; onSkip: () => void }> = ({ block, onSkip }) => {
     return (
         <motion.div 
             initial={{ opacity: 0, y: 30 }}
@@ -142,16 +142,27 @@ const TransitionFullWidthPreview: React.FC<{ block: WorkoutBlock }> = ({ block }
                 {block.exercises.map((ex) => (
                     <div 
                         key={ex.id} 
-                        className="flex items-center justify-between bg-white/10 backdrop-blur-md rounded-2xl px-8 py-5 border-l-[10px] border-white/20 shadow-lg"
+                        className="flex items-center justify-between bg-white/95 dark:bg-white/10 backdrop-blur-md rounded-2xl px-8 py-5 border-l-[10px] border-gray-200 dark:border-white/20 shadow-lg"
                     >
-                        <h4 className="text-3xl font-black text-white leading-tight uppercase tracking-tight">{ex.name}</h4>
+                        <h4 className="text-3xl font-black text-gray-900 dark:text-white leading-tight uppercase tracking-tight">{ex.name}</h4>
                         {ex.reps && (
-                            <span className="bg-white text-indigo-900 px-5 py-2 rounded-xl font-black text-2xl shadow-lg border border-white/20">
+                            <span className="bg-gray-100 dark:bg-white text-gray-900 dark:text-indigo-900 px-5 py-2 rounded-xl font-black text-2xl shadow-sm border border-gray-300 dark:border-white/20">
                                 {formatReps(ex.reps)}
                             </span>
                         )}
                     </div>
                 ))}
+                
+                {/* STARTA NU KNAPP */}
+                <div className="pt-6 pb-2 flex justify-center">
+                    <button 
+                        onClick={onSkip}
+                        className="flex items-center gap-3 bg-indigo-600 text-white font-black py-4 px-10 rounded-full shadow-xl hover:bg-indigo-500 hover:scale-105 transition-all text-xl border-4 border-indigo-400/50 uppercase tracking-widest"
+                    >
+                        <SparklesIcon className="w-6 h-6" />
+                        Hoppa över vila & Starta
+                    </button>
+                </div>
             </div>
         </motion.div>
     );
@@ -886,13 +897,13 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
         {/* STATUS (ARBETE/VILA) - Överst */}
         <div className="text-center z-20 w-full px-10 mb-2">
-            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-4xl sm:text-6xl lg:text-7xl line-clamp-1`}>{statusLabel}</h2>
+            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl line-clamp-1`}>{statusLabel}</h2>
         </div>
 
         {/* SIFFROR (Tiden) - Mitten */}
         <div className="z-20 relative flex flex-col items-center w-full text-white">
             <div className="flex items-center justify-center w-full gap-2">
-                 <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[8rem] sm:text-[10rem] md:text-[12rem]">
+                 <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[10rem] sm:text-[12rem] md:text-[14rem] lg:text-[16rem]">
                     {minutesStr}:{secondsStr}
                  </span>
             </div>
@@ -925,8 +936,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           
           <div className="w-full max-w-[1500px] flex gap-10 h-full">
               {isTransitioning ? (
-                  // TRANSITION VIEW: Show NEXT block exercises BIG and FULL WIDTH
-                  <TransitionFullWidthPreview block={nextBlock!} />
+                  // TRANSITION VIEW: Show NEXT block exercises BIG and FULL WIDTH with BUTTON
+                  <TransitionFullWidthPreview block={nextBlock!} onSkip={handleStartNextBlock} />
               ) : (
                   // NORMAL WORKOUT VIEW
                   <>
