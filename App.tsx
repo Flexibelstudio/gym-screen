@@ -123,6 +123,7 @@ const App: React.FC = () => {
   const [studioToEditConfig, setStudioToEditConfig] = useState<Studio | null>(null);
   const [completionInfo, setCompletionInfo] = useState<{ workout: Workout, isFinal: boolean, blockTag?: string, finishTime?: number } | null>(null);
   const [preferredAdminTab, setPreferredAdminTab] = useState<string>('dashboard');
+  const [isAutoTransition, setIsAutoTransition] = useState(false);
   
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isReAuthModalOpen, setIsReAuthModalOpen] = useState(false);
@@ -405,6 +406,7 @@ const App: React.FC = () => {
   };
   
   const handleStartBlock = (block: WorkoutBlock, workoutContext: Workout) => {
+    setIsAutoTransition(false); // Manuell start återställer flaggan
     setActiveWorkout(workoutContext);
     setActiveBlock(block);
     if (block.settings.mode === TimerMode.NoTimer) navigateTo(Page.RepsOnly);
@@ -538,6 +540,7 @@ const App: React.FC = () => {
         const blockIndex = activeWorkout.blocks.findIndex(b => b.id === activeBlock.id);
         const nextBlockInWorkout = activeWorkout.blocks[blockIndex + 1];
         if (nextBlockInWorkout) {
+            setIsAutoTransition(true); // Markera som automatisk start för nästa block
             setActiveBlock(null);
             setTimeout(() => {
                 setActiveBlock(nextBlockInWorkout);
@@ -946,6 +949,7 @@ const App: React.FC = () => {
                 
                 preferredAdminTab={preferredAdminTab}
                 profileEditTrigger={profileEditTrigger}
+                isAutoTransition={isAutoTransition}
 
                 onSelectWorkout={handleSelectWorkout}
                 onSelectPasskategori={handleSelectPasskategori}

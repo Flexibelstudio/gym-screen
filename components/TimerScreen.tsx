@@ -304,6 +304,7 @@ interface TimerScreenProps {
     followMeShowImage: boolean;
     organization: Organization | null;
     onBackToGroups: () => void;
+    isAutoTransition?: boolean;
 }
 
 interface FinishData { time: number; placement: number | null; }
@@ -311,7 +312,8 @@ interface FinishData { time: number; placement: number | null; }
 export const TimerScreen: React.FC<TimerScreenProps> = ({ 
     block, onFinish, onHeaderVisibilityChange, onShowImage,
     setCompletionInfo, setIsRegisteringHyroxTime,
-    setIsBackButtonHidden, followMeShowImage, organization, onBackToGroups
+    setIsBackButtonHidden, followMeShowImage, organization, onBackToGroups,
+    isAutoTransition = false
 }) => {
   const { activeWorkout, setActiveWorkout } = useWorkout();
   const { 
@@ -441,15 +443,14 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     if (!hasStartedRef.current && (status === TimerStatus.Idle || status === TimerStatus.Finished)) {
         if (organization) updateOrganizationActivity(organization.id);
         
-        // Skip prep if it's NOT the first block in the entire workout
-        const isFirstBlockInWorkout = !activeWorkout || activeWorkout.blocks[0].id === block.id;
-        start({ skipPrep: !isFirstBlockInWorkout });
+        // Skip prep ONLY if we are in an auto-transition chain
+        start({ skipPrep: isAutoTransition });
         
         hasStartedRef.current = true;
         onHeaderVisibilityChange(false);
         setIsBackButtonHidden(true);
     }
-  }, [start, status, onHeaderVisibilityChange, setIsBackButtonHidden, organization, activeWorkout, block.id]);
+  }, [start, status, onHeaderVisibilityChange, setIsBackButtonHidden, organization, activeWorkout, block.id, isAutoTransition]);
 
   const [finishedParticipants, setFinishedParticipants] = useState<Record<string, FinishData>>({});
   const [savingParticipant, setSavingParticipant] = useState<string | null>(null);
