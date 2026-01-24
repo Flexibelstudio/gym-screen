@@ -8,17 +8,22 @@ export const SYSTEM_COACH_CONTEXT = `
 Du är SmartCoach, en världsledande expert på funktionell träning, HYROX och coaching. 
 Ditt språk är alltid svenska. Du är peppande men professionell.
 
-Ditt viktigaste uppdrag är FULLSTÄNDIG DATAEXTRAHERING. När du tolkar texter eller bilder får du ALDRIG hoppa över information eller förkorta listor. Varje unik del av ett pass ska bevaras och struktureras korrekt.
+Ditt viktigaste uppdrag är att agera som en intelligent assistent med två lägen:
+1. TRANSKRIBERARE: Om indatan är en detaljerad lista med övningar, extrahera och strukturera dem exakt utan att ändra något.
+2. COACH/GENERATOR: Om indatan är kortfattad eller ser ut som en instruktion (t.ex. "WOD", "Benpass", "10 övningar styrka"), SKA du agera expertcoach och generera ett komplett, högkvalitativt träningspass.
+
+Om användaren anger ett antal (t.ex. "10 övningar"), MÅSTE du generera exakt så många unika övningsobjekt i JSON-arrayen. Du får ALDRIG bara skriva "10 övningar" som ett övningsnamn.
 `;
 
 export const WORKOUT_GENERATOR_PROMPT = (userPrompt: string) => `
 Skapa ett strukturerat träningspass baserat på: "${userPrompt}".
 
 INSTRUKTIONER:
-1. Skapa 1-3 block beroende på intensitet.
+1. Skapa 1-3 block beroende på passets längd och typ.
 2. Använd logiska timerinställningar (t.ex. AMRAP för flås, Intervall för styrka).
 3. Ge blocken tydliga namn som "Pulsfest" eller "Styrka: Pressar".
-4. Skriv pedagogiska beskrivningar för varje övning.
+4. Om ett antal övningar nämns i instruktionen, skapa exakt så många unika övningar.
+5. Skriv pedagogiska beskrivningar för varje övning.
 `;
 
 export const WORKOUT_REMIX_PROMPT = (workoutJson: string) => `
@@ -40,32 +45,35 @@ ${workoutJson}
 `;
 
 export const TEXT_INTERPRETER_PROMPT = (text: string) => `
-Ditt uppdrag är att EXTRAHERA ABSOLUT ALLT innehåll från följande träningsanteckning och strukturera det i JSON-format.
+Analysera följande text och avgör om det är en färdig lista eller en instruktion för att skapa ett pass.
+"${text}"
 
-STRIKTA LOGIKREGLER FÖR VARIANTER & SKALNING:
-1. SMARTA BLOCK: Identifiera om passet består av olika nivåer (t.ex. Rx, Intermediate, Beginner) för SAMMA tidsfönster/timer. Om så är fallet, slå ihop dem till ETT (1) block. 
-2. HUVUDÖVNINGAR: Använd "Rx" (standardnivån) som de primära övningarna i blockets 'exercises'-lista.
-3. SKALNINGSINSTRUKTIONER: Skriv ut de andra nivåernas (Intermediate/Beginner) specifika ändringar och vikter tydligt i fältet 'setupDescription' för det blocket.
-4. COACH TIPS & STRATEGI: All text som beskriver syfte, 'Stimulus', 'Strategy' eller allmän utrustning SKA placeras i fältet 'coachTips' på pass-nivå. Inget får gå förlorat.
-5. STEGE-LOGIK (LADDERS): Om övningarna är i form av en stege (t.ex. 1, 2, 3... reps), förklara exakt hur stegen fungerar i fältet 'setupDescription'.
-6. SEPARATA BLOCK: Skapa endast flera block om det faktiskt är helt olika delar av ett pass (t.ex. Uppvärmning -> Styrka -> Metcon).
+LOGIK FÖR EXTRAHERING/GENERERING:
+- Om instruktion (t.ex. "Gör en WOD"): Generera ett komplett proffsigt pass.
+- Om lista: Extrahera allt innehåll noggrant.
+- Om antal nämns (t.ex. "8 st"): Fyll listan med exakt så många unika övningar.
 
-Här är texten att extrahera:
-${text}
+STRIKTA REGLER FÖR STRUKTUR:
+1. SMARTA BLOCK: Identifiera varianter (Rx/Int/Beg) och slå ihop till ett block med instruktioner i 'setupDescription'.
+2. COACH TIPS: All kringtext om strategi läggs i 'coachTips'.
+3. STEGAR: Förklara ladders/stegar tydligt i 'setupDescription'.
 `;
 
 export const IMAGE_INTERPRETER_PROMPT = (additionalText?: string) => `
-Transkribera och strukturera ALLT innehåll från bilden till ett digitalt träningspass.
-Ditt mål är 100% täckning av all text som syns.
+Analysera bilden och eventuell text: "${additionalText || ''}".
+
+Ditt uppdrag är att tolka skissen eller texten och skapa ett digitalt pass.
+INTENT RECOGNITION:
+- Om bilden bara innehåller ett fåtal ord som "WOD", "Pass" eller "Styrka 10st", ska du agera Coach och SKAPA ett komplett pass med relevanta övningar.
+- Om användaren anger ett antal (t.ex. 10st), MÅSTE du generera så många unika övningsobjekt i JSON-arrayen.
+- Tolka visuella ledtrådar: Cirklar indikerar cirkelträning, pilar indikerar flöden.
 
 STRIKTA LOGIKREGLER:
-1. SMARTA BLOCK: Om bilden visar nivåer som Rx, Int och Beg för samma del av passet, slå ihop dem till ett block. Sätt Rx som huvudövningar och lägg de andra nivåernas instruktioner i 'setupDescription'.
-2. COACH TIPS: All kringtext om stimulus, utförande eller strategi SKA inkluderas i fältet 'coachTips'.
-3. STEGAR (LADDERS): Förklara logiken tydligt i 'setupDescription' (t.ex. "Öka med 1 rep per varv").
-4. DETALJER: Var extremt noggrann med vikter (kg/lbs) och reps.
-${additionalText ? `EXTRA ANVÄNDARINSTRUKTION: ${additionalText}` : ''}
+1. SMARTA BLOCK: Slå ihop nivåer (Rx/Int/Beg) till ett block.
+2. FULLSTÄNDIGHET: Lämna aldrig en array tom om användaren bett om ett pass.
+3. KVALITET: Övningarna ska vara funktionella och säkra.
 
-Var extremt noggrann. Hallucinera inte data, men utelämna absolut ingenting som står skrivet.
+Var kreativ om det behövs (vid korta instruktioner), men exakt om det finns en tydlig lista.
 `;
 
 export const EXERCISE_DESCRIPTION_PROMPT = (name: string) => `
@@ -81,8 +89,8 @@ Historik: ${logs}
 Uppgift:
 1. Bedöm dagsform (Readiness).
 2. Ge en övergripande strategi.
-3. Föreslå vikter för dagens övningar (Suggestions).
-4. Ge alternativ för svårare övningar (Scaling).
+3. Föreslå vikter för dagens övningar.
+4. Ge alternativ för svårare övningar.
 `;
 
 export const MEMBER_PROGRESS_PROMPT = (name: string, goals: string, logs: string) => `
