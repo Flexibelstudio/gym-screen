@@ -1,132 +1,114 @@
-// functions/index.js (Upgraded to GEN-2)
-const admin = require("firebase-admin");
-const {onRequest, HttpsError} = require("firebase-functions/v2/https");
+
+// functions/index.js (GEN-2 Callables)
+const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {setGlobalOptions} = require("firebase-functions/v2");
+const admin = require("firebase-admin");
 
 admin.initializeApp();
 
-// Set region globally to avoid specifying it on every function
 setGlobalOptions({region: "us-central1"});
 
 /**
- * Verifies that the request is from an authenticated user with admin privileges.
- * Throws an HttpsError if authentication or authorization fails.
- * @param {object} request The Express request object.
- * @return {Promise<admin.auth.DecodedIdToken>} The decoded ID token of the authenticated admin.
+ * Hjälpfunktion för att kolla admin-behörighet i onCall.
+ * I onCall finns auth-data direkt i request-objektet.
  */
-const verifyAdminRequest = async (request) => {
-  const authorizationHeader = request.headers.authorization || "";
-  if (!authorizationHeader.startsWith("Bearer ")) {
-    throw new HttpsError("unauthenticated", "Unauthorized: No Bearer token provided.");
+const checkAdmin = (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Du måste vara inloggad.");
   }
-
-  const idToken = authorizationHeader.split("Bearer ")[1];
-  if (!idToken) {
-    throw new HttpsError("unauthenticated", "Unauthorized: Token is empty.");
-  }
-
-  try {
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
-
-    // Check for custom claims that grant admin access
-    const userRole = decodedToken.role;
-    if (userRole !== "systemowner" && userRole !== "organizationadmin") {
-      throw new HttpsError("permission-denied", "Forbidden: User does not have admin privileges.");
-    }
-
-    return decodedToken; // Return the decoded token on success
-  } catch (error) {
-    // Catch both verifyIdToken errors and our own permission-denied error
-    if (error instanceof HttpsError) {
-      throw error;
-    }
-    console.error("Token verification failed:", error);
-    // Re-throw other errors as a generic unauthenticated error
-    throw new HttpsError("unauthenticated", `Unauthorized: ${error.message}`);
+  const role = request.auth.token.role;
+  if (role !== "systemowner" && role !== "organizationadmin") {
+    throw new HttpsError("permission-denied", "Du saknar administratörsrättigheter.");
   }
 };
 
+exports.flexUpdateUserRole = onCall(async (request) => {
+  // 1. Säkerhetskoll
+  checkAdmin(request);
+  
+  const {targetUid, newRole} = request.data;
+  const callerRole = request.auth.token.role;
+  const callerOrgId = request.auth.token.organizationId;
 
-exports.flexInviteUser = onRequest({cpu: 1, cors: true, invoker: "public"}, async (request, response) => {
-  try {
-    // 1) Verify the caller is an authenticated admin.
-    // This will throw an HttpsError if verification fails, which is caught below.
-    await verifyAdminRequest(request);
-    // ✅ Auth secured with verifyAdminRequest – only admins can create users
+  if (!targetUid || !newRole) {
+    throw new HttpsError("invalid-argument", "Mål-UID och ny roll krävs.");
+  }
 
-    // 2) Proceed with user creation logic now that the caller is verified.
-    const {email, role: inRole, organizationId, password} = request.body || {};
-    if (!email || !inRole || !organizationId || !password) {
-      throw new HttpsError("invalid-argument", "E-post, roll, org och lösenord krävs.");
+  // 2. Hämta målanvändaren
+  const userDoc = await admin.firestore().collection("users").doc(targetUid).get();
+  if (!userDoc.exists) {
+    throw new HttpsError("not-found", "Användaren hittades inte.");
+  }
+  const userData = userDoc.data();
+
+  // 3. Organisations-validering (Admin får bara ändra sina egna)
+  if (callerRole === "organizationadmin") {
+    if (userData.organizationId !== callerOrgId) {
+      throw new HttpsError("permission-denied", "Du kan bara ändra användare i din egen organisation.");
     }
-    if (typeof password !== "string" || password.length < 6) {
-      throw new HttpsError("invalid-argument", "Lösenord minst 6 tecken.");
-    }
-
-    // 3) Create user in Firebase Auth
-    let userRecord;
-    try {
-      userRecord = await admin.auth().createUser({
-        email,
-        password,
-        emailVerified: false,
-      });
-    } catch (err) {
-      if (err?.code === "auth/email-already-exists") {
-        throw new HttpsError("already-exists", "E-postadressen är redan registrerad.");
-      }
-      throw new HttpsError("internal", `Skapa användare misslyglades: ${err.message}`);
-    }
-
-    // 4) Set custom claims for role-based access control
-    try {
-      const finalRole = inRole === "admin" ? "organizationadmin" : "coach";
-      const claims = {role: finalRole, organizationId};
-      // Note: the `admin` role in the request body is translated to `organizationadmin` here.
-      if (inRole === "admin") {
-        claims.adminRole = "admin";
-      }
-      await admin.auth().setCustomUserClaims(userRecord.uid, claims);
-    } catch (err) {
-      await admin.auth().deleteUser(userRecord.uid); // Cleanup on failure
-      throw new HttpsError("internal", `Sätta roller misslyglades: ${err.message}`);
-    }
-
-    // 5) Create a corresponding user document in Firestore
-    try {
-      const finalRole = inRole === "admin" ? "organizationadmin" : "coach";
-      const doc = {
-        email,
-        role: finalRole,
-        organizationId,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        ...(inRole === "admin" ? {adminRole: "admin"} : {}),
-      };
-      await admin.firestore().collection("users").doc(userRecord.uid).set(doc);
-    } catch (err) {
-      await admin.auth().deleteUser(userRecord.uid); // Cleanup on failure
-      throw new HttpsError("internal", `Spara användardata misslyglades: ${err.message}`);
-    }
-
-    // 6) Send a success response
-    response.status(200).json({data: {success: true, message: `Användare ${email} har skapats.`}});
-
-  } catch (err) {
-    // Handle HttpsError and send the correct status code
-    if (err instanceof HttpsError) {
-      let statusCode = 500; // Default to internal server error
-      if (err.code === "unauthenticated") {
-        statusCode = 401;
-      } else if (err.code === "permission-denied") {
-        statusCode = 403;
-      } else if (err.code === "invalid-argument" || err.code === "already-exists") {
-        statusCode = 400;
-      }
-      response.status(statusCode).json({error: {message: err.message, code: err.code}});
-    } else {
-      // Handle unexpected errors
-      console.error("An unexpected error occurred in flexInviteUser:", err);
-      response.status(500).json({error: {message: "Ett internt serverfel inträffade."}});
+    if (newRole === "systemowner") {
+      throw new HttpsError("permission-denied", "Du kan inte utse någon till systemägare.");
     }
   }
+
+  // 4. Uppdatera Auth Custom Claims
+  const newClaims = {
+    role: newRole,
+    organizationId: userData.organizationId
+  };
+  if (newRole === "organizationadmin") {
+    newClaims.adminRole = "admin";
+  }
+  await admin.auth().setCustomUserClaims(targetUid, newClaims);
+
+  // 5. Uppdatera Firestore
+  const updateData = {
+    role: newRole,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+  };
+  if (newRole === "organizationadmin") {
+    updateData.adminRole = "admin";
+  } else {
+    updateData.adminRole = admin.firestore.FieldValue.delete();
+  }
+  
+  await admin.firestore().collection("users").doc(targetUid).update(updateData);
+
+  return {success: true, message: `Rollen uppdaterad till ${newRole}`};
+});
+
+exports.flexInviteUser = onCall(async (request) => {
+  checkAdmin(request);
+  
+  const {email, role: inRole, organizationId, password} = request.data;
+  
+  // Validering
+  if (!email || !inRole || !organizationId || !password) {
+    throw new HttpsError("invalid-argument", "Data saknas.");
+  }
+
+  // Skapa användare
+  const userRecord = await admin.auth().createUser({
+    email,
+    password,
+    emailVerified: false,
+  });
+
+  // Sätt claims
+  const finalRole = inRole === "admin" ? "organizationadmin" : "coach";
+  const claims = {role: finalRole, organizationId};
+  if (inRole === "admin") claims.adminRole = "admin";
+  await admin.auth().setCustomUserClaims(userRecord.uid, claims);
+
+  // Spara i Firestore
+  const doc = {
+    email,
+    role: finalRole,
+    organizationId,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    ...(inRole === "admin" ? {adminRole: "admin"} : {}),
+  };
+  await admin.firestore().collection("users").doc(userRecord.uid).set(doc);
+
+  return {success: true, uid: userRecord.uid};
 });

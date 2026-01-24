@@ -31,9 +31,7 @@ import {
   writeBatch, 
   deleteField,
   serverTimestamp,
-  Firestore,
-  DocumentData,
-  QuerySnapshot
+  Firestore
 } from 'firebase/firestore';
 import { 
   getStorage, 
@@ -43,16 +41,20 @@ import {
   deleteObject, 
   FirebaseStorage 
 } from 'firebase/storage';
+import { 
+  getFunctions, 
+  httpsCallable 
+} from 'firebase/functions';
 
 import { firebaseConfig } from './firebaseConfig';
 import { 
-  Studio, StudioConfig, Organization, UserData, Workout, InfoCarousel, 
+  Organization, UserData, Workout, InfoCarousel, 
   BankExercise, SuggestedExercise, WorkoutResult, CompanyDetails, 
   SmartScreenPricing, HyroxRace, SeasonalThemeSetting, MemberGoals, 
   WorkoutLog, CheckInEvent, Member, UserRole, PersonalBest, StudioEvent,
   CustomPage, AdminActivity
 } from '../types';
-import { MOCK_ORGANIZATIONS, MOCK_SYSTEM_OWNER, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_MEMBERS, MOCK_SMART_SCREEN_PRICING } from '../data/mockData';
+import { MOCK_ORGANIZATIONS, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_MEMBERS, MOCK_SMART_SCREEN_PRICING } from '../data/mockData';
 
 // --- INITIALISERING ---
 
@@ -67,6 +69,7 @@ let app: FirebaseApp | null = null;
 export let auth: Auth | null = null;
 export let db: Firestore | null = null;
 export let storage: FirebaseStorage | null = null;
+let functions: any = null;
 
 if (!isOffline) {
     try {
@@ -74,6 +77,7 @@ if (!isOffline) {
         auth = getAuth(app);
         db = getFirestore(app);
         storage = getStorage(app);
+        functions = getFunctions(app, 'us-central1'); // Regionen matchar backend
     } catch (error) {
         console.error("CRITICAL: Firebase init failed.", error);
     }
@@ -236,9 +240,21 @@ export const updateUserProfile = async (uid: string, data: Partial<UserData>) =>
     await updateDoc(doc(db, 'users', uid), sanitizeData(data));
 };
 
-export const updateUserRole = async (uid: string, role: UserRole) => {
-    if (isOffline || !db || !uid) return;
-    await updateDoc(doc(db, 'users', uid), { role });
+/**
+ * Anropar Cloud Function via SDK (Callable). 
+ * Ingen hårdkodad URL krävs!
+ */
+export const updateUserRoleCloud = async (targetUid: string, newRole: UserRole) => {
+    if (isOffline || !functions) throw new Error("Offline eller systemet ej redo.");
+    
+    try {
+        const func = httpsCallable(functions, 'flexUpdateUserRole');
+        const result = await func({ targetUid, newRole });
+        return result.data;
+    } catch (err: any) {
+        console.error("Cloud function error:", err);
+        throw new Error(err.message || "Ett fel uppstod vid rollbyte.");
+    }
 };
 
 export const updateMemberEndDate = async (uid: string, date: string | null) => {
@@ -287,7 +303,6 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
     const newLog = { id: newLogRef.id, ...logData };
     const newRecords: { exerciseName: string; weight: number; diff: number }[] = [];
 
-    // Berika loggen med användarnamn och bild
     if (logData.memberId) {
         try {
             const userSnap = await getDoc(doc(db, 'users', logData.memberId));
@@ -299,10 +314,8 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
         } catch (e) { console.warn("Failed to enrich log", e); }
     }
 
-    // Spara själva loggen
     await setDoc(newLogRef, newLog);
 
-    // Hantera PB-logik och Studio-events
     if (logData.memberId && logData.exerciseResults) {
         try {
             const batch = writeBatch(db);
@@ -342,7 +355,6 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 }
             }
 
-            // Skapa Studio Event om rekord satts
             if (newRecords.length > 0) {
                 const eventRef = doc(collection(db, 'studio_events'));
                 const eventData: StudioEvent = {
@@ -441,7 +453,7 @@ export const updatePersonalBest = async (userId: string, exerciseName: string, w
     } catch (e) { console.error("updatePersonalBest failed", e); }
 };
 
-// --- STUDIO EVENTS (PB-REGN) ---
+// --- STUDIO EVENTS ---
 
 export const listenForStudioEvents = (orgId: string, callback: (event: StudioEvent) => void) => {
     if (isOffline || !db || !orgId) return () => {};
@@ -471,7 +483,7 @@ export const listenToWeeklyPBs = (orgId: string, onUpdate: (events: StudioEvent[
     return onSnapshot(q, (snap) => onUpdate(snap.docs.map(d => d.data() as StudioEvent)));
 };
 
-// --- CORE BUSINESS (ORGS & STUDIOS) ---
+// --- CORE BUSINESS ---
 
 export const getOrganizations = async (): Promise<Organization[]> => {
     if (isOffline || !db) return MOCK_ORGANIZATIONS;
@@ -609,13 +621,11 @@ export const updateStudioConfig = async (orgId: string, studioId: string, overri
     return studios.find(s => s.id === studioId) as Studio;
 };
 
-// --- TRÄNINGSMOTORN (PASS & ÖVNINGAR) ---
+// --- TRÄNINGSMOTORN ---
 
 export const getWorkoutsForOrganization = async (orgId: string): Promise<Workout[]> => {
     if (isOffline || !db || !orgId) return [];
     try {
-        // Hämta pass som antingen tillhör organisationen ELLER saknar organizationId (för migration)
-        // Vi letar efter både tom sträng och fältet som helt saknas (undefined/null hanteras bäst via or-query här)
         const q = query(
           collection(db, 'workouts'), 
           or(
@@ -681,7 +691,7 @@ export const updateExerciseImageOverride = async (orgId: string, exerciseId: str
     } catch (e) { console.error("updateExerciseImageOverride failed", e); }
 };
 
-// --- BILLING (PRISSÄTTNING) ---
+// --- BILLING ---
 
 export const getSmartScreenPricing = async () => {
     if (isOffline || !db) return MOCK_SMART_SCREEN_PRICING;

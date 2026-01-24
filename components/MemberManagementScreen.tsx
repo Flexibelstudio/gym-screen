@@ -4,7 +4,7 @@ import { Member, UserRole } from '../types';
 import { UsersIcon, PencilIcon, ChartBarIcon, SearchIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon } from './icons';
 import { MemberDetailModal } from './MemberDetailModal';
 import { useStudio } from '../context/StudioContext';
-import { listenToMembers, updateMemberEndDate, updateUserRole } from '../services/firebaseService';
+import { listenToMembers, updateMemberEndDate, updateUserRoleCloud } from '../services/firebaseService';
 import QRCode from 'react-qr-code';
 import { Modal } from './ui/Modal';
 import { useAuth } from '../context/AuthContext';
@@ -15,10 +15,8 @@ interface MemberManagementScreenProps {
 
 type RoleFilter = 'all' | 'training' | 'coach' | 'admin';
 
-// Ändrat från 50 till 25 enligt önskemål
 const ITEMS_PER_PAGE = 25;
 
-// Helper component for the inline dropdown
 const RoleSwitcher: React.FC<{ 
     currentRole: UserRole; 
     memberId: string; 
@@ -27,7 +25,6 @@ const RoleSwitcher: React.FC<{
     canEdit: boolean;
 }> = ({ currentRole, memberId, isUpdating, onUpdate, canEdit }) => {
     
-    // Prevent row click when interacting with dropdown
     const handleClick = (e: React.MouseEvent) => e.stopPropagation();
 
     const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -97,10 +94,8 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Updating state for inline role changes
   const [updatingMembers, setUpdatingMembers] = useState<Record<string, boolean>>({});
 
-  // Date editing state
   const [editingDateMember, setEditingDateMember] = useState<Member | null>(null);
   const [newDateValue, setNewDateValue] = useState<string>('');
 
@@ -114,7 +109,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
     return () => unsubscribe();
   }, [selectedOrganization]);
 
-  // Reset to first page when filters change
   useEffect(() => {
       setCurrentPage(1);
   }, [searchTerm, roleFilter]);
@@ -135,7 +129,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
       });
   }, [members, searchTerm, roleFilter]);
 
-  // Pagination Logic
   const totalPages = Math.ceil(filteredMembers.length / ITEMS_PER_PAGE);
   const paginatedMembers = useMemo(() => {
       const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
@@ -179,16 +172,15 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
   const handleQuickRoleUpdate = async (memberId: string, newRole: UserRole) => {
       setUpdatingMembers(prev => ({ ...prev, [memberId]: true }));
       try {
-          await updateUserRole(memberId, newRole);
+          await updateUserRoleCloud(memberId, newRole);
       } catch (e) {
           console.error("Failed to update role", e);
-          alert("Kunde inte uppdatera rollen.");
+          alert(e instanceof Error ? e.message : "Kunde inte uppdatera rollen.");
       } finally {
           setUpdatingMembers(prev => ({ ...prev, [memberId]: false }));
       }
   };
 
-  // Helper för att byta sida och scrolla upp
   const goToPage = (page: number) => {
       setCurrentPage(page);
       const scrollContainer = document.querySelector('main');
@@ -215,13 +207,11 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
       );
   }
 
-  // Räkna ut vilka objekt som visas just nu för "Visar 1-25 av X"-texten
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE + 1;
   const endIndex = Math.min(currentPage * ITEMS_PER_PAGE, filteredMembers.length);
 
   return (
     <div className="space-y-8 animate-fade-in pb-20">
-      {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h3 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Team & Medlemmar</h3>
@@ -237,7 +227,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
         </button>
       </div>
 
-      {/* Filter & Search Bar */}
       <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
           <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full lg:w-auto overflow-x-auto scrollbar-hide">
               {[
@@ -398,7 +387,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
               </table>
             </div>
             
-            {/* Pagination Controls - Enhanced for better UX */}
             {totalPages > 1 && (
                 <div className="flex flex-col sm:flex-row items-center justify-between p-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50 gap-4">
                     <div className="text-sm font-bold text-gray-500 dark:text-gray-400 order-2 sm:order-1">
@@ -482,7 +470,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                 
                 {inviteCode ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-2">
-                        {/* QR Section */}
                         <div className="bg-white dark:bg-white p-6 rounded-[2.5rem] shadow-xl border border-gray-100 flex flex-col items-center group transition-all hover:scale-[1.02]">
                             <div className="p-2 border-2 border-gray-50 rounded-2xl">
                                 <QRCode value={qrUrl} size={180} fgColor="#000000" bgColor="#ffffff" level="M" />
@@ -490,7 +477,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                             <p className="mt-5 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 group-hover:text-primary transition-colors">Skanna för att öppna</p>
                         </div>
                         
-                        {/* Code Section */}
                         <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 flex flex-col items-center justify-center">
                             <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.25em] mb-4">Eller använd kod</span>
                             <div className="bg-white dark:bg-gray-900 px-8 py-5 rounded-2xl border-2 border-primary/20 shadow-inner">
