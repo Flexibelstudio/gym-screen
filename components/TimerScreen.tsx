@@ -24,7 +24,6 @@ interface TimerStyle {
 
 const getTimerStyle = (status: TimerStatus, mode: TimerMode, isHyrox: boolean, isTransitioning: boolean): TimerStyle => {
   if (isTransitioning) {
-      // Mörk lila/indigo gradient för vilan mellan block
       return { bg: 'bg-gradient-to-br from-indigo-900 to-purple-900', text: 'text-white', pulseRgb: '168, 85, 247', border: 'border-purple-400', badge: 'bg-purple-600' };
   }
   
@@ -72,9 +71,30 @@ const formatSeconds = (totalSeconds: number) => {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
+// Hjälpfunktion för att visa längd/typ på nästa block
+const getBlockTimeLabel = (block: WorkoutBlock): string => {
+    const s = block.settings;
+    switch(s.mode) {
+        case TimerMode.AMRAP:
+        case TimerMode.TimeCap:
+            return `${Math.floor(s.timeCap / 60)} MIN`;
+        case TimerMode.EMOM:
+            return `${s.totalRounds} MIN`;
+        case TimerMode.Tabata:
+            return `${s.tabataRounds} RONDER`;
+        case TimerMode.Interval:
+            return `${s.rounds} RONDER`;
+        default:
+            return "";
+    }
+};
+
 // --- Visualization Components ---
 
+// Högerkolumn för "nästa block"
 const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
+    const timeLabel = getBlockTimeLabel(block);
+    
     return (
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
@@ -87,6 +107,12 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
                 <div className="flex items-center gap-2 mt-2 text-white/40 text-xs font-black uppercase tracking-widest">
                     <ClockIcon className="w-4 h-4" />
                     <span>{block.settings.mode}</span>
+                    {timeLabel && (
+                        <>
+                            <span className="opacity-50">•</span>
+                            <span className="text-white">{timeLabel}</span>
+                        </>
+                    )}
                 </div>
             </div>
             <div className="flex-grow overflow-y-auto p-6 custom-scrollbar space-y-3">
@@ -101,6 +127,7 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
     );
 };
 
+// Fullbredds-vy för transition
 const TransitionFullWidthPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
     return (
         <motion.div 
@@ -124,7 +151,7 @@ const TransitionFullWidthPreview: React.FC<{ block: WorkoutBlock }> = ({ block }
     );
 };
 
-// Tidslinje-komponent (anpassad för att ligga inuti kortet)
+// Ren och snygg tidslinje (utan text)
 const SegmentedRoadmap: React.FC<{ 
     chain: WorkoutBlock[]; 
     currentBlockId: string; 
@@ -134,7 +161,7 @@ const SegmentedRoadmap: React.FC<{
     let accumulatedTime = 0;
     
     return (
-        <div className="w-full flex items-end gap-1.5 h-10 mb-2">
+        <div className="w-full flex items-center gap-1.5 h-6 mb-1">
             {chain.map((b, i) => {
                 const bDur = calculateBlockDuration(b.settings, b.exercises.length);
                 const transTime = (i < chain.length - 1) ? (b.transitionTime || 0) : 0;
@@ -156,20 +183,12 @@ const SegmentedRoadmap: React.FC<{
                     <div 
                         key={b.id} 
                         style={{ width: `${widthPercent}%` }} 
-                        className="flex flex-col gap-1 group transition-all h-full justify-end"
+                        className={`h-3 rounded-full overflow-hidden border relative shadow-sm transition-all ${isActive ? 'bg-black/40 border-white/60' : 'bg-black/20 border-white/10'}`}
                     >
-                        {/* Text ovanför baren - visar bara om aktiv eller hover */}
-                        <span className={`text-[10px] font-black uppercase tracking-wider truncate px-1 transition-all duration-300 text-center ${isActive ? 'text-white opacity-100' : 'text-white/40 opacity-0 group-hover:opacity-100'}`}>
-                            {b.title}
-                        </span>
-                        
-                        {/* Själva progress-baren */}
-                        <div className={`h-3 rounded-full overflow-hidden bg-black/40 border ${isActive ? 'border-white/60' : 'border-white/10'} relative shadow-sm`}>
-                            <motion.div 
-                                className={`absolute inset-0 transition-colors duration-500 ${isActive ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]' : 'bg-white/30'}`}
-                                style={{ width: `${segmentProgress}%` }}
-                            />
-                        </div>
+                        <motion.div 
+                            className={`absolute inset-0 transition-colors duration-500 ${isActive ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]' : 'bg-white/30'}`}
+                            style={{ width: `${segmentProgress}%` }}
+                        />
                     </div>
                 );
             })}
@@ -858,6 +877,12 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             <span className={`font-black tracking-[0.3em] text-white uppercase drop-shadow-md text-lg md:text-xl`}>{modeLabel}</span>
         </div>
 
+        {/* STATUS (ARBETE/VILA) - Överst */}
+        <div className="text-center z-20 w-full px-10 mb-2">
+            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl line-clamp-1`}>{statusLabel}</h2>
+        </div>
+
+        {/* SIFFROR (Tiden) - Mitten */}
         <div className="z-20 relative flex flex-col items-center w-full text-white">
             <div className="flex items-center justify-center w-full gap-2">
                  <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[10rem] sm:text-[12rem] md:text-[14rem] lg:text-[16rem]">
@@ -866,9 +891,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             </div>
         </div>
 
-        {/* ROADMAP / PROGRESS CHAIN - INSIDE CARD */}
+        {/* TIDSLINJE (Roadmap) - Under tiden */}
         {workoutChain.length > 1 && (
-            <div className="w-[80%] max-w-4xl mt-4 mb-2 z-20">
+            <div className="w-[80%] max-w-4xl mt-2 mb-2 z-20">
                 <SegmentedRoadmap 
                     chain={workoutChain} 
                     currentBlockId={block.id} 
@@ -878,8 +903,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             </div>
         )}
 
-        <div className="text-center z-20 w-full px-10 mb-2">
-            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl line-clamp-1`}>{statusLabel}</h2>
+        {/* BLOCK RUBRIK (Stort) - Längst ner */}
+        <div className="text-center z-20 w-full px-10 mt-4 mb-2">
+            <h1 className="font-black text-white/90 uppercase tracking-tighter text-2xl sm:text-3xl md:text-4xl drop-shadow-lg truncate">
+                {block.title}
+            </h1>
         </div>
       </div>
 
