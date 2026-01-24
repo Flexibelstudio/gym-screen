@@ -17,30 +17,73 @@ export const getAudioContext = (): AudioContext | null => {
   return audioContext;
 };
 
-export const playBeep = (frequency = 440, duration = 100, type: OscillatorType = 'sine') => {
+/**
+ * Skapar ett enskilt slag på en metallisk boxningsklocka.
+ * Använder additiv syntes (flera frekvenser) för att skapa en "smutsig" klang som hörs genom musik.
+ */
+const playBellStrike = (ctx: AudioContext, startTime: number) => {
+  const duration = 1.5;
+  // Obalanserade frekvenser skapar den metalliska klangen
+  const frequencies = [800, 1100, 1600, 2400]; 
+  
+  frequencies.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    // Blanda sinus och triangel för både kropp och skärpa
+    osc.type = i % 2 === 0 ? 'sine' : 'triangle';
+    osc.frequency.setValueAtTime(freq, startTime);
+    
+    // Snabb attack, lång exponential decay
+    gain.gain.setValueAtTime(0, startTime);
+    gain.gain.linearRampToValueAtTime(i === 0 ? 0.5 : 0.2, startTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.start(startTime);
+    osc.stop(startTime + duration);
+  });
+};
+
+/**
+ * Spelar boxningsklockan ett visst antal gånger.
+ */
+export const playBoxingBell = (strikes: number) => {
   const ctx = getAudioContext();
   if (!ctx) return;
   if (ctx.state === 'suspended') ctx.resume();
 
-  const oscillator = ctx.createOscillator();
-  const gainNode = ctx.createGain();
-
-  oscillator.connect(gainNode);
-  gainNode.connect(ctx.destination);
-
-  oscillator.type = type;
-  oscillator.frequency.value = frequency;
-  
-  gainNode.gain.setValueAtTime(0, ctx.currentTime);
-  gainNode.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.01);
-
-  oscillator.start(ctx.currentTime);
-  gainNode.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + duration / 1000);
-  oscillator.stop(ctx.currentTime + duration / 1000);
+  const now = ctx.currentTime;
+  for (let i = 0; i < strikes; i++) {
+    // Snabba slag (pling-pling) med 0.3s mellanrum
+    const delay = i * 0.3; 
+    playBellStrike(ctx, now + delay);
+  }
 };
 
-const playShortBeep = () => playBeep(880, 150, 'triangle');
-const playLongBeep = () => playBeep(523, 400, 'sine');
+const playShortBeep = () => {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.1);
+    
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    
+    osc.start();
+    osc.stop(ctx.currentTime + 0.1);
+};
 
 export const parseSettingsFromTitle = (title: string): Partial<TimerSettings> | null => {
     const lowerTitle = title.toLowerCase().trim();
@@ -213,25 +256,35 @@ export const useWorkoutTimer = (block: WorkoutBlock | null) => {
 
     if (block) {
       const { mode } = block.settings;
+      
+      // Slut på hela blocket (AMRAP / TimeCap)
       if ((mode === TimerMode.AMRAP || mode === TimerMode.TimeCap) && status === TimerStatus.Running) {
-        playLongBeep();
+        playBoxingBell(3); // Trippelslag för totalt avslut
         setStatus(TimerStatus.Finished);
         setTotalTimeElapsed(totalBlockDuration);
         return;
       }
+
+      // Slut på intervall
       if (status === TimerStatus.Running) {
         const newCompletedCount = completedWorkIntervals + 1;
+        
+        // Är vi helt klara med alla varv/intervaller?
         if (newCompletedCount >= settingsRounds) {
           setCompletedWorkIntervals(newCompletedCount);
-          playLongBeep();
+          playBoxingBell(3); // Trippelslag för totalt avslut
           setStatus(TimerStatus.Finished);
           setTotalTimeElapsed(totalBlockDuration);
           return;
         }
+        
         setCompletedWorkIntervals(newCompletedCount);
+        playBoxingBell(2); // Dubbelslag för avslutad arbetsperiod/övningsbyte
+      } else if (status === TimerStatus.Resting || status === TimerStatus.Preparing) {
+        playBoxingBell(2); // Dubbelslag för att signalera start av arbete
       }
     }
-    playLongBeep();
+    
     startNextInterval();
   }, [currentTime, status, block, completedWorkIntervals, totalBlockDuration, settingsRounds, startNextInterval]);
 
@@ -246,6 +299,7 @@ export const useWorkoutTimer = (block: WorkoutBlock | null) => {
         const workTime = block.settings.workTime || 60;
         setCurrentTime(workTime);
         setCurrentPhaseDuration(workTime);
+        playBoxingBell(2); // Starta direkt med klockan
     } else {
         setStatus(TimerStatus.Preparing);
         const prepTime = block.settings.prepareTime || 10;
