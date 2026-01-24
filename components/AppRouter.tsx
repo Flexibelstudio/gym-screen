@@ -53,6 +53,7 @@ interface AppRouterProps {
     
     preferredAdminTab: string;
     profileEditTrigger: number;
+    isAutoTransition: boolean;
 
     onSelectWorkout: (workout: Workout, action?: 'view' | 'log') => void;
     onSelectPasskategori: (passkategori: Passkategori) => void;
@@ -124,7 +125,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
         page, navigateTo, handleBack, role, userData, studioConfig, selectedOrganization, allOrganizations, isStudioMode, isImpersonating, theme,
         workouts, activeWorkout, activeBlock,
         passkategoriFilter, activeCustomPage, activeRaceId, racePrepState, followMeShowImage, mobileLogData,
-        preferredAdminTab, profileEditTrigger,
+        preferredAdminTab, profileEditTrigger, isAutoTransition,
         onSelectWorkout, onSelectPasskategori, onCreateNewWorkout, onStartBlock, onEditWorkout, onDeleteWorkout, onSaveWorkout, onSaveWorkoutNoNav,
         onTogglePublish, onToggleFavorite, onDuplicateWorkout, onTimerFinish,
         functions
@@ -164,7 +165,6 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
 
         case Page.WorkoutDetail:
             if (!activeWorkout) return <div>Inget pass valt</div>;
-            // Borttaget: Automatisk redirect till WarmupScreen för enkel-block uppvärmning
             return <WorkoutDetailScreen 
                 workout={activeWorkout} 
                 onStartBlock={(block) => onStartBlock(block, activeWorkout)} 
@@ -200,6 +200,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 followMeShowImage={followMeShowImage}
                 organization={selectedOrganization}
                 onBackToGroups={functions.handleReturnToGroupPrep}
+                isAutoTransition={isAutoTransition}
             />;
 
         case Page.FreestandingTimer:

@@ -562,7 +562,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                     </span>
                 )}
                 {!isWorkoutLoggable && (
-                    <span className="bg-gray-50 dark:bg-gray-900/50 text-gray-400 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-gray-100 dark:border-gray-800">
+                    <span className="bg-gray-5 dark:bg-gray-900/50 text-gray-400 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-gray-100 dark:border-gray-800">
                         Endast visning
                     </span>
                 )}
@@ -670,6 +670,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
           onClose={() => setEditingBlockId(null)}
           block={sessionWorkout.blocks.find(b => b.id === editingBlockId)!}
           onSave={(newSettings) => handleUpdateSettings(editingBlockId, newSettings)}
+          isLastBlock={sessionWorkout.blocks[sessionWorkout.blocks.length - 1]?.id === editingBlockId}
         />
       )}
       

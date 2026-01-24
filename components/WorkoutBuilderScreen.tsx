@@ -72,7 +72,7 @@ const ConfirmationModal: React.FC<{
                 <p className="text-gray-600 dark:text-gray-300 mb-6">{message}</p>
                 <div className="flex gap-4">
                     <button onClick={onCancel} className="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 rounded-lg transition-colors">Avbryt</button>
-                    <button onClick={onConfirm} className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-lg transition-colors">Ja, ta bort</button>
+                    <button onClick={onConfirm} className="flex-1 bg-red-600 hover:bg-red-50 text-white font-bold py-3 rounded-lg transition-colors">Ja, ta bort</button>
                 </div>
             </div>
         </div>
@@ -467,6 +467,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
             onClose={() => setEditingBlockId(null)}
             block={workout.blocks.find(b => b.id === editingBlockId)!}
             onSave={(newSettings) => handleUpdateBlockSettings(editingBlockId, newSettings)}
+            isLastBlock={workout.blocks[workout.blocks.length - 1]?.id === editingBlockId}
         />
       )}
 

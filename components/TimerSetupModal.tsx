@@ -9,6 +9,7 @@ interface TimerSetupModalProps {
   onClose: () => void;
   block: WorkoutBlock;
   onSave: (newSettings: Partial<WorkoutBlock['settings']> & { autoAdvance?: boolean; transitionTime?: number }) => void;
+  isLastBlock?: boolean;
 }
 
 type CountMode = 'laps' | 'rounds';
@@ -19,7 +20,7 @@ const secondsToMinSec = (totalSeconds: number) => {
     return { minutes, seconds };
 };
 
-export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClose, block, onSave }) => {
+export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClose, block, onSave, isLastBlock = false }) => {
   // --- Initialize State Lazily from Props ---
   const [initialState] = useState(() => {
       const { mode, workTime, restTime, rounds, specifiedLaps, specifiedIntervalsPerLap, direction } = block.settings;
@@ -194,7 +195,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
 
     onSave({ 
         ...newSettings, 
-        autoAdvance, 
+        autoAdvance: isLastBlock ? false : autoAdvance, 
         transitionTime 
     });
     onClose();
@@ -326,33 +327,35 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
         </div>
 
         {/* --- AUTO ADVANCE SETTINGS --- */}
-        <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
-             <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-2xl border border-purple-100 dark:border-purple-800/50">
-                 <div className="flex items-center gap-3">
-                     <SparklesIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                     <span className="font-bold text-gray-900 dark:text-white">Automatisk övergång</span>
-                 </div>
-                 <ToggleSwitch 
-                    label="" 
-                    checked={autoAdvance} 
-                    onChange={setAutoAdvance} 
-                 />
-             </div>
-             
-             {autoAdvance && (
-                 <div className="animate-fade-in p-4 bg-white dark:bg-black/40 rounded-2xl border border-gray-200 dark:border-gray-700">
-                     <ValueAdjuster 
-                        label="Vila inför nästa del (sekunder)" 
-                        value={transitionTime} 
-                        onchange={setTransitionTime} 
-                        step={5}
+        {!isLastBlock && (
+            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
+                 <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-2xl border border-purple-100 dark:border-purple-800/50">
+                     <div className="flex items-center gap-3">
+                         <SparklesIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                         <span className="font-bold text-gray-900 dark:text-white">Automatisk övergång</span>
+                     </div>
+                     <ToggleSwitch 
+                        label="" 
+                        checked={autoAdvance} 
+                        onChange={setAutoAdvance} 
                      />
-                     <p className="text-[10px] text-gray-500 mt-2 text-center uppercase tracking-widest font-bold italic">
-                        Nästa block startar automatiskt efter denna tid.
-                     </p>
                  </div>
-             )}
-        </div>
+                 
+                 {autoAdvance && (
+                     <div className="animate-fade-in p-4 bg-white dark:bg-black/40 rounded-2xl border border-gray-200 dark:border-gray-700">
+                         <ValueAdjuster 
+                            label="Vila inför nästa del (sekunder)" 
+                            value={transitionTime} 
+                            onchange={setTransitionTime} 
+                            step={5}
+                         />
+                         <p className="text-[10px] text-gray-500 mt-2 text-center uppercase tracking-widest font-bold italic">
+                            Nästa block startar automatiskt efter denna tid.
+                         </p>
+                     </div>
+                 )}
+            </div>
+        )}
 
         <div className="mt-8 flex gap-4">
           <button onClick={handleSave} className="flex-1 bg-primary hover:brightness-95 text-white font-bold py-3 rounded-lg transition-colors shadow-sm">Spara</button>
