@@ -24,6 +24,7 @@ interface TimerStyle {
 
 const getTimerStyle = (status: TimerStatus, mode: TimerMode, isHyrox: boolean, isTransitioning: boolean): TimerStyle => {
   if (isTransitioning) {
+      // Mörk lila/indigo gradient för vilan mellan block
       return { bg: 'bg-gradient-to-br from-indigo-900 to-purple-900', text: 'text-white', pulseRgb: '168, 85, 247', border: 'border-purple-400', badge: 'bg-purple-600' };
   }
   
@@ -71,19 +72,21 @@ const formatSeconds = (totalSeconds: number) => {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
-// Hjälpfunktion för att visa längd/typ på nästa block
+// Hjälpfunktion för att visa längd/typ på nästa block (Fixad NaN bugg)
 const getBlockTimeLabel = (block: WorkoutBlock): string => {
     const s = block.settings;
+    if (!s) return "";
+    
     switch(s.mode) {
         case TimerMode.AMRAP:
         case TimerMode.TimeCap:
-            return `${Math.floor(s.timeCap / 60)} MIN`;
+            return s.timeCap ? `${Math.floor(s.timeCap / 60)} MIN` : "";
         case TimerMode.EMOM:
-            return `${s.totalRounds} MIN`;
+            return s.totalRounds ? `${s.totalRounds} MIN` : "";
         case TimerMode.Tabata:
-            return `${s.tabataRounds} RONDER`;
+            return s.tabataRounds ? `${s.tabataRounds} RONDER` : "";
         case TimerMode.Interval:
-            return `${s.rounds} RONDER`;
+            return s.rounds ? `${s.rounds} RONDER` : "";
         default:
             return "";
     }
@@ -115,11 +118,11 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
                     )}
                 </div>
             </div>
-            <div className="flex-grow overflow-y-auto p-6 custom-scrollbar space-y-3">
+            <div className="flex-grow overflow-y-auto p-4 custom-scrollbar space-y-2">
                 {block.exercises.map((ex) => (
-                    <div key={ex.id} className="flex justify-between items-start gap-4 border-b border-white/5 pb-2 last:border-0">
+                    <div key={ex.id} className="flex justify-between items-center gap-4 bg-white/5 rounded-xl p-3 border border-white/5">
                         <p className="text-base font-bold text-white/90 leading-tight truncate">{ex.name}</p>
-                        {ex.reps && <span className="text-xs font-black text-primary whitespace-nowrap bg-primary/10 px-2 py-1 rounded-lg">{ex.reps}</span>}
+                        {ex.reps && <span className="text-xs font-black text-primary whitespace-nowrap bg-primary/10 px-2 py-1 rounded-lg">{formatReps(ex.reps)}</span>}
                     </div>
                 ))}
             </div>
@@ -127,23 +130,26 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
     );
 };
 
-// Fullbredds-vy för transition
+// Fullbredds-vy för transition (Nu enhetlig lista istället för kort)
 const TransitionFullWidthPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
     return (
         <motion.div 
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-7xl mx-auto px-6 h-full flex flex-col"
+            className="w-full max-w-5xl mx-auto px-6 h-full flex flex-col"
         >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto py-4 custom-scrollbar">
-                {block.exercises.map((ex, i) => (
-                    <div key={ex.id} className="bg-white/10 backdrop-blur-md rounded-3xl p-8 border-2 border-white/10 shadow-xl flex flex-col justify-center min-h-[160px]">
-                        <div className="flex justify-between items-start gap-4 mb-3">
-                            <span className="text-primary font-black text-xl">#{i + 1}</span>
-                            {ex.reps && <span className="bg-primary text-white px-4 py-2 rounded-2xl font-black text-xl shadow-lg">{formatReps(ex.reps)}</span>}
-                        </div>
+            <div className="flex-1 overflow-y-auto py-4 custom-scrollbar space-y-4">
+                {block.exercises.map((ex) => (
+                    <div 
+                        key={ex.id} 
+                        className="flex items-center justify-between bg-white/10 backdrop-blur-md rounded-2xl px-8 py-5 border-l-[10px] border-white/20 shadow-lg"
+                    >
                         <h4 className="text-3xl font-black text-white leading-tight uppercase tracking-tight">{ex.name}</h4>
-                        {ex.description && <p className="text-white/60 text-lg mt-2 font-medium line-clamp-2">{ex.description}</p>}
+                        {ex.reps && (
+                            <span className="bg-white text-indigo-900 px-5 py-2 rounded-xl font-black text-2xl shadow-lg border border-white/20">
+                                {formatReps(ex.reps)}
+                            </span>
+                        )}
                     </div>
                 ))}
             </div>
@@ -151,7 +157,7 @@ const TransitionFullWidthPreview: React.FC<{ block: WorkoutBlock }> = ({ block }
     );
 };
 
-// Ren och snygg tidslinje (utan text)
+// Tidslinje-komponent
 const SegmentedRoadmap: React.FC<{ 
     chain: WorkoutBlock[]; 
     currentBlockId: string; 
@@ -196,6 +202,7 @@ const SegmentedRoadmap: React.FC<{
     );
 };
 
+// ... (NextStartIndicator, FollowMeView, StandardListView behålls oförändrade)
 const NextStartIndicator: React.FC<{
     groupName: string;
     timeLeft: number;
@@ -879,13 +886,13 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
         {/* STATUS (ARBETE/VILA) - Överst */}
         <div className="text-center z-20 w-full px-10 mb-2">
-            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl line-clamp-1`}>{statusLabel}</h2>
+            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-4xl sm:text-6xl lg:text-7xl line-clamp-1`}>{statusLabel}</h2>
         </div>
 
         {/* SIFFROR (Tiden) - Mitten */}
         <div className="z-20 relative flex flex-col items-center w-full text-white">
             <div className="flex items-center justify-center w-full gap-2">
-                 <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[10rem] sm:text-[12rem] md:text-[14rem] lg:text-[16rem]">
+                 <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[8rem] sm:text-[10rem] md:text-[12rem]">
                     {minutesStr}:{secondsStr}
                  </span>
             </div>
