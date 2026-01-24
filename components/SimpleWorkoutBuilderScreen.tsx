@@ -694,6 +694,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                     isOpen={!!editingBlockId} onClose={() => setEditingBlockId(null)} 
                     block={workout.blocks.find(b => b.id === editingBlockId)!} 
                     onSave={s => handleUpdateBlockSettings(editingBlockId, s)} 
+                    isLastBlock={workout.blocks[workout.blocks.length - 1]?.id === editingBlockId}
                 />
             )}
 
