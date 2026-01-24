@@ -24,7 +24,7 @@ interface TimerStyle {
 
 const getTimerStyle = (status: TimerStatus, mode: TimerMode, isHyrox: boolean, isTransitioning: boolean): TimerStyle => {
   if (isTransitioning) {
-      // Mörk lila/indigo gradient för vilan mellan block - tydlig signal om "byte"
+      // Mörk lila/indigo gradient för vilan mellan block
       return { bg: 'bg-gradient-to-br from-indigo-900 to-purple-900', text: 'text-white', pulseRgb: '168, 85, 247', border: 'border-purple-400', badge: 'bg-purple-600' };
   }
   
@@ -74,7 +74,6 @@ const formatSeconds = (totalSeconds: number) => {
 
 // --- Visualization Components ---
 
-// Högerkolumn för "nästa block" under pågående pass
 const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
     return (
         <motion.div 
@@ -102,7 +101,6 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
     );
 };
 
-// Fullbredds-vy för "nästa block" under vilan/övergången
 const TransitionFullWidthPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
     return (
         <motion.div 
@@ -126,7 +124,7 @@ const TransitionFullWidthPreview: React.FC<{ block: WorkoutBlock }> = ({ block }
     );
 };
 
-// Tidslinjen längst ner
+// Tidslinje-komponent (anpassad för att ligga inuti kortet)
 const SegmentedRoadmap: React.FC<{ 
     chain: WorkoutBlock[]; 
     currentBlockId: string; 
@@ -136,15 +134,13 @@ const SegmentedRoadmap: React.FC<{
     let accumulatedTime = 0;
     
     return (
-        <div className="w-full flex items-end gap-2 h-14 px-4 pb-2">
+        <div className="w-full flex items-end gap-1.5 h-10 mb-2">
             {chain.map((b, i) => {
                 const bDur = calculateBlockDuration(b.settings, b.exercises.length);
                 const transTime = (i < chain.length - 1) ? (b.transitionTime || 0) : 0;
                 const segmentTotal = bDur + transTime;
                 
-                // Undvik division med noll om totaltid saknas
                 const widthPercent = totalChainTime > 0 ? (segmentTotal / totalChainTime) * 100 : (100 / chain.length);
-                
                 const isActive = b.id === currentBlockId;
                 
                 const segmentStart = accumulatedTime;
@@ -160,14 +156,17 @@ const SegmentedRoadmap: React.FC<{
                     <div 
                         key={b.id} 
                         style={{ width: `${widthPercent}%` }} 
-                        className="flex flex-col gap-2 group transition-all h-full justify-end"
+                        className="flex flex-col gap-1 group transition-all h-full justify-end"
                     >
-                        <span className={`text-[10px] font-black uppercase tracking-[0.2em] truncate px-1 transition-all duration-300 ${isActive ? 'text-white opacity-100 scale-100 origin-left' : 'text-white/40 opacity-0 group-hover:opacity-100'}`}>
+                        {/* Text ovanför baren - visar bara om aktiv eller hover */}
+                        <span className={`text-[10px] font-black uppercase tracking-wider truncate px-1 transition-all duration-300 text-center ${isActive ? 'text-white opacity-100' : 'text-white/40 opacity-0 group-hover:opacity-100'}`}>
                             {b.title}
                         </span>
-                        <div className={`h-4 rounded-full overflow-hidden bg-black/40 border ${isActive ? 'border-white/40' : 'border-white/10'} relative shadow-lg`}>
+                        
+                        {/* Själva progress-baren */}
+                        <div className={`h-3 rounded-full overflow-hidden bg-black/40 border ${isActive ? 'border-white/60' : 'border-white/10'} relative shadow-sm`}>
                             <motion.div 
-                                className={`absolute inset-0 transition-colors duration-500 ${isActive ? 'bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)]' : 'bg-white/20'}`}
+                                className={`absolute inset-0 transition-colors duration-500 ${isActive ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]' : 'bg-white/30'}`}
                                 style={{ width: `${segmentProgress}%` }}
                             />
                         </div>
@@ -415,11 +414,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       const index = activeWorkout.blocks.findIndex(b => b.id === block.id);
       if (index === -1) return [block];
 
-      // Hitta början av kedjan
       let startIdx = index;
       while (startIdx > 0 && activeWorkout.blocks[startIdx-1].autoAdvance) startIdx--;
-      
-      // Hitta slutet av kedjan
       let endIdx = index;
       while (endIdx < activeWorkout.blocks.length - 1 && activeWorkout.blocks[endIdx].autoAdvance) endIdx++;
 
@@ -826,18 +822,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         {showBackToPrepConfirmation && <RaceBackToPrepConfirmationModal onConfirm={onBackToGroups} onCancel={() => setShowBackToPrepConfirmation(false)} />}
       </AnimatePresence>
 
-      {/* ROADMAP / PROGRESS CHAIN - Nu längst ner och fixerad */}
-      <div className="absolute bottom-0 left-0 right-0 z-50 h-20 bg-gradient-to-t from-black/80 to-transparent flex items-end">
-        <div className={`mx-auto w-full transition-all duration-500 h-full ${isHyroxRace ? `pr-[${HYROX_RIGHT_PANEL_WIDTH}]` : 'max-w-7xl'}`}>
-            <SegmentedRoadmap 
-                chain={workoutChain} 
-                currentBlockId={block.id} 
-                totalChainElapsed={totalChainElapsed} 
-                totalChainTime={chainInfo.totalDuration}
-            />
-        </div>
-      </div>
-
       <AnimatePresence>
         {status !== TimerStatus.Idle && status !== TimerStatus.Paused && !showFinishAnimation && (
             <motion.div 
@@ -874,16 +858,28 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             <span className={`font-black tracking-[0.3em] text-white uppercase drop-shadow-md text-lg md:text-xl`}>{modeLabel}</span>
         </div>
 
-        <div className="text-center z-20 w-full px-10 mb-2">
-            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl line-clamp-1`}>{statusLabel}</h2>
-        </div>
-
         <div className="z-20 relative flex flex-col items-center w-full text-white">
             <div className="flex items-center justify-center w-full gap-2">
                  <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[10rem] sm:text-[12rem] md:text-[14rem] lg:text-[16rem]">
                     {minutesStr}:{secondsStr}
                  </span>
             </div>
+        </div>
+
+        {/* ROADMAP / PROGRESS CHAIN - INSIDE CARD */}
+        {workoutChain.length > 1 && (
+            <div className="w-[80%] max-w-4xl mt-4 mb-2 z-20">
+                <SegmentedRoadmap 
+                    chain={workoutChain} 
+                    currentBlockId={block.id} 
+                    totalChainElapsed={totalChainElapsed} 
+                    totalChainTime={chainInfo.totalDuration}
+                />
+            </div>
+        )}
+
+        <div className="text-center z-20 w-full px-10 mb-2">
+            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl line-clamp-1`}>{statusLabel}</h2>
         </div>
       </div>
 
