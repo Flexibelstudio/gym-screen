@@ -94,7 +94,30 @@ const getBlockTimeLabel = (block: WorkoutBlock): string => {
 
 // --- Visualization Components ---
 
-// Högerkolumn för "nästa block"
+// Ny Komponent: Visar att Vila kommer härnäst (i högerkolumnen)
+const NextRestPreview: React.FC<{ transitionTime: number; nextBlockTitle: string }> = ({ transitionTime, nextBlockTitle }) => {
+    return (
+        <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="h-full flex flex-col bg-indigo-900/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-indigo-500/30 overflow-hidden shadow-2xl"
+        >
+            <div className="p-6 h-full flex flex-col justify-center items-center text-center">
+                <span className="inline-block px-3 py-1 rounded-lg bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest mb-4">HÄRNÄST</span>
+                <h4 className="text-4xl font-black text-white uppercase tracking-tight mb-2">VILA</h4>
+                <div className="text-6xl font-mono font-black text-indigo-300 mb-6 drop-shadow-lg">
+                    {formatSeconds(transitionTime)}
+                </div>
+                <div className="bg-white/10 px-4 py-2 rounded-xl">
+                    <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mb-1">INFÖR</p>
+                    <p className="text-white font-bold leading-tight line-clamp-2">{nextBlockTitle}</p>
+                </div>
+            </div>
+        </motion.div>
+    );
+};
+
+// Högerkolumn för "nästa block" (när ingen vila finns)
 const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
     const timeLabel = getBlockTimeLabel(block);
     
@@ -130,7 +153,7 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
     );
 };
 
-// Fullbredds-vy för transition (Fixad för Ljust/Mörkt tema + Starta Nu knapp)
+// Fullbredds-vy för transition
 const TransitionFullWidthPreview: React.FC<{ block: WorkoutBlock; onSkip: () => void }> = ({ block, onSkip }) => {
     return (
         <motion.div 
@@ -903,7 +926,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         {/* SIFFROR (Tiden) - Mitten */}
         <div className="z-20 relative flex flex-col items-center w-full text-white">
             <div className="flex items-center justify-center w-full gap-2">
-                 <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[10rem] sm:text-[12rem] md:text-[14rem] lg:text-[16rem]">
+                 <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[8rem] sm:text-[10rem] md:text-[12rem]">
                     {minutesStr}:{secondsStr}
                  </span>
             </div>
@@ -960,11 +983,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                       </div>
 
                       {/* NEXT BLOCK PREVIEW (35% width) - Endast om inte i transition */}
-                      {showSplitView && (
+                      {showSplitView ? (
                           <div className="w-1/3 pb-6">
-                              <NextBlockPreview block={nextBlock!} />
+                              {(block.transitionTime && block.transitionTime > 0) ? (
+                                  <NextRestPreview transitionTime={block.transitionTime} nextBlockTitle={nextBlock!.title} />
+                              ) : (
+                                  <NextBlockPreview block={nextBlock!} />
+                              )}
                           </div>
-                      )}
+                      ) : null}
                   </>
               )}
           </div>
