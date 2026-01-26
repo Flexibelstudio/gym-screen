@@ -24,6 +24,7 @@ interface TimerStyle {
 
 const getTimerStyle = (status: TimerStatus, mode: TimerMode, isHyrox: boolean, isTransitioning: boolean): TimerStyle => {
   if (isTransitioning) {
+      // Mörk lila/indigo gradient för vilan mellan block
       return { bg: 'bg-gradient-to-br from-indigo-900 to-purple-900', text: 'text-white', pulseRgb: '168, 85, 247', border: 'border-purple-400', badge: 'bg-purple-600' };
   }
   
@@ -92,7 +93,7 @@ const getBlockTimeLabel = (block: WorkoutBlock): string => {
 
 // --- Visualization Components ---
 
-// Kompaktare vilopreview för sidokolumnen
+// Kompaktare vilopreview för sidokolumnen (Stationsläge)
 const NextRestPreview: React.FC<{ transitionTime: number; nextBlockTitle: string }> = ({ transitionTime, nextBlockTitle }) => {
     return (
         <motion.div 
@@ -113,32 +114,37 @@ const NextRestPreview: React.FC<{ transitionTime: number; nextBlockTitle: string
     );
 };
 
-// Horisontell vilopreview för "Följ mig"-läge (stackas under övningen)
-const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock }> = ({ transitionTime, block }) => {
+// Kraftfullare 'Härnäst' bar för Follow-me läge (Placeras längst ner)
+const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock; isRestNext?: boolean }> = ({ transitionTime, block, isRestNext }) => {
     return (
         <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full bg-black/40 backdrop-blur-xl rounded-3xl border border-white/10 p-5 flex items-center justify-between shadow-2xl mt-4"
+            className="w-full bg-black/40 backdrop-blur-xl rounded-[2rem] border-2 border-white/10 p-6 flex items-center justify-between shadow-2xl mt-4"
         >
-            <div className="flex items-center gap-4">
-                <div className="bg-primary/20 p-2 rounded-xl">
-                    <ChevronRightIcon className="w-6 h-6 text-primary" />
+            <div className="flex items-center gap-5">
+                <div className="bg-primary/20 p-3 rounded-2xl">
+                    <ChevronRightIcon className="w-8 h-8 text-primary" />
                 </div>
                 <div>
-                    <span className="block text-[10px] font-black text-white/40 uppercase tracking-widest mb-0.5">KOMMANDE</span>
-                    <h5 className="text-xl font-black text-white uppercase tracking-tight">
-                        {transitionTime !== undefined ? 'VILA' : block?.title}
+                    <span className="block text-[11px] font-black text-white/40 uppercase tracking-[0.3em] mb-1">HÄRNÄST</span>
+                    <h5 className="text-3xl font-black text-white uppercase tracking-tight">
+                        {isRestNext ? 'VILA' : block?.title}
                     </h5>
                 </div>
             </div>
-            {transitionTime !== undefined ? (
-                <div className="text-3xl font-mono font-black text-primary tabular-nums">
+            {isRestNext && transitionTime === undefined ? (
+                <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-xl border border-primary/20">
+                     <ClockIcon className="w-5 h-5 text-primary" />
+                     <span className="text-primary font-black uppercase text-sm tracking-widest">Återhämtning</span>
+                </div>
+            ) : transitionTime !== undefined ? (
+                <div className="text-5xl font-mono font-black text-primary tabular-nums drop-shadow-lg">
                     {formatSeconds(transitionTime)}
                 </div>
             ) : (
-                <div className="flex items-center gap-3 text-white/60">
-                    <span className="text-xs font-black uppercase tracking-widest bg-white/5 px-2 py-1 rounded-lg border border-white/10">{block?.settings.mode}</span>
+                <div className="flex items-center gap-3">
+                    <span className="text-xs font-black uppercase tracking-widest bg-white/5 text-white/60 px-3 py-1.5 rounded-xl border border-white/10">{block?.settings.mode}</span>
                 </div>
             )}
         </motion.div>
@@ -180,7 +186,7 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
     );
 };
 
-// Förbättrad Transitions-vy (Vila mellan block) med beskrivningar
+// Förbättrad Vilovy med snygga kort (StandardListView)
 const TransitionFullWidthPreview: React.FC<{ block: WorkoutBlock; onSkip: () => void; timerStyle: TimerStyle }> = ({ block, onSkip, timerStyle }) => {
     return (
         <motion.div 
@@ -189,14 +195,15 @@ const TransitionFullWidthPreview: React.FC<{ block: WorkoutBlock; onSkip: () => 
             className="w-full max-w-6xl mx-auto h-full flex flex-col pt-4"
         >
             <div className="flex-grow overflow-y-auto custom-scrollbar space-y-4 pr-2">
-                <div className="mb-6 flex justify-between items-end">
+                <div className="mb-8 flex justify-between items-end bg-black/20 p-8 rounded-[2.5rem] border border-white/5">
                     <div>
-                        <span className="inline-block px-3 py-1 rounded-lg bg-primary text-white text-[10px] font-black uppercase tracking-widest mb-2">INFÖR NÄSTA DEL</span>
-                        <h3 className="text-4xl font-black text-white uppercase tracking-tighter leading-none">{block.title}</h3>
+                        <span className="inline-block px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-black uppercase tracking-[0.2em] mb-3">UPPLADDNING</span>
+                        <h3 className="text-5xl font-black text-white uppercase tracking-tighter leading-none">{block.title}</h3>
+                        <p className="text-gray-400 mt-2 font-medium">Gör er redo för nästa del av passet</p>
                     </div>
                     <button 
                         onClick={onSkip}
-                        className="bg-white text-black font-black py-3 px-8 rounded-2xl shadow-xl hover:scale-105 transition-all text-sm uppercase tracking-widest border-2 border-white/50"
+                        className="bg-white text-black font-black py-4 px-10 rounded-2xl shadow-2xl hover:scale-105 transition-all text-lg uppercase tracking-widest border-4 border-white/30"
                     >
                         Starta nu
                     </button>
@@ -253,7 +260,6 @@ const SegmentedRoadmap: React.FC<{
     );
 };
 
-// ... (NextStartIndicator behålls oförändrade)
 const NextStartIndicator: React.FC<{
     groupName: string;
     timeLeft: number;
@@ -303,8 +309,9 @@ const FollowMeView: React.FC<{
     timerStyle: TimerStyle, 
     status: TimerStatus,
     nextBlock?: WorkoutBlock,
-    transitionTime?: number
-}> = ({ exercise, nextExercise, timerStyle, status, nextBlock, transitionTime }) => {
+    transitionTime?: number,
+    isRestNext?: boolean
+}> = ({ exercise, nextExercise, timerStyle, status, nextBlock, transitionTime, isRestNext }) => {
     const isResting = status === TimerStatus.Resting;
     const isPreparing = status === TimerStatus.Preparing;
     const displayExercise = exercise;
@@ -313,7 +320,7 @@ const FollowMeView: React.FC<{
     if (!displayExercise) return null;
 
     return (
-        <div className="flex flex-col h-full items-center">
+        <div className="flex flex-col h-full items-center justify-between">
             <AnimatePresence mode="wait">
                 <motion.div
                     key={displayExercise.id}
@@ -321,21 +328,21 @@ const FollowMeView: React.FC<{
                     animate={{ x: 0, opacity: 1 }}
                     exit={{ x: 100, opacity: 0 }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    className={`w-full max-w-5xl bg-white dark:bg-gray-900 rounded-[3rem] shadow-2xl overflow-hidden border-l-[20px] ${isResting ? 'border-teal-400' : timerStyle.border.replace('border-', 'border-')}`}
+                    className={`w-full max-w-5xl bg-white dark:bg-gray-900 rounded-[3.5rem] shadow-2xl overflow-hidden border-l-[20px] ${isResting ? 'border-teal-400' : timerStyle.border.replace('border-', 'border-')}`}
                     style={{ borderColor: isResting ? undefined : `rgb(${timerStyle.pulseRgb})` }}
                 >
                     <div className="p-10 md:p-14 flex flex-col items-center text-center">
                         <span className="block text-xl md:text-2xl font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 mb-4">
                             {label}
                         </span>
-                        <h3 className="text-5xl md:text-7xl font-black text-gray-900 dark:text-white leading-tight mb-6 tracking-tight">
+                        <h3 className="text-5xl md:text-8xl font-black text-gray-900 dark:text-white leading-tight mb-6 tracking-tight">
                             {displayExercise.name}
                         </h3>
                         {displayExercise.reps && (
-                            <p className="text-4xl md:text-6xl font-black text-primary mb-6">{formatReps(displayExercise.reps)}</p>
+                            <p className="text-5xl md:text-7xl font-black text-primary mb-6">{formatReps(displayExercise.reps)}</p>
                         )}
                         {displayExercise.description && (
-                            <p className="text-gray-600 dark:text-gray-300 text-2xl md:text-3xl leading-relaxed max-w-4xl font-medium">
+                            <p className="text-gray-600 dark:text-gray-300 text-2xl md:text-4xl leading-relaxed max-w-4xl font-medium">
                                 {displayExercise.description}
                             </p>
                         )}
@@ -344,9 +351,9 @@ const FollowMeView: React.FC<{
             </AnimatePresence>
             
             {/* Ny Vertikal 'Härnäst' bar för Follow-me läge */}
-            {(transitionTime !== undefined || nextBlock) && (
+            {(isRestNext || nextBlock) && (
                 <div className="w-full max-w-5xl">
-                    <NextUpCompactBar transitionTime={transitionTime} block={nextBlock} />
+                    <NextUpCompactBar transitionTime={transitionTime} block={nextBlock} isRestNext={isRestNext} />
                 </div>
             )}
         </div>
@@ -531,7 +538,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       
       workoutChain.forEach((b, i) => {
           const bDur = calculateBlockDuration(b.settings, b.exercises.length);
-          const transTime = (i < workoutChain.length - 1) ? (b.transitionTime || 0) : 0;
+          const transTime = (i < chain.length - 1) ? (b.transitionTime || 0) : 0;
           totalDuration += bDur + transTime;
           if (i < currentIdxInChain) elapsedTimeBeforeCurrent += bDur + transTime;
       });
@@ -866,8 +873,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const minutesStr = Math.floor(timeToDisplay / 60).toString().padStart(2, '0');
   const secondsStr = (timeToDisplay % 60).toString().padStart(2, '0');
 
-  const currentIntervalInLap = (completedWorkIntervals % effectiveIntervalsPerLap) + 1;
   const showSplitView = !!nextBlock && block.autoAdvance && !isTransitioning;
+
+  // Bestäm om Vila ska visas som kommande steg i baren
+  const isRestNext = block.autoAdvance && (block.transitionTime || 0) > 0 && status !== TimerStatus.Resting;
 
   const handleInteraction = () => { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); restartHideTimer(); };
   const restartHideTimer = React.useCallback(() => {
@@ -938,8 +947,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                         currentRound={currentRound} 
                         totalRounds={totalRounds} 
                         mode={block.settings.mode} 
-                        currentInterval={currentIntervalInLap}
-                        totalIntervalsInLap={effectiveIntervalsPerLap}
+                        currentInterval={(completedWorkIntervals % (block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1)) + 1}
+                        totalIntervalsInLap={block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1}
                     />
                 )}
             </motion.div>
@@ -995,7 +1004,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       </div>
 
       {/* CONTENT AREA (Under Clock) */}
-      <div className={`absolute bottom-10 left-0 flex flex-col items-center justify-start px-4 z-0 pt-8
+      <div className={`absolute bottom-4 left-0 flex flex-col items-center justify-start px-4 z-0 pt-8
           ${showFullScreenColor ? 'top-[65%]' : 'top-[27%]'} 
           ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'}`}>
           
@@ -1007,9 +1016,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                   // NORMAL WORKOUT VIEW
                   <>
                     {block.followMe ? (
-                        // FOLLOW ME LAYOUT (Vertical stack)
-                        <div className="w-full flex flex-col items-center h-full">
-                            <div className="w-full flex-grow flex flex-col">
+                        // FOLLOW ME LAYOUT (Vertical stack - Bar forced to bottom)
+                        <div className="w-full flex flex-col items-center h-full justify-between pb-4">
+                            <div className="w-full flex flex-col flex-grow">
                                 {block.showDescriptionInTimer && block.setupDescription && (
                                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 mb-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0 mx-auto max-w-5xl">
                                         <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
@@ -1024,6 +1033,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                         status={status} 
                                         nextBlock={nextBlock && block.autoAdvance ? nextBlock : undefined}
                                         transitionTime={status === TimerStatus.Resting ? currentTime : undefined}
+                                        isRestNext={isRestNext}
                                     />
                                 </div>
                             </div>
