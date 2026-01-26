@@ -80,11 +80,11 @@ const getBlockTimeLabel = (block: WorkoutBlock): string => {
     switch(s.mode) {
         case TimerMode.AMRAP:
         case TimerMode.TimeCap:
-            return s.timeCap ? `${Math.floor(s.timeCap / 60)} MIN` : "";
+            return s.workTime ? `${Math.floor(s.workTime / 60)} MIN` : "";
         case TimerMode.EMOM:
-            return s.totalRounds ? `${s.totalRounds} MIN` : "";
+            return s.rounds ? `${s.rounds} MIN` : "";
         case TimerMode.Tabata:
-            return s.tabataRounds ? `${s.tabataRounds} RONDER` : "";
+            return s.rounds ? `${s.rounds} RONDER` : "";
         case TimerMode.Interval:
             return s.rounds ? `${s.rounds} RONDER` : "";
         default:
@@ -125,7 +125,7 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="h-full flex flex-col bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-white/10 overflow-hidden shadow-2xl"
+            className="max-h-[80%] my-auto flex flex-col bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-white/10 overflow-hidden shadow-2xl"
         >
             <div className="p-6 bg-white/5 border-b border-white/5">
                 <span className="inline-block px-3 py-1 rounded-lg bg-primary text-white text-[10px] font-black uppercase tracking-widest mb-2">HÄRNÄST</span>
@@ -366,7 +366,7 @@ const StandardListView: React.FC<{
                     style={{ borderLeftColor: `rgb(${timerStyle.pulseRgb})` }}
                 >
                     <div className="flex justify-between items-center w-full gap-6">
-                        <h4 className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight uppercase ${titleSize}`}>
+                        <h4 className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight ${titleSize}`}>
                             {ex.name}
                         </h4>
                         {ex.reps && (
@@ -974,7 +974,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
       {/* CONTENT AREA (Under Clock) */}
       <div className={`absolute bottom-24 left-0 flex flex-col items-center justify-start px-4 z-0 pt-8
-          ${showFullScreenColor ? 'top-[65%]' : 'top-[35%]'} 
+          ${showFullScreenColor ? 'top-[65%]' : 'top-[28%]'} 
           ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'}`}>
           
           <div className="w-full max-w-[1500px] flex gap-10 h-full items-stretch">
@@ -1004,7 +1004,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
                       {/* NEXT BLOCK PREVIEW (35% width) - Endast om inte i transition */}
                       {showSplitView ? (
-                          <div className="w-1/3 pb-6">
+                          <div className="w-1/3 pb-6 flex flex-col justify-center">
                               {(block.transitionTime && block.transitionTime > 0) ? (
                                   <NextRestPreview transitionTime={block.transitionTime} nextBlockTitle={nextBlock!.title} />
                               ) : (
@@ -1054,15 +1054,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[35%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
             {status === TimerStatus.Idle || status === TimerStatus.Finished ? (
                 <>
-                    <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-500 transition-colors text-xl backdrop-blur-md border-2 border-white/20">TILLBAKA</button>
-                    <button onClick={() => start()} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50">STARTA</button>
+                    <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-500 transition-colors text-xl backdrop-blur-md border-2 border-white/20 uppercase">TILLBAKA</button>
+                    <button onClick={() => start()} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50 uppercase">STARTA</button>
                 </>
             ) : status === TimerStatus.Paused ? (
-                <button onClick={resume} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400">FORTSÄTT</button>
+                <button onClick={resume} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase">FORTSÄTT</button>
             ) : (
-                <button onClick={pause} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50">PAUSA</button>
+                <button onClick={pause} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50 uppercase">PAUSA</button>
             )}
-            {isHyroxRace && status !== TimerStatus.Running && <button onClick={() => setShowBackToPrepConfirmation(true)} className="bg-gray-800/80 text-white font-bold py-4 px-8 rounded-full shadow-xl border-2 border-gray-600 hover:bg-gray-700 transition-colors text-lg">⚙️ Grupper</button>}
+            {isHyroxRace && status !== TimerStatus.Running && <button onClick={() => setShowBackToPrepConfirmation(true)} className="bg-gray-800/80 text-white font-bold py-4 px-8 rounded-full shadow-xl border-2 border-gray-600 hover:bg-gray-700 transition-colors text-lg uppercase">⚙️ Grupper</button>}
       </div>
     </div>
   );
