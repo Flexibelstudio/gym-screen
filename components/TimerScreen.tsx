@@ -330,40 +330,60 @@ const StandardListView: React.FC<{
     timerStyle: TimerStyle 
 }> = ({ exercises, timerStyle }) => {
     const count = exercises.length;
-    let titleSize = 'text-3xl';
-    let repsSize = 'text-xl';
+    
+    // --- DESIGN-LOGIK FÖR ANPASSNING ---
+    let titleSize = 'text-3xl md:text-4xl';
+    let repsSize = 'text-xl md:text-2xl';
+    let descSize = 'text-lg md:text-xl';
     let padding = 'px-6 py-4';
-    let gap = 'gap-3';
+    let gap = 'gap-4';
+    let showDescription = true;
 
     if (count <= 4) {
-        titleSize = 'text-4xl md:text-5xl';
-        repsSize = 'text-2xl md:text-3xl';
-        padding = 'px-8 py-6';
-        gap = 'gap-5';
-    } else if (count <= 7) {
-        titleSize = 'text-3xl md:text-4xl';
-        repsSize = 'text-xl md:text-2xl';
-        gap = 'gap-4';
+        // Få övningar (1-4) - GIGANTISK DESIGN
+        titleSize = 'text-5xl md:text-6xl';
+        repsSize = 'text-3xl md:text-4xl';
+        descSize = 'text-2xl md:text-3xl';
+        padding = 'px-8 py-8';
+        gap = 'gap-6';
+    } else if (count > 8) {
+        // Många övningar (>8) - KOMPAKT DESIGN & DÖLJ BESKRIVNING
+        titleSize = 'text-2xl md:text-3xl';
+        repsSize = 'text-lg';
+        padding = 'px-5 py-3';
+        gap = 'gap-2';
+        showDescription = false; 
     }
 
     return (
-        <div className={`w-full flex-1 flex flex-col ${gap} overflow-y-auto pb-4 custom-scrollbar`}>
+        // 1. ITEMS-STRETCH & H-FULL: Container fyller höjden och barnen sträcker sig
+        <div className={`w-full h-full flex flex-col ${gap} overflow-y-auto pb-4 custom-scrollbar`}>
             {exercises.map((ex) => (
                 <div 
                     key={ex.id} 
-                    className={`flex-1 min-h-[100px] bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-3xl ${padding} flex flex-col justify-center border-l-[12px] shadow-xl transition-all relative group`}
+                    // 1. FLEX DISTRIBUERING: flex-1 tvingar dem att dela lika på det vertikala utrymmet
+                    className={`flex-1 min-h-0 bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-3xl ${padding} flex flex-col justify-center border-l-[12px] shadow-xl transition-all relative group`}
                     style={{ borderLeftColor: `rgb(${timerStyle.pulseRgb})` }}
                 >
-                    <div className="flex justify-between items-center w-full gap-8">
+                    <div className="flex justify-between items-center w-full gap-6">
                         <h4 className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight uppercase ${titleSize}`}>
                             {ex.name}
                         </h4>
                         {ex.reps && (
-                            <span className={`font-mono font-black text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 px-5 py-2.5 rounded-2xl whitespace-nowrap shadow-inner border border-gray-200 dark:border-gray-700 ${repsSize}`}>
+                            <span className={`font-mono font-black text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-2xl whitespace-nowrap shadow-inner border border-gray-200 dark:border-gray-700 ${repsSize}`}>
                                 {formatReps(ex.reps)}
                             </span>
                         )}
                     </div>
+
+                    {/* 2. VISA HELA BESKRIVNINGEN: Inget line-clamp om det finns plats */}
+                    {showDescription && ex.description && (
+                        <div className="mt-3">
+                             <p className={`font-medium text-gray-600 dark:text-gray-300 leading-snug ${descSize}`}>
+                                {ex.description}
+                             </p>
+                        </div>
+                    )}
                 </div>
             ))}
         </div>
@@ -957,7 +977,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           ${showFullScreenColor ? 'top-[65%]' : 'top-[35%]'} 
           ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'}`}>
           
-          <div className="w-full max-w-[1500px] flex gap-10 h-full">
+          <div className="w-full max-w-[1500px] flex gap-10 h-full items-stretch">
               {isTransitioning ? (
                   // TRANSITION VIEW: Show NEXT block exercises BIG and FULL WIDTH with BUTTON
                   <TransitionFullWidthPreview block={nextBlock!} onSkip={handleStartNextBlock} />
@@ -965,15 +985,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                   // NORMAL WORKOUT VIEW
                   <>
                       {/* CURRENT BLOCK VIEW (65% width if nextBlock exists) */}
-                      <div className={`flex flex-col gap-6 transition-all duration-500 ${showSplitView ? 'w-2/3' : 'w-full mx-auto max-w-6xl'}`}>
+                      <div className={`flex flex-col gap-6 transition-all duration-500 h-full ${showSplitView ? 'w-2/3' : 'w-full mx-auto max-w-6xl'}`}>
                           {block.showDescriptionInTimer && block.setupDescription && (
-                              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem]">
+                              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0">
                                   <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
                                   <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight uppercase tracking-tight">{block.setupDescription}</p>
                               </motion.div>
                           )}
 
-                          <div className="w-full flex justify-center items-start flex-grow"> 
+                          <div className="w-full flex-grow min-h-0"> 
                               {block.followMe ? (
                                   <FollowMeView exercise={currentExercise} nextExercise={nextExercise} timerStyle={timerStyle} status={status} />
                               ) : (
