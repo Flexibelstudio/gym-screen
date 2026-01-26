@@ -99,52 +99,52 @@ const NextRestPreview: React.FC<{ transitionTime: number; nextBlockTitle: string
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="my-auto flex flex-col bg-indigo-900/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-indigo-500/30 overflow-hidden shadow-2xl p-6 text-center"
+            className="my-auto flex flex-col bg-white/90 dark:bg-indigo-900/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-indigo-500/30 overflow-hidden shadow-2xl p-6 text-center"
         >
             <span className="inline-block px-3 py-1 rounded-lg bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest mb-3 mx-auto w-fit">HÄRNÄST</span>
-            <h4 className="text-3xl font-black text-white uppercase tracking-tight mb-1">VILA</h4>
-            <div className="text-5xl font-mono font-black text-indigo-300 mb-4 drop-shadow-lg">
+            <h4 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-1">VILA</h4>
+            <div className="text-5xl font-mono font-black text-indigo-500 dark:text-indigo-300 mb-4 drop-shadow-lg">
                 {formatSeconds(transitionTime)}
             </div>
-            <div className="bg-white/10 px-4 py-3 rounded-xl">
-                <p className="text-white/60 text-[10px] font-bold uppercase tracking-widest mb-1">INFÖR</p>
-                <p className="text-white text-sm font-bold leading-tight line-clamp-2">{nextBlockTitle}</p>
+            <div className="bg-gray-100 dark:bg-white/10 px-4 py-3 rounded-xl">
+                <p className="text-gray-400 dark:text-white/60 text-[10px] font-bold uppercase tracking-widest mb-1">INFÖR</p>
+                <p className="text-gray-900 dark:text-white text-sm font-bold leading-tight line-clamp-2">{nextBlockTitle}</p>
             </div>
         </motion.div>
     );
 };
 
-// Kraftfullare 'Härnäst' bar för Follow-me läge (Placeras längst ner)
+// Kraftfullare 'Härnäst' bar för Follow-me läge (Större och tema-anpassad)
 const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock; isRestNext?: boolean }> = ({ transitionTime, block, isRestNext }) => {
     return (
         <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full bg-black/40 backdrop-blur-xl rounded-[2rem] border-2 border-white/10 p-6 flex items-center justify-between shadow-2xl mt-4"
+            className="w-full bg-white/95 dark:bg-black/40 backdrop-blur-xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 p-8 flex items-center justify-between shadow-2xl mt-4"
         >
-            <div className="flex items-center gap-5">
-                <div className="bg-primary/20 p-3 rounded-2xl">
-                    <ChevronRightIcon className="w-8 h-8 text-primary" />
+            <div className="flex items-center gap-6">
+                <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20">
+                    <ChevronRightIcon className="w-10 h-10 text-primary" />
                 </div>
                 <div>
-                    <span className="block text-[11px] font-black text-white/40 uppercase tracking-[0.3em] mb-1">HÄRNÄST</span>
-                    <h5 className="text-3xl font-black text-white uppercase tracking-tight">
+                    <span className="block text-[12px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.4em] mb-1.5">HÄRNÄST</span>
+                    <h5 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">
                         {isRestNext ? 'VILA' : block?.title}
                     </h5>
                 </div>
             </div>
             {isRestNext && transitionTime === undefined ? (
-                <div className="flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-xl border border-primary/20">
-                     <ClockIcon className="w-5 h-5 text-primary" />
-                     <span className="text-primary font-black uppercase text-sm tracking-widest">Återhämtning</span>
+                <div className="flex items-center gap-2 bg-primary/10 px-6 py-3 rounded-2xl border border-primary/20 shadow-sm">
+                     <ClockIcon className="w-6 h-6 text-primary" />
+                     <span className="text-primary font-black uppercase text-base tracking-widest">Återhämtning</span>
                 </div>
             ) : transitionTime !== undefined ? (
-                <div className="text-5xl font-mono font-black text-primary tabular-nums drop-shadow-lg">
+                <div className="text-6xl font-mono font-black text-primary tabular-nums drop-shadow-xl">
                     {formatSeconds(transitionTime)}
                 </div>
             ) : (
                 <div className="flex items-center gap-3">
-                    <span className="text-xs font-black uppercase tracking-widest bg-white/5 text-white/60 px-3 py-1.5 rounded-xl border border-white/10">{block?.settings.mode}</span>
+                    <span className="text-sm font-black uppercase tracking-widest bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/60 px-4 py-2 rounded-xl border border-gray-200 dark:border-white/10">{block?.settings.mode}</span>
                 </div>
             )}
         </motion.div>
@@ -158,26 +158,26 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="max-h-[80%] my-auto flex flex-col bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-white/10 overflow-hidden shadow-2xl"
+            className="max-h-[80%] my-auto flex flex-col bg-white dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 overflow-hidden shadow-2xl"
         >
-            <div className="p-6 bg-white/5 border-b border-white/5">
+            <div className="p-6 bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5">
                 <span className="inline-block px-3 py-1 rounded-lg bg-primary text-white text-[10px] font-black uppercase tracking-widest mb-2">HÄRNÄST</span>
-                <h4 className="text-2xl font-black text-white uppercase tracking-tight line-clamp-2 leading-none">{block.title}</h4>
-                <div className="flex items-center gap-2 mt-2 text-white/40 text-xs font-black uppercase tracking-widest">
+                <h4 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight line-clamp-2 leading-none">{block.title}</h4>
+                <div className="flex items-center gap-2 mt-2 text-gray-400 dark:text-white/40 text-xs font-black uppercase tracking-widest">
                     <ClockIcon className="w-4 h-4" />
                     <span>{block.settings.mode}</span>
                     {timeLabel && (
                         <>
                             <span className="opacity-50">•</span>
-                            <span className="text-white">{timeLabel}</span>
+                            <span className="text-gray-600 dark:text-white">{timeLabel}</span>
                         </>
                     )}
                 </div>
             </div>
             <div className="flex-grow overflow-y-auto p-4 custom-scrollbar space-y-2">
                 {block.exercises.map((ex) => (
-                    <div key={ex.id} className="flex justify-between items-center gap-4 bg-white/5 rounded-xl p-3 border border-white/5">
-                        <p className="text-base font-bold text-white/90 leading-tight truncate">{ex.name}</p>
+                    <div key={ex.id} className="flex justify-between items-center gap-4 bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-white/5">
+                        <p className="text-base font-bold text-gray-800 dark:text-white/90 leading-tight truncate">{ex.name}</p>
                         {ex.reps && <span className="text-xs font-black text-primary whitespace-nowrap bg-primary/10 px-2 py-1 rounded-lg">{formatReps(ex.reps)}</span>}
                     </div>
                 ))}
@@ -186,30 +186,32 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
     );
 };
 
-// Förbättrad Vilovy med snygga kort (StandardListView)
+// Förbättrad Vilovy med snygga kort (StandardListView som fyller höjden)
 const TransitionFullWidthPreview: React.FC<{ block: WorkoutBlock; onSkip: () => void; timerStyle: TimerStyle }> = ({ block, onSkip, timerStyle }) => {
     return (
         <motion.div 
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-6xl mx-auto h-full flex flex-col pt-4"
+            className="w-full max-w-6xl mx-auto h-full flex flex-col pt-4 pb-4"
         >
-            <div className="flex-grow overflow-y-auto custom-scrollbar space-y-4 pr-2">
-                <div className="mb-8 flex justify-between items-end bg-black/20 p-8 rounded-[2.5rem] border border-white/5">
+            <div className="flex-grow flex flex-col h-full space-y-4">
+                <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-center bg-white/80 dark:bg-black/20 p-8 rounded-[2.5rem] border border-gray-200 dark:border-white/5 shadow-lg gap-6">
                     <div>
                         <span className="inline-block px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-black uppercase tracking-[0.2em] mb-3">UPPLADDNING</span>
-                        <h3 className="text-5xl font-black text-white uppercase tracking-tighter leading-none">{block.title}</h3>
-                        <p className="text-gray-400 mt-2 font-medium">Gör er redo för nästa del av passet</p>
+                        <h3 className="text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-none">{block.title}</h3>
+                        <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Gör er redo för nästa del av passet</p>
                     </div>
                     <button 
                         onClick={onSkip}
-                        className="bg-white text-black font-black py-4 px-10 rounded-2xl shadow-2xl hover:scale-105 transition-all text-lg uppercase tracking-widest border-4 border-white/30"
+                        className="bg-gray-900 dark:bg-white text-white dark:text-black font-black py-4 px-10 rounded-2xl shadow-2xl hover:scale-105 transition-all text-lg uppercase tracking-widest border-4 border-gray-700 dark:border-white/30"
                     >
                         Starta nu
                     </button>
                 </div>
                 
-                <StandardListView exercises={block.exercises} timerStyle={timerStyle} forceFullHeight={false} />
+                <div className="flex-grow min-h-0">
+                    <StandardListView exercises={block.exercises} timerStyle={timerStyle} forceFullHeight={true} />
+                </div>
             </div>
         </motion.div>
     );
@@ -394,7 +396,7 @@ const StandardListView: React.FC<{
             {exercises.map((ex) => (
                 <div 
                     key={ex.id} 
-                    className={`${forceFullHeight ? 'flex-1' : 'flex-none'} min-h-0 bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-3xl ${padding} flex flex-col justify-center border-l-[12px] shadow-xl transition-all relative group`}
+                    className={`${forceFullHeight ? 'flex-1' : 'flex-none'} min-h-0 bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-3xl ${padding} flex flex-col justify-center border-l-[12px] shadow-xl transition-all relative group border-gray-100 dark:border-transparent`}
                     style={{ borderLeftColor: `rgb(${timerStyle.pulseRgb})` }}
                 >
                     <div className="flex justify-between items-center w-full gap-6">
