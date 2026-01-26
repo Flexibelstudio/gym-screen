@@ -41,6 +41,15 @@ const formatReps = (reps: string | undefined): string => {
 
 // --- NEW COMPONENT: BLOCK PRESENTATION MODAL ---
 const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => void }> = ({ block, onClose }) => {
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // Säkerställ att vi alltid startar högst upp när modalen öppnas eller byter block
+    useEffect(() => {
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTop = 0;
+        }
+    }, [block.id]);
+
     return (
         <motion.div 
             initial={{ opacity: 0 }}
@@ -74,7 +83,7 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
             </div>
 
             {/* Content - Giant List */}
-            <div className="flex-grow overflow-y-auto p-8 md:p-12">
+            <div ref={scrollContainerRef} className="flex-grow overflow-y-auto p-8 md:p-12">
                 <div className="max-w-7xl mx-auto space-y-6">
                     {block.exercises.map((ex, index) => (
                         <div key={ex.id} className="flex items-start gap-8 p-8 rounded-[2rem] bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800">
