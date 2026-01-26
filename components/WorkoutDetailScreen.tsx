@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, StudioConfig, WorkoutResult } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
@@ -182,7 +181,7 @@ const MemberWorkoutView: React.FC<{
                         {workout.blocks.length} delar
                     </span>
                     {!isLoggable && (
-                        <span className="bg-gray-50 dark:bg-gray-800 text-gray-400 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-gray-100 dark:border-gray-700">
+                        <span className="bg-gray-5 dark:bg-gray-900/50 text-gray-400 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-gray-100 dark:border-gray-800">
                             Endast visning
                         </span>
                     )}
@@ -424,6 +423,7 @@ interface WorkoutDetailScreenProps {
   hasActiveCarousel?: boolean; 
   onLogWorkout?: (workoutId: string, orgId: string) => void;
   onClose?: () => void;
+  onHeaderVisibilityChange?: (visible: boolean) => void;
 }
 
 const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({ 
@@ -433,7 +433,8 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
     followMeShowImage, setFollowMeShowImage, onUpdateWorkout, onVisualize,
     hasActiveCarousel = false,
     onLogWorkout,
-    onClose
+    onClose,
+    onHeaderVisibilityChange
 }) => {
   const { selectedOrganization, selectedStudio } = useStudio();
   const { isStudioMode, role } = useAuth();
@@ -474,6 +475,17 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
         return () => clearInterval(intervalId);
     }
   }, [workout.id, isHyroxRace, resultsLoading, selectedOrganization]);
+
+  // Effekt för att styra headerns synlighet vid presentation
+  useEffect(() => {
+      if (visualizingBlock) {
+          onHeaderVisibilityChange?.(false);
+      } else {
+          onHeaderVisibilityChange?.(true);
+      }
+      // Återställ headern om komponenten tas bort
+      return () => onHeaderVisibilityChange?.(true);
+  }, [visualizingBlock, onHeaderVisibilityChange]);
 
   const handleDelete = () => {
       if (onDelete && window.confirm(`Är du säker på att du vill ta bort passet "${workout.title}"?`)) {

@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Page, Workout, WorkoutBlock, Passkategori, CustomPage, StartGroup, UserRole, UserData, StudioConfig, Organization, WorkoutDiploma, InfoCarousel } from '../types';
 import { HomeScreen } from './HomeScreen';
@@ -185,6 +184,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onVisualize={() => {}}
                 onLogWorkout={functions.handleLogWorkoutRequest}
                 onClose={handleBack}
+                onHeaderVisibilityChange={functions.setTimerHeaderVisible}
             />;
 
         case Page.Timer:

@@ -912,7 +912,7 @@ const App: React.FC = () => {
         onBack={handleBack} 
         theme={theme}
         toggleTheme={toggleTheme}
-        isVisible={page === Page.Timer ? isTimerHeaderVisible : true}
+        isVisible={isTimerHeaderVisible}
         activeCustomPageTitle={page === Page.CustomContent ? activeCustomPage?.title : undefined}
         onSignOut={isStudioMode ? undefined : signOut}
         role={role}
