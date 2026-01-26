@@ -538,7 +538,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       
       workoutChain.forEach((b, i) => {
           const bDur = calculateBlockDuration(b.settings, b.exercises.length);
-          const transTime = (i < chain.length - 1) ? (b.transitionTime || 0) : 0;
+          const transTime = (i < workoutChain.length - 1) ? (b.transitionTime || 0) : 0;
           totalDuration += bDur + transTime;
           if (i < currentIdxInChain) elapsedTimeBeforeCurrent += bDur + transTime;
       });
