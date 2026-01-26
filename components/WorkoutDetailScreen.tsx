@@ -45,9 +45,12 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
 
     // Säkerställ att vi alltid startar högst upp när modalen öppnas eller byter block
     useEffect(() => {
-        if (scrollContainerRef.current) {
-            scrollContainerRef.current.scrollTop = 0;
-        }
+        const timer = setTimeout(() => {
+            if (scrollContainerRef.current) {
+                scrollContainerRef.current.scrollTo(0, 0);
+            }
+        }, 50); // Liten delay för att säkerställa att DOM:en är renderad
+        return () => clearTimeout(timer);
     }, [block.id]);
 
     return (
@@ -83,7 +86,7 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
             </div>
 
             {/* Content - Giant List */}
-            <div ref={scrollContainerRef} className="flex-grow overflow-y-auto p-8 md:p-12">
+            <div ref={scrollContainerRef} className="flex-grow overflow-y-auto p-8 md:p-12 scroll-smooth">
                 <div className="max-w-7xl mx-auto space-y-6">
                     {block.exercises.map((ex, index) => (
                         <div key={ex.id} className="flex items-start gap-8 p-8 rounded-[2rem] bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800">
@@ -485,15 +488,20 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
     }
   }, [workout.id, isHyroxRace, resultsLoading, selectedOrganization]);
 
-  // Effekt för att styra headerns synlighet vid presentation
+  // Effekt för att styra headerns synlighet och bakgrundens scroll vid presentation
   useEffect(() => {
       if (visualizingBlock) {
           onHeaderVisibilityChange?.(false);
+          document.body.style.overflow = 'hidden'; // Lås bakgrundens scroll
       } else {
           onHeaderVisibilityChange?.(true);
+          document.body.style.overflow = ''; // Återställ scroll
       }
-      // Återställ headern om komponenten tas bort
-      return () => onHeaderVisibilityChange?.(true);
+      // Återställ allt om komponenten tas bort
+      return () => {
+          onHeaderVisibilityChange?.(true);
+          document.body.style.overflow = '';
+      };
   }, [visualizingBlock, onHeaderVisibilityChange]);
 
   const handleDelete = () => {
