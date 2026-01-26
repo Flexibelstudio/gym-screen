@@ -538,13 +538,14 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       }
   }, [nextBlock, totalTimeElapsed, onFinish]);
 
-  // RESET LOCK ON BLOCK CHANGE
+  // RESET LOCK ON MOUNT (Handled by Key in AppRouter)
   useEffect(() => {
       hasTriggeredFinish.current = false;
-  }, [block.id]);
+  }, []);
 
   useEffect(() => {
-      if (status === TimerStatus.Finished && nextBlock && block.autoAdvance && !hasTriggeredFinish.current) {
+      // Strikt kontroll: Vi triggar bara transition om status är Finished OCH klockan faktiskt har gått (totalTimeElapsed > 0)
+      if (status === TimerStatus.Finished && totalTimeElapsed > 0 && nextBlock && block.autoAdvance && !hasTriggeredFinish.current) {
           const waitTime = block.transitionTime || 0;
           if (waitTime === 0) {
               handleStartNextBlock();
@@ -553,7 +554,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               setTransitionTimeLeft(waitTime);
           }
       }
-  }, [status, nextBlock, block.autoAdvance, block.transitionTime, handleStartNextBlock]);
+  }, [status, totalTimeElapsed, nextBlock, block.autoAdvance, block.transitionTime, handleStartNextBlock]);
 
   useEffect(() => {
       if (isTransitioning && !isTransitionPaused) {
@@ -573,14 +574,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   }, [isTransitioning, isTransitionPaused, handleStartNextBlock]);
 
   // --- PRE-START LOGIC ---
-  const lastBlockIdRef = useRef<string | null>(null);
   const hasStartedRef = useRef(false);
   
   useEffect(() => {
-    if (lastBlockIdRef.current !== block.id) {
-        hasStartedRef.current = false;
-        lastBlockIdRef.current = block.id;
-    }
+    // Timern startar direkt vid mount i detta läge pga keys i AppRouter
     if (!hasStartedRef.current && (status === TimerStatus.Idle || status === TimerStatus.Finished)) {
         if (organization) updateOrganizationActivity(organization.id);
         start({ skipPrep: isAutoTransition });
@@ -588,7 +585,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         onHeaderVisibilityChange(false);
         setIsBackButtonHidden(true);
     }
-  }, [start, status, onHeaderVisibilityChange, setIsBackButtonHidden, organization, block.id, isAutoTransition]);
+  }, [start, status, onHeaderVisibilityChange, setIsBackButtonHidden, organization, isAutoTransition]);
 
   const [finishedParticipants, setFinishedParticipants] = useState<Record<string, FinishData>>({});
   const [savingParticipant, setSavingParticipant] = useState<string | null>(null);

@@ -190,6 +190,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
         case Page.Timer:
             if (!activeBlock) return <div>Inget block valt</div>;
             return <TimerScreen 
+                key={activeBlock.id}
                 block={activeBlock}
                 onFinish={onTimerFinish}
                 onHeaderVisibilityChange={functions.setTimerHeaderVisible}
