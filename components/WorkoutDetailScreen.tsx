@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef, useLayoutEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, StudioConfig, WorkoutResult } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
 import { StarIcon, PencilIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, CloseIcon, ClockIcon, UsersIcon, ChartBarIcon } from './icons';
@@ -41,26 +41,15 @@ const formatReps = (reps: string | undefined): string => {
 
 // --- NEW COMPONENT: BLOCK PRESENTATION MODAL ---
 const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => void }> = ({ block, onClose }) => {
-    const scrollContainerRef = useRef<HTMLDivElement>(null);
-
-    // useLayoutEffect körs synkront innan webbläsaren hinner måla upp nästa frame.
-    // Det garanterar att användaren aldrig ser innehållet "hoppa" till toppen.
-    useLayoutEffect(() => {
-        if (scrollContainerRef.current) {
-            scrollContainerRef.current.scrollTo(0, 0);
-        }
-    }, [block.id]);
-
     return (
         <motion.div 
-            ref={scrollContainerRef}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[10000] bg-white dark:bg-gray-950 flex flex-col overflow-y-auto scroll-smooth"
+            className="fixed inset-0 z-[10000] bg-white dark:bg-gray-950 flex flex-col overflow-hidden"
         >
-            {/* Header - Gör den sticky så stäng-knappen alltid är tillgänglig */}
-            <div className="sticky top-0 z-[10001] flex justify-between items-start p-8 md:p-12 border-b border-gray-100 dark:border-gray-800 bg-white/90 dark:bg-gray-950/90 backdrop-blur-xl">
+            {/* Header */}
+            <div className="flex justify-between items-start p-8 md:p-12 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
                 <div className="max-w-4xl">
                     <div className="flex items-center gap-4 mb-4">
                          <span className={`inline-flex items-center px-4 py-2 rounded-xl text-lg font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
@@ -85,7 +74,7 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
             </div>
 
             {/* Content - Giant List */}
-            <div className="flex-grow p-8 md:p-12">
+            <div className="flex-grow overflow-y-auto p-8 md:p-12">
                 <div className="max-w-7xl mx-auto space-y-6">
                     {block.exercises.map((ex, index) => (
                         <div key={ex.id} className="flex items-start gap-8 p-8 rounded-[2rem] bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800">
@@ -118,8 +107,8 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
             </div>
             
             {/* Footer */}
-            <div className="p-12 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex justify-center pb-20">
-                 <button onClick={onClose} className="bg-black dark:bg-white text-white dark:text-black font-black text-xl py-5 px-12 rounded-full shadow-xl hover:scale-105 transition-transform uppercase tracking-widest border-4 border-white/20">
+            <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex justify-center">
+                 <button onClick={onClose} className="bg-black dark:bg-white text-white dark:text-black font-black text-xl py-4 px-12 rounded-full shadow-xl hover:scale-105 transition-transform uppercase tracking-widest">
                      Stäng visningsläge
                  </button>
             </div>
@@ -487,20 +476,15 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
     }
   }, [workout.id, isHyroxRace, resultsLoading, selectedOrganization]);
 
-  // Effekt för att styra headerns synlighet och bakgrundens scroll vid presentation
+  // Effekt för att styra headerns synlighet vid presentation
   useEffect(() => {
       if (visualizingBlock) {
           onHeaderVisibilityChange?.(false);
-          document.body.style.overflow = 'hidden'; // Lås bakgrundens scroll
       } else {
           onHeaderVisibilityChange?.(true);
-          document.body.style.overflow = ''; // Återställ scroll
       }
-      // Återställ allt om komponenten tas bort
-      return () => {
-          onHeaderVisibilityChange?.(true);
-          document.body.style.overflow = '';
-      };
+      // Återställ headern om komponenten tas bort
+      return () => onHeaderVisibilityChange?.(true);
   }, [visualizingBlock, onHeaderVisibilityChange]);
 
   const handleDelete = () => {

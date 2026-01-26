@@ -90,6 +90,7 @@ export const Header: React.FC<HeaderProps> = ({
   const isMemberAppView = (!isStudioMode && page === Page.Home) || page === Page.MemberProfile;
 
   const renderHeaderBranding = () => {
+      // Om vi laddar eller om vi inte har en organisation i state än, visa inget
       if (studioLoading || (!selectedOrganization && !logoUrl)) {
           return <div className="h-10 md:h-12 w-32 bg-transparent"></div>;
       }
@@ -98,6 +99,7 @@ export const Header: React.FC<HeaderProps> = ({
           return <img src={logoUrl} alt="Logo" className="h-10 md:h-12 w-auto object-contain pointer-events-none" />;
       }
 
+      // Sista utväg om laddning är klar men logga saknas helt
       return (
         <span className="text-2xl font-black tracking-tighter text-gray-900 dark:text-white pointer-events-none">
             {selectedOrganization?.name || 'SMART'}
@@ -201,7 +203,7 @@ export const Header: React.FC<HeaderProps> = ({
   }
 
   return (
-    <header className={`w-full max-w-5xl mx-auto flex items-center transition-all duration-300 ease-in-out pb-8 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'}`}>
+    <header className={`w-full max-w-5xl mx-auto flex items-center transition-all duration-300 ease-in-out ${isVisible ? 'pb-8 opacity-100 max-h-40' : 'pb-0 opacity-0 max-h-0 pointer-events-none overflow-hidden'}`}>
       <div className="flex-1">
         {canGoBack && !hideBackButton && (
             <button onClick={onBack} className="text-primary hover:brightness-95 transition-colors text-lg font-semibold flex items-center gap-1">
