@@ -24,7 +24,6 @@ interface TimerStyle {
 
 const getTimerStyle = (status: TimerStatus, mode: TimerMode, isHyrox: boolean, isTransitioning: boolean): TimerStyle => {
   if (isTransitioning) {
-      // Mörk lila/indigo gradient för vilan mellan block
       return { bg: 'bg-gradient-to-br from-indigo-900 to-purple-900', text: 'text-white', pulseRgb: '168, 85, 247', border: 'border-purple-400', badge: 'bg-purple-600' };
   }
   
@@ -292,30 +291,30 @@ const NextStartIndicator: React.FC<{
         <motion.div 
             initial={{ opacity: 0, y: -20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9, height: 0 }}
-            className="w-full max-w-4xl mx-auto mb-8 relative"
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="w-full mb-8 relative"
         >
-            <div className={`bg-white/90 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] p-6 border-2 shadow-xl dark:shadow-2xl flex items-center justify-between transition-colors duration-500 ${isUrgent ? 'border-orange-500 shadow-orange-500/20' : 'border-gray-200 dark:border-white/10'}`}>
+            <div className={`bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] p-6 border-2 shadow-xl dark:shadow-2xl flex items-center justify-between transition-colors duration-500 ${isUrgent ? 'border-orange-500 shadow-orange-500/20' : 'border-gray-200 dark:border-white/10'}`}>
                 <div className="flex items-center gap-6">
                     <div className={`w-16 h-16 rounded-3xl flex items-center justify-center shadow-inner ${isUrgent ? 'bg-orange-500 text-white animate-pulse' : 'bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-white/40'}`}>
                         <LightningIcon className="w-8 h-8" />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                         <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">NÄSTA START</span>
-                        <h4 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight truncate max-w-[250px] sm:max-w-md">
+                        <h4 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight truncate max-w-[250px] sm:max-w-md leading-none">
                             {groupName}
                         </h4>
                     </div>
                 </div>
 
-                <div className="text-right">
+                <div className="text-right shrink-0">
                     <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">STARTAR OM</span>
                     <div className={`font-mono text-5xl font-black tabular-nums leading-none ${isUrgent ? 'text-orange-500' : 'text-gray-900 dark:text-white'}`}>
                         {minutes}:{seconds.toString().padStart(2, '0')}
                     </div>
                 </div>
             </div>
-            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-white/60 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-gray-300 dark:border-white/10 shadow-lg">
+            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-white/60 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-gray-300 dark:border-white/10 shadow-lg whitespace-nowrap">
                 {groupsLeft} {groupsLeft === 1 ? 'grupp' : 'grupper'} kvar i kön
             </div>
         </motion.div>
@@ -391,18 +390,19 @@ const StandardListView: React.FC<{
     let gap = 'gap-4';
     let showDescription = true;
 
-    if (count <= 4) {
-        titleSize = 'text-5xl md:text-6xl';
-        repsSize = 'text-3xl md:text-4xl';
-        descSize = 'text-2xl md:text-3xl';
-        padding = 'px-8 py-8';
-        gap = 'gap-6';
-    } else if (count > 8) {
+    // Förtätad vy för långa listor (som HYROX)
+    if (count > 8) {
         titleSize = 'text-2xl md:text-3xl';
         repsSize = 'text-lg';
         padding = 'px-5 py-3';
         gap = 'gap-2';
         showDescription = false; 
+    } else if (count <= 4) {
+        titleSize = 'text-5xl md:text-6xl';
+        repsSize = 'text-3xl md:text-4xl';
+        descSize = 'text-2xl md:text-3xl';
+        padding = 'px-8 py-8';
+        gap = 'gap-6';
     }
 
     return (
@@ -410,7 +410,7 @@ const StandardListView: React.FC<{
             {exercises.map((ex) => (
                 <div 
                     key={ex.id} 
-                    className={`${forceFullHeight ? 'flex-1' : 'flex-none'} min-h-0 bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-3xl ${padding} flex flex-col justify-center border-l-[12px] shadow-xl transition-all relative group border-gray-100 dark:border-transparent`}
+                    className={`${forceFullHeight ? 'flex-1' : 'flex-none min-h-[70px]'} bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-3xl ${padding} flex flex-col justify-center border-l-[12px] shadow-xl transition-all relative group border-gray-100 dark:border-transparent`}
                     style={{ borderLeftColor: `rgb(${timerStyle.pulseRgb})` }}
                 >
                     <div className="flex justify-between items-center w-full gap-6">
@@ -587,7 +587,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   }, []);
 
   useEffect(() => {
-      // Strikt kontroll: Vi triggar bara transition om status är Finished OCH klockan faktiskt har gått (totalTimeElapsed > 0)
       if (status === TimerStatus.Finished && totalTimeElapsed > 0 && nextBlock && block.autoAdvance && !hasTriggeredFinish.current) {
           const waitTime = block.transitionTime || 0;
           if (waitTime === 0) {
@@ -620,7 +619,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const hasStartedRef = useRef(false);
   
   useEffect(() => {
-    // Timern startar direkt vid mount i detta läge pga keys i AppRouter
     if (!hasStartedRef.current && (status === TimerStatus.Idle || status === TimerStatus.Finished)) {
         if (organization) updateOrganizationActivity(organization.id);
         start({ skipPrep: isAutoTransition });
@@ -922,7 +920,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const minutesStr = Math.floor(timeToDisplay / 60).toString().padStart(2, '0');
   const secondsStr = (timeToDisplay % 60).toString().padStart(2, '0');
 
-  const currentIntervalInLap = (completedWorkIntervals % effectiveIntervalsPerLap) + 1;
   const showSplitView = !!nextBlock && block.autoAdvance && !isTransitioning;
 
   const isRestNext = block.autoAdvance && (block.transitionTime || 0) > 0 && status !== TimerStatus.Resting;
@@ -1026,19 +1023,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl line-clamp-1`}>{statusLabel}</h2>
         </div>
 
-        {/* *** DETTA ÄR DET SOM SAKNADES: HYROX START INDICATOR *** */}
-        <AnimatePresence>
-            {isHyroxRace && groupForCountdownDisplay && (
-                <div className="absolute top-40 left-1/2 -translate-x-1/2 z-[100] w-full max-w-4xl px-4">
-                     <NextStartIndicator
-                        groupName={groupForCountdownDisplay.name}
-                        timeLeft={timeForCountdownDisplay}
-                        groupsLeft={remainingGroupsCount}
-                     />
-                </div>
-            )}
-        </AnimatePresence>
-
         {/* SIFFROR (Tiden) - Mitten */}
         <div className="z-20 relative flex flex-col items-center w-full text-white">
             <div className="flex items-center justify-center w-full gap-2">
@@ -1073,21 +1057,34 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           ${showFullScreenColor ? 'top-[65%]' : 'top-[27%]'} 
           ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'}`}>
           
-          <div className="w-full max-w-[1500px] h-full">
+          <div className="w-full max-w-[1500px] h-full flex flex-col">
               {isTransitioning ? (
                   // TRANSITION VIEW: Show NEXT block exercises BIG and FULL WIDTH
                   <TransitionFullWidthPreview block={nextBlock!} onSkip={handleStartNextBlock} timerStyle={timerStyle} />
               ) : (
                   // NORMAL WORKOUT VIEW
-                  <>
+                  <div className="flex flex-col h-full">
+                    {/* HYROX START INDICATOR (Inside flow) */}
+                    <AnimatePresence>
+                        {isHyroxRace && groupForCountdownDisplay && (
+                            <div className="flex-shrink-0 animate-fade-in w-full max-w-4xl mx-auto">
+                                <NextStartIndicator
+                                    groupName={groupForCountdownDisplay.name}
+                                    timeLeft={timeForCountdownDisplay}
+                                    groupsLeft={remainingGroupsCount}
+                                />
+                            </div>
+                        )}
+                    </AnimatePresence>
+
                     {block.followMe ? (
-                        // FOLLOW ME LAYOUT (Vertical stack - Bar forced to bottom)
-                        <div className="w-full flex flex-col items-center h-full justify-between pb-4">
-                            <div className="w-full flex flex-col flex-grow">
+                        // FOLLOW ME LAYOUT
+                        <div className="w-full flex flex-col items-center flex-grow justify-between pb-4 min-h-0">
+                            <div className="w-full flex flex-col flex-grow min-h-0">
                                 {block.showDescriptionInTimer && block.setupDescription && (
                                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 mb-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0 mx-auto max-w-5xl">
-                                            <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
-                                            <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight uppercase">{block.setupDescription}</p>
+                                        <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
+                                        <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight uppercase">{block.setupDescription}</p>
                                     </motion.div>
                                 )}
                                 <div className="flex-grow min-h-0">
@@ -1104,22 +1101,22 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                             </div>
                         </div>
                     ) : (
-                        // STANDARD LIST LAYOUT (Side by side if next block exists)
-                        <div className="flex gap-10 h-full items-stretch w-full">
-                             <div className={`flex flex-col gap-6 transition-all duration-500 h-full ${showSplitView ? 'w-2/3' : 'w-full mx-auto max-w-6xl'}`}>
+                        // STANDARD LIST LAYOUT
+                        <div className="flex gap-10 flex-grow items-stretch w-full min-h-0">
+                             <div className={`flex flex-col gap-6 transition-all duration-500 h-full min-h-0 ${showSplitView ? 'w-2/3' : 'w-full mx-auto max-w-6xl'}`}>
                                 {block.showDescriptionInTimer && block.setupDescription && (
                                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0">
-                                            <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
-                                            <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight uppercase tracking-tight">{block.setupDescription}</p>
+                                        <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
+                                        <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight uppercase tracking-tight">{block.setupDescription}</p>
                                     </motion.div>
                                 )}
 
-                                <div className="w-full flex-grow min-h-0"> 
-                                    {!isFreestanding && <StandardListView exercises={block.exercises} timerStyle={timerStyle} />}
+                                <div className="w-full flex-grow min-h-0 relative"> 
+                                    {!isFreestanding && <StandardListView exercises={block.exercises} timerStyle={timerStyle} forceFullHeight={!isHyroxRace} />}
                                 </div>
                             </div>
 
-                            {/* NEXT BLOCK PREVIEW (35% width) - Endast vid stations-baserad träning */}
+                            {/* NEXT BLOCK PREVIEW */}
                             {showSplitView ? (
                                 <div className="w-1/3 pb-6 flex flex-col justify-center">
                                     {(block.transitionTime && block.transitionTime > 0) ? (
@@ -1131,7 +1128,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                             ) : null}
                         </div>
                     )}
-                  </>
+                  </div>
               )}
           </div>
       </div>
