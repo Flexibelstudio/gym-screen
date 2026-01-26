@@ -93,28 +93,37 @@ const getBlockTimeLabel = (block: WorkoutBlock): string => {
 
 // --- Visualization Components ---
 
-// Kompaktare vilopreview för sidokolumnen (Stationsläge)
+// Uppdaterad Vilopreview för sidokolumnen (Stationsläge) - Nu med bar-estetik
 const NextRestPreview: React.FC<{ transitionTime: number; nextBlockTitle: string }> = ({ transitionTime, nextBlockTitle }) => {
     return (
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="my-auto flex flex-col bg-white/90 dark:bg-indigo-900/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-indigo-500/30 overflow-hidden shadow-2xl p-6 text-center"
+            className="my-auto flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 shadow-2xl p-8"
         >
-            <span className="inline-block px-3 py-1 rounded-lg bg-indigo-500 text-white text-[10px] font-black uppercase tracking-widest mb-3 mx-auto w-fit">HÄRNÄST</span>
-            <h4 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight mb-1">VILA</h4>
-            <div className="text-5xl font-mono font-black text-indigo-500 dark:text-indigo-300 mb-4 drop-shadow-lg">
+            <div className="flex items-center gap-4 mb-6">
+                <div className="bg-primary/10 p-3 rounded-2xl border border-primary/20">
+                    <ClockIcon className="w-8 h-8 text-primary" />
+                </div>
+                <div>
+                    <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">HÄRNÄST</span>
+                    <h4 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">VILA</h4>
+                </div>
+            </div>
+            
+            <div className="text-6xl font-mono font-black text-primary dark:text-primary mb-6 tabular-nums drop-shadow-sm">
                 {formatSeconds(transitionTime)}
             </div>
-            <div className="bg-gray-100 dark:bg-white/10 px-4 py-3 rounded-xl">
-                <p className="text-gray-400 dark:text-white/60 text-[10px] font-bold uppercase tracking-widest mb-1">INFÖR</p>
-                <p className="text-gray-900 dark:text-white text-sm font-bold leading-tight line-clamp-2">{nextBlockTitle}</p>
+
+            <div className="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                <span className="block text-[9px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em] mb-1.5">INFÖR NÄSTA DEL</span>
+                <p className="text-gray-900 dark:text-white text-base font-bold leading-tight line-clamp-2">{nextBlockTitle}</p>
             </div>
         </motion.div>
     );
 };
 
-// Kraftfullare 'Härnäst' bar för Follow-me läge (Större och tema-anpassad)
+// Snyggare 'Härnäst' bar för Follow-me läge - Nu med mer info vid vila
 const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock; isRestNext?: boolean }> = ({ transitionTime, block, isRestNext }) => {
     return (
         <motion.div 
@@ -124,7 +133,7 @@ const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock
         >
             <div className="flex items-center gap-6">
                 <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20">
-                    <ChevronRightIcon className="w-10 h-10 text-primary" />
+                    {isRestNext ? <ClockIcon className="w-10 h-10 text-primary" /> : <ChevronRightIcon className="w-10 h-10 text-primary" />}
                 </div>
                 <div>
                     <span className="block text-[12px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.4em] mb-1.5">HÄRNÄST</span>
@@ -133,24 +142,30 @@ const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock
                     </h5>
                 </div>
             </div>
-            {isRestNext && transitionTime === undefined ? (
-                <div className="flex items-center gap-2 bg-primary/10 px-6 py-3 rounded-2xl border border-primary/20 shadow-sm">
-                     <ClockIcon className="w-6 h-6 text-primary" />
-                     <span className="text-primary font-black uppercase text-base tracking-widest">Återhämtning</span>
-                </div>
-            ) : transitionTime !== undefined ? (
-                <div className="text-6xl font-mono font-black text-primary tabular-nums drop-shadow-xl">
-                    {formatSeconds(transitionTime)}
-                </div>
-            ) : (
-                <div className="flex items-center gap-3">
-                    <span className="text-sm font-black uppercase tracking-widest bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/60 px-4 py-2 rounded-xl border border-gray-200 dark:border-white/10">{block?.settings.mode}</span>
-                </div>
-            )}
+
+            <div className="flex items-center gap-8">
+                {isRestNext && block && (
+                    <div className="hidden lg:flex flex-col items-end text-right">
+                         <span className="text-[10px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em] mb-1">INFÖR</span>
+                         <p className="text-sm font-bold text-gray-600 dark:text-white/70 max-w-[200px] truncate">{block.title}</p>
+                    </div>
+                )}
+                
+                {transitionTime !== undefined ? (
+                    <div className="text-6xl font-mono font-black text-primary tabular-nums drop-shadow-xl">
+                        {formatSeconds(transitionTime)}
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-3">
+                         <span className="text-sm font-black uppercase tracking-widest bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/60 px-4 py-2 rounded-xl border border-gray-200 dark:border-white/10">{block?.settings.mode}</span>
+                    </div>
+                )}
+            </div>
         </motion.div>
     );
 };
 
+// Uppdaterad Blockpreview för sidokolumnen (Stationsläge) - Nu med bar-estetik
 const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
     const timeLabel = getBlockTimeLabel(block);
     
@@ -158,27 +173,34 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="max-h-[80%] my-auto flex flex-col bg-white dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 overflow-hidden shadow-2xl"
+            className="max-h-[80%] my-auto flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 overflow-hidden shadow-2xl"
         >
-            <div className="p-6 bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5">
-                <span className="inline-block px-3 py-1 rounded-lg bg-primary text-white text-[10px] font-black uppercase tracking-widest mb-2">HÄRNÄST</span>
-                <h4 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight line-clamp-2 leading-none">{block.title}</h4>
-                <div className="flex items-center gap-2 mt-2 text-gray-400 dark:text-white/40 text-xs font-black uppercase tracking-widest">
-                    <ClockIcon className="w-4 h-4" />
+            <div className="p-8 bg-gray-50/50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5">
+                <div className="flex items-center gap-4 mb-4">
+                    <div className="bg-primary/10 p-2.5 rounded-xl border border-primary/20">
+                        <ChevronRightIcon className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                        <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">HÄRNÄST</span>
+                        <h4 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight line-clamp-1 leading-none">{block.title}</h4>
+                    </div>
+                </div>
+                
+                <div className="flex items-center gap-2 text-gray-400 dark:text-white/40 text-[10px] font-black uppercase tracking-widest">
                     <span>{block.settings.mode}</span>
                     {timeLabel && (
                         <>
-                            <span className="opacity-50">•</span>
-                            <span className="text-gray-600 dark:text-white">{timeLabel}</span>
+                            <span className="opacity-30">•</span>
+                            <span className="text-primary">{timeLabel}</span>
                         </>
                     )}
                 </div>
             </div>
-            <div className="flex-grow overflow-y-auto p-4 custom-scrollbar space-y-2">
+            <div className="flex-grow overflow-y-auto p-5 custom-scrollbar space-y-2.5">
                 {block.exercises.map((ex) => (
-                    <div key={ex.id} className="flex justify-between items-center gap-4 bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-white/5">
-                        <p className="text-base font-bold text-gray-800 dark:text-white/90 leading-tight truncate">{ex.name}</p>
-                        {ex.reps && <span className="text-xs font-black text-primary whitespace-nowrap bg-primary/10 px-2 py-1 rounded-lg">{formatReps(ex.reps)}</span>}
+                    <div key={ex.id} className="flex justify-between items-center gap-4 bg-gray-50 dark:bg-white/5 rounded-2xl p-4 border border-gray-100 dark:border-white/5">
+                        <p className="text-sm font-bold text-gray-800 dark:text-white/90 leading-tight truncate">{ex.name}</p>
+                        {ex.reps && <span className="text-[10px] font-black text-primary whitespace-nowrap bg-primary/10 px-2.5 py-1 rounded-lg border border-primary/10">{formatReps(ex.reps)}</span>}
                     </div>
                 ))}
             </div>
