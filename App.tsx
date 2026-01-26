@@ -865,6 +865,9 @@ const App: React.FC = () => {
   const showSupportChat = !isStudioMode && isAdminOrCoach && isAdminFacingPage;
   const showScanButton = ((!isStudioMode && isMemberFacingPage) || (page === Page.MemberProfile)) && studioConfig.enableWorkoutLogging;
 
+  // NYTT: Villkor för att dölja den globala headern när popups är öppna
+  const isAnyModalOpen = !!(mobileLogData || mobileViewData || isSearchWorkoutOpen || isScannerOpen || activeDiploma);
+
   if (!authLoading && !currentUser && !isStudioMode) {
       if (showLogin) {
           return <LoginScreen onClose={() => setShowLogin(false)} />;
@@ -917,7 +920,8 @@ const App: React.FC = () => {
        {isStudioMode && <SpotlightOverlay />} 
        {isStudioMode && <PBOverlay />}
 
-       {(page === Page.Timer || !isFullScreenPage) && <Header 
+       {/* HEADER VISIBILITY LOGIC UPDATED TO HIDE ON MODALS */}
+       {!isAnyModalOpen && (page === Page.Timer || !isFullScreenPage) && <Header 
         page={page} 
         onBack={handleBack} 
         theme={theme}
