@@ -505,13 +505,23 @@ const App: React.FC = () => {
   }
   
   const handleWorkoutInterpretedFromNote = (workout: Workout) => {
-    setActiveWorkout({ ...workout }); 
+    // Säkra orgId omedelbart så QR-koden fungerar direkt på detaljskärmen
+    const workoutWithOrg = { 
+        ...workout, 
+        organizationId: selectedOrganization?.id || '' 
+    };
+    setActiveWorkout(workoutWithOrg); 
     setIsEditingNewDraft(true);
     navigateTo(Page.SimpleWorkoutBuilder);
   };
   
   const handleWorkoutInterpretedFromAIPrompt = (workout: Workout) => {
-    setActiveWorkout({ ...workout });
+    // Säkra orgId omedelbart så QR-koden fungerar direkt på detaljskärmen
+    const workoutWithOrg = { 
+        ...workout, 
+        organizationId: selectedOrganization?.id || '' 
+    };
+    setActiveWorkout(workoutWithOrg);
     setIsEditingNewDraft(true);
     navigateTo(Page.SimpleWorkoutBuilder);
   };

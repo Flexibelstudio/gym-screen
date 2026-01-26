@@ -547,7 +547,8 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
 
   const isLoggingEnabled = studioConfig.enableWorkoutLogging || false;
   const showSidebar = !isStudioMode; 
-  const showQR = isLoggingEnabled && isWorkoutLoggable && !!selectedStudio && !isPresentationMode;
+  // Förenklat villkor för att visa QR: Tar bort kravet på selectedStudio så den visas för personal/coacher överallt
+  const showQR = isLoggingEnabled && isWorkoutLoggable && !isPresentationMode;
 
   return (
     <div className="w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pb-40 relative animate-fade-in">
