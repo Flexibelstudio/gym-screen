@@ -533,6 +533,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   // --- TRANSITION LOGIC ---
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [transitionTimeLeft, setTransitionTimeLeft] = useState(0);
+  const [isTransitionPaused, setIsTransitionPaused] = useState(false);
   const transitionIntervalRef = useRef<number | null>(null);
 
   const nextBlock = useMemo(() => {
@@ -577,6 +578,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const handleStartNextBlock = useCallback(() => {
       if (transitionIntervalRef.current) clearInterval(transitionIntervalRef.current);
       setIsTransitioning(false);
+      setIsTransitionPaused(false);
       if (nextBlock) onFinish({ isNatural: true, time: totalTimeElapsed }); 
   }, [nextBlock, totalTimeElapsed, onFinish]);
 
@@ -588,19 +590,24 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           } else {
               setIsTransitioning(true);
               setTransitionTimeLeft(waitTime);
-              transitionIntervalRef.current = window.setInterval(() => {
-                  setTransitionTimeLeft(prev => {
-                      if (prev <= 1) {
-                          handleStartNextBlock();
-                          return 0;
-                      }
-                      return prev - 1;
-                  });
-              }, 1000);
           }
       }
-      return () => { if (transitionIntervalRef.current) clearInterval(transitionIntervalRef.current); };
   }, [status, nextBlock, block.autoAdvance, block.transitionTime, handleStartNextBlock]);
+
+  useEffect(() => {
+      if (isTransitioning && !isTransitionPaused) {
+          transitionIntervalRef.current = window.setInterval(() => {
+              setTransitionTimeLeft(prev => {
+                  if (prev <= 1) {
+                      handleStartNextBlock();
+                      return 0;
+                  }
+                  return prev - 1;
+              });
+          }, 1000);
+      }
+      return () => { if (transitionIntervalRef.current) clearInterval(transitionIntervalRef.current); };
+  }, [isTransitioning, isTransitionPaused, handleStartNextBlock]);
 
   // --- PRE-START LOGIC ---
   const lastBlockIdRef = useRef<string | null>(null);
@@ -642,8 +649,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const startIntervalSeconds = useMemo(() => (activeWorkout?.startIntervalMinutes ?? 2) * 60, [activeWorkout]);
 
   const nextGroupToStartIndex = useMemo(() => startGroups.findIndex(g => g.startTime === undefined), [startGroups]);
-  const nextGroupToStart = useMemo(() => (nextGroupToStartIndex !== -1 ? startGroups[nextGroupToStartIndex] : null), [startGroups, nextGroupToStartIndex]);
-  const remainingGroupsCount = useMemo(() => startGroups.filter(g => g.startTime === undefined).length, [startGroups]);
+  const nextGroupToStart = useMemo(() => (nextGroupToStartIndex !== -1 ? startGroups[nextGroupToStart] : null), [startGroups, nextGroupToStartIndex]);
 
   const groupForCountdownDisplay = useMemo(() => {
     if (!isHyroxRace) return null;
@@ -723,6 +729,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     setFinishedParticipants({});
     setIsClockFrozen(false);
     setFrozenTime(0);
+    setIsTransitioning(false);
+    setIsTransitionPaused(false);
     if (activeWorkout?.startGroups && activeWorkout.startGroups.length > 0) {
         setStartGroups(activeWorkout.startGroups.map(g => ({ ...g, startTime: undefined })));
     } else if (activeWorkout) {
@@ -920,6 +928,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     else { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); }
   }, [status, restartHideTimer, onHeaderVisibilityChange, setIsBackButtonHidden, isTransitioning]);
 
+  const isActuallyPaused = status === TimerStatus.Paused || (isTransitioning && isTransitionPaused);
+  const isActuallyFinishedOrIdle = (status === TimerStatus.Idle || status === TimerStatus.Finished) && !isTransitioning;
+
   return (
     <div 
         className={`fixed inset-0 w-full h-full overflow-hidden transition-colors duration-500 ${showFullScreenColor ? `${timerStyle.bg}` : 'bg-gray-100 dark:bg-black'}`}
@@ -940,8 +951,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       )}
       
       <AnimatePresence>
-        {status === TimerStatus.Paused && !showFinishAnimation && (
-            <PauseOverlay onResume={resume} onRestart={handleConfirmReset} onFinish={() => onFinish({ isNatural: false })} />
+        {isActuallyPaused && !showFinishAnimation && (
+            <PauseOverlay onResume={isTransitioning ? () => setIsTransitionPaused(false) : resume} onRestart={handleConfirmReset} onFinish={() => onFinish({ isNatural: false })} />
         )}
         {participantToEdit && (
             <EditResultModal 
@@ -958,7 +969,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       </AnimatePresence>
 
       <AnimatePresence>
-        {status !== TimerStatus.Idle && status !== TimerStatus.Paused && !showFinishAnimation && (
+        {status !== TimerStatus.Idle && !isActuallyPaused && !showFinishAnimation && (
             <motion.div 
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -999,13 +1010,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         </div>
 
         {/* SIFFROR (Tiden) - Mitten */}
-        <div className="z-20 relative flex flex-col items-center w-full text-white">
-            <div className="flex items-center justify-center w-full gap-2">
-                 <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[8rem] sm:text-[10rem] md:text-[12rem]">
-                    {minutesStr}:{secondsStr}
-                 </span>
-            </div>
-        </div>
+        <div className="z-20 relative flex flex-col items-center w-full text-white"><div className="flex items-center justify-center w-full gap-2"><span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[8rem] sm:text-[10rem] md:text-[12rem]">{minutesStr}:{secondsStr}</span></div></div>
 
         {/* TIDSLINJE (Roadmap) - Under tiden */}
         {workoutChain.length > 1 && (
@@ -1020,11 +1025,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         )}
 
         {/* BLOCK RUBRIK (Stort) - Längst ner */}
-        <div className="text-center z-20 w-full px-10 mt-4 mb-2">
-            <h1 className="font-black text-white/90 uppercase tracking-tighter text-2xl sm:text-3xl md:text-4xl drop-shadow-lg truncate">
-                {block.title}
-            </h1>
-        </div>
+        <div className="text-center z-20 w-full px-10 mt-4 mb-2"><h1 className="font-black text-white/90 uppercase tracking-tighter text-2xl sm:text-3xl md:text-4xl drop-shadow-lg truncate">{block.title}</h1></div>
       </div>
 
       {/* CONTENT AREA (Under Clock) */}
@@ -1130,18 +1131,25 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       )}
 
       <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[35%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
-            {status === TimerStatus.Idle || status === TimerStatus.Finished ? (
+            {isActuallyFinishedOrIdle ? (
                 <>
                     <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-500 transition-colors text-xl backdrop-blur-md border-2 border-white/20 uppercase">TILLBAKA</button>
                     <button onClick={() => start()} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50 uppercase">STARTA</button>
                 </>
-            ) : status === TimerStatus.Paused ? (
-                <button onClick={resume} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase">FORTSÄTT</button>
+            ) : isActuallyPaused ? (
+                <button onClick={isTransitioning ? () => setIsTransitionPaused(false) : resume} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase">FORTSÄTT</button>
             ) : (
-                <button onClick={pause} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50 uppercase">PAUSA</button>
+                <button onClick={isTransitioning ? () => setIsTransitionPaused(true) : pause} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50 uppercase">PAUSA</button>
             )}
             {isHyroxRace && status !== TimerStatus.Running && <button onClick={() => setShowBackToPrepConfirmation(true)} className="bg-gray-800/80 text-white font-bold py-4 px-8 rounded-full shadow-xl border-2 border-gray-600 hover:bg-gray-700 transition-colors text-lg uppercase">⚙️ Grupper</button>}
       </div>
     </div>
   );
 };
+
+interface BigIndicatorProps { currentRound: number; totalRounds: number; mode: TimerMode; currentInterval?: number; totalIntervalsInLap?: number; }
+const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRounds, mode, currentInterval, totalIntervalsInLap }) => { if (mode !== TimerMode.Interval && mode !== TimerMode.Tabata && mode !== TimerMode.EMOM) return null; const showInterval = currentInterval !== undefined && totalIntervalsInLap !== undefined && mode !== TimerMode.EMOM; return ( <div className="flex flex-col items-end gap-3 animate-fade-in">{showInterval && (<div className="bg-black/40 backdrop-blur-xl rounded-[2.5rem] px-10 py-6 shadow-2xl flex flex-col items-center min-w-[200px]"><span className="block text-white/40 font-black text-xs sm:text-sm uppercase tracking-[0.4em] mb-2">INTERVALL</span><div className="flex items-baseline justify-center gap-1"><motion.span key={`interval-${currentInterval}`} initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="font-black text-6xl sm:text-7xl text-white drop-shadow-2xl leading-none">{currentInterval}</motion.span><span className="text-2xl sm:text-3xl font-black text-white/40">/ {totalIntervalsInLap}</span></div></div>)}<motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="bg-black/40 backdrop-blur-xl rounded-full px-6 py-3 shadow-xl flex items-center justify-center gap-3 min-w-[140px]"><span className="text-white/40 font-black text-[10px] uppercase tracking-[0.3em]">{mode === TimerMode.EMOM ? 'MINUT' : 'VARV'}</span><div className="flex items-baseline gap-1"><span className="text-2xl font-black text-white">{currentRound}</span><span className="text-sm font-bold text-white/40">/ {totalRounds}</span></div></motion.div></div> ); };
+
+interface TimerScreenProps { block: WorkoutBlock; onFinish: (finishData: { isNatural?: boolean; time?: number, raceId?: string }) => void; onHeaderVisibilityChange: (isVisible: boolean) => void; onShowImage: (url: string) => void; setCompletionInfo: React.Dispatch<React.SetStateAction<{ workout: Workout; isFinal: boolean; blockTag?: string; finishTime?: number; } | null>>; setIsRegisteringHyroxTime: React.Dispatch<React.SetStateAction<boolean>>; setIsBackButtonHidden: React.Dispatch<React.SetStateAction<boolean>>; followMeShowImage: boolean; organization: Organization | null; onBackToGroups: () => void; isAutoTransition?: boolean; }
+
+export default TimerScreen;
