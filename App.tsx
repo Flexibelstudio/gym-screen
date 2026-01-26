@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma } from './types';
 
@@ -475,7 +474,15 @@ const App: React.FC = () => {
   };
 
   const handleSelectPasskategori = (passkategori: Passkategori) => {
-    if (!isStudioMode) setIsPickingForLog(true); 
+    if (isStudioMode) {
+        const categoryWorkouts = workouts.filter(w => w.category === passkategori && w.isPublished && !w.isMemberDraft);
+        if (categoryWorkouts.length === 1) {
+            handleSelectWorkout(categoryWorkouts[0]);
+            return;
+        }
+    } else {
+        setIsPickingForLog(true);
+    }
     setActivePasskategori(passkategori);
     navigateTo(Page.WorkoutList);
   };
@@ -1007,8 +1014,8 @@ const App: React.FC = () => {
                     handleStartFreestandingTimer: handleStartFreestandingTimer,
                     handleStartRace: handleStartRace,
                     handleSelectRace: handleSelectRace,
-                    handleSelectCustomPage: handleSelectCustomPage,
                     handleReturnToGroupPrep: handleReturnToGroupPrep,
+                    handleSelectCustomPage: handleSelectCustomPage,
                     
                     handleMemberProfileRequest: handleMemberProfileRequest,
                     handleEditProfileRequest: handleEditProfileRequest,
