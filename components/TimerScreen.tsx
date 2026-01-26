@@ -93,6 +93,7 @@ const getBlockTimeLabel = (block: WorkoutBlock): string => {
 
 // --- Visualization Components ---
 
+// Uppdaterad Vilopreview för sidokolumnen (Stationsläge) - Nu med bar-estetik
 const NextRestPreview: React.FC<{ transitionTime: number; nextBlockTitle: string }> = ({ transitionTime, nextBlockTitle }) => {
     return (
         <motion.div 
@@ -114,7 +115,7 @@ const NextRestPreview: React.FC<{ transitionTime: number; nextBlockTitle: string
                 {formatSeconds(transitionTime)}
             </div>
 
-            <div className="bg-gray-5 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+            <div className="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                 <span className="block text-[9px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em] mb-1.5">INFÖR NÄSTA DEL</span>
                 <p className="text-gray-900 dark:text-white text-base font-bold leading-tight line-clamp-2">{nextBlockTitle}</p>
             </div>
@@ -122,6 +123,7 @@ const NextRestPreview: React.FC<{ transitionTime: number; nextBlockTitle: string
     );
 };
 
+// Snyggare 'Härnäst' bar för Follow-me läge - Nu med mer info vid vila
 const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock; isRestNext?: boolean }> = ({ transitionTime, block, isRestNext }) => {
     return (
         <motion.div 
@@ -163,6 +165,7 @@ const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock
     );
 };
 
+// Uppdaterad Blockpreview för sidokolumnen (Stationsläge) - Nu med bar-estetik
 const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
     const timeLabel = getBlockTimeLabel(block);
     
@@ -205,6 +208,7 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
     );
 };
 
+// Förbättrad Vilovy med snygga kort (StandardListView som fyller höjden)
 const TransitionFullWidthPreview: React.FC<{ block: WorkoutBlock; onSkip: () => void; timerStyle: TimerStyle }> = ({ block, onSkip, timerStyle }) => {
     return (
         <motion.div 
@@ -235,6 +239,7 @@ const TransitionFullWidthPreview: React.FC<{ block: WorkoutBlock; onSkip: () => 
     );
 };
 
+// Tidslinje-komponent
 const SegmentedRoadmap: React.FC<{ 
     chain: WorkoutBlock[]; 
     currentBlockId: string; 
@@ -276,6 +281,49 @@ const SegmentedRoadmap: React.FC<{
                 );
             })}
         </div>
+    );
+};
+
+const NextStartIndicator: React.FC<{
+    groupName: string;
+    timeLeft: number;
+    groupsLeft: number;
+}> = ({ groupName, timeLeft, groupsLeft }) => {
+    const minutes = Math.floor(Math.max(0, timeLeft) / 60);
+    const seconds = Math.max(0, timeLeft) % 60;
+    const isUrgent = timeLeft <= 30;
+
+    return (
+        <motion.div 
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9, height: 0 }}
+            className="w-full max-w-4xl mx-auto mb-8 relative"
+        >
+            <div className={`bg-white/90 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] p-6 border-2 shadow-xl dark:shadow-2xl flex items-center justify-between transition-colors duration-500 ${isUrgent ? 'border-orange-500 shadow-orange-500/20' : 'border-gray-200 dark:border-white/10'}`}>
+                <div className="flex items-center gap-6">
+                    <div className={`w-16 h-16 rounded-3xl flex items-center justify-center shadow-inner ${isUrgent ? 'bg-orange-500 text-white animate-pulse' : 'bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-white/40'}`}>
+                        <LightningIcon className="w-8 h-8" />
+                    </div>
+                    <div>
+                        <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">NÄSTA START</span>
+                        <h4 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight truncate max-w-[250px] sm:max-w-md">
+                            {groupName}
+                        </h4>
+                    </div>
+                </div>
+
+                <div className="text-right">
+                    <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">STARTAR OM</span>
+                    <div className={`font-mono text-5xl font-black tabular-nums leading-none ${isUrgent ? 'text-orange-500' : 'text-gray-900 dark:text-white'}`}>
+                        {minutes}:{seconds.toString().padStart(2, '0')}
+                    </div>
+                </div>
+            </div>
+            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-white/60 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-gray-300 dark:border-white/10 shadow-lg">
+                {groupsLeft} {groupsLeft === 1 ? 'grupp' : 'grupper'} kvar i kön
+            </div>
+        </motion.div>
     );
 };
 
@@ -326,6 +374,7 @@ const FollowMeView: React.FC<{
                 </motion.div>
             </AnimatePresence>
             
+            {/* Ny Vertikal 'Härnäst' bar för Follow-me läge */}
             {(isRestNext || nextBlock) && (
                 <div className="w-full max-w-5xl">
                     <NextUpCompactBar transitionTime={transitionTime} block={nextBlock} isRestNext={isRestNext} />
@@ -341,6 +390,8 @@ const StandardListView: React.FC<{
     forceFullHeight?: boolean
 }> = ({ exercises, timerStyle, forceFullHeight = true }) => {
     const count = exercises.length;
+    
+    // --- DESIGN-LOGIK FÖR ANPASSNING ---
     let titleSize = 'text-3xl md:text-4xl';
     let repsSize = 'text-xl md:text-2xl';
     let descSize = 'text-lg md:text-xl';
@@ -482,7 +533,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   // --- TRANSITION LOGIC ---
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [transitionTimeLeft, setTransitionTimeLeft] = useState(0);
-  const [isTransitionPaused, setIsTransitionPaused] = useState(false);
   const transitionIntervalRef = useRef<number | null>(null);
 
   const nextBlock = useMemo(() => {
@@ -512,7 +562,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       
       workoutChain.forEach((b, i) => {
           const bDur = calculateBlockDuration(b.settings, b.exercises.length);
-          const transTime = (i < chain.length - 1) ? (b.transitionTime || 0) : 0;
+          const transTime = (i < workoutChain.length - 1) ? (b.transitionTime || 0) : 0;
           totalDuration += bDur + transTime;
           if (i < currentIdxInChain) elapsedTimeBeforeCurrent += bDur + transTime;
       });
@@ -527,7 +577,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const handleStartNextBlock = useCallback(() => {
       if (transitionIntervalRef.current) clearInterval(transitionIntervalRef.current);
       setIsTransitioning(false);
-      setIsTransitionPaused(false);
       if (nextBlock) onFinish({ isNatural: true, time: totalTimeElapsed }); 
   }, [nextBlock, totalTimeElapsed, onFinish]);
 
@@ -539,26 +588,19 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           } else {
               setIsTransitioning(true);
               setTransitionTimeLeft(waitTime);
+              transitionIntervalRef.current = window.setInterval(() => {
+                  setTransitionTimeLeft(prev => {
+                      if (prev <= 1) {
+                          handleStartNextBlock();
+                          return 0;
+                      }
+                      return prev - 1;
+                  });
+              }, 1000);
           }
       }
-  }, [status, nextBlock, block.autoAdvance, block.transitionTime, handleStartNextBlock]);
-
-  useEffect(() => {
-      if (isTransitioning && !isTransitionPaused) {
-          transitionIntervalRef.current = window.setInterval(() => {
-              setTransitionTimeLeft(prev => {
-                  if (prev <= 1) {
-                      handleStartNextBlock();
-                      return 0;
-                  }
-                  return prev - 1;
-              });
-          }, 1000);
-      } else {
-          if (transitionIntervalRef.current) clearInterval(transitionIntervalRef.current);
-      }
       return () => { if (transitionIntervalRef.current) clearInterval(transitionIntervalRef.current); };
-  }, [isTransitioning, isTransitionPaused, handleStartNextBlock]);
+  }, [status, nextBlock, block.autoAdvance, block.transitionTime, handleStartNextBlock]);
 
   // --- PRE-START LOGIC ---
   const lastBlockIdRef = useRef<string | null>(null);
@@ -601,6 +643,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   const nextGroupToStartIndex = useMemo(() => startGroups.findIndex(g => g.startTime === undefined), [startGroups]);
   const nextGroupToStart = useMemo(() => (nextGroupToStartIndex !== -1 ? startGroups[nextGroupToStartIndex] : null), [startGroups, nextGroupToStartIndex]);
+  const remainingGroupsCount = useMemo(() => startGroups.filter(g => g.startTime === undefined).length, [startGroups]);
 
   const groupForCountdownDisplay = useMemo(() => {
     if (!isHyroxRace) return null;
@@ -680,8 +723,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     setFinishedParticipants({});
     setIsClockFrozen(false);
     setFrozenTime(0);
-    setIsTransitioning(false);
-    setIsTransitionPaused(false);
     if (activeWorkout?.startGroups && activeWorkout.startGroups.length > 0) {
         setStartGroups(activeWorkout.startGroups.map(g => ({ ...g, startTime: undefined })));
     } else if (activeWorkout) {
@@ -724,6 +765,18 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       if (isHyroxRace && groupForCountdownDisplay && timeForCountdownDisplay > 0 && timeForCountdownDisplay <= 3) playShortBeep();
   }, [isHyroxRace, timeForCountdownDisplay, groupForCountdownDisplay, status]);
 
+  const startedParticipants = useMemo(() => startGroups.filter(g => g.startTime !== undefined).flatMap(g => g.participants.split('\n').map(p => p.trim()).filter(Boolean)), [startGroups]);
+  const totalParticipantsCount = startedParticipants.length;
+  const finishedParticipantsCount = Object.keys(finishedParticipants).length;
+  const allFinished = totalParticipantsCount > 0 && finishedParticipantsCount === totalParticipantsCount;
+
+  useEffect(() => {
+      if (isHyroxRace && allFinished && !isClockFrozen && status === TimerStatus.Running) {
+          setFrozenTime(totalTimeElapsed);
+          setIsClockFrozen(true);
+      }
+  }, [allFinished, isHyroxRace, isClockFrozen, totalTimeElapsed, status]);
+
     const handleRaceComplete = useCallback(async () => {
         if (!isHyroxRace || !activeWorkout || !organization) { 
             if (!organization) console.error("Hyrox save failed: Missing organizationId");
@@ -763,6 +816,36 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             setIsSavingRace(false);
         }
     }, [isHyroxRace, activeWorkout, finishedParticipants, block.exercises, startGroups, organization, speak]);
+
+  const handleParticipantFinish = (participantName: string) => {
+      if (savingParticipant) return;
+      setSavingParticipant(participantName);
+      const group = startGroups.find(g => g.participants.includes(participantName));
+      if (group && group.startTime !== undefined) {
+          const netTime = Math.max(0, totalTimeElapsed - group.startTime);
+          setFinishedParticipants(prev => ({ ...prev, [participantName]: { time: netTime, placement: Object.keys(prev).length + 1 } }));
+          setShowConfetti(true);
+          speak(`Målgång ${participantName}!`);
+          setTimeout(() => setShowConfetti(false), 3000);
+      }
+      setSavingParticipant(null);
+  };
+
+  const handleEditParticipant = (participantName: string) => { setParticipantToEdit(participantName); };
+  const handleUpdateResult = (newTime: number) => { if (!participantToEdit) return; setFinishedParticipants(prev => ({ ...prev, [participantToEdit]: { ...prev[participantToEdit], time: newTime } })); setParticipantToEdit(null); };
+  const handleAddPenalty = () => { if (!participantToEdit) return; setFinishedParticipants(prev => ({ ...prev, [participantToEdit]: { ...prev[participantToEdit], time: prev[participantToEdit].time + 60 } })); setParticipantToEdit(null); };
+  const handleRemoveResult = () => {
+        if (!participantToEdit) return;
+        setFinishedParticipants(prev => {
+            const newPrev = { ...prev };
+            delete newPrev[participantToEdit];
+            const sortedRemaining = Object.entries(newPrev).sort(([, a], [, b]) => (a as FinishData).time - (b as FinishData).time);
+            const reindexedParticipants: Record<string, FinishData> = {};
+            sortedRemaining.forEach(([name, data], index) => { reindexedParticipants[name] = { ...(data as FinishData), placement: index + 1 }; });
+            return reindexedParticipants;
+        });
+        setParticipantToEdit(null);
+    };
 
   const timerStyle = getTimerStyle(status, block.settings.mode, isHyroxRace, isTransitioning);
   
@@ -816,6 +899,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   const showSplitView = !!nextBlock && block.autoAdvance && !isTransitioning;
 
+  // Bestäm om Vila ska visas som kommande steg i baren
   const isRestNext = block.autoAdvance && (block.transitionTime || 0) > 0 && status !== TimerStatus.Resting;
 
   const handleInteraction = () => { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); restartHideTimer(); };
@@ -835,9 +919,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     if (status === TimerStatus.Running || status === TimerStatus.Preparing || status === TimerStatus.Resting || isTransitioning) restartHideTimer();
     else { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); }
   }, [status, restartHideTimer, onHeaderVisibilityChange, setIsBackButtonHidden, isTransitioning]);
-
-  const isActuallyPaused = status === TimerStatus.Paused || (isTransitioning && isTransitionPaused);
-  const isActuallyFinishedOrIdle = (status === TimerStatus.Idle || status === TimerStatus.Finished) && !isTransitioning;
 
   return (
     <div 
@@ -859,8 +940,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       )}
       
       <AnimatePresence>
-        {isActuallyPaused && !showFinishAnimation && (
-            <PauseOverlay onResume={isTransitioning ? () => setIsTransitionPaused(false) : resume} onRestart={handleConfirmReset} onFinish={() => onFinish({ isNatural: false })} />
+        {status === TimerStatus.Paused && !showFinishAnimation && (
+            <PauseOverlay onResume={resume} onRestart={handleConfirmReset} onFinish={() => onFinish({ isNatural: false })} />
         )}
         {participantToEdit && (
             <EditResultModal 
@@ -877,7 +958,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       </AnimatePresence>
 
       <AnimatePresence>
-        {status !== TimerStatus.Idle && !isActuallyPaused && !showFinishAnimation && (
+        {status !== TimerStatus.Idle && status !== TimerStatus.Paused && !showFinishAnimation && (
             <motion.div 
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -1049,20 +1130,18 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       )}
 
       <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[35%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
-            {isActuallyFinishedOrIdle ? (
+            {status === TimerStatus.Idle || status === TimerStatus.Finished ? (
                 <>
                     <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-500 transition-colors text-xl backdrop-blur-md border-2 border-white/20 uppercase">TILLBAKA</button>
                     <button onClick={() => start()} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50 uppercase">STARTA</button>
                 </>
-            ) : isActuallyPaused ? (
-                <button onClick={isTransitioning ? () => setIsTransitionPaused(false) : resume} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase">FORTSÄTT</button>
+            ) : status === TimerStatus.Paused ? (
+                <button onClick={resume} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase">FORTSÄTT</button>
             ) : (
-                <button onClick={isTransitioning ? () => setIsTransitionPaused(true) : pause} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50 uppercase">PAUSA</button>
+                <button onClick={pause} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50 uppercase">PAUSA</button>
             )}
             {isHyroxRace && status !== TimerStatus.Running && <button onClick={() => setShowBackToPrepConfirmation(true)} className="bg-gray-800/80 text-white font-bold py-4 px-8 rounded-full shadow-xl border-2 border-gray-600 hover:bg-gray-700 transition-colors text-lg uppercase">⚙️ Grupper</button>}
       </div>
     </div>
   );
 };
-
-export default TimerScreen;
