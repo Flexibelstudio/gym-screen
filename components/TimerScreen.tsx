@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout } from '../types';
-import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration } from '../hooks/useWorkoutTimer';
+import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration, playBoxingBell } from '../hooks/useWorkoutTimer';
 import { useWorkout } from '../context/WorkoutContext';
 import { saveRace, updateOrganizationActivity } from '../services/firebaseService';
 import { Confetti } from './WorkoutCompleteModal';
@@ -512,7 +512,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       
       workoutChain.forEach((b, i) => {
           const bDur = calculateBlockDuration(b.settings, b.exercises.length);
-          const transTime = (i < chain.length - 1) ? (b.transitionTime || 0) : 0;
+          const transTime = (i < workoutChain.length - 1) ? (b.transitionTime || 0) : 0;
           totalDuration += bDur + transTime;
           if (i < currentIdxInChain) elapsedTimeBeforeCurrent += bDur + transTime;
       });
@@ -724,45 +724,100 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       if (isHyroxRace && groupForCountdownDisplay && timeForCountdownDisplay > 0 && timeForCountdownDisplay <= 3) playShortBeep();
   }, [isHyroxRace, timeForCountdownDisplay, groupForCountdownDisplay, status]);
 
-    const handleRaceComplete = useCallback(async () => {
-        if (!isHyroxRace || !activeWorkout || !organization) { 
-            if (!organization) console.error("Hyrox save failed: Missing organizationId");
-            return; 
-        }
-        
-        setIsSavingRace(true);
-        const sortedFinishers = Object.entries(finishedParticipants).sort(([, a], [, b]) => (a as FinishData).time - (b as FinishData).time);
-        const winner = sortedFinishers.length > 0 ? sortedFinishers[0][0] : null;
-        setWinnerName(winner);
-        
-        const raceResults = sortedFinishers.map(([participant, name], index) => {
-            const group = startGroups.find(g => g.participants.includes(participant));
-            return { participant, time: (finishedParticipants[participant] as FinishData).time, groupId: group?.id || 'unknown' };
-        });
+  // --- HYROX HANDLERS ---
+  const startedParticipants = useMemo(() => 
+    startGroups.filter(g => g.startTime !== undefined).flatMap(g => g.participants.split('\n').map(p => p.trim()).filter(Boolean)),
+    [startGroups]
+  );
 
-        try {
-            const raceData: Omit<HyroxRace, 'id' | 'createdAt' | 'organizationId'> = {
-                raceName: activeWorkout.title,
-                exercises: block.exercises.map(e => `${e.reps || ''} ${e.name}`.trim()),
-                startGroups: startGroups.map(g => ({ id: g.id, name: g.name, participants: g.participants.split('\n').map(p => p.trim()).filter(Boolean) })),
-                results: raceResults
-            };
-            
-            const savedRace = await saveRace(raceData, organization.id);
-            if (savedRace && savedRace.id) {
-                setFinalRaceId(savedRace.id);
-                setShowFinishAnimation(true);
-                if (winner) speak(`Och vinnaren är ${winner}! Bra jobbat alla!`);
-            } else {
-                throw new Error("Missing raceId from server response");
-            }
-        } catch (error) {
-            console.error("Failed to save race:", error);
-            alert("Kunde inte spara loppet. Kontrollera din anslutning.");
-        } finally {
-            setIsSavingRace(false);
-        }
-    }, [isHyroxRace, activeWorkout, finishedParticipants, block.exercises, startGroups, organization, speak]);
+  const handleParticipantFinish = (name: string) => {
+    setSavingParticipant(name);
+    const group = startGroups.find(g => g.participants.includes(name));
+    if (group?.startTime !== undefined) {
+      const netTime = Math.max(0, totalTimeElapsed - group.startTime);
+      setFinishedParticipants(prev => ({
+        ...prev,
+        [name]: { time: netTime, placement: Object.keys(prev).length + 1 }
+      }));
+      speak(`Målgång ${name}!`);
+    }
+    setSavingParticipant(null);
+  };
+
+  const handleEditParticipant = (name: string) => {
+    setParticipantToEdit(name);
+  };
+
+  const handleUpdateResult = (newTime: number) => {
+    if (participantToEdit) {
+      setFinishedParticipants(prev => ({
+        ...prev,
+        [participantToEdit]: { ...prev[participantToEdit], time: newTime }
+      }));
+      setParticipantToEdit(null);
+    }
+  };
+
+  const handleAddPenalty = () => {
+    if (participantToEdit) {
+      setFinishedParticipants(prev => ({
+        ...prev,
+        [participantToEdit]: { ...prev[participantToEdit], time: prev[participantToEdit].time + 60 }
+      }));
+      setParticipantToEdit(null);
+    }
+  };
+
+  const handleRemoveResult = () => {
+    if (participantToEdit) {
+      setFinishedParticipants(prev => {
+        const next = { ...prev };
+        delete next[participantToEdit];
+        return next;
+      });
+      setParticipantToEdit(null);
+    }
+  };
+
+  const handleRaceComplete = useCallback(async () => {
+      if (!isHyroxRace || !activeWorkout || !organization) { 
+          if (!organization) console.error("Hyrox save failed: Missing organizationId");
+          return; 
+      }
+      
+      setIsSavingRace(true);
+      const sortedFinishers = Object.entries(finishedParticipants).sort(([, a], [, b]) => (a as FinishData).time - (b as FinishData).time);
+      const winner = sortedFinishers.length > 0 ? sortedFinishers[0][0] : null;
+      setWinnerName(winner);
+      
+      const raceResults = sortedFinishers.map(([participant, data], index) => {
+          const group = startGroups.find(g => g.participants.includes(participant));
+          return { participant, time: data.time, groupId: group?.id || 'unknown' };
+      });
+
+      try {
+          const raceData: Omit<HyroxRace, 'id' | 'createdAt' | 'organizationId'> = {
+              raceName: activeWorkout.title,
+              exercises: block.exercises.map(e => `${e.reps || ''} ${e.name}`.trim()),
+              startGroups: startGroups.map(g => ({ id: g.id, name: g.name, participants: g.participants.split('\n').map(p => p.trim()).filter(Boolean) })),
+              results: raceResults
+          };
+          
+          const savedRace = await saveRace(raceData, organization.id);
+          if (savedRace && savedRace.id) {
+              setFinalRaceId(savedRace.id);
+              setShowFinishAnimation(true);
+              if (winner) speak(`Och vinnaren är ${winner}! Bra jobbat alla!`);
+          } else {
+              throw new Error("Missing raceId from server response");
+          }
+      } catch (error) {
+          console.error("Failed to save race:", error);
+          alert("Kunde inte spara loppet. Kontrollera din anslutning.");
+      } finally {
+          setIsSavingRace(false);
+      }
+  }, [isHyroxRace, activeWorkout, finishedParticipants, block.exercises, startGroups, organization, speak]);
 
   const timerStyle = getTimerStyle(status, block.settings.mode, isHyroxRace, isTransitioning);
   
