@@ -279,6 +279,49 @@ const SegmentedRoadmap: React.FC<{
     );
 };
 
+const NextStartIndicator: React.FC<{
+    groupName: string;
+    timeLeft: number;
+    groupsLeft: number;
+}> = ({ groupName, timeLeft, groupsLeft }) => {
+    const minutes = Math.floor(Math.max(0, timeLeft) / 60);
+    const seconds = Math.max(0, timeLeft) % 60;
+    const isUrgent = timeLeft <= 30;
+
+    return (
+        <motion.div 
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9, height: 0 }}
+            className="w-full max-w-4xl mx-auto mb-8 relative"
+        >
+            <div className={`bg-white/90 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] p-6 border-2 shadow-xl dark:shadow-2xl flex items-center justify-between transition-colors duration-500 ${isUrgent ? 'border-orange-500 shadow-orange-500/20' : 'border-gray-200 dark:border-white/10'}`}>
+                <div className="flex items-center gap-6">
+                    <div className={`w-16 h-16 rounded-3xl flex items-center justify-center shadow-inner ${isUrgent ? 'bg-orange-500 text-white animate-pulse' : 'bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-white/40'}`}>
+                        <LightningIcon className="w-8 h-8" />
+                    </div>
+                    <div>
+                        <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">NÄSTA START</span>
+                        <h4 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight truncate max-w-[250px] sm:max-w-md">
+                            {groupName}
+                        </h4>
+                    </div>
+                </div>
+
+                <div className="text-right">
+                    <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">STARTAR OM</span>
+                    <div className={`font-mono text-5xl font-black tabular-nums leading-none ${isUrgent ? 'text-orange-500' : 'text-gray-900 dark:text-white'}`}>
+                        {minutes}:{seconds.toString().padStart(2, '0')}
+                    </div>
+                </div>
+            </div>
+            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-white/60 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-gray-300 dark:border-white/10 shadow-lg">
+                {groupsLeft} {groupsLeft === 1 ? 'grupp' : 'grupper'} kvar i kön
+            </div>
+        </motion.div>
+    );
+};
+
 const FollowMeView: React.FC<{ 
     exercise: Exercise | null, 
     nextExercise: Exercise | null, 
@@ -610,6 +653,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   const nextGroupToStartIndex = useMemo(() => startGroups.findIndex(g => g.startTime === undefined), [startGroups]);
   const nextGroupToStart = useMemo(() => (nextGroupToStartIndex !== -1 ? startGroups[nextGroupToStartIndex] : null), [startGroups, nextGroupToStartIndex]);
+  const remainingGroupsCount = useMemo(() => startGroups.filter(g => g.startTime === undefined).length, [startGroups]);
 
   const groupForCountdownDisplay = useMemo(() => {
     if (!isHyroxRace) return null;
@@ -878,6 +922,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const minutesStr = Math.floor(timeToDisplay / 60).toString().padStart(2, '0');
   const secondsStr = (timeToDisplay % 60).toString().padStart(2, '0');
 
+  const currentIntervalInLap = (completedWorkIntervals % effectiveIntervalsPerLap) + 1;
   const showSplitView = !!nextBlock && block.autoAdvance && !isTransitioning;
 
   const isRestNext = block.autoAdvance && (block.transitionTime || 0) > 0 && status !== TimerStatus.Resting;
@@ -981,6 +1026,19 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl line-clamp-1`}>{statusLabel}</h2>
         </div>
 
+        {/* *** DETTA ÄR DET SOM SAKNADES: HYROX START INDICATOR *** */}
+        <AnimatePresence>
+            {isHyroxRace && groupForCountdownDisplay && (
+                <div className="absolute top-40 left-1/2 -translate-x-1/2 z-[100] w-full max-w-4xl px-4">
+                     <NextStartIndicator
+                        groupName={groupForCountdownDisplay.name}
+                        timeLeft={timeForCountdownDisplay}
+                        groupsLeft={remainingGroupsCount}
+                     />
+                </div>
+            )}
+        </AnimatePresence>
+
         {/* SIFFROR (Tiden) - Mitten */}
         <div className="z-20 relative flex flex-col items-center w-full text-white">
             <div className="flex items-center justify-center w-full gap-2">
@@ -1028,8 +1086,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                             <div className="w-full flex flex-col flex-grow">
                                 {block.showDescriptionInTimer && block.setupDescription && (
                                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 mb-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0 mx-auto max-w-5xl">
-                                        <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
-                                        <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight uppercase">{block.setupDescription}</p>
+                                            <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
+                                            <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight uppercase">{block.setupDescription}</p>
                                     </motion.div>
                                 )}
                                 <div className="flex-grow min-h-0">
@@ -1051,8 +1109,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                              <div className={`flex flex-col gap-6 transition-all duration-500 h-full ${showSplitView ? 'w-2/3' : 'w-full mx-auto max-w-6xl'}`}>
                                 {block.showDescriptionInTimer && block.setupDescription && (
                                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0">
-                                        <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
-                                        <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight uppercase tracking-tight">{block.setupDescription}</p>
+                                            <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
+                                            <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight uppercase tracking-tight">{block.setupDescription}</p>
                                     </motion.div>
                                 )}
 
