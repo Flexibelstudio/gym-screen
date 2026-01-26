@@ -114,7 +114,7 @@ const NextRestPreview: React.FC<{ transitionTime: number; nextBlockTitle: string
                 {formatSeconds(transitionTime)}
             </div>
 
-            <div className="bg-gray-5 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+            <div className="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                 <span className="block text-[9px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em] mb-1.5">INFÖR NÄSTA DEL</span>
                 <p className="text-gray-900 dark:text-white text-base font-bold leading-tight line-clamp-2">{nextBlockTitle}</p>
             </div>
@@ -213,7 +213,7 @@ const TransitionFullWidthPreview: React.FC<{ block: WorkoutBlock; onSkip: () => 
             className="w-full max-w-6xl mx-auto h-full flex flex-col pt-4 pb-4"
         >
             <div className="flex-grow flex flex-col h-full space-y-4">
-                <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-center bg-white/80 dark:bg-black/20 p-8 rounded-[2.5rem] border border-gray-200 dark:border-white/5 shadow-lg gap-6">
+                <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-center bg-white/80 dark:bg-black/20 p-8 rounded-[2.5rem] border border-gray-100 dark:border-white/5 shadow-lg gap-6">
                     <div>
                         <span className="inline-block px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-black uppercase tracking-[0.2em] mb-3">UPPLADDNING</span>
                         <h3 className="text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-none">{block.title}</h3>
@@ -484,6 +484,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [transitionTimeLeft, setTransitionTimeLeft] = useState(0);
   const [isTransitionPaused, setIsTransitionPaused] = useState(false);
   const transitionIntervalRef = useRef<number | null>(null);
+  const hasTriggeredFinish = useRef(false);
 
   const nextBlock = useMemo(() => {
     if (!activeWorkout || !block.autoAdvance) return null;
@@ -525,14 +526,25 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   }, [chainInfo, totalTimeElapsed]);
 
   const handleStartNextBlock = useCallback(() => {
+      if (hasTriggeredFinish.current) return;
+      
       if (transitionIntervalRef.current) clearInterval(transitionIntervalRef.current);
       setIsTransitioning(false);
       setIsTransitionPaused(false);
-      if (nextBlock) onFinish({ isNatural: true, time: totalTimeElapsed }); 
+      
+      if (nextBlock) {
+          hasTriggeredFinish.current = true;
+          onFinish({ isNatural: true, time: totalTimeElapsed }); 
+      }
   }, [nextBlock, totalTimeElapsed, onFinish]);
 
+  // RESET LOCK ON BLOCK CHANGE
   useEffect(() => {
-      if (status === TimerStatus.Finished && nextBlock && block.autoAdvance) {
+      hasTriggeredFinish.current = false;
+  }, [block.id]);
+
+  useEffect(() => {
+      if (status === TimerStatus.Finished && nextBlock && block.autoAdvance && !hasTriggeredFinish.current) {
           const waitTime = block.transitionTime || 0;
           if (waitTime === 0) {
               handleStartNextBlock();
