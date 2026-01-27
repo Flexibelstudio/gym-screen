@@ -24,6 +24,7 @@ interface TimerStyle {
 
 const getTimerStyle = (status: TimerStatus, mode: TimerMode, isHyrox: boolean, isTransitioning: boolean): TimerStyle => {
   if (isTransitioning) {
+      // Mörk lila/indigo gradient för vilan mellan block
       return { bg: 'bg-gradient-to-br from-indigo-900 to-purple-900', text: 'text-white', pulseRgb: '168, 85, 247', border: 'border-purple-400', badge: 'bg-purple-600' };
   }
   
@@ -291,31 +292,31 @@ const NextStartIndicator: React.FC<{
         <motion.div 
             initial={{ opacity: 0, y: -20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="w-full mb-8 relative"
+            exit={{ opacity: 0, scale: 0.9, height: 0 }}
+            className="w-full mb-4 relative flex-shrink-0"
         >
-            <div className={`bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] p-6 border-2 shadow-xl dark:shadow-2xl flex items-center justify-between transition-colors duration-500 ${isUrgent ? 'border-orange-500 shadow-orange-500/20' : 'border-gray-200 dark:border-white/10'}`}>
+            <div className={`bg-white/95 dark:bg-black/60 backdrop-blur-2xl rounded-[1.8rem] p-4 border-2 shadow-xl dark:shadow-2xl flex items-center justify-between transition-colors duration-500 ${isUrgent ? 'border-orange-500 shadow-orange-500/20' : 'border-gray-200 dark:border-white/10'}`}>
                 <div className="flex items-center gap-6">
-                    <div className={`w-16 h-16 rounded-3xl flex items-center justify-center shadow-inner ${isUrgent ? 'bg-orange-500 text-white animate-pulse' : 'bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-white/40'}`}>
-                        <LightningIcon className="w-8 h-8" />
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner ${isUrgent ? 'bg-orange-500 text-white animate-pulse' : 'bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-white/40'}`}>
+                        <LightningIcon className="w-6 h-6" />
                     </div>
                     <div className="min-w-0">
-                        <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">NÄSTA START</span>
-                        <h4 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight truncate max-w-[250px] sm:max-w-md leading-none">
+                        <span className="block text-[8px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em] mb-0.5">NÄSTA START</span>
+                        <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight truncate max-w-[250px] sm:max-w-md leading-none">
                             {groupName}
                         </h4>
+                        <p className="text-[8px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.2em] mt-1">
+                            {groupsLeft} {groupsLeft === 1 ? 'GRUPP' : 'GRUPPER'} KVAR
+                        </p>
                     </div>
                 </div>
 
                 <div className="text-right shrink-0">
-                    <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">STARTAR OM</span>
-                    <div className={`font-mono text-5xl font-black tabular-nums leading-none ${isUrgent ? 'text-orange-500' : 'text-gray-900 dark:text-white'}`}>
+                    <span className="block text-[8px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em] mb-0.5">STARTAR OM</span>
+                    <div className={`font-mono text-3xl font-black tabular-nums leading-none ${isUrgent ? 'text-orange-500' : 'text-gray-900 dark:text-white'}`}>
                         {minutes}:{seconds.toString().padStart(2, '0')}
                     </div>
                 </div>
-            </div>
-            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-white/60 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-gray-300 dark:border-white/10 shadow-lg whitespace-nowrap">
-                {groupsLeft} {groupsLeft === 1 ? 'grupp' : 'grupper'} kvar i kön
             </div>
         </motion.div>
     );
@@ -377,56 +378,54 @@ const FollowMeView: React.FC<{
     );
 };
 
+// --- STANDARD LIST VIEW (UPDATED FOR NO SCROLL / FLEX FIT) ---
 const StandardListView: React.FC<{ 
     exercises: Exercise[], 
     timerStyle: TimerStyle,
-    forceFullHeight?: boolean
-}> = ({ exercises, timerStyle, forceFullHeight = true }) => {
+    forceFullHeight?: boolean,
+    isHyrox?: boolean
+}> = ({ exercises, timerStyle, forceFullHeight = true, isHyrox = false }) => {
     const count = exercises.length;
-    let titleSize = 'text-3xl md:text-4xl';
-    let repsSize = 'text-xl md:text-2xl';
-    let descSize = 'text-lg md:text-xl';
-    let padding = 'px-6 py-4';
-    let gap = 'gap-4';
-    let showDescription = true;
-
-    // Förtätad vy för långa listor (som HYROX)
-    if (count > 8) {
-        titleSize = 'text-2xl md:text-3xl';
-        repsSize = 'text-lg';
-        padding = 'px-5 py-3';
-        gap = 'gap-2';
-        showDescription = false; 
-    } else if (count <= 4) {
-        titleSize = 'text-5xl md:text-6xl';
-        repsSize = 'text-3xl md:text-4xl';
-        descSize = 'text-2xl md:text-3xl';
-        padding = 'px-8 py-8';
-        gap = 'gap-6';
-    }
+    const isLargeList = count > 12 || isHyrox; // Trigga kompakt läge för Hyrox eller många övningar
+    
+    // Dynamiska storlekar beroende på antal övningar
+    const titleSize = isLargeList ? 'text-lg sm:text-xl md:text-2xl' : count > 8 ? 'text-2xl md:text-3xl' : 'text-4xl md:text-5xl';
+    const repsSize = isLargeList ? 'text-sm md:text-base' : 'text-xl md:text-2xl';
+    const descSize = 'text-lg md:text-xl';
+    const padding = isLargeList ? 'px-4 py-2' : count > 8 ? 'px-6 py-3' : 'px-8 py-6';
+    const gap = isLargeList ? 'gap-1' : 'gap-3';
+    
+    // Dölj beskrivning om det är väldigt trångt (Hyrox)
+    const showDescription = count <= 8 && !isHyrox;
 
     return (
-        <div className={`w-full flex flex-col ${gap} overflow-y-auto pb-4 custom-scrollbar ${forceFullHeight ? 'h-full' : 'h-auto'}`}>
+        // overflow-hidden tar bort scrollen. h-full ser till att containern fyller ytan.
+        <div className={`w-full h-full flex flex-col ${gap} overflow-hidden pb-1`}>
             {exercises.map((ex) => (
                 <div 
                     key={ex.id} 
-                    className={`${forceFullHeight ? 'flex-1' : 'flex-none min-h-[70px]'} bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-3xl ${padding} flex flex-col justify-center border-l-[12px] shadow-xl transition-all relative group border-gray-100 dark:border-transparent`}
-                    style={{ borderLeftColor: `rgb(${timerStyle.pulseRgb})` }}
+                    // flex-1 och min-h-0 tvingar alla rader att dela lika på höjden
+                    className={`flex-1 min-h-0 bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl flex flex-col justify-center border-l-[12px] shadow-sm transition-all relative group border-gray-100 dark:border-transparent`}
+                    style={{ 
+                        // Accentfärg: Hyrox får en specifik färg (indigo), annars timerfärgen
+                        borderLeftColor: isHyrox ? '#6366f1' : `rgb(${timerStyle.pulseRgb})`,
+                        padding: padding
+                    }}
                 >
-                    <div className="flex justify-between items-center w-full gap-6">
-                        <h4 className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight ${titleSize}`}>
+                    <div className="flex justify-between items-center w-full gap-4">
+                        <h4 className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight truncate ${titleSize}`}>
                             {ex.name}
                         </h4>
                         {ex.reps && (
-                            <span className={`font-mono font-black text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-2xl whitespace-nowrap shadow-inner border border-gray-200 dark:border-gray-700 ${repsSize}`}>
+                            <span className={`font-mono font-black text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-white/5 px-3 py-1 rounded-xl whitespace-nowrap border border-gray-100 dark:border-white/5 ${repsSize}`}>
                                 {formatReps(ex.reps)}
                             </span>
                         )}
                     </div>
 
                     {showDescription && ex.description && (
-                        <div className="mt-3">
-                             <p className={`font-medium text-gray-600 dark:text-gray-300 leading-snug ${descSize}`}>
+                        <div className="mt-2 hidden sm:block">
+                             <p className={`font-medium text-gray-600 dark:text-gray-300 leading-snug ${descSize} line-clamp-1`}>
                                 {ex.description}
                              </p>
                         </div>
@@ -587,6 +586,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   }, []);
 
   useEffect(() => {
+      // Strikt kontroll: Vi triggar bara transition om status är Finished OCH klockan faktiskt har gått (totalTimeElapsed > 0)
       if (status === TimerStatus.Finished && totalTimeElapsed > 0 && nextBlock && block.autoAdvance && !hasTriggeredFinish.current) {
           const waitTime = block.transitionTime || 0;
           if (waitTime === 0) {
@@ -619,6 +619,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const hasStartedRef = useRef(false);
   
   useEffect(() => {
+    // Timern startar direkt vid mount i detta läge pga keys i AppRouter
     if (!hasStartedRef.current && (status === TimerStatus.Idle || status === TimerStatus.Finished)) {
         if (organization) updateOrganizationActivity(organization.id);
         start({ skipPrep: isAutoTransition });
@@ -920,6 +921,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const minutesStr = Math.floor(timeToDisplay / 60).toString().padStart(2, '0');
   const secondsStr = (timeToDisplay % 60).toString().padStart(2, '0');
 
+  const currentIntervalInLap = (completedWorkIntervals % effectiveIntervalsPerLap) + 1;
   const showSplitView = !!nextBlock && block.autoAdvance && !isTransitioning;
 
   const isRestNext = block.autoAdvance && (block.transitionTime || 0) > 0 && status !== TimerStatus.Resting;
@@ -1063,11 +1065,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                   <TransitionFullWidthPreview block={nextBlock!} onSkip={handleStartNextBlock} timerStyle={timerStyle} />
               ) : (
                   // NORMAL WORKOUT VIEW
-                  <div className="flex flex-col h-full">
-                    {/* HYROX START INDICATOR (Inside flow) */}
+                  <div className="flex flex-col h-full w-full">
+                    {/* HÄR ÄR DEN NYA PLACERINGEN FÖR NEXT START INDICATOR */}
                     <AnimatePresence>
                         {isHyroxRace && groupForCountdownDisplay && (
-                            <div className="flex-shrink-0 animate-fade-in w-full max-w-4xl mx-auto">
+                            <div className="flex-shrink-0 w-full max-w-4xl mx-auto mb-2">
                                 <NextStartIndicator
                                     groupName={groupForCountdownDisplay.name}
                                     timeLeft={timeForCountdownDisplay}
@@ -1078,13 +1080,13 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                     </AnimatePresence>
 
                     {block.followMe ? (
-                        // FOLLOW ME LAYOUT
+                        // FOLLOW ME LAYOUT (Vertical stack - Bar forced to bottom)
                         <div className="w-full flex flex-col items-center flex-grow justify-between pb-4 min-h-0">
                             <div className="w-full flex flex-col flex-grow min-h-0">
                                 {block.showDescriptionInTimer && block.setupDescription && (
                                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 mb-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0 mx-auto max-w-5xl">
-                                        <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
-                                        <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight uppercase">{block.setupDescription}</p>
+                                            <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
+                                            <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight uppercase">{block.setupDescription}</p>
                                     </motion.div>
                                 )}
                                 <div className="flex-grow min-h-0">
@@ -1101,22 +1103,22 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                             </div>
                         </div>
                     ) : (
-                        // STANDARD LIST LAYOUT
+                        // STANDARD LIST LAYOUT (Side by side if next block exists)
                         <div className="flex gap-10 flex-grow items-stretch w-full min-h-0">
                              <div className={`flex flex-col gap-6 transition-all duration-500 h-full min-h-0 ${showSplitView ? 'w-2/3' : 'w-full mx-auto max-w-6xl'}`}>
                                 {block.showDescriptionInTimer && block.setupDescription && (
                                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0">
-                                        <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
-                                        <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight uppercase tracking-tight">{block.setupDescription}</p>
+                                            <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
+                                            <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight uppercase tracking-tight">{block.setupDescription}</p>
                                     </motion.div>
                                 )}
 
-                                <div className="w-full flex-grow min-h-0 relative"> 
-                                    {!isFreestanding && <StandardListView exercises={block.exercises} timerStyle={timerStyle} forceFullHeight={!isHyroxRace} />}
+                                <div className="w-full flex-grow min-h-0"> 
+                                    {!isFreestanding && <StandardListView exercises={block.exercises} timerStyle={timerStyle} isHyrox={isHyroxRace} />}
                                 </div>
                             </div>
 
-                            {/* NEXT BLOCK PREVIEW */}
+                            {/* NEXT BLOCK PREVIEW (35% width) - Endast vid stations-baserad träning */}
                             {showSplitView ? (
                                 <div className="w-1/3 pb-6 flex flex-col justify-center">
                                     {(block.transitionTime && block.transitionTime > 0) ? (
