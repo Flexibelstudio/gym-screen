@@ -247,7 +247,7 @@ const SegmentedRoadmap: React.FC<{
         <div className="w-full flex items-center gap-1.5 h-6 mb-1">
             {chain.map((b, i) => {
                 const bDur = calculateBlockDuration(b.settings, b.exercises.length);
-                const transTime = (i < chain.length - 1) ? (b.transitionTime || 0) : 0;
+                const transTime = (i < chain.length - 1 && b.autoAdvance) ? (b.transitionTime || 0) : 0;
                 const segmentTotal = bDur + transTime;
                 
                 const widthPercent = totalChainTime > 0 ? (segmentTotal / totalChainTime) * 100 : (100 / chain.length);
@@ -530,16 +530,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   }, [activeWorkout, block]);
 
   const workoutChain = useMemo(() => {
+      // Om det finns ett pass, visa alla block i tidslinjen. Annars visa bara detta block.
       if (!activeWorkout) return [block];
-      const index = activeWorkout.blocks.findIndex(b => b.id === block.id);
-      if (index === -1) return [block];
-
-      let startIdx = index;
-      while (startIdx > 0 && activeWorkout.blocks[startIdx-1].autoAdvance) startIdx--;
-      let endIdx = index;
-      while (endIdx < activeWorkout.blocks.length - 1 && activeWorkout.blocks[endIdx].autoAdvance) endIdx++;
-
-      return activeWorkout.blocks.slice(startIdx, endIdx + 1);
+      return activeWorkout.blocks;
   }, [activeWorkout, block]);
 
   const chainInfo = useMemo(() => {
@@ -549,7 +542,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       
       workoutChain.forEach((b, i) => {
           const bDur = calculateBlockDuration(b.settings, b.exercises.length);
-          const transTime = (i < workoutChain.length - 1) ? (b.transitionTime || 0) : 0;
+          // Lägg bara till transitionTime om det faktiskt är en automatisk övergång planerad
+          const transTime = (i < workoutChain.length - 1 && b.autoAdvance) ? (b.transitionTime || 0) : 0;
           totalDuration += bDur + transTime;
           if (i < currentIdxInChain) elapsedTimeBeforeCurrent += bDur + transTime;
       });
@@ -558,8 +552,13 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   }, [workoutChain, block.id]);
 
   const totalChainElapsed = useMemo(() => {
-      return chainInfo.elapsedTimeBeforeCurrent + totalTimeElapsed;
-  }, [chainInfo, totalTimeElapsed]);
+      let base = chainInfo.elapsedTimeBeforeCurrent + totalTimeElapsed;
+      if (isTransitioning) {
+          const elapsedInTrans = (block.transitionTime || 0) - transitionTimeLeft;
+          base += elapsedInTrans;
+      }
+      return base;
+  }, [chainInfo, totalTimeElapsed, isTransitioning, transitionTimeLeft, block.transitionTime]);
 
   const handleStartNextBlock = useCallback(() => {
       if (hasTriggeredFinish.current) return;
@@ -1025,16 +1024,14 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         </div>
 
         {/* TIDSLINJE (Roadmap) - Under tiden */}
-        {workoutChain.length > 1 && (
-            <div className="w-[80%] max-w-4xl mt-2 mb-2 z-20">
-                <SegmentedRoadmap 
-                    chain={workoutChain} 
-                    currentBlockId={block.id} 
-                    totalChainElapsed={totalChainElapsed} 
-                    totalChainTime={chainInfo.totalDuration}
-                />
-            </div>
-        )}
+        <div className="w-[80%] max-w-4xl mt-2 mb-2 z-20">
+            <SegmentedRoadmap 
+                chain={workoutChain} 
+                currentBlockId={block.id} 
+                totalChainElapsed={totalChainElapsed} 
+                totalChainTime={chainInfo.totalDuration}
+            />
+        </div>
 
         {/* BLOCK RUBRIK (Stort) - Längst ner */}
         <div className="text-center z-20 w-full px-10 mt-4 mb-2">
