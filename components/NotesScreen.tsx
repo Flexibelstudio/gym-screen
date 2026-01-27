@@ -57,7 +57,6 @@ const BoilingCauldron: React.FC<{ className?: string }> = ({ className }) => (
     </div>
 );
 
-// New modal component for the archive
 interface NoteArchiveModalProps {
     notes: Note[];
     onClose: () => void;
@@ -314,7 +313,6 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
 
     useEffect(() => {
         switch(mode) {
-            case TimerMode.Interval: setMode(TimerMode.Interval); break;
             case TimerMode.AMRAP: case TimerMode.TimeCap: case TimerMode.EMOM: setTotalMinutes(10); break;
             default: break;
         }
@@ -429,11 +427,9 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
 
 const cleanExerciseName = (name: string) => name.split('(')[0].trim();
 
-// NYTT: Funktion för att filtrera bort tidsangivelser från reps-strängen
 const filterTimeFromReps = (reps: string): string => {
     if (!reps) return '';
     const lower = reps.toLowerCase();
-    // Om strängen innehåller "sek" eller "min", filtrera bort den
     if (lower.includes('sek') || lower.includes('min') || lower.includes('minut')) {
         return '';
     }
@@ -447,7 +443,7 @@ const getTimerHexColor = (status: TimerStatus, mode: TimerMode) => {
     switch (mode) {
         case TimerMode.Tabata: return '#ef4444';
         case TimerMode.AMRAP: return '#db2777';
-        default: return '#f97316'; // Deep orange for other working modes
+        default: return '#f97316';
     }
 };
 
@@ -550,8 +546,6 @@ const CompactTimer: React.FC<{
     );
 };
 
-// --- Main Component ---
-
 export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, studioConfig, initialWorkoutToDraw, onBack }) => {
     const [savedNotes, setSavedNotes] = useState<Note[]>([]);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -564,10 +558,8 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const [isInfoModalVisible, setIsInfoModalVisible] = useState(false);
     
     const [drawingColor, setDrawingColor] = useState<string>('#FFFFFF');
-    
     const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
     const [animationState, setAnimationState] = useState<'intro' | 'exiting' | 'finished'>(initialWorkoutToDraw ? 'finished' : 'intro');
-    
     const [interpretedWorkout, setInterpretedWorkout] = useState<Workout | null>(null);
     const [showBlockSelector, setShowBlockSelector] = useState(false);
     const [blockForCircuit, setBlockForCircuit] = useState<WorkoutBlock | null>(null);
@@ -583,7 +575,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const [completionInfo, setCompletionInfo] = useState<{ workout: Workout, isFinal: boolean, blockTag?: string, finishTime?: number } | null>(null);
 
     const isTimerActive = timer.status === TimerStatus.Running || timer.status === TimerStatus.Resting || timer.status === TimerStatus.Preparing;
-
     const [controlsVisible, setControlsVisible] = useState(true);
     const hideTimeoutRef = useRef<number | null>(null);
 
@@ -595,45 +586,27 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         { hex: '#EF4444', label: 'Röd' }
     ];
 
-    const effectiveColors = COLORS;
-
     const handleInteraction = useCallback(() => {
         setControlsVisible(true);
-        if (hideTimeoutRef.current) {
-            clearTimeout(hideTimeoutRef.current);
-        }
-        
-        if (isTimerActive) {
-            hideTimeoutRef.current = window.setTimeout(() => {
-                setControlsVisible(false);
-            }, 3000);
-        }
+        if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+        if (isTimerActive) hideTimeoutRef.current = window.setTimeout(() => setControlsVisible(false), 3000);
     }, [isTimerActive]);
 
     useEffect(() => {
-        if (isTimerActive) {
-            handleInteraction();
-        } else {
+        if (isTimerActive) handleInteraction();
+        else {
             setControlsVisible(true);
             if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
         }
-        return () => {
-            if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-        };
+        return () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); };
     }, [isTimerActive, handleInteraction]);
 
-    useEffect(() => {
-        if (initialWorkoutToDraw) {
-            setInterpretedWorkout(initialWorkoutToDraw);
-        }
-    }, [initialWorkoutToDraw]);
+    useEffect(() => { if (initialWorkoutToDraw) setInterpretedWorkout(initialWorkoutToDraw); }, [initialWorkoutToDraw]);
 
     useEffect(() => {
         try {
             const storedNotes = localStorage.getItem('flexibel-saved-notes');
-            if (storedNotes) {
-                setSavedNotes(JSON.parse(storedNotes));
-            }
+            if (storedNotes) setSavedNotes(JSON.parse(storedNotes));
         } catch (e) { console.error("Failed to load notes", e); }
     }, []);
 
@@ -663,38 +636,17 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
 
     const handleTimerFinish = useCallback(() => {
         if (timerBlock) {
-            const dummyWorkout: Workout = {
-                id: `notes-workout-${Date.now()}`,
-                title: timerBlock.title,
-                blocks: [timerBlock],
-                coachTips: '',
-                category: 'Idé-tavlan',
-                isPublished: false,
-                createdAt: Date.now(),
-                organizationId: '',
-            };
-            setCompletionInfo({ 
-                workout: dummyWorkout, 
-                isFinal: true, 
-                blockTag: timerBlock.tag,
-                finishTime: timer.totalTimeElapsed 
-            });
+            const dummyWorkout: Workout = { id: `notes-workout-${Date.now()}`, title: timerBlock.title, blocks: [timerBlock], coachTips: '', category: 'Idé-tavlan', isPublished: false, createdAt: Date.now(), organizationId: '' };
+            setCompletionInfo({ workout: dummyWorkout, isFinal: true, blockTag: timerBlock.tag, finishTime: timer.totalTimeElapsed });
         }
     }, [timerBlock, timer.totalTimeElapsed]);
 
     const handleToggleTimer = useCallback(() => {
-        if (timerBlock) {
-            handleCloseTimer();
-        } else {
-            setIsTimerSetupVisible(true);
-        }
+        if (timerBlock) handleCloseTimer();
+        else setIsTimerSetupVisible(true);
     }, [timerBlock, handleCloseTimer]);
 
-    useEffect(() => {
-        if (timerBlock && timer.status === TimerStatus.Idle) {
-            timer.start();
-        }
-    }, [timerBlock, timer.status, timer.start]);
+    useEffect(() => { if (timerBlock && timer.status === TimerStatus.Idle) timer.start(); }, [timerBlock, timer.status, timer.start]);
 
     const skipAnimation = useCallback(() => setAnimationState('exiting'), []);
 
@@ -709,12 +661,10 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         }
     }, [animationState, skipAnimation]);
 
-    // --- CANVAS SETUP ---
     useEffect(() => {
         const canvas = canvasRef.current;
         const container = containerRef.current;
         if (!canvas || !container) return;
-
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
         if (!ctx) return;
         
@@ -722,16 +672,13 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             const dpr = window.devicePixelRatio || 1;
             const width = container.offsetWidth;
             const height = container.offsetHeight;
-
             if(width === 0 || height === 0) return;
-
             const newCanvasWidth = Math.round(width * dpr);
             const newCanvasHeight = Math.round(height * dpr);
             
             if (canvas.width !== newCanvasWidth || canvas.height !== newCanvasHeight) {
                 canvas.width = newCanvasWidth;
                 canvas.height = newCanvasHeight;
-                
                 if (lastDrawnBlock) {
                     setTimeout(() => {
                          const color = timerBlock ? getTimerHexColor(timer.status, timerBlock.settings.mode) : undefined;
@@ -747,19 +694,15 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                 }
             }
-            
             ctx.fillStyle = '#030712';
-            ctx.strokeStyle = '#FFFFFF';
+            ctx.strokeStyle = drawingColor;
             ctx.lineWidth = 4 * dpr;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
         };
         
         setupCanvas();
-
-        const resizeObserver = new ResizeObserver(() => {
-            window.requestAnimationFrame(setupCanvas);
-        });
+        const resizeObserver = new ResizeObserver(() => window.requestAnimationFrame(setupCanvas));
         resizeObserver.observe(container);
 
         const getPointerPos = (e: PointerEvent) => {
@@ -774,11 +717,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             e.preventDefault();
             isDrawing.current = true;
             points.current = [getPointerPos(e)];
-            
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-                ctx.strokeStyle = drawingColor;
-            }
         };
 
         const draw = (e: PointerEvent) => {
@@ -786,16 +724,12 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             e.preventDefault();
             const pos = getPointerPos(e);
             points.current.push(pos);
-
             if (points.current.length < 3) return;
-
             const p1 = points.current[points.current.length - 3];
             const p2 = points.current[points.current.length - 2];
             const p3 = points.current[points.current.length - 1];
-
             const mid1 = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
             const mid2 = { x: (p2.x + p3.x) / 2, y: (p2.y + p3.y) / 2 };
-            
             ctx.beginPath();
             ctx.moveTo(mid1.x, mid1.y);
             ctx.quadraticCurveTo(p2.x, p2.y, mid2.x, mid2.y);
@@ -806,10 +740,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             if (!isDrawing.current || animationState !== 'finished') return;
             isDrawing.current = false;
             if (points.current.length < 1) { points.current = []; return; }
-
-            const ctx = canvas?.getContext('2d');
-            if (!canvas || !ctx) return;
-
             if (points.current.length === 1) {
                 const p1 = points.current[0];
                 ctx.fillStyle = ctx.strokeStyle;
@@ -819,14 +749,9 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             } else if (points.current.length === 2) {
                 const p1 = points.current[0];
                 const p2 = points.current[1];
-                ctx.beginPath();
-                ctx.moveTo(p1.x, p1.y);
-                ctx.lineTo(p2.x, p2.y);
-                ctx.stroke();
+                ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke();
             }
-
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            setHistory(prev => [...prev, imageData]);
+            setHistory(prev => [...prev, ctx.getImageData(0, 0, canvas.width, canvas.height)]);
             points.current = [];
         };
 
@@ -834,7 +759,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         canvas.addEventListener('pointermove', draw);
         canvas.addEventListener('pointerup', stopDrawing);
         canvas.addEventListener('pointerleave', stopDrawing);
-
         return () => {
             resizeObserver.unobserve(container);
             canvas.removeEventListener('pointerdown', startDrawing);
@@ -842,17 +766,13 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             canvas.removeEventListener('pointerup', stopDrawing);
             canvas.removeEventListener('pointerleave', stopDrawing);
         };
-    }, [animationState, lastDrawnBlock, drawingColor]); 
+    }, [animationState, lastDrawnBlock, drawingColor]);
 
     const clearCanvas = () => { 
         const canvas = canvasRef.current;
         if (canvas) {
             const ctx = canvas.getContext('2d');
-            if (ctx) {
-                ctx.fillStyle = '#030712';
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-            }
+            if (ctx) { ctx.fillStyle = '#030712'; ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.fillRect(0, 0, canvas.width, canvas.height); }
         }
         setHistory([]);
         setActiveNoteId(null);
@@ -865,12 +785,8 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         if (!canvas || !ctx) return;
         const newHistory = history.slice(0, -1);
         setHistory(newHistory);
-        ctx.fillStyle = '#030712';
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        if (newHistory.length > 0) {
-            ctx.putImageData(newHistory[newHistory.length - 1], 0, 0);
-        }
+        ctx.fillStyle = '#030712'; ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.fillRect(0, 0, canvas.width, canvas.height);
+        if (newHistory.length > 0) ctx.putImageData(newHistory[newHistory.length - 1], 0, 0);
     };
 
     const handleSaveNote = () => {
@@ -881,32 +797,14 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             const dataUrl = canvasRef.current.toDataURL('image/png');
             if (activeNoteId) {
                 const originalNote = savedNotes.find(n => n.id === activeNoteId);
-                const updatedNote: Note = {
-                    id: activeNoteId,
-                    timestamp: Date.now(),
-                    imageUrl: dataUrl,
-                    text: originalNote?.text || '', 
-                };
-                handleUpdateNoteAction(updatedNote);
+                handleUpdateNoteAction({ id: activeNoteId, timestamp: Date.now(), imageUrl: dataUrl, text: originalNote?.text || '' });
             } else {
-                const newNote: Note = {
-                    id: `note-${Date.now()}`,
-                    timestamp: Date.now(),
-                    text: '',
-                    imageUrl: dataUrl,
-                };
-                handleSaveNoteAction(newNote);
+                handleSaveNoteAction({ id: `note-${Date.now()}`, timestamp: Date.now(), text: '', imageUrl: dataUrl });
             }
             clearCanvas();
             setSaveState('saved');
             setTimeout(() => setSaveState('idle'), 2000);
-        } catch(e) {
-            console.error("Failed to save note:", e);
-            alert('Anteckningen kunde inte sparas.');
-            setSaveState('idle');
-        } finally {
-            setIsSavingNote(false);
-        }
+        } catch(e) { alert('Anteckningen kunde inte sparas.'); setSaveState('idle'); } finally { setIsSavingNote(false); }
     };
     
     const handleInterpretAsWorkout = async () => {
@@ -917,19 +815,11 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             const base64Image = dataUrl.split(',')[1];
             const workout = await parseWorkoutFromImage(base64Image);
             setInterpretedWorkout(workout);
-        } catch(e) {
-            alert(e instanceof Error ? e.message : 'Ett okänt fel inträffade.');
-        } finally {
-            setIsInterpretingWorkout(false);
-        }
+        } catch(e) { alert(e instanceof Error ? e.message : 'Ett okänt fel inträffade.'); } finally { setIsInterpretingWorkout(false); }
     };
 
     const handleGoToBuilder = () => {
-        if (interpretedWorkout) {
-            onWorkoutInterpreted(interpretedWorkout);
-            clearCanvas();
-            setInterpretedWorkout(null);
-        }
+        if (interpretedWorkout) { onWorkoutInterpreted(interpretedWorkout); clearCanvas(); setInterpretedWorkout(null); }
     };
 
     const drawCircuitOnCanvas = useCallback((block: WorkoutBlock, overrideColor?: string) => {
@@ -945,17 +835,14 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
 
         const exercises = block.exercises || [];
         if (exercises.length === 0) {
-            setInterpretedWorkout(null);
-            setShowBlockSelector(false);
-            setBlockForCircuit(null);
+            setInterpretedWorkout(null); setShowBlockSelector(false); setBlockForCircuit(null);
             return;
         }
 
         const isTimerActive = !!timerBlock;
-        // VIKTIGT: Återställ marginalerna mot kanterna för att få största möjliga rityta inuti.
-        const sidePadding = canvas.width * 0.12; 
-        const timerSafeZone = isTimerActive ? canvas.height * 0.32 : canvas.height * 0.10; 
-        const bottomPadding = canvas.height * 0.15; 
+        const sidePadding = canvas.width * 0.22; 
+        const timerSafeZone = isTimerActive ? canvas.height * 0.40 : canvas.height * 0.15; 
+        const bottomPadding = canvas.height * 0.20; 
 
         const availableHeight = canvas.height - timerSafeZone - bottomPadding;
         const availableWidth = canvas.width - (sidePadding * 2);
@@ -969,7 +856,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         const textColor = '#FFFFFF';
         const accentColor = overrideColor || '#14b8a6'; 
 
-        // RITA BANAN
         ctx.beginPath();
         ctx.roundRect(x, y, w, h, radius);
         ctx.strokeStyle = '#374151';
@@ -992,19 +878,14 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         };
 
         const splitTextIntoLines = (text: string): string[] => {
-            // Tillåt lite längre rader nu när banan är bredare
-            if (text.length <= 16) return [text];
+            if (text.length <= 14) return [text];
             const words = text.split(' ');
-            if (words.length === 1) return [text.substring(0, 16), text.substring(16)];
+            if (words.length === 1) return [text.substring(0, 14), text.substring(14)];
             const lines: string[] = [];
             let currentLine = words[0];
             for (let i = 1; i < words.length; i++) {
-                if ((currentLine + " " + words[i]).length < 18) {
-                    currentLine += " " + words[i];
-                } else {
-                    lines.push(currentLine);
-                    currentLine = words[i];
-                }
+                if ((currentLine + " " + words[i]).length < 16) currentLine += " " + words[i];
+                else { lines.push(currentLine); currentLine = words[i]; }
             }
             lines.push(currentLine);
             return lines;
@@ -1014,25 +895,13 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             const dist = index * step;
             const pos = getPointOnRect(dist);
             
-            // Station-cirkel
-            ctx.beginPath();
-            ctx.arc(pos.x, pos.y, 38 * dpr, 0, 2 * Math.PI); 
-            ctx.fillStyle = '#030712'; 
-            ctx.fill();
-
-            ctx.beginPath();
-            ctx.arc(pos.x, pos.y, 32 * dpr, 0, 2 * Math.PI); 
-            ctx.fillStyle = accentColor;
-            ctx.fill();
+            ctx.beginPath(); ctx.arc(pos.x, pos.y, 38 * dpr, 0, 2 * Math.PI); ctx.fillStyle = '#030712'; ctx.fill();
+            ctx.beginPath(); ctx.arc(pos.x, pos.y, 32 * dpr, 0, 2 * Math.PI); ctx.fillStyle = accentColor; ctx.fill();
             
-            ctx.fillStyle = '#FFFFFF'; 
-            ctx.font = `bold ${28 * dpr}px sans-serif`; 
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
+            ctx.fillStyle = '#FFFFFF'; ctx.font = `bold ${28 * dpr}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
             ctx.fillText(String(index + 1), pos.x, pos.y);
 
-            // TEXTPLACERING - RITA INÅT MOT MITTEN
-            const textOffset = 75 * dpr;
+            const textOffset = 80 * dpr;
             let textX = pos.x;
             let textY = pos.y;
             let align: CanvasTextAlign = 'center';
@@ -1054,12 +923,10 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
 
             const name = cleanExerciseName(ex.name);
             const lines = splitTextIntoLines(name);
-            
-            // FILTRERA BORT TID FRÅN REPS
             const repsRaw = filterTimeFromReps(ex.reps || '');
             const repsStr = repsRaw.toLowerCase().includes('ej angivet') || repsRaw.trim() === '' ? '' : `(${repsRaw})`;
             
-            let fontSize = 34 * dpr; 
+            let fontSize = 36 * dpr; 
             ctx.font = `bold ${fontSize}px sans-serif`;
             ctx.fillStyle = textColor;
             ctx.textAlign = align;
@@ -1070,14 +937,11 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             
             lines.forEach((line, i) => {
                 let yPos = textY;
-                if (pos.side === 'top') {
-                    yPos = textY + (i * lineHeight);
-                } else if (pos.side === 'bottom') {
+                if (pos.side === 'top') yPos = textY + (i * lineHeight);
+                else if (pos.side === 'bottom') {
                     yPos = textY - ((lines.length - 1 - i) * lineHeight);
                     if (repsStr) yPos -= lineHeight;
-                } else {
-                    yPos = textY - (totalTextHeight/2) + (i * lineHeight) + (lineHeight/2);
-                }
+                } else yPos = textY - (totalTextHeight/2) + (i * lineHeight) + (lineHeight/2);
                 ctx.fillText(line, textX, yPos);
             });
             
@@ -1085,21 +949,15 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 ctx.font = `bold ${fontSize * 0.8}px sans-serif`;
                 ctx.fillStyle = accentColor;
                 let repsY = textY;
-                if (pos.side === 'top') {
-                    repsY = textY + (lines.length * lineHeight);
-                } else if (pos.side === 'bottom') {
-                    repsY = textY;
-                } else {
-                    repsY = textY + (totalTextHeight/2) + (lineHeight/2);
-                }
+                if (pos.side === 'top') repsY = textY + (lines.length * lineHeight);
+                else if (pos.side === 'bottom') repsY = textY;
+                else repsY = textY + (totalTextHeight/2) + (lineHeight/2);
                 ctx.fillText(repsStr, textX, repsY);
             }
         });
 
         setHistory([ctx.getImageData(0, 0, canvas.width, canvas.height)]);
-        setInterpretedWorkout(null);
-        setShowBlockSelector(false);
-        setBlockForCircuit(null);
+        setInterpretedWorkout(null); setShowBlockSelector(false); setBlockForCircuit(null);
     }, [timerBlock]);
 
     useEffect(() => {
@@ -1117,8 +975,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.onload = () => {
-            ctx.fillStyle = '#030712';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#030712'; ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             setHistory([ctx.getImageData(0, 0, canvas.width, canvas.height)]);
             setActiveNoteId(note.id);
@@ -1127,78 +984,33 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     };
 
     return (
-        <div 
-            className="absolute inset-0 w-full h-full flex flex-col overflow-hidden bg-gray-800"
-            onClick={handleInteraction} 
-            onMouseMove={handleInteraction} 
-            onTouchStart={handleInteraction}
-        >
+        <div className="absolute inset-0 w-full h-full flex flex-col overflow-hidden bg-gray-800" onClick={handleInteraction} onMouseMove={handleInteraction} onTouchStart={handleInteraction}>
             <div className={`absolute top-4 right-4 z-20 flex items-center gap-2 transition-all duration-500 ${!controlsVisible ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
                 <button onClick={() => setIsArchiveVisible(true)} className="bg-gray-600/80 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition-colors backdrop-blur-sm shadow-md" disabled={animationState !== 'finished'}>Arkiv ({savedNotes.length})</button>
                 <button onClick={() => setIsInfoModalVisible(true)} className="bg-gray-600/80 hover:bg-gray-500 text-white font-bold p-2 rounded-lg transition-colors backdrop-blur-sm shadow-md" title="Om Idé-tavlan" disabled={animationState !== 'finished'}><InformationCircleIcon className="w-6 h-6" /></button>
             </div>
-
-            <button 
-                onClick={onBack}
-                className={`absolute top-4 left-4 z-20 bg-gray-600/80 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition-all duration-500 backdrop-blur-sm shadow-md flex items-center gap-2 ${!controlsVisible ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`}
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                <span>Tillbaka</span>
-            </button>
-
-            {timerBlock && (
-                <div className="absolute top-0 left-0 right-0 z-30 transition-all duration-300 pointer-events-none flex justify-center">
-                     <div className="w-full pointer-events-auto">
-                        <CompactTimer 
-                            timer={timer} 
-                            block={timerBlock} 
-                            onClose={handleCloseTimer}
-                            isClosing={isTimerClosing}
-                            onFinish={handleTimerFinish}
-                        />
-                     </div>
-                </div>
-            )}
-            
+            <button onClick={onBack} className={`absolute top-4 left-4 z-20 bg-gray-600/80 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition-all duration-500 backdrop-blur-sm shadow-md flex items-center gap-2 ${!controlsVisible ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`}><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" /></svg><span>Tillbaka</span></button>
+            {timerBlock && <div className="absolute top-0 left-0 right-0 z-30 transition-all duration-300 pointer-events-none flex justify-center"><div className="w-full pointer-events-auto"><CompactTimer timer={timer} block={timerBlock} onClose={handleCloseTimer} isClosing={isTimerClosing} onFinish={handleTimerFinish} /></div></div>}
             <div ref={containerRef} className="absolute inset-0 w-full h-full z-0 bg-gray-800 transition-colors" style={{ touchAction: 'none' }}>
-                {animationState !== 'finished' && (
-                    <div className={`absolute inset-0 z-10 transition-opacity duration-500 ${animationState === 'exiting' ? 'opacity-0' : 'opacity-100'}`} style={{ pointerEvents: animationState === 'exiting' ? 'none' : 'auto' }}><IntroAnimation onSkip={skipAnimation} /></div>
-                )}
+                {animationState !== 'finished' && <div className={`absolute inset-0 z-10 transition-opacity duration-500 ${animationState === 'exiting' ? 'opacity-0' : 'opacity-100'}`} style={{ pointerEvents: animationState === 'exiting' ? 'none' : 'auto' }}><IntroAnimation onSkip={skipAnimation} /></div>}
                 <canvas ref={canvasRef} className="w-full h-full block" />
             </div>
-            
             <div className={`absolute bottom-0 left-0 right-0 z-20 p-6 flex flex-col gap-4 items-center transition-all duration-500 ${!controlsVisible ? 'opacity-0 translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'} pointer-events-none`}>
                 <div className="flex justify-center gap-3 pointer-events-auto bg-black/20 backdrop-blur-sm p-2 rounded-full">
-                    {effectiveColors.map(color => (
-                        <button
-                            key={color.hex}
-                            onClick={() => setDrawingColor(color.hex)}
-                            className={`w-10 h-10 rounded-full border-2 transition-transform hover:scale-110 shadow-md ${drawingColor === color.hex ? 'border-white scale-110 shadow-lg' : 'border-transparent'}`}
-                            style={{ backgroundColor: color.hex }}
-                            title={color.label}
-                            aria-label={`Välj färg ${color.label}`}
-                        />
+                    {COLORS.map(color => (
+                        <button key={color.hex} onClick={() => setDrawingColor(color.hex)} className={`w-10 h-10 rounded-full border-2 transition-transform hover:scale-110 shadow-md ${drawingColor === color.hex ? 'border-white scale-110 shadow-lg' : 'border-transparent'}`} style={{ backgroundColor: color.hex }} title={color.label} />
                     ))}
                 </div>
-
                 <div className="flex flex-wrap justify-center gap-4 pointer-events-auto">
                     <button onClick={handleUndo} disabled={history.length === 0 || animationState !== 'finished'} className="bg-gray-600/90 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg transition-colors backdrop-blur-sm shadow-lg">Ångra</button>
                     <button onClick={clearCanvas} disabled={animationState !== 'finished'} className="bg-gray-600/90 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg backdrop-blur-sm shadow-lg">Rensa</button>
                     <button onClick={handleSaveNote} disabled={history.length === 0 || saveState !== 'idle' || animationState !== 'finished'} className="bg-primary/90 hover:brightness-95 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">{saveState === 'saving' ? 'Sparar...' : saveState === 'saved' ? '✔️ Sparad!' : '💾 Spara & Arkivera'}</button>
                     <button onClick={handleInterpretAsWorkout} disabled={history.length === 0 || animationState !== 'finished'} className="bg-purple-600/90 hover:bg-purple-500 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">{isInterpretingWorkout ? 'Tolkar...' : '✍️ Skapa Pass'}</button>
                     <button onClick={handleToggleTimer} disabled={animationState !== 'finished'} className="bg-blue-600/90 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">{timerBlock ? 'Stoppa Timer' : 'Timer'}</button>
-                    {lastDrawnBlock && animationState === 'finished' && (
-                        <button onClick={() => setBlockForCircuit(lastDrawnBlock)} className="bg-indigo-600/90 hover:bg-indigo-500 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">✏️ Justera</button>
-                    )}
+                    {lastDrawnBlock && animationState === 'finished' && <button onClick={() => setBlockForCircuit(lastDrawnBlock)} className="bg-indigo-600/90 hover:bg-indigo-500 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">✏️ Justera</button>}
                 </div>
             </div>
-
-            {isInterpretingWorkout && (
-                <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md flex flex-col items-center justify-center z-50 p-8 text-center animate-fade-in"><BoilingCauldron className="w-48 h-48" /><p className="text-5xl text-white mt-4 font-logo">Kokar ihop ditt pass</p></div>
-            )}
-
+            {isInterpretingWorkout && <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md flex flex-col items-center justify-center z-50 p-8 text-center animate-fade-in"><BoilingCauldron className="w-48 h-48" /><p className="text-5xl text-white mt-4 font-logo">Kokar ihop ditt pass</p></div>}
             {interpretedWorkout && !showBlockSelector && !blockForCircuit && <WorkoutActionChoiceModal workout={interpretedWorkout} onGoToBuilder={handleGoToBuilder} onDrawCircuit={() => { if (interpretedWorkout.blocks.length > 1) setShowBlockSelector(true); else setBlockForCircuit(interpretedWorkout.blocks[0]); }} onCancel={() => setInterpretedWorkout(null)} />}
             {interpretedWorkout && showBlockSelector && <BlockSelectionModal workout={interpretedWorkout} onSelect={(idx) => { setBlockForCircuit(interpretedWorkout.blocks[idx]); setShowBlockSelector(false); }} onCancel={() => setShowBlockSelector(false)} />}
             {blockForCircuit && <CircuitReorderModal block={blockForCircuit} onConfirm={drawCircuitOnCanvas} onCancel={() => setBlockForCircuit(null)} />}
