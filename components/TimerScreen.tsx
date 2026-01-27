@@ -1047,7 +1047,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
       {/* CONTENT AREA (Under Clock) */}
       <div className={`absolute bottom-4 left-0 flex flex-col items-center justify-start px-4 z-0 pt-2
-          ${showFullScreenColor ? 'top-[65%]' : 'top-[27%]'} 
+          ${showFullScreenColor ? 'top-[65%]' : 'top-[28%]'} 
           ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'}`}>
           
           <div className="w-full max-w-[1500px] h-full flex flex-col">
