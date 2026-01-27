@@ -429,6 +429,17 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
 
 const cleanExerciseName = (name: string) => name.split('(')[0].trim();
 
+// NYTT: Funktion för att filtrera bort tidsangivelser från reps-strängen
+const filterTimeFromReps = (reps: string): string => {
+    if (!reps) return '';
+    const lower = reps.toLowerCase();
+    // Om strängen innehåller "sek" eller "min", filtrera bort den
+    if (lower.includes('sek') || lower.includes('min') || lower.includes('minut')) {
+        return '';
+    }
+    return reps;
+};
+
 const getTimerHexColor = (status: TimerStatus, mode: TimerMode) => {
     if (status === TimerStatus.Resting) return '#2dd4bf';
     if (status === TimerStatus.Preparing) return '#3b82f6';
@@ -941,9 +952,10 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         }
 
         const isTimerActive = !!timerBlock;
-        const sidePadding = canvas.width * 0.15; 
-        const timerSafeZone = isTimerActive ? canvas.height * 0.35 : canvas.height * 0.12; 
-        const bottomPadding = canvas.height * 0.18; 
+        // Öka marginalerna för att ge plats åt texten inuti
+        const sidePadding = canvas.width * 0.22; 
+        const timerSafeZone = isTimerActive ? canvas.height * 0.40 : canvas.height * 0.15; 
+        const bottomPadding = canvas.height * 0.20; 
 
         const availableHeight = canvas.height - timerSafeZone - bottomPadding;
         const availableWidth = canvas.width - (sidePadding * 2);
@@ -970,27 +982,23 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
 
         const getPointOnRect = (dist: number) => {
             let d = dist % perimeter;
-            // TOP EDGE: (x,y) -> (x+w, y)
             if (d < w) return { x: x + d, y: y, side: 'top' };
             d -= w;
-            // RIGHT EDGE: (x+w, y) -> (x+w, y+h)
             if (d < h) return { x: x + w, y: y + d, side: 'right' };
             d -= h;
-            // BOTTOM EDGE: (x+w, y+h) -> (x, y+h)
             if (d < w) return { x: x + w - d, y: y + h, side: 'bottom' };
             d -= w;
-            // LEFT EDGE: (x, y+h) -> (x, y)
             return { x: x, y: y + h - d, side: 'left' };
         };
 
         const splitTextIntoLines = (text: string): string[] => {
-            if (text.length <= 14) return [text];
+            if (text.length <= 12) return [text];
             const words = text.split(' ');
-            if (words.length === 1) return [text.substring(0, 14), text.substring(14)];
+            if (words.length === 1) return [text.substring(0, 12), text.substring(12)];
             const lines: string[] = [];
             let currentLine = words[0];
             for (let i = 1; i < words.length; i++) {
-                if ((currentLine + " " + words[i]).length < 16) {
+                if ((currentLine + " " + words[i]).length < 14) {
                     currentLine += " " + words[i];
                 } else {
                     lines.push(currentLine);
@@ -1005,6 +1013,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             const dist = index * step;
             const pos = getPointOnRect(dist);
             
+            // Station-cirkel
             ctx.beginPath();
             ctx.arc(pos.x, pos.y, 38 * dpr, 0, 2 * Math.PI); 
             ctx.fillStyle = '#030712'; 
@@ -1021,46 +1030,69 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             ctx.textBaseline = "middle";
             ctx.fillText(String(index + 1), pos.x, pos.y);
 
-            const textOffset = 65 * dpr;
+            // TEXTPLACERING - RITA INÅT MOT MITTEN
+            const textOffset = 75 * dpr;
             let textX = pos.x;
             let textY = pos.y;
             let align: CanvasTextAlign = 'center';
+            let baseline: CanvasTextBaseline = 'middle';
 
             if (pos.side === 'top') {
-                textY -= textOffset;
-            } else if (pos.side === 'right') {
-                textX += textOffset;
-                align = 'left';
-            } else if (pos.side === 'bottom') {
                 textY += textOffset;
-            } else if (pos.side === 'left') {
+                baseline = 'top';
+            } else if (pos.side === 'right') {
                 textX -= textOffset;
                 align = 'right';
+            } else if (pos.side === 'bottom') {
+                textY -= textOffset;
+                baseline = 'bottom';
+            } else if (pos.side === 'left') {
+                textX += textOffset;
+                align = 'left';
             }
 
             const name = cleanExerciseName(ex.name);
             const lines = splitTextIntoLines(name);
-            const repsRaw = ex.reps || '';
+            
+            // FILTRERA BORT TID FRÅN REPS
+            const repsRaw = filterTimeFromReps(ex.reps || '');
             const repsStr = repsRaw.toLowerCase().includes('ej angivet') || repsRaw.trim() === '' ? '' : `(${repsRaw})`;
             
-            let fontSize = 34 * dpr; 
+            let fontSize = 36 * dpr; 
             ctx.font = `bold ${fontSize}px sans-serif`;
             ctx.fillStyle = textColor;
             ctx.textAlign = align;
-            ctx.textBaseline = 'middle';
+            ctx.textBaseline = baseline;
             
             const lineHeight = fontSize * 1.1;
             const totalTextHeight = lines.length * lineHeight;
             
             lines.forEach((line, i) => {
-                const yPos = textY - (totalTextHeight/2) + (i * lineHeight) + (lineHeight/2);
+                let yPos = textY;
+                if (pos.side === 'top') {
+                    yPos = textY + (i * lineHeight);
+                } else if (pos.side === 'bottom') {
+                    yPos = textY - ((lines.length - 1 - i) * lineHeight);
+                    // Justera för reps om det finns på botten
+                    if (repsStr) yPos -= lineHeight;
+                } else {
+                    // Right/Left middle alignment
+                    yPos = textY - (totalTextHeight/2) + (i * lineHeight) + (lineHeight/2);
+                }
                 ctx.fillText(line, textX, yPos);
             });
             
             if (repsStr) {
-                ctx.font = `bold ${fontSize * 0.7}px sans-serif`;
+                ctx.font = `bold ${fontSize * 0.8}px sans-serif`;
                 ctx.fillStyle = accentColor;
-                const repsY = textY + (totalTextHeight/2) + (lineHeight/2);
+                let repsY = textY;
+                if (pos.side === 'top') {
+                    repsY = textY + (lines.length * lineHeight);
+                } else if (pos.side === 'bottom') {
+                    repsY = textY;
+                } else {
+                    repsY = textY + (totalTextHeight/2) + (lineHeight/2);
+                }
                 ctx.fillText(repsStr, textX, repsY);
             }
         });
