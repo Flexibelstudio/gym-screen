@@ -247,7 +247,7 @@ const SegmentedRoadmap: React.FC<{
         <div className="w-full flex items-center gap-1.5 h-6 mb-1">
             {chain.map((b, i) => {
                 const bDur = calculateBlockDuration(b.settings, b.exercises.length);
-                const transTime = (i < chain.length - 1) ? (b.transitionTime || 0) : 0;
+                const transTime = (i < workoutChain.length - 1) ? (b.transitionTime || 0) : 0;
                 const segmentTotal = bDur + transTime;
                 
                 const widthPercent = totalChainTime > 0 ? (segmentTotal / totalChainTime) * 100 : (100 / chain.length);
@@ -408,7 +408,7 @@ const StandardListView: React.FC<{
                     }}
                 >
                     <div className="flex justify-between items-center w-full gap-4">
-                        <h4 className={`font-black text-gray-900 dark:text-white leading-normal tracking-tight overflow-visible whitespace-nowrap pt-1 ${titleSize}`}>
+                        <h4 className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight overflow-visible whitespace-nowrap ${titleSize}`}>
                             {ex.name}
                         </h4>
                         {ex.reps && (
@@ -1013,7 +1013,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
         {/* STATUS (ARBETE/VILA) - Överst */}
         <div className="text-center z-20 w-full px-10 mb-2">
-            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl overflow-visible whitespace-nowrap leading-normal pt-2`}>{statusLabel}</h2>
+            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl overflow-visible whitespace-nowrap leading-none`}>{statusLabel}</h2>
         </div>
 
         {/* SIFFROR (Tiden) - Mitten */}
@@ -1039,7 +1039,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
         {/* BLOCK RUBRIK (Stort) - Längst ner */}
         <div className="text-center z-20 w-full px-10 mt-4 mb-2">
-            <h1 className="font-black text-white/90 uppercase tracking-tighter text-2xl sm:text-3xl md:text-4xl drop-shadow-lg overflow-visible whitespace-nowrap leading-normal pt-1">
+            <h1 className="font-black text-white/90 uppercase tracking-tighter text-2xl sm:text-3xl md:text-4xl drop-shadow-lg overflow-visible whitespace-nowrap leading-none">
                 {block.title}
             </h1>
         </div>
