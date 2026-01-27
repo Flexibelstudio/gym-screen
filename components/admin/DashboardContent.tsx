@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from 'react';
 import { Organization, Workout, UserData } from '../../types';
 import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon } from '../icons';
@@ -222,11 +221,11 @@ const DashboardContent: React.FC<DashboardContentProps> = ({ organization, worko
                         <h3 className="font-bold text-gray-900 dark:text-white mb-4 text-sm uppercase tracking-wider">Genvägar</h3>
                         <div className="space-y-2">
                             <button onClick={() => setActiveTab('medlemmar')} className="w-full text-left p-3 rounded-xl bg-gray-50 dark:bg-gray-700/30 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 group">
-                                <UsersIcon className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
+                                <span className="w-5 h-5 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors">👥</span>
                                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Hantera Team</span>
                             </button>
                             <button onClick={() => setActiveTab('info-karusell')} className="w-full text-left p-3 rounded-xl bg-gray-50 dark:bg-gray-700/30 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-3 group">
-                                <SpeakerphoneIcon className="w-5 h-5 text-gray-400 group-hover:text-primary transition-colors" />
+                                <span className="w-5 h-5 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors">📢</span>
                                 <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Uppdatera Karusell</span>
                             </button>
                         </div>
@@ -297,6 +296,7 @@ const ManageWorkoutsView: React.FC<{
     onBack: () => void;
 }> = ({ workouts, onEdit, onDelete, onDuplicate, onTogglePublish, onBack }) => {
     
+    const [activeTab, setActiveTab] = useState<'official' | 'drafts'>('official');
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [sortConfig, setSortConfig] = useState<{ key: 'title' | 'category' | 'createdAt' | 'isPublished', direction: 'asc' | 'desc' | 'none' }>({
@@ -306,10 +306,14 @@ const ManageWorkoutsView: React.FC<{
     
     const ITEMS_PER_PAGE = 50;
 
-    // Filter only official workouts (not member drafts)
-    const officialWorkouts = useMemo(() => {
-        return workouts.filter(w => !w.isMemberDraft);
-    }, [workouts]);
+    // Filter workouts based on selected tab
+    const filteredByTab = useMemo(() => {
+        if (activeTab === 'official') {
+            return workouts.filter(w => !w.isMemberDraft);
+        } else {
+            return workouts.filter(w => w.isMemberDraft);
+        }
+    }, [workouts, activeTab]);
 
     // Handle Sort Toggle
     const handleSort = (key: typeof sortConfig.key) => {
@@ -323,7 +327,7 @@ const ManageWorkoutsView: React.FC<{
 
     // Filter and Sort based on Search, Sort and Date
     const filteredWorkouts = useMemo(() => {
-        let result = officialWorkouts.filter(w => {
+        let result = filteredByTab.filter(w => {
             const searchLower = searchTerm.toLowerCase();
             return (
                 (w.title || '').toLowerCase().includes(searchLower) ||
@@ -352,7 +356,7 @@ const ManageWorkoutsView: React.FC<{
         }
 
         return result;
-    }, [officialWorkouts, searchTerm, sortConfig]);
+    }, [filteredByTab, searchTerm, sortConfig]);
 
     // Pagination Logic
     const totalPages = Math.ceil(filteredWorkouts.length / ITEMS_PER_PAGE);
@@ -361,10 +365,10 @@ const ManageWorkoutsView: React.FC<{
         return filteredWorkouts.slice(startIndex, startIndex + ITEMS_PER_PAGE);
     }, [filteredWorkouts, currentPage]);
 
-    // Reset to page 1 when search or sort changes
+    // Reset to page 1 when search, sort, or tab changes
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, sortConfig]);
+    }, [searchTerm, sortConfig, activeTab]);
 
     const SortIcon = ({ column }: { column: typeof sortConfig.key }) => {
         if (sortConfig.key !== column || sortConfig.direction === 'none') {
@@ -386,8 +390,8 @@ const ManageWorkoutsView: React.FC<{
                         <span className="text-lg font-bold">←</span>
                     </button>
                     <div>
-                        <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white">Hantera Pass</h3>
-                        <p className="text-gray-500 dark:text-gray-400">Totalt {officialWorkouts.length} pass i biblioteket</p>
+                        <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Hantera Pass</h3>
+                        <p className="text-gray-500 dark:text-gray-400">Totalt {workouts.length} pass i systemet</p>
                     </div>
                 </div>
 
@@ -403,6 +407,30 @@ const ManageWorkoutsView: React.FC<{
                         className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-700 rounded-xl leading-5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary sm:text-sm"
                     />
                 </div>
+            </div>
+
+            {/* TABBAR FÖR BIBLIOTEK vs UTKAST */}
+            <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-fit">
+                <button
+                    onClick={() => setActiveTab('official')}
+                    className={`px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-widest transition-all ${
+                        activeTab === 'official' 
+                        ? 'bg-white dark:bg-gray-700 text-primary shadow-md' 
+                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
+                >
+                    Gymmets bibliotek
+                </button>
+                <button
+                    onClick={() => setActiveTab('drafts')}
+                    className={`px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-widest transition-all ${
+                        activeTab === 'drafts' 
+                        ? 'bg-white dark:bg-gray-700 text-primary shadow-md' 
+                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
+                >
+                    Medlemsutkast
+                </button>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col">
@@ -488,7 +516,7 @@ const ManageWorkoutsView: React.FC<{
                             ) : (
                                 <tr>
                                     <td colSpan={5} className="p-12 text-center text-gray-400 italic">
-                                        Inga pass hittades.
+                                        Inga pass hittades i denna flik.
                                     </td>
                                 </tr>
                             )}
@@ -596,7 +624,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
                     initialMode={aiGeneratorInitialTab}
                     studioConfig={organization.globalConfig}
                     setCustomBackHandler={() => {}}
-                    workouts={workouts.filter(w => !w.isMemberDraft)}
+                    workouts={workouts}
                     workoutsLoading={workoutsLoading}
                     initialExpandedCategory={autoExpandCategory}
                 />

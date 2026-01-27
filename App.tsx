@@ -369,7 +369,8 @@ const App: React.FC = () => {
   };
 
   const handleSaveAndNavigate = async (workout: Workout, startFirstBlock?: boolean) => {
-    const workoutToSave = { ...workout, isMemberDraft: false };
+    const isMemberRole = sessionRole === 'member' || isStudioMode;
+    const workoutToSave = { ...workout, isMemberDraft: isMemberRole };
     const savedWorkout = await saveWorkout(workoutToSave);
     
     if (startFirstBlock && savedWorkout.blocks.length > 0) {
@@ -377,24 +378,25 @@ const App: React.FC = () => {
     } else {
         setActiveWorkout(savedWorkout);
         navigateReplace(Page.WorkoutDetail);
-        if (sessionRole !== 'member') {
+        if (!isMemberRole) {
             setPreferredAdminTab('pass-program');
         }
     }
   };
 
   const handleSaveOnly = async (workout: Workout) => {
-      return await saveWorkout({ ...workout, isMemberDraft: false });
+      const isMemberRole = sessionRole === 'member' || isStudioMode;
+      return await saveWorkout({ ...workout, isMemberDraft: isMemberRole });
   };
   
   const handleTogglePublishStatus = async (workoutId: string, isPublished: boolean) => {
     const workoutToToggle = workouts.find(w => w.id === workoutId);
-    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isPublished, isMemberDraft: false });
+    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isPublished });
   };
 
   const handleToggleFavoriteStatus = async (workoutId: string) => {
     const workoutToToggle = workouts.find(w => w.id === workoutId);
-    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isFavorite: !workoutToToggle.isFavorite, isMemberDraft: false });
+    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isFavorite: !workoutToToggle.isFavorite });
   };
 
   const handleDeleteWorkout = async (workoutId: string) => {
@@ -421,7 +423,7 @@ const App: React.FC = () => {
         blocks: [block],
         category: 'Ej kategoriserad',
         isPublished: false,
-        organizationId: selectedOrganization.id,
+        organizationId: organizationId || selectedOrganization.id,
         createdAt: Date.now() 
     };
     handleStartBlock(block, tempWorkout);
@@ -508,7 +510,8 @@ const App: React.FC = () => {
     // Säkra orgId omedelbart så QR-koden fungerar direkt på detaljskärmen
     const workoutWithOrg = { 
         ...workout, 
-        organizationId: selectedOrganization?.id || '' 
+        organizationId: selectedOrganization?.id || '',
+        isMemberDraft: true 
     };
     setActiveWorkout(workoutWithOrg); 
     setIsEditingNewDraft(true);
@@ -519,7 +522,8 @@ const App: React.FC = () => {
     // Säkra orgId omedelbart så QR-koden fungerar direkt på detaljskärmen
     const workoutWithOrg = { 
         ...workout, 
-        organizationId: selectedOrganization?.id || '' 
+        organizationId: selectedOrganization?.id || '',
+        isMemberDraft: true
     };
     setActiveWorkout(workoutWithOrg);
     setIsEditingNewDraft(true);

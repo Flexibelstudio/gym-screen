@@ -1,4 +1,3 @@
-
 import React, { createContext, useReducer, useContext, useEffect, useCallback, ReactNode } from 'react';
 import { workoutReducer, initialState, WorkoutAction, WorkoutState } from './workoutReducer';
 import { useStudio } from './StudioContext';
@@ -27,8 +26,8 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
                     const now = Date.now();
                     const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
                     
-                    // VIKTIGT: Endast pass som är markerade som medlemsutkast ska raderas automatiskt.
-                    // Admin-pass och officiella pass ska alltid sparas.
+                    // VIKTIGT: Endast pass som är markerade som medlemsutkast (isMemberDraft: true)
+                    // och som varken är favoriter eller publicerade ska städas bort.
                     const expiredDrafts = workouts.filter(w => 
                         w.isMemberDraft === true && 
                         !w.isFavorite && 
