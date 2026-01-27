@@ -371,7 +371,7 @@ const FollowMeView: React.FC<{
             
             {(isRestNext || nextBlock) && (
                 <div className="w-full max-w-5xl">
-                    <NextUpCompactBar transitionTime={transitionTime} block={nextBlock} isRestNext={isRestNext} />
+                    <NextUpCompactBar block={nextBlock} isRestNext={isRestNext} />
                 </div>
             )}
         </div>
@@ -1096,7 +1096,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                         timerStyle={timerStyle} 
                                         status={status} 
                                         nextBlock={nextBlock && block.autoAdvance ? nextBlock : undefined}
-                                        transitionTime={status === TimerStatus.Resting ? currentTime : undefined}
                                         isRestNext={isRestNext}
                                     />
                                 </div>
@@ -1121,11 +1120,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                             {/* NEXT BLOCK PREVIEW (35% width) - Endast vid stations-baserad träning */}
                             {showSplitView ? (
                                 <div className="w-1/3 pb-6 flex flex-col justify-center">
-                                    {(block.transitionTime && block.transitionTime > 0) ? (
-                                        <NextRestPreview transitionTime={block.transitionTime} nextBlockTitle={nextBlock!.title} />
-                                    ) : (
-                                        <NextBlockPreview block={nextBlock!} />
-                                    )}
+                                    <NextBlockPreview block={nextBlock!} />
                                 </div>
                             ) : null}
                         </div>
