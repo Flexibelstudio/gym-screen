@@ -13,22 +13,35 @@ const playBellSound = () => {
     if (!ctx) return;
     if (ctx.state === 'suspended') ctx.resume();
 
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 1.5);
-    
-    gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.05);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.5);
+    const now = ctx.currentTime;
+    // Bell frequencies (inharmonic overtones create the metallic feel)
+    // A mix of fundamental and multiple harmonics for a rich, gym-bell sound
+    const frequencies = [350, 710, 1100, 1550, 2100];
+    const duration = 4.0;
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 2.5);
+    frequencies.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        // Lower frequencies use Sine for body, higher use Triangle for metallic bite
+        osc.type = i < 2 ? 'sine' : 'triangle';
+        osc.frequency.setValueAtTime(freq, now);
+        
+        // Initial hit volume - give the fundamental (lowest) more weight for "thump"
+        const initialGainValue = i === 0 ? 0.4 : 0.12; 
+        
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(initialGainValue, now + 0.01);
+        
+        // Exponential decay for that long, natural bell ring
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.start(now);
+        osc.stop(now + duration);
+    });
 };
 
 export const PBOverlay: React.FC = () => {
