@@ -72,7 +72,7 @@ const InsightCard: React.FC<{
             </div>
             <div>
                 <div className="flex flex-col">
-                    <p className={`font-black tracking-tight mb-1 leading-tight ${typeof value === 'string' && value.length > 12 ? 'text-xl sm:text-2xl' : 'text-3xl lg:text-4xl'}`}>
+                    <p className={`font-black tracking-tight mb-1 leading-tight ${typeof value === 'string' && value.length > 12 ? 'text-lg sm:text-xl lg:text-2xl' : 'text-3xl lg:text-4xl'}`}>
                         {value}
                     </p>
                     {extra}
@@ -84,8 +84,6 @@ const InsightCard: React.FC<{
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-white/5 to-transparent pointer-events-none"></div>
     </div>
 );
-
-// --- Sentiment Analysis Widget ---
 
 const SentimentDashboard: React.FC<{ logs: WorkoutLog[], onDayClick: (date: string, dayLogs: WorkoutLog[]) => void }> = ({ logs, onDayClick }) => {
     
@@ -253,7 +251,11 @@ export const AdminAnalyticsScreen: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState<{ date: string, logs: WorkoutLog[] } | null>(null);
 
   useEffect(() => {
-    window.scrollTo(0, 0); // Tvinga scroll till toppen vid start
+    // Tvinga scroll till toppen när vyn laddas
+    const mainContainer = document.querySelector('main');
+    if (mainContainer) mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
+    else window.scrollTo({ top: 0, behavior: 'smooth' });
+
     if (selectedOrganization) {
         const fetchLogs = async () => {
             setIsLoading(true);
@@ -288,12 +290,24 @@ export const AdminAnalyticsScreen: React.FC = () => {
       const uniqueMembers = new Set(logs.map(l => l.memberId)).size;
 
       const hours: Record<number, number> = {};
+      let differentHoursCount = 0;
       logs.forEach(l => {
-          const h = new Date(l.date).getHours();
+          const d = new Date(l.date);
+          const h = d.getHours();
+          if (!hours[h]) differentHoursCount++;
           hours[h] = (hours[h] || 0) + 1;
       });
-      const peakHourEntry = Object.entries(hours).sort((a, b) => (b[1] as number) - (a[1] as number))[0];
-      const peakHour = peakHourEntry ? `${peakHourEntry[0]}:00` : '-';
+      
+      const sortedHours = Object.entries(hours).sort((a, b) => (b[1] as number) - (a[1] as number));
+      const peakHourEntry = sortedHours[0];
+      
+      // Filter: Om alla loggar ligger på exakt samma timme och det är nattetid (0,1,2),
+      // så antar vi att det är "tidslös" historisk data och visar ingenting.
+      const isLikelyMidnightDefault = differentHoursCount === 1 && [0, 1, 2].includes(Number(peakHourEntry[0]));
+      
+      const peakHour = (peakHourEntry && !isLikelyMidnightDefault) 
+        ? `Kl. ${peakHourEntry[0].padStart(2, '0')}:00` 
+        : '-';
 
       return { todayCount, mostPopular: { title: mostPopular[0], count: mostPopular[1] }, activeMembers: uniqueMembers, peakHour };
   }, [logs]);
@@ -366,7 +380,7 @@ export const AdminAnalyticsScreen: React.FC = () => {
             />
             <InsightCard 
                 title="Topp-timmen" 
-                value={insights?.peakHour ? `Kl. ${insights.peakHour}` : '-'} 
+                value={insights?.peakHour || '-'} 
                 sub="Tid då flest loggar pass"
                 icon={<ClockIcon className="w-6 h-6 text-white" />}
                 gradient="bg-gradient-to-br from-emerald-500 to-teal-600"
