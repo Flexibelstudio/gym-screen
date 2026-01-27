@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Page, CustomPage, UserRole } from '../types';
 import { useStudio } from '../context/StudioContext';
@@ -90,14 +89,16 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
       gradient: 'bg-gradient-to-br from-teal-500 to-emerald-700'
   });
 
-  // 2. COACHADMIN (Tidigare Pass & Program)
-  items.push({
-      title: 'Coachadmin',
-      subTitle: 'Skapa & hantera pass',
-      action: () => navigateTo(Page.SuperAdmin),
-      icon: <DumbbellIcon className="w-8 h-8" />,
-      gradient: 'bg-gradient-to-br from-blue-600 to-indigo-600'
-  });
+  // 2. COACHADMIN - Visas endast om vi INTE förhandsgranskar (isImpersonating)
+  if (!isImpersonating) {
+    items.push({
+        title: 'Coachadmin',
+        subTitle: 'Skapa & hantera pass',
+        action: () => navigateTo(Page.SuperAdmin),
+        icon: <DumbbellIcon className="w-8 h-8" />,
+        gradient: 'bg-gradient-to-br from-blue-600 to-indigo-600'
+    });
+  }
 
   // 4. CONTENT FOR ALL COACHES (Infosidor)
   (selectedOrganization?.customPages || []).forEach(page => {
