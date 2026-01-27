@@ -114,7 +114,7 @@ const NextRestPreview: React.FC<{ transitionTime: number; nextBlockTitle: string
                 {formatSeconds(transitionTime)}
             </div>
 
-            <div className="bg-gray-50 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+            <div className="bg-gray-5 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
                 <span className="block text-[9px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em] mb-1.5">INFÖR NÄSTA DEL</span>
                 <p className="text-gray-900 dark:text-white text-base font-bold leading-tight line-clamp-2">{nextBlockTitle}</p>
             </div>
@@ -238,7 +238,7 @@ const TransitionFullWidthPreview: React.FC<{ block: WorkoutBlock; onSkip: () => 
 const SegmentedRoadmap: React.FC<{ 
     chain: WorkoutBlock[]; 
     currentBlockId: string; 
-    totalChainElapsed: number;
+    totalChainElapsed: number; 
     totalChainTime: number;
 }> = ({ chain, currentBlockId, totalChainElapsed, totalChainTime }) => {
     let accumulatedTime = 0;
@@ -378,7 +378,7 @@ const FollowMeView: React.FC<{
     );
 };
 
-// --- STANDARD LIST VIEW (UPDATED FOR NO SCROLL / FLEX FIT) ---
+// --- STANDARD LIST VIEW ---
 const StandardListView: React.FC<{ 
     exercises: Exercise[], 
     timerStyle: TimerStyle,
@@ -386,37 +386,29 @@ const StandardListView: React.FC<{
     isHyrox?: boolean
 }> = ({ exercises, timerStyle, forceFullHeight = true, isHyrox = false }) => {
     const count = exercises.length;
-    const isLargeList = count > 12 || isHyrox; // Trigga kompakt läge för Hyrox eller många övningar
+    const isLargeList = count > 12 || isHyrox; 
     
-    // Dynamiska storlekar beroende på antal övningar
     const titleSize = isLargeList ? 'text-lg sm:text-xl md:text-2xl' : count > 8 ? 'text-2xl md:text-3xl' : 'text-4xl md:text-5xl';
     const repsSize = isLargeList ? 'text-sm md:text-base' : 'text-xl md:text-2xl';
     const descSize = 'text-lg md:text-xl';
-    
-    // JUSTERING: Ökad vänster-padding (pl-12) för att flytta ut texten från randen vid långa listor
-    const padding = isLargeList ? 'pl-12 pr-4 py-2' : count > 8 ? 'pl-12 pr-6 py-3' : 'px-8 py-6';
+    const padding = isLargeList ? 'pl-8 pr-4 py-2' : count > 8 ? 'pl-8 pr-6 py-3' : 'px-8 py-6';
     const gap = isLargeList ? 'gap-1' : 'gap-3';
     
-    // Dölj beskrivning om det är väldigt trångt (Hyrox)
     const showDescription = count <= 8 && !isHyrox;
 
     return (
-        // overflow-hidden tar bort scrollen. h-full ser till att containern fyller ytan.
         <div className={`w-full h-full flex flex-col ${gap} overflow-hidden pb-1`}>
             {exercises.map((ex) => (
                 <div 
                     key={ex.id} 
-                    // flex-1 och min-h-0 tvingar alla rader att dela lika på höjden
                     className={`flex-1 min-h-0 bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl flex flex-col justify-center border-l-[12px] shadow-sm transition-all relative group border-gray-100 dark:border-transparent`}
                     style={{ 
-                        // Accentfärg: Hyrox får en specifik färg (indigo), annars timerfärgen
                         borderLeftColor: isHyrox ? '#6366f1' : `rgb(${timerStyle.pulseRgb})`,
                         padding: padding
                     }}
                 >
                     <div className="flex justify-between items-center w-full gap-4">
-                        {/* JUSTERING: leading-normal och py-1 för att fixa avhuggna ÅÄÖ */}
-                        <h4 className={`font-black text-gray-900 dark:text-white leading-normal tracking-tight truncate py-1 ${titleSize}`}>
+                        <h4 className={`font-black text-gray-900 dark:text-white leading-normal tracking-tight overflow-visible whitespace-nowrap pt-1 ${titleSize}`}>
                             {ex.name}
                         </h4>
                         {ex.reps && (
@@ -558,7 +550,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       
       workoutChain.forEach((b, i) => {
           const bDur = calculateBlockDuration(b.settings, b.exercises.length);
-          const transTime = (i < workoutChain.length - 1) ? (b.transitionTime || 0) : 0;
+          const transTime = (i < chain.length - 1) ? (b.transitionTime || 0) : 0;
           totalDuration += bDur + transTime;
           if (i < currentIdxInChain) elapsedTimeBeforeCurrent += bDur + transTime;
       });
@@ -583,13 +575,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       }
   }, [nextBlock, totalTimeElapsed, onFinish]);
 
-  // RESET LOCK ON MOUNT (Handled by Key in AppRouter)
   useEffect(() => {
       hasTriggeredFinish.current = false;
   }, []);
 
   useEffect(() => {
-      // Strikt kontroll: Vi triggar bara transition om status är Finished OCH klockan faktiskt har gått (totalTimeElapsed > 0)
       if (status === TimerStatus.Finished && totalTimeElapsed > 0 && nextBlock && block.autoAdvance && !hasTriggeredFinish.current) {
           const waitTime = block.transitionTime || 0;
           if (waitTime === 0) {
@@ -622,7 +612,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const hasStartedRef = useRef(false);
   
   useEffect(() => {
-    // Timern startar direkt vid mount i detta läge pga keys i AppRouter
     if (!hasStartedRef.current && (status === TimerStatus.Idle || status === TimerStatus.Finished)) {
         if (organization) updateOrganizationActivity(organization.id);
         start({ skipPrep: isAutoTransition });
@@ -671,7 +660,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       return (groupIndex * startIntervalSeconds) - totalTimeElapsed;
   }, [status, currentTime, groupForCountdownDisplay, startGroups, startIntervalSeconds, totalTimeElapsed]);
 
-  // Audio and WakeLock Logic
   const requestWakeLock = useCallback(async () => {
     if ('wakeLock' in navigator) {
       try {
@@ -1023,9 +1011,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             <span className={`font-black tracking-[0.3em] text-white uppercase drop-shadow-md text-lg md:text-xl`}>{modeLabel}</span>
         </div>
 
-        {/* STATUS (ARBETE/VILA) - Överst - JUSTERING: leading-relaxed och pb-2 för att inte klippa prickar */}
+        {/* STATUS (ARBETE/VILA) - Överst */}
         <div className="text-center z-20 w-full px-10 mb-2">
-            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl leading-relaxed pb-2`}>{statusLabel}</h2>
+            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl overflow-visible whitespace-nowrap leading-normal pt-2`}>{statusLabel}</h2>
         </div>
 
         {/* SIFFROR (Tiden) - Mitten */}
@@ -1051,15 +1039,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
         {/* BLOCK RUBRIK (Stort) - Längst ner */}
         <div className="text-center z-20 w-full px-10 mt-4 mb-2">
-            <h1 className="font-black text-white/90 uppercase tracking-tighter text-2xl sm:text-3xl md:text-4xl drop-shadow-lg truncate">
+            <h1 className="font-black text-white/90 uppercase tracking-tighter text-2xl sm:text-3xl md:text-4xl drop-shadow-lg overflow-visible whitespace-nowrap leading-normal pt-1">
                 {block.title}
             </h1>
         </div>
       </div>
 
-      {/* CONTENT AREA (Under Clock) - JUSTERING: top-[20%] för att minska avståndet rejält */}
+      {/* CONTENT AREA (Under Clock) */}
       <div className={`absolute bottom-4 left-0 flex flex-col items-center justify-start px-4 z-0 pt-2
-          ${showFullScreenColor ? 'top-[65%]' : 'top-[20%]'} 
+          ${showFullScreenColor ? 'top-[65%]' : 'top-[27%]'} 
           ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'}`}>
           
           <div className="w-full max-w-[1500px] h-full flex flex-col">
@@ -1069,7 +1057,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               ) : (
                   // NORMAL WORKOUT VIEW
                   <div className="flex flex-col h-full w-full">
-                    {/* HÄR ÄR DEN NYA PLACERINGEN FÖR NEXT START INDICATOR */}
                     <AnimatePresence>
                         {isHyroxRace && groupForCountdownDisplay && (
                             <div className="flex-shrink-0 w-full max-w-4xl mx-auto mb-2">
