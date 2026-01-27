@@ -391,7 +391,7 @@ const StandardListView: React.FC<{
     const titleSize = isLargeList ? 'text-lg sm:text-xl md:text-2xl' : count > 8 ? 'text-2xl md:text-3xl' : 'text-4xl md:text-5xl';
     const repsSize = isLargeList ? 'text-sm md:text-base' : 'text-xl md:text-2xl';
     const descSize = 'text-lg md:text-xl';
-    const padding = isLargeList ? 'pl-8 pr-4 py-2' : count > 8 ? 'pl-8 pr-6 py-3' : 'px-8 py-6';
+    const padding = isHyrox ? 'pl-16 pr-6 py-2' : isLargeList ? 'pl-8 pr-4 py-2' : count > 8 ? 'pl-8 pr-6 py-3' : 'px-8 py-6';
     const gap = isLargeList ? 'gap-1' : 'gap-3';
     
     const showDescription = count <= 8 && !isHyrox;
@@ -401,10 +401,9 @@ const StandardListView: React.FC<{
             {exercises.map((ex) => (
                 <div 
                     key={ex.id} 
-                    className={`flex-1 min-h-0 bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl flex flex-col justify-center border-l-[12px] shadow-sm transition-all relative group border-gray-100 dark:border-transparent`}
+                    className={`flex-1 min-h-0 bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl flex flex-col justify-center border-l-[12px] shadow-sm transition-all relative group border-gray-100 dark:border-transparent ${padding}`}
                     style={{ 
-                        borderLeftColor: isHyrox ? '#6366f1' : `rgb(${timerStyle.pulseRgb})`,
-                        padding: padding
+                        borderLeftColor: isHyrox ? '#6366f1' : `rgb(${timerStyle.pulseRgb})`
                     }}
                 >
                     <div className="flex justify-between items-center w-full gap-4">
