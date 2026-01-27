@@ -377,8 +377,13 @@ const App: React.FC = () => {
         handleStartBlock(savedWorkout.blocks[0], savedWorkout);
     } else {
         setActiveWorkout(savedWorkout);
-        navigateReplace(Page.WorkoutDetail);
-        if (!isMemberRole) {
+        
+        if (isStudioMode) {
+            // På skärmen: gå till passet för att kunna starta
+            navigateReplace(Page.WorkoutDetail);
+        } else {
+            // I Admin: gå tillbaka till där vi kom ifrån (t.ex. listan)
+            handleBack();
             setPreferredAdminTab('pass-program');
         }
     }
@@ -944,7 +949,7 @@ const App: React.FC = () => {
         isStudioMode={isStudioMode}
       />}
 
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden relative">
+      <div className="flex flex-col items-center flex-1 min-h-0 overflow-hidden relative">
           <main 
             className={`flex-1 min-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
           >
