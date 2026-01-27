@@ -63,20 +63,6 @@ export const Header: React.FC<HeaderProps> = ({
     ? selectedOrganization?.logoUrlDark || selectedOrganization?.logoUrlLight 
     : selectedOrganization?.logoUrlLight || selectedOrganization?.logoUrlDark;
 
-  const themeToggleButton = (
-    <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" aria-label="Växla tema">
-      {theme === 'dark' ? (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-        </svg>
-      ) : (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-        </svg>
-      )}
-    </button>
-  );
-
   const pagesWithoutBack = [
     Page.Home, 
     Page.MemberProfile, 
@@ -87,163 +73,137 @@ export const Header: React.FC<HeaderProps> = ({
   
   const canGoBack = historyLength > 1 && !pagesWithoutBack.includes(page);
 
-  const isMemberAppView = (!isStudioMode && page === Page.Home) || page === Page.MemberProfile;
-
-  const renderHeaderBranding = () => {
-      // Om vi laddar eller om vi inte har en organisation i state än, visa inget
-      if (studioLoading || (!selectedOrganization && !logoUrl)) {
-          return <div className="h-10 md:h-12 w-32 bg-transparent"></div>;
-      }
-
-      if (logoUrl) {
-          return <img src={logoUrl} alt="Logo" className="h-10 md:h-12 w-auto object-contain pointer-events-none" />;
-      }
-
-      // Sista utväg om laddning är klar men logga saknas helt
-      return (
-        <span className="text-2xl font-black tracking-tighter text-gray-900 dark:text-white pointer-events-none">
-            {selectedOrganization?.name || 'SMART'}
-        </span>
-      );
-  };
-
-  if (isMemberAppView) {
-      return (
-        <header className="w-full max-w-6xl mx-auto flex justify-between items-center pt-6 pb-6 px-4 sm:px-6 z-30 relative">
-            <div className="flex items-center gap-4">
-                <div className="flex-shrink-0 cursor-default">
-                    {page !== Page.Home && renderHeaderBranding()}
-                </div>
-            </div>
-
-            <div className="flex items-center gap-3 md:gap-4">
-                {themeToggleButton}
-                <div className="relative" ref={dropdownRef}>
-                    <button
-                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-700 dark:text-gray-200 hover:ring-2 hover:ring-primary transition-all shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700"
-                    >
-                        {userData?.photoUrl ? (
-                            <img src={userData.photoUrl} alt="Profil" className="w-full h-full object-cover" />
-                        ) : (
-                            <UserIcon className="w-6 h-6" />
-                        )}
-                    </button>
-
-                    {isDropdownOpen && (
-                        <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden py-2 animate-fade-in origin-top-right z-50">
-                            {page !== Page.MemberProfile && onMemberProfileRequest && (
-                                <button 
-                                    onClick={() => { setIsDropdownOpen(false); onMemberProfileRequest(); }} 
-                                    className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
-                                >
-                                    <UserIcon className="w-4 h-4" /> Min profil
-                                </button>
-                            )}
-                            {onEditProfileRequest && (
-                                <button 
-                                    onClick={() => { setIsDropdownOpen(false); onEditProfileRequest(); }} 
-                                    className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
-                                >
-                                    <PencilIcon className="w-4 h-4" /> Redigera profil
-                                </button>
-                            )}
-                            
-                            {(role === 'coach' || role === 'organizationadmin' || role === 'systemowner') && onCoachAccessRequest && (
-                                <button 
-                                    onClick={() => { setIsDropdownOpen(false); onCoachAccessRequest(); }} 
-                                    className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
-                                >
-                                    <BriefcaseIcon className="w-4 h-4" /> Coach-vy
-                                </button>
-                            )}
-
-                            <div className="h-px bg-gray-100 dark:bg-gray-800 my-1 mx-2"></div>
-                            
-                            {onSignOut && (
-                                <button 
-                                    onClick={() => { setIsDropdownOpen(false); onSignOut(); }} 
-                                    className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 transition-colors flex items-center gap-3"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                    </svg>
-                                    Logga ut
-                                </button>
-                            )}
-                        </div>
-                    )}
-                </div>
-            </div>
-        </header>
-      );
-  }
-
   const getTitle = () => {
     switch(page) {
       case Page.CustomContent: return activeCustomPageTitle || 'Information';
       case Page.AIGenerator: return "Pass & Program";
       case Page.FreestandingTimer: return "Timer";
       case Page.WorkoutBuilder: return "Passbyggaren";
-      case Page.SimpleWorkoutBuilder: return "Skapa Nytt Pass";
+      case Page.SimpleWorkoutBuilder: return "Skapa Pass";
       case Page.WorkoutList: return "Välj Pass";
-      case Page.SavedWorkouts: return "Övriga Pass";
+      case Page.SavedWorkouts: return "Mina Pass";
       case Page.StudioSelection: return "Välj Studio";
       case Page.RepsOnly: return "Övningar";
       case Page.IdeaBoard: return "Idé-tavlan";
-      case Page.Hyrox: return "HYROX Träning";
-      case Page.HyroxRaceList: return "Tidigare Lopp";
+      case Page.Hyrox: return "HYROX";
+      case Page.HyroxRaceList: return "Lopp";
       case Page.HyroxRaceDetail: return "Resultat";
-      case Page.MemberRegistry: return "Medlemsregister";
-      case Page.MobileLog: return "Logga Pass";
-      case Page.AdminAnalytics: return "Statistik & Trender";
+      case Page.MemberRegistry: return "Medlemmar";
+      case Page.MobileLog: return "Logga";
+      case Page.AdminAnalytics: return "Analys";
       case Page.Coach: return "Coach";
       default: return "";
     }
   }
 
-  return (
-    <header className={`w-full max-w-5xl mx-auto flex items-center transition-all duration-300 ease-in-out ${isVisible ? 'pb-8 opacity-100 max-h-40' : 'pb-0 opacity-0 max-h-0 pointer-events-none overflow-hidden'}`}>
-      <div className="flex-1">
-        {canGoBack && !hideBackButton && (
-            <button onClick={onBack} className="text-primary hover:brightness-95 transition-colors text-lg font-semibold flex items-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                </svg>
-                <span>Tillbaka</span>
-            </button>
-        )}
-      </div>
-      
-      <div className="flex-1 flex flex-col items-center justify-center text-center">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-none">{getTitle()}</h1>
-      </div>
+  if (!isVisible) return null;
 
-      <div className="flex-1 flex justify-end items-center gap-4">
-         {showClock && <DigitalClock />}
-         {page !== Page.MemberProfile && onMemberProfileRequest && !isStudioMode && (
-            <button onClick={onMemberProfileRequest} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-800 dark:text-white" aria-label="Min Profil">
-                <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold border border-primary/20 overflow-hidden shadow-sm">
-                    {userData?.photoUrl ? (
-                        <img src={userData.photoUrl} alt="Profil" className="w-full h-full object-cover" />
-                    ) : (
-                        <UserIcon className="w-5 h-5" />
-                    )}
+  return (
+    <header className="w-full max-w-7xl mx-auto flex items-center justify-between py-2 px-4 z-[100] relative bg-white/80 dark:bg-black/80 backdrop-blur-md rounded-2xl mb-4 border border-gray-100 dark:border-gray-800 shadow-sm">
+        
+        {/* LEFT GROUP: Back + Logo/Title */}
+        <div className="flex items-center gap-3">
+            {canGoBack && !hideBackButton && (
+                <button onClick={onBack} className="p-2 -ml-2 text-primary hover:bg-primary/10 rounded-full transition-colors flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                    </svg>
+                </button>
+            )}
+            
+            <div className="flex items-center gap-3">
+                {logoUrl ? (
+                    <img src={logoUrl} alt="Logo" className="h-6 sm:h-8 w-auto object-contain" />
+                ) : (
+                    <span className="text-lg font-black tracking-tighter text-primary">{selectedOrganization?.name || 'SMART'}</span>
+                )}
+                {page !== Page.Home && (
+                    <span className="hidden sm:inline-block text-gray-300 dark:text-gray-700">|</span>
+                )}
+                <h1 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white truncate max-w-[120px] sm:max-w-none">
+                    {page === Page.Home ? 'Hem' : getTitle()}
+                </h1>
+            </div>
+        </div>
+
+        {/* RIGHT GROUP: Actions */}
+        <div className="flex items-center gap-1 sm:gap-2">
+            {showClock && (
+                <div className="hidden md:block mr-2 scale-75 transform-gpu origin-right">
+                    <DigitalClock />
                 </div>
+            )}
+
+            {showCoachButton && onCoachAccessRequest && (
+                <button onClick={onCoachAccessRequest} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Coach-vy">
+                    <BriefcaseIcon className="w-5 h-5" />
+                </button>
+            )}
+
+            <button onClick={toggleTheme} className="p-2 rounded-xl text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" aria-label="Tema">
+                {theme === 'dark' ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                )}
             </button>
-         )}
-         {showCoachButton && onCoachAccessRequest && (
-            <button onClick={onCoachAccessRequest} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-800 dark:text-white" aria-label="Coach-åtkomst">
-                <BriefcaseIcon className="w-6 h-6" />
-            </button>
-         )}
-         {themeToggleButton}
-         {onSignOut && (
-            <button onClick={onSignOut} className="text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors text-lg font-semibold px-2">
-                Logga ut
-            </button>
-         )}
-      </div>
+
+            <div className="relative" ref={dropdownRef}>
+                <button
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className="flex items-center gap-2 p-1 pl-2 pr-1 rounded-xl bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 hover:ring-2 hover:ring-primary/20 transition-all"
+                >
+                    <span className="hidden md:inline text-xs font-bold text-gray-600 dark:text-gray-300">{userData?.firstName || 'Profil'}</span>
+                    <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary overflow-hidden shadow-inner">
+                        {userData?.photoUrl ? (
+                            <img src={userData.photoUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                            <UserIcon className="w-4 h-4" />
+                        )}
+                    </div>
+                </button>
+
+                <AnimatePresence>
+                    {isDropdownOpen && (
+                        <motion.div 
+                            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                            className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-800 py-2 z-50 overflow-hidden"
+                        >
+                            {onMemberProfileRequest && (
+                                <button onClick={() => { setIsDropdownOpen(false); onMemberProfileRequest(); }} className="w-full text-left px-4 py-2.5 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3">
+                                    <UserIcon className="w-4 h-4 text-primary" /> Min profil
+                                </button>
+                            )}
+                            {onEditProfileRequest && (
+                                <button onClick={() => { setIsDropdownOpen(false); onEditProfileRequest(); }} className="w-full text-left px-4 py-2.5 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3">
+                                    <PencilIcon className="w-4 h-4 text-gray-400" /> Redigera profil
+                                </button>
+                            )}
+                            {(role === 'coach' || role === 'organizationadmin' || role === 'systemowner') && onCoachAccessRequest && isStudioMode && (
+                                <button onClick={() => { setIsDropdownOpen(false); onCoachAccessRequest(); }} className="w-full text-left px-4 py-2.5 text-sm font-semibold hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3">
+                                    <BriefcaseIcon className="w-4 h-4 text-primary" /> Coach-vy
+                                </button>
+                            )}
+                            <div className="h-px bg-gray-100 dark:bg-gray-800 my-1 mx-2"></div>
+                            {onSignOut && (
+                                <button onClick={() => { setIsDropdownOpen(false); onSignOut(); }} className="w-full text-left px-4 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                    </svg>
+                                    Logga ut
+                                </button>
+                            )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+        </div>
     </header>
   );
 };

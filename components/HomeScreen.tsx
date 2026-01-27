@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Page, Workout, MenuItem, StudioConfig, Passkategori, CustomCategoryWithPrompt } from '../types';
 import { welcomeMessages } from '../data/welcomeMessages';
@@ -6,7 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { DumbbellIcon, SparklesIcon, StarIcon, PencilIcon, getIconComponent, CloseIcon } from './icons';
 import { WeeklyPBList } from './WeeklyPBList'; 
 import { CommunityFeed } from './CommunityFeed';
-import { Modal } from './ui/Modal';
 import { useStudio } from '../context/StudioContext';
 
 const TimerIcon = () => (
@@ -111,14 +109,6 @@ const MenuCard: React.FC<{
     );
 };
 
-const AmbientBackground = () => (
-    <div className="fixed inset-0 z-[-1] overflow-hidden bg-gray-50 dark:bg-gray-950">
-        <div className="absolute top-0 -left-4 w-96 h-96 bg-primary/10 rounded-full mix-blend-multiply filter blur-[100px] opacity-50 animate-blob"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-primary/5 rounded-full mix-blend-multiply filter blur-[100px] opacity-50 animate-blob animation-delay-2000"></div>
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 pointer-events-none"></div>
-    </div>
-);
-
 interface HomeScreenProps {
     navigateTo: (page: Page) => void;
     onSelectWorkout: (workout: Workout) => void;
@@ -208,39 +198,15 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
       }, 350);
   };
 
-  const logoUrl = theme === 'dark' ? organizationLogoUrlDark || organizationLogoUrlLight : organizationLogoUrlLight || organizationLogoUrlDark;
   const showQrCode = studioConfig.checkInImageEnabled && studioConfig.checkInImageUrl;
-
-  const renderBranding = () => {
-      if (studioLoading || (!selectedOrganization && !logoUrl)) {
-          return <div className="h-16 md:h-24 w-48 bg-transparent"></div>;
-      }
-      
-      if (logoUrl) {
-          return (
-            <motion.img 
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                src={logoUrl} 
-                alt="Logo" 
-                className="h-16 md:h-24 object-contain self-start" 
-            />
-          );
-      }
-
-      return <h1 className="text-2xl font-black text-primary uppercase tracking-tighter">Smart Skärm</h1>;
-  };
 
   return (
     <>
-        <AmbientBackground />
-        
         <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 flex flex-col h-full overflow-hidden">
             
             {/* Header Section */}
             <div className="flex flex-shrink-0 justify-between items-start mb-6 w-full pt-4">
                 <div className="flex flex-col gap-3">
-                    {renderBranding()}
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
                         <h2 className="text-3xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tight leading-none">{welcomeMessage.title}</h2>
                         <p className="text-base md:text-lg text-gray-400 font-medium mt-1">...{welcomeMessage.subtitle}</p>
