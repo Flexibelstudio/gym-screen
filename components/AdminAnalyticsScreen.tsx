@@ -71,11 +71,13 @@ const InsightCard: React.FC<{
                 </div>
             </div>
             <div>
-                <div className="flex items-baseline gap-2">
-                    <p className="text-3xl lg:text-4xl font-black tracking-tight mb-1 truncate">{value}</p>
+                <div className="flex flex-col">
+                    <p className={`font-black tracking-tight mb-1 leading-tight ${typeof value === 'string' && value.length > 12 ? 'text-xl sm:text-2xl' : 'text-3xl lg:text-4xl'}`}>
+                        {value}
+                    </p>
                     {extra}
                 </div>
-                <p className="text-xs font-bold text-white/70">{sub}</p>
+                <p className="text-xs font-bold text-white/70 mt-1">{sub}</p>
             </div>
         </div>
         <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
@@ -207,8 +209,8 @@ const SentimentDashboard: React.FC<{ logs: WorkoutLog[], onDayClick: (date: stri
                             return (
                                 <button 
                                     key={i} 
-                                    onClick={() => onDayClick(dateKey, dayLogs)}
-                                    className={`group relative p-3 rounded-2xl border flex flex-col justify-between aspect-square transition-all hover:scale-105 active:scale-95 ${colorClass}`}
+                                    onClick={() => count > 0 && onDayClick(dateKey, dayLogs)}
+                                    className={`group relative p-3 rounded-2xl border flex flex-col justify-between aspect-square transition-all ${count > 0 ? 'hover:scale-105 active:scale-95 cursor-pointer' : 'cursor-default'} ${colorClass}`}
                                 >
                                     <span className={`text-[10px] font-bold uppercase tracking-wide ${count > 0 ? 'opacity-80' : 'opacity-50'}`}>
                                         {date.toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric' })}
@@ -224,7 +226,7 @@ const SentimentDashboard: React.FC<{ logs: WorkoutLog[], onDayClick: (date: stri
                                     </div>
                                     {count > 0 && (
                                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 rounded-2xl transition-opacity flex items-center justify-center">
-                                            <span className="text-[8px] font-black text-white uppercase tracking-widest">Detaljer</span>
+                                            <span className="text-[8px] font-black text-white uppercase tracking-widest">Visa detaljer</span>
                                         </div>
                                     )}
                                 </button>
@@ -251,11 +253,12 @@ export const AdminAnalyticsScreen: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState<{ date: string, logs: WorkoutLog[] } | null>(null);
 
   useEffect(() => {
+    window.scrollTo(0, 0); // Tvinga scroll till toppen vid start
     if (selectedOrganization) {
         const fetchLogs = async () => {
             setIsLoading(true);
             try {
-                const data = await getOrganizationLogs(selectedOrganization.id, 200);
+                const data = await getOrganizationLogs(selectedOrganization.id, 500);
                 setLogs(data);
             } catch (e) {
                 console.error("Failed to fetch logs", e);
@@ -368,7 +371,7 @@ export const AdminAnalyticsScreen: React.FC = () => {
                 icon={<ClockIcon className="w-6 h-6 text-white" />}
                 gradient="bg-gradient-to-br from-emerald-500 to-teal-600"
                 extra={insights?.peakHour !== '-' && (
-                    <span className="text-[10px] font-black bg-white/20 px-2 py-0.5 rounded-full uppercase tracking-widest self-center">Maxtryck</span>
+                    <span className="text-[10px] font-black bg-white/20 px-2 py-0.5 rounded-full uppercase tracking-widest self-center mt-1">Maxtryck</span>
                 )}
             />
         </div>
