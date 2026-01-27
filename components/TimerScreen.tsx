@@ -530,10 +530,24 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   }, [activeWorkout, block]);
 
   const workoutChain = useMemo(() => {
-      // Om det finns ett pass, visa alla block i tidslinjen. Annars visa bara detta block.
       if (!activeWorkout) return [block];
-      return activeWorkout.blocks;
-  }, [activeWorkout, block]);
+      const index = activeWorkout.blocks.findIndex(b => b.id === block.id);
+      if (index === -1) return [block];
+
+      let startIdx = index;
+      // Gå bakåt för att hitta början på den aktuella automatiska kedjan
+      while (startIdx > 0 && activeWorkout.blocks[startIdx - 1].autoAdvance) {
+          startIdx--;
+      }
+
+      let endIdx = index;
+      // Gå framåt för att hitta slutet på den aktuella automatiska kedjan
+      while (endIdx < activeWorkout.blocks.length - 1 && activeWorkout.blocks[endIdx].autoAdvance) {
+          endIdx++;
+      }
+
+      return activeWorkout.blocks.slice(startIdx, endIdx + 1);
+  }, [activeWorkout, block.id]);
 
   const chainInfo = useMemo(() => {
       let totalDuration = 0;
