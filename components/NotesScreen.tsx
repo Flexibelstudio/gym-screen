@@ -952,10 +952,10 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         }
 
         const isTimerActive = !!timerBlock;
-        // Öka marginalerna för att ge plats åt texten inuti
-        const sidePadding = canvas.width * 0.22; 
-        const timerSafeZone = isTimerActive ? canvas.height * 0.40 : canvas.height * 0.15; 
-        const bottomPadding = canvas.height * 0.20; 
+        // VIKTIGT: Återställ marginalerna mot kanterna för att få största möjliga rityta inuti.
+        const sidePadding = canvas.width * 0.12; 
+        const timerSafeZone = isTimerActive ? canvas.height * 0.32 : canvas.height * 0.10; 
+        const bottomPadding = canvas.height * 0.15; 
 
         const availableHeight = canvas.height - timerSafeZone - bottomPadding;
         const availableWidth = canvas.width - (sidePadding * 2);
@@ -992,13 +992,14 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         };
 
         const splitTextIntoLines = (text: string): string[] => {
-            if (text.length <= 12) return [text];
+            // Tillåt lite längre rader nu när banan är bredare
+            if (text.length <= 16) return [text];
             const words = text.split(' ');
-            if (words.length === 1) return [text.substring(0, 12), text.substring(12)];
+            if (words.length === 1) return [text.substring(0, 16), text.substring(16)];
             const lines: string[] = [];
             let currentLine = words[0];
             for (let i = 1; i < words.length; i++) {
-                if ((currentLine + " " + words[i]).length < 14) {
+                if ((currentLine + " " + words[i]).length < 18) {
                     currentLine += " " + words[i];
                 } else {
                     lines.push(currentLine);
@@ -1058,7 +1059,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             const repsRaw = filterTimeFromReps(ex.reps || '');
             const repsStr = repsRaw.toLowerCase().includes('ej angivet') || repsRaw.trim() === '' ? '' : `(${repsRaw})`;
             
-            let fontSize = 36 * dpr; 
+            let fontSize = 34 * dpr; 
             ctx.font = `bold ${fontSize}px sans-serif`;
             ctx.fillStyle = textColor;
             ctx.textAlign = align;
@@ -1073,10 +1074,8 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                     yPos = textY + (i * lineHeight);
                 } else if (pos.side === 'bottom') {
                     yPos = textY - ((lines.length - 1 - i) * lineHeight);
-                    // Justera för reps om det finns på botten
                     if (repsStr) yPos -= lineHeight;
                 } else {
-                    // Right/Left middle alignment
                     yPos = textY - (totalTextHeight/2) + (i * lineHeight) + (lineHeight/2);
                 }
                 ctx.fillText(line, textX, yPos);
