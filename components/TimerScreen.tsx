@@ -247,7 +247,7 @@ const SegmentedRoadmap: React.FC<{
         <div className="w-full flex items-center gap-1.5 h-6 mb-1">
             {chain.map((b, i) => {
                 const bDur = calculateBlockDuration(b.settings, b.exercises.length);
-                const transTime = (i < workoutChain.length - 1) ? (b.transitionTime || 0) : 0;
+                const transTime = (i < chain.length - 1) ? (b.transitionTime || 0) : 0;
                 const segmentTotal = bDur + transTime;
                 
                 const widthPercent = totalChainTime > 0 ? (segmentTotal / totalChainTime) * 100 : (100 / chain.length);
