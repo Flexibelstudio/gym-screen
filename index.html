@@ -285,18 +285,16 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-white dark:bg-black">
     <div id="root"></div>
-    <script type="module" src="./index.tsx"></script>
     
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js')
             .then(registration => {
-              console.log('ServiceWorker registration successful with scope: ', registration.scope);
+              console.log('ServiceWorker registration successful');
             })
             .catch(err => {
               console.log('ServiceWorker registration failed: ', err);

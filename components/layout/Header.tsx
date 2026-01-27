@@ -4,6 +4,7 @@ import { DigitalClock } from '../common/DigitalClock';
 import { UserIcon, BriefcaseIcon, SettingsIcon, PencilIcon } from '../icons';
 import { useStudio } from '../../context/StudioContext';
 import { useAuth } from '../../context/AuthContext';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface HeaderProps {
     page: Page;
