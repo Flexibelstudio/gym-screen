@@ -4,6 +4,7 @@ import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, 
 import { motion } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
+import { deepCopyAndPrepareAsNew } from '../../utils/workoutUtils';
 
 type AdminTab = 
     'dashboard' | 
@@ -293,8 +294,9 @@ const ManageWorkoutsView: React.FC<{
     onDelete: (id: string) => void;
     onDuplicate: (workout: Workout) => void;
     onTogglePublish: (id: string, isPublished: boolean) => void;
+    onCopyToLibrary: (workout: Workout) => void;
     onBack: () => void;
-}> = ({ workouts, onEdit, onDelete, onDuplicate, onTogglePublish, onBack }) => {
+}> = ({ workouts, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onBack }) => {
     
     const [activeTab, setActiveTab] = useState<'official' | 'drafts'>('official');
     const [searchTerm, setSearchTerm] = useState('');
@@ -486,6 +488,19 @@ const ManageWorkoutsView: React.FC<{
                                         </td>
                                         <td className="p-5 text-right">
                                             <div className="flex justify-end gap-2">
+                                                {activeTab === 'drafts' && (
+                                                    <button 
+                                                        onClick={() => {
+                                                            if(window.confirm(`Vill du skapa en permanent kopia av "${workout.title}" i biblioteket? Originalet ligger kvar som utkast.`)) onCopyToLibrary(workout);
+                                                        }}
+                                                        className="p-2 text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors" 
+                                                        title="Spara som permanent mall"
+                                                    >
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                    </button>
+                                                )}
                                                 <button 
                                                     onClick={() => onEdit(workout)} 
                                                     className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" 
@@ -609,6 +624,16 @@ const PassProgramContent: React.FC<DashboardContentProps & {
         setSubView('manage'); 
     };
 
+    const handleCopyToLibrary = async (workout: Workout) => {
+        // Skapa en djup kopia som är permanent
+        const copy = deepCopyAndPrepareAsNew(workout);
+        copy.isMemberDraft = false;
+        copy.isPublished = false;
+        copy.title = `Mall: ${workout.title}`;
+        await onSaveWorkout(copy);
+        alert("Passet har sparats som en mall i biblioteket!");
+    };
+
     if (subView === 'ai') {
         return (
             <div className="animate-fade-in">
@@ -655,6 +680,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
                 onDelete={onDeleteWorkout}
                 onDuplicate={onDuplicateWorkout}
                 onTogglePublish={onTogglePublish}
+                onCopyToLibrary={handleCopyToLibrary}
                 onBack={onReturnToHub}
             />
         );
