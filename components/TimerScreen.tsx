@@ -392,8 +392,9 @@ const StandardListView: React.FC<{
     const titleSize = isLargeList ? 'text-lg sm:text-xl md:text-2xl' : count > 8 ? 'text-2xl md:text-3xl' : 'text-4xl md:text-5xl';
     const repsSize = isLargeList ? 'text-sm md:text-base' : 'text-xl md:text-2xl';
     const descSize = 'text-lg md:text-xl';
-    // Justerat padding för mer utrymme åt vänster för övningsnamnen (pl-8 för stora listor istället för px-4)
-    const padding = isLargeList ? 'pl-8 pr-4 py-2' : count > 8 ? 'pl-8 pr-6 py-3' : 'px-8 py-6';
+    
+    // JUSTERING: Ökad vänster-padding (pl-12) för att flytta ut texten från randen vid långa listor
+    const padding = isLargeList ? 'pl-12 pr-4 py-2' : count > 8 ? 'pl-12 pr-6 py-3' : 'px-8 py-6';
     const gap = isLargeList ? 'gap-1' : 'gap-3';
     
     // Dölj beskrivning om det är väldigt trångt (Hyrox)
@@ -414,8 +415,8 @@ const StandardListView: React.FC<{
                     }}
                 >
                     <div className="flex justify-between items-center w-full gap-4">
-                        {/* Bytte leading-tight till leading-normal för att fixa avhuggna prickar i ÅÄÖ */}
-                        <h4 className={`font-black text-gray-900 dark:text-white leading-normal tracking-tight truncate ${titleSize}`}>
+                        {/* JUSTERING: leading-normal och py-1 för att fixa avhuggna ÅÄÖ */}
+                        <h4 className={`font-black text-gray-900 dark:text-white leading-normal tracking-tight truncate py-1 ${titleSize}`}>
                             {ex.name}
                         </h4>
                         {ex.reps && (
@@ -1022,9 +1023,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             <span className={`font-black tracking-[0.3em] text-white uppercase drop-shadow-md text-lg md:text-xl`}>{modeLabel}</span>
         </div>
 
-        {/* STATUS (ARBETE/VILA) - Överst - JUSTERING: leading-normal för att inte klippa prickar */}
+        {/* STATUS (ARBETE/VILA) - Överst - JUSTERING: leading-relaxed och pb-2 för att inte klippa prickar */}
         <div className="text-center z-20 w-full px-10 mb-2">
-            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl line-clamp-1 leading-normal`}>{statusLabel}</h2>
+            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl leading-relaxed pb-2`}>{statusLabel}</h2>
         </div>
 
         {/* SIFFROR (Tiden) - Mitten */}
@@ -1056,9 +1057,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         </div>
       </div>
 
-      {/* CONTENT AREA (Under Clock) - JUSTERING: pt-2 istället för pt-8 för att minska avståndet upp till timern */}
+      {/* CONTENT AREA (Under Clock) - JUSTERING: top-[20%] för att minska avståndet rejält */}
       <div className={`absolute bottom-4 left-0 flex flex-col items-center justify-start px-4 z-0 pt-2
-          ${showFullScreenColor ? 'top-[65%]' : 'top-[27%]'} 
+          ${showFullScreenColor ? 'top-[65%]' : 'top-[20%]'} 
           ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'}`}>
           
           <div className="w-full max-w-[1500px] h-full flex flex-col">
