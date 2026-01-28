@@ -928,7 +928,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const currentIntervalInLap = (completedWorkIntervals % effectiveIntervalsPerLap) + 1;
   const showSplitView = !!nextBlock && block.autoAdvance && !isTransitioning;
 
-  const isRestNext = block.autoAdvance && (block.transitionTime || 0) > 0 && status !== TimerStatus.Resting;
+  // Korrigerad logik: Vila anses vara nästa steg om autoAdvance är på och transitionTime finns.
+  // Vi tar bort villkoret status !== TimerStatus.Resting för att inte preview ska hoppa mellan 
+  // övningar och vila under rondens gång.
+  const isRestNext = block.autoAdvance && (block.transitionTime || 0) > 0;
 
   const handleInteraction = () => { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); restartHideTimer(); };
   const restartHideTimer = React.useCallback(() => {
