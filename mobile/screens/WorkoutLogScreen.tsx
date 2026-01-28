@@ -291,7 +291,7 @@ const ExerciseLogCard: React.FC<{
                     className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 shrink-0 shadow-md active:scale-95 transition-all ${result.coachAdvice ? 'bg-green-500 text-white' : 'bg-purple-600 text-white'}`}
                 >
                     {result.coachAdvice ? <CheckIcon className="w-3.5 h-3.5" /> : <SparklesIcon className="w-3.5 h-3.5" />}
-                    <span className="text-[10px] font-black uppercase tracking-tight">{result.coachAdvice ? 'Råd sparar' : 'Hitta dagsform'}</span>
+                    <span className="text-[10px] font-black uppercase tracking-tight">{result.coachAdvice ? 'Råd sparat' : 'Hitta dagsform'}</span>
                 </button>
             </div>
 
