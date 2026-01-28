@@ -419,7 +419,7 @@ const StandardListView: React.FC<{
 
                     {showDescription && ex.description && (
                         <div className="mt-2 hidden sm:block">
-                             <p className={`font-medium text-gray-600 dark:text-gray-300 leading-snug ${descSize} line-clamp-1`}>
+                             <p className={`font-medium text-gray-600 dark:text-gray-300 leading-snug ${descSize} line-clamp-3`}>
                                 {ex.description}
                              </p>
                         </div>
