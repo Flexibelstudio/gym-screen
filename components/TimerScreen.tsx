@@ -1,14 +1,13 @@
-
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout } from '../types';
-import { useWorkoutTimer, playBeep, getAudioContext, calculateBlockDuration } from '../hooks/useWorkoutTimer';
+import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration, playBoxingBell } from '../hooks/useWorkoutTimer';
 import { useWorkout } from '../context/WorkoutContext';
 import { saveRace, updateOrganizationActivity } from '../services/firebaseService';
 import { Confetti } from './WorkoutCompleteModal';
 import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmationModal, RaceFinishAnimation, PauseOverlay } from './timer/TimerModals';
 import { ParticipantFinishList } from './timer/ParticipantFinishList';
-import { DumbbellIcon, InformationCircleIcon, LightningIcon, SparklesIcon, ChevronRightIcon } from './icons';
+import { DumbbellIcon, InformationCircleIcon, LightningIcon, SparklesIcon, ChevronRightIcon, ClockIcon } from './icons';
 
 // --- Constants ---
 const HYROX_RIGHT_PANEL_WIDTH = '450px';
@@ -23,30 +22,35 @@ interface TimerStyle {
   badge: string;
 }
 
-const getTimerStyle = (status: TimerStatus, mode: TimerMode, isHyrox: boolean): TimerStyle => {
+const getTimerStyle = (status: TimerStatus, mode: TimerMode, isHyrox: boolean, isTransitioning: boolean): TimerStyle => {
+  if (isTransitioning) {
+      // Mörk lila/indigo gradient för vilan mellan block
+      return { bg: 'bg-gradient-to-br from-indigo-900 to-purple-900', text: 'text-white', pulseRgb: '168, 85, 247', border: 'border-purple-400', badge: 'bg-purple-600' };
+  }
+  
   if (isHyrox) {
       return { bg: 'bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 animate-pulse-hyrox-bg', text: 'text-white', pulseRgb: '255, 255, 255', border: 'border-white', badge: 'bg-white text-indigo-600' };
   }
 
   switch (status) {
     case TimerStatus.Preparing:
-      return { bg: 'bg-blue-500', text: 'text-white', pulseRgb: '59, 130, 246', border: 'border-blue-300', badge: 'bg-blue-600' };
+      return { bg: 'bg-blue-600', text: 'text-white', pulseRgb: '59, 130, 246', border: 'border-blue-300', badge: 'bg-blue-600' };
     case TimerStatus.Running:
       switch (mode) {
-        case TimerMode.Interval: return { bg: 'bg-orange-500', text: 'text-white', pulseRgb: '249, 115, 22', border: 'border-orange-300', badge: 'bg-orange-600' };
-        case TimerMode.Tabata: return { bg: 'bg-red-500', text: 'text-white', pulseRgb: '239, 68, 68', border: 'border-red-300', badge: 'bg-red-600' };
+        case TimerMode.Interval: return { bg: 'bg-orange-600', text: 'text-white', pulseRgb: '249, 115, 22', border: 'border-orange-300', badge: 'bg-orange-600' };
+        case TimerMode.Tabata: return { bg: 'bg-red-600', text: 'text-white', pulseRgb: '239, 68, 68', border: 'border-red-300', badge: 'bg-red-600' };
         case TimerMode.AMRAP: return { bg: 'bg-pink-600', text: 'text-white', pulseRgb: '219, 39, 119', border: 'border-pink-300', badge: 'bg-pink-700' };
         case TimerMode.EMOM: return { bg: 'bg-purple-600', text: 'text-white', pulseRgb: '147, 51, 234', border: 'border-purple-300', badge: 'bg-purple-700' };
         case TimerMode.TimeCap: return { bg: 'bg-indigo-600', text: 'text-white', pulseRgb: '79, 70, 229', border: 'border-indigo-300', badge: 'bg-indigo-700' };
         case TimerMode.Stopwatch: return { bg: 'bg-green-600', text: 'text-white', pulseRgb: '22, 163, 74', border: 'border-green-300', badge: 'bg-green-700' };
-        default: return { bg: 'bg-orange-500', text: 'text-white', pulseRgb: '249, 115, 22', border: 'border-orange-300', badge: 'bg-orange-600' };
+        default: return { bg: 'bg-orange-600', text: 'text-white', pulseRgb: '249, 115, 22', border: 'border-orange-300', badge: 'bg-orange-600' };
       }
     case TimerStatus.Resting:
-      return { bg: 'bg-teal-400', text: 'text-white', pulseRgb: '45, 212, 191', border: 'border-teal-200', badge: 'bg-teal-600' };
+      return { bg: 'bg-teal-500', text: 'text-white', pulseRgb: '45, 212, 191', border: 'border-teal-200', badge: 'bg-teal-600' };
     case TimerStatus.Paused:
-      return { bg: 'bg-gray-500', text: 'text-white', pulseRgb: '107, 114, 128', border: 'border-gray-400', badge: 'bg-gray-600' };
+      return { bg: 'bg-gray-600', text: 'text-white', pulseRgb: '107, 114, 128', border: 'border-gray-400', badge: 'bg-gray-600' };
     case TimerStatus.Finished:
-      return { bg: 'bg-teal-600', text: 'text-white', pulseRgb: '13, 148, 136', border: 'border-teal-400', badge: 'bg-teal-800' };
+      return { bg: 'bg-teal-700', text: 'text-white', pulseRgb: '13, 148, 136', border: 'border-teal-400', badge: 'bg-teal-800' };
     case TimerStatus.Idle:
     default:
       return { bg: 'bg-gray-900', text: 'text-white', pulseRgb: '0, 0, 0', border: 'border-gray-700', badge: 'bg-gray-800' };
@@ -68,35 +72,210 @@ const formatSeconds = (totalSeconds: number) => {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
+const getBlockTimeLabel = (block: WorkoutBlock): string => {
+    const s = block.settings;
+    if (!s) return "";
+    
+    switch(s.mode) {
+        case TimerMode.AMRAP:
+        case TimerMode.TimeCap:
+            return s.workTime ? `${Math.floor(s.workTime / 60)} MIN` : "";
+        case TimerMode.EMOM:
+            return s.rounds ? `${s.rounds} MIN` : "";
+        case TimerMode.Tabata:
+            return s.rounds ? `${s.rounds} RONDER` : "";
+        case TimerMode.Interval:
+            return s.rounds ? `${s.rounds} RONDER` : "";
+        default:
+            return "";
+    }
+};
+
 // --- Visualization Components ---
 
-const ComingUpBanner: React.FC<{ block: WorkoutBlock; transitionTime?: number; nextBlockTitle: string }> = ({ block, transitionTime, nextBlockTitle }) => {
-    const hasTransition = transitionTime && transitionTime > 0;
+const NextRestPreview: React.FC<{ transitionTime: number; nextBlockTitle: string }> = ({ transitionTime, nextBlockTitle }) => {
     return (
         <motion.div 
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-10 left-1/2 -translate-x-1/2 z-[100] w-full max-w-2xl px-6"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="my-auto flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 shadow-2xl p-8"
         >
-            <div className="bg-black/80 backdrop-blur-2xl rounded-[2.5rem] p-6 border-2 border-white/20 shadow-2xl flex items-center justify-between text-white">
-                <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center">
-                        <SparklesIcon className="w-6 h-6 text-primary" />
+            <div className="flex items-center gap-4 mb-6">
+                <div className="bg-primary/10 p-3 rounded-2xl border border-primary/20">
+                    <ClockIcon className="w-8 h-8 text-primary" />
+                </div>
+                <div>
+                    <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">HÄRNÄST</span>
+                    <h4 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">VILA</h4>
+                </div>
+            </div>
+            
+            <div className="text-6xl font-mono font-black text-primary dark:text-primary mb-6 tabular-nums drop-shadow-sm">
+                {formatSeconds(transitionTime)}
+            </div>
+
+            <div className="bg-gray-5 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+                <span className="block text-[9px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em] mb-1.5">INFÖR NÄSTA DEL</span>
+                <p className="text-gray-900 dark:text-white text-base font-bold leading-tight line-clamp-2">{nextBlockTitle}</p>
+            </div>
+        </motion.div>
+    );
+};
+
+const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock; isRestNext?: boolean }> = ({ transitionTime, block, isRestNext }) => {
+    return (
+        <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full bg-white/95 dark:bg-black/40 backdrop-blur-xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 p-8 flex items-center justify-between shadow-2xl mt-4"
+        >
+            <div className="flex items-center gap-6">
+                <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20">
+                    {isRestNext ? <ClockIcon className="w-10 h-10 text-primary" /> : <ChevronRightIcon className="w-10 h-10 text-primary" />}
+                </div>
+                <div>
+                    <span className="block text-[12px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.4em] mb-1.5">HÄRNÄST</span>
+                    <h5 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">
+                        {isRestNext ? 'VILA' : block?.title}
+                    </h5>
+                </div>
+            </div>
+
+            <div className="flex items-center gap-8">
+                {isRestNext && block && (
+                    <div className="hidden lg:flex flex-col items-end text-right">
+                         <span className="text-[10px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em] mb-1">INFÖR</span>
+                         <p className="text-sm font-bold text-gray-600 dark:text-white/70 max-w-[200px] truncate">{block.title}</p>
+                    </div>
+                )}
+                
+                {transitionTime !== undefined ? (
+                    <div className="text-6xl font-mono font-black text-primary tabular-nums drop-shadow-xl">
+                        {formatSeconds(transitionTime)}
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-3">
+                         <span className="text-sm font-black uppercase tracking-widest bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/60 px-4 py-2 rounded-xl border border-gray-200 dark:border-white/10">{block?.settings.mode}</span>
+                    </div>
+                )}
+            </div>
+        </motion.div>
+    );
+};
+
+const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
+    const timeLabel = getBlockTimeLabel(block);
+    
+    return (
+        <motion.div 
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="max-h-[80%] my-auto flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 overflow-hidden shadow-2xl"
+        >
+            <div className="p-8 bg-gray-50/50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5">
+                <div className="flex items-center gap-4 mb-4">
+                    <div className="bg-primary/10 p-2.5 rounded-xl border border-primary/20">
+                        <ChevronRightIcon className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                        <span className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-0.5">NÄSTA</span>
-                        <h4 className="text-xl font-black uppercase truncate max-w-[250px]">
-                            {hasTransition ? `VILA (${transitionTime}s)` : nextBlockTitle}
-                        </h4>
+                        <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">HÄRNÄST</span>
+                        <h4 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight line-clamp-1 leading-none">{block.title}</h4>
                     </div>
                 </div>
-                <div className="text-right">
-                    <span className="block text-[10px] font-black uppercase tracking-widest text-white/40 mb-0.5">FÖLJT AV</span>
-                    <p className="text-sm font-black text-primary uppercase truncate max-w-[150px]">{hasTransition ? nextBlockTitle : 'KLART'}</p>
+                
+                <div className="flex items-center gap-2 text-gray-400 dark:text-white/40 text-[10px] font-black uppercase tracking-widest">
+                    <span>{block.settings.mode}</span>
+                    {timeLabel && (
+                        <>
+                            <span className="opacity-30">•</span>
+                            <span className="text-primary">{timeLabel}</span>
+                        </>
+                    )}
+                </div>
+            </div>
+            <div className="flex-grow overflow-y-auto p-5 custom-scrollbar space-y-2.5">
+                {block.exercises.map((ex) => (
+                    <div key={ex.id} className="flex justify-between items-center gap-4 bg-gray-50 dark:bg-white/5 rounded-2xl p-4 border border-gray-100 dark:border-white/5">
+                        <p className="text-sm font-bold text-gray-800 dark:text-white/90 leading-tight truncate">{ex.name}</p>
+                        {ex.reps && <span className="text-[10px] font-black text-primary whitespace-nowrap bg-primary/10 px-2.5 py-1 rounded-lg border border-primary/10">{formatReps(ex.reps)}</span>}
+                    </div>
+                ))}
+            </div>
+        </motion.div>
+    );
+};
+
+const TransitionFullWidthPreview: React.FC<{ block: WorkoutBlock; onSkip: () => void; timerStyle: TimerStyle }> = ({ block, onSkip, timerStyle }) => {
+    return (
+        <motion.div 
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="w-full max-w-6xl mx-auto h-full flex flex-col pt-4 pb-4"
+        >
+            <div className="flex-grow flex flex-col h-full space-y-4">
+                <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-center bg-white/80 dark:bg-black/20 p-8 rounded-[2.5rem] border border-gray-100 dark:border-white/5 shadow-lg gap-6">
+                    <div>
+                        <span className="inline-block px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-black uppercase tracking-[0.2em] mb-3">UPPLADDNING</span>
+                        <h3 className="text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-none">{block.title}</h3>
+                        <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Gör er redo för nästa del av passet</p>
+                    </div>
+                    <button 
+                        onClick={onSkip}
+                        className="bg-gray-900 dark:bg-white text-white dark:text-black font-black py-4 px-10 rounded-2xl shadow-2xl hover:scale-105 transition-all text-lg uppercase tracking-widest border-4 border-gray-700 dark:border-white/30"
+                    >
+                        Starta nu
+                    </button>
+                </div>
+                
+                <div className="flex-grow min-h-0">
+                    <StandardListView exercises={block.exercises} timerStyle={timerStyle} forceFullHeight={true} />
                 </div>
             </div>
         </motion.div>
+    );
+};
+
+const SegmentedRoadmap: React.FC<{ 
+    chain: WorkoutBlock[]; 
+    currentBlockId: string; 
+    totalChainElapsed: number; 
+    totalChainTime: number;
+}> = ({ chain, currentBlockId, totalChainElapsed, totalChainTime }) => {
+    let accumulatedTime = 0;
+    
+    return (
+        <div className="w-full flex items-center gap-1.5 h-6 mb-1">
+            {chain.map((b, i) => {
+                const bDur = calculateBlockDuration(b.settings, b.exercises.length);
+                const transTime = (i < chain.length - 1 && b.autoAdvance) ? (b.transitionTime || 0) : 0;
+                const segmentTotal = bDur + transTime;
+                
+                const widthPercent = totalChainTime > 0 ? (segmentTotal / totalChainTime) * 100 : (100 / chain.length);
+                const isActive = b.id === currentBlockId;
+                
+                const segmentStart = accumulatedTime;
+                const segmentEnd = accumulatedTime + segmentTotal;
+                
+                let segmentProgress = 0;
+                if (totalChainElapsed > segmentEnd) segmentProgress = 100;
+                else if (totalChainElapsed > segmentStart) segmentProgress = ((totalChainElapsed - segmentStart) / segmentTotal) * 100;
+                
+                accumulatedTime += segmentTotal;
+
+                return (
+                    <div 
+                        key={b.id} 
+                        style={{ width: `${widthPercent}%` }} 
+                        className={`h-3 rounded-full overflow-hidden border relative shadow-sm transition-all ${isActive ? 'bg-black/40 border-white/60' : 'bg-black/20 border-white/10'}`}
+                    >
+                        <motion.div 
+                            className={`absolute inset-0 transition-colors duration-500 ${isActive ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]' : 'bg-white/30'}`}
+                            style={{ width: `${segmentProgress}%` }}
+                        />
+                    </div>
+                );
+            })}
+        </div>
     );
 };
 
@@ -114,30 +293,30 @@ const NextStartIndicator: React.FC<{
             initial={{ opacity: 0, y: -20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9, height: 0 }}
-            className="w-full max-w-4xl mx-auto mb-8 relative"
+            className="w-full mb-4 relative flex-shrink-0"
         >
-            <div className={`bg-white/90 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] p-6 border-2 shadow-xl dark:shadow-2xl flex items-center justify-between transition-colors duration-500 ${isUrgent ? 'border-orange-500 shadow-orange-500/20' : 'border-gray-200 dark:border-white/10'}`}>
+            <div className={`bg-white/95 dark:bg-black/60 backdrop-blur-2xl rounded-[1.8rem] p-4 border-2 shadow-xl dark:shadow-2xl flex items-center justify-between transition-colors duration-500 ${isUrgent ? 'border-orange-500 shadow-orange-500/20' : 'border-gray-200 dark:border-white/10'}`}>
                 <div className="flex items-center gap-6">
-                    <div className={`w-16 h-16 rounded-3xl flex items-center justify-center shadow-inner ${isUrgent ? 'bg-orange-500 text-white animate-pulse' : 'bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-white/40'}`}>
-                        <LightningIcon className="w-8 h-8" />
+                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner ${isUrgent ? 'bg-orange-500 text-white animate-pulse' : 'bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-white/40'}`}>
+                        <LightningIcon className="w-6 h-6" />
                     </div>
-                    <div>
-                        <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">NÄSTA START</span>
-                        <h4 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight truncate max-w-[250px] sm:max-w-md">
+                    <div className="min-w-0">
+                        <span className="block text-[8px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em] mb-0.5">NÄSTA START</span>
+                        <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight truncate max-w-[250px] sm:max-w-md leading-none">
                             {groupName}
                         </h4>
+                        <p className="text-[8px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.2em] mt-1">
+                            {groupsLeft} {groupsLeft === 1 ? 'GRUPP' : 'GRUPPER'} KVAR
+                        </p>
                     </div>
                 </div>
 
-                <div className="text-right">
-                    <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">STARTAR OM</span>
-                    <div className={`font-mono text-5xl font-black tabular-nums leading-none ${isUrgent ? 'text-orange-500' : 'text-gray-900 dark:text-white'}`}>
+                <div className="text-right shrink-0">
+                    <span className="block text-[8px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em] mb-0.5">STARTAR OM</span>
+                    <div className={`font-mono text-3xl font-black tabular-nums leading-none ${isUrgent ? 'text-orange-500' : 'text-gray-900 dark:text-white'}`}>
                         {minutes}:{seconds.toString().padStart(2, '0')}
                     </div>
                 </div>
-            </div>
-            <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-gray-200 dark:bg-gray-800 text-gray-600 dark:text-white/60 px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-gray-300 dark:border-white/10 shadow-lg">
-                {groupsLeft} {groupsLeft === 1 ? 'grupp' : 'grupper'} kvar i kön
             </div>
         </motion.div>
     );
@@ -147,8 +326,11 @@ const FollowMeView: React.FC<{
     exercise: Exercise | null, 
     nextExercise: Exercise | null, 
     timerStyle: TimerStyle, 
-    status: TimerStatus
-}> = ({ exercise, nextExercise, timerStyle, status }) => {
+    status: TimerStatus,
+    nextBlock?: WorkoutBlock,
+    transitionTime?: number,
+    isRestNext?: boolean
+}> = ({ exercise, nextExercise, timerStyle, status, nextBlock, transitionTime, isRestNext }) => {
     const isResting = status === TimerStatus.Resting;
     const isPreparing = status === TimerStatus.Preparing;
     const displayExercise = exercise;
@@ -157,85 +339,90 @@ const FollowMeView: React.FC<{
     if (!displayExercise) return null;
 
     return (
-        <AnimatePresence mode="wait">
-            <motion.div
-                key={displayExercise.id}
-                initial={{ x: -100, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: 100, opacity: 0 }}
-                transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className={`w-full max-w-5xl bg-white dark:bg-gray-900 rounded-3xl shadow-2xl overflow-hidden border-l-[20px] ${isResting ? 'border-teal-400' : timerStyle.border.replace('border-', 'border-')}`}
-                style={{ borderColor: isResting ? undefined : `rgb(${timerStyle.pulseRgb})` }}
-            >
-                <div className="p-10 md:p-14 flex flex-col items-center text-center">
-                    <span className="block text-xl md:text-2xl font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 mb-4">
-                        {label}
-                    </span>
-                    <h3 className="text-5xl md:text-7xl font-black text-gray-900 dark:text-white leading-tight mb-6 tracking-tight">
-                        {displayExercise.name}
-                    </h3>
-                    {displayExercise.reps && (
-                        <p className="text-4xl md:text-6xl font-black text-primary mb-6">{formatReps(displayExercise.reps)}</p>
-                    )}
-                    {displayExercise.description && (
-                        <p className="text-gray-600 dark:text-gray-300 text-2xl md:text-3xl leading-relaxed max-w-4xl font-medium">
-                            {displayExercise.description}
-                        </p>
-                    )}
+        <div className="flex flex-col h-full items-center justify-between">
+            <AnimatePresence mode="wait">
+                <motion.div
+                    key={displayExercise.id}
+                    initial={{ x: -100, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    exit={{ x: 100, opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    className={`w-full max-w-5xl bg-white dark:bg-gray-900 rounded-[3.5rem] shadow-2xl overflow-hidden border-l-[20px] ${isResting ? 'border-teal-400' : timerStyle.border.replace('border-', 'border-')}`}
+                    style={{ borderColor: isResting ? undefined : `rgb(${timerStyle.pulseRgb})` }}
+                >
+                    <div className="p-10 md:p-14 flex flex-col items-center text-center">
+                        <span className="block text-xl md:text-2xl font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 mb-4">
+                            {label}
+                        </span>
+                        <h3 className="text-5xl md:text-8xl font-black text-gray-900 dark:text-white leading-tight mb-6 tracking-tight">
+                            {displayExercise.name}
+                        </h3>
+                        {displayExercise.reps && (
+                            <p className="text-5xl md:text-7xl font-black text-primary mb-6">{formatReps(displayExercise.reps)}</p>
+                        )}
+                        {displayExercise.description && (
+                            <p className="text-gray-600 dark:text-gray-300 text-2xl md:text-4xl leading-relaxed max-w-4xl font-medium">
+                                {displayExercise.description}
+                            </p>
+                        )}
+                    </div>
+                </motion.div>
+            </AnimatePresence>
+            
+            {(isRestNext || nextBlock) && (
+                <div className="w-full max-w-5xl">
+                    <NextUpCompactBar block={nextBlock} isRestNext={isRestNext} />
                 </div>
-            </motion.div>
-        </AnimatePresence>
+            )}
+        </div>
     );
 };
 
+// --- STANDARD LIST VIEW ---
 const StandardListView: React.FC<{ 
     exercises: Exercise[], 
-    timerStyle: TimerStyle 
-}> = ({ exercises, timerStyle }) => {
+    timerStyle: TimerStyle,
+    forceFullHeight?: boolean,
+    isHyrox?: boolean
+}> = ({ exercises, timerStyle, forceFullHeight = true, isHyrox = false }) => {
     const count = exercises.length;
-    let titleSize = 'text-3xl';
-    let repsSize = 'text-xl';
-    let padding = 'px-6 py-4';
-    let gap = 'gap-3';
-    let showDesc = true;
-
-    if (count <= 4) {
-        titleSize = 'text-4xl md:text-5xl';
-        repsSize = 'text-2xl md:text-3xl';
-        padding = 'px-8 py-6';
-        gap = 'gap-5';
-    } else if (count <= 7) {
-        titleSize = 'text-3xl md:text-4xl';
-        repsSize = 'text-xl md:text-2xl';
-        gap = 'gap-4';
-    } else {
-        titleSize = 'text-2xl md:text-3xl';
-        repsSize = 'text-lg md:text-xl';
-        showDesc = false; 
-    }
+    const isLargeList = count > 12 || isHyrox; 
+    
+    const titleSize = isLargeList ? 'text-lg sm:text-xl md:text-2xl' : count > 8 ? 'text-2xl md:text-3xl' : 'text-4xl md:text-5xl';
+    const repsSize = isLargeList ? 'text-sm md:text-base' : 'text-xl md:text-2xl';
+    const descSize = 'text-lg md:text-xl';
+    const padding = isHyrox ? 'pl-16 pr-6 py-2' : isLargeList ? 'pl-8 pr-4 py-2' : count > 8 ? 'pl-8 pr-6 py-3' : 'px-8 py-6';
+    const gap = isLargeList ? 'gap-1' : 'gap-3';
+    
+    const showDescription = count <= 8 && !isHyrox;
 
     return (
-        <div className={`w-full max-w-6xl flex-1 flex flex-col ${gap} overflow-y-auto pb-4 custom-scrollbar`}>
+        <div className={`w-full h-full flex flex-col ${gap} overflow-hidden pb-1`}>
             {exercises.map((ex) => (
                 <div 
                     key={ex.id} 
-                    className={`flex-1 min-h-[100px] bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl ${padding} flex flex-col justify-center border-l-[10px] shadow-lg transition-all relative group`}
-                    style={{ borderLeftColor: `rgb(${timerStyle.pulseRgb})` }}
+                    className={`flex-1 min-h-0 bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl flex flex-col justify-center border-l-[12px] shadow-sm transition-all relative group border-gray-100 dark:border-transparent ${padding}`}
+                    style={{ 
+                        borderLeftColor: isHyrox ? '#6366f1' : `rgb(${timerStyle.pulseRgb})`
+                    }}
                 >
-                    <div className="flex justify-between items-center w-full gap-6">
-                        <h4 className={`font-black text-gray-900 dark:text-white leading-none tracking-tight ${titleSize}`}>
+                    <div className="flex justify-between items-center w-full gap-4">
+                        <h4 className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight overflow-visible whitespace-nowrap ${titleSize}`}>
                             {ex.name}
                         </h4>
                         {ex.reps && (
-                            <span className={`font-mono font-bold text-gray-900 dark:text-white bg-gray-100 dark:bg-gray-800 px-4 py-2 rounded-lg whitespace-nowrap shadow-sm flex-shrink-0 border border-gray-200 dark:border-gray-700 ${repsSize}`}>
+                            <span className={`font-mono font-black text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-white/5 px-3 py-1 rounded-xl whitespace-nowrap border border-gray-100 dark:border-white/5 ${repsSize}`}>
                                 {formatReps(ex.reps)}
                             </span>
                         )}
                     </div>
-                    {showDesc && ex.description && (
-                        <p className="text-gray-600 dark:text-gray-400 mt-2 line-clamp-1 text-lg md:text-xl font-medium">
-                            {ex.description}
-                        </p>
+
+                    {showDescription && ex.description && (
+                        <div className="mt-2 hidden sm:block">
+                             <p className={`font-medium text-gray-600 dark:text-gray-300 leading-snug ${descSize} line-clamp-3`}>
+                                {ex.description}
+                             </p>
+                        </div>
                     )}
                 </div>
             ))}
@@ -252,10 +439,8 @@ interface BigIndicatorProps {
 }
 
 const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRounds, mode, currentInterval, totalIntervalsInLap }) => {
-    // Visa endast för Interval, Tabata och EMOM
     if (mode !== TimerMode.Interval && mode !== TimerMode.Tabata && mode !== TimerMode.EMOM) return null;
 
-    // Dölj specifika "Intervall X av Y" boxen för EMOM, då ronderna räcker där
     const showInterval = currentInterval !== undefined && totalIntervalsInLap !== undefined && mode !== TimerMode.EMOM;
 
     return (
@@ -317,15 +502,13 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     setIsBackButtonHidden, followMeShowImage, organization, onBackToGroups,
     isAutoTransition = false
 }) => {
-  const { activeWorkout, setActiveWorkout } = useWorkout();
+  const { activeWorkout } = useWorkout();
   const { 
     status, currentTime, currentPhaseDuration, currentRound, currentExercise, nextExercise,
     start, pause, resume, reset, 
-    totalRounds, totalExercises, currentExerciseIndex,
-    isLastExerciseInRound,
+    totalRounds, totalExercises,
     totalBlockDuration, totalTimeElapsed,
-    completedWorkIntervals, totalWorkIntervals,
-    effectiveIntervalsPerLap
+    completedWorkIntervals, effectiveIntervalsPerLap
   } = useWorkoutTimer(block);
   
   const [controlsVisible, setControlsVisible] = React.useState(false);
@@ -335,7 +518,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   // --- TRANSITION LOGIC ---
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [transitionTimeLeft, setTransitionTimeLeft] = useState(0);
+  const [isTransitionPaused, setIsTransitionPaused] = useState(false);
   const transitionIntervalRef = useRef<number | null>(null);
+  const hasTriggeredFinish = useRef(false);
 
   const nextBlock = useMemo(() => {
     if (!activeWorkout || !block.autoAdvance) return null;
@@ -344,115 +529,109 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     return activeWorkout.blocks[index + 1];
   }, [activeWorkout, block]);
 
-  // Calculate current chain stats
-  const chainInfo = useMemo(() => {
-      if (!activeWorkout) return null;
+  const workoutChain = useMemo(() => {
+      if (!activeWorkout) return [block];
       const index = activeWorkout.blocks.findIndex(b => b.id === block.id);
-      if (index === -1) return null;
+      if (index === -1) return [block];
 
-      // Find start of chain
       let startIdx = index;
-      while (startIdx > 0 && activeWorkout.blocks[startIdx-1].autoAdvance) {
+      // Gå bakåt för att hitta början på den aktuella automatiska kedjan
+      while (startIdx > 0 && activeWorkout.blocks[startIdx - 1].autoAdvance) {
           startIdx--;
       }
 
-      // Find end of chain
       let endIdx = index;
+      // Gå framåt för att hitta slutet på den aktuella automatiska kedjan
       while (endIdx < activeWorkout.blocks.length - 1 && activeWorkout.blocks[endIdx].autoAdvance) {
           endIdx++;
       }
 
-      const chain = activeWorkout.blocks.slice(startIdx, endIdx + 1);
-      
+      return activeWorkout.blocks.slice(startIdx, endIdx + 1);
+  }, [activeWorkout, block.id]);
+
+  const chainInfo = useMemo(() => {
       let totalDuration = 0;
       let elapsedTimeBeforeCurrent = 0;
+      const currentIdxInChain = workoutChain.findIndex(b => b.id === block.id);
       
-      chain.forEach((b, i) => {
+      workoutChain.forEach((b, i) => {
           const bDur = calculateBlockDuration(b.settings, b.exercises.length);
-          totalDuration += bDur;
-          
-          if (i < index - startIdx) {
-              elapsedTimeBeforeCurrent += bDur;
-          }
-
-          // Add transition times except for the last one in chain
-          if (i < chain.length - 1) {
-              const transTime = activeWorkout.blocks[startIdx + i].transitionTime || 0;
-              totalDuration += transTime;
-              if (i < index - startIdx) {
-                  elapsedTimeBeforeCurrent += transTime;
-              }
-          }
+          // Lägg bara till transitionTime om det faktiskt är en automatisk övergång planerad
+          const transTime = (i < workoutChain.length - 1 && b.autoAdvance) ? (b.transitionTime || 0) : 0;
+          totalDuration += bDur + transTime;
+          if (i < currentIdxInChain) elapsedTimeBeforeCurrent += bDur + transTime;
       });
 
-      return {
-          totalDuration,
-          elapsedTimeBeforeCurrent,
-          totalChainTime: totalDuration,
-          currentBlockInChain: index - startIdx + 1,
-          totalBlocksInChain: chain.length
-      };
-  }, [activeWorkout, block]);
+      return { totalDuration, elapsedTimeBeforeCurrent, currentBlockInChain: currentIdxInChain + 1, totalBlocksInChain: workoutChain.length };
+  }, [workoutChain, block.id]);
 
   const totalChainElapsed = useMemo(() => {
-      if (!chainInfo) return 0;
-      return chainInfo.elapsedTimeBeforeCurrent + totalTimeElapsed;
-  }, [chainInfo, totalTimeElapsed]);
+      let base = chainInfo.elapsedTimeBeforeCurrent + totalTimeElapsed;
+      if (isTransitioning) {
+          const elapsedInTrans = (block.transitionTime || 0) - transitionTimeLeft;
+          base += elapsedInTrans;
+      }
+      return base;
+  }, [chainInfo, totalTimeElapsed, isTransitioning, transitionTimeLeft, block.transitionTime]);
 
   const handleStartNextBlock = useCallback(() => {
+      if (hasTriggeredFinish.current) return;
+      
       if (transitionIntervalRef.current) clearInterval(transitionIntervalRef.current);
       setIsTransitioning(false);
+      setIsTransitionPaused(false);
       
       if (nextBlock) {
-          // Tell the parent to switch block and start without prep
+          hasTriggeredFinish.current = true;
           onFinish({ isNatural: true, time: totalTimeElapsed }); 
       }
   }, [nextBlock, totalTimeElapsed, onFinish]);
 
   useEffect(() => {
-      if (status === TimerStatus.Finished && nextBlock && block.autoAdvance) {
+      hasTriggeredFinish.current = false;
+  }, []);
+
+  useEffect(() => {
+      if (status === TimerStatus.Finished && totalTimeElapsed > 0 && nextBlock && block.autoAdvance && !hasTriggeredFinish.current) {
           const waitTime = block.transitionTime || 0;
           if (waitTime === 0) {
               handleStartNextBlock();
           } else {
               setIsTransitioning(true);
               setTransitionTimeLeft(waitTime);
-              transitionIntervalRef.current = window.setInterval(() => {
-                  setTransitionTimeLeft(prev => {
-                      if (prev <= 1) {
-                          handleStartNextBlock();
-                          return 0;
-                      }
-                      return prev - 1;
-                  });
-              }, 1000);
           }
       }
+  }, [status, totalTimeElapsed, nextBlock, block.autoAdvance, block.transitionTime, handleStartNextBlock]);
+
+  useEffect(() => {
+      if (isTransitioning && !isTransitionPaused) {
+          transitionIntervalRef.current = window.setInterval(() => {
+              setTransitionTimeLeft(prev => {
+                  if (prev <= 1) {
+                      handleStartNextBlock();
+                      return 0;
+                  }
+                  return prev - 1;
+              });
+          }, 1000);
+      } else {
+          if (transitionIntervalRef.current) clearInterval(transitionIntervalRef.current);
+      }
       return () => { if (transitionIntervalRef.current) clearInterval(transitionIntervalRef.current); };
-  }, [status, nextBlock, block.autoAdvance, block.transitionTime, handleStartNextBlock]);
+  }, [isTransitioning, isTransitionPaused, handleStartNextBlock]);
 
   // --- PRE-START LOGIC ---
-  const lastBlockIdRef = useRef<string | null>(null);
   const hasStartedRef = useRef(false);
   
   useEffect(() => {
-    // Reset flag if block ID changes (essential for auto-advance)
-    if (lastBlockIdRef.current !== block.id) {
-        hasStartedRef.current = false;
-        lastBlockIdRef.current = block.id;
-    }
-
     if (!hasStartedRef.current && (status === TimerStatus.Idle || status === TimerStatus.Finished)) {
         if (organization) updateOrganizationActivity(organization.id);
-        
-        // Skip prep ONLY if we are in an auto-transition chain
         start({ skipPrep: isAutoTransition });
-        
         hasStartedRef.current = true;
         onHeaderVisibilityChange(false);
         setIsBackButtonHidden(true);
     }
-  }, [start, status, onHeaderVisibilityChange, setIsBackButtonHidden, organization, activeWorkout, block.id, isAutoTransition]);
+  }, [start, status, onHeaderVisibilityChange, setIsBackButtonHidden, organization, isAutoTransition]);
 
   const [finishedParticipants, setFinishedParticipants] = useState<Record<string, FinishData>>({});
   const [savingParticipant, setSavingParticipant] = useState<string | null>(null);
@@ -464,10 +643,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [winnerName, setWinnerName] = useState<string | null>(null);
   const [isSavingRace, setIsSavingRace] = useState(false);
   const [finalRaceId, setFinalRaceId] = useState<string | null>(null);
-  
   const [isClockFrozen, setIsClockFrozen] = useState(false);
   const [frozenTime, setFrozenTime] = useState(0);
 
+  // Hyrox and Mode setup
   const isHyroxRace = useMemo(() => activeWorkout?.id.startsWith('hyrox-full-race') || activeWorkout?.id.startsWith('custom-race'), [activeWorkout]);
   const isFreestanding = block.tag === 'Fristående';
   const showFullScreenColor = isFreestanding;
@@ -556,6 +735,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     setFinishedParticipants({});
     setIsClockFrozen(false);
     setFrozenTime(0);
+    setIsTransitioning(false);
+    setIsTransitionPaused(false);
     if (activeWorkout?.startGroups && activeWorkout.startGroups.length > 0) {
         setStartGroups(activeWorkout.startGroups.map(g => ({ ...g, startTime: undefined })));
     } else if (activeWorkout) {
@@ -595,131 +776,122 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   useEffect(() => {
       if (status === TimerStatus.Preparing) return;
-      if (isHyroxRace && groupForCountdownDisplay && timeForCountdownDisplay > 0 && timeForCountdownDisplay <= 3) playBeep(880, 150, 'triangle');
+      if (isHyroxRace && groupForCountdownDisplay && timeForCountdownDisplay > 0 && timeForCountdownDisplay <= 3) playShortBeep();
   }, [isHyroxRace, timeForCountdownDisplay, groupForCountdownDisplay, status]);
 
-  const startedParticipants = useMemo(() => startGroups.filter(g => g.startTime !== undefined).flatMap(g => g.participants.split('\n').map(p => p.trim()).filter(Boolean)), [startGroups]);
-  const totalParticipantsCount = startedParticipants.length;
-  const finishedParticipantsCount = Object.keys(finishedParticipants).length;
-  const allFinished = totalParticipantsCount > 0 && finishedParticipantsCount === totalParticipantsCount;
+  // --- HYROX HANDLERS ---
+  const startedParticipants = useMemo(() => 
+    startGroups.filter(g => g.startTime !== undefined).flatMap(g => g.participants.split('\n').map(p => p.trim()).filter(Boolean)),
+    [startGroups]
+  );
 
-  useEffect(() => {
-      if (isHyroxRace && allFinished && !isClockFrozen && status === TimerStatus.Running) {
-          setFrozenTime(totalTimeElapsed);
-          setIsClockFrozen(true);
-      }
-  }, [allFinished, isHyroxRace, isClockFrozen, totalTimeElapsed, status]);
-
-    const handleRaceComplete = useCallback(async () => {
-        if (!isHyroxRace || !activeWorkout || !organization) { 
-            if (!organization) console.error("Hyrox save failed: Missing organizationId");
-            return; 
-        }
-        
-        setIsSavingRace(true);
-        const sortedFinishers = Object.entries(finishedParticipants).sort(([, a], [, b]) => (a as FinishData).time - (b as FinishData).time);
-        const winner = sortedFinishers.length > 0 ? sortedFinishers[0][0] : null;
-        setWinnerName(winner);
-        
-        const raceResults = sortedFinishers.map(([participant, name], index) => {
-            const group = startGroups.find(g => g.participants.includes(participant));
-            return { participant, time: (finishedParticipants[participant] as FinishData).time, groupId: group?.id || 'unknown' };
-        });
-
-        try {
-            const raceData: Omit<HyroxRace, 'id' | 'createdAt' | 'organizationId'> = {
-                raceName: activeWorkout.title,
-                exercises: block.exercises.map(e => `${e.reps || ''} ${e.name}`.trim()),
-                startGroups: startGroups.map(g => ({ id: g.id, name: g.name, participants: g.participants.split('\n').map(p => p.trim()).filter(Boolean) })),
-                results: raceResults
-            };
-            
-            const savedRace = await saveRace(raceData, organization.id);
-            if (savedRace && savedRace.id) {
-                setFinalRaceId(savedRace.id);
-                setShowFinishAnimation(true);
-                if (winner) speak(`Och vinnaren är ${winner}! Bra jobbat alla!`);
-            } else {
-                throw new Error("Missing raceId from server response");
-            }
-        } catch (error) {
-            console.error("Failed to save race:", error);
-            alert("Kunde inte spara loppet. Kontrollera din anslutning.");
-        } finally {
-            setIsSavingRace(false);
-        }
-    }, [isHyroxRace, activeWorkout, finishedParticipants, block.exercises, startGroups, organization, speak]);
-
-  const handleParticipantFinish = (participantName: string) => {
-      if (savingParticipant) return;
-      setSavingParticipant(participantName);
-      const group = startGroups.find(g => g.participants.includes(participantName));
-      if (group && group.startTime !== undefined) {
-          const netTime = Math.max(0, totalTimeElapsed - group.startTime);
-          setFinishedParticipants(prev => ({ ...prev, [participantName]: { time: netTime, placement: Object.keys(prev).length + 1 } }));
-          setShowConfetti(true);
-          speak(`Målgång ${participantName}!`);
-          setTimeout(() => setShowConfetti(false), 3000);
-      }
-      setSavingParticipant(null);
+  const handleParticipantFinish = (name: string) => {
+    setSavingParticipant(name);
+    const group = startGroups.find(g => g.participants.includes(name));
+    if (group?.startTime !== undefined) {
+      const netTime = Math.max(0, totalTimeElapsed - group.startTime);
+      setFinishedParticipants(prev => ({
+        ...prev,
+        [name]: { time: netTime, placement: Object.keys(prev).length + 1 }
+      }));
+      speak(`Målgång ${name}!`);
+    }
+    setSavingParticipant(null);
   };
 
-  const handleEditParticipant = (participantName: string) => { setParticipantToEdit(participantName); };
-  const handleUpdateResult = (newTime: number) => { if (!participantToEdit) return; setFinishedParticipants(prev => ({ ...prev, [participantToEdit]: { ...prev[participantToEdit], time: newTime } })); setParticipantToEdit(null); };
-  const handleAddPenalty = () => { if (!participantToEdit) return; setFinishedParticipants(prev => ({ ...prev, [participantToEdit]: { ...prev[participantToEdit], time: prev[participantToEdit].time + 60 } })); setParticipantToEdit(null); };
-  const handleRemoveResult = () => {
-        if (!participantToEdit) return;
-        setFinishedParticipants(prev => {
-            const newPrev = { ...prev };
-            delete newPrev[participantToEdit];
-            const sortedRemaining = Object.entries(newPrev).sort(([, a], [, b]) => (a as FinishData).time - (b as FinishData).time);
-            const reindexedParticipants: Record<string, FinishData> = {};
-            sortedRemaining.forEach(([name, data], index) => { reindexedParticipants[name] = { ...(data as FinishData), placement: index + 1 }; });
-            return reindexedParticipants;
-        });
-        setParticipantToEdit(null);
-    };
+  const handleEditParticipant = (name: string) => {
+    setParticipantToEdit(name);
+  };
 
-  const restartHideTimer = React.useCallback(() => {
-    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-    if (status === TimerStatus.Running || status === TimerStatus.Resting || status === TimerStatus.Preparing) {
-        hideTimeoutRef.current = window.setTimeout(() => { setControlsVisible(false); onHeaderVisibilityChange(false); setIsBackButtonHidden(true); }, 3000); 
+  const handleUpdateResult = (newTime: number) => {
+    if (participantToEdit) {
+      setFinishedParticipants(prev => ({
+        ...prev,
+        [participantToEdit]: { ...prev[participantToEdit], time: newTime }
+      }));
+      setParticipantToEdit(null);
     }
-  }, [status, onHeaderVisibilityChange, setIsBackButtonHidden]);
+  };
 
-  useEffect(() => {
-    if (controlsVisible) restartHideTimer();
-    return () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); };
-  }, [controlsVisible, restartHideTimer]);
+  const handleAddPenalty = () => {
+    if (participantToEdit) {
+      setFinishedParticipants(prev => ({
+        ...prev,
+        [participantToEdit]: { ...prev[participantToEdit], time: prev[participantToEdit].time + 60 }
+      }));
+      setParticipantToEdit(null);
+    }
+  };
 
-  useEffect(() => {
-    if (status === TimerStatus.Running || status === TimerStatus.Preparing || status === TimerStatus.Resting) restartHideTimer();
-    else { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); }
-  }, [status, restartHideTimer, onHeaderVisibilityChange, setIsBackButtonHidden]);
+  const handleRemoveResult = () => {
+    if (participantToEdit) {
+      setFinishedParticipants(prev => {
+        const next = { ...prev };
+        delete next[participantToEdit];
+        return next;
+      });
+      setParticipantToEdit(null);
+    }
+  };
 
-  const handleInteraction = () => { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); restartHideTimer(); };
+  const handleRaceComplete = useCallback(async () => {
+      if (!isHyroxRace || !activeWorkout || !organization) { 
+          if (!organization) console.error("Hyrox save failed: Missing organizationId");
+          return; 
+      }
+      
+      setIsSavingRace(true);
+      const sortedFinishers = Object.entries(finishedParticipants).sort(([, a], [, b]) => (a as FinishData).time - (b as FinishData).time);
+      const winner = sortedFinishers.length > 0 ? sortedFinishers[0][0] : null;
+      setWinnerName(winner);
+      
+      const raceResults = sortedFinishers.map(([participant, data], index) => {
+          const group = startGroups.find(g => g.participants.includes(participant));
+          return { participant, time: data.time, groupId: group?.id || 'unknown' };
+      });
 
-  const timerStyle = getTimerStyle(status, block.settings.mode, isHyroxRace);
+      try {
+          const raceData: Omit<HyroxRace, 'id' | 'createdAt' | 'organizationId'> = {
+              raceName: activeWorkout.title,
+              exercises: block.exercises.map(e => `${e.reps || ''} ${e.name}`.trim()),
+              startGroups: startGroups.map(g => ({ id: g.id, name: g.name, participants: g.participants.split('\n').map(p => p.trim()).filter(Boolean) })),
+              results: raceResults
+          };
+          
+          const savedRace = await saveRace(raceData, organization.id);
+          if (savedRace && savedRace.id) {
+              setFinalRaceId(savedRace.id);
+              setShowFinishAnimation(true);
+              if (winner) speak(`Och vinnaren är ${winner}! Bra jobbat alla!`);
+          } else {
+              throw new Error("Missing raceId from server response");
+          }
+      } catch (error) {
+          console.error("Failed to save race:", error);
+          alert("Kunde inte spara loppet. Kontrollera din anslutning.");
+      } finally {
+          setIsSavingRace(false);
+      }
+  }, [isHyroxRace, activeWorkout, finishedParticipants, block.exercises, startGroups, organization, speak]);
+
+  const timerStyle = getTimerStyle(status, block.settings.mode, isHyroxRace, isTransitioning);
   
-  const safeTotalDuration = totalBlockDuration || 1;
-  const progress = Math.min(100, (totalTimeElapsed / safeTotalDuration) * 100);
-
   const modeLabel = useMemo(() => {
+      if (isTransitioning) return "VILA INFÖR NÄSTA";
       if (isHyroxRace) return "RACE";
-      const { mode } = block.settings;
-      switch(mode) {
+      switch(block.settings.mode) {
           case TimerMode.Interval: return "INTERVALLER";
           case TimerMode.Tabata: return "TABATA";
           case TimerMode.AMRAP: return "AMRAP";
           case TimerMode.EMOM: return "EMOM";
           case TimerMode.TimeCap: return "TIME CAP";
           case TimerMode.Stopwatch: return "STOPPUR";
-          case TimerMode.NoTimer: return "INGEN TIMER";
-          default: return (mode as string).toUpperCase();
+          default: return (block.settings.mode as string).toUpperCase();
       }
-  }, [block.settings.mode, isHyroxRace]);
+  }, [block.settings.mode, isHyroxRace, isTransitioning]);
 
   const statusLabel = useMemo(() => {
+      if (isTransitioning) return `GÖR ER REDO FÖR: ${nextBlock?.title.toUpperCase()}`;
       if (isHyroxRace) {
           switch (status) {
               case TimerStatus.Preparing: return "GÖR ER REDO";
@@ -738,59 +910,45 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           case TimerStatus.Finished: return "KLAR";
           default: return "REDO";
       }
-  }, [status, isHyroxRace]);
+  }, [status, isHyroxRace, isTransitioning, nextBlock]);
 
   const timeToDisplay = useMemo(() => {
+      if (isTransitioning) return transitionTimeLeft;
       if (status === TimerStatus.Preparing) return currentTime;
       if (isHyroxRace && isClockFrozen) return frozenTime;
       if (isHyroxRace || block.settings.mode === TimerMode.Stopwatch) return totalTimeElapsed;
-      if (!block.settings.direction || block.settings.direction === 'down') {
-          return currentTime;
-      }
+      if (!block.settings.direction || block.settings.direction === 'down') return currentTime;
       return currentPhaseDuration - currentTime;
-  }, [status, currentTime, isHyroxRace, block.settings.mode, block.settings.direction, currentPhaseDuration, totalTimeElapsed, isClockFrozen, frozenTime]);
+  }, [status, currentTime, isHyroxRace, block.settings, currentPhaseDuration, totalTimeElapsed, isClockFrozen, frozenTime, isTransitioning, transitionTimeLeft]);
 
   const minutesStr = Math.floor(timeToDisplay / 60).toString().padStart(2, '0');
   const secondsStr = (timeToDisplay % 60).toString().padStart(2, '0');
 
   const currentIntervalInLap = (completedWorkIntervals % effectiveIntervalsPerLap) + 1;
+  const showSplitView = !!nextBlock && block.autoAdvance && !isTransitioning;
 
-  // Render Transition View
-  if (isTransitioning) {
-      return (
-          <div className="fixed inset-0 bg-gradient-to-br from-purple-800 to-indigo-950 flex flex-col items-center justify-center p-8 text-white z-[200]">
-              <motion.div 
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="text-center space-y-12 max-w-4xl"
-              >
-                  <div className="space-y-4">
-                      <span className="inline-block px-8 py-2 rounded-full bg-white/10 border border-white/20 text-2xl font-black uppercase tracking-[0.3em] mb-4">VILA</span>
-                      <h2 className="text-4xl md:text-6xl font-black uppercase tracking-tight opacity-70">Gör er redo för</h2>
-                      <h1 className="text-5xl md:text-8xl font-black text-primary uppercase tracking-tighter drop-shadow-2xl">
-                          {nextBlock?.title}
-                      </h1>
-                  </div>
+  const isRestNext = block.autoAdvance && (block.transitionTime || 0) > 0 && status !== TimerStatus.Resting;
 
-                  <div className="relative flex flex-col items-center">
-                       <div className="font-mono text-[12rem] md:text-[18rem] font-black leading-none tabular-nums animate-pulse drop-shadow-2xl">
-                          {formatSeconds(transitionTimeLeft)}
-                       </div>
-                  </div>
+  const handleInteraction = () => { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); restartHideTimer(); };
+  const restartHideTimer = React.useCallback(() => {
+    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+    if (status === TimerStatus.Running || status === TimerStatus.Resting || status === TimerStatus.Preparing || isTransitioning) {
+        hideTimeoutRef.current = window.setTimeout(() => { setControlsVisible(false); onHeaderVisibilityChange(false); setIsBackButtonHidden(true); }, 3000); 
+    }
+  }, [status, isTransitioning, onHeaderVisibilityChange, setIsBackButtonHidden]);
 
-                  <div className="flex flex-col items-center gap-8">
-                       <button 
-                          onClick={handleStartNextBlock}
-                          className="bg-white text-indigo-900 font-black py-6 px-16 rounded-[2.5rem] text-3xl shadow-[0_20px_50px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95 transition-all uppercase tracking-widest border-b-8 border-gray-300"
-                       >
-                          Starta Nu
-                       </button>
-                       <button onClick={() => onFinish({ isNatural: false })} className="text-white/40 font-bold uppercase tracking-widest hover:text-white transition-colors">Avbryta passet</button>
-                  </div>
-              </motion.div>
-          </div>
-      );
-  }
+  useEffect(() => {
+    if (controlsVisible) restartHideTimer();
+    return () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); };
+  }, [controlsVisible, restartHideTimer]);
+
+  useEffect(() => {
+    if (status === TimerStatus.Running || status === TimerStatus.Preparing || status === TimerStatus.Resting || isTransitioning) restartHideTimer();
+    else { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); }
+  }, [status, restartHideTimer, onHeaderVisibilityChange, setIsBackButtonHidden, isTransitioning]);
+
+  const isActuallyPaused = status === TimerStatus.Paused || (isTransitioning && isTransitionPaused);
+  const isActuallyFinishedOrIdle = (status === TimerStatus.Idle || status === TimerStatus.Finished) && !isTransitioning;
 
   return (
     <div 
@@ -812,14 +970,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       )}
       
       <AnimatePresence>
-        {status === TimerStatus.Paused && !showFinishAnimation && (
-            <PauseOverlay 
-                onResume={resume}
-                onRestart={handleConfirmReset}
-                onFinish={() => onFinish({ isNatural: false })}
-            />
+        {isActuallyPaused && !showFinishAnimation && (
+            <PauseOverlay onResume={isTransitioning ? () => setIsTransitionPaused(false) : resume} onRestart={handleConfirmReset} onFinish={() => onFinish({ isNatural: false })} />
         )}
-        
         {participantToEdit && (
             <EditResultModal 
                 participantName={participantToEdit}
@@ -832,15 +985,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         )}
         {showResetConfirmation && <RaceResetConfirmationModal onConfirm={handleConfirmReset} onCancel={() => setShowResetConfirmation(false)} onExit={() => onFinish({ isNatural: false })} />}
         {showBackToPrepConfirmation && <RaceBackToPrepConfirmationModal onConfirm={onBackToGroups} onCancel={() => setShowBackToPrepConfirmation(false)} />}
-        
-        {/* Next Block Banner */}
-        {block.autoAdvance && nextBlock && status === TimerStatus.Running && currentTime <= 30 && (
-            <ComingUpBanner block={block} transitionTime={block.transitionTime} nextBlockTitle={nextBlock.title} />
-        )}
       </AnimatePresence>
 
       <AnimatePresence>
-        {status !== TimerStatus.Idle && status !== TimerStatus.Paused && !showFinishAnimation && (
+        {status !== TimerStatus.Idle && !isActuallyPaused && !showFinishAnimation && (
             <motion.div 
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -848,102 +996,137 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 className="absolute top-16 z-[100]"
                 style={{ right: isHyroxRace ? `calc(${HYROX_RIGHT_PANEL_WIDTH} + 2.5rem)` : '2.5rem' }}
             >
-                <BigRoundIndicator 
-                    currentRound={currentRound} 
-                    totalRounds={totalRounds} 
-                    mode={block.settings.mode} 
-                    currentInterval={currentIntervalInLap}
-                    totalIntervalsInLap={effectiveIntervalsPerLap}
-                />
+                {!isTransitioning && (
+                    <BigRoundIndicator 
+                        currentRound={currentRound} 
+                        totalRounds={totalRounds} 
+                        mode={block.settings.mode} 
+                        currentInterval={(completedWorkIntervals % (block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1)) + 1}
+                        totalIntervalsInLap={block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1}
+                    />
+                )}
             </motion.div>
         )}
       </AnimatePresence>
 
+      {/* MAIN TIMER CARD */}
       <div 
           className={`absolute flex flex-col items-center transition-all duration-500 z-10 left-0 
               ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'} 
               ${showFullScreenColor 
                   ? `top-[12%] min-h-[50%] justify-center` 
-                  : `pt-10 pb-10 top-4 min-h-[22%] mx-4 sm:mx-6 rounded-[2.5rem] shadow-2xl ${timerStyle.bg}`
+                  : `pt-10 pb-10 top-4 min-h-[25%] mx-4 sm:mx-6 rounded-[3rem] shadow-2xl ${timerStyle.bg}`
               }`}
           style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
       >
-        <div className="mb-4 px-8 py-2 rounded-full bg-black/40 backdrop-blur-xl border border-white/20 shadow-lg z-20">
-            <span className={`font-black tracking-[0.2em] text-white uppercase drop-shadow-md text-xl md:text-2xl`}>{modeLabel}</span>
+        <div className="mb-4 px-8 py-2 rounded-full bg-black/30 backdrop-blur-xl border border-white/20 shadow-lg z-20">
+            <span className={`font-black tracking-[0.3em] text-white uppercase drop-shadow-md text-lg md:text-xl`}>{modeLabel}</span>
         </div>
 
+        {/* STATUS (ARBETE/VILA) - Överst */}
         <div className="text-center z-20 w-full px-10 mb-2">
-            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-5xl sm:text-7xl`}>{statusLabel}</h2>
+            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl overflow-visible whitespace-nowrap leading-none`}>{statusLabel}</h2>
         </div>
 
+        {/* SIFFROR (Tiden) - Mitten */}
         <div className="z-20 relative flex flex-col items-center w-full text-white">
             <div className="flex items-center justify-center w-full gap-2">
                  <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[8rem] sm:text-[10rem] md:text-[12rem]">
                     {minutesStr}:{secondsStr}
                  </span>
             </div>
-            
-            {/* Total Chain Progress */}
-            {chainInfo && (
-                <div className="w-[80%] max-w-4xl mt-6">
-                    <div className="flex justify-between items-end mb-2 px-2">
-                        <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Del {chainInfo.currentBlockInChain} av {chainInfo.totalBlocksInChain}</span>
-                        <span className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60">Totaltid: {formatSeconds(totalChainElapsed)} / {formatSeconds(chainInfo.totalChainTime)}</span>
-                    </div>
-                    <div className="h-5 bg-black/20 rounded-full overflow-hidden border border-white/10 p-1">
-                        <div 
-                            className="h-full bg-white rounded-full transition-[width] duration-1000 ease-linear shadow-[0_0_15px_rgba(255,255,255,0.5)]" 
-                            style={{ width: `${(totalChainElapsed / chainInfo.totalChainTime) * 100}%` }} 
-                        />
-                    </div>
-                </div>
-            )}
         </div>
 
-        <div className="text-center z-20 w-full px-10 mt-2">
-            <h1 className="font-black text-white/90 uppercase tracking-tighter text-2xl sm:text-3xl md:text-4xl drop-shadow-lg truncate py-2">{block.title}</h1>
+        {/* TIDSLINJE (Roadmap) - Under tiden */}
+        <div className="w-[80%] max-w-4xl mt-2 mb-2 z-20">
+            <SegmentedRoadmap 
+                chain={workoutChain} 
+                currentBlockId={block.id} 
+                totalChainElapsed={totalChainElapsed} 
+                totalChainTime={chainInfo.totalDuration}
+            />
+        </div>
+
+        {/* BLOCK RUBRIK (Stort) - Längst ner */}
+        <div className="text-center z-20 w-full px-10 mt-4 mb-2">
+            <h1 className="font-black text-white/90 uppercase tracking-tighter text-2xl sm:text-3xl md:text-4xl drop-shadow-lg overflow-visible whitespace-nowrap leading-none">
+                {block.title}
+            </h1>
         </div>
       </div>
 
-      <div className={`absolute bottom-0 left-0 flex flex-col items-center justify-start px-4 z-0 pt-8
-          ${showFullScreenColor ? 'top-[65%]' : 'top-[31%]'} 
+      {/* CONTENT AREA (Under Clock) */}
+      <div className={`absolute bottom-4 left-0 flex flex-col items-center justify-start px-4 z-0 pt-2
+          ${showFullScreenColor ? 'top-[65%]' : 'top-[28%]'} 
           ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'}`}>
           
-          <div className="w-full max-w-7xl flex flex-col items-center gap-8 h-full">
-              <AnimatePresence>
-                  {isHyroxRace && groupForCountdownDisplay && (
-                      <NextStartIndicator 
-                          groupName={groupForCountdownDisplay.name}
-                          timeLeft={timeForCountdownDisplay}
-                          groupsLeft={remainingGroupsCount}
-                      />
-                  )}
-              </AnimatePresence>
+          <div className="w-full max-w-[1500px] h-full flex flex-col">
+              {isTransitioning ? (
+                  // TRANSITION VIEW: Show NEXT block exercises BIG and FULL WIDTH
+                  <TransitionFullWidthPreview block={nextBlock!} onSkip={handleStartNextBlock} timerStyle={timerStyle} />
+              ) : (
+                  // NORMAL WORKOUT VIEW
+                  <div className="flex flex-col h-full w-full">
+                    <AnimatePresence>
+                        {isHyroxRace && groupForCountdownDisplay && (
+                            <div className="flex-shrink-0 w-full max-w-4xl mx-auto mb-2">
+                                <NextStartIndicator
+                                    groupName={groupForCountdownDisplay.name}
+                                    timeLeft={timeForCountdownDisplay}
+                                    groupsLeft={remainingGroupsCount}
+                                />
+                            </div>
+                        )}
+                    </AnimatePresence>
 
-              {block.showDescriptionInTimer && block.setupDescription && (
-                  <motion.div 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="px-8 py-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full max-w-5xl flex items-center gap-6 shadow-2xl z-10 rounded-[2.5rem]"
-                  >
-                      <div className="bg-primary/10 p-3 rounded-2xl">
-                        <InformationCircleIcon className="w-8 h-8 text-primary shrink-0" />
-                      </div>
-                      <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight">
-                          {block.setupDescription}
-                      </p>
-                  </motion.div>
+                    {block.followMe ? (
+                        // FOLLOW ME LAYOUT (Vertical stack - Bar forced to bottom)
+                        <div className="w-full flex flex-col items-center flex-grow justify-between pb-4 min-h-0">
+                            <div className="w-full flex flex-col flex-grow min-h-0">
+                                {block.showDescriptionInTimer && block.setupDescription && (
+                                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 mb-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0 mx-auto max-w-5xl">
+                                            <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
+                                            <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight uppercase">{block.setupDescription}</p>
+                                    </motion.div>
+                                )}
+                                <div className="flex-grow min-h-0">
+                                    <FollowMeView 
+                                        exercise={currentExercise} 
+                                        nextExercise={nextExercise} 
+                                        timerStyle={timerStyle} 
+                                        status={status} 
+                                        nextBlock={nextBlock && block.autoAdvance ? nextBlock : undefined}
+                                        isRestNext={isRestNext}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        // STANDARD LIST LAYOUT (Side by side if next block exists)
+                        <div className="flex gap-10 flex-grow items-stretch w-full min-h-0">
+                             <div className={`flex flex-col gap-6 transition-all duration-500 h-full min-h-0 ${showSplitView ? 'w-2/3' : 'w-full mx-auto max-w-6xl'}`}>
+                                {block.showDescriptionInTimer && block.setupDescription && (
+                                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0">
+                                            <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
+                                            <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight uppercase tracking-tight">{block.setupDescription}</p>
+                                    </motion.div>
+                                )}
+
+                                <div className="w-full flex-grow min-h-0"> 
+                                    {!isFreestanding && <StandardListView exercises={block.exercises} timerStyle={timerStyle} isHyrox={isHyroxRace} />}
+                                </div>
+                            </div>
+
+                            {/* NEXT BLOCK PREVIEW (35% width) - Endast vid stations-baserad träning */}
+                            {showSplitView ? (
+                                <div className="w-1/3 pb-6 flex flex-col justify-center">
+                                    <NextBlockPreview block={nextBlock!} />
+                                </div>
+                            ) : null}
+                        </div>
+                    )}
+                  </div>
               )}
-
-              <div className="w-full flex justify-center items-start flex-grow"> 
-                  {block.followMe ? (
-                      <FollowMeView exercise={currentExercise} nextExercise={nextExercise} timerStyle={timerStyle} status={status} />
-                  ) : (
-                      !isFreestanding && (
-                          <StandardListView exercises={block.exercises} timerStyle={timerStyle} />
-                      )
-                  )}
-              </div>
           </div>
       </div>
 
@@ -981,141 +1164,21 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           </div>
       )}
 
-      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[31%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
-            {status === TimerStatus.Idle || status === TimerStatus.Finished ? (
+      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[35%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
+            {isActuallyFinishedOrIdle ? (
                 <>
-                    <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-500 transition-colors text-xl backdrop-blur-md border-2 border-white/20">TILLBAKA</button>
-                    <button onClick={() => start()} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50">STARTA</button>
+                    <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-500 transition-colors text-xl backdrop-blur-md border-2 border-white/20 uppercase">TILLBAKA</button>
+                    <button onClick={() => start()} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50 uppercase">STARTA</button>
                 </>
-            ) : status === TimerStatus.Paused ? (
-                <button onClick={resume} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-green-400 transition-colors text-xl border-2 border-green-400">FORTSÄTT</button>
+            ) : isActuallyPaused ? (
+                <button onClick={isTransitioning ? () => setIsTransitionPaused(false) : resume} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase">FORTSÄTT</button>
             ) : (
-                <button onClick={pause} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50">PAUSA</button>
+                <button onClick={isTransitioning ? () => setIsTransitionPaused(true) : pause} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50 uppercase">PAUSA</button>
             )}
-            {isHyroxRace && status !== TimerStatus.Running && <button onClick={() => setShowBackToPrepConfirmation(true)} className="bg-gray-800/80 text-white font-bold py-4 px-8 rounded-full shadow-xl border-2 border-gray-600 hover:bg-gray-700 transition-colors text-lg">⚙️ Grupper</button>}
+            {isHyroxRace && status !== TimerStatus.Running && <button onClick={() => setShowBackToPrepConfirmation(true)} className="bg-gray-800/80 text-white font-bold py-4 px-8 rounded-full shadow-xl border-2 border-gray-600 hover:bg-gray-700 transition-colors text-lg uppercase">⚙️ Grupper</button>}
       </div>
-
-      {/* --- IDÉ-TAVLAN KOMPAKT TIMER LOGIK --- */}
-      {/* (Vi använder inte CompactTimer här men behåller referens för konsekvens) */}
     </div>
   );
 };
 
-const CompactTimer: React.FC<{ 
-    timer: any, 
-    block: WorkoutBlock, 
-    onClose: () => void, 
-    isClosing: boolean,
-    onFinish: () => void 
-}> = ({ timer, block, onClose, isClosing, onFinish }) => {
-    const minutes = Math.floor(timer.currentTime / 60).toString().padStart(2, '0');
-    const seconds = (timer.currentTime % 60).toString().padStart(2, '0');
-    
-    useEffect(() => {
-        if (timer.status === TimerStatus.Finished) {
-            onFinish();
-        }
-    }, [timer.status, onFinish]);
-
-    const timerColor = getTimerHexColor(timer.status, block.settings.mode);
-    const statusText = timer.status === TimerStatus.Resting ? 'Vila' : 
-                      timer.status === TimerStatus.Preparing ? 'Gör dig redo' : 'Arbete';
-
-    const progressPercentage = timer.totalBlockDuration > 0 
-        ? Math.min(100, Math.max(0, (timer.totalTimeElapsed / timer.totalBlockDuration) * 100))
-        : 0;
-
-    const currentIntervalInLap = (timer.completedWorkIntervals % timer.effectiveIntervalsPerLap) + 1;
-
-    return (
-        <div 
-            className={`w-[95%] md:w-[90%] mx-auto mt-4 rounded-[2rem] p-6 sm:p-8 flex flex-col items-center justify-center shadow-2xl transition-all duration-300 relative ${isClosing ? 'opacity-0 -translate-y-10' : 'opacity-100 translate-y-0'}`}
-            style={{ backgroundColor: timerColor, minHeight: '220px' }}
-        >
-            <button 
-                onClick={onClose}
-                className="absolute top-4 right-4 text-white/50 hover:text-white pointer-events-auto transition-colors"
-            >
-                <CloseIcon className="w-8 h-8" />
-            </button>
-            
-            <div className="flex w-full items-center justify-center mb-2 relative">
-                <div className="px-4 py-1 rounded-full bg-black/20 backdrop-blur-md border border-white/20 shadow-sm">
-                    <span className="font-black tracking-[0.2em] text-white uppercase text-xs sm:text-sm">
-                        {block.settings.mode.toUpperCase()}
-                    </span>
-                </div>
-            </div>
-            
-            <div className="flex flex-col items-center flex-grow justify-center">
-                <p className="text-white font-bold tracking-[0.3em] uppercase text-sm sm:text-base mb-1 drop-shadow-md opacity-90">
-                    {statusText}
-                </p>
-                <div className="font-mono text-7xl sm:text-8xl md:text-9xl leading-none font-black text-white tabular-nums drop-shadow-2xl my-2">
-                    {minutes}:{seconds}
-                </div>
-            </div>
-
-            {/* Round / Interval Display */}
-            {(block.settings.mode === TimerMode.Interval || block.settings.mode === TimerMode.Tabata || block.settings.mode === TimerMode.EMOM) && (
-                <div className="flex items-center gap-4 mt-2">
-                    {/* Lap Box */}
-                    <div className="bg-black/20 backdrop-blur-md rounded-xl py-2 px-6 flex flex-col items-center justify-center border border-white/10 shadow-lg">
-                        <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">
-                            {block.settings.mode === TimerMode.EMOM ? 'MINUT' : 'VARV'}
-                        </span>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-black text-white leading-none">{timer.currentRound}</span>
-                            <span className="text-sm font-bold text-white/60">/ {timer.totalRounds}</span>
-                        </div>
-                    </div>
-                    
-                    {/* Interval Pill - Dölj för EMOM */}
-                    {block.settings.mode !== TimerMode.EMOM && (
-                        <div className="bg-black/20 backdrop-blur-md rounded-xl px-5 py-2 flex items-center border border-white/10 h-full shadow-lg">
-                            <div className="flex flex-col items-center">
-                                 <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">INTERVALL</span>
-                                 <span className="text-xl font-bold text-white leading-none mt-0.5">{currentIntervalInLap} / {timer.effectiveIntervalsPerLap}</span>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* PROGRESS BAR */}
-            {timer.totalBlockDuration > 0 && (
-                <div className="w-full h-2 bg-black/30 rounded-full overflow-hidden backdrop-blur-md border border-white/20 shadow-inner mt-6">
-                    <motion.div 
-                        className="h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)] relative"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progressPercentage}%` }}
-                        transition={{ duration: 1, ease: "linear" }}
-                    />
-                </div>
-            )}
-            
-            <button 
-                onClick={timer.status === TimerStatus.Paused ? timer.resume : timer.pause}
-                className="absolute bottom-6 right-6 w-14 h-14 rounded-2xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-all active:scale-95 shadow-xl border border-white/20 pointer-events-auto backdrop-blur-sm"
-            >
-                {timer.status === TimerStatus.Paused ? (
-                    <svg className="w-8 h-8 fill-current" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.333-5.89a1.5 1.5 0 000-2.538L6.3 2.841z"/></svg>
-                ) : (
-                    <svg className="w-8 h-8 fill-current" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
-                )}
-            </button>
-        </div>
-    );
-};
-
-const getTimerHexColor = (status: TimerStatus, mode: TimerMode) => {
-    if (status === TimerStatus.Resting) return '#2dd4bf';
-    if (status === TimerStatus.Preparing) return '#3b82f6';
-    if (status === TimerStatus.Paused) return '#6b7280';
-    switch (mode) {
-        case TimerMode.Tabata: return '#ef4444';
-        case TimerMode.AMRAP: return '#db2777';
-        case TimerMode.EMOM: return '#9333ea';
-        default: return '#f97316';
-    }
-};
+export default TimerScreen;

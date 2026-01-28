@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma } from './types';
 
@@ -370,32 +369,39 @@ const App: React.FC = () => {
   };
 
   const handleSaveAndNavigate = async (workout: Workout, startFirstBlock?: boolean) => {
-    const workoutToSave = { ...workout, isMemberDraft: false };
+    const isMemberRole = sessionRole === 'member' || isStudioMode;
+    const workoutToSave = { ...workout, isMemberDraft: isMemberRole };
     const savedWorkout = await saveWorkout(workoutToSave);
     
     if (startFirstBlock && savedWorkout.blocks.length > 0) {
         handleStartBlock(savedWorkout.blocks[0], savedWorkout);
     } else {
         setActiveWorkout(savedWorkout);
-        navigateReplace(Page.WorkoutDetail);
-        if (sessionRole !== 'member') {
+        
+        if (isStudioMode) {
+            // På skärmen: gå till passet för att kunna starta
+            navigateReplace(Page.WorkoutDetail);
+        } else {
+            // I Admin: gå tillbaka till där vi kom ifrån (t.ex. listan)
+            handleBack();
             setPreferredAdminTab('pass-program');
         }
     }
   };
 
   const handleSaveOnly = async (workout: Workout) => {
-      return await saveWorkout({ ...workout, isMemberDraft: false });
+      const isMemberRole = sessionRole === 'member' || isStudioMode;
+      return await saveWorkout({ ...workout, isMemberDraft: isMemberRole });
   };
   
   const handleTogglePublishStatus = async (workoutId: string, isPublished: boolean) => {
     const workoutToToggle = workouts.find(w => w.id === workoutId);
-    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isPublished, isMemberDraft: false });
+    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isPublished });
   };
 
   const handleToggleFavoriteStatus = async (workoutId: string) => {
     const workoutToToggle = workouts.find(w => w.id === workoutId);
-    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isFavorite: !workoutToToggle.isFavorite, isMemberDraft: false });
+    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isFavorite: !workoutToToggle.isFavorite });
   };
 
   const handleDeleteWorkout = async (workoutId: string) => {
@@ -475,7 +481,15 @@ const App: React.FC = () => {
   };
 
   const handleSelectPasskategori = (passkategori: Passkategori) => {
-    if (!isStudioMode) setIsPickingForLog(true); 
+    if (isStudioMode) {
+        const categoryWorkouts = workouts.filter(w => w.category === passkategori && w.isPublished && !w.isMemberDraft);
+        if (categoryWorkouts.length === 1) {
+            handleSelectWorkout(categoryWorkouts[0]);
+            return;
+        }
+    } else {
+        setIsPickingForLog(true);
+    }
     setActivePasskategori(passkategori);
     navigateTo(Page.WorkoutList);
   };
@@ -498,13 +512,25 @@ const App: React.FC = () => {
   }
   
   const handleWorkoutInterpretedFromNote = (workout: Workout) => {
-    setActiveWorkout({ ...workout }); 
+    // Säkra orgId omedelbart så QR-koden fungerar direkt på detaljskärmen
+    const workoutWithOrg = { 
+        ...workout, 
+        organizationId: selectedOrganization?.id || '',
+        isMemberDraft: true 
+    };
+    setActiveWorkout(workoutWithOrg); 
     setIsEditingNewDraft(true);
     navigateTo(Page.SimpleWorkoutBuilder);
   };
   
   const handleWorkoutInterpretedFromAIPrompt = (workout: Workout) => {
-    setActiveWorkout({ ...workout });
+    // Säkra orgId omedelbart så QR-koden fungerar direkt på detaljskärmen
+    const workoutWithOrg = { 
+        ...workout, 
+        organizationId: selectedOrganization?.id || '',
+        isMemberDraft: true
+    };
+    setActiveWorkout(workoutWithOrg);
     setIsEditingNewDraft(true);
     navigateTo(Page.SimpleWorkoutBuilder);
   };
@@ -848,6 +874,9 @@ const App: React.FC = () => {
   const showSupportChat = !isStudioMode && isAdminOrCoach && isAdminFacingPage;
   const showScanButton = ((!isStudioMode && isMemberFacingPage) || (page === Page.MemberProfile)) && studioConfig.enableWorkoutLogging;
 
+  // NYTT: Villkor för att dölja den globala headern när popups är öppna
+  const isAnyModalOpen = !!(mobileLogData || mobileViewData || isSearchWorkoutOpen || isScannerOpen || activeDiploma);
+
   if (!authLoading && !currentUser && !isStudioMode) {
       if (showLogin) {
           return <LoginScreen onClose={() => setShowLogin(false)} />;
@@ -900,12 +929,13 @@ const App: React.FC = () => {
        {isStudioMode && <SpotlightOverlay />} 
        {isStudioMode && <PBOverlay />}
 
-       {(page === Page.Timer || !isFullScreenPage) && <Header 
+       {/* HEADER VISIBILITY LOGIC UPDATED TO HIDE ON MODALS */}
+       {!isAnyModalOpen && (page === Page.Timer || !isFullScreenPage) && <Header 
         page={page} 
         onBack={handleBack} 
         theme={theme}
         toggleTheme={toggleTheme}
-        isVisible={page === Page.Timer ? isTimerHeaderVisible : true}
+        isVisible={isTimerHeaderVisible}
         activeCustomPageTitle={page === Page.CustomContent ? activeCustomPage?.title : undefined}
         onSignOut={isStudioMode ? undefined : signOut}
         role={role}
@@ -919,7 +949,7 @@ const App: React.FC = () => {
         isStudioMode={isStudioMode}
       />}
 
-      <div className="flex flex-col flex-1 min-h-0 overflow-hidden relative">
+      <div className="flex flex-col items-center flex-1 min-h-0 overflow-hidden relative">
           <main 
             className={`flex-1 min-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
           >
@@ -1007,8 +1037,8 @@ const App: React.FC = () => {
                     handleStartFreestandingTimer: handleStartFreestandingTimer,
                     handleStartRace: handleStartRace,
                     handleSelectRace: handleSelectRace,
-                    handleSelectCustomPage: handleSelectCustomPage,
                     handleReturnToGroupPrep: handleReturnToGroupPrep,
+                    handleSelectCustomPage: handleSelectCustomPage,
                     
                     handleMemberProfileRequest: handleMemberProfileRequest,
                     handleEditProfileRequest: handleEditProfileRequest,

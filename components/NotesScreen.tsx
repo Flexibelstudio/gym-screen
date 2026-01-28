@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Note, Workout, StudioConfig, TimerMode, TimerStatus, WorkoutBlock, Exercise, TimerSettings } from '../types';
 import { interpretHandwriting, parseWorkoutFromImage } from '../services/geminiService';
@@ -58,14 +57,6 @@ const BoilingCauldron: React.FC<{ className?: string }> = ({ className }) => (
     </div>
 );
 
-const AILoadingSpinner: React.FC = () => (
-    <div className="relative w-6 h-6">
-        <div className="absolute w-full h-full rounded-full bg-white/70 animate-pulse-loader" style={{ animationDelay: '-1.5s' }}></div>
-        <div className="absolute w-full h-full rounded-full bg-white/70 animate-pulse-loader" style={{ animationDelay: '-1s' }}></div>
-        <div className="absolute w-full h-full rounded-full bg-white/70 animate-pulse-loader" style={{ animationDelay: '-0.5s' }}></div>
-    </div>
-);
-
 // New modal component for the archive
 interface NoteArchiveModalProps {
     notes: Note[];
@@ -120,7 +111,7 @@ const NoteArchiveModal: React.FC<NoteArchiveModalProps> = ({ notes, onClose, onD
                                             {interpretingId === note.id ? 'Tolkar...' : 'Tolka text'}
                                         </button>
                                     )}
-                                    <button onClick={() => onDelete(note.id)} className="bg-red-600 hover:bg-red-500 text-sm font-semibold py-2 px-3 rounded-md">Ta bort</button>
+                                    <button onClick={() => onDelete(note.id)} className="bg-red-600 hover:bg-red-50 text-sm font-semibold py-2 px-3 rounded-md">Ta bort</button>
                                 </div>
                             </div>
                         </div>
@@ -306,11 +297,15 @@ const IntroAnimation = ({ onSkip }: { onSkip: () => void }) => {
 interface IdeaBoardTimerSetupModalProps {
     onStart: (block: WorkoutBlock) => void;
     onClose: () => void;
+    block: WorkoutBlock;
 }
 
-const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onStart, onClose }) => {
+const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onStart, onClose, block: initialBlock }) => {
     const [mode, setMode] = useState<TimerMode>(TimerMode.Interval);
-    const [rounds, setRounds] = useState(3);
+    const [countMode, setCountMode] = useState<'laps' | 'rounds'>('laps');
+    const [varv, setVarv] = useState(3);
+    const [intervallerPerVarv, setIntervallerPerVarv] = useState(initialBlock.exercises.length || 8);
+    const [totalOmgångar, setTotalOmgångar] = useState(10);
     const [totalMinutes, setTotalMinutes] = useState(10);
     const [workMinutes, setWorkMinutes] = useState(0);
     const [workSeconds, setWorkSeconds] = useState(30);
@@ -319,9 +314,8 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
 
     useEffect(() => {
         switch(mode) {
-            case TimerMode.Interval: setRounds(3); setWorkMinutes(0); setWorkSeconds(30); setRestMinutes(0); setRestSeconds(15); break;
-            case TimerMode.AMRAP: case TimerMode.TimeCap: setTotalMinutes(10); break;
-            case TimerMode.EMOM: setRounds(10); break;
+            case TimerMode.Interval: setMode(TimerMode.Interval); break;
+            case TimerMode.AMRAP: case TimerMode.TimeCap: case TimerMode.EMOM: setTotalMinutes(10); break;
             default: break;
         }
     }, [mode]);
@@ -333,12 +327,17 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
 
         switch (mode) {
             case TimerMode.Interval:
-                settings = { ...settings, workTime: workMinutes * 60 + workSeconds, restTime: restMinutes * 60 + restSeconds, rounds: rounds };
-                exercises = [{ id: 'ex-interval', name: 'Arbete', reps: '', description: '' }];
-                break;
             case TimerMode.Tabata:
-                settings = { ...settings, workTime: 20, restTime: 10, rounds: 8 };
-                exercises = [{ id: 'ex-tabata', name: 'Arbete', reps: '', description: '' }];
+                if (countMode === 'laps') {
+                    settings.rounds = varv * intervallerPerVarv;
+                    settings.specifiedLaps = varv;
+                    settings.specifiedIntervalsPerLap = intervallerPerVarv;
+                } else {
+                    settings.rounds = totalOmgångar;
+                }
+                settings.workTime = workMinutes * 60 + workSeconds;
+                settings.restTime = restMinutes * 60 + restSeconds;
+                exercises = [{ id: 'ex-interval', name: 'Arbete', reps: '', description: '' }];
                 break;
             case TimerMode.AMRAP:
             case TimerMode.TimeCap:
@@ -346,8 +345,8 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
                 title = `${mode} ${totalMinutes} min`;
                 break;
             case TimerMode.EMOM:
-                settings = { ...settings, workTime: 60, restTime: 0, rounds: rounds };
-                title = `EMOM ${rounds} min`;
+                settings = { ...settings, workTime: 60, restTime: 0, rounds: totalMinutes };
+                title = `EMOM ${totalMinutes} min`;
                 exercises = [{ id: 'ex-emom', name: 'Intervall', reps: '', description: '' }];
                 break;
             case TimerMode.Stopwatch:
@@ -362,9 +361,23 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
         const animationClass = 'animate-fade-in';
         switch (mode) {
             case TimerMode.Interval:
+            case TimerMode.Tabata:
                 return (
                     <div className={`flex flex-col items-center gap-y-6 w-full ${animationClass}`}>
-                        <ValueAdjuster label="ANTAL OMGÅNGAR" value={rounds} onchange={setRounds} />
+                        <div className="flex bg-gray-700 p-1 rounded-lg">
+                            <button onClick={() => setCountMode('laps')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${countMode === 'laps' ? 'bg-white text-black shadow-sm' : 'text-gray-300'}`}>Varv & Intervaller</button>
+                            <button onClick={() => setCountMode('rounds')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${countMode === 'rounds' ? 'bg-white text-black shadow-sm' : 'text-gray-300'}`}>Omgångar</button>
+                        </div>
+                        
+                        {countMode === 'laps' ? (
+                            <div className="flex gap-6">
+                                <ValueAdjuster label="VARV" value={varv} onchange={setVarv} />
+                                <ValueAdjuster label="STATIONER" value={intervallerPerVarv} onchange={setIntervallerPerVarv} />
+                            </div>
+                        ) : (
+                            <ValueAdjuster label="TOTALA OMGÅNGAR" value={totalOmgångar} onchange={setTotalOmgångar} />
+                        )}
+
                         <div className="flex flex-col items-center w-full">
                             <span className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-2">Arbetstid</span>
                             <div className="flex gap-4">
@@ -381,20 +394,11 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
                         </div>
                     </div>
                 );
-            case TimerMode.Tabata:
-                return (
-                    <div className={`text-center text-gray-300 p-4 ${animationClass}`}>
-                        <h4 className="font-bold text-white text-lg">Standard Tabata</h4>
-                        <p className="mt-2">8 omgångar</p>
-                        <p>20 sekunder arbete</p>
-                        <p>10 sekunder vila</p>
-                    </div>
-                );
             case TimerMode.AMRAP:
             case TimerMode.TimeCap:
-                 return <div className={animationClass}><ValueAdjuster label="TOTAL TID (MINUTER)" value={totalMinutes} onchange={setTotalMinutes} /></div>;
+                 return <div className={animationClass}><ValueAdjuster label="TID (MINUTER)" value={totalMinutes} onchange={setTotalMinutes} /></div>;
             case TimerMode.EMOM:
-                 return <div className={animationClass}><ValueAdjuster label="TOTAL TID (MINUTER)" value={rounds} onchange={setRounds} /></div>;
+                 return <div className={animationClass}><ValueAdjuster label="TOTAL TID (MINUTER)" value={totalMinutes} onchange={setTotalMinutes} /></div>;
             case TimerMode.Stopwatch:
                 return (
                      <div className={`text-center text-gray-300 p-4 ${animationClass}`}>
@@ -417,13 +421,24 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
                 <div className="bg-black/30 rounded-lg p-6 min-h-[200px] flex flex-col justify-center items-center">
                     {renderSettings()}
                 </div>
-                <button onClick={handleStartTimer} className="w-full bg-primary text-white font-bold py-3 rounded-lg hover:brightness-110 transition-colors">Starta Timer</button>
+                <button onClick={handleStartTimer} className="w-full bg-primary text-white font-bold py-3 rounded-lg hover:brightness-110 transition-colors uppercase tracking-widest">Starta Timer</button>
             </div>
         </Modal>
     );
 };
 
 const cleanExerciseName = (name: string) => name.split('(')[0].trim();
+
+// NYTT: Funktion för att filtrera bort tidsangivelser från reps-strängen
+const filterTimeFromReps = (reps: string): string => {
+    if (!reps) return '';
+    const lower = reps.toLowerCase();
+    // Om strängen innehåller "sek" eller "min", filtrera bort den
+    if (lower.includes('sek') || lower.includes('min') || lower.includes('minut')) {
+        return '';
+    }
+    return reps;
+};
 
 const getTimerHexColor = (status: TimerStatus, mode: TimerMode) => {
     if (status === TimerStatus.Resting) return '#2dd4bf';
@@ -456,12 +471,6 @@ const CompactTimer: React.FC<{
     const statusText = timer.status === TimerStatus.Resting ? 'Vila' : 
                       timer.status === TimerStatus.Preparing ? 'Gör dig redo' : 'Arbete';
 
-    const formatDuration = (seconds: number) => {
-      const m = Math.floor(seconds / 60);
-      const s = seconds % 60;
-      return `${m}:${s.toString().padStart(2, '0')}`;
-    };
-
     const progressPercentage = timer.totalBlockDuration > 0 
         ? Math.min(100, Math.max(0, (timer.totalTimeElapsed / timer.totalBlockDuration) * 100))
         : 0;
@@ -481,7 +490,6 @@ const CompactTimer: React.FC<{
             </button>
             
             <div className="flex w-full items-center justify-center mb-2 relative">
-                 {/* Mode Badge - Centered */}
                 <div className="px-4 py-1 rounded-full bg-black/20 backdrop-blur-md border border-white/20 shadow-sm">
                     <span className="font-black tracking-[0.2em] text-white uppercase text-xs sm:text-sm">
                         {block.settings.mode.toUpperCase()}
@@ -498,10 +506,8 @@ const CompactTimer: React.FC<{
                 </div>
             </div>
 
-            {/* Round / Interval Display */}
             {(block.settings.mode === TimerMode.Interval || block.settings.mode === TimerMode.Tabata) && (
                 <div className="flex items-center gap-4 mt-2">
-                    {/* Lap Box */}
                     <div className="bg-black/20 backdrop-blur-md rounded-xl py-2 px-6 flex flex-col items-center justify-center border border-white/10 shadow-lg">
                         <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">VARV</span>
                         <div className="flex items-baseline gap-1">
@@ -510,7 +516,6 @@ const CompactTimer: React.FC<{
                         </div>
                     </div>
                     
-                    {/* Interval Pill */}
                     <div className="bg-black/20 backdrop-blur-md rounded-xl px-5 py-2 flex items-center border border-white/10 h-full shadow-lg">
                         <div className="flex flex-col items-center">
                              <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">INTERVALL</span>
@@ -520,7 +525,6 @@ const CompactTimer: React.FC<{
                 </div>
             )}
 
-            {/* PROGRESS BAR */}
             {timer.totalBlockDuration > 0 && (
                 <div className="w-full h-2 bg-black/30 rounded-full overflow-hidden backdrop-blur-md border border-white/20 shadow-inner mt-6">
                     <motion.div 
@@ -532,7 +536,6 @@ const CompactTimer: React.FC<{
                 </div>
             )}
             
-            {/* Pause/Play Button Floating on the side */}
             <button 
                 onClick={timer.status === TimerStatus.Paused ? timer.resume : timer.pause}
                 className="absolute bottom-6 right-6 w-14 h-14 rounded-2xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-all active:scale-95 shadow-xl border border-white/20 pointer-events-auto backdrop-blur-sm"
@@ -560,7 +563,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const [isArchiveVisible, setIsArchiveVisible] = useState(false);
     const [isInfoModalVisible, setIsInfoModalVisible] = useState(false);
     
-    // Drawing Color State - Default to White for Dark Mode
     const [drawingColor, setDrawingColor] = useState<string>('#FFFFFF');
     
     const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
@@ -585,7 +587,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const [controlsVisible, setControlsVisible] = useState(true);
     const hideTimeoutRef = useRef<number | null>(null);
 
-    // Simplified COLORS since we only have one theme now
     const COLORS = [
         { hex: '#FFFFFF', label: 'Vit' },
         { hex: '#FACC15', label: 'Gul' },
@@ -602,7 +603,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             clearTimeout(hideTimeoutRef.current);
         }
         
-        // Auto-hide only when the timer is active
         if (isTimerActive) {
             hideTimeoutRef.current = window.setTimeout(() => {
                 setControlsVisible(false);
@@ -663,7 +663,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
 
     const handleTimerFinish = useCallback(() => {
         if (timerBlock) {
-            // Create a dummy workout to pass context to the modal
             const dummyWorkout: Workout = {
                 id: `notes-workout-${Date.now()}`,
                 title: timerBlock.title,
@@ -671,8 +670,8 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 coachTips: '',
                 category: 'Idé-tavlan',
                 isPublished: false,
-                createdAt: Date.now(), // Added
-                organizationId: '', // Added, handled internally or via context in modal
+                createdAt: Date.now(),
+                organizationId: '',
             };
             setCompletionInfo({ 
                 workout: dummyWorkout, 
@@ -682,10 +681,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             });
         }
     }, [timerBlock, timer.totalTimeElapsed]);
-
-    const handleCloseWorkoutCompleteModal = () => {
-        setCompletionInfo(null);
-    };
 
     const handleToggleTimer = useCallback(() => {
         if (timerBlock) {
@@ -737,15 +732,10 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 canvas.width = newCanvasWidth;
                 canvas.height = newCanvasHeight;
                 
-                // Redraw last block if canvas size changes
                 if (lastDrawnBlock) {
                     setTimeout(() => {
-                         if (timerBlock) {
-                             const color = getTimerHexColor(timer.status, timerBlock.settings.mode);
-                             drawCircuitOnCanvas(lastDrawnBlock, color);
-                         } else {
-                             drawCircuitOnCanvas(lastDrawnBlock); 
-                         }
+                         const color = timerBlock ? getTimerHexColor(timer.status, timerBlock.settings.mode) : undefined;
+                         drawCircuitOnCanvas(lastDrawnBlock, color);
                     }, 50);
                 } else if (history.length > 0) {
                      ctx.fillStyle = '#030712';
@@ -759,7 +749,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             }
             
             ctx.fillStyle = '#030712';
-            // Default stroke style for initialization
             ctx.strokeStyle = '#FFFFFF';
             ctx.lineWidth = 4 * dpr;
             ctx.lineCap = 'round';
@@ -786,7 +775,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             isDrawing.current = true;
             points.current = [getPointerPos(e)];
             
-            // Set the color for this specific stroke based on current state
             const ctx = canvas.getContext('2d');
             if (ctx) {
                 ctx.strokeStyle = drawingColor;
@@ -963,51 +951,55 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             return;
         }
 
-        // --- NEW RECTANGULAR LAYOUT LOGIC ---
-        // DRAWING BOX CALCULATION
         const isTimerActive = !!timerBlock;
-        
-        // Define margins
-        const sidePadding = canvas.width * 0.12; // 12% side margins
-        const timerSafeZone = isTimerActive ? canvas.height * 0.30 : canvas.height * 0.10; 
-        const bottomPadding = canvas.height * 0.15; // Room for controls at bottom
+        // VIKTIGT: Återställ marginalerna mot kanterna för att få största möjliga rityta inuti.
+        const sidePadding = canvas.width * 0.12; 
+        const timerSafeZone = isTimerActive ? canvas.height * 0.32 : canvas.height * 0.10; 
+        const bottomPadding = canvas.height * 0.15; 
 
-        // Calculate available area
         const availableHeight = canvas.height - timerSafeZone - bottomPadding;
         const availableWidth = canvas.width - (sidePadding * 2);
 
-        // Center within available area
         const w = availableWidth;
         const h = availableHeight;
         const x = sidePadding;
-        const y = timerSafeZone + (availableHeight - h) / 2; // Centers within safe area height-wise
-        const radius = 80 * dpr; // More rounded corners for modern look
+        const y = timerSafeZone;
+        const radius = 60 * dpr; 
 
         const textColor = '#FFFFFF';
         const accentColor = overrideColor || '#14b8a6'; 
 
-        // Layer 1: The Rounded Rect Track
+        // RITA BANAN
         ctx.beginPath();
         ctx.roundRect(x, y, w, h, radius);
         ctx.strokeStyle = '#374151';
-        ctx.lineWidth = 18 * dpr; // Slightly thicker track
+        ctx.lineWidth = 15 * dpr; 
         ctx.stroke();
         
         const count = exercises.length;
         const perimeter = 2 * (w + h);
         const step = perimeter / count;
 
-        // Function to split text into multiple lines
+        const getPointOnRect = (dist: number) => {
+            let d = dist % perimeter;
+            if (d < w) return { x: x + d, y: y, side: 'top' };
+            d -= w;
+            if (d < h) return { x: x + w, y: y + d, side: 'right' };
+            d -= h;
+            if (d < w) return { x: x + w - d, y: y + h, side: 'bottom' };
+            d -= w;
+            return { x: x, y: y + h - d, side: 'left' };
+        };
+
         const splitTextIntoLines = (text: string): string[] => {
-            if (text.length <= 12) return [text];
+            // Tillåt lite längre rader nu när banan är bredare
+            if (text.length <= 16) return [text];
             const words = text.split(' ');
-            if (words.length === 1) return [text];
-            
+            if (words.length === 1) return [text.substring(0, 16), text.substring(16)];
             const lines: string[] = [];
             let currentLine = words[0];
-            
             for (let i = 1; i < words.length; i++) {
-                if ((currentLine + words[i]).length < 14) {
+                if ((currentLine + " " + words[i]).length < 18) {
                     currentLine += " " + words[i];
                 } else {
                     lines.push(currentLine);
@@ -1018,101 +1010,90 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             return lines;
         };
 
-        const getPointOnRect = (dist: number) => {
-            let d = dist % perimeter;
-            if (d < w/2) return { x: x + w/2 + d, y: y, side: 'top' };
-            d -= w/2;
-            if (d < h) return { x: x + w, y: y + d, side: 'right' };
-            d -= h;
-            if (d < w) return { x: x + w - d, y: y + h, side: 'bottom' };
-            d -= h;
-            if (d < h) return { x: x, y: y + h - d, side: 'left' };
-            d -= h;
-            return { x: x + d, y: y, side: 'top' };
-        };
-
         exercises.forEach((ex, index) => {
             const dist = index * step;
             const pos = getPointOnRect(dist);
             
-            // Draw Station Circle
+            // Station-cirkel
             ctx.beginPath();
-            ctx.arc(pos.x, pos.y, 42 * dpr, 0, 2 * Math.PI); 
+            ctx.arc(pos.x, pos.y, 38 * dpr, 0, 2 * Math.PI); 
             ctx.fillStyle = '#030712'; 
             ctx.fill();
 
             ctx.beginPath();
-            ctx.arc(pos.x, pos.y, 36 * dpr, 0, 2 * Math.PI); 
+            ctx.arc(pos.x, pos.y, 32 * dpr, 0, 2 * Math.PI); 
             ctx.fillStyle = accentColor;
             ctx.fill();
             
             ctx.fillStyle = '#FFFFFF'; 
-            ctx.font = `black ${32 * dpr}px sans-serif`; 
+            ctx.font = `bold ${28 * dpr}px sans-serif`; 
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
             ctx.fillText(String(index + 1), pos.x, pos.y);
 
-            // Calculate text position relative to track
-            const textOffset = 65 * dpr;
+            // TEXTPLACERING - RITA INÅT MOT MITTEN
+            const textOffset = 75 * dpr;
             let textX = pos.x;
             let textY = pos.y;
             let align: CanvasTextAlign = 'center';
+            let baseline: CanvasTextBaseline = 'middle';
 
             if (pos.side === 'top') {
                 textY += textOffset;
+                baseline = 'top';
             } else if (pos.side === 'right') {
                 textX -= textOffset;
                 align = 'right';
             } else if (pos.side === 'bottom') {
                 textY -= textOffset;
+                baseline = 'bottom';
             } else if (pos.side === 'left') {
                 textX += textOffset;
                 align = 'left';
             }
 
-            // Text processing
             const name = cleanExerciseName(ex.name);
             const lines = splitTextIntoLines(name);
-
-            // Filter out "(Ej angivet)" or variations
-            const repsRaw = ex.reps || '';
-            const isInvalidReps = repsRaw.toLowerCase().includes('ej angivet') || repsRaw.trim() === '';
-            const repsStr = isInvalidReps ? '' : `(${repsRaw})`;
             
-            let fontSize = 38 * dpr; // Much larger base font
+            // FILTRERA BORT TID FRÅN REPS
+            const repsRaw = filterTimeFromReps(ex.reps || '');
+            const repsStr = repsRaw.toLowerCase().includes('ej angivet') || repsRaw.trim() === '' ? '' : `(${repsRaw})`;
+            
+            let fontSize = 34 * dpr; 
             ctx.font = `bold ${fontSize}px sans-serif`;
-            
             ctx.fillStyle = textColor;
             ctx.textAlign = align;
-            ctx.textBaseline = 'middle';
+            ctx.textBaseline = baseline;
             
-            // Subtle drop shadow for text
-            ctx.shadowColor = "rgba(0,0,0,0.5)";
-            ctx.shadowBlur = 4 * dpr;
-            ctx.shadowOffsetX = 2 * dpr;
-            ctx.shadowOffsetY = 2 * dpr;
-
             const lineHeight = fontSize * 1.1;
             const totalTextHeight = lines.length * lineHeight;
             
             lines.forEach((line, i) => {
-                const yPos = textY - (totalTextHeight/2) + (i * lineHeight) + (lineHeight/2);
+                let yPos = textY;
+                if (pos.side === 'top') {
+                    yPos = textY + (i * lineHeight);
+                } else if (pos.side === 'bottom') {
+                    yPos = textY - ((lines.length - 1 - i) * lineHeight);
+                    if (repsStr) yPos -= lineHeight;
+                } else {
+                    yPos = textY - (totalTextHeight/2) + (i * lineHeight) + (lineHeight/2);
+                }
                 ctx.fillText(line, textX, yPos);
             });
             
-            // Reps on own line at bottom
             if (repsStr) {
-                ctx.font = `bold ${fontSize * 0.7}px sans-serif`;
+                ctx.font = `bold ${fontSize * 0.8}px sans-serif`;
                 ctx.fillStyle = accentColor;
-                const repsY = textY + (totalTextHeight/2) + (lineHeight/2);
+                let repsY = textY;
+                if (pos.side === 'top') {
+                    repsY = textY + (lines.length * lineHeight);
+                } else if (pos.side === 'bottom') {
+                    repsY = textY;
+                } else {
+                    repsY = textY + (totalTextHeight/2) + (lineHeight/2);
+                }
                 ctx.fillText(repsStr, textX, repsY);
             }
-
-            // Reset shadow
-            ctx.shadowColor = "transparent";
-            ctx.shadowBlur = 0;
-            ctx.shadowOffsetX = 0;
-            ctx.shadowOffsetY = 0;
         });
 
         setHistory([ctx.getImageData(0, 0, canvas.width, canvas.height)]);
@@ -1123,15 +1104,10 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
 
     useEffect(() => {
         if (lastDrawnBlock) {
-             if (timerBlock) {
-                 const color = getTimerHexColor(timer.status, timerBlock.settings.mode);
-                 drawCircuitOnCanvas(lastDrawnBlock, color);
-             } else {
-                 drawCircuitOnCanvas(lastDrawnBlock); 
-             }
+             const color = timerBlock ? getTimerHexColor(timer.status, timerBlock.settings.mode) : undefined;
+             drawCircuitOnCanvas(lastDrawnBlock, color);
         }
     }, [timer.status, timerBlock, lastDrawnBlock, drawCircuitOnCanvas]);
-
 
     const handleLoadNote = (note: Note) => { 
         const canvas = canvasRef.current;
@@ -1157,13 +1133,11 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             onMouseMove={handleInteraction} 
             onTouchStart={handleInteraction}
         >
-            {/* Top Toolbar (Floating) */}
             <div className={`absolute top-4 right-4 z-20 flex items-center gap-2 transition-all duration-500 ${!controlsVisible ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
                 <button onClick={() => setIsArchiveVisible(true)} className="bg-gray-600/80 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition-colors backdrop-blur-sm shadow-md" disabled={animationState !== 'finished'}>Arkiv ({savedNotes.length})</button>
                 <button onClick={() => setIsInfoModalVisible(true)} className="bg-gray-600/80 hover:bg-gray-500 text-white font-bold p-2 rounded-lg transition-colors backdrop-blur-sm shadow-md" title="Om Idé-tavlan" disabled={animationState !== 'finished'}><InformationCircleIcon className="w-6 h-6" /></button>
             </div>
 
-            {/* Back Button */}
             <button 
                 onClick={onBack}
                 className={`absolute top-4 left-4 z-20 bg-gray-600/80 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition-all duration-500 backdrop-blur-sm shadow-md flex items-center gap-2 ${!controlsVisible ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`}
@@ -1174,7 +1148,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 <span>Tillbaka</span>
             </button>
 
-            {/* Timer Overlay (Top Center) */}
             {timerBlock && (
                 <div className="absolute top-0 left-0 right-0 z-30 transition-all duration-300 pointer-events-none flex justify-center">
                      <div className="w-full pointer-events-auto">
@@ -1189,7 +1162,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 </div>
             )}
             
-            {/* Main Canvas Area (Background) */}
             <div ref={containerRef} className="absolute inset-0 w-full h-full z-0 bg-gray-800 transition-colors" style={{ touchAction: 'none' }}>
                 {animationState !== 'finished' && (
                     <div className={`absolute inset-0 z-10 transition-opacity duration-500 ${animationState === 'exiting' ? 'opacity-0' : 'opacity-100'}`} style={{ pointerEvents: animationState === 'exiting' ? 'none' : 'auto' }}><IntroAnimation onSkip={skipAnimation} /></div>
@@ -1197,10 +1169,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 <canvas ref={canvasRef} className="w-full h-full block" />
             </div>
             
-            {/* Bottom Toolbar (Floating) */}
             <div className={`absolute bottom-0 left-0 right-0 z-20 p-6 flex flex-col gap-4 items-center transition-all duration-500 ${!controlsVisible ? 'opacity-0 translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'} pointer-events-none`}>
-                
-                {/* Color Palette */}
                 <div className="flex justify-center gap-3 pointer-events-auto bg-black/20 backdrop-blur-sm p-2 rounded-full">
                     {effectiveColors.map(color => (
                         <button
@@ -1214,7 +1183,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                     ))}
                 </div>
 
-                {/* Actions */}
                 <div className="flex flex-wrap justify-center gap-4 pointer-events-auto">
                     <button onClick={handleUndo} disabled={history.length === 0 || animationState !== 'finished'} className="bg-gray-600/90 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg transition-colors backdrop-blur-sm shadow-lg">Ångra</button>
                     <button onClick={clearCanvas} disabled={animationState !== 'finished'} className="bg-gray-600/90 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg backdrop-blur-sm shadow-lg">Rensa</button>
@@ -1227,7 +1195,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 </div>
             </div>
 
-            {/* Modals & Overlays */}
             {isInterpretingWorkout && (
                 <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md flex flex-col items-center justify-center z-50 p-8 text-center animate-fade-in"><BoilingCauldron className="w-48 h-48" /><p className="text-5xl text-white mt-4 font-logo">Kokar ihop ditt pass</p></div>
             )}
@@ -1237,7 +1204,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             {blockForCircuit && <CircuitReorderModal block={blockForCircuit} onConfirm={drawCircuitOnCanvas} onCancel={() => setBlockForCircuit(null)} />}
             {isArchiveVisible && <NoteArchiveModal notes={savedNotes} onClose={() => setIsArchiveVisible(false)} onDelete={handleDeleteNoteAction} onUpdate={handleUpdateNoteAction} onLoad={handleLoadNote} />}
             {isInfoModalVisible && <IdeaBoardInfoModal onClose={() => setIsInfoModalVisible(false)} />}
-            {isTimerSetupVisible && <IdeaBoardTimerSetupModal onStart={handleStartTimerSetup} onClose={() => setIsTimerSetupVisible(false)} />}
+            {isTimerSetupVisible && <IdeaBoardTimerSetupModal onStart={handleStartTimerSetup} onClose={() => setIsTimerSetupVisible(false)} block={lastDrawnBlock || { exercises: [] } as any} />}
             {completionInfo && <WorkoutCompleteModal isOpen={!!completionInfo} onClose={() => setCompletionInfo(null)} workout={completionInfo.workout} isFinalBlock={completionInfo.isFinal} blockTag={completionInfo.blockTag} finishTime={completionInfo.finishTime} organizationId={studioConfig?.id || ''} />}
         </div>
     );

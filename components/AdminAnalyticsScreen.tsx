@@ -1,10 +1,11 @@
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { SparklesIcon, ChartBarIcon, PaperAirplaneIcon, LightningIcon, FireIcon, UsersIcon, ClockIcon, HeartIcon, DumbbellIcon } from './icons';
+import { SparklesIcon, ChartBarIcon, PaperAirplaneIcon, LightningIcon, FireIcon, UsersIcon, ClockIcon, HeartIcon, DumbbellIcon, CloseIcon } from './icons';
 import { useStudio } from '../context/StudioContext';
 import { getOrganizationLogs } from '../services/firebaseService';
 import { WorkoutLog } from '../types';
 import { askAdminAnalytics, generateBusinessActions } from '../services/geminiService';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Modal } from './ui/Modal';
 
 const ChatMessageContent: React.FC<{ content: string }> = ({ content }) => {
     const renderMarkdown = () => {
@@ -36,7 +37,7 @@ const ChatMessageContent: React.FC<{ content: string }> = ({ content }) => {
             } else if (processedLine.startsWith('### ')) {
                 closeListIfNeeded();
                 htmlElements.push(`<h4 class="text-lg font-bold mt-4 mb-2">${processedLine.substring(4)}</h4>`);
-            } else if (processedLine.startsWith('**') && processedLine.endsWith('**')) { // Bold headers fix
+            } else if (processedLine.startsWith('**') && processedLine.endsWith('**')) {
                  closeListIfNeeded();
                  htmlElements.push(`<p class="font-bold mt-2">${processedLine.replace(/\*\*/g, '')}</p>`);
             } else {
@@ -59,7 +60,8 @@ const InsightCard: React.FC<{
     sub: string; 
     icon: React.ReactNode; 
     gradient: string; 
-}> = ({ title, value, sub, icon, gradient }) => (
+    extra?: React.ReactNode;
+}> = ({ title, value, sub, icon, gradient, extra }) => (
     <div className={`relative overflow-hidden rounded-3xl p-6 ${gradient} text-white shadow-lg transition-transform hover:scale-[1.02]`}>
         <div className="relative z-10 flex flex-col h-full justify-between">
             <div className="flex items-start justify-between mb-4">
@@ -69,21 +71,22 @@ const InsightCard: React.FC<{
                 </div>
             </div>
             <div>
-                <p className="text-3xl lg:text-4xl font-black tracking-tight mb-1 truncate">{value}</p>
-                <p className="text-xs font-bold text-white/70">{sub}</p>
+                <div className="flex flex-col">
+                    <p className={`font-black tracking-tight mb-1 leading-tight ${typeof value === 'string' && value.length > 12 ? 'text-lg sm:text-xl lg:text-2xl' : 'text-3xl lg:text-4xl'}`}>
+                        {value}
+                    </p>
+                    {extra}
+                </div>
+                <p className="text-xs font-bold text-white/70 mt-1">{sub}</p>
             </div>
         </div>
-        {/* Decorative elements */}
         <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-white/5 to-transparent pointer-events-none"></div>
     </div>
 );
 
-// --- Sentiment Analysis Widget ---
-
-const SentimentDashboard: React.FC<{ logs: WorkoutLog[] }> = ({ logs }) => {
+const SentimentDashboard: React.FC<{ logs: WorkoutLog[], onDayClick: (date: string, dayLogs: WorkoutLog[]) => void }> = ({ logs, onDayClick }) => {
     
-    // Helper to categorize tags
     const getTagCategory = (tag: string) => {
         const lower = tag.toLowerCase();
         if (['pigg', 'stark', 'bra musik', 'bra pepp', 'grymt pass'].some(k => lower.includes(k))) return 'positive';
@@ -93,27 +96,25 @@ const SentimentDashboard: React.FC<{ logs: WorkoutLog[] }> = ({ logs }) => {
 
     const { tagCounts, dailyStats } = useMemo(() => {
         const counts: Record<string, number> = {};
-        const daily: Record<string, { date: Date, tags: string[] }> = {};
+        const daily: Record<string, { date: Date, tags: string[], dayLogs: WorkoutLog[] }> = {};
 
-        // 1. Initialize last 14 days
         for (let i = 13; i >= 0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
             const dateKey = d.toISOString().split('T')[0];
-            daily[dateKey] = { date: d, tags: [] };
+            daily[dateKey] = { date: d, tags: [], dayLogs: [] };
         }
 
-        // 2. Populate Data
         logs.forEach(log => {
             const dateKey = new Date(log.date).toISOString().split('T')[0];
-            
-            if (log.tags) {
-                log.tags.forEach(tag => {
-                    counts[tag] = (counts[tag] || 0) + 1;
-                    if (daily[dateKey]) {
+            if (daily[dateKey]) {
+                daily[dateKey].dayLogs.push(log);
+                if (log.tags) {
+                    log.tags.forEach(tag => {
+                        counts[tag] = (counts[tag] || 0) + 1;
                         daily[dateKey].tags.push(tag);
-                    }
-                });
+                    });
+                }
             }
         });
 
@@ -138,14 +139,12 @@ const SentimentDashboard: React.FC<{ logs: WorkoutLog[] }> = ({ logs }) => {
                     <HeartIcon className="w-6 h-6" />
                 </div>
                 <div>
-                    <h3 className="text-xl font-black text-gray-900 dark:text-white">Atmosfär & Mående</h3>
+                    <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Atmosfär & Mående</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Vad säger medlemmarna om passen?</p>
                 </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                
-                {/* Left: Tag Rankings */}
                 <div className="space-y-6">
                     <div>
                         <h4 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3">Topp Vibbar (Positivt)</h4>
@@ -182,7 +181,6 @@ const SentimentDashboard: React.FC<{ logs: WorkoutLog[] }> = ({ logs }) => {
                     </div>
                 </div>
 
-                {/* Right: Daily Grid */}
                 <div className="bg-gray-50 dark:bg-gray-900/50 rounded-3xl p-6 border border-gray-100 dark:border-gray-800/50">
                     <div className="flex justify-between items-center mb-6">
                         <h4 className="text-xs font-bold uppercase tracking-widest text-gray-500">Senaste 14 dagarna</h4>
@@ -193,10 +191,11 @@ const SentimentDashboard: React.FC<{ logs: WorkoutLog[] }> = ({ logs }) => {
                     </div>
                     
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                        {dailyStats.map(({ date, tags }, i) => {
+                        {dailyStats.map(({ date, tags, dayLogs }, i) => {
+                            const dateKey = date.toISOString().split('T')[0];
                             const dominant = getDominantTagForDay(tags);
                             const category = dominant ? getTagCategory(dominant) : 'neutral';
-                            const count = tags.length;
+                            const count = dayLogs.length;
                             
                             let colorClass = 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400';
                             if (count > 0) {
@@ -206,20 +205,29 @@ const SentimentDashboard: React.FC<{ logs: WorkoutLog[] }> = ({ logs }) => {
                             }
 
                             return (
-                                <div key={i} className={`p-3 rounded-2xl border flex flex-col justify-between aspect-square transition-all ${colorClass}`}>
+                                <button 
+                                    key={i} 
+                                    onClick={() => count > 0 && onDayClick(dateKey, dayLogs)}
+                                    className={`group relative p-3 rounded-2xl border flex flex-col justify-between aspect-square transition-all ${count > 0 ? 'hover:scale-105 active:scale-95 cursor-pointer' : 'cursor-default'} ${colorClass}`}
+                                >
                                     <span className={`text-[10px] font-bold uppercase tracking-wide ${count > 0 ? 'opacity-80' : 'opacity-50'}`}>
                                         {date.toLocaleDateString('sv-SE', { weekday: 'short', day: 'numeric' })}
                                     </span>
                                     <div className="mt-1">
                                         {dominant ? (
-                                            <p className="text-xs font-black truncate leading-tight" title={dominant}>
+                                            <p className="text-[10px] font-black truncate leading-tight" title={dominant}>
                                                 "{dominant}"
                                             </p>
                                         ) : (
                                             <div className="h-1 w-4 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
                                         )}
                                     </div>
-                                </div>
+                                    {count > 0 && (
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 rounded-2xl transition-opacity flex items-center justify-center">
+                                            <span className="text-[8px] font-black text-white uppercase tracking-widest">Visa detaljer</span>
+                                        </div>
+                                    )}
+                                </button>
                             );
                         })}
                     </div>
@@ -234,19 +242,25 @@ export const AdminAnalyticsScreen: React.FC = () => {
   const [logs, setLogs] = useState<WorkoutLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Chat State
   const [chatInput, setChatInput] = useState('');
   const [chatHistory, setChatHistory] = useState<{ role: 'user' | 'ai'; text: string }[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // Modal State for Day Analysis
+  const [selectedDay, setSelectedDay] = useState<{ date: string, logs: WorkoutLog[] } | null>(null);
+
   useEffect(() => {
+    // Tvinga scroll till toppen när vyn laddas
+    const mainContainer = document.querySelector('main');
+    if (mainContainer) mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
+    else window.scrollTo({ top: 0, behavior: 'smooth' });
+
     if (selectedOrganization) {
         const fetchLogs = async () => {
             setIsLoading(true);
             try {
-                // Fetch more logs for better analytics
-                const data = await getOrganizationLogs(selectedOrganization.id, 200);
+                const data = await getOrganizationLogs(selectedOrganization.id, 500);
                 setLogs(data);
             } catch (e) {
                 console.error("Failed to fetch logs", e);
@@ -262,53 +276,49 @@ export const AdminAnalyticsScreen: React.FC = () => {
       chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [chatHistory]);
 
-  // --- Insight Calculations ---
   const insights = useMemo(() => {
       if (logs.length === 0) return null;
-
       const now = new Date();
       const todayStr = now.toISOString().split('T')[0];
-
-      // 1. Today's Logs
       const todayCount = logs.filter(l => new Date(l.date).toISOString().split('T')[0] === todayStr).length;
 
-      // 2. Most Popular Workout
       const workoutCounts: Record<string, number> = {};
-      logs.forEach(l => {
-          workoutCounts[l.workoutTitle] = (workoutCounts[l.workoutTitle] || 0) + 1;
-      });
+      logs.forEach(l => { workoutCounts[l.workoutTitle] = (workoutCounts[l.workoutTitle] || 0) + 1; });
       const sortedWorkouts = Object.entries(workoutCounts).sort((a, b) => (b[1] as number) - (a[1] as number));
       const mostPopular = sortedWorkouts.length > 0 ? sortedWorkouts[0] : ['-', 0];
 
-      // 3. Unique Members
       const uniqueMembers = new Set(logs.map(l => l.memberId)).size;
 
-      // 4. Peak Hour
       const hours: Record<number, number> = {};
+      let differentHoursCount = 0;
       logs.forEach(l => {
-          const h = new Date(l.date).getHours();
+          const d = new Date(l.date);
+          const h = d.getHours();
+          if (!hours[h]) differentHoursCount++;
           hours[h] = (hours[h] || 0) + 1;
       });
-      const peakHourEntry = Object.entries(hours).sort((a, b) => (b[1] as number) - (a[1] as number))[0];
-      const peakHour = peakHourEntry ? `${peakHourEntry[0]}:00` : '-';
+      
+      const sortedHours = Object.entries(hours).sort((a, b) => (b[1] as number) - (a[1] as number));
+      const peakHourEntry = sortedHours[0];
+      
+      // Filter: Om alla loggar ligger på exakt samma timme och det är nattetid (0,1,2),
+      // så antar vi att det är "tidslös" historisk data och visar ingenting.
+      const isLikelyMidnightDefault = differentHoursCount === 1 && [0, 1, 2].includes(Number(peakHourEntry[0]));
+      
+      const peakHour = (peakHourEntry && !isLikelyMidnightDefault) 
+        ? `Kl. ${peakHourEntry[0].padStart(2, '0')}:00` 
+        : '-';
 
-      return {
-          todayCount,
-          mostPopular: { title: mostPopular[0], count: mostPopular[1] },
-          activeMembers: uniqueMembers,
-          peakHour
-      };
+      return { todayCount, mostPopular: { title: mostPopular[0], count: mostPopular[1] }, activeMembers: uniqueMembers, peakHour };
   }, [logs]);
 
   const handleChatSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
       if (!chatInput.trim() || isChatLoading) return;
-
       const userQuestion = chatInput;
       setChatInput('');
       setChatHistory(prev => [...prev, { role: 'user', text: userQuestion }]);
       setIsChatLoading(true);
-
       try {
           const response = await askAdminAnalytics(userQuestion, logs);
           setChatHistory(prev => [...prev, { role: 'ai', text: response }]);
@@ -322,9 +332,7 @@ export const AdminAnalyticsScreen: React.FC = () => {
   const handleGenerateActions = async () => {
       if (isChatLoading) return;
       setIsChatLoading(true);
-      
       setChatHistory(prev => [...prev, { role: 'user', text: "Ge mig 3 snabba förslag på åtgärder." }]);
-
       try {
           const response = await generateBusinessActions(logs);
           setChatHistory(prev => [...prev, { role: 'ai', text: response }]);
@@ -335,17 +343,19 @@ export const AdminAnalyticsScreen: React.FC = () => {
       }
   };
 
+  const handleDayClick = (date: string, dayLogs: WorkoutLog[]) => {
+      setSelectedDay({ date, logs: dayLogs });
+  };
+
   return (
     <div className="space-y-10 animate-fade-in pb-20">
-        {/* Header */}
         <div>
-            <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Analys & Insikter</h3>
+            <h3 className="text-3xl font-extrabold text-gray-900 dark:text-white tracking-tight">Analys & Trender</h3>
             <p className="text-gray-500 dark:text-gray-400 mt-2 text-lg">
                 Driv beslut med data från {logs.length} loggade pass.
             </p>
         </div>
 
-        {/* New Insight Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <InsightCard 
                 title="Loggade Idag" 
@@ -369,18 +379,19 @@ export const AdminAnalyticsScreen: React.FC = () => {
                 gradient="bg-gradient-to-br from-blue-500 to-cyan-600"
             />
             <InsightCard 
-                title="Bästa Tid" 
+                title="Topp-timmen" 
                 value={insights?.peakHour || '-'} 
-                sub="Mest aktivitet"
+                sub="Tid då flest loggar pass"
                 icon={<ClockIcon className="w-6 h-6 text-white" />}
                 gradient="bg-gradient-to-br from-emerald-500 to-teal-600"
+                extra={insights?.peakHour !== '-' && (
+                    <span className="text-[10px] font-black bg-white/20 px-2 py-0.5 rounded-full uppercase tracking-widest self-center mt-1">Maxtryck</span>
+                )}
             />
         </div>
 
-        {/* Sentiment Analysis Widget (NEW) */}
-        <SentimentDashboard logs={logs} />
+        <SentimentDashboard logs={logs} onDayClick={handleDayClick} />
 
-        {/* AI Analytiker Chat */}
         <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 rounded-[2.5rem] border border-indigo-100 dark:border-indigo-800/30 overflow-hidden flex flex-col h-[600px] shadow-xl">
              <div className="p-6 border-b border-indigo-100 dark:border-indigo-800/30 bg-white/50 dark:bg-gray-900/50 backdrop-blur-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
@@ -454,6 +465,83 @@ export const AdminAnalyticsScreen: React.FC = () => {
                 </form>
              </div>
         </div>
+
+        {/* Day Analysis Modal */}
+        <AnimatePresence>
+            {selectedDay && (
+                <Modal 
+                    isOpen={true} 
+                    onClose={() => setSelectedDay(null)} 
+                    title={`Dagsanalys: ${new Date(selectedDay.date).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}`}
+                    size="2xl"
+                >
+                    <div className="space-y-8">
+                        {/* Day Summary */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="bg-gray-50 dark:bg-gray-900/50 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800 text-center">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Loggade pass</p>
+                                <p className="text-4xl font-black text-gray-900 dark:text-white">{selectedDay.logs.length}</p>
+                            </div>
+                            <div className="bg-gray-50 dark:bg-gray-900/50 p-6 rounded-[2rem] border border-gray-100 dark:border-gray-800 text-center">
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Snitt-RPE</p>
+                                <p className="text-4xl font-black text-primary">
+                                    {(selectedDay.logs.reduce((acc, l) => acc + (l.rpe || 0), 0) / (selectedDay.logs.filter(l => l.rpe).length || 1)).toFixed(1)}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Vibb Breakdown */}
+                        <div>
+                            <h4 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4 ml-1">Dagens Vibbar</h4>
+                            <div className="flex flex-wrap gap-2">
+                                {Array.from(new Set(selectedDay.logs.flatMap(l => l.tags || []))).map(tag => (
+                                    <span key={tag} className="px-3 py-1.5 rounded-xl bg-primary/10 text-primary text-xs font-bold uppercase tracking-wide border border-primary/20">
+                                        {tag}
+                                    </span>
+                                ))}
+                                {selectedDay.logs.every(l => !l.tags || l.tags.length === 0) && (
+                                    <p className="text-sm text-gray-400 italic px-1">Inga taggar lämnades denna dag.</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Comments List */}
+                        <div>
+                            <h4 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-4 ml-1">Medlemsröster</h4>
+                            <div className="space-y-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                {selectedDay.logs.filter(l => l.comment).length > 0 ? (
+                                    selectedDay.logs.filter(l => l.comment).map(log => (
+                                        <div key={log.id} className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-black text-primary">
+                                                    {log.memberName?.[0] || '?'}
+                                                </div>
+                                                <span className="text-xs font-bold text-gray-900 dark:text-white">{log.memberName || 'Anonym medlem'}</span>
+                                                {log.feeling && <span className="text-xs ml-auto">{log.feeling === 'good' ? '🔥' : log.feeling === 'bad' ? '🤕' : '🙂'}</span>}
+                                            </div>
+                                            <p className="text-sm text-gray-600 dark:text-gray-300 italic leading-relaxed">
+                                                "{log.comment}"
+                                            </p>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="py-10 text-center bg-gray-50 dark:bg-gray-900/30 rounded-3xl border border-dashed border-gray-100 dark:border-gray-800">
+                                        <p className="text-sm text-gray-400 italic">Inga kommentarer lämnades denna dag.</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={() => setSelectedDay(null)}
+                            className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-black py-4 rounded-2xl uppercase tracking-widest text-sm shadow-lg active:scale-95 transition-all"
+                        >
+                            Stäng dagsanalys
+                        </button>
+                    </div>
+                </Modal>
+            )}
+        </AnimatePresence>
     </div>
   );
 };

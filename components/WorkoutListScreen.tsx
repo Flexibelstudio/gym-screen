@@ -1,4 +1,3 @@
-
 import React, { useMemo, useState } from 'react';
 import { Workout } from '../types';
 import { useWorkout } from '../context/WorkoutContext';
@@ -136,9 +135,13 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                 </div>
             ) : (
                 <div className="text-center py-20 bg-white dark:bg-gray-900/50 rounded-[3rem] border-2 border-dashed border-gray-100 dark:border-gray-800 shadow-inner">
-                    <div className="text-6xl mb-4 opacity-20">🔍</div>
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Inga pass hittades</h3>
-                    <p className="text-gray-500 dark:text-gray-400">Försök att söka på något annat eller byt kategori.</p>
+                    <div className="text-6xl mb-4 opacity-20">{searchTerm ? '🔍' : '📭'}</div>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                        {searchTerm ? 'Inga pass hittades' : 'Det finns inga pass publicerade i denna kategorin'}
+                    </h3>
+                    <p className="text-gray-500 dark:text-gray-400">
+                        {searchTerm ? 'Försök att söka på något annat.' : 'Vänligen välj en annan kategori.'}
+                    </p>
                 </div>
             )}
         </div>

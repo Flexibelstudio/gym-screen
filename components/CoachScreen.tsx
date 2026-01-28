@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Page, CustomPage, UserRole } from '../types';
 import { useStudio } from '../context/StudioContext';
@@ -15,12 +14,6 @@ import {
     SparklesIcon,
     ChartBarIcon
 } from './icons';
-
-const UsersIcon = ({ className }: { className?: string }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-    </svg>
-);
 
 interface CoachScreenProps {
   role: UserRole;
@@ -75,13 +68,13 @@ const CoachCard: React.FC<{
 );
 
 export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSelectCustomPage, isImpersonating, onReturnToAdmin, onAdminLogin, onMemberProfileRequest }) => {
-  const { selectedStudio, selectedOrganization, studioConfig } = useStudio();
+  const { selectedStudio, selectedOrganization } = useStudio();
   const { isStudioMode, signOut, clearDeviceProvisioning } = useAuth();
   const [showLockedModal, setShowLockedModal] = useState(false);
 
   const items: { title: string; subTitle?: string; action: () => void; icon: React.ReactNode; gradient: string; isLocked?: boolean }[] = [];
 
-  // 1. DIN TRÄNING
+  // 1. DIN TRÄNING (Alltid överst)
   items.push({ 
       title: 'Min Träning', 
       subTitle: 'Se statistik & mål',
@@ -90,28 +83,9 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
       gradient: 'bg-gradient-to-br from-teal-500 to-emerald-700'
   });
 
-  // 2. COACHADMIN (Tidigare Pass & Program)
-  items.push({
-      title: 'Coachadmin',
-      subTitle: 'Skapa & hantera pass',
-      action: () => navigateTo(Page.SuperAdmin),
-      icon: <DumbbellIcon className="w-8 h-8" />,
-      gradient: 'bg-gradient-to-br from-blue-600 to-indigo-600'
-  });
-
-  // 4. CONTENT FOR ALL COACHES (Infosidor)
-  (selectedOrganization?.customPages || []).forEach(page => {
-      items.push({
-          title: page.title,
-          subTitle: 'Information & Guider',
-          action: () => onSelectCustomPage(page),
-          icon: <DocumentTextIcon className="w-8 h-8" />,
-          gradient: 'bg-gradient-to-br from-primary to-teal-800'
-      });
-  });
-
-  // 5. HIERARCHY LOGIC
+  // 2. LOGIK FÖR ADMIN / MANAGEMENT
   if (isImpersonating) {
+      // Om vi förhandsgranskar vyn från adminpanelen
       items.push({ 
           title: 'Återgå till Admin', 
           subTitle: 'Avsluta förhandsvisning',
@@ -120,6 +94,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
           gradient: 'bg-gradient-to-br from-gray-700 to-gray-900'
       });
   } else if (isStudioMode) {
+      // Om vi är på en fast skärm i gymmet
       items.push({
           title: 'Logga in Admin',
           subTitle: 'För system & inställningar',
@@ -140,8 +115,8 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
           icon: <CloseIcon className="w-8 h-8" />,
           gradient: 'bg-gradient-to-br from-red-500 to-red-800'
       });
-
   } else {
+      // Om vi navigerar från personlig profil (Web/Mobil)
       if (role === 'systemowner') {
           items.push({ 
               title: 'Systemägare', 
@@ -152,12 +127,14 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
           });
       }
 
+      // Konsoliderad Admin-knapp för admins, Coachadmin för coacher
+      const isAdmin = role === 'organizationadmin' || role === 'systemowner';
       items.push({ 
-          title: role === 'organizationadmin' ? 'Adminpanel' : 'Studiohantering', 
-          subTitle: 'Inställningar & Pass',
+          title: isAdmin ? 'Admin' : 'Coachadmin', 
+          subTitle: isAdmin ? 'Hantera studio & pass' : 'Skapa & hantera pass',
           action: () => navigateTo(Page.SuperAdmin),
-          icon: <BriefcaseIcon className="w-8 h-8" />,
-          gradient: 'bg-gradient-to-br from-blue-600 to-indigo-900'
+          icon: isAdmin ? <BriefcaseIcon className="w-8 h-8" /> : <DumbbellIcon className="w-8 h-8" />,
+          gradient: 'bg-gradient-to-br from-blue-600 to-indigo-700'
       });
 
       items.push({
@@ -168,6 +145,17 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
           gradient: 'bg-gradient-to-br from-red-500 to-red-800'
       });
   }
+
+  // 3. INFOSIDOR (Content for all staff)
+  (selectedOrganization?.customPages || []).forEach(page => {
+      items.push({
+          title: page.title,
+          subTitle: 'Information & Guider',
+          action: () => onSelectCustomPage(page),
+          icon: <DocumentTextIcon className="w-8 h-8" />,
+          gradient: 'bg-gradient-to-br from-primary to-teal-800'
+      });
+  });
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-12">
@@ -187,6 +175,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
               </div>
           </div>
       </div>
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {items.map((item, index) => (
             <CoachCard 
@@ -198,7 +187,6 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
         ))}
       </div>
 
-      {/* MODAL FÖR LÅST FUNKTION */}
       <Modal isOpen={showLockedModal} onClose={() => setShowLockedModal(false)} title="Lås upp People Hub 🚀" size="lg">
         <div className="space-y-6">
             <div className="bg-gradient-to-br from-indigo-600 to-purple-700 p-8 rounded-3xl text-white text-center shadow-xl">
@@ -234,14 +222,6 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
                         <li>• Träningsdagbok i mobilen</li>
                     </ul>
                 </div>
-            </div>
-
-            <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-2xl border border-blue-100 dark:border-blue-800 text-sm text-center">
-                <p className="text-blue-800 dark:text-blue-300 font-medium">
-                    {role === 'organizationadmin' || role === 'systemowner' 
-                        ? "Du som är administratör kan aktivera detta under 'Globala Inställningar' i adminpanelen."
-                        : "Prata med din administratör eller gymägare för att låsa upp dessa funktioner!"}
-                </p>
             </div>
 
             <button 

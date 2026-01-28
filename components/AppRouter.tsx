@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Page, Workout, WorkoutBlock, Passkategori, CustomPage, StartGroup, UserRole, UserData, StudioConfig, Organization, WorkoutDiploma, InfoCarousel } from '../types';
 import { HomeScreen } from './HomeScreen';
@@ -137,7 +136,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 navigateTo={navigateTo} 
                 onSelectWorkout={onSelectWorkout} 
                 onSelectPasskategori={onSelectPasskategori}
-                savedWorkouts={workouts.filter(w => w.isFavorite || (!w.isPublished && !w.isMemberDraft))}
+                savedWorkouts={workouts.filter(w => w.isFavorite || (w.isMemberDraft && !w.isPublished))}
                 onCreateNewWorkout={onCreateNewWorkout}
                 onShowBoostModal={() => {}} 
                 studioConfig={studioConfig}
@@ -154,7 +153,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
 
         case Page.SavedWorkouts:
             return <SavedWorkoutsScreen 
-                workouts={workouts.filter(w => w.isFavorite || (!w.isPublished && !w.isMemberDraft))}
+                workouts={workouts.filter(w => w.isFavorite || (w.isMemberDraft && !w.isPublished))}
                 onSelectWorkout={onSelectWorkout}
                 onEditWorkout={onEditWorkout}
                 onDeleteWorkout={onDeleteWorkout as any}
@@ -185,11 +184,13 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onVisualize={() => {}}
                 onLogWorkout={functions.handleLogWorkoutRequest}
                 onClose={handleBack}
+                onHeaderVisibilityChange={functions.setTimerHeaderVisible}
             />;
 
         case Page.Timer:
             if (!activeBlock) return <div>Inget block valt</div>;
             return <TimerScreen 
+                key={activeBlock.id}
                 block={activeBlock}
                 onFinish={onTimerFinish}
                 onHeaderVisibilityChange={functions.setTimerHeaderVisible}
@@ -355,6 +356,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onDeleteOrganization={functions.deleteOrganization as any}
             />;
 
+        case Page.Home:
         case Page.StudioSelection:
             return <StudioSelectionScreen onStudioSelected={() => {}} />;
 
