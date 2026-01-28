@@ -1120,7 +1120,14 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                             {/* NEXT BLOCK PREVIEW (35% width) - Endast vid stations-baserad träning */}
                             {showSplitView ? (
                                 <div className="w-1/3 pb-6 flex flex-col justify-center">
-                                    <NextBlockPreview block={nextBlock!} />
+                                    {isRestNext ? (
+                                        <NextRestPreview 
+                                            transitionTime={block.transitionTime || 0} 
+                                            nextBlockTitle={nextBlock!.title} 
+                                        />
+                                    ) : (
+                                        <NextBlockPreview block={nextBlock!} />
+                                    )}
                                 </div>
                             ) : null}
                         </div>
