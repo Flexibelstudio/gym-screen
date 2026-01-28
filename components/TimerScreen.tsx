@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout } from '../types';
@@ -195,7 +196,7 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
             </div>
             <div className="flex-grow overflow-y-auto p-5 custom-scrollbar space-y-2.5">
                 {block.exercises.map((ex) => (
-                    <div key={ex.id} className="flex justify-between items-center gap-4 bg-gray-50 dark:bg-white/5 rounded-2xl p-4 border border-gray-100 dark:border-white/5">
+                    <div key={ex.id} className="flex justify-between items-center gap-4 bg-gray-5 dark:bg-white/5 rounded-2xl p-4 border border-gray-100 dark:border-white/5">
                         <p className="text-sm font-bold text-gray-800 dark:text-white/90 leading-tight truncate">{ex.name}</p>
                         {ex.reps && <span className="text-[10px] font-black text-primary whitespace-nowrap bg-primary/10 px-2.5 py-1 rounded-lg border border-primary/10">{formatReps(ex.reps)}</span>}
                     </div>
@@ -371,7 +372,7 @@ const FollowMeView: React.FC<{
             
             {(isRestNext || nextBlock) && (
                 <div className="w-full max-w-5xl">
-                    <NextUpCompactBar block={nextBlock} isRestNext={isRestNext} />
+                    <NextUpCompactBar transitionTime={transitionTime} block={nextBlock} isRestNext={isRestNext} />
                 </div>
             )}
         </div>
@@ -655,7 +656,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const startIntervalSeconds = useMemo(() => (activeWorkout?.startIntervalMinutes ?? 2) * 60, [activeWorkout]);
 
   const nextGroupToStartIndex = useMemo(() => startGroups.findIndex(g => g.startTime === undefined), [startGroups]);
-  const nextGroupToStart = useMemo(() => (nextGroupToStartIndex !== -1 ? startGroups[nextGroupToStartIndex] : null), [startGroups, nextGroupToStartIndex]);
+  const nextGroupToStart = useMemo(() => (nextGroupToStartIndex !== -1 ? startGroups[nextGroupToStartIndex] : null), [startGroups, nextGroupToStart]);
   const remainingGroupsCount = useMemo(() => startGroups.filter(g => g.startTime === undefined).length, [startGroups]);
 
   const groupForCountdownDisplay = useMemo(() => {
@@ -1097,6 +1098,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                         status={status} 
                                         nextBlock={nextBlock && block.autoAdvance ? nextBlock : undefined}
                                         isRestNext={isRestNext}
+                                        transitionTime={block.transitionTime}
                                     />
                                 </div>
                             </div>
@@ -1117,10 +1119,14 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                 </div>
                             </div>
 
-                            {/* NEXT BLOCK PREVIEW (35% width) - Endast vid stations-baserad träning */}
+                            {/* NEXT BLOCK PREVIEW (35% width) */}
                             {showSplitView ? (
                                 <div className="w-1/3 pb-6 flex flex-col justify-center">
-                                    <NextBlockPreview block={nextBlock!} />
+                                    {isRestNext ? (
+                                        <NextRestPreview transitionTime={block.transitionTime || 0} nextBlockTitle={nextBlock?.title || ''} />
+                                    ) : (
+                                        <NextBlockPreview block={nextBlock!} />
+                                    )}
                                 </div>
                             ) : null}
                         </div>

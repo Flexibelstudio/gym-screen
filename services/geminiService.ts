@@ -31,6 +31,13 @@ export interface MemberProgressAnalysis {
     };
 }
 
+export interface ExerciseDagsformAdvice {
+    suggestion: string;        // "45 kg"
+    suggestedWeight: number;   // 45
+    reasoning: string;         // "Baserat på din pigga dagsform..."
+    history: any[];
+}
+
 // SÄKERHET: Hämta nyckel exklusivt från process.env
 const getAIClient = () => {
     const apiKey = (typeof process !== 'undefined' && process.env?.API_KEY) || (import.meta as any).env.VITE_API_KEY;
@@ -318,7 +325,7 @@ export async function generateMemberInsights(logs: WorkoutLog[], title: string, 
     return { ...data, suggestions, scaling };
 }
 
-export async function getExerciseDagsformAdvice(exerciseName: string, feeling: string, logs: WorkoutLog[]): Promise<any> {
+export async function getExerciseDagsformAdvice(exerciseName: string, feeling: string, logs: WorkoutLog[]): Promise<ExerciseDagsformAdvice> {
     const history = logs.flatMap(log => 
         (log.exerciseResults || [])
             .filter(ex => ex.exerciseName.toLowerCase().includes(exerciseName.toLowerCase()))
@@ -327,11 +334,15 @@ export async function getExerciseDagsformAdvice(exerciseName: string, feeling: s
 
     const schema = {
         type: Type.OBJECT,
-        required: ['suggestion', 'reasoning'],
-        properties: { suggestion: { type: Type.STRING }, reasoning: { type: Type.STRING } }
+        required: ['suggestion', 'suggestedWeight', 'reasoning'],
+        properties: { 
+            suggestion: { type: Type.STRING, description: "Textrepresentation, t.ex '45 kg'" }, 
+            suggestedWeight: { type: Type.NUMBER, description: "Den numeriska vikten att fylla i" },
+            reasoning: { type: Type.STRING, description: "Varför föreslås denna vikt? Basera på dagsform och historik." } 
+        }
     };
 
-    const data = await _callGeminiJSON<any>(TEXT_MODEL, `Ge dagsform-råd för ${exerciseName}. Känsla: ${feeling}. Historik: ${JSON.stringify(history)}`, schema);
+    const data = await _callGeminiJSON<any>(TEXT_MODEL, `Ge dagsform-råd för ${exerciseName}. Känsla: ${feeling}. Historik: ${JSON.stringify(history)}. VIKTIGT: Returnera en numerisk suggestedWeight som är rimlig för progression.`, schema);
     return { ...data, history };
 }
 
