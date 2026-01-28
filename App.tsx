@@ -1025,7 +1025,7 @@ const App: React.FC = () => {
                     setBackButtonHidden: setIsBackButtonHidden,
                     setRacePrepState: setRacePrepState,
                     setCompletionInfo: setCompletionInfo,
-                    setRegisteringHyroxTime: setRegisteringHyroxTime,
+                    setRegisteringIsHyroxTime: setRegisteringIsHyroxTime,
                     setFollowMeShowImage: setFollowMeShowImage,
                     
                     handleGeneratedWorkout: handleGeneratedWorkout,
