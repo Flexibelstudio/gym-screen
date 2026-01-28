@@ -149,7 +149,7 @@ const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock
                     </div>
                 )}
                 
-                {transitionTime !== undefined ? (
+                {transitionTime !== undefined && transitionTime > 0 ? (
                     <div className="text-6xl font-mono font-black text-primary tabular-nums drop-shadow-xl">
                         {formatSeconds(transitionTime)}
                     </div>
@@ -371,7 +371,7 @@ const FollowMeView: React.FC<{
             
             {(isRestNext || nextBlock) && (
                 <div className="w-full max-w-5xl">
-                    <NextUpCompactBar block={nextBlock} isRestNext={isRestNext} />
+                    <NextUpCompactBar block={nextBlock} isRestNext={isRestNext} transitionTime={isRestNext ? transitionTime : undefined} />
                 </div>
             )}
         </div>
@@ -1097,6 +1097,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                         status={status} 
                                         nextBlock={nextBlock && block.autoAdvance ? nextBlock : undefined}
                                         isRestNext={isRestNext}
+                                        transitionTime={isRestNext ? block.transitionTime : undefined}
                                     />
                                 </div>
                             </div>
@@ -1120,7 +1121,14 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                             {/* NEXT BLOCK PREVIEW (35% width) - Endast vid stations-baserad träning */}
                             {showSplitView ? (
                                 <div className="w-1/3 pb-6 flex flex-col justify-center">
-                                    <NextBlockPreview block={nextBlock!} />
+                                    {isRestNext ? (
+                                        <NextRestPreview 
+                                            transitionTime={block.transitionTime || 0} 
+                                            nextBlockTitle={nextBlock!.title} 
+                                        />
+                                    ) : (
+                                        <NextBlockPreview block={nextBlock!} />
+                                    )}
                                 </div>
                             ) : null}
                         </div>

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog } from '../../services/firebaseService';
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage } from '../../services/geminiService';
@@ -31,6 +32,7 @@ interface LocalExerciseResult {
   isBodyweight?: boolean;
   blockId: string;
   blockTitle: string;
+  coachAdvice?: string; // NYTT: Lagrar rådet lokalt under sessionen
 }
 
 interface LogData {
@@ -116,7 +118,7 @@ const WEIGHT_COMPARISONS = [
     { name: "Smart Cars", singular: "en Smart Car", weight: 900, emoji: "🚗" },
     { name: "Personbilar", singular: "en Personbil", weight: 1500, emoji: "🚘" },
     { name: "Flodhästar", singular: "en Flodhäst", weight: 1500, emoji: "🦛" },
-    { name: "Noshörningar", singular: "en Noshörning", weight: 2000, emoji: "🦏" },
+    { name: "Noshörningar", singular: "en Noshörning", weight: 2000, emoji: "🛏️" },
     { name: "Vita Hajar", singular: "en Vit Haj", weight: 2000, emoji: "🦈" },
     { name: "Späckhuggare", singular: "en Späckhuggare", weight: 4000, emoji: "🐋" },
     { name: "Elefanter", singular: "en Elefant", weight: 5000, emoji: "🐘" },
@@ -286,12 +288,20 @@ const ExerciseLogCard: React.FC<{
                 </div>
                 <button 
                     onClick={() => onOpenDailyForm(name)}
-                    className="bg-purple-600 text-white px-3 py-1.5 rounded-lg flex items-center gap-1.5 shrink-0 shadow-md active:scale-95 transition-all"
+                    className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 shrink-0 shadow-md active:scale-95 transition-all ${result.coachAdvice ? 'bg-green-500 text-white' : 'bg-purple-600 text-white'}`}
                 >
-                    <SparklesIcon className="w-3.5 h-3.5" />
-                    <span className="text-[10px] font-black uppercase tracking-tight">Hitta dagsform</span>
+                    {result.coachAdvice ? <CheckIcon className="w-3.5 h-3.5" /> : <SparklesIcon className="w-3.5 h-3.5" />}
+                    <span className="text-[10px] font-black uppercase tracking-tight">{result.coachAdvice ? 'Råd sparat' : 'Hitta dagsform'}</span>
                 </button>
             </div>
+
+            {result.coachAdvice && (
+                <div className="mb-4 p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800 rounded-xl">
+                    <p className="text-[10px] text-purple-600 dark:text-purple-400 font-bold italic leading-relaxed">
+                        🤖 Coach: "{result.coachAdvice}"
+                    </p>
+                </div>
+            )}
 
             <div className="space-y-2">
                 <div className="grid grid-cols-[30px_1fr_1fr_40px_40px] gap-2 px-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">
@@ -396,7 +406,7 @@ const PostWorkoutForm: React.FC<{ data: LogData; onUpdate: (updates: Partial<Log
                 <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Kroppskänsla</h5><div className="flex flex-wrap gap-2">
                     {KROPPSKANSLA_TAGS.map(tag => (<button key={tag} onClick={() => toggleTag(tag)} className={`px-4 py-2.5 rounded-xl text-xs font-bold border-2 transition-all active:scale-95 ${data.tags.includes(tag) ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 border-gray-900 dark:border-white shadow-md' : 'bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-100 dark:border-gray-700'}`}>{tag}</button>))}
                 </div></div>
-                <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3 ml-1">Kommentar</h5><textarea value={data.comment} onChange={(e) => onUpdate({ comment: e.target.value })} placeholder="Anteckningar..." rows={4} className="w-full bg-white dark:bg-gray-800 border border-gray-100 border-gray-800 rounded-[1.5rem] p-5 text-gray-900 dark:text-white text-base focus:ring-2 focus:ring-primary outline-none transition-all shadow-inner" /></div>
+                <div className="mt-10"><h5 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3 ml-1">Kommentar</h5><textarea value={data.comment} onChange={(e) => onUpdate({ comment: e.target.value })} placeholder="Anteckningar..." rows={4} className="w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-800 rounded-[1.5rem] p-5 text-gray-900 dark:text-white text-base focus:ring-2 focus:ring-primary outline-none transition-all shadow-inner" /></div>
             </div>
             <Modal isOpen={showRpeInfo} onClose={() => setShowRpeInfo(false)} title="Vad är RPE?" size="sm"><div className="space-y-6"><p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">RPE (Rate of Perceived Exertion) är en skala mellan 1-10 som hjälper dig att skatta din ansträngning.</p><div className="space-y-2">
                 {RPE_LEVELS.map(level => (<div key={level.range} className="flex gap-4 p-3 rounded-2xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-800"><div className={`w-12 h-12 rounded-xl ${level.color} flex items-center justify-center text-white font-black flex-shrink-0 shadow-sm`}>{level.range}</div><div><h6 className="font-bold text-gray-900 dark:text-white text-sm">{level.label}</h6><p className="text-xs text-gray-500 dark:text-gray-400">{level.desc}</p></div></div>))}
@@ -620,35 +630,20 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   };
 
   const handleStartWorkout = () => {
-      if (aiInsights?.suggestions && dailyFeeling !== 'bad') {
-          const newResults = exerciseResults.map(res => {
-              const suggestion = aiInsights.suggestions[res.exerciseName];
-              if (suggestion) {
-                  const weightMatch = suggestion.match(/(\d+)/);
-                  if (weightMatch) {
-                      const suggestedWeight = weightMatch[0];
-                      const newSets = res.setDetails.map(set => ({
-                          ...set,
-                          weight: set.weight || suggestedWeight
-                      }));
-                      return { ...res, setDetails: newSets };
-                  }
-              }
-              return res;
-          });
-          setExerciseResults(newResults);
-      }
       setViewMode('logging');
   };
 
-  const handleApplyDailyFormWeight = (exerciseName: string, weight: string) => {
+  const handleApplyDailyFormWeight = (exerciseName: string, weight: string, advice: string) => {
       const index = exerciseResults.findIndex(r => r.exerciseName === exerciseName);
       if (index !== -1) {
           const updatedSets = exerciseResults[index].setDetails.map(set => ({
               ...set,
               weight: weight
           }));
-          handleUpdateResult(index, { setDetails: updatedSets });
+          handleUpdateResult(index, { 
+              setDetails: updatedSets,
+              coachAdvice: advice // Sparar motiveringen lokalt
+          });
       }
   };
 
@@ -706,7 +701,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   weight: maxWeight, 
                   reps: repsSummary, 
                   sets: r.setDetails.length,
-                  blockId: r.blockId
+                  blockId: r.blockId,
+                  coachAdvice: r.coachAdvice // NYTT: Skickas med till Firestore
               };
           });
 
@@ -819,6 +815,19 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   {isManualMode ? 'Laddar formulär...' : 'Hämtar din personliga strategi...'}
               </p>
           </div>
+      );
+  }
+
+  if (viewMode === 'pre-game' && aiInsights) {
+      return (
+          <PreGameView 
+              workoutTitle={workout?.title || 'Träningspass'}
+              insights={aiInsights}
+              onStart={handleStartWorkout}
+              onCancel={() => handleCancel(false)}
+              onFeelingChange={setDailyFeeling}
+              currentFeeling={dailyFeeling}
+          />
       );
   }
 
@@ -1039,7 +1048,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       </div>
 
       {showCalculator && <OneRepMaxModal onClose={() => setShowCalculator(false)} />}
-      <AnimatePresence>{dailyFormTarget && (<DailyFormInsightModal isOpen={!!dailyFormTarget} onClose={() => setDailyFormTarget(null)} exerciseName={dailyFormTarget} feeling={dailyFeeling} allLogs={allLogs} onApplySuggestion={(weight) => handleApplyDailyFormWeight(dailyFormTarget, weight)} />)}</AnimatePresence>
+      <AnimatePresence>{dailyFormTarget && (<DailyFormInsightModal isOpen={!!dailyFormTarget} onClose={() => setDailyFormTarget(null)} exerciseName={dailyFormTarget} feeling={dailyFeeling} allLogs={allLogs} onApplySuggestion={(weight, advice) => handleApplyDailyFormWeight(dailyFormTarget, weight, advice)} />)}</AnimatePresence>
     </div>
   );
 }

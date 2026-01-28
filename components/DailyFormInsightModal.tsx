@@ -12,7 +12,7 @@ interface DailyFormInsightModalProps {
     exerciseName: string;
     feeling: 'good' | 'neutral' | 'bad';
     allLogs: WorkoutLog[];
-    onApplySuggestion: (weight: string) => void;
+    onApplySuggestion: (weight: string, advice: string) => void;
 }
 
 export const DailyFormInsightModal: React.FC<DailyFormInsightModalProps> = ({ 
@@ -31,10 +31,11 @@ export const DailyFormInsightModal: React.FC<DailyFormInsightModalProps> = ({
     }, [isOpen, exerciseName, feeling]);
 
     const handleApply = () => {
-        if (advice?.suggestion) {
-            // Extract number from string like "45 kg"
-            const weight = advice.suggestion.match(/\d+/)?.[0] || "";
-            onApplySuggestion(weight);
+        if (advice) {
+            // Använd den numeriska vikten från AI:n direkt
+            const weight = String(advice.suggestedWeight);
+            const reasoning = advice.reasoning;
+            onApplySuggestion(weight, reasoning);
             onClose();
         }
     };
@@ -82,12 +83,12 @@ export const DailyFormInsightModal: React.FC<DailyFormInsightModalProps> = ({
                                     <div className="p-2 bg-white/20 rounded-xl backdrop-blur-md">
                                         <SparklesIcon className="w-5 h-5 text-white" />
                                     </div>
-                                    <h4 className="font-bold text-indigo-100 uppercase tracking-widest text-xs">AI Coach tipsar</h4>
+                                    <h4 className="font-bold text-indigo-100 uppercase tracking-widest text-[10px]">AI Coach tipsar</h4>
                                 </div>
 
-                                <div className="mb-6">
-                                    <p className="text-xs text-indigo-200 font-bold uppercase mb-1">Rekommenderad vikt idag</p>
-                                    <p className="text-4xl font-black tracking-tight">{advice?.suggestion}</p>
+                                <div className="mb-4">
+                                    <p className="text-[10px] text-indigo-200 font-bold uppercase mb-1 tracking-widest">Rekommenderad vikt idag</p>
+                                    <p className="text-5xl font-black tracking-tighter">{advice?.suggestion}</p>
                                 </div>
 
                                 <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">

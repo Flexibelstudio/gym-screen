@@ -405,6 +405,7 @@ export interface ExerciseResult {
     distance?: number | null;
     kcal?: number | null;
     blockId?: string;
+    coachAdvice?: string; // NYTT: Sparar AI-rådet direkt på övningen
 }
 
 export type MemberFeeling = 'good' | 'neutral' | 'bad';
