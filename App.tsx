@@ -428,7 +428,7 @@ const App: React.FC = () => {
         blocks: [block],
         category: 'Ej kategoriserad',
         isPublished: false,
-        organizationId: organizationId || selectedOrganization.id,
+        organizationId: selectedOrganization.id,
         createdAt: Date.now() 
     };
     handleStartBlock(block, tempWorkout);
@@ -1025,7 +1025,7 @@ const App: React.FC = () => {
                     setBackButtonHidden: setIsBackButtonHidden,
                     setRacePrepState: setRacePrepState,
                     setCompletionInfo: setCompletionInfo,
-                    setRegisteringHyroxTime: setIsRegisteringHyroxTime,
+                    setRegisteringHyroxTime: setRegisteringHyroxTime,
                     setFollowMeShowImage: setFollowMeShowImage,
                     
                     handleGeneratedWorkout: handleGeneratedWorkout,
