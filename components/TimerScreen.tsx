@@ -92,12 +92,12 @@ const getBlockTimeLabel = (block: WorkoutBlock): string => {
 
 // --- Visualization Components ---
 
-const NextRestPreview: React.FC<{ transitionTime: number; onSkip?: () => void }> = ({ transitionTime, onSkip }) => {
+const NextRestPreview: React.FC<{ transitionTime: number }> = ({ transitionTime }) => {
     return (
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 shadow-2xl p-8"
+            className="flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 shadow-2xl p-8 h-full justify-center"
         >
             <div className="flex items-center gap-4 mb-6">
                 <div className="bg-primary/10 p-3 rounded-2xl border border-primary/20">
@@ -109,18 +109,9 @@ const NextRestPreview: React.FC<{ transitionTime: number; onSkip?: () => void }>
                 </div>
             </div>
             
-            <div className="text-7xl font-mono font-black text-primary dark:text-primary mb-8 tabular-nums drop-shadow-sm">
+            <div className="text-8xl font-mono font-black text-primary dark:text-primary mb-2 tabular-nums drop-shadow-sm">
                 {formatSeconds(transitionTime)}
             </div>
-
-            {onSkip && (
-                <button 
-                    onClick={onSkip}
-                    className="w-full bg-primary text-white font-black py-4 rounded-2xl uppercase tracking-widest text-xs shadow-lg active:scale-95 transition-all"
-                >
-                    Börja nästa nu
-                </button>
-            )}
         </motion.div>
     );
 };
@@ -179,7 +170,7 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; isFlex?:
                     </div>
                 </div>
                 
-                <div className="flex items-center gap-2 text-gray-400 dark:text-white/40 text-[10px] font-black uppercase tracking-widest">
+                <div className="flex items-center gap-2 text-gray-400 dark:text-white/40 text-[10px] font-black uppercase tracking-widest mb-3">
                     <span>{block.settings.mode}</span>
                     {timeLabel && (
                         <>
@@ -188,12 +179,18 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; isFlex?:
                         </>
                     )}
                 </div>
+
+                {block.setupDescription && (
+                    <p className="text-base font-bold text-gray-600 dark:text-gray-300 leading-tight line-clamp-2">
+                        {block.setupDescription}
+                    </p>
+                )}
             </div>
             <div className="flex-grow overflow-y-auto p-5 custom-scrollbar space-y-3">
                 {block.exercises.map((ex) => (
                     <div key={ex.id} className="flex items-center gap-4 bg-gray-50 dark:bg-white/5 rounded-2xl p-5 border border-gray-100 dark:border-white/5">
-                        {ex.reps && <span className="text-lg font-black text-primary whitespace-nowrap bg-primary/10 px-3 py-1.5 rounded-xl border border-primary/10">{formatReps(ex.reps)}</span>}
-                        <p className="text-lg font-bold text-gray-800 dark:text-white/90 leading-tight truncate">{ex.name}</p>
+                        {ex.reps && <span className="text-xl font-black text-primary whitespace-nowrap bg-primary/10 px-3 py-1.5 rounded-xl border border-primary/10">{formatReps(ex.reps)}</span>}
+                        <p className="text-xl font-bold text-gray-800 dark:text-white/90 leading-tight truncate">{ex.name}</p>
                     </div>
                 ))}
             </div>
@@ -1046,7 +1043,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                             {block.showDescriptionInTimer && block.setupDescription && (
                                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 mb-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0 mx-auto max-w-5xl">
                                         <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
-                                        <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight uppercase">{block.setupDescription}</p>
+                                        <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight">{block.setupDescription}</p>
                                 </motion.div>
                             )}
                             <div className="flex-grow min-h-0">
@@ -1085,7 +1082,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                 block.showDescriptionInTimer && block.setupDescription && (
                                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0">
                                             <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
-                                            <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight uppercase tracking-tight">{block.setupDescription}</p>
+                                            <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight">{block.setupDescription}</p>
                                     </motion.div>
                                 )
                             )}
@@ -1115,7 +1112,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                     <>
                                         <NextRestPreview 
                                             transitionTime={block.transitionTime || 0} 
-                                            onSkip={handleStartNextBlock}
                                         />
                                         {upcomingBlocks[0] && (
                                             <NextBlockPreview 
