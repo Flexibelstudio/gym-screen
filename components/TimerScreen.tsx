@@ -97,7 +97,7 @@ const NextRestPreview: React.FC<{ transitionTime: number; isCompact?: boolean }>
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className={`${isCompact ? 'h-[35%]' : 'flex-1'} flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 shadow-2xl p-8 justify-center`}
+            className={`${isCompact ? 'flex-[0.35]' : 'flex-1'} flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 shadow-2xl p-8 justify-center`}
         >
             <div className="flex items-center gap-4 mb-4">
                 <div className="bg-primary/10 p-3 rounded-2xl border border-primary/20">
@@ -187,14 +187,19 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; flexClas
                 )}
             </div>
             <div className="flex-grow overflow-y-auto p-5 custom-scrollbar space-y-3">
-                {block.exercises.map((ex) => (
-                    <div key={ex.id} className="flex items-center gap-4 bg-gray-50 dark:bg-white/5 rounded-2xl p-5 border border-gray-100 dark:border-white/5">
-                        {ex.reps && <span className="text-xl font-black text-primary whitespace-nowrap bg-primary/10 px-3 py-1.5 rounded-xl border border-primary/10">{formatReps(ex.reps)}</span>}
-                        <p className={`font-bold text-gray-800 dark:text-white/90 leading-tight truncate ${ex.name.length > 25 ? 'text-lg' : 'text-xl'}`}>
-                            {ex.name}
-                        </p>
-                    </div>
-                ))}
+                {block.exercises.map((ex) => {
+                    const nameLen = ex.name.length;
+                    const nameSize = nameLen > 25 ? 'text-lg' : 'text-xl';
+                    
+                    return (
+                        <div key={ex.id} className="flex items-center gap-4 bg-gray-50 dark:bg-white/5 rounded-2xl p-5 border border-gray-100 dark:border-white/5">
+                            {ex.reps && <span className="text-xl font-black text-primary whitespace-nowrap bg-primary/10 px-3 py-1.5 rounded-xl border border-primary/10">{formatReps(ex.reps)}</span>}
+                            <p className={`font-bold text-gray-800 dark:text-white/90 leading-tight truncate ${nameSize}`}>
+                                {ex.name}
+                            </p>
+                        </div>
+                    );
+                })}
             </div>
         </motion.div>
     );
@@ -303,6 +308,12 @@ const FollowMeView: React.FC<{
 
     if (!displayExercise) return null;
 
+    // Dynamisk storlek för övningsnamnet baserat på teckenantal
+    const nameLen = displayExercise.name.length;
+    let titleSize = 'text-6xl md:text-8xl'; // Standard
+    if (nameLen > 35) titleSize = 'text-4xl md:text-6xl';
+    else if (nameLen > 20) titleSize = 'text-5xl md:text-7xl';
+
     return (
         <div className="flex flex-col h-full items-center justify-between">
             <AnimatePresence mode="wait">
@@ -319,7 +330,7 @@ const FollowMeView: React.FC<{
                         <span className="block text-xl md:text-2xl font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 mb-4">
                             {label}
                         </span>
-                        <h3 className={`font-black text-gray-900 dark:text-white leading-tight mb-6 tracking-tight ${displayExercise.name.length > 20 ? 'text-4xl md:text-7xl' : 'text-5xl md:text-8xl'}`}>
+                        <h3 className={`font-black text-gray-900 dark:text-white leading-tight mb-6 tracking-tight transition-all duration-300 ${titleSize}`}>
                             {displayExercise.name}
                         </h3>
                         {displayExercise.reps && (
@@ -363,7 +374,11 @@ const StandardListView: React.FC<{
                 // Dynamisk textstorlek baserat på namnlängd
                 const nameLen = ex.name.length;
                 let titleSize = isLargeList ? 'text-lg sm:text-xl md:text-2xl' : count > 8 ? 'text-2xl md:text-3xl' : 'text-4xl md:text-5xl';
-                if (nameLen > 30) titleSize = isLargeList ? 'text-base sm:text-lg' : count > 8 ? 'text-xl md:text-2xl' : 'text-3xl md:text-4xl';
+                
+                // Krymp texten om den är lång för att undvika overflow
+                if (nameLen > 25) {
+                    titleSize = isLargeList ? 'text-base sm:text-lg md:text-xl' : count > 8 ? 'text-xl md:text-2xl' : 'text-3xl md:text-4xl';
+                }
 
                 return (
                     <div 
@@ -379,7 +394,7 @@ const StandardListView: React.FC<{
                                     {formatReps(ex.reps)}
                                 </span>
                             )}
-                            <h4 className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight overflow-visible whitespace-nowrap ${titleSize}`}>
+                            <h4 className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight overflow-visible whitespace-nowrap transition-all duration-300 ${titleSize}`}>
                                 {ex.name}
                             </h4>
                         </div>
