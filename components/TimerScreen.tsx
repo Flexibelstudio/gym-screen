@@ -783,16 +783,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     }
   };
 
-  const handleAddPenalty = () => {
-    if (participantToEdit) {
-      setFinishedParticipants(prev => ({
-        ...prev,
-        [participantToEdit]: { ...prev[participantToEdit], time: prev[participantToEdit].time + 60 }
-      }));
-      setParticipantToEdit(null);
-    }
-  };
-
   const handleRemoveResult = () => {
     if (participantToEdit) {
       setFinishedParticipants(prev => {
