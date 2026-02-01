@@ -92,7 +92,7 @@ const getBlockTimeLabel = (block: WorkoutBlock): string => {
 
 // --- Visualization Components ---
 
-const NextRestPreview: React.FC<{ transitionTime: number; nextBlockTitle: string; onSkip?: () => void }> = ({ transitionTime, nextBlockTitle, onSkip }) => {
+const NextRestPreview: React.FC<{ transitionTime: number; onSkip?: () => void }> = ({ transitionTime, onSkip }) => {
     return (
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
@@ -105,23 +105,18 @@ const NextRestPreview: React.FC<{ transitionTime: number; nextBlockTitle: string
                 </div>
                 <div>
                     <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">HÄRNÄST</span>
-                    <h4 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">VILA</h4>
+                    <h4 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">VILA</h4>
                 </div>
             </div>
             
-            <div className="text-6xl font-mono font-black text-primary dark:text-primary mb-6 tabular-nums drop-shadow-sm">
+            <div className="text-7xl font-mono font-black text-primary dark:text-primary mb-8 tabular-nums drop-shadow-sm">
                 {formatSeconds(transitionTime)}
-            </div>
-
-            <div className="bg-gray-5 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5 mb-6">
-                <span className="block text-[9px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em] mb-1.5">INFÖR NÄSTA DEL</span>
-                <p className="text-gray-900 dark:text-white text-base font-bold leading-tight line-clamp-2">{nextBlockTitle}</p>
             </div>
 
             {onSkip && (
                 <button 
                     onClick={onSkip}
-                    className="w-full bg-primary text-white font-black py-3 rounded-xl uppercase tracking-widest text-xs shadow-lg active:scale-95 transition-all"
+                    className="w-full bg-primary text-white font-black py-4 rounded-2xl uppercase tracking-widest text-xs shadow-lg active:scale-95 transition-all"
                 >
                     Börja nästa nu
                 </button>
@@ -150,13 +145,6 @@ const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock
             </div>
 
             <div className="flex items-center gap-8">
-                {isRestNext && block && (
-                    <div className="hidden lg:flex flex-col items-end text-right">
-                         <span className="text-[10px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em] mb-1">INFÖR</span>
-                         <p className="text-sm font-bold text-gray-600 dark:text-white/70 max-w-[200px] truncate">{block.title}</p>
-                    </div>
-                )}
-                
                 {transitionTime !== undefined && transitionTime > 0 ? (
                     <div className="text-6xl font-mono font-black text-primary tabular-nums drop-shadow-xl">
                         {formatSeconds(transitionTime)}
@@ -187,7 +175,7 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; isFlex?:
                     </div>
                     <div>
                         <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">{label}</span>
-                        <h4 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight line-clamp-1 leading-none">{block.title}</h4>
+                        <h4 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight line-clamp-1 leading-none">{block.title}</h4>
                     </div>
                 </div>
                 
@@ -201,11 +189,11 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; isFlex?:
                     )}
                 </div>
             </div>
-            <div className="flex-grow overflow-y-auto p-5 custom-scrollbar space-y-2.5">
+            <div className="flex-grow overflow-y-auto p-5 custom-scrollbar space-y-3">
                 {block.exercises.map((ex) => (
-                    <div key={ex.id} className="flex justify-between items-center gap-4 bg-gray-50 dark:bg-white/5 rounded-2xl p-4 border border-gray-100 dark:border-white/5">
-                        <p className="text-sm font-bold text-gray-800 dark:text-white/90 leading-tight truncate">{ex.name}</p>
-                        {ex.reps && <span className="text-[10px] font-black text-primary whitespace-nowrap bg-primary/10 px-2.5 py-1 rounded-lg border border-primary/10">{formatReps(ex.reps)}</span>}
+                    <div key={ex.id} className="flex items-center gap-4 bg-gray-50 dark:bg-white/5 rounded-2xl p-5 border border-gray-100 dark:border-white/5">
+                        {ex.reps && <span className="text-lg font-black text-primary whitespace-nowrap bg-primary/10 px-3 py-1.5 rounded-xl border border-primary/10">{formatReps(ex.reps)}</span>}
+                        <p className="text-lg font-bold text-gray-800 dark:text-white/90 leading-tight truncate">{ex.name}</p>
                     </div>
                 ))}
             </div>
@@ -312,7 +300,7 @@ const FollowMeView: React.FC<{
     const isResting = status === TimerStatus.Resting;
     const isPreparing = status === TimerStatus.Preparing;
     const displayExercise = exercise;
-    const label = (isResting || isPreparing) ? "NÄSTA ÖVNING" : "AKTUELL ÖVNING";
+    const label = (isResting || isPreparing) ? "Nästa övning" : "Aktuell övning";
 
     if (!displayExercise) return null;
 
@@ -367,11 +355,9 @@ const StandardListView: React.FC<{
     const isLargeList = count > 12 || isHyrox; 
     
     const titleSize = isLargeList ? 'text-lg sm:text-xl md:text-2xl' : count > 8 ? 'text-2xl md:text-3xl' : 'text-4xl md:text-5xl';
-    const repsSize = isLargeList ? 'text-sm md:text-base' : 'text-xl md:text-2xl';
+    const repsSize = isLargeList ? 'text-lg md:text-xl' : 'text-3xl md:text-4xl';
     const padding = isHyrox ? 'pl-16 pr-6 py-2' : isLargeList ? 'pl-8 pr-4 py-2' : count > 8 ? 'pl-8 pr-6 py-3' : 'px-8 py-6';
     const gap = isLargeList ? 'gap-1' : 'gap-3';
-    
-    const showDescription = count <= 8 && !isHyrox;
 
     return (
         <div className={`w-full h-full flex flex-col ${gap} overflow-hidden pb-1`}>
@@ -383,19 +369,19 @@ const StandardListView: React.FC<{
                         borderLeftColor: isHyrox ? '#6366f1' : `rgb(${timerStyle.pulseRgb})`
                     }}
                 >
-                    <div className="flex justify-between items-center w-full gap-4">
-                        <h4 className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight overflow-visible whitespace-nowrap ${titleSize}`}>
-                            {ex.name}
-                        </h4>
+                    <div className="flex items-center w-full gap-6">
                         {ex.reps && (
-                            <span className={`font-mono font-black text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-white/5 px-3 py-1 rounded-xl whitespace-nowrap border border-gray-100 dark:border-white/5 ${repsSize}`}>
+                            <span className={`font-mono font-black text-primary bg-primary/5 px-4 py-1.5 rounded-xl whitespace-nowrap border border-primary/10 shrink-0 ${repsSize}`}>
                                 {formatReps(ex.reps)}
                             </span>
                         )}
+                        <h4 className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight overflow-visible whitespace-nowrap ${titleSize}`}>
+                            {ex.name}
+                        </h4>
                     </div>
 
-                    {showDescription && ex.description && (
-                        <div className="mt-2 hidden sm:block">
+                    {ex.description && !isHyrox && count <= 8 && (
+                        <div className="mt-2 hidden sm:block pl-2">
                              <p className={`font-medium text-gray-600 dark:text-gray-300 leading-snug text-lg md:text-xl line-clamp-3`}>
                                 {ex.description}
                              </p>
@@ -534,7 +520,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       
       workoutChain.forEach((b, i) => {
           const bDur = calculateBlockDuration(b.settings, b.exercises.length);
-          const transTime = (i < workoutChain.length - 1 && b.autoAdvance) ? (b.transitionTime || 0) : 0;
+          const transTime = (i < chainLength - 1 && b.autoAdvance) ? (b.transitionTime || 0) : 0;
           totalDuration += bDur + transTime;
           if (i < currentIdxInChain) elapsedTimeBeforeCurrent += bDur + transTime;
       });
@@ -868,24 +854,24 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   }, [block.settings.mode, isHyroxRace, isTransitioning]);
 
   const statusLabel = useMemo(() => {
-      if (isTransitioning) return `GÖR ER REDO FÖR: ${nextBlock?.title.toUpperCase()}`;
+      if (isTransitioning) return `Gör er redo för: ${nextBlock?.title}`;
       if (isHyroxRace) {
           switch (status) {
-              case TimerStatus.Preparing: return "GÖR ER REDO";
-              case TimerStatus.Running: return "PÅGÅR"; 
-              case TimerStatus.Resting: return "VILA"; 
-              case TimerStatus.Paused: return "PAUSAD";
-              case TimerStatus.Finished: return "MÅLGÅNG";
-              default: return "REDO";
+              case TimerStatus.Preparing: return "Gör er redo";
+              case TimerStatus.Running: return "Pågår"; 
+              case TimerStatus.Resting: return "Vila"; 
+              case TimerStatus.Paused: return "Pausad";
+              case TimerStatus.Finished: return "Målgång";
+              default: return "Redo";
           }
       }
       switch (status) {
-          case TimerStatus.Preparing: return "GÖR DIG REDO";
-          case TimerStatus.Running: return "ARBETE";
-          case TimerStatus.Resting: return "VILA";
-          case TimerStatus.Paused: return "PAUSAD";
-          case TimerStatus.Finished: return "KLAR";
-          default: return "REDO";
+          case TimerStatus.Preparing: return "Gör dig redo";
+          case TimerStatus.Running: return "Arbete";
+          case TimerStatus.Resting: return "Vila";
+          case TimerStatus.Paused: return "Pausad";
+          case TimerStatus.Finished: return "Klar";
+          default: return "Redo";
       }
   }, [status, isHyroxRace, isTransitioning, nextBlock]);
 
@@ -1060,7 +1046,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                             {block.showDescriptionInTimer && block.setupDescription && (
                                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 mb-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0 mx-auto max-w-5xl">
                                         <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
-                                        <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight uppercase">{block.setupDescription}</p>
+                                        <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight">{block.setupDescription}</p>
                                 </motion.div>
                             )}
                             <div className="flex-grow min-h-0">
@@ -1084,7 +1070,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                 // Header för vila-läget
                                 <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-center bg-white/80 dark:bg-black/20 p-8 rounded-[2.5rem] border border-gray-100 dark:border-white/5 shadow-lg gap-6">
                                     <div>
-                                        <span className="inline-block px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-black uppercase tracking-[0.2em] mb-3">UPPLADDNING</span>
+                                        <span className="inline-block px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-black uppercase tracking-[0.2em] mb-3">Uppladdning</span>
                                         <h3 className="text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-none">{nextBlock?.title}</h3>
                                         <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Gör er redo för nästa del av passet</p>
                                     </div>
@@ -1099,7 +1085,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                 block.showDescriptionInTimer && block.setupDescription && (
                                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0">
                                             <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
-                                            <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight uppercase tracking-tight">{block.setupDescription}</p>
+                                            <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight">{block.setupDescription}</p>
                                     </motion.div>
                                 )
                             )}
@@ -1129,7 +1115,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                     <>
                                         <NextRestPreview 
                                             transitionTime={block.transitionTime || 0} 
-                                            nextBlockTitle={nextBlock!.title}
                                             onSkip={handleStartNextBlock}
                                         />
                                         {upcomingBlocks[0] && (
