@@ -171,14 +171,14 @@ const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock
     );
 };
 
-const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string }> = ({ block, label = "HÄRNÄST" }) => {
+const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; isFlex?: boolean }> = ({ block, label = "HÄRNÄST", isFlex = true }) => {
     const timeLabel = getBlockTimeLabel(block);
     
     return (
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="flex-1 flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 overflow-hidden shadow-2xl"
+            className={`${isFlex ? 'flex-1' : ''} flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 overflow-hidden shadow-2xl`}
         >
             <div className="p-8 bg-gray-50/50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5">
                 <div className="flex items-center gap-4 mb-4">
@@ -1117,11 +1117,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
                         {/* UPCOMING BLOCKS STACK (33% width) */}
                         {showSplitView ? (
-                            <div className="w-1/3 pb-6 flex flex-col gap-4">
+                            <div className="w-1/3 h-full flex flex-col gap-4 pb-1">
                                 {isTransitioning ? (
                                     // Under vila: Visa kommande block C och D i sidobaren
                                     <>
-                                        {upcomingBlocks[1] && <NextBlockPreview block={upcomingBlocks[1]} label="HÄRNÄST" />}
+                                        {upcomingBlocks[1] && <NextBlockPreview block={upcomingBlocks[1]} label="HÄRNÄST" isFlex={!upcomingBlocks[2]} />}
                                         {upcomingBlocks[2] && <NextBlockPreview block={upcomingBlocks[2]} label="DÄREFTER" />}
                                     </>
                                 ) : isRestNext ? (
@@ -1132,9 +1132,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                             nextBlockTitle={nextBlock!.title}
                                             onSkip={handleStartNextBlock}
                                         />
-                                        {upcomingBlocks[1] && (
+                                        {upcomingBlocks[0] && (
                                             <NextBlockPreview 
-                                                block={upcomingBlocks[1]} 
+                                                block={upcomingBlocks[0]} 
                                                 label="DÄREFTER" 
                                             />
                                         )}
@@ -1142,7 +1142,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                 ) : (
                                     // Under träning utan vila: Visa Block B och C
                                     <>
-                                        <NextBlockPreview block={nextBlock!} label="HÄRNÄST" />
+                                        <NextBlockPreview block={nextBlock!} label="HÄRNÄST" isFlex={!upcomingBlocks[1]} />
                                         {upcomingBlocks[1] && (
                                             <NextBlockPreview 
                                                 block={upcomingBlocks[1]} 
