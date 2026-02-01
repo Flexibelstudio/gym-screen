@@ -93,12 +93,12 @@ const getBlockTimeLabel = (block: WorkoutBlock): string => {
 
 // --- Visualization Components ---
 
-const NextRestPreview: React.FC<{ transitionTime: number; nextBlockTitle: string }> = ({ transitionTime, nextBlockTitle }) => {
+const NextRestPreview: React.FC<{ transitionTime: number; nextBlockTitle: string; onSkip?: () => void }> = ({ transitionTime, nextBlockTitle, onSkip }) => {
     return (
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="my-auto flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 shadow-2xl p-8"
+            className="flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 shadow-2xl p-8"
         >
             <div className="flex items-center gap-4 mb-6">
                 <div className="bg-primary/10 p-3 rounded-2xl border border-primary/20">
@@ -114,10 +114,19 @@ const NextRestPreview: React.FC<{ transitionTime: number; nextBlockTitle: string
                 {formatSeconds(transitionTime)}
             </div>
 
-            <div className="bg-gray-5 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5">
+            <div className="bg-gray-5 dark:bg-white/5 p-4 rounded-2xl border border-gray-100 dark:border-white/5 mb-6">
                 <span className="block text-[9px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em] mb-1.5">INFÖR NÄSTA DEL</span>
                 <p className="text-gray-900 dark:text-white text-base font-bold leading-tight line-clamp-2">{nextBlockTitle}</p>
             </div>
+
+            {onSkip && (
+                <button 
+                    onClick={onSkip}
+                    className="w-full bg-primary text-white font-black py-3 rounded-xl uppercase tracking-widest text-xs shadow-lg active:scale-95 transition-all"
+                >
+                    Börja nästa nu
+                </button>
+            )}
         </motion.div>
     );
 };
@@ -163,14 +172,14 @@ const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock
     );
 };
 
-const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
+const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string }> = ({ block, label = "HÄRNÄST" }) => {
     const timeLabel = getBlockTimeLabel(block);
     
     return (
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="max-h-[80%] my-auto flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 overflow-hidden shadow-2xl"
+            className="flex-1 flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 overflow-hidden shadow-2xl"
         >
             <div className="p-8 bg-gray-50/50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5">
                 <div className="flex items-center gap-4 mb-4">
@@ -178,7 +187,7 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock }> = ({ block }) => {
                         <ChevronRightIcon className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                        <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">HÄRNÄST</span>
+                        <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">{label}</span>
                         <h4 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight line-clamp-1 leading-none">{block.title}</h4>
                     </div>
                 </div>
@@ -390,7 +399,6 @@ const StandardListView: React.FC<{
     
     const titleSize = isLargeList ? 'text-lg sm:text-xl md:text-2xl' : count > 8 ? 'text-2xl md:text-3xl' : 'text-4xl md:text-5xl';
     const repsSize = isLargeList ? 'text-sm md:text-base' : 'text-xl md:text-2xl';
-    const descSize = 'text-lg md:text-xl';
     const padding = isHyrox ? 'pl-16 pr-6 py-2' : isLargeList ? 'pl-8 pr-4 py-2' : count > 8 ? 'pl-8 pr-6 py-3' : 'px-8 py-6';
     const gap = isLargeList ? 'gap-1' : 'gap-3';
     
@@ -419,7 +427,7 @@ const StandardListView: React.FC<{
 
                     {showDescription && ex.description && (
                         <div className="mt-2 hidden sm:block">
-                             <p className={`font-medium text-gray-600 dark:text-gray-300 leading-snug ${descSize} line-clamp-3`}>
+                             <p className={`font-medium text-gray-600 dark:text-gray-300 leading-snug text-lg md:text-xl line-clamp-3`}>
                                 {ex.description}
                              </p>
                         </div>
@@ -522,12 +530,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const transitionIntervalRef = useRef<number | null>(null);
   const hasTriggeredFinish = useRef(false);
 
-  const nextBlock = useMemo(() => {
-    if (!activeWorkout || !block.autoAdvance) return null;
+  const upcomingBlocks = useMemo(() => {
+    if (!activeWorkout) return [];
     const index = activeWorkout.blocks.findIndex(b => b.id === block.id);
-    if (index === -1 || index >= activeWorkout.blocks.length - 1) return null;
-    return activeWorkout.blocks[index + 1];
-  }, [activeWorkout, block]);
+    if (index === -1) return [];
+    // Get next two blocks
+    return activeWorkout.blocks.slice(index + 1, index + 3);
+  }, [activeWorkout, block.id]);
+
+  const nextBlock = upcomingBlocks[0] || null;
 
   const workoutChain = useMemo(() => {
       if (!activeWorkout) return [block];
@@ -535,13 +546,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       if (index === -1) return [block];
 
       let startIdx = index;
-      // Gå bakåt för att hitta början på den aktuella automatiska kedjan
       while (startIdx > 0 && activeWorkout.blocks[startIdx - 1].autoAdvance) {
           startIdx--;
       }
 
       let endIdx = index;
-      // Gå framåt för att hitta slutet på den aktuella automatiska kedjan
       while (endIdx < activeWorkout.blocks.length - 1 && activeWorkout.blocks[endIdx].autoAdvance) {
           endIdx++;
       }
@@ -556,7 +565,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       
       workoutChain.forEach((b, i) => {
           const bDur = calculateBlockDuration(b.settings, b.exercises.length);
-          // Lägg bara till transitionTime om det faktiskt är en automatisk övergång planerad
           const transTime = (i < workoutChain.length - 1 && b.autoAdvance) ? (b.transitionTime || 0) : 0;
           totalDuration += bDur + transTime;
           if (i < currentIdxInChain) elapsedTimeBeforeCurrent += bDur + transTime;
@@ -925,7 +933,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const secondsStr = (timeToDisplay % 60).toString().padStart(2, '0');
 
   const currentIntervalInLap = (completedWorkIntervals % effectiveIntervalsPerLap) + 1;
-  const showSplitView = !!nextBlock && block.autoAdvance && !isTransitioning;
+  const showSplitView = upcomingBlocks.length > 0 && block.autoAdvance && !isTransitioning;
 
   const isRestNext = block.autoAdvance && (block.transitionTime || 0) > 0 && status !== TimerStatus.Resting;
 
@@ -1103,7 +1111,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                             </div>
                         </div>
                     ) : (
-                        // STANDARD LIST LAYOUT (Side by side if next block exists)
+                        // STANDARD LIST LAYOUT (Side by side if next blocks exist)
                         <div className="flex gap-10 flex-grow items-stretch w-full min-h-0">
                              <div className={`flex flex-col gap-6 transition-all duration-500 h-full min-h-0 ${showSplitView ? 'w-2/3' : 'w-full mx-auto max-w-6xl'}`}>
                                 {block.showDescriptionInTimer && block.setupDescription && (
@@ -1118,16 +1126,33 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                 </div>
                             </div>
 
-                            {/* NEXT BLOCK PREVIEW (35% width) - Endast vid stations-baserad träning */}
+                            {/* UPCOMING BLOCKS STACK (33% width) */}
                             {showSplitView ? (
-                                <div className="w-1/3 pb-6 flex flex-col justify-center">
+                                <div className="w-1/3 pb-6 flex flex-col gap-4">
                                     {isRestNext ? (
-                                        <NextRestPreview 
-                                            transitionTime={block.transitionTime || 0} 
-                                            nextBlockTitle={nextBlock!.title} 
-                                        />
+                                        <>
+                                            <NextRestPreview 
+                                                transitionTime={block.transitionTime || 0} 
+                                                nextBlockTitle={nextBlock!.title}
+                                                onSkip={handleStartNextBlock}
+                                            />
+                                            {upcomingBlocks[1] && (
+                                                <NextBlockPreview 
+                                                    block={upcomingBlocks[1]} 
+                                                    label="DÄREFTER" 
+                                                />
+                                            )}
+                                        </>
                                     ) : (
-                                        <NextBlockPreview block={nextBlock!} />
+                                        <>
+                                            <NextBlockPreview block={nextBlock!} />
+                                            {upcomingBlocks[1] && (
+                                                <NextBlockPreview 
+                                                    block={upcomingBlocks[1]} 
+                                                    label="DÄREFTER" 
+                                                />
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             ) : null}
