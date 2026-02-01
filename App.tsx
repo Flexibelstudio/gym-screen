@@ -212,7 +212,7 @@ const App: React.FC = () => {
       if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
       if (studioConfig.enableScreensaver && !pagesThatPreventScreensaver.includes(page)) {
           const timeoutMinutes = studioConfig.screensaverTimeoutMinutes || 15;
-          inactivityTimerRef.current = window.setTimeout(() => {
+          inputActivityTimerRef.current = window.setTimeout(() => {
               setIsScreensaverActive(true);
           }, timeoutMinutes * 60 * 1000);
       }
@@ -1033,7 +1033,7 @@ const App: React.FC = () => {
                     setBackButtonHidden: setIsBackButtonHidden,
                     setRacePrepState: setRacePrepState,
                     setCompletionInfo: setCompletionInfo,
-                    setRegisteringHyroxTime: setRegisteringHyroxTime,
+                    setRegisteringHyroxTime: setIsRegisteringHyroxTime,
                     setFollowMeShowImage: setFollowMeShowImage,
                     
                     handleGeneratedWorkout: handleGeneratedWorkout,
