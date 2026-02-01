@@ -92,12 +92,12 @@ const getBlockTimeLabel = (block: WorkoutBlock): string => {
 
 // --- Visualization Components ---
 
-const NextRestPreview: React.FC<{ transitionTime: number }> = ({ transitionTime }) => {
+const NextRestPreview: React.FC<{ transitionTime: number; isFlex?: boolean }> = ({ transitionTime, isFlex = true }) => {
     return (
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 shadow-2xl p-8 h-full justify-center"
+            className={`${isFlex ? 'flex-1' : ''} flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 shadow-2xl p-8 justify-center`}
         >
             <div className="flex items-center gap-4 mb-6">
                 <div className="bg-primary/10 p-3 rounded-2xl border border-primary/20">
@@ -783,6 +783,16 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     }
   };
 
+  const handleAddPenalty = () => {
+    if (participantToEdit) {
+      setFinishedParticipants(prev => ({
+        ...prev,
+        [participantToEdit]: { ...prev[participantToEdit], time: prev[participantToEdit].time + 60 }
+      }));
+      setParticipantToEdit(null);
+    }
+  };
+
   const handleRemoveResult = () => {
     if (participantToEdit) {
       setFinishedParticipants(prev => {
@@ -1112,6 +1122,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                     <>
                                         <NextRestPreview 
                                             transitionTime={block.transitionTime || 0} 
+                                            isFlex={!!upcomingBlocks[0]}
                                         />
                                         {upcomingBlocks[0] && (
                                             <NextBlockPreview 
