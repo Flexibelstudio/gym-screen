@@ -24,7 +24,6 @@ interface TimerStyle {
 
 const getTimerStyle = (status: TimerStatus, mode: TimerMode, isHyrox: boolean, isTransitioning: boolean): TimerStyle => {
   if (isTransitioning) {
-      // Mörk lila/indigo gradient för vilan mellan block
       return { bg: 'bg-gradient-to-br from-indigo-900 to-purple-900', text: 'text-white', pulseRgb: '168, 85, 247', border: 'border-purple-400', badge: 'bg-purple-600' };
   }
   
@@ -209,36 +208,6 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string }> = ({ b
                         {ex.reps && <span className="text-[10px] font-black text-primary whitespace-nowrap bg-primary/10 px-2.5 py-1 rounded-lg border border-primary/10">{formatReps(ex.reps)}</span>}
                     </div>
                 ))}
-            </div>
-        </motion.div>
-    );
-};
-
-const TransitionFullWidthPreview: React.FC<{ block: WorkoutBlock; onSkip: () => void; timerStyle: TimerStyle }> = ({ block, onSkip, timerStyle }) => {
-    return (
-        <motion.div 
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full max-w-6xl mx-auto h-full flex flex-col pt-4 pb-4"
-        >
-            <div className="flex-grow flex flex-col h-full space-y-4">
-                <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-center bg-white/80 dark:bg-black/20 p-8 rounded-[2.5rem] border border-gray-100 dark:border-white/5 shadow-lg gap-6">
-                    <div>
-                        <span className="inline-block px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-black uppercase tracking-[0.2em] mb-3">UPPLADDNING</span>
-                        <h3 className="text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-none">{block.title}</h3>
-                        <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Gör er redo för nästa del av passet</p>
-                    </div>
-                    <button 
-                        onClick={onSkip}
-                        className="bg-gray-900 dark:bg-white text-white dark:text-black font-black py-4 px-10 rounded-2xl shadow-2xl hover:scale-105 transition-all text-lg uppercase tracking-widest border-4 border-gray-700 dark:border-white/30"
-                    >
-                        Starta nu
-                    </button>
-                </div>
-                
-                <div className="flex-grow min-h-0">
-                    <StandardListView exercises={block.exercises} timerStyle={timerStyle} forceFullHeight={true} />
-                </div>
             </div>
         </motion.div>
     );
@@ -534,8 +503,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     if (!activeWorkout) return [];
     const index = activeWorkout.blocks.findIndex(b => b.id === block.id);
     if (index === -1) return [];
-    // Get next two blocks
-    return activeWorkout.blocks.slice(index + 1, index + 3);
+    // Hämta 3 block framåt för att säkra split-vyn i transition
+    return activeWorkout.blocks.slice(index + 1, index + 4);
   }, [activeWorkout, block.id]);
 
   const nextBlock = upcomingBlocks[0] || null;
@@ -933,7 +902,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const secondsStr = (timeToDisplay % 60).toString().padStart(2, '0');
 
   const currentIntervalInLap = (completedWorkIntervals % effectiveIntervalsPerLap) + 1;
-  const showSplitView = upcomingBlocks.length > 0 && block.autoAdvance && !isTransitioning;
+  
+  // Visa split-vyn om vi har kommande block, antingen i träning eller under transition
+  const showSplitView = upcomingBlocks.length > 0 && block.autoAdvance;
 
   const isRestNext = block.autoAdvance && (block.transitionTime || 0) > 0 && status !== TimerStatus.Resting;
 
@@ -1058,7 +1029,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         {/* BLOCK RUBRIK (Stort) - Längst ner */}
         <div className="text-center z-20 w-full px-10 mt-4 mb-2">
             <h1 className="font-black text-white/90 uppercase tracking-tighter text-2xl sm:text-3xl md:text-4xl drop-shadow-lg overflow-visible whitespace-nowrap leading-none">
-                {block.title}
+                {isTransitioning ? nextBlock?.title : block.title}
             </h1>
         </div>
       </div>
@@ -1069,97 +1040,122 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'}`}>
           
           <div className="w-full max-w-[1500px] h-full flex flex-col">
-              {isTransitioning ? (
-                  // TRANSITION VIEW: Show NEXT block exercises BIG and FULL WIDTH
-                  <TransitionFullWidthPreview block={nextBlock!} onSkip={handleStartNextBlock} timerStyle={timerStyle} />
-              ) : (
-                  // NORMAL WORKOUT VIEW
-                  <div className="flex flex-col h-full w-full">
-                    <AnimatePresence>
-                        {isHyroxRace && groupForCountdownDisplay && (
-                            <div className="flex-shrink-0 w-full max-w-4xl mx-auto mb-2">
-                                <NextStartIndicator
-                                    groupName={groupForCountdownDisplay.name}
-                                    timeLeft={timeForCountdownDisplay}
-                                    groupsLeft={remainingGroupsCount}
+              <div className="flex flex-col h-full w-full">
+                <AnimatePresence>
+                    {isHyroxRace && groupForCountdownDisplay && (
+                        <div className="flex-shrink-0 w-full max-w-4xl mx-auto mb-2">
+                            <NextStartIndicator
+                                groupName={groupForCountdownDisplay.name}
+                                timeLeft={timeForCountdownDisplay}
+                                groupsLeft={remainingGroupsCount}
+                            />
+                        </div>
+                    )}
+                </AnimatePresence>
+
+                {block.followMe && !isTransitioning ? (
+                    // FOLLOW ME LAYOUT (Vertical stack - Bar forced to bottom)
+                    <div className="w-full flex flex-col items-center flex-grow justify-between pb-4 min-h-0">
+                        <div className="w-full flex flex-col flex-grow min-h-0">
+                            {block.showDescriptionInTimer && block.setupDescription && (
+                                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 mb-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0 mx-auto max-w-5xl">
+                                        <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
+                                        <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight uppercase">{block.setupDescription}</p>
+                                </motion.div>
+                            )}
+                            <div className="flex-grow min-h-0">
+                                <FollowMeView 
+                                    exercise={currentExercise} 
+                                    nextExercise={nextExercise} 
+                                    timerStyle={timerStyle} 
+                                    status={status} 
+                                    nextBlock={nextBlock && block.autoAdvance ? nextBlock : undefined}
+                                    isRestNext={isRestNext}
+                                    transitionTime={isRestNext ? block.transitionTime : undefined}
                                 />
                             </div>
-                        )}
-                    </AnimatePresence>
-
-                    {block.followMe ? (
-                        // FOLLOW ME LAYOUT (Vertical stack - Bar forced to bottom)
-                        <div className="w-full flex flex-col items-center flex-grow justify-between pb-4 min-h-0">
-                            <div className="w-full flex flex-col flex-grow min-h-0">
-                                {block.showDescriptionInTimer && block.setupDescription && (
-                                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 mb-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0 mx-auto max-w-5xl">
-                                            <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
-                                            <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight uppercase">{block.setupDescription}</p>
-                                    </motion.div>
-                                )}
-                                <div className="flex-grow min-h-0">
-                                    <FollowMeView 
-                                        exercise={currentExercise} 
-                                        nextExercise={nextExercise} 
-                                        timerStyle={timerStyle} 
-                                        status={status} 
-                                        nextBlock={nextBlock && block.autoAdvance ? nextBlock : undefined}
-                                        isRestNext={isRestNext}
-                                        transitionTime={isRestNext ? block.transitionTime : undefined}
-                                    />
-                                </div>
-                            </div>
                         </div>
-                    ) : (
-                        // STANDARD LIST LAYOUT (Side by side if next blocks exist)
-                        <div className="flex gap-10 flex-grow items-stretch w-full min-h-0">
-                             <div className={`flex flex-col gap-6 transition-all duration-500 h-full min-h-0 ${showSplitView ? 'w-2/3' : 'w-full mx-auto max-w-6xl'}`}>
-                                {block.showDescriptionInTimer && block.setupDescription && (
+                    </div>
+                ) : (
+                    // STANDARD LIST LAYOUT (Side by side if next blocks exist)
+                    <div className="flex gap-10 flex-grow items-stretch w-full min-h-0">
+                         <div className={`flex flex-col gap-6 transition-all duration-500 h-full min-h-0 ${showSplitView ? 'w-2/3' : 'w-full mx-auto max-w-6xl'}`}>
+                            {isTransitioning ? (
+                                // Header för vila-läget
+                                <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-center bg-white/80 dark:bg-black/20 p-8 rounded-[2.5rem] border border-gray-100 dark:border-white/5 shadow-lg gap-6">
+                                    <div>
+                                        <span className="inline-block px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-black uppercase tracking-[0.2em] mb-3">UPPLADDNING</span>
+                                        <h3 className="text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-none">{nextBlock?.title}</h3>
+                                        <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Gör er redo för nästa del av passet</p>
+                                    </div>
+                                    <button 
+                                        onClick={handleStartNextBlock}
+                                        className="bg-gray-900 dark:bg-white text-white dark:text-black font-black py-4 px-10 rounded-2xl shadow-2xl hover:scale-105 transition-all text-lg uppercase tracking-widest border-4 border-gray-700 dark:border-white/30"
+                                    >
+                                        Starta nu
+                                    </button>
+                                </div>
+                            ) : (
+                                block.showDescriptionInTimer && block.setupDescription && (
                                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0">
                                             <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
                                             <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight uppercase tracking-tight">{block.setupDescription}</p>
                                     </motion.div>
+                                )
+                            )}
+
+                            <div className="w-full flex-grow min-h-0"> 
+                                {!isFreestanding && (
+                                    <StandardListView 
+                                        exercises={isTransitioning ? nextBlock!.exercises : block.exercises} 
+                                        timerStyle={timerStyle} 
+                                        isHyrox={isHyroxRace} 
+                                    />
                                 )}
-
-                                <div className="w-full flex-grow min-h-0"> 
-                                    {!isFreestanding && <StandardListView exercises={block.exercises} timerStyle={timerStyle} isHyrox={isHyroxRace} />}
-                                </div>
                             </div>
-
-                            {/* UPCOMING BLOCKS STACK (33% width) */}
-                            {showSplitView ? (
-                                <div className="w-1/3 pb-6 flex flex-col gap-4">
-                                    {isRestNext ? (
-                                        <>
-                                            <NextRestPreview 
-                                                transitionTime={block.transitionTime || 0} 
-                                                nextBlockTitle={nextBlock!.title}
-                                                onSkip={handleStartNextBlock}
-                                            />
-                                            {upcomingBlocks[1] && (
-                                                <NextBlockPreview 
-                                                    block={upcomingBlocks[1]} 
-                                                    label="DÄREFTER" 
-                                                />
-                                            )}
-                                        </>
-                                    ) : (
-                                        <>
-                                            <NextBlockPreview block={nextBlock!} />
-                                            {upcomingBlocks[1] && (
-                                                <NextBlockPreview 
-                                                    block={upcomingBlocks[1]} 
-                                                    label="DÄREFTER" 
-                                                />
-                                            )}
-                                        </>
-                                    )}
-                                </div>
-                            ) : null}
                         </div>
-                    )}
-                  </div>
-              )}
+
+                        {/* UPCOMING BLOCKS STACK (33% width) */}
+                        {showSplitView ? (
+                            <div className="w-1/3 pb-6 flex flex-col gap-4">
+                                {isTransitioning ? (
+                                    // Under vila: Visa kommande block C och D i sidobaren
+                                    <>
+                                        {upcomingBlocks[1] && <NextBlockPreview block={upcomingBlocks[1]} label="HÄRNÄST" />}
+                                        {upcomingBlocks[2] && <NextBlockPreview block={upcomingBlocks[2]} label="DÄREFTER" />}
+                                    </>
+                                ) : isRestNext ? (
+                                    // Under träning med vila efter: Visa vila och Block B
+                                    <>
+                                        <NextRestPreview 
+                                            transitionTime={block.transitionTime || 0} 
+                                            nextBlockTitle={nextBlock!.title}
+                                            onSkip={handleStartNextBlock}
+                                        />
+                                        {upcomingBlocks[1] && (
+                                            <NextBlockPreview 
+                                                block={upcomingBlocks[1]} 
+                                                label="DÄREFTER" 
+                                            />
+                                        )}
+                                    </>
+                                ) : (
+                                    // Under träning utan vila: Visa Block B och C
+                                    <>
+                                        <NextBlockPreview block={nextBlock!} label="HÄRNÄST" />
+                                        {upcomingBlocks[1] && (
+                                            <NextBlockPreview 
+                                                block={upcomingBlocks[1]} 
+                                                label="DÄREFTER" 
+                                            />
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        ) : null}
+                    </div>
+                )}
+              </div>
           </div>
       </div>
 
