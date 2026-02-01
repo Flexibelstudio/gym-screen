@@ -370,7 +370,11 @@ const App: React.FC = () => {
 
   const handleSaveAndNavigate = async (workout: Workout, startFirstBlock?: boolean) => {
     const isMemberRole = sessionRole === 'member' || isStudioMode;
-    const workoutToSave = { ...workout, isMemberDraft: isMemberRole };
+    // Bevara isMemberDraft om den redan är satt, annars sätt baserat på roll/läge
+    const workoutToSave = { 
+        ...workout, 
+        isMemberDraft: workout.isMemberDraft ?? isMemberRole 
+    };
     const savedWorkout = await saveWorkout(workoutToSave);
     
     if (startFirstBlock && savedWorkout.blocks.length > 0) {
@@ -391,7 +395,11 @@ const App: React.FC = () => {
 
   const handleSaveOnly = async (workout: Workout) => {
       const isMemberRole = sessionRole === 'member' || isStudioMode;
-      return await saveWorkout({ ...workout, isMemberDraft: isMemberRole });
+      // Bevara isMemberDraft om den redan är satt, annars sätt baserat på roll/läge
+      return await saveWorkout({ 
+          ...workout, 
+          isMemberDraft: workout.isMemberDraft ?? isMemberRole 
+      });
   };
   
   const handleTogglePublishStatus = async (workoutId: string, isPublished: boolean) => {
@@ -1025,7 +1033,7 @@ const App: React.FC = () => {
                     setBackButtonHidden: setIsBackButtonHidden,
                     setRacePrepState: setRacePrepState,
                     setCompletionInfo: setCompletionInfo,
-                    setRegisteringHyroxTime: setIsRegisteringHyroxTime,
+                    setRegisteringHyroxTime: setRegisteringHyroxTime,
                     setFollowMeShowImage: setFollowMeShowImage,
                     
                     handleGeneratedWorkout: handleGeneratedWorkout,
