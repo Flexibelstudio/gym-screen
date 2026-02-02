@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SparklesIcon, DumbbellIcon, DocumentTextIcon, CloseIcon, VideoIcon } from './icons';
+import { SparklesIcon, DumbbellIcon, DocumentTextIcon, CloseIcon, VideoIcon, InformationCircleIcon } from './icons';
 import { generateWorkout, parseWorkoutFromText, parseWorkoutFromImage, parseWorkoutFromYoutube } from '../services/geminiService';
 import { Workout, WorkoutBlock, Exercise, StudioConfig, CustomCategoryWithPrompt } from '../types';
 import { useStudio } from '../context/StudioContext';
