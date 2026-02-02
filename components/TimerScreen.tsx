@@ -159,18 +159,18 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; flexClas
             animate={{ opacity: 1, x: 0 }}
             className={`${flexClassName} flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 overflow-hidden shadow-2xl min-h-0`}
         >
-            <div className="p-5 bg-gray-50/50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5">
-                <div className="flex items-center gap-3 mb-2">
-                    <div className="bg-primary/10 p-1.5 rounded-lg border border-primary/20">
-                        <ChevronRightIcon className="w-4 h-4 text-primary" />
+            <div className="p-3.5 bg-gray-50/50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5">
+                <div className="flex items-center gap-2 mb-1.5">
+                    <div className="bg-primary/10 p-1 rounded-lg border border-primary/20">
+                        <ChevronRightIcon className="w-3.5 h-3.5 text-primary" />
                     </div>
                     <div>
-                        <span className="block text-[9px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-0.5">{label}</span>
-                        <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight line-clamp-1 leading-none">{block.title}</h4>
+                        <span className="block text-[8px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-0.5">{label}</span>
+                        <h4 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight line-clamp-1 leading-none">{block.title}</h4>
                     </div>
                 </div>
                 
-                <div className="flex items-center gap-2 text-gray-400 dark:text-white/40 text-[9px] font-black uppercase tracking-widest mb-2">
+                <div className="flex items-center gap-2 text-gray-400 dark:text-white/40 text-[8px] font-black uppercase tracking-widest mb-1.5">
                     <span>{block.settings.mode}</span>
                     {timeLabel && (
                         <>
@@ -181,20 +181,20 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; flexClas
                 </div>
 
                 {block.setupDescription && (
-                    <p className="text-xs font-bold text-gray-600 dark:text-gray-300 leading-tight border-t border-gray-100 dark:border-white/5 pt-2 mt-1">
+                    <p className="text-[11px] font-bold text-gray-600 dark:text-gray-300 leading-tight border-t border-gray-100 dark:border-white/5 pt-1.5 mt-1 whitespace-normal">
                         {block.setupDescription}
                     </p>
                 )}
             </div>
-            <div className="flex-grow overflow-y-auto p-4 custom-scrollbar space-y-2">
+            <div className="flex-grow overflow-y-auto p-3.5 custom-scrollbar space-y-1.5">
                 {block.exercises.map((ex) => {
                     const nameLen = ex.name.length;
-                    const nameSize = nameLen > 25 ? 'text-sm' : 'text-base';
+                    const nameSize = nameLen > 25 ? 'text-[13px]' : 'text-sm';
                     
                     return (
-                        <div key={ex.id} className="flex items-center gap-3 bg-gray-50 dark:bg-white/5 rounded-xl p-3 border border-gray-100 dark:border-white/5">
+                        <div key={ex.id} className="flex items-center gap-2.5 bg-gray-50 dark:bg-white/5 rounded-xl p-2 border border-gray-100 dark:border-white/5">
                             {ex.reps && (
-                                <span className="text-xs font-black text-primary whitespace-nowrap bg-primary/10 px-2 py-1 rounded-lg border border-primary/10">
+                                <span className="text-[10px] font-black text-primary whitespace-nowrap bg-primary/10 px-1.5 py-0.5 rounded-lg border border-primary/10">
                                     {formatReps(ex.reps)}
                                 </span>
                             )}
@@ -398,7 +398,7 @@ const StandardListView: React.FC<{
                                     {formatReps(ex.reps)}
                                 </span>
                             )}
-                            <h4 className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight overflow-visible whitespace-nowrap transition-all duration-300 ${titleSize}`}>
+                            <h4 className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight overflow-visible whitespace-normal transition-all duration-300 ${titleSize}`}>
                                 {ex.name}
                             </h4>
                         </div>
@@ -1047,7 +1047,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       {/* CONTENT AREA (Under Clock) */}
       <div className={`absolute bottom-4 left-0 flex flex-col items-center justify-start z-0 pt-2
           ${showFullScreenColor ? 'top-[65%]' : 'top-[28%]'} 
-          ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10 pl-6` : 'right-0 pl-6 pr-10'}`}>
+          ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] px-6` : 'right-0 px-6'}`}>
           
           <div className="w-full max-w-[1500px] h-full flex flex-col">
               <div className="flex flex-col h-full w-full">
