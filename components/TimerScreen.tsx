@@ -108,19 +108,19 @@ const NextRestPreview: React.FC<{ transitionTime: number; isCompact?: boolean }>
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className={`${isCompact ? 'flex-1' : 'flex-1'} flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 shadow-2xl p-6 justify-center`}
+            className={`${isCompact ? 'flex-1' : 'flex-1'} flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[3rem] border-2 border-gray-100 dark:border-white/10 shadow-2xl p-10 justify-center text-center`}
         >
-            <div className="flex items-center gap-4 mb-2">
-                <div className="bg-primary/10 p-2 rounded-xl border border-primary/20">
-                    <ClockIcon className="w-6 h-6 text-primary" />
+            <div className="flex flex-col items-center gap-4 mb-6">
+                <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20">
+                    <ClockIcon className="w-10 h-10 text-primary" />
                 </div>
                 <div>
-                    <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-1">HÄRNÄST</span>
-                    <h4 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">VILA</h4>
+                    <span className="block text-sm font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.4em] mb-2">HÄRNÄST</span>
+                    <h4 className="text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-none">VILA</h4>
                 </div>
             </div>
             
-            <div className="text-7xl font-mono font-black text-primary dark:text-primary mb-1 tabular-nums drop-shadow-sm">
+            <div className="text-[10rem] font-mono font-black text-primary dark:text-primary tabular-nums drop-shadow-xl leading-none">
                 {formatSeconds(transitionTime)}
             </div>
         </motion.div>
@@ -169,52 +169,54 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; flexClas
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className={`${flexClassName} flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 overflow-hidden shadow-2xl min-h-0`}
+            className={`${flexClassName} flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[3rem] border-2 border-gray-100 dark:border-white/10 overflow-hidden shadow-2xl min-h-0`}
         >
-            <div className="p-4 bg-gray-50/50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5 flex-shrink-0">
-                <div className="flex items-center gap-2 mb-1.5">
-                    <div className="bg-primary/10 p-1 rounded-lg border border-primary/20">
-                        <ChevronRightIcon className="w-3.5 h-3.5 text-primary" />
+            <div className="p-8 bg-gray-50/50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5 flex-shrink-0">
+                <div className="flex items-center gap-4 mb-3">
+                    <div className="bg-primary/10 p-2 rounded-xl border border-primary/20">
+                        <ChevronRightIcon className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                        <span className="block text-[8px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.3em] mb-0.5">{label}</span>
-                        <h4 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight line-clamp-1 leading-none">{block.title}</h4>
+                        <span className="block text-xs font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.4em] mb-1">{label}</span>
+                        <h4 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter line-clamp-1 leading-none">{block.title}</h4>
                     </div>
                 </div>
                 
-                <div className="flex items-center gap-2 text-gray-400 dark:text-white/40 text-[8px] font-black uppercase tracking-widest mb-1.5">
-                    <span>{block.settings.mode}</span>
+                <div className="flex items-center gap-3 text-gray-400 dark:text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-3">
+                    <span className="bg-gray-200 dark:bg-white/10 px-2 py-1 rounded-md">{block.settings.mode}</span>
                     {timeLabel && (
                         <>
                             <span className="opacity-30">•</span>
-                            <span className="text-primary">{timeLabel}</span>
+                            <span className="text-primary font-black">{timeLabel}</span>
                         </>
                     )}
                 </div>
 
                 {block.setupDescription && (
-                    <p className="text-sm font-bold text-gray-600 dark:text-gray-300 leading-tight border-t border-gray-100 dark:border-white/5 pt-2.5 mt-1 whitespace-normal">
+                    <p className="text-lg font-bold text-gray-600 dark:text-gray-300 leading-tight border-t border-gray-200 dark:border-white/10 pt-4 mt-2 whitespace-normal">
                         {block.setupDescription}
                     </p>
                 )}
             </div>
-            <div className="flex-grow flex flex-col overflow-y-auto p-3.5 custom-scrollbar gap-1.5">
+            <div className="flex-grow flex flex-col overflow-y-auto p-4 custom-scrollbar gap-3">
                 {block.exercises.map((ex) => {
                     const nameLen = ex.name.length;
-                    const nameSize = nameLen > 35 ? 'text-[13px]' : 'text-base';
+                    let nameSize = 'text-3xl';
+                    if (nameLen > 30) nameSize = 'text-xl';
+                    else if (nameLen > 20) nameSize = 'text-2xl';
                     
                     return (
                         <div 
                             key={ex.id} 
-                            className="flex-1 min-h-[50px] flex items-center gap-2.5 bg-gray-50/80 dark:bg-white/5 rounded-2xl p-2.5 border border-gray-100 dark:border-white/5 border-l-4 shadow-sm"
+                            className="flex-1 min-h-[80px] flex items-center gap-5 bg-gray-50/80 dark:bg-white/5 rounded-[1.8rem] p-6 border border-gray-100 dark:border-white/5 border-l-[10px] shadow-sm transition-transform active:scale-[0.98]"
                             style={{ borderLeftColor: accentColor }}
                         >
                             {ex.reps && (
-                                <span className="text-[10px] font-black text-primary bg-primary/10 px-2 py-1 rounded-lg border border-primary/10 whitespace-nowrap shrink-0">
+                                <span className="text-sm font-black text-primary bg-primary/10 px-3 py-2 rounded-xl border border-primary/10 whitespace-nowrap shrink-0 font-mono">
                                     {formatReps(ex.reps)}
                                 </span>
                             )}
-                            <p className={`font-black text-gray-900 dark:text-white/90 leading-tight whitespace-normal ${nameSize}`}>
+                            <p className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight whitespace-normal ${nameSize}`}>
                                 {ex.name}
                             </p>
                         </div>
