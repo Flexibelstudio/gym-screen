@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SparklesIcon, DumbbellIcon, DocumentTextIcon, CloseIcon } from './icons';
-import { generateWorkout, parseWorkoutFromText, parseWorkoutFromImage } from '../services/geminiService';
+import { SparklesIcon, DumbbellIcon, DocumentTextIcon, CloseIcon, VideoIcon } from './icons';
+import { generateWorkout, parseWorkoutFromText, parseWorkoutFromImage, parseWorkoutFromYoutube } from '../services/geminiService';
 import { Workout, WorkoutBlock, Exercise, StudioConfig, CustomCategoryWithPrompt } from '../types';
 import { useStudio } from '../context/StudioContext';
 import { useAuth } from '../context/AuthContext';
@@ -20,7 +20,7 @@ interface AIGeneratorScreenProps {
     onDeleteWorkout?: (id: string) => Promise<void>;
     onTogglePublish?: (id: string, val: boolean) => void;
     onCreateNewWorkout?: () => void;
-    initialMode?: 'generate' | 'parse' | 'manage' | 'create';
+    initialMode?: 'generate' | 'parse' | 'manage' | 'create' | 'youtube';
     studioConfig?: StudioConfig;
     setCustomBackHandler?: (fn: any) => void;
     workouts?: Workout[];
@@ -37,11 +37,12 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
     const { selectedOrganization } = useStudio();
     
     // Determine initial active tab based on prop
-    const [activeTab, setActiveTab] = useState<'generate' | 'parse'>(
-        initialMode === 'parse' ? 'parse' : 'generate'
+    const [activeTab, setActiveTab] = useState<'generate' | 'parse' | 'youtube'>(
+        initialMode === 'parse' ? 'parse' : initialMode === 'youtube' ? 'youtube' : 'generate'
     );
 
     const [prompt, setPrompt] = useState('');
+    const [youtubeUrl, setYoutubeUrl] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<CustomCategoryWithPrompt | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -55,8 +56,8 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
 
     // Sync state if prop changes
     useEffect(() => {
-        if (initialMode === 'parse' || initialMode === 'generate') {
-            setActiveTab(initialMode);
+        if (initialMode === 'parse' || initialMode === 'generate' || initialMode === 'youtube') {
+            setActiveTab(initialMode as any);
         }
     }, [initialMode]);
 
@@ -138,6 +139,12 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                 // Generera nytt pass med AI
                 const contextWorkouts = workouts.slice(0, 5); 
                 workout = await generateWorkout(finalPrompt, contextWorkouts);
+            } else if (activeTab === 'youtube') {
+                if (!youtubeUrl.trim()) throw new Error("Ange en YouTube-länk.");
+                if (!youtubeUrl.includes('youtube.com') && !youtubeUrl.includes('youtu.be')) {
+                    throw new Error("Ogiltig YouTube-adress.");
+                }
+                workout = await parseWorkoutFromYoutube(youtubeUrl.trim());
             } else {
                 // PARSE MODE logic
                 if (selectedImage) {
@@ -158,7 +165,7 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                 ...workout,
                 id: workout.id || `ai-${Date.now()}`,
                 organizationId: selectedOrganization?.id || 'unknown-org',
-                title: workout.title || (activeTab === 'parse' ? 'Tolkat Pass' : 'Namnlöst AI-pass'),
+                title: workout.title || (activeTab === 'parse' ? 'Tolkat Pass' : activeTab === 'youtube' ? 'YouTube Pass' : 'Namnlöst AI-pass'),
                 isPublished: false,
                 isFavorite: false,
                 createdAt: Date.now(),
@@ -194,11 +201,13 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
         <div className="max-w-4xl mx-auto space-y-8 animate-fade-in pb-20">
             <div className="text-center space-y-4">
                 <h2 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 dark:from-purple-400 dark:to-pink-600">
-                    {activeTab === 'generate' ? 'Skapa med AI' : 'Text- & Bildtolkaren'}
+                    {activeTab === 'generate' ? 'Skapa med AI' : activeTab === 'youtube' ? 'YouTube-Import' : 'Text- & Bildtolkaren'}
                 </h2>
                 <p className="text-gray-600 dark:text-gray-400 text-lg">
                     {activeTab === 'generate' 
                         ? 'Välj en passtyp och lägg till egna önskemål för att skräddarsy resultatet.' 
+                        : activeTab === 'youtube'
+                        ? 'Klistra in en YouTube-länk så analyserar jag videons struktur och övningar.'
                         : 'Klistra in text eller ladda upp en bild på ett pass så digitaliserar jag det.'}
                 </p>
             </div>
@@ -207,28 +216,35 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-xl relative overflow-hidden transition-colors">
                 
                 {/* Tabs */}
-                <div className="flex gap-4 mb-6 border-b border-gray-200 dark:border-gray-800 pb-4">
+                <div className="flex gap-4 mb-6 border-b border-gray-200 dark:border-gray-800 pb-4 overflow-x-auto scrollbar-hide">
                     <button 
                         onClick={() => setActiveTab('generate')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-bold ${activeTab === 'generate' ? 'bg-purple-600 text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-bold whitespace-nowrap ${activeTab === 'generate' ? 'bg-purple-600 text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                     >
                         <SparklesIcon className="w-5 h-5" />
                         Skapa nytt
                     </button>
                     <button 
                         onClick={() => setActiveTab('parse')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-bold ${activeTab === 'parse' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-bold whitespace-nowrap ${activeTab === 'parse' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                     >
                         <DocumentTextIcon className="w-5 h-5" />
                         Tolka text/bild
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('youtube')}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-bold whitespace-nowrap ${activeTab === 'youtube' ? 'bg-red-600 text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                    >
+                        <VideoIcon className="w-5 h-5" />
+                        YouTube-länk
                     </button>
                 </div>
 
                 {isProcessing && (
                     <div className="absolute inset-0 bg-white/80 dark:bg-black/60 z-20 flex flex-col items-center justify-center backdrop-blur-sm transition-colors">
                         <Spinner />
-                        <p className="text-purple-600 dark:text-purple-300 mt-4 font-medium animate-pulse">
-                            {activeTab === 'generate' ? 'Tänker så det knakar...' : 'Tolkar och strukturerar...'}
+                        <p className="text-purple-600 dark:text-purple-300 mt-4 font-medium animate-pulse text-center px-6">
+                            {activeTab === 'generate' ? 'Tänker så det knakar...' : activeTab === 'youtube' ? 'Analyserar videons innehåll och struktur...' : 'Tolkar och strukturerar...'}
                         </p>
                     </div>
                 )}
@@ -254,6 +270,30 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                                     {cat.name}
                                 </button>
                             ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* YOUTUBE INPUT (Only in youtube mode) */}
+                {activeTab === 'youtube' && (
+                    <div className="mb-6 space-y-4">
+                        <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-xl border border-red-100 dark:border-red-900/30 flex items-start gap-3">
+                            <InformationCircleIcon className="w-5 h-5 text-red-500 mt-0.5" />
+                            <p className="text-sm text-red-800 dark:text-red-200">
+                                <strong>Tips:</strong> AI:n fungerar bäst om videon har en tydlig beskrivning eller om övningarna visas tydligt. Passar perfekt för Hyrox-tips eller CrossFit WODs.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                YouTube URL:
+                            </label>
+                            <input 
+                                type="url"
+                                value={youtubeUrl}
+                                onChange={(e) => setYoutubeUrl(e.target.value)}
+                                placeholder="https://www.youtube.com/watch?v=..."
+                                className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-xl border border-gray-200 dark:border-gray-700 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-colors"
+                            />
                         </div>
                     </div>
                 )}
@@ -311,25 +351,31 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                     </div>
                 )}
 
-                <div className="space-y-2">
-                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
-                        {activeTab === 'generate' ? 'Dina tillägg:' : (selectedImage ? 'Tillägg till bilden (valfritt):' : 'Klistra in texten här:')}
-                    </label>
-                    <textarea
-                        value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
-                        placeholder={activeTab === 'generate' 
-                            ? "Lägg till egna önskemål här, t.ex. specifik utrustning, tidslängd eller fokusområde." 
-                            : (selectedImage ? "T.ex. 'Ignorera uppvärmningen' eller 'Det är 4 varv'" : "Klistra in ditt pass här...\n\nUppvärmning:\n...")}
-                        className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-xl border border-gray-200 dark:border-gray-700 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none resize-none min-h-[120px] text-base transition-colors placeholder-gray-400 dark:placeholder-gray-500"
-                        disabled={isProcessing}
-                    />
-                </div>
+                {activeTab !== 'youtube' && (
+                    <div className="space-y-2">
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                            {activeTab === 'generate' ? 'Dina tillägg:' : (selectedImage ? 'Tillägg till bilden (valfritt):' : 'Klistra in texten här:')}
+                        </label>
+                        <textarea
+                            value={prompt}
+                            onChange={(e) => setPrompt(e.target.value)}
+                            placeholder={activeTab === 'generate' 
+                                ? "Lägg till egna önskemål här, t.ex. specifik utrustning, tidslängd eller fokusområde." 
+                                : (selectedImage ? "T.ex. 'Ignorera uppvärmningen' eller 'Det är 4 varv'" : "Klistra in ditt pass här...\n\nUppvärmning:\n...")}
+                            className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white p-4 rounded-xl border border-gray-200 dark:border-gray-700 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none resize-none min-h-[120px] text-base transition-colors placeholder-gray-400 dark:placeholder-gray-500"
+                            disabled={isProcessing}
+                        />
+                    </div>
+                )}
                 
                 <div className="mt-6 flex justify-between items-center">
                     {activeTab === 'generate' ? (
                         <div className="text-xs text-gray-500 italic hidden sm:block">
                             AI:n använder din valda kategori som grund.
+                        </div>
+                    ) : activeTab === 'youtube' ? (
+                         <div className="text-xs text-gray-500 italic hidden sm:block">
+                            Importen kan ta upp till 20 sekunder.
                         </div>
                     ) : (
                         <span className="text-xs text-gray-500 italic">Jag hittar automatiskt övningar, reps och tider.</span>
@@ -337,14 +383,14 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                     
                     <button
                         onClick={handleAction}
-                        disabled={isProcessing || (activeTab === 'generate' && !selectedCategory && !prompt.trim()) || (activeTab === 'parse' && !prompt.trim() && !selectedImage)}
+                        disabled={isProcessing || (activeTab === 'generate' && !selectedCategory && !prompt.trim()) || (activeTab === 'parse' && !prompt.trim() && !selectedImage) || (activeTab === 'youtube' && !youtubeUrl.trim())}
                         className={`
-                            ${activeTab === 'generate' ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500'}
+                            ${activeTab === 'generate' ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500' : activeTab === 'youtube' ? 'bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500'}
                             text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 w-full sm:w-auto justify-center
                         `}
                     >
-                        {activeTab === 'generate' ? <SparklesIcon className="w-5 h-5" /> : <DocumentTextIcon className="w-5 h-5" />}
-                        {activeTab === 'generate' ? 'Skapa Pass med AI' : (selectedImage ? 'Tolka Bild' : 'Tolka Text')}
+                        {activeTab === 'generate' ? <SparklesIcon className="w-5 h-5" /> : activeTab === 'youtube' ? <VideoIcon className="w-5 h-5" /> : <DocumentTextIcon className="w-5 h-5" />}
+                        {activeTab === 'generate' ? 'Skapa Pass med AI' : activeTab === 'youtube' ? 'Analysera Video' : (selectedImage ? 'Tolka Bild' : 'Tolka Text')}
                     </button>
                 </div>
                 
@@ -398,6 +444,12 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                                         </li>
                                     ))}
                                 </ul>
+                                {block.followMe && (
+                                    <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700 flex items-center gap-2 text-[10px] font-black uppercase text-indigo-500">
+                                        <SparklesIcon className="w-3 h-3" />
+                                        <span>Följ mig aktiverat</span>
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>

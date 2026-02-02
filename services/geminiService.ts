@@ -1,4 +1,3 @@
-
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai"; 
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise, SuggestedExercise, CustomCategoryWithPrompt, WorkoutLog, MemberGoals, WorkoutDiploma } from '../types';
 import { getExerciseBank } from './firebaseService';
@@ -8,6 +7,7 @@ import * as Prompts from '../data/aiPrompts';
 const TEXT_MODEL = 'gemini-3-flash-preview'; 
 const VISION_MODEL = 'gemini-3-flash-preview';
 const IMAGE_GEN_MODEL = 'gemini-2.5-flash-image';
+const PRO_MODEL = 'gemini-3-pro-preview';
 
 // TYPER
 export interface MemberInsightResponse {
@@ -178,16 +178,22 @@ const exerciseBankSchema = {
 
 // --- CORE HANDLERS ---
 
-async function _callGeminiJSON<T>(modelName: string, prompt: string, schema: any): Promise<T> {
+async function _callGeminiJSON<T>(modelName: string, prompt: string, schema: any, useSearch: boolean = false): Promise<T> {
     const ai = getAIClient();
+    const config: any = {
+        systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,
+        responseMimeType: "application/json",
+        responseSchema: schema,
+    };
+
+    if (useSearch) {
+        config.tools = [{ googleSearch: {} }];
+    }
+
     const response = await ai.models.generateContent({
         model: modelName,
         contents: prompt,
-        config: {
-            systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,
-            responseMimeType: "application/json",
-            responseSchema: schema,
-        },
+        config: config,
     });
     return JSON.parse(response.text.trim()) as T;
 }
@@ -250,6 +256,17 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
     });
     // Tolkad bild (från t.ex. Idétavlan) markeras som draft så den städas om den inte sparas
     return transformWorkout(JSON.parse(response.text.trim()), '', true);
+}
+
+export async function parseWorkoutFromYoutube(url: string): Promise<Workout> {
+    const prompt = `Analysera följande YouTube-video och skapa ett träningspass baserat på dess innehåll: ${url}. 
+    Identifiera alla övningar, reps/tider och blockstruktur (t.ex. Uppvärmning, Del A, Del B). 
+    Om videon är en "Follow along" eller "Workout with me", sätt followMe till true för relevanta block.
+    Hämta passets titel från videon om möjligt.`;
+    
+    // Vi använder gemini-3-pro-preview för YouTube-länkar då det kräver sök-förmåga eller djupare kunskap
+    const data = await _callGeminiJSON<any>(PRO_MODEL, prompt, workoutSchema);
+    return transformWorkout(data, '', false);
 }
 
 export async function generateExerciseDescription(name: string): Promise<string> {
