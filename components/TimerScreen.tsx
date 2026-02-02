@@ -56,6 +56,17 @@ const getTimerStyle = (status: TimerStatus, mode: TimerMode, isHyrox: boolean, i
   }
 };
 
+const getTagHexColor = (tag: string) => {
+    switch (tag.toLowerCase()) {
+        case 'styrka': return '#ef4444'; // Red
+        case 'kondition': return '#3b82f6'; // Blue
+        case 'rörlighet': return '#14b8a6'; // Teal
+        case 'teknik': return '#a855f7'; // Purple
+        case 'core': case 'bål': return '#eab308'; // Yellow
+        default: return '#14b8a6';
+    }
+};
+
 const formatReps = (reps: string | undefined): string => {
     if (!reps) return '';
     const trimmed = reps.trim();
@@ -152,6 +163,7 @@ const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock
 
 const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; flexClassName?: string }> = ({ block, label = "HÄRNÄST", flexClassName = "flex-1" }) => {
     const timeLabel = getBlockTimeLabel(block);
+    const accentColor = getTagHexColor(block.tag);
     
     return (
         <motion.div 
@@ -181,7 +193,7 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; flexClas
                 </div>
 
                 {block.setupDescription && (
-                    <p className="text-sm font-bold text-gray-600 dark:text-gray-300 leading-tight border-t border-gray-100 dark:border-white/5 pt-2 mt-1 whitespace-normal">
+                    <p className="text-sm font-bold text-gray-600 dark:text-gray-300 leading-tight border-t border-gray-100 dark:border-white/5 pt-2.5 mt-1 whitespace-normal">
                         {block.setupDescription}
                     </p>
                 )}
@@ -189,16 +201,20 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; flexClas
             <div className="flex-grow flex flex-col overflow-y-auto p-3.5 custom-scrollbar gap-1.5">
                 {block.exercises.map((ex) => {
                     const nameLen = ex.name.length;
-                    const nameSize = nameLen > 25 ? 'text-[13px]' : 'text-sm';
+                    const nameSize = nameLen > 35 ? 'text-[13px]' : 'text-base';
                     
                     return (
-                        <div key={ex.id} className="flex-1 min-h-[40px] flex items-center gap-2.5 bg-gray-50 dark:bg-white/5 rounded-xl p-2 border border-gray-100 dark:border-white/5">
+                        <div 
+                            key={ex.id} 
+                            className="flex-1 min-h-[50px] flex items-center gap-2.5 bg-gray-50/80 dark:bg-white/5 rounded-2xl p-2.5 border border-gray-100 dark:border-white/5 border-l-4 shadow-sm"
+                            style={{ borderLeftColor: accentColor }}
+                        >
                             {ex.reps && (
-                                <span className="text-[10px] font-black text-primary whitespace-nowrap bg-primary/10 px-1.5 py-0.5 rounded-lg border border-primary/10">
+                                <span className="text-[10px] font-black text-primary bg-primary/10 px-2 py-1 rounded-lg border border-primary/10 whitespace-nowrap shrink-0">
                                     {formatReps(ex.reps)}
                                 </span>
                             )}
-                            <p className={`font-bold text-gray-800 dark:text-white/90 leading-tight whitespace-normal ${nameSize}`}>
+                            <p className={`font-black text-gray-900 dark:text-white/90 leading-tight whitespace-normal ${nameSize}`}>
                                 {ex.name}
                             </p>
                         </div>
