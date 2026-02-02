@@ -164,6 +164,7 @@ const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock
 const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; flexClassName?: string }> = ({ block, label = "HÄRNÄST", flexClassName = "flex-1" }) => {
     const timeLabel = getBlockTimeLabel(block);
     const accentColor = getTagHexColor(block.tag);
+    const hasManyExercises = block.exercises.length > 5;
     
     return (
         <motion.div 
@@ -178,12 +179,12 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; flexClas
                     </div>
                     <div>
                         <span className="block text-xs font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.4em] mb-1">{label}</span>
-                        <h4 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter line-clamp-1 leading-none">{block.title}</h4>
+                        <h4 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter line-clamp-1 leading-none">{block.title}</h4>
                     </div>
                 </div>
                 
-                <div className="flex items-center gap-3 text-gray-400 dark:text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-3">
-                    <span className="bg-gray-200 dark:bg-white/10 px-2 py-1 rounded-md">{block.settings.mode}</span>
+                <div className="flex items-center gap-3 text-gray-400 dark:text-white/40 text-[12px] font-black uppercase tracking-[0.2em] mb-3">
+                    <span className="bg-gray-200 dark:bg-white/10 px-3 py-1 rounded-lg">{block.settings.mode}</span>
                     {timeLabel && (
                         <>
                             <span className="opacity-30">•</span>
@@ -193,32 +194,39 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; flexClas
                 </div>
 
                 {block.setupDescription && (
-                    <p className="text-lg font-bold text-gray-600 dark:text-gray-300 leading-tight border-t border-gray-200 dark:border-white/10 pt-4 mt-2 whitespace-normal">
+                    <p className="text-xl font-bold text-gray-700 dark:text-gray-200 leading-tight border-t border-gray-200 dark:border-white/10 pt-4 mt-2 whitespace-normal">
                         {block.setupDescription}
                     </p>
                 )}
             </div>
-            <div className="flex-grow flex flex-col overflow-y-auto p-4 custom-scrollbar gap-3">
+            <div className="flex-grow flex flex-col overflow-y-auto p-4 custom-scrollbar gap-4">
                 {block.exercises.map((ex) => {
                     const nameLen = ex.name.length;
                     let nameSize = 'text-3xl';
-                    if (nameLen > 30) nameSize = 'text-xl';
+                    if (nameLen > 35) nameSize = 'text-xl';
                     else if (nameLen > 20) nameSize = 'text-2xl';
                     
                     return (
                         <div 
                             key={ex.id} 
-                            className="flex-1 min-h-[80px] flex items-center gap-5 bg-gray-50/80 dark:bg-white/5 rounded-[1.8rem] p-6 border border-gray-100 dark:border-white/5 border-l-[10px] shadow-sm transition-transform active:scale-[0.98]"
+                            className={`flex-1 min-h-[100px] flex flex-col justify-center gap-2 bg-gray-50/80 dark:bg-white/5 rounded-[2.2rem] p-6 border border-gray-100 dark:border-white/5 border-l-[12px] shadow-sm transition-transform active:scale-[0.98]`}
                             style={{ borderLeftColor: accentColor }}
                         >
-                            {ex.reps && (
-                                <span className="text-sm font-black text-primary bg-primary/10 px-3 py-2 rounded-xl border border-primary/10 whitespace-nowrap shrink-0 font-mono">
-                                    {formatReps(ex.reps)}
-                                </span>
+                            <div className="flex items-center gap-4">
+                                {ex.reps && (
+                                    <span className="text-lg font-black text-primary bg-primary/10 px-4 py-1.5 rounded-xl border border-primary/10 whitespace-nowrap shrink-0 font-mono">
+                                        {formatReps(ex.reps)}
+                                    </span>
+                                )}
+                                <p className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight whitespace-normal ${nameSize}`}>
+                                    {ex.name}
+                                </p>
+                            </div>
+                            {ex.description && !hasManyExercises && (
+                                <p className="text-gray-500 dark:text-gray-400 font-medium text-lg leading-snug line-clamp-2 pl-1">
+                                    {ex.description}
+                                </p>
                             )}
-                            <p className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight whitespace-normal ${nameSize}`}>
-                                {ex.name}
-                            </p>
                         </div>
                     );
                 })}
@@ -293,7 +301,7 @@ const NextStartIndicator: React.FC<{
                         <LightningIcon className="w-6 h-6" />
                     </div>
                     <div className="min-w-0">
-                        <span className="block text-[8px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em] mb-0.5">NÄSTA START</span>
+                        <span className="block text-[8px] font-black text-gray-400 dark:text-white/30 uppercase tracking-widest mb-0.5">NÄSTA START</span>
                         <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight truncate max-w-[250px] sm:max-w-md leading-none">
                             {groupName}
                         </h4>
