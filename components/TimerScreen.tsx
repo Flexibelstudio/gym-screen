@@ -159,7 +159,7 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; flexClas
             animate={{ opacity: 1, x: 0 }}
             className={`${flexClassName} flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 overflow-hidden shadow-2xl min-h-0`}
         >
-            <div className="p-3.5 bg-gray-50/50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5">
+            <div className="p-4 bg-gray-50/50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5 flex-shrink-0">
                 <div className="flex items-center gap-2 mb-1.5">
                     <div className="bg-primary/10 p-1 rounded-lg border border-primary/20">
                         <ChevronRightIcon className="w-3.5 h-3.5 text-primary" />
@@ -181,18 +181,18 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; flexClas
                 </div>
 
                 {block.setupDescription && (
-                    <p className="text-[11px] font-bold text-gray-600 dark:text-gray-300 leading-tight border-t border-gray-100 dark:border-white/5 pt-1.5 mt-1 whitespace-normal">
+                    <p className="text-sm font-bold text-gray-600 dark:text-gray-300 leading-tight border-t border-gray-100 dark:border-white/5 pt-2 mt-1 whitespace-normal">
                         {block.setupDescription}
                     </p>
                 )}
             </div>
-            <div className="flex-grow overflow-y-auto p-3.5 custom-scrollbar space-y-1.5">
+            <div className="flex-grow flex flex-col overflow-y-auto p-3.5 custom-scrollbar gap-1.5">
                 {block.exercises.map((ex) => {
                     const nameLen = ex.name.length;
                     const nameSize = nameLen > 25 ? 'text-[13px]' : 'text-sm';
                     
                     return (
-                        <div key={ex.id} className="flex items-center gap-2.5 bg-gray-50 dark:bg-white/5 rounded-xl p-2 border border-gray-100 dark:border-white/5">
+                        <div key={ex.id} className="flex-1 min-h-[40px] flex items-center gap-2.5 bg-gray-50 dark:bg-white/5 rounded-xl p-2 border border-gray-100 dark:border-white/5">
                             {ex.reps && (
                                 <span className="text-[10px] font-black text-primary whitespace-nowrap bg-primary/10 px-1.5 py-0.5 rounded-lg border border-primary/10">
                                     {formatReps(ex.reps)}
