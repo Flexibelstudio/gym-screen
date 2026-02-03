@@ -118,12 +118,10 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
     setIsBenchmark(!!(initialWorkout?.benchmarkId));
   }, [initialWorkout]);
   
-  // Smart Benchmark Matching
+  // Smart Benchmark Matching & Sync
   useEffect(() => {
       if (!isBenchmark) {
           setMatchedBenchmark(null);
-          // Only clear ID if user explicitly unchecks it. 
-          // But here we rely on submit logic to decide what to save.
           return;
       }
 
@@ -131,6 +129,8 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
       const match = existingBenchmarks.find(b => b.title.trim().toLowerCase() === workout.title.trim().toLowerCase());
       if (match) {
           setMatchedBenchmark(match);
+          // Synka dropdown med existerande typ
+          setNewBenchmarkType(match.type);
       } else {
           setMatchedBenchmark(null);
       }
@@ -188,6 +188,17 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
         if (matchedBenchmark) {
             // Koppla till befintligt
             finalWorkout.benchmarkId = matchedBenchmark.id;
+            
+            // Uppdatera typen om användaren ändrat den i dropdownen
+            if (matchedBenchmark.type !== newBenchmarkType && org) {
+                const updatedDefinitions = existingBenchmarks.map(b => 
+                    b.id === matchedBenchmark.id 
+                    ? { ...b, type: newBenchmarkType } 
+                    : b
+                );
+                await updateOrganizationBenchmarks(org.id, updatedDefinitions);
+            }
+
         } else if (org) {
             // Skapa nytt benchmark
             const newDefinition: BenchmarkDefinition = {
@@ -433,29 +444,30 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                     </div>
                                     
                                     {isBenchmark && (
-                                        <div className="ml-0 pl-4 border-l-2 border-primary/20 animate-fade-in">
-                                            {matchedBenchmark ? (
-                                                <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-2 rounded-lg">
-                                                    <CheckIcon className="w-4 h-4" />
-                                                    <span>Kopplas till <strong>{matchedBenchmark.title}</strong></span>
-                                                </div>
-                                            ) : (
-                                                <div className="space-y-2">
-                                                    <p className="text-xs text-gray-500">Nytt benchmark skapas: <strong>{workout.title}</strong></p>
-                                                    <div className="flex gap-2">
-                                                        <span className="text-xs font-bold text-gray-400 self-center uppercase">Mätvärde:</span>
-                                                        <select 
-                                                            value={newBenchmarkType}
-                                                            onChange={(e) => setNewBenchmarkType(e.target.value as any)}
-                                                            className="bg-gray-100 dark:bg-black border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-sm font-medium"
-                                                        >
-                                                            <option value="time">Tid</option>
-                                                            <option value="reps">Reps</option>
-                                                            <option value="weight">Vikt</option>
-                                                        </select>
+                                        <div className="ml-0 pl-4 border-l-2 border-primary/20 animate-fade-in mt-3">
+                                            <div className="flex flex-col gap-3">
+                                                {matchedBenchmark ? (
+                                                    <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-2 rounded-lg">
+                                                        <CheckIcon className="w-4 h-4" />
+                                                        <span>Kopplat till <strong>{matchedBenchmark.title}</strong></span>
                                                     </div>
+                                                ) : (
+                                                    <p className="text-xs text-gray-500">Nytt benchmark skapas: <strong>{workout.title}</strong></p>
+                                                )}
+                                                
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-bold text-gray-400 uppercase">Mätvärde:</span>
+                                                    <select 
+                                                        value={newBenchmarkType}
+                                                        onChange={(e) => setNewBenchmarkType(e.target.value as any)}
+                                                        className="bg-gray-100 dark:bg-black border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-sm font-medium focus:ring-2 focus:ring-primary outline-none"
+                                                    >
+                                                        <option value="time">Tid</option>
+                                                        <option value="reps">Varv</option>
+                                                        <option value="weight">Vikt</option>
+                                                    </select>
                                                 </div>
-                                            )}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
