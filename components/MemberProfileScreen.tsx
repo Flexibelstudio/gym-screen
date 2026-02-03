@@ -129,7 +129,7 @@ const getAthleteArchetype = (logs: WorkoutLog[]) => {
     return { title: "Hybridatlet", icon: <UserIcon className="w-5 h-5" />, color: "from-indigo-500 to-purple-600", desc: "Du behärskar både styrka och kondition. Den kompletta atleten." };
 };
 
-const HallOfFameTab: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefinition[] }> = ({ logs, definitions }) => {
+const MinaRekordTab: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefinition[] }> = ({ logs, definitions }) => {
     
     // Process data to find PBs for each benchmark definition
     const benchmarks = useMemo(() => {
@@ -139,10 +139,10 @@ const HallOfFameTab: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefini
             
             if (relevantLogs.length === 0) return { def, pb: null, attempts: 0 };
 
-            // Sort based on type
+            // Sort based on type - Time is ASC (lower better), Reps/Weight is DESC (higher better)
             const sorted = [...relevantLogs].sort((a, b) => {
-                if (def.type === 'time') return (a.benchmarkValue || 0) - (b.benchmarkValue || 0); // Lower time is better
-                return (b.benchmarkValue || 0) - (a.benchmarkValue || 0); // Higher reps/weight is better
+                if (def.type === 'time') return (a.benchmarkValue || 0) - (b.benchmarkValue || 0); 
+                return (b.benchmarkValue || 0) - (a.benchmarkValue || 0); 
             });
 
             return {
@@ -164,7 +164,7 @@ const HallOfFameTab: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefini
 
     const getUnit = (type: string) => {
         if (type === 'time') return 'min';
-        if (type === 'reps') return 'reps';
+        if (type === 'reps') return 'varv';
         if (type === 'weight') return 'kg';
         return '';
     };
@@ -183,7 +183,7 @@ const HallOfFameTab: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefini
                 <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl text-yellow-600 dark:text-yellow-400">
                     <TrophyIcon className="w-5 h-5" />
                 </div>
-                <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Hall of Fame</h3>
+                <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Mina Rekord</h3>
             </div>
             
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -599,7 +599,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                 {/* Hall of Fame (Benchmark-resultat) */}
                 {selectedOrganization && (
-                    <HallOfFameTab 
+                    <MinaRekordTab 
                         logs={logs} 
                         definitions={selectedOrganization.benchmarkDefinitions || []} 
                     />

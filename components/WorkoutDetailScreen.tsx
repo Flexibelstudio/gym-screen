@@ -219,7 +219,7 @@ const MemberWorkoutView: React.FC<{
                     )}
                     {workout.benchmarkId && (
                         <span className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1">
-                            <TrophyIcon className="w-3 h-3" /> Benchmark
+                            BENCHMARK
                         </span>
                     )}
                     <span className="text-gray-400 dark:text-gray-500 text-xs font-bold uppercase tracking-wider">
@@ -242,9 +242,6 @@ const MemberWorkoutView: React.FC<{
                             <h3 className="text-xl font-bold">Senaste resultat</h3>
                             <p className="text-3xl font-black text-yellow-400 mt-1">{formatBenchmarkResult(benchmarkHistory.last.benchmarkValue)}</p>
                             <p className="text-xs text-gray-400 mt-1">{new Date(benchmarkHistory.last.date).toLocaleDateString('sv-SE')}</p>
-                        </div>
-                        <div className="text-5xl opacity-20">
-                            <TrophyIcon className="w-20 h-20" />
                         </div>
                     </div>
                 </div>
@@ -639,7 +636,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                 )}
                 {workout.benchmarkId && (
                     <span className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1">
-                        <TrophyIcon className="w-3 h-3" /> Benchmark
+                        BENCHMARK
                     </span>
                 )}
                 {!isWorkoutLoggable && (

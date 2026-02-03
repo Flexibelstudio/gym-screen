@@ -111,7 +111,7 @@ const BenchmarkResultCard: React.FC<{
                 </div>
                 {prevBest !== undefined && (
                     <span className="text-[10px] font-bold text-yellow-700 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-900/40 px-2 py-1 rounded-lg">
-                        PB: {formatPrev(prevBest, definition.type)} {isTime ? 'min' : isReps ? 'st' : 'kg'}
+                        PB: {formatPrev(prevBest, definition.type)} {isTime ? 'min' : isReps ? 'varv' : 'kg'}
                     </span>
                 )}
             </div>
@@ -169,6 +169,7 @@ const BenchmarkResultCard: React.FC<{
     );
 };
 
+// ... (rest of the file remains same, keeping imports and logic)
 // --- DIPLOMA TITLES ---
 const DIPLOMA_TITLES = [
     "SNYGGT JOBBAT!",
@@ -420,7 +421,7 @@ const ExerciseLogCard: React.FC<{
             <div className="space-y-2">
                 <div className="grid grid-cols-[30px_1fr_1fr_40px_40px] gap-2 px-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                     <div className="text-center">Set</div>
-                    <div className="text-center">Varv</div>
+                    <div className="text-center">Reps</div>
                     <div className="text-center">Vikt (kg)</div>
                     <div></div>
                     <div className="text-center">Klar</div>
