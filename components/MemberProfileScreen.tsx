@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma, StudioConfig } from '../types';
+import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma, StudioConfig, BenchmarkDefinition } from '../types';
 import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog } from '../services/firebaseService';
 import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon } from './icons';
 import { Modal } from './ui/Modal';
@@ -8,6 +8,7 @@ import { resizeImage } from '../utils/imageUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MyStrengthScreen } from './MyStrengthScreen';
 import { WorkoutDiplomaView } from './WorkoutDiplomaView';
+import { useStudio } from '../context/StudioContext';
 
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
@@ -128,6 +129,94 @@ const getAthleteArchetype = (logs: WorkoutLog[]) => {
     return { title: "Hybridatlet", icon: <UserIcon className="w-5 h-5" />, color: "from-indigo-500 to-purple-600", desc: "Du behärskar både styrka och kondition. Den kompletta atleten." };
 };
 
+const HallOfFameTab: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefinition[] }> = ({ logs, definitions }) => {
+    
+    // Process data to find PBs for each benchmark definition
+    const benchmarks = useMemo(() => {
+        return definitions.map(def => {
+            // Find all logs that match this benchmark ID
+            const relevantLogs = logs.filter(l => l.benchmarkId === def.id && l.benchmarkValue !== undefined);
+            
+            if (relevantLogs.length === 0) return { def, pb: null, attempts: 0 };
+
+            // Sort based on type
+            const sorted = [...relevantLogs].sort((a, b) => {
+                if (def.type === 'time') return (a.benchmarkValue || 0) - (b.benchmarkValue || 0); // Lower time is better
+                return (b.benchmarkValue || 0) - (a.benchmarkValue || 0); // Higher reps/weight is better
+            });
+
+            return {
+                def,
+                pb: sorted[0],
+                attempts: relevantLogs.length
+            };
+        });
+    }, [logs, definitions]);
+
+    const formatResult = (val: number, type: string) => {
+        if (type === 'time') {
+            const m = Math.floor(val / 60);
+            const s = val % 60;
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+        return `${val}`;
+    };
+
+    const getUnit = (type: string) => {
+        if (type === 'time') return 'min';
+        if (type === 'reps') return 'reps';
+        if (type === 'weight') return 'kg';
+        return '';
+    };
+
+    if (definitions.length === 0) {
+        return (
+            <div className="p-8 text-center bg-white dark:bg-gray-900 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
+                <p className="text-gray-400 text-sm">Gymmet har inte lagt upp några benchmarks än.</p>
+            </div>
+        );
+    }
+
+    return (
+        <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl text-yellow-600 dark:text-yellow-400">
+                    <TrophyIcon className="w-5 h-5" />
+                </div>
+                <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Hall of Fame</h3>
+            </div>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {benchmarks.map(({ def, pb, attempts }) => (
+                    <div key={def.id} className={`relative overflow-hidden rounded-2xl p-5 border-2 transition-all ${pb ? 'bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border-yellow-400/30 dark:border-yellow-500/20' : 'bg-gray-50 dark:bg-gray-900 border-dashed border-gray-200 dark:border-gray-800 opacity-70'}`}>
+                        {pb && <div className="absolute top-0 right-0 w-20 h-20 bg-yellow-400/10 rounded-full blur-2xl -mr-6 -mt-6"></div>}
+                        
+                        <div className="relative z-10">
+                            <div className="flex justify-between items-start mb-2">
+                                <h4 className="font-bold text-gray-900 dark:text-white truncate pr-2">{def.title}</h4>
+                                {pb && <span className="text-[10px] font-black text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 rounded-full uppercase tracking-wider">PB</span>}
+                            </div>
+                            
+                            {pb ? (
+                                <div>
+                                    <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">
+                                        {formatResult(pb.benchmarkValue!, def.type)} <span className="text-sm text-gray-500 font-bold">{getUnit(def.type)}</span>
+                                    </p>
+                                    <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider">
+                                        {new Date(pb.date).toLocaleDateString('sv-SE')} • {attempts} försök
+                                    </p>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-gray-400 italic py-2">Inget resultat loggat än.</p>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 // --- Sub-components ---
 
 const GoalsEditModal: React.FC<{ currentGoals?: MemberGoals, onSave: (goals: MemberGoals) => void, onClose: () => void }> = ({ currentGoals, onSave, onClose }) => {
@@ -177,6 +266,7 @@ const LogDetailModal: React.FC<{ log: WorkoutLog, onClose: () => void, onUpdate:
 };
 
 export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userData, onBack, profileEditTrigger, navigateTo, functions, studioConfig }) => {
+    const { selectedOrganization } = useStudio();
     const isNewUser = !userData.firstName || !userData.organizationId;
     
     const [logs, setLogs] = useState<WorkoutLog[]>([]);
@@ -506,6 +596,14 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     </div>
                     <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-white/20 rounded-full blur-[60px] pointer-events-none"></div>
                 </div>
+
+                {/* Hall of Fame (Benchmark-resultat) */}
+                {selectedOrganization && (
+                    <HallOfFameTab 
+                        logs={logs} 
+                        definitions={selectedOrganization.benchmarkDefinitions || []} 
+                    />
+                )}
 
                 {/* Goals section */}
                 <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-800">

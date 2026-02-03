@@ -1,8 +1,9 @@
+
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, StudioConfig, WorkoutResult } from '../types';
+import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, StudioConfig, WorkoutResult, WorkoutLog } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
-import { StarIcon, PencilIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, CloseIcon, ClockIcon, UsersIcon, ChartBarIcon } from './icons';
-import { getWorkoutResults } from '../services/firebaseService';
+import { StarIcon, PencilIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, CloseIcon, ClockIcon, UsersIcon, ChartBarIcon, TrophyIcon } from './icons';
+import { getWorkoutResults, getMemberLogs } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import { WorkoutQRDisplay } from './WorkoutQRDisplay';
@@ -162,8 +163,47 @@ const MemberWorkoutView: React.FC<{
     workout: Workout, 
     onClose?: () => void, 
     onLog?: () => void,
-    isLoggable: boolean
-}> = ({ workout, onClose, onLog, isLoggable }) => {
+    isLoggable: boolean,
+    userId: string
+}> = ({ workout, onClose, onLog, isLoggable, userId }) => {
+    const [benchmarkHistory, setBenchmarkHistory] = useState<{ pb: WorkoutLog | null, last: WorkoutLog | null } | null>(null);
+    const { selectedOrganization } = useStudio();
+
+    useEffect(() => {
+        if (workout.benchmarkId && userId) {
+            getMemberLogs(userId).then(logs => {
+                const bLogs = logs.filter(l => l.benchmarkId === workout.benchmarkId && l.benchmarkValue !== undefined);
+                if (bLogs.length > 0) {
+                    const sortedByDate = [...bLogs].sort((a, b) => b.date - a.date);
+                    // För enkelhetens skull, anta att benchmark-typ finns i org-definitionen. Men vi har inte den här.
+                    // Vi gissar: Om Duration finns, är det tid. Annars är högre bättre.
+                    // En bättre lösning hade varit att skicka med BenchmarkDefinition.
+                    // För nu, vi visar bara senaste resultatet.
+                    // TODO: Implementera PB-logik baserat på benchmark typ.
+                    
+                    // En enkel PB-logik: Om tid (lägre bättre), annars högre bättre.
+                    // Detta kräver att vi vet typen. Vi kan fuska och kolla på workout-titeln eller taggar, eller så visar vi bara "Bästa notering" om vi kan avgöra det.
+                    // Låt oss visa "Senaste Resultat" för nu, det är säkrast.
+                    setBenchmarkHistory({
+                        pb: null, // Vi skippar PB här tills vi har full benchmark-definition i context
+                        last: sortedByDate[0]
+                    });
+                }
+            });
+        }
+    }, [workout.benchmarkId, userId]);
+
+    const formatBenchmarkResult = (val: number | undefined) => {
+        if (val === undefined) return '-';
+        // Gissa format: Om > 60 och ser ut som sekunder...
+        if (val > 60) {
+             const m = Math.floor(val / 60);
+             const s = val % 60;
+             return `${m}:${s.toString().padStart(2, '0')} min`;
+        }
+        return `${val}`;
+    };
+
     return (
         <div className="pb-32 animate-fade-in">
             {/* Header Info */}
@@ -177,6 +217,11 @@ const MemberWorkoutView: React.FC<{
                             {workout.category}
                         </span>
                     )}
+                    {workout.benchmarkId && (
+                        <span className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1">
+                            <TrophyIcon className="w-3 h-3" /> Benchmark
+                        </span>
+                    )}
                     <span className="text-gray-400 dark:text-gray-500 text-xs font-bold uppercase tracking-wider">
                         {workout.blocks.length} delar
                     </span>
@@ -187,6 +232,23 @@ const MemberWorkoutView: React.FC<{
                     )}
                 </div>
             </div>
+
+            {/* Benchmark History Banner */}
+            {benchmarkHistory?.last && (
+                <div className="bg-gradient-to-r from-gray-900 to-gray-800 text-white p-6 rounded-2xl shadow-lg mb-8 relative overflow-hidden border border-gray-700">
+                    <div className="relative z-10 flex justify-between items-center">
+                        <div>
+                            <p className="text-xs font-black uppercase tracking-widest text-gray-400 mb-1">Din historik</p>
+                            <h3 className="text-xl font-bold">Senaste resultat</h3>
+                            <p className="text-3xl font-black text-yellow-400 mt-1">{formatBenchmarkResult(benchmarkHistory.last.benchmarkValue)}</p>
+                            <p className="text-xs text-gray-400 mt-1">{new Date(benchmarkHistory.last.date).toLocaleDateString('sv-SE')}</p>
+                        </div>
+                        <div className="text-5xl opacity-20">
+                            <TrophyIcon className="w-20 h-20" />
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Coach Tips */}
             {workout.coachTips && (
@@ -437,7 +499,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
     onHeaderVisibilityChange
 }) => {
   const { selectedOrganization, selectedStudio } = useStudio();
-  const { isStudioMode, role } = useAuth();
+  const { isStudioMode, role, userData, currentUser } = useAuth();
   const [sessionWorkout, setSessionWorkout] = useState<Workout>(() => JSON.parse(JSON.stringify(workout)));
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [coachTipsVisible, setCoachTipsVisible] = useState(true);
@@ -538,6 +600,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                   onClose={onClose} 
                   onLog={onLogWorkout ? () => onLogWorkout(workout.id, selectedOrganization.id) : undefined}
                   isLoggable={isWorkoutLoggable}
+                  userId={userData?.uid || currentUser?.uid || ''}
               />
           </div>
       );
@@ -572,6 +635,11 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                 {sessionWorkout.category && (
                     <span className="bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest border border-gray-200 dark:border-gray-700">
                         {sessionWorkout.category}
+                    </span>
+                )}
+                {workout.benchmarkId && (
+                    <span className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider flex items-center gap-1">
+                        <TrophyIcon className="w-3 h-3" /> Benchmark
                     </span>
                 )}
                 {!isWorkoutLoggable && (

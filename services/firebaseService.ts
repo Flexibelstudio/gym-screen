@@ -1,4 +1,3 @@
-
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -52,7 +51,7 @@ import {
   BankExercise, SuggestedExercise, WorkoutResult, CompanyDetails, 
   SmartScreenPricing, HyroxRace, SeasonalThemeSetting, MemberGoals, 
   WorkoutLog, CheckInEvent, Member, UserRole, PersonalBest, StudioEvent,
-  CustomPage, AdminActivity
+  CustomPage, AdminActivity, BenchmarkDefinition
 } from '../types';
 import { MOCK_ORGANIZATIONS, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_MEMBERS, MOCK_SMART_SCREEN_PRICING } from '../data/mockData';
 
@@ -302,6 +301,31 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
     const newLogRef = doc(collection(db, 'workoutLogs'));
     const newLog = { id: newLogRef.id, ...logData };
     const newRecords: { exerciseName: string; weight: number; diff: number }[] = [];
+
+    // NYTT: Hämta Benchmark info om det finns i passet
+    if (logData.workoutId && logData.workoutId !== 'manual' && !logData.benchmarkId) {
+        try {
+            const wSnap = await getDoc(doc(db, 'workouts', logData.workoutId));
+            if (wSnap.exists()) {
+                const wData = wSnap.data() as Workout;
+                if (wData.benchmarkId) {
+                    newLog.benchmarkId = wData.benchmarkId;
+                    
+                    // Försök räkna ut värdet
+                    // Om det är tid (durationMinutes finns) -> Sekunder
+                    // Om det är Reps eller Vikt måste detta komma från exerciseResults.
+                    // För enkelhetens skull i denna version fokuserar vi på Tidsbaserade benchmarks (som Murph).
+                    if (newLog.durationMinutes) {
+                        newLog.benchmarkValue = newLog.durationMinutes * 60; // Tid i sekunder
+                    } else if (newLog.exerciseResults && newLog.exerciseResults.length > 0) {
+                        // Om det är t.ex. "Max Clean", ta tyngsta lyftet
+                         const maxWeight = Math.max(...newLog.exerciseResults.map((ex: any) => ex.weight || 0));
+                         if (maxWeight > 0) newLog.benchmarkValue = maxWeight;
+                    }
+                }
+            }
+        } catch (e) {}
+    }
 
     if (logData.memberId) {
         try {
@@ -585,6 +609,12 @@ export const undoLastBilling = async (id: string) => {
 export const updateGlobalConfig = async (id: string, config: any) => {
     if(isOffline || !db || !id) return;
     await updateDoc(doc(db, 'organizations', id), { globalConfig: sanitizeData(config) });
+};
+
+export const updateOrganizationBenchmarks = async (id: string, benchmarks: BenchmarkDefinition[]) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { benchmarkDefinitions: sanitizeData(benchmarks) });
+    return getOrganizationById(id);
 };
 
 export const createStudio = async (orgId: string, name: string) => {

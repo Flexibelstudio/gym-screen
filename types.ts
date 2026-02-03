@@ -132,6 +132,7 @@ export interface Workout {
   startGroups?: StartGroup[]; 
   startIntervalMinutes?: number; 
   aiCoachSummary?: string;
+  benchmarkId?: string; // NYTT: Koppling till ett Benchmark
 }
 
 export type Passkategori = string;
@@ -141,6 +142,13 @@ export interface CustomCategoryWithPrompt {
   name: string;
   prompt: string;
   icon?: string;
+}
+
+// NYTT: Definition av ett Benchmark
+export interface BenchmarkDefinition {
+    id: string;
+    title: string;
+    type: 'time' | 'reps' | 'weight';
 }
 
 export type ThemeOption = 'none' | 'auto' | 'winter' | 'christmas' | 'newyear' | 'valentines' | 'easter' | 'midsummer' | 'summer' | 'halloween';
@@ -241,6 +249,8 @@ export interface Organization {
   infoCarousel?: InfoCarousel;
   displayWindows?: DisplayWindow[];
   exerciseOverrides?: Record<string, ExerciseOverride>;
+  // NYTT: Lista över organisationens benchmarks
+  benchmarkDefinitions?: BenchmarkDefinition[];
   companyDetails?: CompanyDetails;
   inviteCode?: string;
   lastActiveAt?: number;
@@ -430,7 +440,9 @@ export interface WorkoutLog {
     diploma?: WorkoutDiploma;
     memberName?: string;
     memberPhotoUrl?: string;
-    newPBs?: PBRecord[]; // Added to match usage in Diploma Generator
+    newPBs?: PBRecord[]; 
+    benchmarkId?: string; // NYTT: För att enkelt gruppera benchmarks
+    benchmarkValue?: number; // NYTT: Resultatet (tid i sekunder, antal reps, eller vikt)
 }
 
 export interface CheckInEvent {

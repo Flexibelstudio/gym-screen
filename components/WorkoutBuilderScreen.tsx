@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, StudioConfig, UserRole, BankExercise, WorkoutLogType } from '../types';
+import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, StudioConfig, UserRole, BankExercise, WorkoutLogType, Organization, BenchmarkDefinition } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
-import { getExerciseBank, deleteImageByUrl, saveAdminActivity } from '../services/firebaseService';
+import { getExerciseBank, deleteImageByUrl, saveAdminActivity, updateOrganizationBenchmarks } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
 import { useAuth } from '../context/AuthContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
@@ -11,7 +11,7 @@ import { ExerciseBankPanel, ExercisePreviewModal } from './workout-builder/Exerc
 import { AICoachSidebar } from './workout-builder/AICoachPanel';
 import { EditableBlockCard } from './workout-builder/EditableBlockCard';
 import { analyzeCurrentWorkout } from '../services/geminiService';
-import { ToggleSwitch, DumbbellIcon, SparklesIcon } from './icons';
+import { ToggleSwitch, DumbbellIcon, SparklesIcon, TrophyIcon, CheckIcon } from './icons';
 
 const createNewWorkout = (): Workout => ({
   id: `workout-${Date.now()}`,
@@ -87,9 +87,10 @@ interface WorkoutBuilderScreenProps {
   studioConfig: StudioConfig;
   sessionRole: UserRole;
   isNewDraft?: boolean;
+  organization?: Organization; // Needed for benchmarks
 }
 
-export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ initialWorkout, onSave, onCancel, focusedBlockId: initialFocusedBlockId, studioConfig, sessionRole, isNewDraft = false }) => {
+export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ initialWorkout, onSave, onCancel, focusedBlockId: initialFocusedBlockId, studioConfig, sessionRole, isNewDraft = false, organization }) => {
   const { selectedOrganization } = useStudio();
   const { userData } = useAuth();
   const [workout, setWorkout] = useState<Workout>(() => initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
@@ -101,13 +102,39 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   const [previewExercise, setPreviewExercise] = useState<BankExercise | null>(null);
   const [activeSidebarTab, setActiveSidebarTab] = useState<'bank' | 'ai'>('bank');
 
+  // Benchmark logic
+  const org = organization || selectedOrganization;
+  const existingBenchmarks = org?.benchmarkDefinitions || [];
+  const [isBenchmark, setIsBenchmark] = useState(!!initialWorkout?.benchmarkId);
+  const [matchedBenchmark, setMatchedBenchmark] = useState<BenchmarkDefinition | null>(null);
+  const [newBenchmarkType, setNewBenchmarkType] = useState<'time' | 'reps' | 'weight'>('time');
+
   const editorRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     const snapshot = JSON.stringify(initialWorkout || createNewWorkout());
     setInitialSnapshot(snapshot);
     setWorkout(JSON.parse(snapshot));
+    setIsBenchmark(!!(initialWorkout?.benchmarkId));
   }, [initialWorkout]);
+  
+  // Smart Benchmark Matching
+  useEffect(() => {
+      if (!isBenchmark) {
+          setMatchedBenchmark(null);
+          // Only clear ID if user explicitly unchecks it. 
+          // But here we rely on submit logic to decide what to save.
+          return;
+      }
+
+      // Check if workout title matches an existing benchmark name
+      const match = existingBenchmarks.find(b => b.title.trim().toLowerCase() === workout.title.trim().toLowerCase());
+      if (match) {
+          setMatchedBenchmark(match);
+      } else {
+          setMatchedBenchmark(null);
+      }
+  }, [workout.title, isBenchmark, existingBenchmarks]);
 
   useEffect(() => {
     const fetchBank = async () => {
@@ -154,7 +181,33 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    const finalWorkout = { ...workout };
+
+    if (isBenchmark) {
+        if (matchedBenchmark) {
+            // Koppla till befintligt
+            finalWorkout.benchmarkId = matchedBenchmark.id;
+        } else if (org) {
+            // Skapa nytt benchmark
+            const newDefinition: BenchmarkDefinition = {
+                id: `bm_${Date.now()}`,
+                title: finalWorkout.title,
+                type: newBenchmarkType
+            };
+            
+            // Uppdatera organisationens lista
+            const updatedDefinitions = [...existingBenchmarks, newDefinition];
+            await updateOrganizationBenchmarks(org.id, updatedDefinitions);
+            
+            // Koppla workout till nya IDt
+            finalWorkout.benchmarkId = newDefinition.id;
+        }
+    } else {
+        // Om användaren avmarkerat benchmark
+        finalWorkout.benchmarkId = undefined;
+    }
+
     // LOG ACTIVITY
     if (selectedOrganization && userData) {
         saveAdminActivity({
@@ -163,11 +216,11 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
             userName: userData.firstName || 'Coach',
             type: 'WORKOUT',
             action: initialWorkout ? 'UPDATE' : 'CREATE',
-            description: `${initialWorkout ? 'Uppdaterade' : 'Skapade'} passet "${workout.title}"`,
+            description: `${initialWorkout ? 'Uppdaterade' : 'Skapade'} passet "${finalWorkout.title}"`,
             timestamp: Date.now()
         });
     }
-    onSave(workout);
+    onSave(finalWorkout);
   };
   
   const handleUpdateWorkoutDetail = (field: keyof Workout, value: any) => {
@@ -368,6 +421,44 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                     checked={workout.showDetailsToMember !== false} 
                                     onChange={val => handleUpdateWorkoutDetail('showDetailsToMember', val)}
                                 />
+                                
+                                <div className="pt-2 border-t border-gray-200 dark:border-gray-700 mt-2">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <ToggleSwitch 
+                                            label="Detta är ett Benchmark" 
+                                            checked={isBenchmark} 
+                                            onChange={setIsBenchmark} 
+                                        />
+                                        <TrophyIcon className={`w-4 h-4 ${isBenchmark ? 'text-yellow-500' : 'text-gray-400'}`} />
+                                    </div>
+                                    
+                                    {isBenchmark && (
+                                        <div className="ml-0 pl-4 border-l-2 border-primary/20 animate-fade-in">
+                                            {matchedBenchmark ? (
+                                                <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-2 rounded-lg">
+                                                    <CheckIcon className="w-4 h-4" />
+                                                    <span>Kopplas till <strong>{matchedBenchmark.title}</strong></span>
+                                                </div>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    <p className="text-xs text-gray-500">Nytt benchmark skapas: <strong>{workout.title}</strong></p>
+                                                    <div className="flex gap-2">
+                                                        <span className="text-xs font-bold text-gray-400 self-center uppercase">Mätvärde:</span>
+                                                        <select 
+                                                            value={newBenchmarkType}
+                                                            onChange={(e) => setNewBenchmarkType(e.target.value as any)}
+                                                            className="bg-gray-100 dark:bg-black border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-sm font-medium"
+                                                        >
+                                                            <option value="time">Tid</option>
+                                                            <option value="reps">Reps</option>
+                                                            <option value="weight">Vikt</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
