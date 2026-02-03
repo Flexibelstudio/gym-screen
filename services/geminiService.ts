@@ -259,13 +259,21 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
 }
 
 export async function parseWorkoutFromYoutube(url: string): Promise<Workout> {
-    const prompt = `Analysera följande YouTube-video och skapa ett träningspass baserat på dess innehåll: ${url}. 
-    Identifiera alla övningar, reps/tider och blockstruktur (t.ex. Uppvärmning, Del A, Del B). 
-    Om videon är en "Follow along" eller "Workout with me", sätt followMe till true för relevanta block.
-    Hämta passets titel från videon om möjligt.`;
+    const prompt = `Analysera denna YouTube-video: ${url}. 
     
-    // Vi använder gemini-3-pro-preview för YouTube-länkar då det kräver sök-förmåga eller djupare kunskap
-    const data = await _callGeminiJSON<any>(PRO_MODEL, prompt, workoutSchema);
+    DITT UPPDRAG:
+    1. IDENTIFIERA BENCHMARKS: Om videon beskriver ett känt "Benchmark-pass" (t.ex. CrossFit Hero WODs som Murph, Fran, Cindy, eller specifika Hyrox-simulationer), hämta den officiella strukturen.
+    2. SPECIFIKT FÖR MURPH: Om passet är Murph, SKA det innehålla: 1600m löpning, 100 Pull-ups, 200 Push-ups, 300 Squats, 1600m löpning. 
+    3. LOGISK STRUKTUR: Dela upp passet i tydliga block. För Murph t.ex: Block 1 (Löpning), Block 2 (The Work), Block 3 (Löpning).
+    4. PARTITIONING: Kolla i videon om övningarna ska delas upp (t.ex. 20 varv av 5/10/15) eller köras rakt av ("Unpartitioned"). Skriv detta i 'setupDescription'.
+    5. TIMER: Välj lämplig timer (oftast Stopwatch/Time Cap för benchmarks).
+    6. FOLLOW ME: Om videon är ett realtidspass ("Follow Along"), sätt 'followMe' till true för relevanta block.
+    7. TITEL: Använd videons titel som grund.
+    
+    Använd Google Search för att bekräfta passets detaljer via videons metadata.`;
+    
+    // Vi använder gemini-3-pro-preview och aktiverar googleSearch (true)
+    const data = await _callGeminiJSON<any>(PRO_MODEL, prompt, workoutSchema, true);
     return transformWorkout(data, '', false);
 }
 
