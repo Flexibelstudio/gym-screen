@@ -463,7 +463,7 @@ const ManageWorkoutsView: React.FC<{
                                         <td className="p-5">
                                             <p className="font-bold text-gray-900 dark:text-white text-base truncate max-w-xs">{workout.title}</p>
                                             <div className="flex gap-2 items-center">
-                                                {workout.benchmarkId && <span className="text-[10px] font-black uppercase tracking-wider text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">BM</span>}
+                                                {workout.benchmarkId && <span className="text-[9px] font-black uppercase tracking-wider text-yellow-700 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 rounded border border-yellow-200 dark:border-yellow-800">BENCHMARK</span>}
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate max-w-xs">{workout.coachTips}</p>
                                             </div>
                                         </td>
