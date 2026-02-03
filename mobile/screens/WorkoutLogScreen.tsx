@@ -1,15 +1,17 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog } from '../../services/firebaseService';
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
-import { CloseIcon, DumbbellIcon, SparklesIcon, FireIcon, RunningIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, CalculatorIcon, ChartBarIcon } from '../../components/icons'; 
+import { CloseIcon, DumbbellIcon, SparklesIcon, FireIcon, RunningIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, CalculatorIcon, ChartBarIcon, TrophyIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
 import { OneRepMaxModal } from '../../components/OneRepMaxModal';
-import { WorkoutLogType, RepRange, ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, ExerciseSetDetail } from '../../types';
+import { WorkoutLogType, RepRange, ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, ExerciseSetDetail, BenchmarkDefinition } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
 import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
+import { useStudio } from '../../context/StudioContext';
 
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
@@ -31,7 +33,7 @@ interface LocalExerciseResult {
   isBodyweight?: boolean;
   blockId: string;
   blockTitle: string;
-  coachAdvice?: string; // NYTT: Lagrar rådet lokalt under sessionen
+  coachAdvice?: string; 
 }
 
 interface LogData {
@@ -45,6 +47,7 @@ interface WorkoutData {
   id: string;
   title: string;
   logType?: WorkoutLogType;
+  benchmarkId?: string; // Kopplat benchmark
   blocks: {
       id: string;
       title: string;
@@ -53,6 +56,118 @@ interface WorkoutData {
       settings: { rounds: number; mode: string };
   }[];
 }
+
+// --- BENCHMARK CARD COMPONENT ---
+const BenchmarkResultCard: React.FC<{
+    definition: BenchmarkDefinition;
+    value: string;
+    onChange: (val: string) => void;
+    prevBest?: number;
+}> = ({ definition, value, onChange, prevBest }) => {
+    
+    // Helper to format prev best based on type
+    const formatPrev = (val: number, type: string) => {
+        if (type === 'time') {
+            const m = Math.floor(val / 60);
+            const s = val % 60;
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+        return val.toString();
+    };
+
+    const isTime = definition.type === 'time';
+    const isReps = definition.type === 'reps';
+    const isWeight = definition.type === 'weight'; // Volym
+
+    // Handle Time Input Split (Min/Sec)
+    const handleTimeChange = (part: 'm' | 's', val: string) => {
+        const num = parseInt(val) || 0;
+        let totalSeconds = 0;
+        
+        // Parse current value (which is stored as total seconds in string)
+        const currentTotal = parseInt(value) || 0;
+        const currentM = Math.floor(currentTotal / 60);
+        const currentS = currentTotal % 60;
+
+        if (part === 'm') {
+            totalSeconds = (num * 60) + currentS;
+        } else {
+            totalSeconds = (currentM * 60) + num;
+        }
+        onChange(totalSeconds.toString());
+    };
+
+    const currentM = isTime ? Math.floor((parseInt(value) || 0) / 60) : 0;
+    const currentS = isTime ? (parseInt(value) || 0) % 60 : 0;
+
+    return (
+        <div className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/10 p-5 rounded-2xl border border-yellow-200 dark:border-yellow-800/50 mb-6 shadow-sm">
+            <div className="flex justify-between items-start mb-4">
+                <div className="flex items-center gap-2">
+                    <TrophyIcon className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+                    <h3 className="font-black text-gray-900 dark:text-white uppercase tracking-tight text-sm">
+                        {definition.title}
+                    </h3>
+                </div>
+                {prevBest !== undefined && (
+                    <span className="text-[10px] font-bold text-yellow-700 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-900/40 px-2 py-1 rounded-lg">
+                        PB: {formatPrev(prevBest, definition.type)} {isTime ? 'min' : isReps ? 'st' : 'kg'}
+                    </span>
+                )}
+            </div>
+
+            <div className="bg-white dark:bg-black/40 p-4 rounded-xl border border-yellow-100 dark:border-yellow-800/30">
+                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
+                    Ditt Resultat
+                </label>
+                
+                {isTime ? (
+                    <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                            <input 
+                                type="number" 
+                                value={currentM || ''}
+                                onChange={e => handleTimeChange('m', e.target.value)}
+                                placeholder="0"
+                                className="w-full text-center text-2xl font-black bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl p-3 focus:border-yellow-400 focus:ring-0 outline-none"
+                            />
+                            <span className="block text-center text-[10px] font-bold text-gray-400 mt-1 uppercase">Min</span>
+                        </div>
+                        <span className="text-2xl font-black text-gray-300">:</span>
+                        <div className="flex-1">
+                            <input 
+                                type="number" 
+                                value={currentS || ''}
+                                onChange={e => handleTimeChange('s', e.target.value)}
+                                placeholder="00"
+                                className="w-full text-center text-2xl font-black bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl p-3 focus:border-yellow-400 focus:ring-0 outline-none"
+                            />
+                            <span className="block text-center text-[10px] font-bold text-gray-400 mt-1 uppercase">Sek</span>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="relative">
+                        <input 
+                            type="number"
+                            value={value}
+                            onChange={e => onChange(e.target.value)}
+                            placeholder="0"
+                            className="w-full text-center text-3xl font-black bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl p-3 focus:border-yellow-400 focus:ring-0 outline-none"
+                        />
+                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-400">
+                            {isReps ? 'Antal Varv' : 'Totalvolym (kg)'}
+                        </span>
+                    </div>
+                )}
+            </div>
+            {isWeight && (
+                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2 text-center italic">
+                    * Fylls i automatiskt baserat på dina set nedan.
+                </p>
+            )}
+        </div>
+    );
+};
 
 // --- DIPLOMA TITLES ---
 const DIPLOMA_TITLES = [
@@ -429,7 +544,7 @@ const cleanForFirestore = (obj: any): any => {
 
 export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigation, route }: any) => {
   const { currentUser } = useAuth();
-  const { workouts: contextWorkouts } = useWorkout();
+  const { workouts: contextWorkouts, selectedOrganization } = useStudio(); // Access selectedOrganization here
   const userId = currentUser?.uid || "offline_member_uid"; 
   const passedWId = workoutId || route?.params?.workoutId;
   const isManualMode = passedWId === 'MANUAL_ENTRY';
@@ -452,6 +567,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [customActivity, setCustomActivity] = useState({ name: '', duration: '', distance: '', calories: '' });
   const [sessionStats, setSessionStats] = useState({ distance: '', calories: '' });
   
+  // Benchmark result state
+  const [benchmarkResult, setBenchmarkResult] = useState<string>('');
+
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
 
@@ -471,6 +589,42 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       return totalSets > 0 && uncheckedSetsCount === 0;
   }, [isSubmitting, isQuickWorkoutMode, isManualMode, customActivity, exerciseResults, uncheckedSetsCount]);
   
+  // --- BENCHMARK LOGIC ---
+
+  // Hitta benchmark-definitionen
+  const benchmarkDefinition = useMemo(() => {
+      if (!workout?.benchmarkId || !selectedOrganization?.benchmarkDefinitions) return null;
+      return selectedOrganization.benchmarkDefinitions.find(b => b.id === workout.benchmarkId);
+  }, [workout?.benchmarkId, selectedOrganization?.benchmarkDefinitions]);
+
+  // Hitta tidigare bästa resultat för benchmark
+  const prevBenchmarkBest = useMemo(() => {
+      if (!benchmarkDefinition || !allLogs) return undefined;
+      const relevantLogs = allLogs.filter(l => l.benchmarkId === benchmarkDefinition.id && l.benchmarkValue !== undefined);
+      if (relevantLogs.length === 0) return undefined;
+
+      const sorted = relevantLogs.sort((a, b) => {
+          if (benchmarkDefinition.type === 'time') return (a.benchmarkValue || 0) - (b.benchmarkValue || 0);
+          return (b.benchmarkValue || 0) - (a.benchmarkValue || 0);
+      });
+      return sorted[0]?.benchmarkValue;
+  }, [benchmarkDefinition, allLogs]);
+
+  // AUTO-BERÄKNA VOLYM för Vikt-Benchmarks
+  useEffect(() => {
+      if (benchmarkDefinition?.type === 'weight') {
+           const vol = exerciseResults.reduce((acc, ex) => {
+               const exVol = ex.setDetails.reduce((sAcc, s) => {
+                   const w = parseFloat(s.weight) || 0;
+                   const r = parseFloat(s.reps) || 0;
+                   return sAcc + (w * r);
+               }, 0);
+               return acc + exVol;
+           }, 0);
+           setBenchmarkResult(vol > 0 ? vol.toString() : '');
+      }
+  }, [exerciseResults, benchmarkDefinition]);
+
   // --- LOAD INITIAL DATA ---
   useEffect(() => {
     if (!oId) { setLoading(false); return; }
@@ -500,6 +654,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                 let loadedLogData: LogData | null = null;
                 let loadedSessionStats: any = null;
                 let loadedCustomActivity: any = null;
+                let loadedBenchmarkResult: string | null = null; // Ladda benchmark om det finns
                 let skipInsights = false;
 
                 if (savedSessionRaw) {
@@ -509,6 +664,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                         loadedLogData = saved.logData;
                         loadedSessionStats = saved.sessionStats;
                         loadedCustomActivity = saved.customActivity;
+                        loadedBenchmarkResult = saved.benchmarkResult;
                         // Skip pre-game if we have a saved session
                         setViewMode('logging');
                         skipInsights = true;
@@ -543,6 +699,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                 if (loadedLogData) setLogData(loadedLogData);
                 if (loadedSessionStats) setSessionStats(loadedSessionStats);
                 if (loadedCustomActivity) setCustomActivity(loadedCustomActivity);
+                if (loadedBenchmarkResult) setBenchmarkResult(loadedBenchmarkResult);
 
                 const logs = await getMemberLogs(userId);
                 setAllLogs(logs);
@@ -600,11 +757,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
         logData,
         sessionStats,
         customActivity,
+        benchmarkResult,
         timestamp: Date.now()
     };
 
     localStorage.setItem(ACTIVE_LOG_STORAGE_KEY, JSON.stringify(sessionData));
-  }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, userId, wId, oId, isManualMode, workout, isQuickWorkoutMode]);
+  }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, userId, wId, oId, isManualMode, workout, isQuickWorkoutMode, benchmarkResult]);
 
   const handleCancel = (isSuccess = false, diploma: WorkoutDiploma | null = null) => {
     // We don't necessarily clear it here if the user just "backs out", 
@@ -641,7 +799,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
           }));
           handleUpdateResult(index, { 
               setDetails: updatedSets,
-              coachAdvice: advice // Sparar motiveringen lokalt
+              coachAdvice: advice 
           });
       }
   };
@@ -701,7 +859,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   reps: repsSummary, 
                   sets: r.setDetails.length,
                   blockId: r.blockId,
-                  coachAdvice: r.coachAdvice // NYTT: Skickas med till Firestore
+                  coachAdvice: r.coachAdvice
               };
           });
 
@@ -716,7 +874,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               feeling: logData.feeling,
               tags: logData.tags || [],
               comment: logData.comment || '',
-              exerciseResults: exerciseResultsToSave
+              exerciseResults: exerciseResultsToSave,
+              // Add Benchmark Info if applicable
+              benchmarkId: benchmarkDefinition?.id,
+              benchmarkValue: benchmarkResult ? parseFloat(benchmarkResult) : undefined
           };
 
           if (isQuickOrManual) {
@@ -919,6 +1080,16 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                           <p className="font-bold text-sm leading-relaxed">{aiInsights.readiness.message}</p>
                       </div>
                   </div>
+              )}
+              
+              {/* BENCHMARK RESULT INPUT - VISAS BARA OM PASSET ÄR ETT BENCHMARK */}
+              {benchmarkDefinition && (
+                  <BenchmarkResultCard 
+                    definition={benchmarkDefinition} 
+                    value={benchmarkResult} 
+                    onChange={setBenchmarkResult} 
+                    prevBest={prevBenchmarkBest}
+                  />
               )}
 
               {isManualMode || isQuickWorkoutMode ? (
