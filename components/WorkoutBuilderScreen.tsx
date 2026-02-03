@@ -442,16 +442,16 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                             ) : (
                                                 <div className="space-y-2">
                                                     <p className="text-xs text-gray-500">Nytt benchmark skapas: <strong>{workout.title}</strong></p>
-                                                    <div className="flex gap-2 items-center">
-                                                        <span className="text-xs font-bold text-gray-400 uppercase">Mätvärde:</span>
+                                                    <div className="flex gap-2">
+                                                        <span className="text-xs font-bold text-gray-400 self-center uppercase">Mätvärde:</span>
                                                         <select 
                                                             value={newBenchmarkType}
                                                             onChange={(e) => setNewBenchmarkType(e.target.value as any)}
-                                                            className="bg-gray-100 dark:bg-black border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-sm font-medium focus:ring-2 focus:ring-primary outline-none"
+                                                            className="bg-gray-100 dark:bg-black border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-sm font-medium"
                                                         >
-                                                            <option value="time">Tid (For Time)</option>
-                                                            <option value="reps">Antal Varv (AMRAP)</option>
-                                                            <option value="weight">Totalvolym (Tungt)</option>
+                                                            <option value="time">Tid</option>
+                                                            <option value="reps">Reps</option>
+                                                            <option value="weight">Vikt</option>
                                                         </select>
                                                     </div>
                                                 </div>

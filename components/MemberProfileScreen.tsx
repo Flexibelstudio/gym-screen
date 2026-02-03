@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma, StudioConfig, BenchmarkDefinition } from '../types';
 import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog } from '../services/firebaseService';
-import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon } from './icons';
+import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon, HistoryIcon } from './icons';
 import { Modal } from './ui/Modal';
 import { resizeImage } from '../utils/imageUtils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -129,7 +129,7 @@ const getAthleteArchetype = (logs: WorkoutLog[]) => {
     return { title: "Hybridatlet", icon: <UserIcon className="w-5 h-5" />, color: "from-indigo-500 to-purple-600", desc: "Du behärskar både styrka och kondition. Den kompletta atleten." };
 };
 
-const MinaRekordTab: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefinition[] }> = ({ logs, definitions }) => {
+const BenchmarksView: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefinition[] }> = ({ logs, definitions }) => {
     
     // Process data to find PBs for each benchmark definition
     const benchmarks = useMemo(() => {
@@ -139,10 +139,10 @@ const MinaRekordTab: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefini
             
             if (relevantLogs.length === 0) return { def, pb: null, attempts: 0 };
 
-            // Sort based on type - Time is ASC (lower better), Reps/Weight is DESC (higher better)
+            // Sort based on type
             const sorted = [...relevantLogs].sort((a, b) => {
-                if (def.type === 'time') return (a.benchmarkValue || 0) - (b.benchmarkValue || 0); 
-                return (b.benchmarkValue || 0) - (a.benchmarkValue || 0); 
+                if (def.type === 'time') return (a.benchmarkValue || 0) - (b.benchmarkValue || 0); // Lower time is better
+                return (b.benchmarkValue || 0) - (a.benchmarkValue || 0); // Higher reps/weight is better
             });
 
             return {
@@ -164,50 +164,50 @@ const MinaRekordTab: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefini
 
     const getUnit = (type: string) => {
         if (type === 'time') return 'min';
-        if (type === 'reps') return 'varv';
+        if (type === 'reps') return 'reps';
         if (type === 'weight') return 'kg';
         return '';
     };
 
     if (definitions.length === 0) {
         return (
-            <div className="p-8 text-center bg-white dark:bg-gray-900 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800">
+            <div className="p-12 text-center bg-white dark:bg-gray-900 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800 animate-fade-in">
                 <p className="text-gray-400 text-sm">Gymmet har inte lagt upp några benchmarks än.</p>
             </div>
         );
     }
 
     return (
-        <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-800">
-            <div className="flex items-center gap-3 mb-6">
-                <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl text-yellow-600 dark:text-yellow-400">
-                    <TrophyIcon className="w-5 h-5" />
-                </div>
-                <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Mina Rekord</h3>
-            </div>
-            
+        <div className="space-y-6 animate-fade-in">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {benchmarks.map(({ def, pb, attempts }) => (
-                    <div key={def.id} className={`relative overflow-hidden rounded-2xl p-5 border-2 transition-all ${pb ? 'bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 border-yellow-400/30 dark:border-yellow-500/20' : 'bg-gray-50 dark:bg-gray-900 border-dashed border-gray-200 dark:border-gray-800 opacity-70'}`}>
-                        {pb && <div className="absolute top-0 right-0 w-20 h-20 bg-yellow-400/10 rounded-full blur-2xl -mr-6 -mt-6"></div>}
+                    <div key={def.id} className={`relative overflow-hidden rounded-3xl p-6 border-2 transition-all ${pb ? 'bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-gray-800 dark:to-gray-900 border-yellow-400/30 dark:border-yellow-500/20' : 'bg-gray-50 dark:bg-gray-900 border-dashed border-gray-200 dark:border-gray-800 opacity-80'}`}>
+                        {pb && <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-400/10 rounded-full blur-3xl -mr-6 -mt-6"></div>}
                         
                         <div className="relative z-10">
-                            <div className="flex justify-between items-start mb-2">
-                                <h4 className="font-bold text-gray-900 dark:text-white truncate pr-2">{def.title}</h4>
-                                {pb && <span className="text-[10px] font-black text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 rounded-full uppercase tracking-wider">PB</span>}
+                            <div className="flex justify-between items-start mb-4">
+                                <h4 className="font-bold text-gray-900 dark:text-white truncate pr-2 text-lg">{def.title}</h4>
+                                {pb && (
+                                    <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-1 rounded-lg">
+                                        <TrophyIcon className="w-4 h-4" />
+                                    </div>
+                                )}
                             </div>
                             
                             {pb ? (
                                 <div>
-                                    <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">
+                                    <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">
                                         {formatResult(pb.benchmarkValue!, def.type)} <span className="text-sm text-gray-500 font-bold">{getUnit(def.type)}</span>
                                     </p>
-                                    <p className="text-[10px] text-gray-400 mt-1 uppercase tracking-wider">
+                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2 uppercase tracking-wider font-bold">
                                         {new Date(pb.date).toLocaleDateString('sv-SE')} • {attempts} försök
                                     </p>
                                 </div>
                             ) : (
-                                <p className="text-sm text-gray-400 italic py-2">Inget resultat loggat än.</p>
+                                <div className="py-2">
+                                    <p className="text-sm text-gray-400 italic">Inget resultat loggat än.</p>
+                                    <p className="text-[10px] text-gray-300 mt-1 uppercase tracking-wider">Gör ett försök!</p>
+                                </div>
                             )}
                         </div>
                     </div>
@@ -277,6 +277,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [isEditingGoals, setIsEditingGoals] = useState(false);
     const [isMyStrengthVisible, setIsMyStrengthVisible] = useState(false);
     const [viewingDiploma, setViewingDiploma] = useState<WorkoutDiploma | null>(null);
+    
+    const [activeTab, setActiveTab] = useState<'overview' | 'benchmarks' | 'history'>('overview');
     
     // Resume session state
     const [activeSession, setActiveSession] = useState<any | null>(null);
@@ -549,175 +551,207 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 </button>
             </div>
 
-            <div className="space-y-6">
-                {/* Stats grid */}
-                <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                    <div className="relative overflow-hidden bg-gray-900 dark:bg-gray-800 rounded-2xl p-3 sm:p-4 shadow-lg border border-gray-800 text-center flex flex-col items-center justify-center min-h-[100px] group">
-                        <div className="absolute -right-2 -top-2 text-gray-800 dark:text-gray-700 opacity-50 transform rotate-12 transition-transform group-hover:scale-110">
-                            <DumbbellIcon className="w-16 h-16" />
+            {/* --- FLIKAR --- */}
+            <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full mb-8">
+                {[
+                    { id: 'overview', label: 'Översikt', icon: ChartBarIcon },
+                    { id: 'benchmarks', label: 'Benchmarks', icon: TrophyIcon },
+                    { id: 'history', label: 'Historik', icon: HistoryIcon }
+                ].map(tab => (
+                    <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id as any)}
+                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                            activeTab === tab.id 
+                            ? 'bg-white dark:bg-gray-700 text-primary shadow-md' 
+                            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        }`}
+                    >
+                        <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-primary' : 'text-gray-400'}`} />
+                        <span className="hidden sm:inline">{tab.label}</span>
+                    </button>
+                ))}
+            </div>
+
+            {/* --- FLIKINNEHÅLL --- */}
+
+            {activeTab === 'overview' && (
+                <div className="space-y-6 animate-fade-in">
+                    {/* Stats grid */}
+                    <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                        <div className="relative overflow-hidden bg-gray-900 dark:bg-gray-800 rounded-2xl p-3 sm:p-4 shadow-lg border border-gray-800 text-center flex flex-col items-center justify-center min-h-[100px] group">
+                            <div className="absolute -right-2 -top-2 text-gray-800 dark:text-gray-700 opacity-50 transform rotate-12 transition-transform group-hover:scale-110">
+                                <DumbbellIcon className="w-16 h-16" />
+                            </div>
+                            <span className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 relative z-10">Totalt</span>
+                            <p className="text-3xl sm:text-4xl font-black text-white leading-none tracking-tight relative z-10">{stats.totalWorkouts}</p>
                         </div>
-                        <span className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 relative z-10">Totalt</span>
-                        <p className="text-3xl sm:text-4xl font-black text-white leading-none tracking-tight relative z-10">{stats.totalWorkouts}</p>
+
+                        <div className="relative overflow-hidden bg-gradient-to-br from-primary to-teal-600 rounded-2xl p-3 sm:p-4 shadow-lg shadow-primary/20 text-center flex flex-col items-center justify-center min-h-[100px] group">
+                            <div className="absolute -right-2 -bottom-2 text-white opacity-20 transform -rotate-12 transition-transform group-hover:scale-110">
+                                <ChartBarIcon className="w-16 h-16" />
+                            </div>
+                            <span className="block text-[10px] font-black text-white/80 uppercase tracking-widest mb-1 relative z-10">Månad</span>
+                            <p className="text-3xl sm:text-4xl font-black text-white leading-none tracking-tight relative z-10">{stats.thisMonth}</p>
+                        </div>
+
+                        <div className="relative overflow-hidden bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-500 dark:to-red-500 rounded-2xl p-3 sm:p-4 shadow-lg shadow-orange-500/20 text-center flex flex-col items-center justify-center min-h-[100px] group">
+                            <div className="absolute -left-2 -bottom-2 text-orange-200 dark:text-white opacity-20 transform -rotate-12 transition-transform group-hover:scale-110">
+                                <FireIcon className="w-16 h-16" />
+                            </div>
+                            <span className="block text-[10px] font-black text-orange-600 dark:text-white/80 uppercase tracking-widest mb-1 relative z-10">Streak</span>
+                            <div className="flex items-center justify-center relative z-10 min-h-[36px] gap-1">
+                                <p className="text-3xl sm:text-4xl font-black text-orange-500 dark:text-white leading-none tracking-tight">
+                                    {stats.weeklyStreak}
+                                </p>
+                                <FireIcon className={`w-8 h-8 ${stats.hasTrainedThisWeek ? 'text-orange-500 dark:text-white animate-pulse' : 'text-gray-300 dark:text-gray-600 opacity-50'}`} />
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="relative overflow-hidden bg-gradient-to-br from-primary to-teal-600 rounded-2xl p-3 sm:p-4 shadow-lg shadow-primary/20 text-center flex flex-col items-center justify-center min-h-[100px] group">
-                        <div className="absolute -right-2 -bottom-2 text-white opacity-20 transform -rotate-12 transition-transform group-hover:scale-110">
-                            <ChartBarIcon className="w-16 h-16" />
+                    {/* Archetype card */}
+                    <div className={`bg-gradient-to-br ${archetype.color} rounded-[2rem] p-5 sm:p-8 text-white shadow-2xl relative overflow-hidden`}>
+                        <div className="relative z-10">
+                            <div>
+                                <p className="text-xs font-black uppercase tracking-widest text-white/70 mb-1">Din Träningsprofil</p>
+                                <h3 className="text-3xl font-black flex items-center gap-3">
+                                    {archetype.title}
+                                    <span className="bg-white/20 p-1.5 rounded-lg">{archetype.icon}</span>
+                                </h3>
+                            </div>
+                            <p className="text-lg font-medium text-white/90 leading-relaxed max-w-lg mt-4">{archetype.desc}</p>
                         </div>
-                        <span className="block text-[10px] font-black text-white/80 uppercase tracking-widest mb-1 relative z-10">Månad</span>
-                        <p className="text-3xl sm:text-4xl font-black text-white leading-none tracking-tight relative z-10">{stats.thisMonth}</p>
+                        <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-white/20 rounded-full blur-[60px] pointer-events-none"></div>
                     </div>
 
-                    <div className="relative overflow-hidden bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-500 dark:to-red-500 rounded-2xl p-3 sm:p-4 shadow-lg shadow-orange-500/20 text-center flex flex-col items-center justify-center min-h-[100px] group">
-                        <div className="absolute -left-2 -bottom-2 text-orange-200 dark:text-white opacity-20 transform -rotate-12 transition-transform group-hover:scale-110">
-                            <FireIcon className="w-16 h-16" />
-                        </div>
-                        <span className="block text-[10px] font-black text-orange-600 dark:text-white/80 uppercase tracking-widest mb-1 relative z-10">Streak</span>
-                        <div className="flex items-center justify-center relative z-10 min-h-[36px] gap-1">
-                             <p className="text-3xl sm:text-4xl font-black text-orange-500 dark:text-white leading-none tracking-tight">
-                                {stats.weeklyStreak}
-                             </p>
-                             <FireIcon className={`w-8 h-8 ${stats.hasTrainedThisWeek ? 'text-orange-500 dark:text-white animate-pulse' : 'text-gray-300 dark:text-gray-600 opacity-50'}`} />
-                        </div>
-                    </div>
-                </div>
-
-                {/* Archetype card */}
-                <div className={`bg-gradient-to-br ${archetype.color} rounded-[2rem] p-5 sm:p-8 text-white shadow-2xl relative overflow-hidden`}>
-                    <div className="relative z-10">
-                        <div>
-                            <p className="text-xs font-black uppercase tracking-widest text-white/70 mb-1">Din Träningsprofil</p>
-                            <h3 className="text-3xl font-black flex items-center gap-3">
-                                {archetype.title}
-                                <span className="bg-white/20 p-1.5 rounded-lg">{archetype.icon}</span>
+                    {/* Goals section */}
+                    <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-800">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                <span className="text-xl">🎯</span> Mina Mål
                             </h3>
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => setIsEditingGoals(true)} 
+                                    className="p-2 text-gray-400 hover:text-primary transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl"
+                                    title="Redigera mål"
+                                >
+                                    <PencilIcon className="w-4 h-4" />
+                                </button>
+                            </div>
                         </div>
-                        <p className="text-lg font-medium text-white/90 leading-relaxed max-w-lg mt-4">{archetype.desc}</p>
-                    </div>
-                    <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-white/20 rounded-full blur-[60px] pointer-events-none"></div>
-                </div>
+                        
+                        {userData.goals?.hasSpecificGoals ? (
+                            <div className="space-y-6">
+                                <div className="flex flex-wrap gap-2">
+                                    {userData.goals.selectedGoals.map(g => (
+                                        <span key={g} className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide border border-gray-200 dark:border-gray-700">{g}</span>
+                                    ))}
+                                </div>
 
-                {/* Hall of Fame (Benchmark-resultat) */}
-                {selectedOrganization && (
-                    <MinaRekordTab 
+                                <div className="space-y-4 pt-2 border-t border-gray-50 dark:border-gray-800">
+                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em]">Målanalys (SMART)</p>
+                                    <div className="space-y-4">
+                                        {userData.goals.smartCriteria && (
+                                            <>
+                                                <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={userData.goals.smartCriteria.specific} />
+                                                <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={userData.goals.smartCriteria.measurable} />
+                                                <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={userData.goals.smartCriteria.achievable} />
+                                                <SmartItem letter="R" color="bg-rose-500" title="Relevant" text={userData.goals.smartCriteria.relevant} />
+                                            </>
+                                        )}
+                                        <SmartItem letter="T" color="bg-indigo-500" title="Tid" text={userData.goals.targetDate || 'Ingen deadline.'} />
+                                    </div>
+                                </div>
+
+                                {daysLeft !== null && (
+                                    <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl">
+                                        <div className="flex-grow">
+                                            <div className="flex justify-between text-xs font-bold text-gray-500 mb-1"><span>Framsteg</span><span>{userData.goals.targetDate}</span></div>
+                                            <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden p-0.5 border border-gray-100 dark:border-gray-800">
+                                                <div 
+                                                    className="h-full bg-primary rounded-full transition-all duration-1000 relative shadow-[0_0_10px_rgba(20,184,166,0.5)]" 
+                                                    style={{ width: `${Math.max(1.5, progressPercentage)}%` }}
+                                                >
+                                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="text-center min-w-[60px]"><span className="block text-xl font-black text-gray-900 dark:text-white leading-none">{daysLeft}</span><span className="text-[9px] uppercase font-bold text-gray-400">Dagar kvar</span></div>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            <div className="text-center py-4 bg-gray-50 dark:bg-gray-800/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                                <p className="text-gray-500 text-sm italic">Inga specifika mål satta.</p>
+                                <button onClick={() => setIsEditingGoals(true)} className="text-primary text-xs font-bold mt-2 hover:underline">Sätt mål nu</button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'benchmarks' && (
+                selectedOrganization && (
+                    <BenchmarksView 
                         logs={logs} 
                         definitions={selectedOrganization.benchmarkDefinitions || []} 
                     />
-                )}
+                )
+            )}
 
-                {/* Goals section */}
-                <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-800">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                            <span className="text-xl">🎯</span> Mina Mål
-                        </h3>
-                        <div className="flex gap-2">
-                            <button 
-                                onClick={() => setIsEditingGoals(true)} 
-                                className="p-2 text-gray-400 hover:text-primary transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl"
-                                title="Redigera mål"
-                            >
-                                <PencilIcon className="w-4 h-4" />
-                            </button>
-                        </div>
-                    </div>
-                    
-                    {userData.goals?.hasSpecificGoals ? (
-                        <div className="space-y-6">
-                            <div className="flex flex-wrap gap-2">
-                                {userData.goals.selectedGoals.map(g => (
-                                    <span key={g} className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide border border-gray-200 dark:border-gray-700">{g}</span>
-                                ))}
+            {activeTab === 'history' && (
+                <div className="animate-fade-in">
+                    {/* Latest workouts section - villkorligt styrt av enableWorkoutLogging */}
+                    {studioConfig.enableWorkoutLogging && (
+                        <div className="bg-white dark:bg-gray-900 rounded-[2rem] shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
+                            <div className="p-5 sm:p-8 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/30 dark:bg-gray-900/50">
+                                <h3 className="font-black text-xl text-gray-900 dark:text-white uppercase tracking-tight">Loggade Pass</h3>
+                                <span className="text-[10px] font-bold text-gray-300 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded uppercase">{logs.length} st</span>
                             </div>
-
-                            <div className="space-y-4 pt-2 border-t border-gray-50 dark:border-gray-800">
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em]">Målanalys (SMART)</p>
-                                <div className="space-y-4">
-                                    {userData.goals.smartCriteria && (
-                                        <>
-                                            <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={userData.goals.smartCriteria.specific} />
-                                            <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={userData.goals.smartCriteria.measurable} />
-                                            <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={userData.goals.smartCriteria.achievable} />
-                                            <SmartItem letter="R" color="bg-rose-500" title="Relevant" text={userData.goals.smartCriteria.relevant} />
-                                        </>
-                                    )}
-                                    <SmartItem letter="T" color="bg-indigo-500" title="Tid" text={userData.goals.targetDate || 'Ingen deadline.'} />
-                                </div>
-                            </div>
-
-                            {daysLeft !== null && (
-                                <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl">
-                                    <div className="flex-grow">
-                                        <div className="flex justify-between text-xs font-bold text-gray-500 mb-1"><span>Framsteg</span><span>{userData.goals.targetDate}</span></div>
-                                        <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden p-0.5 border border-gray-100 dark:border-gray-800">
-                                            <div 
-                                                className="h-full bg-primary rounded-full transition-all duration-1000 relative shadow-[0_0_10px_rgba(20,184,166,0.5)]" 
-                                                style={{ width: `${Math.max(1.5, progressPercentage)}%` }}
-                                            >
-                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
-                                            </div>
-                                        </div>
+                            <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-[500px] overflow-y-auto">
+                                {loading ? (
+                                    <div className="p-12 text-center flex flex-col items-center">
+                                        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
+                                        <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">Hämtar historik...</p>
                                     </div>
-                                    <div className="text-center min-w-[60px]"><span className="block text-xl font-black text-gray-900 dark:text-white leading-none">{daysLeft}</span><span className="text-[9px] uppercase font-bold text-gray-400">Dagar kvar</span></div>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="text-center py-4 bg-gray-50 dark:bg-gray-800/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-                            <p className="text-gray-500 text-sm italic">Inga specifika mål satta.</p>
-                            <button onClick={() => setIsEditingGoals(true)} className="text-primary text-xs font-bold mt-2 hover:underline">Sätt mål nu</button>
+                                ) : logs.length === 0 ? (
+                                    <div className="p-12 text-center">
+                                        <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300"><DumbbellIcon className="w-8 h-8" /></div>
+                                        <p className="text-gray-900 dark:text-white font-black text-lg mb-2">Inga loggade pass än.</p>
+                                        <p className="text-sm text-gray-500 max-w-xs mx-auto">Kör ett pass och logga det via QR-koden på skärmen för att se din historik här!</p>
+                                    </div>
+                                ) : (
+                                    logs.map(log => (
+                                        <button key={log.id} onClick={() => setSelectedLog(log)} className="w-full text-left p-4 sm:p-6 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex justify-between items-center group">
+                                            <div className="min-w-0 pr-4">
+                                                <p className="font-black text-gray-900 dark:text-white text-lg group-hover:text-primary transition-colors truncate">{log.workoutTitle}</p>
+                                                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">{new Date(log.date).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                                            </div>
+                                            <div className="flex gap-3 items-center flex-shrink-0">
+                                                {log.diploma && (
+                                                    <button 
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setViewingDiploma(log.diploma!);
+                                                        }}
+                                                        className="w-8 h-8 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-yellow-600 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors shadow-sm"
+                                                        title="Visa Diplom"
+                                                    >
+                                                        <TrophyIcon className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                                {log.rpe && <div className="flex flex-col items-center"><span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">RPE</span><span className="bg-primary/10 text-primary text-sm px-3 py-1 rounded-full font-black border border-primary/20">{log.rpe}</span></div>}
+                                                <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-300 dark:text-gray-600 group-hover:bg-primary group-hover:text-white transition-all"><span className="text-xl">→</span></div>
+                                            </div>
+                                        </button>
+                                    ))
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>
-
-                {/* Latest workouts section - villkorligt styrt av enableWorkoutLogging */}
-                {studioConfig.enableWorkoutLogging && (
-                    <div className="bg-white dark:bg-gray-900 rounded-[2rem] shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
-                        <div className="p-5 sm:p-8 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/30 dark:bg-gray-900/50">
-                            <h3 className="font-black text-xl text-gray-900 dark:text-white uppercase tracking-tight">Senaste Passen</h3>
-                        </div>
-                        <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-[500px] overflow-y-auto">
-                            {loading ? (
-                                <div className="p-12 text-center flex flex-col items-center">
-                                    <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
-                                    <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">Hämtar historik...</p>
-                                </div>
-                            ) : logs.length === 0 ? (
-                                <div className="p-12 text-center">
-                                    <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300"><DumbbellIcon className="w-8 h-8" /></div>
-                                    <p className="text-gray-900 dark:text-white font-black text-lg mb-2">Inga loggade pass än.</p>
-                                    <p className="text-sm text-gray-500 max-w-xs mx-auto">Kör ett pass och logga det via QR-koden på skärmen för att se din historik här!</p>
-                                </div>
-                            ) : (
-                                logs.map(log => (
-                                    <button key={log.id} onClick={() => setSelectedLog(log)} className="w-full text-left p-4 sm:p-6 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex justify-between items-center group">
-                                        <div className="min-w-0 pr-4">
-                                            <p className="font-black text-gray-900 dark:text-white text-lg group-hover:text-primary transition-colors truncate">{log.workoutTitle}</p>
-                                            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">{new Date(log.date).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-                                        </div>
-                                        <div className="flex gap-3 items-center flex-shrink-0">
-                                            {log.diploma && (
-                                                <button 
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setViewingDiploma(log.diploma!);
-                                                    }}
-                                                    className="w-8 h-8 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-yellow-600 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors shadow-sm"
-                                                    title="Visa Diplom"
-                                                >
-                                                    <TrophyIcon className="w-4 h-4" />
-                                                </button>
-                                            )}
-                                            {log.rpe && <div className="flex flex-col items-center"><span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">RPE</span><span className="bg-primary/10 text-primary text-sm px-3 py-1 rounded-full font-black border border-primary/20">{log.rpe}</span></div>}
-                                            <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-300 dark:text-gray-600 group-hover:bg-primary group-hover:text-white transition-all"><span className="text-xl">→</span></div>
-                                        </div>
-                                    </button>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                )}
-            </div>
+            )}
 
             {isEditingGoals && <GoalsEditModal currentGoals={userData.goals} onSave={handleSaveGoals} onClose={() => setIsEditingGoals(false)} />}
             {selectedLog && <LogDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} onUpdate={handleUpdateLog} onDelete={handleDeleteLog} />}

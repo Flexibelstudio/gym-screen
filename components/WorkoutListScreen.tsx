@@ -1,8 +1,7 @@
-
 import React, { useMemo, useState } from 'react';
 import { Workout } from '../types';
 import { useWorkout } from '../context/WorkoutContext';
-import { SearchIcon, DumbbellIcon, ClockIcon, TrophyIcon } from './icons';
+import { SearchIcon, DumbbellIcon, ClockIcon } from './icons';
 import { useAuth } from '../context/AuthContext';
 
 interface WorkoutListScreenProps {
@@ -82,11 +81,6 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                                 <span className="inline-block px-3 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest border border-primary/10">
                                                     {workout.category}
                                                 </span>
-                                            )}
-                                            {workout.benchmarkId && (
-                                                <div className="flex items-center gap-1 text-[10px] font-black text-yellow-600 bg-yellow-50 dark:bg-yellow-900/30 dark:text-yellow-300 px-3 py-1 rounded-lg border border-yellow-100 dark:border-yellow-800">
-                                                    <span>BENCHMARK</span>
-                                                </div>
                                             )}
                                             {workout.logType === 'quick' && (
                                                 <div className="flex items-center gap-1 text-[10px] font-black text-purple-600 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-300 px-3 py-1 rounded-lg border border-purple-100 dark:border-purple-800">
