@@ -420,7 +420,7 @@ const ExerciseLogCard: React.FC<{
             <div className="space-y-2">
                 <div className="grid grid-cols-[30px_1fr_1fr_40px_40px] gap-2 px-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                     <div className="text-center">Set</div>
-                    <div className="text-center">Reps</div>
+                    <div className="text-center">Varv</div>
                     <div className="text-center">Vikt (kg)</div>
                     <div></div>
                     <div className="text-center">Klar</div>
