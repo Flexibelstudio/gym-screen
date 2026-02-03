@@ -1,10 +1,13 @@
+
 import React, { useState, useMemo, useEffect } from 'react';
-import { Organization, Workout, UserData } from '../../types';
-import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon } from '../icons';
+import { Organization, Workout, UserData, BenchmarkDefinition } from '../../types';
+import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, TrophyIcon } from '../icons';
 import { motion } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
 import { deepCopyAndPrepareAsNew } from '../../utils/workoutUtils';
+import { ManageBenchmarksModal } from './AdminModals';
+import { updateOrganizationBenchmarks } from '../../services/firebaseService';
 
 type AdminTab = 
     'dashboard' | 
@@ -239,7 +242,8 @@ const DashboardContent: React.FC<DashboardContentProps> = ({ organization, worko
 
 const PassProgramModule: React.FC<{ 
     onNavigate: (mode: 'create' | 'generate' | 'parse' | 'manage') => void;
-}> = ({ onNavigate }) => {
+    onManageBenchmarks: () => void;
+}> = ({ onNavigate, onManageBenchmarks }) => {
     return (
         <div className="space-y-8 py-4">
             <div className="text-center max-w-2xl mx-auto mb-10">
@@ -247,6 +251,9 @@ const PassProgramModule: React.FC<{
                 <p className="text-gray-500 dark:text-gray-400 text-lg">
                     Skapa, hantera och publicera träningspass. Använd AI för att snabbt generera nya pass eller tolka dina anteckningar.
                 </p>
+                <button onClick={onManageBenchmarks} className="mt-6 text-sm font-bold text-primary hover:underline flex items-center justify-center gap-2 mx-auto">
+                    <TrophyIcon className="w-4 h-4" /> Hantera Benchmarks
+                </button>
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
@@ -467,9 +474,16 @@ const ManageWorkoutsView: React.FC<{
                                             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate max-w-xs">{workout.coachTips}</p>
                                         </td>
                                         <td className="p-5">
-                                            <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
-                                                {workout.category || 'Okategoriserad'}
-                                            </span>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-2 py-1 rounded text-xs font-bold whitespace-nowrap">
+                                                    {workout.category || 'Okategoriserad'}
+                                                </span>
+                                                {workout.benchmarkId && (
+                                                    <span className="text-[9px] font-black uppercase tracking-wider text-yellow-700 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 rounded border border-yellow-200 dark:border-yellow-800">
+                                                        BENCHMARK
+                                                    </span>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="p-5 text-sm text-gray-600 dark:text-gray-300 font-mono">
                                             {new Date(workout.createdAt || 0).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' })}
@@ -590,6 +604,8 @@ const PassProgramContent: React.FC<DashboardContentProps & {
     onSaveWorkout, workouts, workoutsLoading, onDeleteWorkout, onTogglePublish,
     organization, autoExpandCategory, setAutoExpandCategory, onDuplicateWorkout
 }) => {
+    
+    const [showBenchmarkModal, setShowBenchmarkModal] = useState(false);
 
     const handleNavigate = async (mode: 'create' | 'generate' | 'parse' | 'manage') => {
         if (mode === 'create') {
@@ -625,13 +641,16 @@ const PassProgramContent: React.FC<DashboardContentProps & {
     };
 
     const handleCopyToLibrary = async (workout: Workout) => {
-        // Skapa en djup kopia som är permanent
         const copy = deepCopyAndPrepareAsNew(workout);
         copy.isMemberDraft = false;
         copy.isPublished = false;
         copy.title = `Mall: ${workout.title}`;
         await onSaveWorkout(copy);
         alert("Passet har sparats som en mall i biblioteket!");
+    };
+    
+    const handleUpdateBenchmarks = async (benchmarks: BenchmarkDefinition[]) => {
+        await updateOrganizationBenchmarks(organization.id, benchmarks);
     };
 
     if (subView === 'ai') {
@@ -667,6 +686,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
                     studioConfig={organization.globalConfig}
                     sessionRole="organizationadmin"
                     isNewDraft={isNewDraft}
+                    organization={organization}
                 />
             </div>
         );
@@ -690,7 +710,16 @@ const PassProgramContent: React.FC<DashboardContentProps & {
         <div className="animate-fade-in">
             <PassProgramModule 
                 onNavigate={handleNavigate} 
+                onManageBenchmarks={() => setShowBenchmarkModal(true)}
             />
+            {showBenchmarkModal && (
+                <ManageBenchmarksModal 
+                    isOpen={showBenchmarkModal} 
+                    onClose={() => setShowBenchmarkModal(false)}
+                    benchmarks={organization.benchmarkDefinitions || []}
+                    onSave={handleUpdateBenchmarks}
+                />
+            )}
         </div>
     );
 };
