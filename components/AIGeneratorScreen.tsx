@@ -1,6 +1,8 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { SparklesIcon, DumbbellIcon, DocumentTextIcon, CloseIcon, VideoIcon, InformationCircleIcon } from './icons';
 import { generateWorkout, parseWorkoutFromText, parseWorkoutFromImage, parseWorkoutFromYoutube } from '../services/geminiService';
+import { resolveAndCreateExercises } from '../services/firebaseService';
 import { Workout, WorkoutBlock, Exercise, StudioConfig, CustomCategoryWithPrompt } from '../types';
 import { useStudio } from '../context/StudioContext';
 import { useAuth } from '../context/AuthContext';
@@ -45,6 +47,7 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
     const [youtubeUrl, setYoutubeUrl] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<CustomCategoryWithPrompt | null>(null);
     const [isProcessing, setIsProcessing] = useState(false);
+    const [isResolving, setIsResolving] = useState(false); // Ny state för bank-matchning
     const [error, setError] = useState<string | null>(null);
     const [generatedWorkout, setGeneratedWorkout] = useState<Workout | null>(null);
     
@@ -191,9 +194,25 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
         }
     };
 
-    const handleAccept = () => {
+    const handleAccept = async () => {
         if (generatedWorkout) {
-            onWorkoutGenerated(generatedWorkout);
+            if (selectedOrganization) {
+                setIsResolving(true);
+                try {
+                    // VIKTIGT: createMissing = false för ad-hoc AI-pass
+                    // Vi vill inte skräpa ner banken. Matchning sker, men inget nyskpande.
+                    const resolvedWorkout = await resolveAndCreateExercises(selectedOrganization.id, generatedWorkout, false);
+                    onWorkoutGenerated(resolvedWorkout);
+                } catch (e) {
+                    console.error("Failed to resolve exercises", e);
+                    // Fallback om något går fel med banken
+                    onWorkoutGenerated(generatedWorkout);
+                } finally {
+                    setIsResolving(false);
+                }
+            } else {
+                onWorkoutGenerated(generatedWorkout);
+            }
         }
     };
 
@@ -412,16 +431,27 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                         <div className="flex gap-4 w-full sm:w-auto">
                             <button 
                                 onClick={() => setGeneratedWorkout(null)} 
+                                disabled={isResolving}
                                 className="text-gray-500 hover:text-red-500 dark:text-gray-400 dark:hover:text-red-400 px-4 py-3 font-medium transition-colors"
                             >
                                 Kasta
                             </button>
                             <button 
                                 onClick={handleAccept} 
-                                className="flex-grow sm:flex-grow-0 bg-white dark:bg-white text-black hover:bg-gray-100 font-black py-3 px-8 rounded-xl shadow-xl transition-all transform hover:scale-105 flex items-center justify-center gap-2"
+                                disabled={isResolving}
+                                className="flex-grow sm:flex-grow-0 bg-white dark:bg-white text-black hover:bg-gray-100 font-black py-3 px-8 rounded-xl shadow-xl transition-all transform hover:scale-105 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-wait"
                             >
-                                <span>Använd detta pass</span>
-                                <span className="text-lg">&rarr;</span>
+                                {isResolving ? (
+                                    <>
+                                        <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+                                        <span>Matchar övningsbank...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <span>Använd detta pass</span>
+                                        <span className="text-lg">&rarr;</span>
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>

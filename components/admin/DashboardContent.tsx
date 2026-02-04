@@ -7,7 +7,9 @@ import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
 import { deepCopyAndPrepareAsNew } from '../../utils/workoutUtils';
 import { ManageBenchmarksModal } from './AdminModals';
-import { updateOrganizationBenchmarks } from '../../services/firebaseService';
+import { updateOrganizationBenchmarks, resolveAndCreateExercises } from '../../services/firebaseService';
+
+// ... (Types and Interfaces remain same)
 
 type AdminTab = 
     'dashboard' | 
@@ -26,6 +28,8 @@ interface DashboardContentProps {
     onQuickGenerate: (prompt: string) => Promise<void>;
 }
 
+// ... (WelcomeBanner, SetupProgressWidget, QuickAIWidget, DashboardContent components remain the same)
+// ... (Skipping to PassProgramContent where handleCopyToLibrary is located)
 const WelcomeBanner: React.FC<{ name: string }> = ({ name }) => (
     <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-3xl p-8 md:p-10 text-white shadow-xl relative overflow-hidden mb-10">
         <div className="relative z-10">
@@ -641,12 +645,17 @@ const PassProgramContent: React.FC<DashboardContentProps & {
     };
 
     const handleCopyToLibrary = async (workout: Workout) => {
-        const copy = deepCopyAndPrepareAsNew(workout);
+        let copy = deepCopyAndPrepareAsNew(workout);
         copy.isMemberDraft = false;
         copy.isPublished = false;
         copy.title = `Mall: ${workout.title}`;
+        
+        // VIKTIGT: createMissing = true. 
+        // Detta gör att alla övningar som hittills bara funnits som text i utkastet nu blir officiella bank-övningar.
+        copy = await resolveAndCreateExercises(organization.id, copy, true);
+        
         await onSaveWorkout(copy);
-        alert("Passet har sparats som en mall i biblioteket!");
+        alert("Passet har sparats som en mall i biblioteket och övningar har lagts till i banken!");
     };
     
     const handleUpdateBenchmarks = async (benchmarks: BenchmarkDefinition[]) => {

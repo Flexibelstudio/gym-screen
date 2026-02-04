@@ -1,4 +1,5 @@
 
+// ... (imports remain the same)
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -57,6 +58,7 @@ import {
 import { MOCK_ORGANIZATIONS, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_MEMBERS, MOCK_SMART_SCREEN_PRICING } from '../data/mockData';
 
 // --- INITIALISERING ---
+// ... (Initialzation code remains same)
 
 const hasFirebaseConfig = !!(
     (import.meta as any).env?.VITE_FIREBASE_API_KEY || 
@@ -77,13 +79,13 @@ if (!isOffline) {
         auth = getAuth(app);
         db = getFirestore(app);
         storage = getStorage(app);
-        functions = getFunctions(app, 'us-central1'); // Regionen matchar backend
+        functions = getFunctions(app, 'us-central1');
     } catch (error) {
         console.error("CRITICAL: Firebase init failed.", error);
     }
 }
 
-// --- HJÄLPMETODER ---
+// ... (Helper methods remain same)
 
 const sanitizeData = <T>(data: T): T => JSON.parse(JSON.stringify(data));
 
@@ -98,10 +100,10 @@ const generateInviteCode = () => {
 
 const getPBId = (name: string) => name.toLowerCase().trim().replace(/[^\w]/g, '_');
 
-// Helper to normalize strings for comparison (remove special chars, lowercase)
 const normalizeString = (str: string) => str.toLowerCase().trim().replace(/[^\w\såäöÅÄÖ]/g, '');
 
-// --- ADMIN AKTIVITETSLOGG ---
+// ... (Admin Activity, Auth, People Hub, Data & Motivation sections remain same - skipping to keep response concise)
+// ... (Previous content of firebaseService up to resolveAndCreateExercises)
 
 export const saveAdminActivity = async (activity: Omit<AdminActivity, 'id'>) => {
     if (isOffline || !db) return;
@@ -146,8 +148,6 @@ export const listenToAdminActivities = (orgId: string, onUpdate: (activities: Ad
     });
 };
 
-// --- AUTHENTICERING ---
-
 export const onAuthChange = (callback: (user: User | null) => void) => {
     if (isOffline || !auth) return () => {}; 
     return onAuthStateChanged(auth, callback);
@@ -191,8 +191,6 @@ export const updateUserTermsAccepted = async (uid: string) => {
         await updateDoc(doc(db, 'users', uid), { termsAcceptedAt: Date.now() });
     } catch (e) { console.error("Terms update failed", e); }
 };
-
-// --- PEOPLE HUB (MEDLEMSHANTERING) ---
 
 export const getMembers = async (orgId: string): Promise<Member[]> => {
     if (isOffline || !db || !orgId) return MOCK_MEMBERS;
@@ -243,13 +241,8 @@ export const updateUserProfile = async (uid: string, data: Partial<UserData>) =>
     await updateDoc(doc(db, 'users', uid), sanitizeData(data));
 };
 
-/**
- * Anropar Cloud Function via SDK (Callable). 
- * Ingen hårdkodad URL krävs!
- */
 export const updateUserRoleCloud = async (targetUid: string, newRole: UserRole) => {
     if (isOffline || !functions) throw new Error("Offline eller systemet ej redo.");
-    
     try {
         const func = httpsCallable(functions, 'flexUpdateUserRole');
         const result = await func({ targetUid, newRole });
@@ -295,8 +288,6 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
     return user;
 };
 
-// --- DATA & MOTIVATION (LOGGNING & PB) ---
-
 export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecords: { exerciseName: string, weight: number, diff: number }[] }> => {
     if (isOffline || !db || !logData.organizationId) {
         return { log: logData, newRecords: [] };
@@ -306,7 +297,6 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
     const newLog = { id: newLogRef.id, ...logData };
     const newRecords: { exerciseName: string; weight: number; diff: number }[] = [];
 
-    // NYTT: Hämta Benchmark info om det finns i passet
     if (logData.workoutId && logData.workoutId !== 'manual' && !logData.benchmarkId) {
         try {
             const wSnap = await getDoc(doc(db, 'workouts', logData.workoutId));
@@ -314,15 +304,9 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 const wData = wSnap.data() as Workout;
                 if (wData.benchmarkId) {
                     newLog.benchmarkId = wData.benchmarkId;
-                    
-                    // Försök räkna ut värdet
-                    // Om det är tid (durationMinutes finns) -> Sekunder
-                    // Om det är Reps eller Vikt måste detta komma från exerciseResults.
-                    // För enkelhetens skull i denna version fokuserar vi på Tidsbaserade benchmarks (som Murph).
                     if (newLog.durationMinutes) {
-                        newLog.benchmarkValue = newLog.durationMinutes * 60; // Tid i sekunder
+                        newLog.benchmarkValue = newLog.durationMinutes * 60;
                     } else if (newLog.exerciseResults && newLog.exerciseResults.length > 0) {
-                        // Om det är t.ex. "Max Clean", ta tyngsta lyftet
                          const maxWeight = Math.max(...newLog.exerciseResults.map((ex: any) => ex.weight || 0));
                          if (maxWeight > 0) newLog.benchmarkValue = maxWeight;
                     }
@@ -481,8 +465,6 @@ export const updatePersonalBest = async (userId: string, exerciseName: string, w
     } catch (e) { console.error("updatePersonalBest failed", e); }
 };
 
-// --- STUDIO EVENTS ---
-
 export const listenForStudioEvents = (orgId: string, callback: (event: StudioEvent) => void) => {
     if (isOffline || !db || !orgId) return () => {};
     const startTime = Date.now() - 5000; 
@@ -510,8 +492,6 @@ export const listenToWeeklyPBs = (orgId: string, onUpdate: (events: StudioEvent[
     );
     return onSnapshot(q, (snap) => onUpdate(snap.docs.map(d => d.data() as StudioEvent)));
 };
-
-// --- CORE BUSINESS ---
 
 export const getOrganizations = async (): Promise<Organization[]> => {
     if (isOffline || !db) return MOCK_ORGANIZATIONS;
@@ -655,8 +635,6 @@ export const updateStudioConfig = async (orgId: string, studioId: string, overri
     return studios.find(s => s.id === studioId) as Studio;
 };
 
-// --- TRÄNINGSMOTORN ---
-
 export const getWorkoutsForOrganization = async (orgId: string): Promise<Workout[]> => {
     if (isOffline || !db || !orgId) return [];
     try {
@@ -715,7 +693,7 @@ export const getOrganizationExerciseBank = async (orgId: string): Promise<BankEx
 };
 
 // Resolver Function (The logic engine)
-export const resolveAndCreateExercises = async (orgId: string, workout: Workout): Promise<Workout> => {
+export const resolveAndCreateExercises = async (orgId: string, workout: Workout, createMissing: boolean = false): Promise<Workout> => {
     if (isOffline || !db) return workout; // Safety
 
     // 1. Get existing banks
@@ -736,12 +714,8 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout)
         if(match) return match;
 
         // Try "contains" match (reversed)
-        // Does the Bank Name contain the User Input?
-        // E.g. "Knäböj (Back Squat)" contains "Squat" -> Yes.
         match = combinedBank.find(b => normalizeString(b.name).includes(nName));
         
-        // Special case: Does User Input contain Bank Name? 
-        // E.g. "Heavy Back Squat" contains "Back Squat" -> Yes.
         if (!match) {
              match = combinedBank.find(b => nName.includes(normalizeString(b.name)));
         }
@@ -762,13 +736,19 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout)
                     ...ex,
                     id: match.id, // THE MAGIC: Link to Master ID
                     originalBankId: match.id, // Helper for history tracking
-                    // We keep the original user name to avoid confusion in the UI, 
-                    // but linking the ID is enough for history.
-                    // Ideally, we might want to update the name to match the bank if it's vastly different.
-                    // For now, let's inject the description/image if missing.
                     description: ex.description || match.description, 
                     imageUrl: match.imageUrl || ex.imageUrl,
                     isFromBank: true
+                };
+            }
+
+            // If no match found, and we are NOT allowed to create missing exercises (e.g. Ad-hoc/AI)
+            // Just return the exercise as-is but ensure logging is disabled to keep data clean
+            if (!createMissing) {
+                return {
+                    ...ex,
+                    isFromBank: false,
+                    loggingEnabled: false
                 };
             }
 
@@ -781,7 +761,6 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout)
                     id: cached.id, 
                     originalBankId: cached.id,
                     isFromBank: true, 
-                    // description: ex.description || cached.description 
                 };
             }
 
@@ -842,8 +821,10 @@ export const updateExerciseImageOverride = async (orgId: string, exerciseId: str
     } catch (e) { console.error("updateExerciseImageOverride failed", e); }
 };
 
-// --- BILLING ---
-
+// ... (Rest of the file remains same: billing, images, hyrox, checkins etc.)
+// ... (Including uploadImage, deleteImageByUrl, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, etc.)
+// ... (Including saveRace, getPastRaces, getRace, saveWorkoutResult, getWorkoutResults)
+// ... (Including sendCheckIn, listenForCheckIns, getSuggestedExercises, approveExerciseSuggestion, deleteExerciseSuggestion, updateExerciseSuggestion)
 export const getSmartScreenPricing = async () => {
     if (isOffline || !db) return MOCK_SMART_SCREEN_PRICING;
     try {
@@ -866,8 +847,6 @@ export const updateOrganizationBilledStatus = async (id: string, month: string) 
         return getOrganizationById(id);
     } catch (e) { console.error("updateOrganizationBilledStatus failed", e); }
 };
-
-// --- IMAGES & THEMES ---
 
 export const uploadImage = async (path: string, image: File | string): Promise<string> => {
     if (typeof image === 'string' && !image.startsWith('data:image')) return image;
@@ -925,8 +904,6 @@ export const updateOrganizationActivity = async (id: string): Promise<void> => {
     try { await updateDoc(doc(db, 'organizations', id), { lastActiveAt: Date.now() }); } catch(e){}
 };
 
-// --- HYROX & RESULTAT ---
-
 export const saveRace = async (data: any, orgId: string) => {
     if(isOffline || !db || !orgId) return { id: 'off' };
     try {
@@ -969,8 +946,6 @@ export const getWorkoutResults = async (workoutId: string, orgId: string): Promi
         return snap.docs.map(d => d.data() as WorkoutResult);
     } catch (e) { return []; }
 };
-
-// --- CHECK-INS & SPOTS ---
 
 export const sendCheckIn = async (orgId: string, userEmail: string) => {
     if (isOffline || !db || !orgId) return;

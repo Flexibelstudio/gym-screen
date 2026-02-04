@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Note, Workout, StudioConfig, TimerMode, TimerStatus, WorkoutBlock, Exercise, TimerSettings } from '../types';
 import { interpretHandwriting, parseWorkoutFromImage } from '../services/geminiService';
-import { deleteImageByUrl } from '../services/firebaseService';
+import { deleteImageByUrl, resolveAndCreateExercises } from '../services/firebaseService';
 import { useWorkoutTimer } from '../hooks/useWorkoutTimer';
+import { useStudio } from '../context/StudioContext';
 import { ValueAdjuster, InformationCircleIcon, CloseIcon, ChevronUpIcon, ChevronDownIcon, PencilIcon } from './icons';
 import { Modal } from './ui/Modal';
 import { WorkoutCompleteModal } from './WorkoutCompleteModal';
@@ -103,11 +105,11 @@ const NoteArchiveModal: React.FC<NoteArchiveModalProps> = ({ notes, onClose, onD
                                 <p className="text-xs text-gray-500 mb-2">{new Date(note.timestamp).toLocaleString('sv-SE')}</p>
                                 <pre className="flex-grow whitespace-pre-wrap font-sans bg-gray-900 p-3 rounded-md text-gray-200">{note.text || 'Otolkad anteckning...'}</pre>
                                 <div className="flex gap-2 mt-3 flex-shrink-0 flex-wrap">
-                                    <button onClick={() => onLoad(note)} className="bg-blue-600 hover:bg-blue-500 text-sm font-semibold py-2 px-3 rounded-md">Fortsätt rita</button>
+                                    <button onClick={() => onLoad(note)} className="bg-blue-600 hover:bg-blue-50 text-sm font-semibold py-2 px-3 rounded-md">Fortsätt rita</button>
                                     {note.text ? (
-                                        <button onClick={() => handleCopy(note.text)} className="bg-gray-600 hover:bg-gray-500 text-sm font-semibold py-2 px-3 rounded-md">Kopiera text</button>
+                                        <button onClick={() => handleCopy(note.text)} className="bg-gray-600 hover:bg-gray-50 text-sm font-semibold py-2 px-3 rounded-md">Kopiera text</button>
                                     ) : (
-                                        <button onClick={() => handleInterpret(note)} disabled={interpretingId === note.id} className="bg-purple-600 hover:bg-purple-500 text-sm font-semibold py-2 px-3 rounded-md flex items-center gap-1">
+                                        <button onClick={() => handleInterpret(note)} disabled={interpretingId === note.id} className="bg-purple-600 hover:bg-purple-50 text-sm font-semibold py-2 px-3 rounded-md flex items-center gap-1">
                                             {interpretingId === note.id ? 'Tolkar...' : 'Tolka text'}
                                         </button>
                                     )}
@@ -553,11 +555,13 @@ const CompactTimer: React.FC<{
 // --- Main Component ---
 
 export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, studioConfig, initialWorkoutToDraw, onBack }) => {
+    const { selectedOrganization } = useStudio();
     const [savedNotes, setSavedNotes] = useState<Note[]>([]);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isSavingNote, setIsSavingNote] = useState(false);
     const [isInterpretingWorkout, setIsInterpretingWorkout] = useState(false);
+    const [isResolving, setIsResolving] = useState(false); // Ny state för att visa att vi matchar mot banken
     const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
     const [history, setHistory] = useState<ImageData[]>([]);
     const [isArchiveVisible, setIsArchiveVisible] = useState(false);
@@ -924,11 +928,25 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         }
     };
 
-    const handleGoToBuilder = () => {
-        if (interpretedWorkout) {
-            onWorkoutInterpreted(interpretedWorkout);
-            clearCanvas();
-            setInterpretedWorkout(null);
+    const handleGoToBuilder = async () => {
+        if (interpretedWorkout && selectedOrganization) {
+            setIsResolving(true);
+            try {
+                // VIKTIGT: createMissing = false för anteckningar/skisser.
+                // Vi matchar mot banken, men skapar inte nya övningar om de inte finns.
+                const resolved = await resolveAndCreateExercises(selectedOrganization.id, interpretedWorkout, false);
+                onWorkoutInterpreted(resolved);
+                clearCanvas();
+                setInterpretedWorkout(null);
+            } catch (e) {
+                console.error("Resolve error:", e);
+                // Fallback till otolkad om det kraschar (bör inte hända)
+                onWorkoutInterpreted(interpretedWorkout);
+                clearCanvas();
+                setInterpretedWorkout(null);
+            } finally {
+                setIsResolving(false);
+            }
         }
     };
 
@@ -1197,6 +1215,15 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
 
             {isInterpretingWorkout && (
                 <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md flex flex-col items-center justify-center z-50 p-8 text-center animate-fade-in"><BoilingCauldron className="w-48 h-48" /><p className="text-5xl text-white mt-4 font-logo">Kokar ihop ditt pass</p></div>
+            )}
+            
+            {/* RESOLVING OVERLAY (När vi matchar mot banken) */}
+            {isResolving && (
+                <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md flex flex-col items-center justify-center z-50 p-8 text-center animate-fade-in">
+                    <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4"></div>
+                    <p className="text-3xl font-bold text-white mb-2">Matchar övningar...</p>
+                    <p className="text-gray-400">Kollar din övningsbank (skapar inget nytt).</p>
+                </div>
             )}
 
             {interpretedWorkout && !showBlockSelector && !blockForCircuit && <WorkoutActionChoiceModal workout={interpretedWorkout} onGoToBuilder={handleGoToBuilder} onDrawCircuit={() => { if (interpretedWorkout.blocks.length > 1) setShowBlockSelector(true); else setBlockForCircuit(interpretedWorkout.blocks[0]); }} onCancel={() => setInterpretedWorkout(null)} />}
