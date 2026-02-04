@@ -1,3 +1,4 @@
+
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -96,6 +97,9 @@ const generateInviteCode = () => {
 };
 
 const getPBId = (name: string) => name.toLowerCase().trim().replace(/[^\w]/g, '_');
+
+// Helper to normalize strings for comparison (remove special chars, lowercase)
+const normalizeString = (str: string) => str.toLowerCase().trim().replace(/[^\w\såäöÅÄÖ]/g, '');
 
 // --- ADMIN AKTIVITETSLOGG ---
 
@@ -692,6 +696,123 @@ export const getExerciseBank = async (): Promise<BankExercise[]> => {
         const snap = await getDocs(query(collection(db, 'exerciseBank'), orderBy('name')));
         return snap.docs.map(d => d.data() as BankExercise);
     } catch (e) { return MOCK_EXERCISE_BANK; }
+};
+
+export const getOrganizationExerciseBank = async (orgId: string): Promise<BankExercise[]> => {
+    if (isOffline || !db || !orgId) return MOCK_EXERCISE_BANK;
+    try {
+        // 1. Fetch Global Bank
+        const globalSnap = await getDocs(query(collection(db, 'exerciseBank'), orderBy('name')));
+        const globalBank = globalSnap.docs.map(d => d.data() as BankExercise);
+
+        // 2. Fetch Custom Bank
+        const customQ = query(collection(db, 'custom_exercises'), where('organizationId', '==', orgId));
+        const customSnap = await getDocs(customQ);
+        const customBank = customSnap.docs.map(d => d.data() as BankExercise);
+
+        return [...globalBank, ...customBank].sort((a, b) => a.name.localeCompare(b.name, 'sv'));
+    } catch (e) { return MOCK_EXERCISE_BANK; }
+};
+
+// Resolver Function (The logic engine)
+export const resolveAndCreateExercises = async (orgId: string, workout: Workout): Promise<Workout> => {
+    if (isOffline || !db) return workout; // Safety
+
+    // 1. Get existing banks
+    const globalBank = await getExerciseBank();
+    const customQ = query(collection(db, 'custom_exercises'), where('organizationId', '==', orgId));
+    const customSnap = await getDocs(customQ);
+    const customBank = customSnap.docs.map(d => d.data() as BankExercise);
+
+    const combinedBank = [...globalBank, ...customBank];
+    const newlyCreatedCache: Record<string, BankExercise> = {};
+
+    // 2. Helper for matching
+    const findMatch = (name: string) => {
+        const nName = normalizeString(name);
+        
+        // Try exact normalized match first
+        let match = combinedBank.find(b => normalizeString(b.name) === nName);
+        if(match) return match;
+
+        // Try "contains" match (reversed)
+        // Does the Bank Name contain the User Input?
+        // E.g. "Knäböj (Back Squat)" contains "Squat" -> Yes.
+        match = combinedBank.find(b => normalizeString(b.name).includes(nName));
+        
+        // Special case: Does User Input contain Bank Name? 
+        // E.g. "Heavy Back Squat" contains "Back Squat" -> Yes.
+        if (!match) {
+             match = combinedBank.find(b => nName.includes(normalizeString(b.name)));
+        }
+
+        return match;
+    };
+
+    // 3. Process blocks
+    const resolvedBlocks = await Promise.all(workout.blocks.map(async (block) => {
+        const resolvedExercises = await Promise.all(block.exercises.map(async (ex) => {
+            // If it already has a bank ID (isFromBank), skip logic
+            if (ex.isFromBank && (ex.id.startsWith('bank_') || ex.id.startsWith('custom_'))) return ex;
+
+            const match = findMatch(ex.name);
+
+            if (match) {
+                return {
+                    ...ex,
+                    id: match.id, // THE MAGIC: Link to Master ID
+                    originalBankId: match.id, // Helper for history tracking
+                    // We keep the original user name to avoid confusion in the UI, 
+                    // but linking the ID is enough for history.
+                    // Ideally, we might want to update the name to match the bank if it's vastly different.
+                    // For now, let's inject the description/image if missing.
+                    description: ex.description || match.description, 
+                    imageUrl: match.imageUrl || ex.imageUrl,
+                    isFromBank: true
+                };
+            }
+
+            // Check cache for duplicates in same workout session
+            const nName = normalizeString(ex.name);
+            if (newlyCreatedCache[nName]) {
+                const cached = newlyCreatedCache[nName];
+                return { 
+                    ...ex, 
+                    id: cached.id, 
+                    originalBankId: cached.id,
+                    isFromBank: true, 
+                    // description: ex.description || cached.description 
+                };
+            }
+
+            // Create new Custom Exercise
+            const newId = `custom_${orgId}_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+            const newBankEx: BankExercise = {
+                id: newId,
+                name: ex.name, // Use the provided name
+                description: ex.description || '',
+                tags: [], // Can't easily guess tags yet
+                organizationId: orgId
+            };
+
+            // Add to Firestore
+            await setDoc(doc(db, 'custom_exercises', newId), newBankEx);
+
+            // Add to cache
+            newlyCreatedCache[nName] = newBankEx;
+            
+            return {
+                ...ex,
+                id: newId,
+                originalBankId: newId,
+                isFromBank: true
+            };
+        }));
+
+        return { ...block, exercises: resolvedExercises };
+    }));
+
+    return { ...workout, blocks: resolvedBlocks };
 };
 
 export const saveExerciseToBank = async (ex: BankExercise) => {

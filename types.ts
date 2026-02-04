@@ -1,4 +1,5 @@
 
+
 export type UserRole = 'member' | 'coach' | 'organizationadmin' | 'systemowner';
 
 export interface AdminActivity {
@@ -96,6 +97,7 @@ export interface Exercise {
   isFromBank?: boolean;
   isFromAI?: boolean;
   loggingEnabled?: boolean;
+  originalBankId?: string; // NYTT: Referens till Master ID för historik
 }
 
 export interface WorkoutBlock {
@@ -295,6 +297,7 @@ export interface BankExercise {
   description?: string;
   tags?: string[];
   imageUrl?: string;
+  organizationId?: string; // NYTT: Om den tillhör en specifik org (custom)
 }
 
 export interface SuggestedExercise {
