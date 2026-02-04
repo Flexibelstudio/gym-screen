@@ -10,7 +10,6 @@ import { OneRepMaxModal } from '../../components/OneRepMaxModal';
 import { WorkoutLogType, RepRange, ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, ExerciseSetDetail, BenchmarkDefinition } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
-import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 import { useStudio } from '../../context/StudioContext';
 
 // --- Local Storage Key ---
@@ -231,10 +230,9 @@ const ExerciseLogCard: React.FC<{
   name: string;
   result: LocalExerciseResult;
   onUpdate: (updates: Partial<LocalExerciseResult>) => void;
-  onOpenDailyForm: (exerciseName: string) => void;
   aiSuggestion?: string;
   lastPerformance?: { weight: number, reps: string } | null;
-}> = ({ name, result, onUpdate, onOpenDailyForm, aiSuggestion, lastPerformance }) => {
+}> = ({ name, result, onUpdate, aiSuggestion, lastPerformance }) => {
     
     const calculate1RM = (weight: string, reps: string) => {
         const w = parseFloat(weight);
@@ -288,22 +286,7 @@ const ExerciseLogCard: React.FC<{
                         <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-0.5">Första gången</p>
                     )}
                 </div>
-                <button 
-                    onClick={() => onOpenDailyForm(name)}
-                    className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 shrink-0 shadow-md active:scale-95 transition-all ${result.coachAdvice ? 'bg-green-500 text-white' : 'bg-purple-600 text-white'}`}
-                >
-                    {result.coachAdvice ? <CheckIcon className="w-3.5 h-3.5" /> : <SparklesIcon className="w-3.5 h-3.5" />}
-                    <span className="text-[10px] font-black uppercase tracking-tight">{result.coachAdvice ? 'Råd sparat' : 'Hitta dagsform'}</span>
-                </button>
             </div>
-
-            {result.coachAdvice && (
-                <div className="mb-4 p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800 rounded-xl">
-                    <p className="text-[10px] text-purple-600 dark:text-purple-400 font-bold italic leading-relaxed">
-                        🤖 Coach: "{result.coachAdvice}"
-                    </p>
-                </div>
-            )}
 
             <div className="space-y-2">
                 <div className="grid grid-cols-[30px_1fr_1fr_40px_40px] gap-2 px-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">
@@ -447,7 +430,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [saveStatus, setSaveStatus] = useState('');
   const [showCelebration, setShowCelebration] = useState(false);
   const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
-  const [dailyFormTarget, setDailyFormTarget] = useState<string | null>(null);
   const [allLogs, setAllLogs] = useState<WorkoutLog[]>([]);
   const [viewMode, setViewMode] = useState<'pre-game' | 'logging'>(isManualMode ? 'logging' : 'pre-game');
   const [dailyFeeling, setDailyFeeling] = useState<'good' | 'neutral' | 'bad'>('neutral');
@@ -678,20 +660,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
   const handleStartWorkout = () => {
       setViewMode('logging');
-  };
-
-  const handleApplyDailyFormWeight = (exerciseName: string, weight: string, advice: string) => {
-      const index = exerciseResults.findIndex(r => r.exerciseName === exerciseName);
-      if (index !== -1) {
-          const updatedSets = exerciseResults[index].setDetails.map(set => ({
-              ...set,
-              weight: weight
-          }));
-          handleUpdateResult(index, { 
-              setDetails: updatedSets,
-              coachAdvice: advice 
-          });
-      }
   };
 
   const handleSubmit = async () => {
@@ -1010,7 +978,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                     name={result.exerciseName}
                                     result={result}
                                     onUpdate={(updates) => handleUpdateResult(index, updates)}
-                                    onOpenDailyForm={(name) => setDailyFormTarget(name)}
                                     aiSuggestion={aiInsights?.suggestions?.[result.exerciseName]}
                                     lastPerformance={history[result.exerciseName]} 
                                 />
@@ -1131,8 +1098,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               </div>
           </div>
       </div>
-
-      <AnimatePresence>{dailyFormTarget && (<DailyFormInsightModal isOpen={!!dailyFormTarget} onClose={() => setDailyFormTarget(null)} exerciseName={dailyFormTarget} feeling={dailyFeeling} allLogs={allLogs} onApplySuggestion={(weight, advice) => handleApplyDailyFormWeight(dailyFormTarget, weight, advice)} />)}</AnimatePresence>
     </div>
   );
 }
