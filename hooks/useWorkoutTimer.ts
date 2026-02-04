@@ -84,22 +84,25 @@ const playAirHorn = (ctx: AudioContext, startTime: number) => {
     });
 };
 
-// 3. DIGITAL BEEP (High tech, Square wave)
+// 3. DIGITAL BEEP (UPDATED: Classic High Pitch Timer Sound)
 const playDigitalBeep = (ctx: AudioContext, startTime: number) => {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(1200, startTime);
-    osc.frequency.exponentialRampToValueAtTime(800, startTime + 0.15); // Slight pitch drop
+    // Använder Sine men med hög frekvens för att efterlikna klassiska stoppur/timers
+    // Tar bort "pitch drop" (frequency ramp) för att göra det mer distinkt och mindre "lekfullt"
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1500, startTime); 
 
-    gain.gain.setValueAtTime(0.3, startTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.2);
+    gain.gain.setValueAtTime(0, startTime);
+    gain.gain.linearRampToValueAtTime(0.5, startTime + 0.01); // Snabb attack
+    gain.gain.setValueAtTime(0.5, startTime + 0.08); // Håll tonen kort
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15); // Snabb release
 
     osc.connect(gain);
     gain.connect(ctx.destination);
     osc.start(startTime);
-    osc.stop(startTime + 0.2);
+    osc.stop(startTime + 0.15);
 };
 
 // 4. GONG (Meditative, Low frequency, Inharmonic)
