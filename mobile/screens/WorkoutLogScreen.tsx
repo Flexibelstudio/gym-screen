@@ -300,7 +300,7 @@ const ExerciseLogCard: React.FC<{
   result: LocalExerciseResult;
   onUpdate: (updates: Partial<LocalExerciseResult>) => void;
   aiSuggestion?: string;
-  lastPerformance?: { reps: string, weight: number } | null;
+  lastPerformance?: { weight: number, reps: string } | null;
 }> = ({ name, result, onUpdate, aiSuggestion, lastPerformance }) => {
     
     const calculate1RM = (weight: string, reps: string) => {
@@ -349,7 +349,7 @@ const ExerciseLogCard: React.FC<{
                     <h4 className="font-bold text-gray-900 dark:text-white text-base truncate">{name}</h4>
                     {lastPerformance ? (
                         <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-0.5">
-                            Senast: <span className="text-gray-600 dark:text-gray-300">{lastPerformance.weight}kg x {lastPerformance.reps}</span>
+                            Senast: <span className="text-gray-600 dark:text-gray-300">{lastPerformance.reps} x {lastPerformance.weight}kg</span>
                         </p>
                     ) : (
                         <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-0.5">Första gången</p>
