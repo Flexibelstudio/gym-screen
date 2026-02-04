@@ -228,7 +228,7 @@ const BenchmarksView: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefin
                                 <div className="py-1">
                                     <p className="text-sm text-gray-400 mb-3">Mätvärde: {def.type === 'time' ? 'Tid' : def.type === 'reps' ? 'Varv/Reps' : 'Vikt'}</p>
                                     <span className="inline-block bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg">
-                                        Gör ett försök!
+                                        Ej genomfört
                                     </span>
                                 </div>
                             )}
