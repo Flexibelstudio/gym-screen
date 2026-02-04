@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Note, Workout, StudioConfig, TimerMode, TimerStatus, WorkoutBlock, Exercise, TimerSettings } from '../types';
+import { Note, Workout, StudioConfig, TimerMode, TimerStatus, WorkoutBlock, Exercise, TimerSettings, TimerSoundProfile } from '../types';
 import { interpretHandwriting, parseWorkoutFromImage } from '../services/geminiService';
 import { deleteImageByUrl, resolveAndCreateExercises } from '../services/firebaseService';
 import { useWorkoutTimer } from '../hooks/useWorkoutTimer';
@@ -581,7 +581,10 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const points = useRef<{x: number, y: number}[]>([]);
     
     const [timerBlock, setTimerBlock] = useState<WorkoutBlock | null>(null);
-    const timer = useWorkoutTimer(timerBlock);
+    
+    // UPDATED: Pass sound profile to timer
+    const timer = useWorkoutTimer(timerBlock, studioConfig.soundProfile || 'airhorn');
+    
     const [isTimerSetupVisible, setIsTimerSetupVisible] = useState(false);
     const [isTimerClosing, setIsTimerClosing] = useState(false);
     const [completionInfo, setCompletionInfo] = useState<{ workout: Workout, isFinal: boolean, blockTag?: string, finishTime?: number } | null>(null);
@@ -1136,7 +1139,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         img.crossOrigin = "anonymous";
         img.onload = () => {
             ctx.fillStyle = '#030712';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, canvas.width, canvas.height); 
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             setHistory([ctx.getImageData(0, 0, canvas.width, canvas.height)]);
             setActiveNoteId(note.id);

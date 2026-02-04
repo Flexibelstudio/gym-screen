@@ -1,12 +1,13 @@
 
 import React, { useState } from 'react';
-import { StudioConfig, Organization, ThemeOption } from '../../types';
-import { ToggleSwitch, SparklesIcon, InformationCircleIcon } from '../icons';
+import { StudioConfig, Organization, ThemeOption, TimerSoundProfile } from '../../types';
+import { ToggleSwitch, SparklesIcon, InformationCircleIcon, SpeakerphoneIcon } from '../icons';
 import { SelectField } from './AdminShared';
 import { CategoryPromptManager } from '../CategoryPromptManager';
 import { FeatureInfoModal } from './AdminModals';
 import { saveAdminActivity } from '../../services/firebaseService';
 import { useAuth } from '../../context/AuthContext';
+import { playTimerSound } from '../../hooks/useWorkoutTimer';
 
 interface GlobalSettingsContentProps {
     organization: Organization;
@@ -29,6 +30,11 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
             ...(config.aiSettings || {}),
             [field]: value
         });
+    };
+
+    const handleTestSound = () => {
+        const sound = config.soundProfile || 'airhorn';
+        playTimerSound(sound, 2); // Play twice
     };
 
     return (
@@ -106,7 +112,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                                         <select 
                                             value={config.aiSettings?.tone || 'neutral'}
                                             onChange={(e) => handleAiChange('tone', e.target.value)}
-                                            className="w-full p-2 text-sm rounded bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none"
+                                            className="w-full p-2 text-sm rounded bg-gray-5 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none"
                                         >
                                             <option value="neutral">Neutral & Professionell</option>
                                             <option value="enthusiastic">Peppande & Entusiastisk</option>
@@ -151,27 +157,52 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                 <div className="border-t border-gray-100 dark:border-gray-700 my-6"></div>
 
                 <section>
-                    <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Säsong & Tema</h4>
-                    <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
-                        <SelectField 
-                            label="Säsongstema" 
-                            value={config.seasonalTheme || 'none'} 
-                            onChange={(val) => handleUpdateConfigField('seasonalTheme', val as ThemeOption)}
-                        >
-                            <option value="none">Inget tema (Standard)</option>
-                            <option value="auto">Automatiskt (Datumstyrt)</option>
-                            <option value="winter">Vinter ❄️</option>
-                            <option value="christmas">Jul 🎄</option>
-                            <option value="newyear">Nyår 🎆</option>
-                            <option value="valentines">Alla Hjärtans ❤️</option>
-                            <option value="easter">Påsk 🐣</option>
-                            <option value="midsummer">Midsommar 🌸</option>
-                            <option value="summer">Sommar ☀️</option>
-                            <option value="halloween">Halloween 🎃</option>
-                        </SelectField>
-                        <p className="text-xs text-gray-500 mt-2">
-                            Lägger till subtila visuella effekter (t.ex. snö, konfetti) ovanpå din befintliga design.
-                        </p>
+                    <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Ljud & Tema</h4>
+                    <div className="space-y-4">
+                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                            <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Timerljud</label>
+                            <div className="flex items-center gap-3">
+                                <select
+                                    value={config.soundProfile || 'airhorn'}
+                                    onChange={(e) => handleUpdateConfigField('soundProfile', e.target.value as TimerSoundProfile)}
+                                    className="flex-grow bg-white dark:bg-black text-black dark:text-white p-3 rounded-md border border-slate-300 dark:border-gray-600 focus:ring-1 focus:ring-primary focus:outline-none"
+                                >
+                                    <option value="airhorn">CrossFit-tutan (Aggressiv)</option>
+                                    <option value="digital">Digital (Klassiskt Pip)</option>
+                                    <option value="boxing">Boxningsklocka (Old School)</option>
+                                    <option value="gong">Gong (Mjuk & Djup)</option>
+                                </select>
+                                <button 
+                                    onClick={handleTestSound}
+                                    className="p-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-md transition-colors"
+                                    title="Provlyssna"
+                                >
+                                    <SpeakerphoneIcon className="w-5 h-5 text-gray-700 dark:text-white" />
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                            <SelectField 
+                                label="Säsongstema" 
+                                value={config.seasonalTheme || 'none'} 
+                                onChange={(val) => handleUpdateConfigField('seasonalTheme', val as ThemeOption)}
+                            >
+                                <option value="none">Inget tema (Standard)</option>
+                                <option value="auto">Automatiskt (Datumstyrt)</option>
+                                <option value="winter">Vinter ❄️</option>
+                                <option value="christmas">Jul 🎄</option>
+                                <option value="newyear">Nyår 🎆</option>
+                                <option value="valentines">Alla Hjärtans ❤️</option>
+                                <option value="easter">Påsk 🐣</option>
+                                <option value="midsummer">Midsommar 🌸</option>
+                                <option value="summer">Sommar ☀️</option>
+                                <option value="halloween">Halloween 🎃</option>
+                            </SelectField>
+                            <p className="text-xs text-gray-500 mt-2">
+                                Lägger till subtila visuella effekter (t.ex. snö, konfetti) ovanpå din befintliga design.
+                            </p>
+                        </div>
                     </div>
                 </section>
 

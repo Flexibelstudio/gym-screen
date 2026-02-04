@@ -1,13 +1,15 @@
+
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout } from '../types';
-import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration, playBoxingBell } from '../hooks/useWorkoutTimer';
+import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration, playTimerSound } from '../hooks/useWorkoutTimer';
 import { useWorkout } from '../context/WorkoutContext';
 import { saveRace, updateOrganizationActivity } from '../services/firebaseService';
 import { Confetti } from './WorkoutCompleteModal';
 import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmationModal, RaceFinishAnimation, PauseOverlay } from './timer/TimerModals';
 import { ParticipantFinishList } from './timer/ParticipantFinishList';
 import { DumbbellIcon, InformationCircleIcon, LightningIcon, SparklesIcon, ChevronRightIcon, ClockIcon } from './icons';
+import { useStudio } from '../context/StudioContext';
 
 // --- Constants ---
 const HYROX_RIGHT_PANEL_WIDTH = '450px';
@@ -516,13 +518,16 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     isAutoTransition = false
 }) => {
   const { activeWorkout } = useWorkout();
+  const { studioConfig } = useStudio(); // Fetch studioConfig
+  
+  // Use the hook with the selected sound profile
   const { 
     status, currentTime, currentPhaseDuration, currentRound, currentExercise, nextExercise,
     start, pause, resume, reset, 
     totalRounds, totalExercises,
     totalBlockDuration, totalTimeElapsed,
     completedWorkIntervals, effectiveIntervalsPerLap
-  } = useWorkoutTimer(block);
+  } = useWorkoutTimer(block, studioConfig.soundProfile || 'airhorn');
   
   const [controlsVisible, setControlsVisible] = React.useState(false);
   const hideTimeoutRef = React.useRef<number | null>(null);
@@ -1233,7 +1238,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[35%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
             {isActuallyFinishedOrIdle ? (
                 <>
-                    <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-500 transition-colors text-xl backdrop-blur-md border-2 border-white/20 uppercase">TILLBAKA</button>
+                    <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-50 transition-colors text-xl backdrop-blur-md border-2 border-white/20 uppercase">TILLBAKA</button>
                     <button onClick={() => start()} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50 uppercase">STARTA</button>
                 </>
             ) : isActuallyPaused ? (
@@ -1246,5 +1251,3 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     </div>
   );
 };
-
-export default TimerScreen;

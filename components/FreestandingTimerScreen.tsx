@@ -2,12 +2,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { WorkoutBlock, TimerMode, TimerSettings, Exercise } from '../types';
 import { ValueAdjuster, ChevronDownIcon, ChevronUpIcon } from './icons';
+import { useStudio } from '../context/StudioContext';
 
 interface FreestandingTimerScreenProps {
     onStart: (block: WorkoutBlock) => void;
 }
 
 export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = ({ onStart }) => {
+    const { studioConfig } = useStudio();
     const [mode, setMode] = useState<TimerMode>(TimerMode.Interval);
   
     // State for different timer modes

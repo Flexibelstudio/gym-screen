@@ -1,5 +1,4 @@
 
-
 export type UserRole = 'member' | 'coach' | 'organizationadmin' | 'systemowner';
 
 export interface AdminActivity {
@@ -155,6 +154,8 @@ export interface BenchmarkDefinition {
 
 export type ThemeOption = 'none' | 'auto' | 'winter' | 'christmas' | 'newyear' | 'valentines' | 'easter' | 'midsummer' | 'summer' | 'halloween';
 
+export type TimerSoundProfile = 'airhorn' | 'digital' | 'boxing' | 'gong';
+
 export interface StudioConfig {
   enableScreensaver?: boolean;
   screensaverTimeoutMinutes?: number;
@@ -166,6 +167,7 @@ export interface StudioConfig {
   checkInImageEnabled?: boolean;
   checkInImageUrl?: string;
   seasonalTheme?: ThemeOption;
+  soundProfile?: TimerSoundProfile; // NYTT: Ljudprofil
   aiSettings?: {
       tone?: string;
       instructions?: string;
