@@ -304,8 +304,8 @@ const ExerciseLogCard: React.FC<{
 }> = ({ name, result, onUpdate, aiSuggestion, lastPerformance }) => {
     
     const calculate1RM = (weight: string, reps: string) => {
-        const w = parseFloat(weight);
         const r = parseFloat(reps);
+        const w = parseFloat(weight);
         if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0) {
             if (r === 1) return Math.round(w);
             const oneRm = w * (1 + r / 30);
