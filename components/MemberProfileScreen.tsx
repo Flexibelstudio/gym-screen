@@ -131,26 +131,34 @@ const getAthleteArchetype = (logs: WorkoutLog[]) => {
 
 const BenchmarksView: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefinition[] }> = ({ logs, definitions }) => {
     
-    // Process data to find PBs for each benchmark definition
-    const benchmarks = useMemo(() => {
-        return definitions.map(def => {
+    // Process data to find PBs for each benchmark definition and sort them
+    const sortedBenchmarks = useMemo(() => {
+        const mapped = definitions.map(def => {
             // Find all logs that match this benchmark ID
             const relevantLogs = logs.filter(l => l.benchmarkId === def.id && l.benchmarkValue !== undefined);
             
             if (relevantLogs.length === 0) return { def, pb: null, attempts: 0 };
 
-            // Sort based on type
-            const sorted = [...relevantLogs].sort((a, b) => {
+            // Sort based on type to find PB
+            const sortedLogs = [...relevantLogs].sort((a, b) => {
                 if (def.type === 'time') return (a.benchmarkValue || 0) - (b.benchmarkValue || 0); // Lower time is better
                 return (b.benchmarkValue || 0) - (a.benchmarkValue || 0); // Higher reps/weight is better
             });
 
             return {
                 def,
-                pb: sorted[0],
+                pb: sortedLogs[0],
                 attempts: relevantLogs.length
             };
         });
+
+        // Sort: Completed (has PB) first, then unattempted
+        return mapped.sort((a, b) => {
+            if (a.pb && !b.pb) return -1;
+            if (!a.pb && b.pb) return 1;
+            return a.def.title.localeCompare(b.def.title); // Fallback alphabetical
+        });
+
     }, [logs, definitions]);
 
     const formatResult = (val: number, type: string) => {
@@ -163,8 +171,8 @@ const BenchmarksView: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefin
     };
 
     const getUnit = (type: string) => {
-        if (type === 'time') return 'min';
-        if (type === 'reps') return 'reps';
+        if (type === 'time') return ''; // Usually looks better without 'min' if format is MM:SS
+        if (type === 'reps') return 'Varv'; // Changed from 'reps' to 'Varv' as requested
         if (type === 'weight') return 'kg';
         return '';
     };
@@ -180,16 +188,29 @@ const BenchmarksView: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefin
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {benchmarks.map(({ def, pb, attempts }) => (
-                    <div key={def.id} className={`relative overflow-hidden rounded-3xl p-6 border-2 transition-all ${pb ? 'bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-gray-800 dark:to-gray-900 border-yellow-400/30 dark:border-yellow-500/20' : 'bg-gray-50 dark:bg-gray-900 border-dashed border-gray-200 dark:border-gray-800 opacity-80'}`}>
+                {sortedBenchmarks.map(({ def, pb, attempts }) => (
+                    <div 
+                        key={def.id} 
+                        className={`relative overflow-hidden rounded-3xl p-6 transition-all ${
+                            pb 
+                            ? 'bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-gray-800 dark:to-gray-900 border-2 border-yellow-400/30 dark:border-yellow-500/20' 
+                            : 'bg-white dark:bg-gray-900 border-2 border-dashed border-gray-200 dark:border-gray-800 hover:border-primary/30'
+                        }`}
+                    >
                         {pb && <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-400/10 rounded-full blur-3xl -mr-6 -mt-6"></div>}
                         
                         <div className="relative z-10">
                             <div className="flex justify-between items-start mb-4">
-                                <h4 className="font-bold text-gray-900 dark:text-white truncate pr-2 text-lg">{def.title}</h4>
-                                {pb && (
+                                <h4 className={`font-bold truncate pr-2 text-lg ${pb ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                                    {def.title}
+                                </h4>
+                                {pb ? (
                                     <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-1 rounded-lg">
                                         <TrophyIcon className="w-4 h-4" />
+                                    </div>
+                                ) : (
+                                    <div className="bg-gray-100 dark:bg-gray-800 text-gray-400 px-2 py-1 rounded-lg">
+                                        <DumbbellIcon className="w-4 h-4" />
                                     </div>
                                 )}
                             </div>
@@ -204,9 +225,11 @@ const BenchmarksView: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefin
                                     </p>
                                 </div>
                             ) : (
-                                <div className="py-2">
-                                    <p className="text-sm text-gray-400 italic">Inget resultat loggat än.</p>
-                                    <p className="text-[10px] text-gray-300 mt-1 uppercase tracking-wider">Gör ett försök!</p>
+                                <div className="py-1">
+                                    <p className="text-sm text-gray-400 mb-3">Mätvärde: {def.type === 'time' ? 'Tid' : def.type === 'reps' ? 'Varv/Reps' : 'Vikt'}</p>
+                                    <span className="inline-block bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg">
+                                        Gör ett försök!
+                                    </span>
                                 </div>
                             )}
                         </div>
