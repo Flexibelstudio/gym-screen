@@ -559,7 +559,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [saveStatus, setSaveStatus] = useState('');
   const [showCelebration, setShowCelebration] = useState(false);
   const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
-  const [showCalculator, setShowCalculator] = useState(false);
   const [dailyFormTarget, setDailyFormTarget] = useState<string | null>(null);
   const [allLogs, setAllLogs] = useState<WorkoutLog[]>([]);
   const [viewMode, setViewMode] = useState<'pre-game' | 'logging'>(isManualMode ? 'logging' : 'pre-game');
@@ -1035,16 +1034,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Registrera dina resultat</p>
         </div>
         <div className="flex items-center gap-2">
-            {!isQuickWorkoutMode && !isManualMode && (
-                <button 
-                    onClick={() => setShowCalculator(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-full border border-indigo-100 dark:border-indigo-800 hover:bg-indigo-100 transition-all shadow-sm active:scale-95"
-                    title="1RM Kalkylator"
-                >
-                    <CalculatorIcon className="w-5 h-5" />
-                    <span className="text-[10px] font-black uppercase tracking-wider">1RM Kalkylator</span>
-                </button>
-            )}
             <button onClick={() => handleCancel(false)} className="p-3 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all flex-shrink-0 shadow-sm active:scale-90" disabled={isSubmitting}>
                 <CloseIcon className="w-6 h-6 text-gray-500 dark:text-gray-400" />
             </button>
@@ -1217,7 +1206,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
           </div>
       </div>
 
-      {showCalculator && <OneRepMaxModal onClose={() => setShowCalculator(false)} />}
       <AnimatePresence>{dailyFormTarget && (<DailyFormInsightModal isOpen={!!dailyFormTarget} onClose={() => setDailyFormTarget(null)} exerciseName={dailyFormTarget} feeling={dailyFeeling} allLogs={allLogs} onApplySuggestion={(weight, advice) => handleApplyDailyFormWeight(dailyFormTarget, weight, advice)} />)}</AnimatePresence>
     </div>
   );
