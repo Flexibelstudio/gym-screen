@@ -57,118 +57,6 @@ interface WorkoutData {
   }[];
 }
 
-// --- BENCHMARK CARD COMPONENT ---
-const BenchmarkResultCard: React.FC<{
-    definition: BenchmarkDefinition;
-    value: string;
-    onChange: (val: string) => void;
-    prevBest?: number;
-}> = ({ definition, value, onChange, prevBest }) => {
-    
-    // Helper to format prev best based on type
-    const formatPrev = (val: number, type: string) => {
-        if (type === 'time') {
-            const m = Math.floor(val / 60);
-            const s = val % 60;
-            return `${m}:${s.toString().padStart(2, '0')}`;
-        }
-        return val.toString();
-    };
-
-    const isTime = definition.type === 'time';
-    const isReps = definition.type === 'reps';
-    const isWeight = definition.type === 'weight'; // Volym
-
-    // Handle Time Input Split (Min/Sec)
-    const handleTimeChange = (part: 'm' | 's', val: string) => {
-        const num = parseInt(val) || 0;
-        let totalSeconds = 0;
-        
-        // Parse current value (which is stored as total seconds in string)
-        const currentTotal = parseInt(value) || 0;
-        const currentM = Math.floor(currentTotal / 60);
-        const currentS = currentTotal % 60;
-
-        if (part === 'm') {
-            totalSeconds = (num * 60) + currentS;
-        } else {
-            totalSeconds = (currentM * 60) + num;
-        }
-        onChange(totalSeconds.toString());
-    };
-
-    const currentM = isTime ? Math.floor((parseInt(value) || 0) / 60) : 0;
-    const currentS = isTime ? (parseInt(value) || 0) % 60 : 0;
-
-    return (
-        <div className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/10 p-5 rounded-2xl border border-yellow-200 dark:border-yellow-800/50 mb-6 shadow-sm">
-            <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-2">
-                    <TrophyIcon className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-                    <h3 className="font-black text-gray-900 dark:text-white uppercase tracking-tight text-sm">
-                        {definition.title}
-                    </h3>
-                </div>
-                {prevBest !== undefined && (
-                    <span className="text-[10px] font-bold text-yellow-700 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-900/40 px-2 py-1 rounded-lg">
-                        PB: {formatPrev(prevBest, definition.type)} {isTime ? 'min' : isReps ? 'st' : 'kg'}
-                    </span>
-                )}
-            </div>
-
-            <div className="bg-white dark:bg-black/40 p-4 rounded-xl border border-yellow-100 dark:border-yellow-800/30">
-                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">
-                    Ditt Resultat
-                </label>
-                
-                {isTime ? (
-                    <div className="flex items-center gap-2">
-                        <div className="flex-1">
-                            <input 
-                                type="number" 
-                                value={currentM || ''}
-                                onChange={e => handleTimeChange('m', e.target.value)}
-                                placeholder="0"
-                                className="w-full text-center text-2xl font-black bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl p-3 focus:border-yellow-400 focus:ring-0 outline-none"
-                            />
-                            <span className="block text-center text-[10px] font-bold text-gray-400 mt-1 uppercase">Min</span>
-                        </div>
-                        <span className="text-2xl font-black text-gray-300">:</span>
-                        <div className="flex-1">
-                            <input 
-                                type="number" 
-                                value={currentS || ''}
-                                onChange={e => handleTimeChange('s', e.target.value)}
-                                placeholder="00"
-                                className="w-full text-center text-2xl font-black bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl p-3 focus:border-yellow-400 focus:ring-0 outline-none"
-                            />
-                            <span className="block text-center text-[10px] font-bold text-gray-400 mt-1 uppercase">Sek</span>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="relative">
-                        <input 
-                            type="number"
-                            value={value}
-                            onChange={e => onChange(e.target.value)}
-                            placeholder="0"
-                            className="w-full text-center text-3xl font-black bg-gray-50 dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl p-3 focus:border-yellow-400 focus:ring-0 outline-none"
-                        />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-gray-400">
-                            {isReps ? 'Antal Varv' : 'Totalvolym (kg)'}
-                        </span>
-                    </div>
-                )}
-            </div>
-            {isWeight && (
-                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2 text-center italic">
-                    * Fylls i automatiskt baserat på dina set nedan.
-                </p>
-            )}
-        </div>
-    );
-};
-
 // --- DIPLOMA TITLES ---
 const DIPLOMA_TITLES = [
     "SNYGGT JOBBAT!",
@@ -564,11 +452,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [viewMode, setViewMode] = useState<'pre-game' | 'logging'>(isManualMode ? 'logging' : 'pre-game');
   const [dailyFeeling, setDailyFeeling] = useState<'good' | 'neutral' | 'bad'>('neutral');
   const [customActivity, setCustomActivity] = useState({ name: '', duration: '', distance: '', calories: '' });
-  const [sessionStats, setSessionStats] = useState({ distance: '', calories: '' });
+  const [sessionStats, setSessionStats] = useState({ distance: '', calories: '', time: '', rounds: '' });
   
-  // Benchmark result state
-  const [benchmarkResult, setBenchmarkResult] = useState<string>('');
-
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
 
@@ -579,15 +464,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       return exerciseResults.reduce((acc, ex) => acc + ex.setDetails.filter(s => !s.completed).length, 0);
   }, [isQuickWorkoutMode, isManualMode, exerciseResults]);
 
-  const isFormValid = useMemo(() => {
-      if (isSubmitting) return false;
-      if (isQuickWorkoutMode || isManualMode) {
-          return customActivity.name.trim() !== '' && customActivity.duration.trim() !== '';
-      }
-      const totalSets = exerciseResults.reduce((acc, ex) => acc + ex.setDetails.length, 0);
-      return totalSets > 0 && uncheckedSetsCount === 0;
-  }, [isSubmitting, isQuickWorkoutMode, isManualMode, customActivity, exerciseResults, uncheckedSetsCount]);
-  
   // --- BENCHMARK LOGIC ---
 
   // Hitta benchmark-definitionen
@@ -609,21 +485,32 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       return sorted[0]?.benchmarkValue;
   }, [benchmarkDefinition, allLogs]);
 
-  // AUTO-BERÄKNA VOLYM för Vikt-Benchmarks
-  useEffect(() => {
-      if (benchmarkDefinition?.type === 'weight') {
-           const vol = exerciseResults.reduce((acc, ex) => {
-               const exVol = ex.setDetails.reduce((sAcc, s) => {
-                   const w = parseFloat(s.weight) || 0;
-                   const r = parseFloat(s.reps) || 0;
-                   return sAcc + (w * r);
-               }, 0);
-               return acc + exVol;
-           }, 0);
-           setBenchmarkResult(vol > 0 ? vol.toString() : '');
+  // Helper to format prev best based on type
+  const formatPrev = (val: number, type: string) => {
+      if (type === 'time') {
+          const m = Math.floor(val / 60);
+          const s = val % 60;
+          return `${m}:${s.toString().padStart(2, '0')}`;
       }
-  }, [exerciseResults, benchmarkDefinition]);
+      return val.toString();
+  };
 
+  const isFormValid = useMemo(() => {
+      if (isSubmitting) return false;
+      if (isQuickWorkoutMode || isManualMode) {
+          return customActivity.name.trim() !== '' && customActivity.duration.trim() !== '';
+      }
+
+      // Check Benchmark requirements
+      if (benchmarkDefinition) {
+          if (benchmarkDefinition.type === 'time' && !sessionStats.time) return false;
+          if (benchmarkDefinition.type === 'reps' && !sessionStats.rounds) return false;
+      }
+
+      const totalSets = exerciseResults.reduce((acc, ex) => acc + ex.setDetails.length, 0);
+      return totalSets > 0 && uncheckedSetsCount === 0;
+  }, [isSubmitting, isQuickWorkoutMode, isManualMode, customActivity, exerciseResults, uncheckedSetsCount, benchmarkDefinition, sessionStats]);
+  
   // --- LOAD INITIAL DATA ---
   useEffect(() => {
     if (!oId) { setLoading(false); return; }
@@ -653,7 +540,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                 let loadedLogData: LogData | null = null;
                 let loadedSessionStats: any = null;
                 let loadedCustomActivity: any = null;
-                let loadedBenchmarkResult: string | null = null; // Ladda benchmark om det finns
                 let skipInsights = false;
 
                 if (savedSessionRaw) {
@@ -663,7 +549,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                         loadedLogData = saved.logData;
                         loadedSessionStats = saved.sessionStats;
                         loadedCustomActivity = saved.customActivity;
-                        loadedBenchmarkResult = saved.benchmarkResult;
                         // Skip pre-game if we have a saved session
                         setViewMode('logging');
                         skipInsights = true;
@@ -696,9 +581,16 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                 
                 setExerciseResults(exercises);
                 if (loadedLogData) setLogData(loadedLogData);
-                if (loadedSessionStats) setSessionStats(loadedSessionStats);
+                if (loadedSessionStats) {
+                    // Ensure new fields exist if loading old data
+                    setSessionStats({
+                        distance: loadedSessionStats.distance || '',
+                        calories: loadedSessionStats.calories || '',
+                        time: loadedSessionStats.time || '',
+                        rounds: loadedSessionStats.rounds || ''
+                    });
+                }
                 if (loadedCustomActivity) setCustomActivity(loadedCustomActivity);
-                if (loadedBenchmarkResult) setBenchmarkResult(loadedBenchmarkResult);
 
                 const logs = await getMemberLogs(userId);
                 setAllLogs(logs);
@@ -756,12 +648,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
         logData,
         sessionStats,
         customActivity,
-        benchmarkResult,
         timestamp: Date.now()
     };
 
     localStorage.setItem(ACTIVE_LOG_STORAGE_KEY, JSON.stringify(sessionData));
-  }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, userId, wId, oId, isManualMode, workout, isQuickWorkoutMode, benchmarkResult]);
+  }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, userId, wId, oId, isManualMode, workout, isQuickWorkoutMode]);
 
   const handleCancel = (isSuccess = false, diploma: WorkoutDiploma | null = null) => {
     // We don't necessarily clear it here if the user just "backs out", 
@@ -876,7 +767,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               exerciseResults: exerciseResultsToSave,
               // Add Benchmark Info if applicable
               benchmarkId: benchmarkDefinition?.id,
-              benchmarkValue: benchmarkResult ? parseFloat(benchmarkResult) : undefined
+              // benchmarkValue: Calculated below based on type
           };
 
           if (isQuickOrManual) {
@@ -890,8 +781,23 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
               setShowCelebration(true);
           } else {
+              // Standard Workout Logic
+              finalLogRaw.durationMinutes = parseInt(sessionStats.time) || 0;
               finalLogRaw.totalDistance = parseFloat(sessionStats.distance) || 0;
               finalLogRaw.totalCalories = parseInt(sessionStats.calories) || 0;
+              
+              // Calculate Benchmark Value based on type
+              if (benchmarkDefinition) {
+                  if (benchmarkDefinition.type === 'time') {
+                      // Save time in seconds
+                      finalLogRaw.benchmarkValue = (parseFloat(sessionStats.time) || 0) * 60;
+                  } else if (benchmarkDefinition.type === 'reps') {
+                      finalLogRaw.benchmarkValue = parseFloat(sessionStats.rounds) || 0;
+                  } else if (benchmarkDefinition.type === 'weight') {
+                      // Total volume calculated from exercises
+                      finalLogRaw.benchmarkValue = totalVolume;
+                  }
+              }
 
               // 1. Spara loggen först för att beräkna PBs
               setSaveStatus('Letar efter nya rekord...');
@@ -1071,16 +977,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   </div>
               )}
               
-              {/* BENCHMARK RESULT INPUT - VISAS BARA OM PASSET ÄR ETT BENCHMARK */}
-              {benchmarkDefinition && (
-                  <BenchmarkResultCard 
-                    definition={benchmarkDefinition} 
-                    value={benchmarkResult} 
-                    onChange={setBenchmarkResult} 
-                    prevBest={prevBenchmarkBest}
-                  />
-              )}
-
               {isManualMode || isQuickWorkoutMode ? (
                   <CustomActivityForm 
                       activityName={customActivity.name}
@@ -1124,6 +1020,36 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
                     <div className="mt-8 mb-6 bg-white dark:bg-gray-900 p-5 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
                         <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className={`block text-11px font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'time' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                                    Tid (min)
+                                    {benchmarkDefinition?.type === 'time' && prevBenchmarkBest && (
+                                        <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'time')}</span>
+                                    )}
+                                </label>
+                                <input 
+                                    type="number"
+                                    value={sessionStats.time}
+                                    onChange={(e) => setSessionStats(prev => ({ ...prev, time: e.target.value }))}
+                                    placeholder={benchmarkDefinition?.type === 'time' ? "T.ex. 45" : "-"}
+                                    className={`w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border transition-colors ${benchmarkDefinition?.type === 'time' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}
+                                />
+                            </div>
+                            <div>
+                                <label className={`block text-11px font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'reps' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                                    Varv / Reps
+                                    {benchmarkDefinition?.type === 'reps' && prevBenchmarkBest && (
+                                        <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'reps')}</span>
+                                    )}
+                                </label>
+                                <input 
+                                    type="number"
+                                    value={sessionStats.rounds}
+                                    onChange={(e) => setSessionStats(prev => ({ ...prev, rounds: e.target.value }))}
+                                    placeholder={benchmarkDefinition?.type === 'reps' ? "T.ex. 5" : "-"}
+                                    className={`w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border transition-colors ${benchmarkDefinition?.type === 'reps' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}
+                                />
+                            </div>
                             <div>
                                 <label className="block text-11px font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">kcal</label>
                                 <input 
