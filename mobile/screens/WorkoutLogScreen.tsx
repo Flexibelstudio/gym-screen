@@ -1058,7 +1058,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className={`block text-11px font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'time' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
-                                    Tid (min)
+                                    Tid
                                     {benchmarkDefinition?.type === 'time' && prevBenchmarkBest && (
                                         <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'time')}</span>
                                     )}
