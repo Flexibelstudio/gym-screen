@@ -2,10 +2,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { WorkoutBlock, Exercise, BankExercise, TimerMode } from '../../types';
 import { EditableField } from './EditableField';
-import { ToggleSwitch, ChevronUpIcon, ChevronDownIcon, ChartBarIcon, PencilIcon, TrashIcon, SparklesIcon, BuildingIcon } from '../icons';
+import { ToggleSwitch, ChevronUpIcon, ChevronDownIcon, ChartBarIcon, PencilIcon, TrashIcon, SparklesIcon, BuildingIcon, PlusIcon } from '../icons';
 import { generateExerciseDescription } from '../../services/geminiService';
 import { parseSettingsFromTitle } from '../../hooks/useWorkoutTimer';
 import { motion, AnimatePresence } from 'framer-motion';
+import { saveExerciseToBank } from '../../services/firebaseService';
 
 interface ExerciseItemProps {
     exercise: Exercise;
@@ -15,9 +16,10 @@ interface ExerciseItemProps {
     index: number;
     total: number;
     onMove: (direction: 'up' | 'down') => void;
+    organizationId: string;
 }
 
-const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove }) => {
+const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, organizationId }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -106,6 +108,41 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         onUpdate(exercise.id, { loggingEnabled: !exercise.loggingEnabled });
     };
 
+    const handleSaveToBank = async () => {
+        if (!organizationId) {
+            alert("Ingen organisation vald. Kan inte spara lokalt.");
+            return;
+        }
+        if (!exercise.name.trim()) return;
+
+        // 1. Skapa unikt ID för custom exercise
+        const newId = `custom_${organizationId}_${Date.now()}`;
+        
+        const newBankExercise: BankExercise = {
+            id: newId,
+            name: exercise.name,
+            description: exercise.description || '',
+            tags: [],
+            imageUrl: exercise.imageUrl,
+            organizationId: organizationId // Viktigt för att den ska sparas i custom_exercises
+        };
+
+        // 2. Optimistisk uppdatering av UI
+        onUpdate(exercise.id, { 
+            id: newId, 
+            isFromBank: true, 
+            loggingEnabled: true // Aktivera loggning direkt
+        });
+
+        // 3. Spara till Firestore
+        try {
+            await saveExerciseToBank(newBankExercise);
+        } catch (e) {
+            console.error("Failed to save custom exercise", e);
+            alert("Kunde inte spara övningen till banken.");
+        }
+    };
+
     const isBanked = exercise.isFromBank || exercise.id.startsWith('bank_') || exercise.id.startsWith('custom_');
     
     return (
@@ -184,16 +221,33 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                     </div>
                     
                     <div className="flex items-center gap-1 ml-auto sm:ml-0">
-                        {/* Status Badge */}
-                        <div 
-                            className={`flex items-center gap-1 px-2 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-wider select-none ${
-                                isBanked 
-                                ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' 
-                                : 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700'
-                            }`}
-                            title={isBanked ? "Kopplad till övningsbanken (Statistik sparas)" : "Fristående text (Ingen statistik sparas)"}
-                        >
-                            {isBanked ? 'Bank' : 'Ad-hoc'}
+                        {/* Status Badge & Save Button */}
+                        <div className="flex items-center gap-1">
+                            {isBanked ? (
+                                <div 
+                                    className="px-2 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-wider select-none bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800"
+                                    title="Kopplad till övningsbanken (Statistik sparas)"
+                                >
+                                    Bank
+                                </div>
+                            ) : (
+                                <>
+                                    <div 
+                                        className="px-2 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-wider select-none bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700"
+                                        title="Fristående text (Ingen statistik sparas)"
+                                    >
+                                        Ad-hoc
+                                    </div>
+                                    <button
+                                        onClick={handleSaveToBank}
+                                        className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors text-[9px] font-black uppercase tracking-wider"
+                                        title="Spara som lokal övning för att kunna logga"
+                                    >
+                                        <PlusIcon className="w-3 h-3" />
+                                        <span className="hidden sm:inline">Spara</span>
+                                    </button>
+                                </>
+                            )}
                         </div>
 
                         <button 
@@ -496,6 +550,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                                         index={i}
                                         total={block.exercises.length}
                                         onMove={(direction) => onMoveExercise(i, direction)}
+                                        organizationId={organizationId}
                                     />
                                 ))
                             )}
