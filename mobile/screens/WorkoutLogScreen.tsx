@@ -56,6 +56,75 @@ interface WorkoutData {
   }[];
 }
 
+// --- TIME INPUT COMPONENT ---
+const TimeInput: React.FC<{
+    value: string;
+    onChange: (val: string) => void;
+    placeholder?: string;
+    className?: string;
+}> = ({ value, onChange, placeholder, className }) => {
+    // Internal state for display
+    const [min, setMin] = useState('');
+    const [sec, setSec] = useState('');
+
+    useEffect(() => {
+        const val = parseFloat(value);
+        if (isNaN(val) && !value) {
+             if (min !== '' || sec !== '') {
+                 setMin('');
+                 setSec('');
+             }
+             return;
+        }
+
+        const currentMin = parseInt(min || '0', 10);
+        const currentSec = parseInt(sec || '0', 10);
+        const currentTotal = currentMin + (currentSec / 60);
+
+        if (!isNaN(val) && Math.abs(val - currentTotal) > 0.001) {
+            const m = Math.floor(val);
+            const s = Math.round((val - m) * 60);
+            setMin(m.toString());
+            setSec(s.toString().padStart(2, '0'));
+        }
+    }, [value]);
+
+    const update = (mStr: string, sStr: string) => {
+        setMin(mStr);
+        setSec(sStr);
+        const m = parseInt(mStr || '0', 10);
+        const s = parseInt(sStr || '0', 10);
+        const total = m + (s / 60);
+        onChange(total.toString());
+    };
+
+    return (
+        <div className={`flex items-center bg-gray-5 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 px-2 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all ${className}`}>
+             <div className="flex-1 flex flex-col justify-center">
+                <input
+                    type="number"
+                    value={min}
+                    onChange={(e) => update(e.target.value, sec)}
+                    placeholder={placeholder || "0"}
+                    className="w-full bg-transparent font-black text-lg text-gray-900 dark:text-white focus:outline-none text-center appearance-none p-4"
+                />
+                 <span className="text-[9px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider text-center -mt-2 pb-2">min</span>
+             </div>
+             <span className="text-gray-300 dark:text-gray-600 font-black text-2xl pb-4">:</span>
+             <div className="flex-1 flex flex-col justify-center">
+                <input
+                    type="number"
+                    value={sec}
+                    onChange={(e) => update(min, e.target.value)}
+                    placeholder="00"
+                    className="w-full bg-transparent font-black text-lg text-gray-900 dark:text-white focus:outline-none text-center appearance-none p-4"
+                />
+                 <span className="text-[9px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider text-center -mt-2 pb-2">sek</span>
+             </div>
+        </div>
+    );
+};
+
 // --- DIPLOMA TITLES ---
 const DIPLOMA_TITLES = [
     "SNYGGT JOBBAT!",
@@ -361,7 +430,7 @@ const CustomActivityForm: React.FC<{
                 )}
                 <div className={`mt-4 space-y-5 ${isQuickMode ? 'mt-0' : 'mt-8'}`}>
                     <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Aktivitet *</label><input value={activityName} onChange={(e) => onUpdate('name', e.target.value)} placeholder="T.ex. Powerwalk" disabled={isQuickMode} className={`w-full text-xl font-black text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 ${isQuickMode ? 'opacity-70' : ''}`} /></div>
-                    <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Tid (min) *</label><input type="number" value={duration} onChange={(e) => onUpdate('duration', e.target.value)} placeholder="T.ex. 60" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
+                    <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Tid *</label><TimeInput value={duration} onChange={(val) => onUpdate('duration', val)} placeholder="60" className="w-full" /></div>
                     <div className="grid grid-cols-2 gap-4">
                         <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Kcal</label><input type="number" value={calories} onChange={(e) => onUpdate('calories', e.target.value)} placeholder="T.ex. 350" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
                         <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Distans (km)</label><input type="number" value={distance} onChange={(e) => onUpdate('distance', e.target.value)} placeholder="T.ex. 5.3" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
@@ -740,7 +809,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
           if (isQuickOrManual) {
               finalLogRaw.activityType = isManualMode ? 'custom_activity' : 'gym_workout';
-              finalLogRaw.durationMinutes = parseInt(customActivity.duration) || 0;
+              finalLogRaw.durationMinutes = parseFloat(customActivity.duration) || 0;
               finalLogRaw.totalDistance = parseFloat(customActivity.distance) || 0;
               finalLogRaw.totalCalories = parseInt(customActivity.calories) || 0;
               
@@ -750,7 +819,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               setShowCelebration(true);
           } else {
               // Standard Workout Logic
-              finalLogRaw.durationMinutes = parseInt(sessionStats.time) || 0;
+              finalLogRaw.durationMinutes = parseFloat(sessionStats.time) || 0;
               finalLogRaw.totalDistance = parseFloat(sessionStats.distance) || 0;
               finalLogRaw.totalCalories = parseInt(sessionStats.calories) || 0;
               
@@ -994,12 +1063,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                         <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'time')}</span>
                                     )}
                                 </label>
-                                <input 
-                                    type="number"
+                                <TimeInput
                                     value={sessionStats.time}
-                                    onChange={(e) => setSessionStats(prev => ({ ...prev, time: e.target.value }))}
-                                    placeholder={benchmarkDefinition?.type === 'time' ? "T.ex. 45" : "-"}
-                                    className={`w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border transition-colors ${benchmarkDefinition?.type === 'time' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}
+                                    onChange={(val) => setSessionStats(prev => ({ ...prev, time: val }))}
+                                    placeholder={benchmarkDefinition?.type === 'time' ? "45" : "-"}
+                                    className="w-full"
                                 />
                             </div>
                             <div>
