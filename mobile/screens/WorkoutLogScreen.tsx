@@ -300,12 +300,12 @@ const ExerciseLogCard: React.FC<{
   result: LocalExerciseResult;
   onUpdate: (updates: Partial<LocalExerciseResult>) => void;
   aiSuggestion?: string;
-  lastPerformance?: { weight: number, reps: string } | null;
+  lastPerformance?: { reps: string, weight: number } | null;
 }> = ({ name, result, onUpdate, aiSuggestion, lastPerformance }) => {
     
     const calculate1RM = (weight: string, reps: string) => {
-        const r = parseFloat(reps);
         const w = parseFloat(weight);
+        const r = parseFloat(reps);
         if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0) {
             if (r === 1) return Math.round(w);
             const oneRm = w * (1 + r / 30);
