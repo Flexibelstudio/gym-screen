@@ -106,12 +106,13 @@ const getBlockTimeLabel = (block: WorkoutBlock): string => {
 
 // --- Visualization Components ---
 
-const NextRestPreview: React.FC<{ transitionTime: number; isCompact?: boolean }> = ({ transitionTime, isCompact = false }) => {
+const NextRestPreview: React.FC<{ transitionTime: number; style?: React.CSSProperties }> = ({ transitionTime, style }) => {
     return (
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className={`${isCompact ? 'flex-1' : 'flex-1'} flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[3rem] border-2 border-gray-100 dark:border-white/10 shadow-2xl p-10 justify-center text-center`}
+            className={`w-full flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[3rem] border-2 border-gray-100 dark:border-white/10 shadow-2xl p-10 justify-center text-center`}
+            style={style}
         >
             <div className="flex flex-col items-center gap-4 mb-6">
                 <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20">
@@ -164,7 +165,7 @@ const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock
     );
 };
 
-const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; flexClassName?: string }> = ({ block, label = "HÄRNÄST", flexClassName = "flex-1" }) => {
+const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; style?: React.CSSProperties }> = ({ block, label = "HÄRNÄST", style }) => {
     const timeLabel = getBlockTimeLabel(block);
     const accentColor = getTagHexColor(block.tag);
     const hasManyExercises = block.exercises.length > 5;
@@ -173,21 +174,22 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; flexClas
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className={`${flexClassName} flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[3rem] border-2 border-gray-100 dark:border-white/10 overflow-hidden shadow-2xl min-h-0`}
+            className={`w-full flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[3rem] border-2 border-gray-100 dark:border-white/10 overflow-hidden shadow-2xl min-h-0`}
+            style={style}
         >
-            <div className="p-8 bg-gray-50/50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5 flex-shrink-0">
-                <div className="flex items-center gap-4 mb-3">
+            <div className="p-6 bg-gray-50/50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5 flex-shrink-0">
+                <div className="flex items-center gap-4 mb-2">
                     <div className="bg-primary/10 p-2 rounded-xl border border-primary/20">
-                        <ChevronRightIcon className="w-6 h-6 text-primary" />
+                        <ChevronRightIcon className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                        <span className="block text-xs font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.4em] mb-1">{label}</span>
-                        <h4 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter line-clamp-1 leading-none">{block.title}</h4>
+                        <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.4em] mb-0.5">{label}</span>
+                        <h4 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter line-clamp-1 leading-none">{block.title}</h4>
                     </div>
                 </div>
                 
-                <div className="flex items-center gap-3 text-gray-400 dark:text-white/40 text-[12px] font-black uppercase tracking-[0.2em] mb-3">
-                    <span className="bg-gray-200 dark:bg-white/10 px-3 py-1 rounded-lg">{block.settings.mode}</span>
+                <div className="flex items-center gap-3 text-gray-400 dark:text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-1">
+                    <span className="bg-gray-200 dark:bg-white/10 px-2 py-0.5 rounded-lg">{block.settings.mode}</span>
                     {timeLabel && (
                         <>
                             <span className="opacity-30">•</span>
@@ -197,39 +199,35 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; flexClas
                 </div>
 
                 {block.setupDescription && (
-                    <p className="text-xl font-bold text-gray-700 dark:text-gray-200 leading-tight border-t border-gray-200 dark:border-white/10 pt-4 mt-2 whitespace-normal">
+                    <p className="text-sm font-bold text-gray-700 dark:text-gray-200 leading-tight border-t border-gray-200 dark:border-white/10 pt-2 mt-2 whitespace-normal line-clamp-2">
                         {block.setupDescription}
                     </p>
                 )}
             </div>
-            <div className="flex-grow flex flex-col overflow-y-auto p-4 custom-scrollbar gap-4">
+            <div className="flex-grow flex flex-col overflow-hidden p-4 gap-2">
                 {block.exercises.map((ex) => {
                     const nameLen = ex.name.length;
-                    let nameSize = 'text-3xl';
-                    if (nameLen > 35) nameSize = 'text-xl';
-                    else if (nameLen > 20) nameSize = 'text-2xl';
+                    // Auto-scale text based on length and number of items (rough heuristic)
+                    let nameSize = 'text-2xl';
+                    if (hasManyExercises) nameSize = 'text-lg';
+                    else if (nameLen > 25) nameSize = 'text-xl';
                     
                     return (
                         <div 
                             key={ex.id} 
-                            className={`flex-1 min-h-[100px] flex flex-col justify-center gap-2 bg-gray-50/80 dark:bg-white/5 rounded-[2.2rem] p-6 border border-gray-100 dark:border-white/5 border-l-[12px] shadow-sm transition-transform active:scale-[0.98]`}
+                            className={`flex-1 min-h-0 flex flex-col justify-center gap-1 bg-gray-50/80 dark:bg-white/5 rounded-2xl px-4 py-2 border border-gray-100 dark:border-white/5 border-l-[8px] shadow-sm transition-transform active:scale-[0.98]`}
                             style={{ borderLeftColor: accentColor }}
                         >
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-3">
                                 {ex.reps && (
-                                    <span className="text-lg font-black text-primary bg-primary/10 px-4 py-1.5 rounded-xl border border-primary/10 whitespace-nowrap shrink-0 font-mono">
+                                    <span className="text-sm font-black text-primary bg-primary/10 px-2 py-0.5 rounded-lg border border-primary/10 whitespace-nowrap shrink-0 font-mono">
                                         {formatReps(ex.reps)}
                                     </span>
                                 )}
-                                <p className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight whitespace-normal ${nameSize}`}>
+                                <p className={`font-black text-gray-900 dark:text-white leading-none tracking-tight whitespace-normal ${nameSize} line-clamp-2`}>
                                     {ex.name}
                                 </p>
                             </div>
-                            {ex.description && !hasManyExercises && (
-                                <p className="text-gray-500 dark:text-gray-400 font-medium text-lg leading-snug line-clamp-2 pl-1">
-                                    {ex.description}
-                                </p>
-                            )}
                         </div>
                     );
                 })}
@@ -967,6 +965,12 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const showSplitView = upcomingBlocks.length > 0 && block.autoAdvance;
 
   const isRestNext = block.autoAdvance && (block.transitionTime || 0) > 0 && status !== TimerStatus.Resting;
+  
+  // --- VIKTAD HÖJDFÖRDELNING ---
+  const getBlockWeight = (block: WorkoutBlock) => {
+    // 2 poäng för header/titel, 1 poäng per övning
+    return 2 + block.exercises.length;
+  };
 
   const handleInteraction = () => { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); restartHideTimer(); };
   const restartHideTimer = React.useCallback(() => {
@@ -1191,42 +1195,86 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                             </div>
                         </div>
 
-                        {/* UPCOMING BLOCKS STACK (33% width) */}
+                        {/* UPCOMING BLOCKS STACK (33% width) - DYNAMIC HEIGHT */}
                         {showSplitView ? (
                             <div className="w-1/3 h-full flex flex-col gap-4 pb-1">
                                 {isTransitioning ? (
-                                    // Under vila: Visa kommande block C och D i sidobaren
-                                    <>
-                                        {upcomingBlocks[1] && <NextBlockPreview block={upcomingBlocks[1]} label="HÄRNÄST" flexClassName="flex-1" />}
-                                        {upcomingBlocks[2] && <NextBlockPreview block={upcomingBlocks[2]} label="DÄREFTER" flexClassName="flex-1" />}
-                                    </>
+                                    // Under vila: Visa kommande block C och D
+                                    // Beräkna vikter för blocken
+                                    (() => {
+                                        const block1 = upcomingBlocks[1];
+                                        const block2 = upcomingBlocks[2];
+                                        const w1 = block1 ? getBlockWeight(block1) : 0;
+                                        const w2 = block2 ? getBlockWeight(block2) : 0;
+                                        
+                                        return (
+                                            <>
+                                                {block1 && (
+                                                    <NextBlockPreview 
+                                                        block={block1} 
+                                                        label="HÄRNÄST" 
+                                                        style={{ flexGrow: w1 }}
+                                                    />
+                                                )}
+                                                {block2 && (
+                                                    <NextBlockPreview 
+                                                        block={block2} 
+                                                        label="DÄREFTER" 
+                                                        style={{ flexGrow: w2 }} 
+                                                    />
+                                                )}
+                                            </>
+                                        );
+                                    })()
                                 ) : isRestNext ? (
                                     // Under träning med vila efter: Visa vila och Block B
-                                    <>
-                                        <NextRestPreview 
-                                            transitionTime={block.transitionTime || 0} 
-                                            isCompact={!!upcomingBlocks[0]}
-                                        />
-                                        {upcomingBlocks[0] && (
-                                            <NextBlockPreview 
-                                                block={upcomingBlocks[0]} 
-                                                label="DÄREFTER" 
-                                                flexClassName="flex-1"
-                                            />
-                                        )}
-                                    </>
+                                    // Vila får fast vikt (typ 4), Block B får dynamisk
+                                    (() => {
+                                        const blockAfter = upcomingBlocks[0];
+                                        const restWeight = 4; // Arbitrary weight for rest card
+                                        const blockWeight = blockAfter ? getBlockWeight(blockAfter) : 0;
+                                        
+                                        return (
+                                            <>
+                                                <NextRestPreview 
+                                                    transitionTime={block.transitionTime || 0} 
+                                                    style={{ flexGrow: restWeight }}
+                                                />
+                                                {blockAfter && (
+                                                    <NextBlockPreview 
+                                                        block={blockAfter} 
+                                                        label="DÄREFTER" 
+                                                        style={{ flexGrow: blockWeight }}
+                                                    />
+                                                )}
+                                            </>
+                                        );
+                                    })()
                                 ) : (
                                     // Under träning utan vila: Visa Block B och C
-                                    <>
-                                        <NextBlockPreview block={nextBlock!} label="HÄRNÄST" flexClassName="flex-1" />
-                                        {upcomingBlocks[1] && (
-                                            <NextBlockPreview 
-                                                block={upcomingBlocks[1]} 
-                                                label="DÄREFTER" 
-                                                flexClassName="flex-1"
-                                            />
-                                        )}
-                                    </>
+                                    (() => {
+                                        const block1 = nextBlock!;
+                                        const block2 = upcomingBlocks[1];
+                                        const w1 = getBlockWeight(block1);
+                                        const w2 = block2 ? getBlockWeight(block2) : 0;
+                                        
+                                        return (
+                                            <>
+                                                <NextBlockPreview 
+                                                    block={block1} 
+                                                    label="HÄRNÄST" 
+                                                    style={{ flexGrow: w1 }} 
+                                                />
+                                                {block2 && (
+                                                    <NextBlockPreview 
+                                                        block={block2} 
+                                                        label="DÄREFTER" 
+                                                        style={{ flexGrow: w2 }} 
+                                                    />
+                                                )}
+                                            </>
+                                        );
+                                    })()
                                 )}
                             </div>
                         ) : null}
