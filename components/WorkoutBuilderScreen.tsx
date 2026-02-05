@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, StudioConfig, UserRole, BankExercise, WorkoutLogType, Organization, BenchmarkDefinition } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
-import { getExerciseBank, deleteImageByUrl, saveAdminActivity, updateOrganizationBenchmarks } from '../services/firebaseService';
+import { getExerciseBank, getOrganizationExerciseBank, deleteImageByUrl, saveAdminActivity, updateOrganizationBenchmarks } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
 import { useAuth } from '../context/AuthContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
@@ -138,9 +138,10 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
 
   useEffect(() => {
     const fetchBank = async () => {
+        if (!selectedOrganization) return;
         setIsBankLoading(true);
         try {
-            const bank = await getExerciseBank();
+            const bank = await getOrganizationExerciseBank(selectedOrganization.id);
             setExerciseBank(bank);
         } catch (error) {
             console.error("Failed to fetch exercise bank:", error);
@@ -149,7 +150,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
         }
     };
     fetchBank();
-  }, []);
+  }, [selectedOrganization]);
 
   const isDirty = useMemo(() => {
     if (isNewDraft && initialWorkout) {

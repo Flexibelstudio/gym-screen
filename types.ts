@@ -508,3 +508,17 @@ export interface MenuItem {
 }
 
 export type RepRange = string;
+export type DisplayPost = {
+  id: string;
+  internalTitle: string;
+  headline?: string;
+  body?: string;
+  layout: 'text-only' | 'image-fullscreen' | 'video-fullscreen' | 'image-left';
+  imageUrl?: string;
+  videoUrl?: string;
+  durationSeconds: number;
+  visibleInStudios: string[]; // 'all' or specific studio IDs
+  startDate?: string; // ISO string
+  endDate?: string; // ISO string
+  disableOverlay?: boolean;
+}

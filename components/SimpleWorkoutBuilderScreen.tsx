@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise } from '../types';
 import { ToggleSwitch, PencilIcon, ChartBarIcon, SparklesIcon, ChevronUpIcon, ChevronDownIcon, TrashIcon } from './icons';
 import { TimerSetupModal } from './TimerSetupModal';
-import { getExerciseBank } from '../services/firebaseService';
+import { getExerciseBank, getOrganizationExerciseBank } from '../services/firebaseService';
 import { interpretHandwriting, generateExerciseDescription } from '../services/geminiService';
 import { useStudio } from '../context/StudioContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
@@ -431,8 +431,9 @@ interface BlockCardProps {
     onEditSettings: () => void;
     onOpenHandwriting: (cb: (text: string) => void) => void;
     exerciseBank: BankExercise[];
+    organizationId: string;
 }
-const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpdate, onRemove, onEditSettings, onOpenHandwriting, exerciseBank }) => {
+const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpdate, onRemove, onEditSettings, onOpenHandwriting, exerciseBank, organizationId }) => {
     const handleFieldChange = (field: keyof WorkoutBlock, value: any) => {
         const updated = { ...block, [field]: value };
         if (field === 'title' && typeof value === 'string') {
@@ -558,7 +559,7 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
                         onUpdate={(id, vals) => onUpdate({ ...block, exercises: block.exercises.map(e => e.id === id ? { ...e, ...vals } : e) })} 
                         onRemove={id => onUpdate({ ...block, exercises: block.exercises.filter(e => e.id !== id) })} 
                         onOpenHandwriting={() => onOpenHandwriting(t => { const p = parseExerciseLine(t); onUpdate({ ...block, exercises: block.exercises.map(e => e.id === ex.id ? { ...e, name: p.name, reps: p.reps } : e) }) })} 
-                        exerciseBank={exerciseBank} index={i} total={block.exercises.length} onMove={dir => moveEx(i, dir)} organizationId=""
+                        exerciseBank={exerciseBank} index={i} total={block.exercises.length} onMove={dir => moveEx(i, dir)} organizationId={organizationId}
                     />
                 ))}
                 <button 
@@ -580,7 +581,11 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
     const [handwritingCb, setHandwritingCb] = useState<((t: string) => void) | null>(null);
     const [exerciseBank, setExerciseBank] = useState<BankExercise[]>([]);
 
-    useEffect(() => { getExerciseBank().then(setExerciseBank); }, []);
+    useEffect(() => { 
+        if (selectedOrganization) {
+            getOrganizationExerciseBank(selectedOrganization.id).then(setExerciseBank); 
+        }
+    }, [selectedOrganization]);
 
     const handleSave = () => {
         if (!workout.title.trim()) { alert("Passet måste ha ett namn."); return; }
@@ -667,7 +672,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                                 onEditSettings={() => setEditingBlockId(block.id)} 
                                 onOpenHandwriting={(cb) => setHandwritingCb(() => cb)} 
                                 exerciseBank={exerciseBank} 
-                                organizationId=""
+                                organizationId={selectedOrganization?.id || ''}
                             />
                         ))}
                     </div>

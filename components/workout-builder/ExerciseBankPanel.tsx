@@ -2,7 +2,8 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { BankExercise, Exercise, Organization } from '../../types';
 import { useStudio } from '../../context/StudioContext';
-import { DumbbellIcon } from '../icons';
+import { DumbbellIcon, TrashIcon } from '../icons';
+import { deleteExerciseFromBank } from '../../services/firebaseService';
 
 interface ExerciseBankPanelProps {
     bank: BankExercise[];
@@ -14,16 +15,30 @@ interface ExerciseBankPanelProps {
 export const ExerciseBankPanel: React.FC<ExerciseBankPanelProps> = ({ bank, onAddExercise, onPreviewExercise, isLoading }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const { selectedOrganization } = useStudio();
+    const [localBank, setLocalBank] = useState(bank);
+    
+    // Sync local bank when prop changes
+    React.useEffect(() => {
+        setLocalBank(bank);
+    }, [bank]);
+
+    const handleDeleteCustom = async (e: React.MouseEvent, exercise: BankExercise) => {
+        e.stopPropagation();
+        if (window.confirm(`Vill du ta bort "${exercise.name}" från din lokala övningsbank?`)) {
+            await deleteExerciseFromBank(exercise.id);
+            setLocalBank(prev => prev.filter(ex => ex.id !== exercise.id));
+        }
+    };
 
     const filteredBank = useMemo(() => {
-        if (!searchTerm) return bank;
+        if (!searchTerm) return localBank;
         const lowerCaseSearchTerm = searchTerm.toLowerCase();
-        return bank.filter(ex => 
+        return localBank.filter(ex => 
             ex.name.toLowerCase().includes(lowerCaseSearchTerm) ||
             (ex.description && ex.description.toLowerCase().includes(lowerCaseSearchTerm)) ||
             (ex.tags && ex.tags.some(tag => tag.toLowerCase().includes(lowerCaseSearchTerm)))
         );
-    }, [bank, searchTerm]);
+    }, [localBank, searchTerm]);
 
     return (
         <div className="bg-slate-100 dark:bg-gray-800 rounded-lg p-4 border border-slate-200 dark:border-gray-700 flex flex-col max-h-[60vh]">
@@ -42,8 +57,10 @@ export const ExerciseBankPanel: React.FC<ExerciseBankPanelProps> = ({ bank, onAd
                     <p className="text-center text-gray-500">Laddar banken...</p>
                 ) : (
                     filteredBank.map(ex => {
+                        const isCustom = ex.organizationId || ex.id.startsWith('custom_');
+
                         return (
-                            <div key={ex.id} className="bg-white dark:bg-gray-900/70 rounded-md p-2 flex items-center gap-3">
+                            <div key={ex.id} className="bg-white dark:bg-gray-900/70 rounded-md p-2 flex items-center gap-3 relative group">
                                 <div 
                                     className="flex-grow min-w-0 flex items-center gap-3 cursor-pointer"
                                     onClick={() => onPreviewExercise(ex)}
@@ -51,10 +68,28 @@ export const ExerciseBankPanel: React.FC<ExerciseBankPanelProps> = ({ bank, onAd
                                     aria-label={`Förhandsgranska ${ex.name}`}
                                 >
                                     <div className="flex-grow min-w-0">
-                                        <p className="font-semibold text-gray-900 dark:text-white truncate">{ex.name}</p>
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-semibold text-gray-900 dark:text-white truncate">{ex.name}</p>
+                                            {isCustom && (
+                                                <span className="text-[9px] font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 uppercase tracking-wide">
+                                                    Egen
+                                                </span>
+                                            )}
+                                        </div>
                                         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{ex.description}</p>
                                     </div>
                                 </div>
+                                
+                                {isCustom && (
+                                    <button
+                                        onClick={(e) => handleDeleteCustom(e, ex)}
+                                        className="p-2 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                                        title="Ta bort egen övning"
+                                    >
+                                        <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                )}
+
                                 <button 
                                     onClick={() => onAddExercise(ex)} 
                                     className="bg-primary/20 hover:bg-primary/40 text-primary font-bold w-10 h-10 flex items-center justify-center rounded-full transition-colors flex-shrink-0"
