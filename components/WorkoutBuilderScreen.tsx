@@ -143,6 +143,32 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
         try {
             const bank = await getOrganizationExerciseBank(selectedOrganization.id);
             setExerciseBank(bank);
+            
+            // CLEANUP: Check if current workout exercises exist in bank. 
+            // If marked as bank exercise but ID not found, downgrade to Ad-hoc.
+            setWorkout(prev => {
+                const bankIds = new Set(bank.map(b => b.id));
+                let hasChanges = false;
+
+                const newBlocks = prev.blocks.map(block => {
+                    const newExercises = block.exercises.map(ex => {
+                        if (ex.isFromBank && !bankIds.has(ex.id)) {
+                            hasChanges = true;
+                            // Downgrade to Ad-hoc: Keep name/reps but remove bank link & logging
+                            return { ...ex, isFromBank: false, loggingEnabled: false };
+                        }
+                        return ex;
+                    });
+                    
+                    return { ...block, exercises: newExercises };
+                });
+
+                if (hasChanges) {
+                    return { ...prev, blocks: newBlocks };
+                }
+                return prev;
+            });
+
         } catch (error) {
             console.error("Failed to fetch exercise bank:", error);
         } finally {
@@ -347,6 +373,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
         imageUrl: bankExercise.imageUrl || '',
         reps: '', 
         isFromBank: true,
+        loggingEnabled: true // Default true för bankövningar
     };
 
     setWorkout(prev => ({

@@ -694,6 +694,7 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
 
     // 1. Get combined banks
     const combinedBank = await getOrganizationExerciseBank(orgId);
+    const bankMap = new Map(combinedBank.map(b => [b.id, b])); // Create Map for O(1) lookup
     const newlyCreatedCache: Record<string, BankExercise> = {};
 
     // 2. Helper for matching
@@ -717,9 +718,31 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
     // 3. Process blocks
     const resolvedBlocks = await Promise.all(workout.blocks.map(async (block) => {
         const resolvedExercises = await Promise.all(block.exercises.map(async (ex) => {
-            // If it already has a bank ID (isFromBank), skip logic
-            if (ex.isFromBank && (ex.id.startsWith('bank_') || ex.id.startsWith('custom_'))) return ex;
+            // Case 1: It claims to be from the bank
+            if (ex.isFromBank) {
+                // If it claims to be from bank, we MUST verify the ID exists.
+                // If it doesn't exist (deleted), we downgrade it to ad-hoc.
+                if (bankMap.has(ex.id)) {
+                    // Valid link. Optionally sync details? 
+                    const bankEx = bankMap.get(ex.id);
+                    return {
+                        ...ex,
+                        imageUrl: bankEx?.imageUrl || ex.imageUrl, // Sync image
+                        description: bankEx?.description || ex.description, // Optional: Sync desc
+                        loggingEnabled: true // Ensure logging is enabled for valid bank items
+                    };
+                } else {
+                    // INVALID LINK (Deleted from bank). Downgrade to Ad-hoc.
+                    return {
+                        ...ex,
+                        isFromBank: false,
+                        loggingEnabled: false,
+                        // Keep existing name/reps/desc as they are in the workout
+                    };
+                }
+            }
 
+            // Case 2: Ad-hoc (Try to match by name or create new)
             const match = findMatch(ex.name);
 
             if (match) {
@@ -730,7 +753,7 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
                     description: ex.description || match.description, 
                     imageUrl: match.imageUrl || ex.imageUrl,
                     isFromBank: true,
-                    // If it matches a custom exercise, ensure we pass that info if needed, though id prefix handles it
+                    loggingEnabled: true
                 };
             }
 
@@ -753,6 +776,7 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
                     id: cached.id, 
                     originalBankId: cached.id,
                     isFromBank: true, 
+                    loggingEnabled: true
                 };
             }
 
@@ -776,7 +800,8 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
                 ...ex,
                 id: newId,
                 originalBankId: newId,
-                isFromBank: true
+                isFromBank: true,
+                loggingEnabled: true
             };
         }));
 
