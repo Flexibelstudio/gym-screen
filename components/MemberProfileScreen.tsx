@@ -137,27 +137,30 @@ const BenchmarksView: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefin
             // Find all logs that match this benchmark ID
             const relevantLogs = logs.filter(l => l.benchmarkId === def.id && l.benchmarkValue !== undefined);
             
-            if (relevantLogs.length === 0) return { def, pb: null, attempts: 0 };
+            if (relevantLogs.length === 0) return { def, pb: null, attempts: 0, lastDate: 0 };
 
             // Sort based on type to find PB
             const sortedLogs = [...relevantLogs].sort((a, b) => {
                 if (def.type === 'time') return (a.benchmarkValue || 0) - (b.benchmarkValue || 0); // Lower time is better
                 return (b.benchmarkValue || 0) - (a.benchmarkValue || 0); // Higher reps/weight is better
             });
+            
+            // Find latest date for sorting the list
+            const lastDate = Math.max(...relevantLogs.map(l => l.date));
 
             return {
                 def,
                 pb: sortedLogs[0],
-                attempts: relevantLogs.length
+                attempts: relevantLogs.length,
+                lastDate
             };
         });
 
-        // Sort: Completed (has PB) first, then unattempted
-        return mapped.sort((a, b) => {
-            if (a.pb && !b.pb) return -1;
-            if (!a.pb && b.pb) return 1;
-            return a.def.title.localeCompare(b.def.title); // Fallback alphabetical
-        });
+        // Filter out benchmarks that have never been attempted
+        const attemptedBenchmarks = mapped.filter(item => item.pb !== null);
+
+        // Sort: Most recently attempted/completed first
+        return attemptedBenchmarks.sort((a, b) => b.lastDate - a.lastDate);
 
     }, [logs, definitions]);
 
@@ -177,10 +180,10 @@ const BenchmarksView: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefin
         return '';
     };
 
-    if (definitions.length === 0) {
+    if (sortedBenchmarks.length === 0) {
         return (
             <div className="p-12 text-center bg-white dark:bg-gray-900 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800 animate-fade-in">
-                <p className="text-gray-400 text-sm">Gymmet har inte lagt upp några benchmarks än.</p>
+                <p className="text-gray-400 text-sm">Här visas dina resultat när du kört ett benchmark-pass.</p>
             </div>
         );
     }
@@ -191,47 +194,28 @@ const BenchmarksView: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefin
                 {sortedBenchmarks.map(({ def, pb, attempts }) => (
                     <div 
                         key={def.id} 
-                        className={`relative overflow-hidden rounded-3xl p-6 transition-all ${
-                            pb 
-                            ? 'bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-gray-800 dark:to-gray-900 border-2 border-yellow-400/30 dark:border-yellow-500/20' 
-                            : 'bg-white dark:bg-gray-900 border-2 border-dashed border-gray-200 dark:border-gray-800 hover:border-primary/30'
-                        }`}
+                        className={`relative overflow-hidden rounded-3xl p-6 transition-all bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-gray-800 dark:to-gray-900 border-2 border-yellow-400/30 dark:border-yellow-500/20`}
                     >
-                        {pb && <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-400/10 rounded-full blur-3xl -mr-6 -mt-6"></div>}
+                        <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-400/10 rounded-full blur-3xl -mr-6 -mt-6"></div>
                         
                         <div className="relative z-10">
                             <div className="flex justify-between items-start mb-4">
-                                <h4 className={`font-bold truncate pr-2 text-lg ${pb ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}>
+                                <h4 className="font-bold truncate pr-2 text-lg text-gray-900 dark:text-white">
                                     {def.title}
                                 </h4>
-                                {pb ? (
-                                    <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-1 rounded-lg">
-                                        <TrophyIcon className="w-4 h-4" />
-                                    </div>
-                                ) : (
-                                    <div className="bg-gray-100 dark:bg-gray-800 text-gray-400 px-2 py-1 rounded-lg">
-                                        <DumbbellIcon className="w-4 h-4" />
-                                    </div>
-                                )}
+                                <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-1 rounded-lg">
+                                    <TrophyIcon className="w-4 h-4" />
+                                </div>
                             </div>
                             
-                            {pb ? (
-                                <div>
-                                    <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">
-                                        {formatResult(pb.benchmarkValue!, def.type)} <span className="text-sm text-gray-500 font-bold">{getUnit(def.type)}</span>
-                                    </p>
-                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2 uppercase tracking-wider font-bold">
-                                        {new Date(pb.date).toLocaleDateString('sv-SE')} • {attempts} försök
-                                    </p>
-                                </div>
-                            ) : (
-                                <div className="py-1">
-                                    <p className="text-sm text-gray-400 mb-3">Mätvärde: {def.type === 'time' ? 'Tid' : def.type === 'reps' ? 'Varv/Reps' : 'Vikt'}</p>
-                                    <span className="inline-block bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg">
-                                        Ej genomfört
-                                    </span>
-                                </div>
-                            )}
+                            <div>
+                                <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">
+                                    {formatResult(pb!.benchmarkValue!, def.type)} <span className="text-sm text-gray-500 font-bold">{getUnit(def.type)}</span>
+                                </p>
+                                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2 uppercase tracking-wider font-bold">
+                                    {new Date(pb!.date).toLocaleDateString('sv-SE')} • {attempts} försök
+                                </p>
+                            </div>
                         </div>
                     </div>
                 ))}
