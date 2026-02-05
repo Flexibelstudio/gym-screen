@@ -111,20 +111,20 @@ const NextRestPreview: React.FC<{ transitionTime: number; style?: React.CSSPrope
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className={`w-full flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[3rem] border-2 border-gray-100 dark:border-white/10 shadow-2xl p-10 justify-center text-center`}
+            className={`w-full flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[3rem] border-2 border-gray-100 dark:border-white/10 shadow-2xl p-6 justify-center text-center`}
             style={style}
         >
-            <div className="flex flex-col items-center gap-4 mb-6">
-                <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20">
-                    <ClockIcon className="w-10 h-10 text-primary" />
+            <div className="flex flex-col items-center gap-4 mb-4">
+                <div className="bg-primary/10 p-3 rounded-2xl border border-primary/20">
+                    <ClockIcon className="w-8 h-8 text-primary" />
                 </div>
                 <div>
-                    <span className="block text-sm font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.4em] mb-2">HÄRNÄST</span>
-                    <h4 className="text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-none">VILA</h4>
+                    <span className="block text-xs font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.4em] mb-1">HÄRNÄST</span>
+                    <h4 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-none">VILA</h4>
                 </div>
             </div>
             
-            <div className="text-[10rem] font-mono font-black text-primary dark:text-primary tabular-nums drop-shadow-xl leading-none">
+            <div className="text-7xl sm:text-8xl font-mono font-black text-primary dark:text-primary tabular-nums drop-shadow-xl leading-none">
                 {formatSeconds(transitionTime)}
             </div>
         </motion.div>
@@ -1228,10 +1228,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                     })()
                                 ) : isRestNext ? (
                                     // Under träning med vila efter: Visa vila och Block B
-                                    // Vila får fast vikt (typ 4), Block B får dynamisk
+                                    // Vila får fast vikt (typ 2), Block B får dynamisk
                                     (() => {
                                         const blockAfter = upcomingBlocks[0];
-                                        const restWeight = 4; // Arbitrary weight for rest card
+                                        const restWeight = 2; // Reduced weight for rest card to make it smaller
                                         const blockWeight = blockAfter ? getBlockWeight(blockAfter) : 0;
                                         
                                         return (
