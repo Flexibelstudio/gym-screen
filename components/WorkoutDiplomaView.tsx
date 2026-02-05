@@ -129,7 +129,7 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                             {/* PB-LISTA */}
                             {pbCount > 0 && (
                                 <div className="space-y-2 mb-3">
-                                    <p className="text-[8px] font-black uppercase tracking-[0.2em] text-primary text-center mb-2 opacity-80">Nya PB satta 🏆</p>
+                                    <p className="text-sm font-black uppercase tracking-[0.2em] text-primary text-center mb-3">Nya PB satta 🏆</p>
                                     <div className="space-y-1">
                                         {diploma.newPBs?.map((pb, i) => (
                                             <div key={i} className="flex justify-between items-center text-xs font-bold text-gray-900 dark:text-white bg-white dark:bg-black/40 px-4 py-2.5 rounded-2xl border border-gray-50 dark:border-white/5 shadow-sm">
