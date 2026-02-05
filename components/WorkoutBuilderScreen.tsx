@@ -200,6 +200,13 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
       }
   }, [exerciseBank]);
 
+  const handleExerciseSavedToBank = useCallback((newExercise: BankExercise) => {
+      setExerciseBank(prev => {
+          // Check if already exists to avoid duplicates
+          if (prev.some(ex => ex.id === newExercise.id)) return prev;
+          return [...prev, newExercise].sort((a, b) => a.name.localeCompare(b.name, 'sv'));
+      });
+  }, []);
 
   const isDirty = useMemo(() => {
     if (isNewDraft && initialWorkout) {
@@ -548,6 +555,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                           organizationId={selectedOrganization?.id || ''}
                           onMoveExercise={(idx, direction) => handleMoveExercise(block.id, idx, direction)}
                           onMoveBlock={(direction) => handleMoveBlock(block.id, direction)}
+                          onExerciseSavedToBank={handleExerciseSavedToBank}
                         />
                     </div>
                   )

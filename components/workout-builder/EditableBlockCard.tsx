@@ -17,9 +17,10 @@ interface ExerciseItemProps {
     total: number;
     onMove: (direction: 'up' | 'down') => void;
     organizationId: string;
+    onExerciseSavedToBank?: (exercise: BankExercise) => void;
 }
 
-const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, organizationId }) => {
+const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, organizationId, onExerciseSavedToBank }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -137,6 +138,9 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         // 3. Spara till Firestore
         try {
             await saveExerciseToBank(newBankExercise);
+            if (onExerciseSavedToBank) {
+                onExerciseSavedToBank(newBankExercise);
+            }
         } catch (e) {
             console.error("Failed to save custom exercise", e);
             alert("Kunde inte spara övningen till banken.");
@@ -308,12 +312,13 @@ interface EditableBlockCardProps {
     organizationId: string;
     onMoveExercise: (index: number, direction: 'up' | 'down') => void;
     onMoveBlock: (direction: 'up' | 'down') => void;
+    onExerciseSavedToBank?: (exercise: BankExercise) => void;
 }
 
 export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({ 
     block, index, totalBlocks, onUpdate, onRemove, onEditSettings, 
     isDraggable, workoutTitle, workoutBlocksCount, editorRefs, exerciseBank, 
-    organizationId, onMoveExercise, onMoveBlock 
+    organizationId, onMoveExercise, onMoveBlock, onExerciseSavedToBank 
 }) => {
     const [isExpanded, setIsExpanded] = useState(true);
     
@@ -552,6 +557,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                                         total={block.exercises.length}
                                         onMove={(direction) => onMoveExercise(i, direction)}
                                         organizationId={organizationId}
+                                        onExerciseSavedToBank={onExerciseSavedToBank}
                                     />
                                 ))
                             )}
