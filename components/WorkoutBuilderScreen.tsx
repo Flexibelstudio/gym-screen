@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, StudioConfig, UserRole, BankExercise, WorkoutLogType, Organization, BenchmarkDefinition } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
-import { getExerciseBank, getOrganizationExerciseBank, deleteImageByUrl, saveAdminActivity, updateOrganizationBenchmarks } from '../services/firebaseService';
+import { getExerciseBank, getOrganizationExerciseBank, deleteImageByUrl, saveAdminActivity, updateOrganizationBenchmarks, deleteExerciseFromBank } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
 import { useAuth } from '../context/AuthContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
@@ -42,6 +42,34 @@ const createNewBlock = (): WorkoutBlock => ({
   },
   exercises: [],
 });
+
+// Helper to sanitize workout (remove deleted bank links)
+const sanitizeWorkoutWithBank = (currentWorkout: Workout, currentBank: BankExercise[]): Workout => {
+    const bankIds = new Set(currentBank.map(b => b.id));
+    let hasChanges = false;
+    
+    const newBlocks = currentWorkout.blocks.map(block => {
+        const newExercises = block.exercises.map(ex => {
+            if (ex.isFromBank && !bankIds.has(ex.id)) {
+                hasChanges = true;
+                // Downgrade to Ad-hoc: Generate new ID to break links to deleted bank items
+                return { 
+                    ...ex, 
+                    id: `ex-orphaned-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                    isFromBank: false, 
+                    loggingEnabled: false 
+                };
+            }
+            return ex;
+        });
+        
+        return { ...block, exercises: newExercises };
+    });
+
+    if (!hasChanges) return currentWorkout;
+    return { ...currentWorkout, blocks: newBlocks };
+};
+
 
 // Helper to check for unsaved changes
 const useUnsavedChanges = (isDirty: boolean) => {
@@ -144,35 +172,8 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
             const bank = await getOrganizationExerciseBank(selectedOrganization.id);
             setExerciseBank(bank);
             
-            // CLEANUP: Check if current workout exercises exist in bank. 
-            // If marked as bank exercise but ID not found, downgrade to Ad-hoc and CHANGE ID.
-            setWorkout(prev => {
-                const bankIds = new Set(bank.map(b => b.id));
-                let hasChanges = false;
-
-                const newBlocks = prev.blocks.map(block => {
-                    const newExercises = block.exercises.map(ex => {
-                        if (ex.isFromBank && !bankIds.has(ex.id)) {
-                            hasChanges = true;
-                            // Downgrade to Ad-hoc: Generate new ID to break links to deleted bank items
-                            return { 
-                                ...ex, 
-                                id: `ex-orphaned-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                                isFromBank: false, 
-                                loggingEnabled: false 
-                            };
-                        }
-                        return ex;
-                    });
-                    
-                    return { ...block, exercises: newExercises };
-                });
-
-                if (hasChanges) {
-                    return { ...prev, blocks: newBlocks };
-                }
-                return prev;
-            });
+            // CLEANUP: Using shared logic
+            setWorkout(prev => sanitizeWorkoutWithBank(prev, bank));
 
         } catch (error) {
             console.error("Failed to fetch exercise bank:", error);
@@ -182,6 +183,23 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
     };
     fetchBank();
   }, [selectedOrganization]);
+
+  const handleDeleteExerciseFromBank = useCallback(async (exercise: BankExercise) => {
+      try {
+          await deleteExerciseFromBank(exercise.id);
+          // 1. Update bank state instantly
+          const newBank = exerciseBank.filter(ex => ex.id !== exercise.id);
+          setExerciseBank(newBank);
+          
+          // 2. Run cleanup on current workout instantly
+          setWorkout(prev => sanitizeWorkoutWithBank(prev, newBank));
+          
+      } catch (error) {
+          console.error("Failed to delete exercise:", error);
+          alert("Kunde inte ta bort övningen.");
+      }
+  }, [exerciseBank]);
+
 
   const isDirty = useMemo(() => {
     if (isNewDraft && initialWorkout) {
@@ -569,6 +587,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                             bank={exerciseBank}
                             onAddExercise={handleAddExerciseFromBank}
                             onPreviewExercise={setPreviewExercise}
+                            onDeleteExercise={handleDeleteExerciseFromBank}
                             isLoading={isBankLoading}
                         />
                     )}

@@ -3,42 +3,40 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { BankExercise, Exercise, Organization } from '../../types';
 import { useStudio } from '../../context/StudioContext';
 import { DumbbellIcon, TrashIcon } from '../icons';
-import { deleteExerciseFromBank } from '../../services/firebaseService';
 
 interface ExerciseBankPanelProps {
     bank: BankExercise[];
     onAddExercise: (exercise: BankExercise) => void;
     onPreviewExercise: (exercise: BankExercise) => void;
+    onDeleteExercise?: (exercise: BankExercise) => Promise<void>; // New prop
     isLoading: boolean;
 }
 
-export const ExerciseBankPanel: React.FC<ExerciseBankPanelProps> = ({ bank, onAddExercise, onPreviewExercise, isLoading }) => {
+export const ExerciseBankPanel: React.FC<ExerciseBankPanelProps> = ({ bank, onAddExercise, onPreviewExercise, onDeleteExercise, isLoading }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const { selectedOrganization } = useStudio();
-    const [localBank, setLocalBank] = useState(bank);
     
-    // Sync local bank when prop changes
-    React.useEffect(() => {
-        setLocalBank(bank);
-    }, [bank]);
-
-    const handleDeleteCustom = async (e: React.MouseEvent, exercise: BankExercise) => {
+    // We use the 'bank' prop directly now, no local state needed for the list itself if parent manages it.
+    // However, for filtering performance or immediate feedback if parent doesn't update fast enough, we can just rely on props.
+    
+    const handleDeleteClick = async (e: React.MouseEvent, exercise: BankExercise) => {
         e.stopPropagation();
-        if (window.confirm(`Vill du ta bort "${exercise.name}" från din lokala övningsbank?`)) {
-            await deleteExerciseFromBank(exercise.id);
-            setLocalBank(prev => prev.filter(ex => ex.id !== exercise.id));
+        if (onDeleteExercise) {
+            if (window.confirm(`Vill du ta bort "${exercise.name}" från din lokala övningsbank?`)) {
+                await onDeleteExercise(exercise);
+            }
         }
     };
 
     const filteredBank = useMemo(() => {
-        if (!searchTerm) return localBank;
+        if (!searchTerm) return bank;
         const lowerCaseSearchTerm = searchTerm.toLowerCase();
-        return localBank.filter(ex => 
+        return bank.filter(ex => 
             ex.name.toLowerCase().includes(lowerCaseSearchTerm) ||
             (ex.description && ex.description.toLowerCase().includes(lowerCaseSearchTerm)) ||
             (ex.tags && ex.tags.some(tag => tag.toLowerCase().includes(lowerCaseSearchTerm)))
         );
-    }, [localBank, searchTerm]);
+    }, [bank, searchTerm]);
 
     return (
         <div className="bg-slate-100 dark:bg-gray-800 rounded-lg p-4 border border-slate-200 dark:border-gray-700 flex flex-col max-h-[60vh]">
@@ -80,9 +78,9 @@ export const ExerciseBankPanel: React.FC<ExerciseBankPanelProps> = ({ bank, onAd
                                     </div>
                                 </div>
                                 
-                                {isCustom && (
+                                {isCustom && onDeleteExercise && (
                                     <button
-                                        onClick={(e) => handleDeleteCustom(e, ex)}
+                                        onClick={(e) => handleDeleteClick(e, ex)}
                                         className="p-2 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                                         title="Ta bort egen övning"
                                     >
