@@ -128,19 +128,23 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             organizationId: organizationId // Viktigt för att den ska sparas i custom_exercises
         };
 
-        // 2. Optimistisk uppdatering av UI
-        onUpdate(exercise.id, { 
-            id: newId, 
-            isFromBank: true, 
-            loggingEnabled: true // Aktivera loggning direkt
-        });
-
-        // 3. Spara till Firestore
         try {
+            // 2. Spara till Firestore först
             await saveExerciseToBank(newBankExercise);
+
+            // 3. VIKTIGT: Uppdatera listan i sidomenyn INNAN vi uppdaterar själva övningen
+            // Detta förhindrar att komponenten avmonteras (pga ID-byte) innan callbacken hinner köras.
             if (onExerciseSavedToBank) {
                 onExerciseSavedToBank(newBankExercise);
             }
+
+            // 4. Uppdatera UI för själva övningskortet (detta byter ID och orsakar re-render/unmount av denna komponent)
+            onUpdate(exercise.id, { 
+                id: newId, 
+                isFromBank: true, 
+                loggingEnabled: true // Aktivera loggning direkt
+            });
+
         } catch (e) {
             console.error("Failed to save custom exercise", e);
             alert("Kunde inte spara övningen till banken.");
