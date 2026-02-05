@@ -1,4 +1,5 @@
 
+
 /**
  * Centraliserade prompts för Gemini AI-integrationen.
  * Innehåller systeminstruktioner och specifika instruktioner för olika funktioner.
@@ -15,7 +16,7 @@ Ditt viktigaste uppdrag är att agera som en intelligent assistent med två läg
 Om användaren anger ett antal (t.ex. "10 övningar"), MÅSTE du generera exakt så många unika övningsobjekt i JSON-arrayen. Du får ALDRIG bara skriva "10 övningar" som ett övningsnamn.
 `;
 
-export const WORKOUT_GENERATOR_PROMPT = (userPrompt: string) => `
+export const WORKOUT_GENERATOR_PROMPT = (userPrompt: string, availableExercises: string[] = []) => `
 Skapa ett strukturerat träningspass baserat på: "${userPrompt}".
 
 INSTRUKTIONER:
@@ -24,6 +25,16 @@ INSTRUKTIONER:
 3. Ge blocken tydliga namn som "Pulsfest" eller "Styrka: Pressar".
 4. Om ett antal övningar nämns i instruktionen, skapa exakt så många unika övningar.
 5. Skriv pedagogiska beskrivningar för varje övning.
+
+${availableExercises.length > 0 ? `
+VIKTIGT OM ÖVNINGSVAL (CONTEXT INJECTION):
+Här följer en lista på övningar som redan finns i vår databas. Du MÅSTE prioritera att använda exakt dessa namn om de passar in i passet.
+Detta för att statistiken ska bli korrekt. Om du vill ha "Kettlebell Marklyft" och det finns i listan, skriv exakt så.
+Om en specifik rörelse du vill ha INTE finns i listan är det okej att hitta på ett nytt namn, men kolla alltid listan först.
+
+TILLGÄNGLIGA ÖVNINGAR (PRIORITERA DESSA):
+${availableExercises.join(', ')}
+` : ''}
 `;
 
 export const WORKOUT_REMIX_PROMPT = (workoutJson: string) => `

@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SparklesIcon, DumbbellIcon, DocumentTextIcon, CloseIcon, VideoIcon, InformationCircleIcon } from './icons';
 import { generateWorkout, parseWorkoutFromText, parseWorkoutFromImage, parseWorkoutFromYoutube } from '../services/geminiService';
-import { resolveAndCreateExercises } from '../services/firebaseService';
+import { resolveAndCreateExercises, getOrganizationExerciseBank } from '../services/firebaseService';
 import { Workout, WorkoutBlock, Exercise, StudioConfig, CustomCategoryWithPrompt } from '../types';
 import { useStudio } from '../context/StudioContext';
 import { useAuth } from '../context/AuthContext';
@@ -139,9 +139,21 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                     throw new Error("Du måste välja en kategori eller skriva ett önskemål.");
                 }
 
-                // Generera nytt pass med AI
+                // HÄMTA ÖVNINGSNAMN FRÅN BANKEN
+                let exerciseNames: string[] = [];
+                if (selectedOrganization) {
+                    try {
+                        const bank = await getOrganizationExerciseBank(selectedOrganization.id);
+                        exerciseNames = bank.map(e => e.name);
+                        console.log("Loaded context exercises:", exerciseNames.length);
+                    } catch (err) {
+                        console.warn("Could not load exercise bank for AI context", err);
+                    }
+                }
+
+                // Generera nytt pass med AI (skicka med bank-listan)
                 const contextWorkouts = workouts.slice(0, 5); 
-                workout = await generateWorkout(finalPrompt, contextWorkouts);
+                workout = await generateWorkout(finalPrompt, exerciseNames, contextWorkouts);
             } else if (activeTab === 'youtube') {
                 if (!youtubeUrl.trim()) throw new Error("Ange en YouTube-länk.");
                 if (!youtubeUrl.includes('youtube.com') && !youtubeUrl.includes('youtu.be')) {

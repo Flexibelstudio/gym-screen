@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai"; 
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise, SuggestedExercise, CustomCategoryWithPrompt, WorkoutLog, MemberGoals, WorkoutDiploma } from '../types';
 import { getExerciseBank } from './firebaseService';
@@ -219,8 +220,8 @@ const transformWorkout = (data: any, orgId: string, isDraft: boolean = false): W
 
 // --- EXPORTED FUNCTIONS ---
 
-export async function generateWorkout(prompt: string, contextWorkouts?: Workout[]): Promise<Workout> {
-    const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.WORKOUT_GENERATOR_PROMPT(prompt), workoutSchema);
+export async function generateWorkout(prompt: string, availableExercises: string[] = [], contextWorkouts?: Workout[]): Promise<Workout> {
+    const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.WORKOUT_GENERATOR_PROMPT(prompt, availableExercises), workoutSchema);
     return transformWorkout(data, '');
 }
 
