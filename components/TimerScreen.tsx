@@ -8,7 +8,7 @@ import { saveRace, updateOrganizationActivity } from '../services/firebaseServic
 import { Confetti } from './WorkoutCompleteModal';
 import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmationModal, RaceFinishAnimation, PauseOverlay } from './timer/TimerModals';
 import { ParticipantFinishList } from './timer/ParticipantFinishList';
-import { DumbbellIcon, InformationCircleIcon, LightningIcon, SparklesIcon, ChevronRightIcon, ClockIcon } from './icons';
+import { DumbbellIcon, InformationCircleIcon, LightningIcon, SparklesIcon, ChevronRightIcon, ClockIcon, PlayIcon } from './icons';
 import { useStudio } from '../context/StudioContext';
 
 // --- Constants ---
@@ -54,7 +54,8 @@ const getTimerStyle = (status: TimerStatus, mode: TimerMode, isHyrox: boolean, i
       return { bg: 'bg-teal-700', text: 'text-white', pulseRgb: '13, 148, 136', border: 'border-teal-400', badge: 'bg-teal-800' };
     case TimerStatus.Idle:
     default:
-      return { bg: 'bg-gray-900', text: 'text-white', pulseRgb: '0, 0, 0', border: 'border-gray-700', badge: 'bg-gray-800' };
+      // IDLE STATE - Use a neutral but ready color
+      return { bg: 'bg-slate-800', text: 'text-white', pulseRgb: '30, 41, 59', border: 'border-slate-600', badge: 'bg-slate-700' };
   }
 };
 
@@ -335,8 +336,13 @@ const FollowMeView: React.FC<{
 }> = ({ exercise, nextExercise, timerStyle, status, nextBlock, transitionTime, isRestNext }) => {
     const isResting = status === TimerStatus.Resting;
     const isPreparing = status === TimerStatus.Preparing;
+    // IF IDLE (Lobby), show the first exercise as "Next/Ready"
+    const isIdle = status === TimerStatus.Idle;
+
     const displayExercise = exercise;
-    const label = (isResting || isPreparing) ? "Nästa övning" : "Aktuell övning";
+    let label = "Aktuell övning";
+    if (isResting || isPreparing) label = "Nästa övning";
+    if (isIdle) label = "Första övning";
 
     if (!displayExercise) return null;
 
@@ -518,7 +524,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     isAutoTransition = false
 }) => {
   const { activeWorkout } = useWorkout();
-  const { studioConfig } = useStudio(); // Fetch studioConfig
+  const { studioConfig } = useStudio(); 
   
   // Use the hook with the selected sound profile
   const { 
@@ -528,7 +534,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     totalBlockDuration, totalTimeElapsed,
     completedWorkIntervals, effectiveIntervalsPerLap
   } = useWorkoutTimer(block, studioConfig.soundProfile || 'airhorn');
-  
+
+  // LOBBY MODE STATE - Default to TRUE unless auto-transition
+  const [isLobbyMode, setIsLobbyMode] = useState(!isAutoTransition);
+
   const [controlsVisible, setControlsVisible] = React.useState(false);
   const hideTimeoutRef = React.useRef<number | null>(null);
   const wakeLockRef = useRef<any>(null);
@@ -644,12 +653,22 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   useEffect(() => {
     if (!hasStartedRef.current && (status === TimerStatus.Idle || status === TimerStatus.Finished)) {
         if (organization) updateOrganizationActivity(organization.id);
-        start({ skipPrep: isAutoTransition });
+        
+        // IMPORTANT: Only auto-start if NOT in lobby mode
+        if (!isLobbyMode) {
+             start({ skipPrep: isAutoTransition });
+        }
+        
         hasStartedRef.current = true;
         onHeaderVisibilityChange(false);
         setIsBackButtonHidden(true);
     }
-  }, [start, status, onHeaderVisibilityChange, setIsBackButtonHidden, organization, isAutoTransition]);
+  }, [start, status, onHeaderVisibilityChange, setIsBackButtonHidden, organization, isAutoTransition, isLobbyMode]);
+
+  const handleLobbyStart = () => {
+      setIsLobbyMode(false);
+      start(); // Trigger timer start
+  };
 
   const [finishedParticipants, setFinishedParticipants] = useState<Record<string, FinishData>>({});
   const [savingParticipant, setSavingParticipant] = useState<string | null>(null);
@@ -978,6 +997,31 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         onMouseMove={handleInteraction}
         onTouchStart={handleInteraction}
     >
+      {/* LOBBY OVERLAY */}
+      <AnimatePresence>
+        {isLobbyMode && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          >
+             <button 
+                onClick={handleLobbyStart}
+                className="bg-primary hover:brightness-110 text-white font-black py-8 px-16 rounded-full shadow-[0_0_60px_rgba(20,184,166,0.6)] hover:shadow-[0_0_100px_rgba(20,184,166,0.8)] hover:scale-105 transition-all text-4xl sm:text-5xl uppercase tracking-tight flex items-center gap-4 border-4 border-white/20 animate-pulse"
+             >
+                <PlayIcon className="w-12 h-12 sm:w-16 sm:h-16 fill-current" />
+                <span>STARTA PASS</span>
+             </button>
+             
+             {/* Sub-text for context */}
+             <div className="absolute bottom-20 text-white/70 font-bold uppercase tracking-widest text-sm sm:text-base">
+                 Klicka för att starta nedräkningen
+             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {showConfetti && <Confetti />}
       {showFinishAnimation && (
           <RaceFinishAnimation 
@@ -990,7 +1034,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       )}
       
       <AnimatePresence>
-        {isActuallyPaused && !showFinishAnimation && (
+        {isActuallyPaused && !showFinishAnimation && !isLobbyMode && (
             <PauseOverlay onResume={isTransitioning ? () => setIsTransitionPaused(false) : resume} onRestart={handleConfirmReset} onFinish={() => onFinish({ isNatural: false })} />
         )}
         {participantToEdit && (
@@ -1008,7 +1052,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       </AnimatePresence>
 
       <AnimatePresence>
-        {status !== TimerStatus.Idle && !isActuallyPaused && !showFinishAnimation && (
+        {status !== TimerStatus.Idle && !isActuallyPaused && !showFinishAnimation && !isLobbyMode && (
             <motion.div 
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -1045,7 +1089,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
         {/* STATUS (ARBETE/VILA) - Överst */}
         <div className="text-center z-20 w-full px-10 mb-2">
-            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl overflow-visible whitespace-nowrap leading-none`}>{statusLabel}</h2>
+            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl overflow-visible whitespace-nowrap leading-none`}>
+                {isLobbyMode ? "REDO ATT STARTA" : statusLabel}
+            </h2>
         </div>
 
         {/* SIFFROR (Tiden) - Mitten */}
@@ -1235,19 +1281,22 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           </div>
       )}
 
-      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[35%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
-            {isActuallyFinishedOrIdle ? (
-                <>
-                    <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-50 transition-colors text-xl backdrop-blur-md border-2 border-white/20 uppercase">TILLBAKA</button>
-                    <button onClick={() => start()} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50 uppercase">STARTA</button>
-                </>
-            ) : isActuallyPaused ? (
-                <button onClick={isTransitioning ? () => setIsTransitionPaused(false) : resume} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase">FORTSÄTT</button>
-            ) : (
-                <button onClick={isTransitioning ? () => setIsTransitionPaused(true) : pause} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50 uppercase">PAUSA</button>
-            )}
-            {isHyroxRace && status !== TimerStatus.Running && <button onClick={() => setShowBackToPrepConfirmation(true)} className="bg-gray-800/80 text-white font-bold py-4 px-8 rounded-full shadow-xl border-2 border-gray-600 hover:bg-gray-700 transition-colors text-lg uppercase">⚙️ Grupper</button>}
-      </div>
+      {/* ACTION BAR AT BOTTOM - HIDDEN IN LOBBY */}
+      {!isLobbyMode && (
+          <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[35%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
+                {isActuallyFinishedOrIdle ? (
+                    <>
+                        <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-50 transition-colors text-xl backdrop-blur-md border-2 border-white/20 uppercase">TILLBAKA</button>
+                        <button onClick={() => start()} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50 uppercase">STARTA</button>
+                    </>
+                ) : isActuallyPaused ? (
+                    <button onClick={isTransitioning ? () => setIsTransitionPaused(false) : resume} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase">FORTSÄTT</button>
+                ) : (
+                    <button onClick={isTransitioning ? () => setIsTransitionPaused(true) : pause} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50 uppercase">PAUSA</button>
+                )}
+                {isHyroxRace && status !== TimerStatus.Running && <button onClick={() => setShowBackToPrepConfirmation(true)} className="bg-gray-800/80 text-white font-bold py-4 px-8 rounded-full shadow-xl border-2 border-gray-600 hover:bg-gray-700 transition-colors text-lg uppercase">⚙️ Grupper</button>}
+          </div>
+      )}
     </div>
   );
 };
