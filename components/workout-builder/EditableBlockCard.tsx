@@ -143,7 +143,8 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         }
     };
 
-    const isBanked = exercise.isFromBank || exercise.id.startsWith('bank_') || exercise.id.startsWith('custom_');
+    // STRICT CHECK: Only trust the flag. ID pattern check removed to allow "unlinking".
+    const isBanked = !!exercise.isFromBank;
     
     return (
         <div 
@@ -329,8 +330,8 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
 
     const handleToggleAllLogging = () => {
         if (window.navigator.vibrate) window.navigator.vibrate(15);
-        // Only toggle logging for exercises that are BANKED.
-        const bankedExercises = block.exercises.filter(ex => ex.isFromBank || ex.id.startsWith('bank_') || ex.id.startsWith('custom_'));
+        // Strict check: Only count exercises where isFromBank is true
+        const bankedExercises = block.exercises.filter(ex => !!ex.isFromBank);
         
         if (bankedExercises.length === 0) {
             alert("Inga övningar i detta block är kopplade till banken. Koppla dem först för att aktivera loggning.");
@@ -339,8 +340,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
 
         const allEnabled = bankedExercises.every(ex => ex.loggingEnabled);
         const updatedExercises = block.exercises.map(ex => {
-            const isBanked = ex.isFromBank || ex.id.startsWith('bank_') || ex.id.startsWith('custom_');
-            if (isBanked) {
+            if (!!ex.isFromBank) {
                 return { ...ex, loggingEnabled: !allEnabled };
             }
             return ex;
@@ -397,9 +397,10 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
         return `${displayString} (${formatTime(workTime)} / ${formatTime(restTime)})`;
     }, [block.settings]);
 
-    const bankExercisesCount = block.exercises.filter(ex => ex.isFromBank || ex.id.startsWith('bank_') || ex.id.startsWith('custom_')).length;
+    // Strict check for bank exercises count using isFromBank flag only
+    const bankExercisesCount = block.exercises.filter(ex => !!ex.isFromBank).length;
     const allBankedLogged = bankExercisesCount > 0 && block.exercises
-        .filter(ex => ex.isFromBank || ex.id.startsWith('bank_') || ex.id.startsWith('custom_'))
+        .filter(ex => !!ex.isFromBank)
         .every(ex => ex.loggingEnabled);
         
     const isLastBlock = index === totalBlocks - 1;

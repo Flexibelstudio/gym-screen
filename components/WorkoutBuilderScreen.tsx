@@ -145,7 +145,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
             setExerciseBank(bank);
             
             // CLEANUP: Check if current workout exercises exist in bank. 
-            // If marked as bank exercise but ID not found, downgrade to Ad-hoc.
+            // If marked as bank exercise but ID not found, downgrade to Ad-hoc and CHANGE ID.
             setWorkout(prev => {
                 const bankIds = new Set(bank.map(b => b.id));
                 let hasChanges = false;
@@ -154,8 +154,13 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                     const newExercises = block.exercises.map(ex => {
                         if (ex.isFromBank && !bankIds.has(ex.id)) {
                             hasChanges = true;
-                            // Downgrade to Ad-hoc: Keep name/reps but remove bank link & logging
-                            return { ...ex, isFromBank: false, loggingEnabled: false };
+                            // Downgrade to Ad-hoc: Generate new ID to break links to deleted bank items
+                            return { 
+                                ...ex, 
+                                id: `ex-orphaned-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                                isFromBank: false, 
+                                loggingEnabled: false 
+                            };
                         }
                         return ex;
                     });

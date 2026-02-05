@@ -517,7 +517,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
         if (selectedOrganization) {
             getOrganizationExerciseBank(selectedOrganization.id).then(bank => {
                 setExerciseBank(bank);
-                // CLEANUP: If workout has exercises linked to deleted bank items, downgrade them.
+                // CLEANUP: If workout has exercises linked to deleted bank items, downgrade them AND change ID.
                 setWorkout(prev => {
                     const bankIds = new Set(bank.map(b => b.id));
                     let hasChanges = false;
@@ -525,7 +525,12 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                         const newExercises = block.exercises.map(ex => {
                             if (ex.isFromBank && !bankIds.has(ex.id)) {
                                 hasChanges = true;
-                                return { ...ex, isFromBank: false, loggingEnabled: false };
+                                return { 
+                                    ...ex, 
+                                    id: `ex-orphaned-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                                    isFromBank: false, 
+                                    loggingEnabled: false 
+                                };
                             }
                             return ex;
                         });
