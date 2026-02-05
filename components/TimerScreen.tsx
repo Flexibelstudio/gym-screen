@@ -1001,6 +1001,19 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         onMouseMove={handleInteraction}
         onTouchStart={handleInteraction}
     >
+      {/* NEW BACK BUTTON FOR LOBBY MODE */}
+      {isLobbyMode && (
+          <button
+              onClick={() => onFinish({ isNatural: false })}
+              className="fixed top-8 left-8 z-[60] bg-black/20 hover:bg-black/40 text-white backdrop-blur-md px-6 py-3 rounded-full font-bold transition-all flex items-center gap-3 border border-white/10 shadow-lg group"
+          >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span>TILLBAKA</span>
+          </button>
+      )}
+
       {/* LOBBY OVERLAY REMOVED - NOW INTEGRATED INTO CARD */}
 
       {showConfetti && <Confetti />}
