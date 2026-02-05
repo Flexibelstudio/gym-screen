@@ -458,7 +458,7 @@ interface BigIndicatorProps {
 }
 
 const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRounds, mode, currentInterval, totalIntervalsInLap }) => {
-    if (mode !== TimerMode.Interval || mode !== TimerMode.Tabata || mode !== TimerMode.EMOM) return null;
+    if (mode !== TimerMode.Interval && mode !== TimerMode.Tabata && mode !== TimerMode.EMOM) return null;
 
     const showInterval = currentInterval !== undefined && totalIntervalsInLap !== undefined && mode !== TimerMode.EMOM;
 
