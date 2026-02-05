@@ -91,40 +91,27 @@ Skriv en minimalistisk instruktion (max 20 ord) i imperativ form för övningen:
 Beskriv endast rörelsen, inga hälsofördelar eller adjektiv.
 `;
 
-export const MEMBER_INSIGHTS_PROMPT = (title: string, exercises: string[], logs: string, feeling: 'good' | 'neutral' | 'bad') => {
-    let modeInstruction = "";
-    if (feeling === 'good') {
-        modeInstruction = `
-        MEDLEMMENS STATUS: 🔥 PIGG & STARK (ATTACK MODE)
-        Strategi: Uppmuntra till att slå PB eller öka volymen. Föreslå något tyngre vikter än historiken.
-        Tonläge: Utmanande och aggressivt peppande. "Idag är dagen!"
-        `;
-    } else if (feeling === 'bad') {
-        modeInstruction = `
-        MEDLEMMENS STATUS: 🤕 SLITEN/SKADAD (REHAB MODE)
-        Strategi: Fokus på rörlighet, teknik och att genomföra passet lugnt. Föreslå lättare vikter eller skalade övningar.
-        Tonläge: Omtänksamt och lugnande. "Kvalitet före kvantitet."
-        `;
-    } else {
-        modeInstruction = `
-        MEDLEMMENS STATUS: 🙂 NEUTRAL (MAINTENANCE MODE)
-        Strategi: Fokus på konsistens. Föreslå standardvikter baserat på historik.
-        Tonläge: Stabilt och professionellt. "Keep building the base."
-        `;
-    }
-
+export const MEMBER_INSIGHTS_PROMPT = (title: string, exercises: string[], logs: string) => {
     return `
-    Skapa en Pre-Game Strategy inför passet: "${title}".
+    Skapa en komplett Pre-Game Strategy inför passet: "${title}".
     Övningar: ${exercises.join(', ')}
     Historik: ${logs}
 
-    ${modeInstruction}
+    Ditt uppdrag är att generera TRE OLIKA strategier baserat på hur medlemmen känner sig idag.
 
-    Uppgift:
-    1. Bedöm dagsform (Readiness) baserat på statusen ovan.
-    2. Ge en konkret strategi för passet baserat på statusen.
-    3. Föreslå specifika vikter/reps i 'suggestions' arrayen.
-    4. Ge skalningsalternativ i 'scaling' arrayen (Särskilt viktigt om status är 'bad').
+    SCENARIO 1: 🔥 PIGG & STARK (ATTACK MODE)
+    Strategi: Uppmuntra till att slå PB eller öka volymen. Föreslå tyngre vikter.
+    Tonläge: Utmanande och aggressivt peppande. "Idag är dagen!"
+
+    SCENARIO 2: 🙂 NEUTRAL (MAINTENANCE MODE)
+    Strategi: Fokus på konsistens och flyt. Standardvikter baserat på historik.
+    Tonläge: Stabilt och professionellt. "Keep building the base."
+
+    SCENARIO 3: 🤕 SLITEN/SKADAD (REHAB MODE)
+    Strategi: Fokus på rörlighet, teknik och att genomföra passet lugnt. Föreslå lättare vikter eller skalade övningar.
+    Tonläge: Omtänksamt och lugnande. "Kvalitet före kvantitet."
+
+    VIKTIGT: Returnera ett JSON-objekt med nycklarna "good", "neutral", och "bad", där varje nyckel innehåller 'readiness', 'strategy', 'suggestions' (array) och 'scaling' (array).
     `;
 };
 

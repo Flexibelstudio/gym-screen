@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog } from '../../services/firebaseService';
-import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage } from '../../services/geminiService';
+import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage, InsightContent } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
 import { CloseIcon, DumbbellIcon, SparklesIcon, FireIcon, RunningIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, CalculatorIcon, ChartBarIcon, TrophyIcon } from '../../components/icons'; 
@@ -251,22 +251,18 @@ const PreGameView: React.FC<{
     onCancel: () => void;
     onFeelingChange: (feeling: 'good' | 'neutral' | 'bad') => void;
     currentFeeling: 'good' | 'neutral' | 'bad';
-    isLoadingNewInsights: boolean;
-}> = ({ workoutTitle, insights, onStart, onCancel, onFeelingChange, currentFeeling, isLoadingNewInsights }) => {
+}> = ({ workoutTitle, insights, onStart, onCancel, onFeelingChange, currentFeeling }) => {
     
-    // Determine display strategy based on insights (which are now updated by AI)
-    const displayStrategy = isLoadingNewInsights ? "Uppdaterar strategi..." : (insights.strategy || insights.readiness.message);
+    // Select the correct insight object based on the current feeling
+    const activeInsight: InsightContent = insights[currentFeeling];
     
     // Visual theme based on feeling
     let themeClass = "from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-800";
-    let accentColor = "text-indigo-600";
     
     if (currentFeeling === 'good') {
         themeClass = "from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20";
-        accentColor = "text-orange-600";
     } else if (currentFeeling === 'bad') {
         themeClass = "from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20";
-        accentColor = "text-green-600";
     }
 
     return (
@@ -283,8 +279,7 @@ const PreGameView: React.FC<{
                             <button 
                                 key={f} 
                                 onClick={() => onFeelingChange(f as any)} 
-                                disabled={isLoadingNewInsights}
-                                className={`p-4 rounded-2xl border-2 transition-all ${currentFeeling === f ? 'bg-white dark:bg-gray-800 border-primary scale-110 shadow-lg z-10' : 'bg-white/50 dark:bg-gray-800/50 border-transparent hover:bg-white dark:hover:bg-gray-800'} ${isLoadingNewInsights ? 'opacity-50' : ''}`}
+                                className={`p-4 rounded-2xl border-2 transition-all ${currentFeeling === f ? 'bg-white dark:bg-gray-800 border-primary scale-110 shadow-lg z-10' : 'bg-white/50 dark:bg-gray-800/50 border-transparent hover:bg-white dark:hover:bg-gray-800'}`}
                             >
                                 <span className="text-2xl block">{f === 'good' ? '🔥' : f === 'bad' ? '🤕' : '🙂'}</span>
                             </button>
@@ -293,12 +288,7 @@ const PreGameView: React.FC<{
                 </div>
 
                 <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-xl mb-6 min-h-[300px] transition-all">
-                    {isLoadingNewInsights ? (
-                        <div className="flex flex-col items-center justify-center h-full py-10">
-                            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-                            <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Uppdaterar strategi...</p>
-                        </div>
-                    ) : (
+                    {activeInsight ? (
                         <>
                             <div className="flex items-start gap-4 mb-6">
                                 <div className={`w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-lg ${currentFeeling === 'good' ? 'from-orange-500 to-red-600' : currentFeeling === 'bad' ? 'from-green-500 to-blue-600' : 'from-indigo-500 to-purple-600'}`}>
@@ -306,19 +296,19 @@ const PreGameView: React.FC<{
                                 </div>
                                 <div>
                                     <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Dagens Fokus</h3>
-                                    <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium italic">"{displayStrategy}"</p>
+                                    <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium italic animate-fade-in">"{activeInsight.strategy || activeInsight.readiness.message}"</p>
                                 </div>
                             </div>
                             
-                            <div className="space-y-4">
-                                {insights.suggestions && Object.keys(insights.suggestions).length > 0 && (
+                            <div className="space-y-4 animate-fade-in">
+                                {activeInsight.suggestions && Object.keys(activeInsight.suggestions).length > 0 && (
                                     <div className={`p-4 rounded-2xl border ${currentFeeling === 'good' ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800/30' : 'bg-gray-50 dark:bg-gray-900/30 border-gray-100 dark:border-gray-700'}`}>
                                         <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}>
                                             {currentFeeling === 'good' && <FireIcon className="w-4 h-4" />}
                                             Smart Load (Förslag)
                                         </h4>
                                         <div className="space-y-2">
-                                            {Object.entries(insights.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
+                                            {Object.entries(activeInsight.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
                                                 <div key={exercise} className="flex justify-between items-center bg-white dark:bg-black/20 p-2.5 rounded-lg border border-gray-100 dark:border-white/5">
                                                     <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{exercise}</span>
                                                     <span className={`text-sm font-bold ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-primary'}`}>{suggestion}</span>
@@ -328,13 +318,13 @@ const PreGameView: React.FC<{
                                     </div>
                                 )}
                                 
-                                {insights.scaling && Object.keys(insights.scaling).length > 0 && (
+                                {activeInsight.scaling && Object.keys(activeInsight.scaling).length > 0 && (
                                     <div className="mt-4">
                                         <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
                                             <LightningIcon className="w-3 h-3" /> Alternativ / Skalning
                                         </h4>
                                         <div className="space-y-2">
-                                            {Object.entries(insights.scaling).map(([exercise, alternative]) => (
+                                            {Object.entries(activeInsight.scaling).map(([exercise, alternative]) => (
                                                 <div key={exercise} className="bg-white/50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
                                                     <div className="text-xs text-gray-500 line-through mb-0.5">{exercise}</div>
                                                     <div className="text-sm font-bold text-gray-900 dark:text-white">👉 {alternative}</div>
@@ -345,6 +335,10 @@ const PreGameView: React.FC<{
                                 )}
                             </div>
                         </>
+                    ) : (
+                         <div className="flex flex-col items-center justify-center h-full py-10">
+                            <p className="text-sm text-gray-400">Ingen strategi tillgänglig.</p>
+                        </div>
                     )}
                 </div>
                 <div className="mt-auto pt-4 pb-8"><button onClick={onStart} className="w-full bg-primary hover:brightness-110 text-white font-black text-lg py-5 rounded-2xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2"><span className="tracking-tight uppercase">Starta passet</span><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg></button></div>
@@ -415,6 +409,12 @@ const ExerciseLogCard: React.FC<{
                         </p>
                     )}
                 </div>
+                {aiSuggestion && (
+                    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 px-2 py-1 rounded-lg border border-indigo-100 dark:border-indigo-800 flex items-center gap-1.5 shadow-sm">
+                        <SparklesIcon className="w-3 h-3 text-indigo-500" />
+                        <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 whitespace-nowrap">{aiSuggestion}</span>
+                    </div>
+                )}
             </div>
 
             <div className="space-y-2">
@@ -564,8 +564,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [dailyFeeling, setDailyFeeling] = useState<'good' | 'neutral' | 'bad'>('neutral');
   const [customActivity, setCustomActivity] = useState({ name: '', duration: '', distance: '', calories: '' });
   const [sessionStats, setSessionStats] = useState({ distance: '', calories: '', time: '', rounds: '' });
-  const [isUpdatingInsights, setIsUpdatingInsights] = useState(false);
-
+  
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
 
@@ -729,8 +728,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                     try {
                         const exerciseNames = exercises.map(e => e.exerciseName);
                         if (exerciseNames.length > 0) {
-                            // Initial call with default 'neutral' feeling
-                            const insights = await generateMemberInsights(logs, foundWorkout.title, exerciseNames, 'neutral');
+                            // Hämta ALLA strategier direkt
+                            const insights = await generateMemberInsights(logs, foundWorkout.title, exerciseNames);
                             setAiInsights(insights);
                         } else {
                             setViewMode('logging');
@@ -747,22 +746,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
     
     init();
   }, [wId, oId, userId, isManualMode, contextWorkouts]);
-
-  const updateInsightsBasedOnFeeling = async (feeling: 'good' | 'neutral' | 'bad') => {
-      if (!workout || !exerciseResults.length) return;
-      setIsUpdatingInsights(true);
-      setDailyFeeling(feeling);
-      
-      try {
-          const exerciseNames = exerciseResults.map(e => e.exerciseName);
-          const insights = await generateMemberInsights(allLogs, workout.title, exerciseNames, feeling);
-          setAiInsights(insights);
-      } catch (err) {
-          console.error("Failed to update insights:", err);
-      } finally {
-          setIsUpdatingInsights(false);
-      }
-  };
 
   // --- AUTO-SAVE LOGIC ---
   useEffect(() => {
@@ -1005,9 +988,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               insights={aiInsights}
               onStart={handleStartWorkout}
               onCancel={() => handleCancel(false)}
-              onFeelingChange={updateInsightsBasedOnFeeling}
+              onFeelingChange={setDailyFeeling}
               currentFeeling={dailyFeeling}
-              isLoadingNewInsights={isUpdatingInsights}
+              isLoadingNewInsights={false}
           />
       );
   }
@@ -1077,10 +1060,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   </div>
               </div>
 
-              {!isManualMode && aiInsights && aiInsights.readiness && (
+              {!isManualMode && aiInsights && aiInsights.neutral && aiInsights.neutral.readiness && (
                   <div className={`p-5 rounded-[1.5rem] mb-8 shadow-sm flex items-start gap-4 border border-white/20 ${
-                      aiInsights.readiness.status === 'low' ? 'bg-orange-100 text-orange-900' : 
-                      aiInsights.readiness.status === 'high' ? 'bg-green-100 text-green-900' : 
+                      aiInsights[dailyFeeling].readiness.status === 'low' ? 'bg-orange-100 text-orange-900' : 
+                      aiInsights[dailyFeeling].readiness.status === 'high' ? 'bg-green-100 text-green-900' : 
                       'bg-blue-100 text-blue-900'
                   }`}>
                       <div className="p-2 bg-white/50 rounded-xl flex-shrink-0 shadow-inner">
@@ -1088,7 +1071,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                       </div>
                       <div>
                           <h4 className="font-black text-xs uppercase tracking-widest opacity-70 mb-1">Dagsform</h4>
-                          <p className="font-bold text-sm leading-relaxed">{aiInsights.readiness.message}</p>
+                          <p className="font-bold text-sm leading-relaxed">{aiInsights[dailyFeeling].readiness.message}</p>
                       </div>
                   </div>
               )}
@@ -1126,7 +1109,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                     name={result.exerciseName}
                                     result={result}
                                     onUpdate={(updates) => handleUpdateResult(index, updates)}
-                                    aiSuggestion={aiInsights?.suggestions?.[result.exerciseName]}
+                                    aiSuggestion={aiInsights?.neutral?.suggestions?.[result.exerciseName]} // Use neutral suggestions by default or switch based on feeling if you want dynamic
                                     lastPerformance={history[result.exerciseName]} 
                                 />
                             </React.Fragment>

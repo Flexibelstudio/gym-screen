@@ -11,7 +11,8 @@ const IMAGE_GEN_MODEL = 'gemini-2.5-flash-image';
 const PRO_MODEL = 'gemini-3-pro-preview';
 
 // TYPER
-export interface MemberInsightResponse {
+
+export interface InsightContent {
     readiness: {
         status: 'high' | 'moderate' | 'low';
         message: string;
@@ -19,6 +20,12 @@ export interface MemberInsightResponse {
     strategy: string;
     suggestions: Record<string, string>;
     scaling: Record<string, string>;
+}
+
+export interface MemberInsightResponse {
+    good: InsightContent;
+    neutral: InsightContent;
+    bad: InsightContent;
 }
 
 export interface MemberProgressAnalysis {
@@ -95,7 +102,7 @@ const workoutSchema = {
     }
 };
 
-const memberInsightSchema = {
+const singleInsightSchema = {
     type: Type.OBJECT,
     required: ['readiness', 'strategy', 'suggestions', 'scaling'],
     properties: {
@@ -130,6 +137,16 @@ const memberInsightSchema = {
                 }
             }
         }
+    }
+};
+
+const fullMemberInsightSchema = {
+    type: Type.OBJECT,
+    required: ['good', 'neutral', 'bad'],
+    properties: {
+        good: singleInsightSchema,
+        neutral: singleInsightSchema,
+        bad: singleInsightSchema
     }
 };
 
@@ -338,26 +355,37 @@ export async function interpretHandwriting(base64Image: string): Promise<string>
     return response.text.trim();
 }
 
+// Helper to transform the array-based AI response to object-based frontend struct
+const transformInsightContent = (data: any): InsightContent => {
+    const suggestions: Record<string, string> = {};
+    if (Array.isArray(data.suggestions)) {
+        data.suggestions.forEach((s: any) => suggestions[s.exerciseName] = s.advice);
+    }
+    const scaling: Record<string, string> = {};
+    if (Array.isArray(data.scaling)) {
+        data.scaling.forEach((s: any) => scaling[s.exerciseName] = s.advice);
+    }
+    return { ...data, suggestions, scaling };
+}
+
 export async function generateMemberInsights(
     logs: WorkoutLog[], 
     title: string, 
-    exercises: string[], 
-    feeling: 'good' | 'neutral' | 'bad' = 'neutral'
+    exercises: string[]
 ): Promise<MemberInsightResponse> {
     const logStr = JSON.stringify(logs.slice(0, 5));
     const data = await _callGeminiJSON<any>(
         TEXT_MODEL, 
-        Prompts.MEMBER_INSIGHTS_PROMPT(title, exercises, logStr, feeling), 
-        memberInsightSchema
+        Prompts.MEMBER_INSIGHTS_PROMPT(title, exercises, logStr), 
+        fullMemberInsightSchema
     );
     
-    // Map arrays back to objects for frontend compatibility
-    const suggestions: Record<string, string> = {};
-    data.suggestions.forEach((s: any) => suggestions[s.exerciseName] = s.advice);
-    const scaling: Record<string, string> = {};
-    data.scaling.forEach((s: any) => scaling[s.exerciseName] = s.advice);
-
-    return { ...data, suggestions, scaling };
+    // Transform all three scenarios
+    return {
+        good: transformInsightContent(data.good),
+        neutral: transformInsightContent(data.neutral),
+        bad: transformInsightContent(data.bad)
+    };
 }
 
 export async function getExerciseDagsformAdvice(exerciseName: string, feeling: string, logs: WorkoutLog[]): Promise<ExerciseDagsformAdvice> {
