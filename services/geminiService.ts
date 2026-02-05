@@ -338,9 +338,18 @@ export async function interpretHandwriting(base64Image: string): Promise<string>
     return response.text.trim();
 }
 
-export async function generateMemberInsights(logs: WorkoutLog[], title: string, exercises: string[]): Promise<MemberInsightResponse> {
+export async function generateMemberInsights(
+    logs: WorkoutLog[], 
+    title: string, 
+    exercises: string[], 
+    feeling: 'good' | 'neutral' | 'bad' = 'neutral'
+): Promise<MemberInsightResponse> {
     const logStr = JSON.stringify(logs.slice(0, 5));
-    const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.MEMBER_INSIGHTS_PROMPT(title, exercises, logStr), memberInsightSchema);
+    const data = await _callGeminiJSON<any>(
+        TEXT_MODEL, 
+        Prompts.MEMBER_INSIGHTS_PROMPT(title, exercises, logStr, feeling), 
+        memberInsightSchema
+    );
     
     // Map arrays back to objects for frontend compatibility
     const suggestions: Record<string, string> = {};

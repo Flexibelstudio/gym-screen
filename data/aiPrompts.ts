@@ -1,5 +1,4 @@
 
-
 /**
  * Centraliserade prompts för Gemini AI-integrationen.
  * Innehåller systeminstruktioner och specifika instruktioner för olika funktioner.
@@ -92,17 +91,42 @@ Skriv en minimalistisk instruktion (max 20 ord) i imperativ form för övningen:
 Beskriv endast rörelsen, inga hälsofördelar eller adjektiv.
 `;
 
-export const MEMBER_INSIGHTS_PROMPT = (title: string, exercises: string[], logs: string) => `
-Skapa en Pre-Game Strategy inför passet: "${title}".
-Övningar: ${exercises.join(', ')}
-Historik: ${logs}
+export const MEMBER_INSIGHTS_PROMPT = (title: string, exercises: string[], logs: string, feeling: 'good' | 'neutral' | 'bad') => {
+    let modeInstruction = "";
+    if (feeling === 'good') {
+        modeInstruction = `
+        MEDLEMMENS STATUS: 🔥 PIGG & STARK (ATTACK MODE)
+        Strategi: Uppmuntra till att slå PB eller öka volymen. Föreslå något tyngre vikter än historiken.
+        Tonläge: Utmanande och aggressivt peppande. "Idag är dagen!"
+        `;
+    } else if (feeling === 'bad') {
+        modeInstruction = `
+        MEDLEMMENS STATUS: 🤕 SLITEN/SKADAD (REHAB MODE)
+        Strategi: Fokus på rörlighet, teknik och att genomföra passet lugnt. Föreslå lättare vikter eller skalade övningar.
+        Tonläge: Omtänksamt och lugnande. "Kvalitet före kvantitet."
+        `;
+    } else {
+        modeInstruction = `
+        MEDLEMMENS STATUS: 🙂 NEUTRAL (MAINTENANCE MODE)
+        Strategi: Fokus på konsistens. Föreslå standardvikter baserat på historik.
+        Tonläge: Stabilt och professionellt. "Keep building the base."
+        `;
+    }
 
-Uppgift:
-1. Bedöm dagsform (Readiness).
-2. Ge en övergripande strategi.
-3. Föreslå vikter för dagens övningar.
-4. Ge alternativ för svårare övningar.
-`;
+    return `
+    Skapa en Pre-Game Strategy inför passet: "${title}".
+    Övningar: ${exercises.join(', ')}
+    Historik: ${logs}
+
+    ${modeInstruction}
+
+    Uppgift:
+    1. Bedöm dagsform (Readiness) baserat på statusen ovan.
+    2. Ge en konkret strategi för passet baserat på statusen.
+    3. Föreslå specifika vikter/reps i 'suggestions' arrayen.
+    4. Ge skalningsalternativ i 'scaling' arrayen (Särskilt viktigt om status är 'bad').
+    `;
+};
 
 export const MEMBER_PROGRESS_PROMPT = (name: string, goals: string, logs: string) => `
 Gör en strategisk analys av "${name}"'s utveckling.

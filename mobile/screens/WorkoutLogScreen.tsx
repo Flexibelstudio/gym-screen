@@ -251,43 +251,101 @@ const PreGameView: React.FC<{
     onCancel: () => void;
     onFeelingChange: (feeling: 'good' | 'neutral' | 'bad') => void;
     currentFeeling: 'good' | 'neutral' | 'bad';
-}> = ({ workoutTitle, insights, onStart, onCancel, onFeelingChange, currentFeeling }) => {
-    const displayStrategy = currentFeeling === 'bad' ? "Lyssna på kroppen idag. Fokusera på teknik och sänk vikterna." : (insights.strategy || insights.readiness.message);
-    const isInjuredMode = currentFeeling === 'bad';
+    isLoadingNewInsights: boolean;
+}> = ({ workoutTitle, insights, onStart, onCancel, onFeelingChange, currentFeeling, isLoadingNewInsights }) => {
+    
+    // Determine display strategy based on insights (which are now updated by AI)
+    const displayStrategy = isLoadingNewInsights ? "Uppdaterar strategi..." : (insights.strategy || insights.readiness.message);
+    
+    // Visual theme based on feeling
+    let themeClass = "from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-800";
+    let accentColor = "text-indigo-600";
+    
+    if (currentFeeling === 'good') {
+        themeClass = "from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20";
+        accentColor = "text-orange-600";
+    } else if (currentFeeling === 'bad') {
+        themeClass = "from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20";
+        accentColor = "text-green-600";
+    }
+
     return (
         <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white relative overflow-hidden animate-fade-in">
-            <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-indigo-50 dark:from-indigo-900/40 to-transparent z-0"></div>
+            <div className={`absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b ${themeClass} to-transparent z-0 transition-colors duration-500`}></div>
             <div className="relative z-10 flex flex-col h-full overflow-y-auto p-6 scrollbar-hide">
                 <div className="flex justify-between items-start mb-6"><button onClick={onCancel} className="text-gray-400 dark:text-white/50 hover:text-gray-900 dark:hover:text-white font-bold text-sm uppercase tracking-widest px-2 py-1 transition-colors">Avbryt</button></div>
                 <div className="text-center mb-8"><span className="inline-block py-1 px-3 rounded-full bg-primary/10 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-xs font-bold uppercase tracking-widest text-primary mb-4">Pre-Game Strategy</span><h1 className="text-3xl font-black leading-tight mb-2 text-gray-900 dark:text-white">{workoutTitle}</h1><p className="text-gray-500 dark:text-gray-400 text-sm">Din personliga plan för dagens pass</p></div>
-                <div className="mb-8"><p className="text-center text-xs font-bold uppercase text-gray-400 dark:text-gray-500 mb-3 tracking-wider">Hur känns kroppen?</p><div className="flex gap-3 justify-center">
-                    {['good', 'neutral', 'bad'].map((f) => (
-                        <button key={f} onClick={() => onFeelingChange(f as any)} className={`p-4 rounded-2xl border-2 transition-all ${currentFeeling === f ? 'bg-indigo-50 dark:bg-indigo-500/20 border-primary scale-105 shadow-lg' : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-gray-200'}`}>
-                            <span className="text-2xl block">{f === 'good' ? '🔥' : f === 'bad' ? '🤕' : '🙂'}</span>
-                        </button>
-                    ))}
-                </div></div>
-                <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-xl mb-6">
-                    <div className="flex items-start gap-4 mb-6"><div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-lg"><SparklesIcon className="w-6 h-6 text-white" /></div><div><h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Dagens Fokus</h3><p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium italic">"{displayStrategy}"</p></div></div>
-                    <div className="space-y-4">
-                        {!isInjuredMode && insights.suggestions && Object.keys(insights.suggestions).length > 0 && (
-                            <div><h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Smart Load (Förslag)</h4><div className="space-y-2">
-                                {Object.entries(insights.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
-                                    <div key={exercise} className="flex justify-between items-center bg-gray-50 dark:bg-gray-900/50 p-3 rounded-xl border border-gray-100 dark:border-gray-700/50"><span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{exercise}</span><span className="text-sm font-bold text-primary">{suggestion}</span></div>
-                                ))}
-                            </div></div>
-                        )}
-                        {(isInjuredMode || (insights.scaling && Object.keys(insights.scaling).length > 0)) && (
-                            <div className="mt-4"><h4 className="text-xs font-bold text-orange-500 dark:text-orange-400 uppercase tracking-wider mb-2 flex items-center gap-1"><LightningIcon className="w-3 h-3" /> Alternativ / Skalning</h4><div className="space-y-2">
-                                {insights.scaling && Object.entries(insights.scaling).map(([exercise, alternative]) => (
-                                    <div key={exercise} className="bg-orange-50 dark:bg-orange-500/10 p-3 rounded-xl border border-orange-100 dark:border-orange-500/20"><div className="text-xs text-orange-600 dark:text-orange-300 line-through mb-0.5">{exercise}</div><div className="text-sm font-bold text-gray-900 dark:text-white">👉 {alternative}</div></div>
-                                ))}
-                                {isInjuredMode && (!insights.scaling || Object.keys(insights.scaling).length === 0) && (
-                                    <div className="bg-orange-50 dark:bg-orange-500/10 p-3 rounded-xl border border-orange-100 dark:border-orange-500/20"><div className="text-sm font-bold text-gray-900 dark:text-white">Sänk vikterna med 30-50% och fokusera på fullt rörelseutslag.</div></div>
-                                )}
-                            </div></div>
-                        )}
+                
+                <div className="mb-8">
+                    <p className="text-center text-xs font-bold uppercase text-gray-400 dark:text-gray-500 mb-3 tracking-wider">Hur känns kroppen?</p>
+                    <div className="flex gap-3 justify-center">
+                        {['good', 'neutral', 'bad'].map((f) => (
+                            <button 
+                                key={f} 
+                                onClick={() => onFeelingChange(f as any)} 
+                                disabled={isLoadingNewInsights}
+                                className={`p-4 rounded-2xl border-2 transition-all ${currentFeeling === f ? 'bg-white dark:bg-gray-800 border-primary scale-110 shadow-lg z-10' : 'bg-white/50 dark:bg-gray-800/50 border-transparent hover:bg-white dark:hover:bg-gray-800'} ${isLoadingNewInsights ? 'opacity-50' : ''}`}
+                            >
+                                <span className="text-2xl block">{f === 'good' ? '🔥' : f === 'bad' ? '🤕' : '🙂'}</span>
+                            </button>
+                        ))}
                     </div>
+                </div>
+
+                <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-xl mb-6 min-h-[300px] transition-all">
+                    {isLoadingNewInsights ? (
+                        <div className="flex flex-col items-center justify-center h-full py-10">
+                            <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+                            <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Uppdaterar strategi...</p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="flex items-start gap-4 mb-6">
+                                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-lg ${currentFeeling === 'good' ? 'from-orange-500 to-red-600' : currentFeeling === 'bad' ? 'from-green-500 to-blue-600' : 'from-indigo-500 to-purple-600'}`}>
+                                    <SparklesIcon className="w-6 h-6 text-white" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Dagens Fokus</h3>
+                                    <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium italic">"{displayStrategy}"</p>
+                                </div>
+                            </div>
+                            
+                            <div className="space-y-4">
+                                {insights.suggestions && Object.keys(insights.suggestions).length > 0 && (
+                                    <div className={`p-4 rounded-2xl border ${currentFeeling === 'good' ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800/30' : 'bg-gray-50 dark:bg-gray-900/30 border-gray-100 dark:border-gray-700'}`}>
+                                        <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                                            {currentFeeling === 'good' && <FireIcon className="w-4 h-4" />}
+                                            Smart Load (Förslag)
+                                        </h4>
+                                        <div className="space-y-2">
+                                            {Object.entries(insights.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
+                                                <div key={exercise} className="flex justify-between items-center bg-white dark:bg-black/20 p-2.5 rounded-lg border border-gray-100 dark:border-white/5">
+                                                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{exercise}</span>
+                                                    <span className={`text-sm font-bold ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-primary'}`}>{suggestion}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                {insights.scaling && Object.keys(insights.scaling).length > 0 && (
+                                    <div className="mt-4">
+                                        <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                            <LightningIcon className="w-3 h-3" /> Alternativ / Skalning
+                                        </h4>
+                                        <div className="space-y-2">
+                                            {Object.entries(insights.scaling).map(([exercise, alternative]) => (
+                                                <div key={exercise} className="bg-white/50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
+                                                    <div className="text-xs text-gray-500 line-through mb-0.5">{exercise}</div>
+                                                    <div className="text-sm font-bold text-gray-900 dark:text-white">👉 {alternative}</div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    )}
                 </div>
                 <div className="mt-auto pt-4 pb-8"><button onClick={onStart} className="w-full bg-primary hover:brightness-110 text-white font-black text-lg py-5 rounded-2xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2"><span className="tracking-tight uppercase">Starta passet</span><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg></button></div>
             </div>
@@ -352,7 +410,9 @@ const ExerciseLogCard: React.FC<{
                             Senast: <span className="text-gray-600 dark:text-gray-300">{lastPerformance.reps} x {lastPerformance.weight}kg</span>
                         </p>
                     ) : (
-                        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-0.5">Första gången</p>
+                        <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mt-0.5">
+                           Ingen historik
+                        </p>
                     )}
                 </div>
             </div>
@@ -504,7 +564,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [dailyFeeling, setDailyFeeling] = useState<'good' | 'neutral' | 'bad'>('neutral');
   const [customActivity, setCustomActivity] = useState({ name: '', duration: '', distance: '', calories: '' });
   const [sessionStats, setSessionStats] = useState({ distance: '', calories: '', time: '', rounds: '' });
-  
+  const [isUpdatingInsights, setIsUpdatingInsights] = useState(false);
+
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
 
@@ -668,7 +729,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                     try {
                         const exerciseNames = exercises.map(e => e.exerciseName);
                         if (exerciseNames.length > 0) {
-                            const insights = await generateMemberInsights(logs, foundWorkout.title, exerciseNames);
+                            // Initial call with default 'neutral' feeling
+                            const insights = await generateMemberInsights(logs, foundWorkout.title, exerciseNames, 'neutral');
                             setAiInsights(insights);
                         } else {
                             setViewMode('logging');
@@ -685,6 +747,22 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
     
     init();
   }, [wId, oId, userId, isManualMode, contextWorkouts]);
+
+  const updateInsightsBasedOnFeeling = async (feeling: 'good' | 'neutral' | 'bad') => {
+      if (!workout || !exerciseResults.length) return;
+      setIsUpdatingInsights(true);
+      setDailyFeeling(feeling);
+      
+      try {
+          const exerciseNames = exerciseResults.map(e => e.exerciseName);
+          const insights = await generateMemberInsights(allLogs, workout.title, exerciseNames, feeling);
+          setAiInsights(insights);
+      } catch (err) {
+          console.error("Failed to update insights:", err);
+      } finally {
+          setIsUpdatingInsights(false);
+      }
+  };
 
   // --- AUTO-SAVE LOGIC ---
   useEffect(() => {
@@ -927,8 +1005,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               insights={aiInsights}
               onStart={handleStartWorkout}
               onCancel={() => handleCancel(false)}
-              onFeelingChange={setDailyFeeling}
+              onFeelingChange={updateInsightsBasedOnFeeling}
               currentFeeling={dailyFeeling}
+              isLoadingNewInsights={isUpdatingInsights}
           />
       );
   }
