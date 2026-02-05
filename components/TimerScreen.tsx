@@ -997,30 +997,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         onMouseMove={handleInteraction}
         onTouchStart={handleInteraction}
     >
-      {/* LOBBY OVERLAY */}
-      <AnimatePresence>
-        {isLobbyMode && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
-          >
-             <button 
-                onClick={handleLobbyStart}
-                className="bg-primary hover:brightness-110 text-white font-black py-8 px-16 rounded-full shadow-[0_0_60px_rgba(20,184,166,0.6)] hover:shadow-[0_0_100px_rgba(20,184,166,0.8)] hover:scale-105 transition-all text-4xl sm:text-5xl uppercase tracking-tight flex items-center gap-4 border-4 border-white/20 animate-pulse"
-             >
-                <PlayIcon className="w-12 h-12 sm:w-16 sm:h-16 fill-current" />
-                <span>STARTA PASS</span>
-             </button>
-             
-             {/* Sub-text for context */}
-             <div className="absolute bottom-20 text-white/70 font-bold uppercase tracking-widest text-sm sm:text-base">
-                 Klicka för att starta nedräkningen
-             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* LOBBY OVERLAY REMOVED - NOW INTEGRATED INTO CARD */}
 
       {showConfetti && <Confetti />}
       {showFinishAnimation && (
@@ -1083,19 +1060,31 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               }`}
           style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
       >
-        <div className="mb-4 px-8 py-2 rounded-full bg-black/30 backdrop-blur-xl border border-white/20 shadow-lg z-20">
+        {/* LOBBY START BUTTON OVERLAY */}
+        {isLobbyMode && (
+             <div className="absolute inset-0 z-50 flex items-center justify-center">
+                 <button 
+                    onClick={handleLobbyStart}
+                    className="bg-white text-black hover:scale-110 transition-transform duration-200 rounded-full p-6 shadow-2xl border-4 border-white/50 group"
+                 >
+                    <PlayIcon className="w-16 h-16 ml-1 fill-current group-hover:text-primary transition-colors" />
+                 </button>
+             </div>
+        )}
+
+        <div className={`mb-4 px-8 py-2 rounded-full bg-black/30 backdrop-blur-xl border border-white/20 shadow-lg z-20 transition-opacity ${isLobbyMode ? 'opacity-0' : 'opacity-100'}`}>
             <span className={`font-black tracking-[0.3em] text-white uppercase drop-shadow-md text-lg md:text-xl`}>{modeLabel}</span>
         </div>
 
         {/* STATUS (ARBETE/VILA) - Överst */}
         <div className="text-center z-20 w-full px-10 mb-2">
-            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl overflow-visible whitespace-nowrap leading-none`}>
-                {isLobbyMode ? "REDO ATT STARTA" : statusLabel}
+            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl overflow-visible whitespace-nowrap leading-none ${isLobbyMode ? 'opacity-100' : ''}`}>
+                {isLobbyMode ? "REDO" : statusLabel}
             </h2>
         </div>
 
         {/* SIFFROR (Tiden) - Mitten */}
-        <div className="z-20 relative flex flex-col items-center w-full text-white">
+        <div className={`z-20 relative flex flex-col items-center w-full text-white transition-opacity duration-300 ${isLobbyMode ? 'opacity-30 blur-sm' : 'opacity-100'}`}>
             <div className="flex items-center justify-center w-full gap-2">
                  <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[8rem] sm:text-[10rem] md:text-[12rem]">
                     {minutesStr}:{secondsStr}
