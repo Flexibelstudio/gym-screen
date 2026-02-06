@@ -8,9 +8,9 @@ import { StudioEvent } from '../types';
 import { Confetti } from './WorkoutCompleteModal';
 
 const DISPLAY_DURATION = 8000; 
-// VIKTIGT: Vi sänker TTL drastiskt. Om eventet är äldre än 60 sekunder när vi tar emot det
-// (t.ex. vid omladdning av sidan), så visar vi det inte. Det är "old news".
-const EVENT_TTL = 60 * 1000; 
+// TTL (Time To Live) för events om man t.ex. tappar nätet och återansluter. 
+// Vi visar inte events som är äldre än 5 minuter i en "live"-kö.
+const EVENT_TTL = 5 * 60 * 1000; 
 
 const playBellSound = () => {
     const ctx = getAudioContext();
@@ -54,17 +54,30 @@ export const PBOverlay: React.FC = () => {
     // För att låsa kön medan en animation pågår
     const isLocked = useRef(false);
 
+    // VIKTIGT: Vi sparar tidpunkten då komponenten laddades.
+    // Vi ignorerar alla events som har en tidsstämpel ÄLDRE än denna tidpunkt.
+    // Detta förhindrar att senaste eventet visas igen om man laddar om sidan (refresh).
+    const mountTime = useRef(Date.now());
+
     // 1. LYSSNA PÅ DATABASEN
     useEffect(() => {
         if (!selectedOrganization) return;
 
         const unsubscribe = listenForStudioEvents(selectedOrganization.id, (event) => {
-            // Filtrera bort gamla events (t.ex. vid omladdning)
-            if (Date.now() - event.timestamp > EVENT_TTL) {
+            const now = Date.now();
+
+            // 1. Historik-spärr: Skedde detta innan vi öppnade sidan? Ignorera.
+            // (Vi lägger på 1 sekunds marginal för säkerhets skull)
+            if (event.timestamp < (mountTime.current - 1000)) {
                 return;
             }
 
-            // Filtrera bort dubbletter
+            // 2. TTL-spärr: Är eventet för gammalt (t.ex. vid återanslutning efter lång tid)?
+            if (now - event.timestamp > EVENT_TTL) {
+                return;
+            }
+
+            // 3. Dubblett-spärr
             if (processedIds.current.has(event.id)) {
                 return;
             }
