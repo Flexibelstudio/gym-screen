@@ -15,26 +15,37 @@ const EVENT_TTL = 5 * 60 * 1000;
 const playBellSound = () => {
     const ctx = getAudioContext();
     if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume();
 
-    const now = ctx.currentTime;
-    const frequencies = [350, 710, 1100, 1550, 2100];
-    const duration = 4.0;
+    // Funktion för att generera själva ljudvågorna
+    const generateSound = () => {
+        const now = ctx.currentTime;
+        const frequencies = [350, 710, 1100, 1550, 2100];
+        const duration = 4.0;
 
-    frequencies.forEach((freq, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = i < 2 ? 'sine' : 'triangle';
-        osc.frequency.setValueAtTime(freq, now);
-        const initialGainValue = i === 0 ? 0.4 : 0.12; 
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(initialGainValue, now + 0.01);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start(now);
-        osc.stop(now + duration);
-    });
+        frequencies.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = i < 2 ? 'sine' : 'triangle';
+            osc.frequency.setValueAtTime(freq, now);
+            const initialGainValue = i === 0 ? 0.4 : 0.12; 
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(initialGainValue, now + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + duration);
+        });
+    };
+
+    // Om ljudmotorn sover (vanligt i webbläsare innan interaktion), väck den först
+    if (ctx.state === 'suspended') {
+        ctx.resume().then(() => {
+            generateSound();
+        }).catch(err => console.error("Kunde inte starta ljudet:", err));
+    } else {
+        generateSound();
+    }
 };
 
 export const PBOverlay: React.FC = () => {
