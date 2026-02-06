@@ -1,13 +1,12 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog } from '../../services/firebaseService';
-import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage, InsightContent } from '../../services/geminiService';
+import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog } from '../../services/firebaseService';
+import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
-import { CloseIcon, DumbbellIcon, SparklesIcon, FireIcon, RunningIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, CalculatorIcon, ChartBarIcon, TrophyIcon } from '../../components/icons'; 
+import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, ChartBarIcon, HistoryIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
-import { OneRepMaxModal } from '../../components/OneRepMaxModal';
-import { WorkoutLogType, RepRange, ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, ExerciseSetDetail, BenchmarkDefinition } from '../../types';
+import { WorkoutLogType, ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
 import { useStudio } from '../../context/StudioContext';
@@ -46,7 +45,7 @@ interface WorkoutData {
   id: string;
   title: string;
   logType?: WorkoutLogType;
-  benchmarkId?: string; // Kopplat benchmark
+  benchmarkId?: string;
   blocks: {
       id: string;
       title: string;
@@ -63,7 +62,6 @@ const TimeInput: React.FC<{
     placeholder?: string;
     className?: string;
 }> = ({ value, onChange, placeholder, className }) => {
-    // Internal state for display
     const [min, setMin] = useState('');
     const [sec, setSec] = useState('');
 
@@ -125,82 +123,40 @@ const TimeInput: React.FC<{
     );
 };
 
-// --- DIPLOMA TITLES ---
+// --- DIPLOMA TITLES & COMPARISONS ---
 const DIPLOMA_TITLES = [
-    "SNYGGT JOBBAT!",
-    "GRYMT KÖRT!",
-    "VILKEN KÄMPE!",
-    "STARKARE ÄN IGÅR!",
-    "VÄRLDSKLASS!",
-    "HELT OTROLIGT!",
-    "DU ÄGDE PASSET!",
-    "VILKEN INSATS!",
-    "HELT MAGISKT!",
-    "DU GJORDE DET!",
-    "GE DIG SJÄLV EN HIGH-FIVE!",
-    "PASSET ÄR DITT!",
-    "EN RIKTIG SEGER!",
-    "TOPPFORM!",
-    "OJ OJ OJ!"
+    "SNYGGT JOBBAT!", "GRYMT KÖRT!", "VILKEN KÄMPE!", "STARKARE ÄN IGÅR!", "VÄRLDSKLASS!", 
+    "HELT OTROLIGT!", "DU ÄGDE PASSET!", "VILKEN INSATS!", "HELT MAGISKT!", "DU GJORDE DET!", 
+    "GE DIG SJÄLV EN HIGH-FIVE!", "PASSET ÄR DITT!", "EN RIKTIG SEGER!", "TOPPFORM!", "OJ OJ OJ!"
 ];
 
 const getRandomDiplomaTitle = () => DIPLOMA_TITLES[Math.floor(Math.random() * DIPLOMA_TITLES.length)];
 
-// --- FUN COMPARISON DATA ---
 const WEIGHT_COMPARISONS = [
     { name: "Hamstrar", singular: "en Hamster", weight: 0.15, emoji: "🐹" },
     { name: "Fotbollar", singular: "en Fortboll", weight: 0.45, emoji: "⚽" },
-    { name: "Paket Smör", singular: "ett Paket Smör", weight: 0.5, emoji: "🧈" },
-    { name: "iPads", singular: "en iPad", weight: 0.5, emoji: "📱" },
     { name: "Ananasar", singular: "en Ananas", weight: 1, emoji: "🍍" },
     { name: "Chihuahuas", singular: "en Chihuahua", weight: 2, emoji: "🐕" },
-    { name: "Tegelstenar", singular: "en Tegelsten", weight: 3, emoji: "🧱" },
     { name: "Katter", singular: "en Katt", weight: 5, emoji: "🐈" },
-    { name: "Bowlingklot", singular: "ett Bowlingklot", weight: 7, emoji: "🎳" },
     { name: "Bildäck", singular: "ett Bildäck", weight: 10, emoji: "🛞" },
-    { name: "Vattenmeloner", singular: "en Vattenmelon", weight: 12, emoji: "🍉" },
-    { name: "Corgis", singular: "en Corgi", weight: 12, emoji: "🐶" },
-    { name: "Mikrovågsugnar", singular: "en Mikrovågsugn", weight: 15, emoji: "📟" },
     { name: "Cyklar", singular: "en Cykel", weight: 15, emoji: "🚲" },
-    { name: "Säckar Cement", singular: "en Säck Cement", weight: 25, emoji: "🏗️" },
     { name: "Golden Retrievers", singular: "en Golden Retriever", weight: 30, emoji: "🦮" },
-    { name: "Toalettstolar", singular: "en Toalettstol", weight: 40, emoji: "🚽" },
     { name: "Diskmaskiner", singular: "en Diskmaskin", weight: 50, emoji: "🍽️" },
-    { name: "Vargar", singular: "en Varg", weight: 50, emoji: "🐺" },
-    { name: "Ölkaggar", singular: "en Ölkagge", weight: 60, emoji: "🍺" },
-    { name: "Tvättmaskiner", singular: "en Tvättmaskin", weight: 80, emoji: "🧺" },
     { name: "Vuxna Män", singular: "en Genomsnittlig Man", weight: 80, emoji: "👨" },
-    { name: "Vuxna Kvinnor", singular: "en Genomsnittlig Kvinna", weight: 65, emoji: "👩" },
-    { name: "Kängurus", singular: "en Känguru", weight: 90, emoji: "🦘" },
-    { name: "Vespor", singular: "en Vespa", weight: 110, emoji: "🛵" },
     { name: "Pandor", singular: "en Panda", weight: 120, emoji: "🐼" },
-    { name: "Kylskåp", singular: "ett Kylskåp", weight: 150, emoji: "🧊" },
     { name: "Gorillor", singular: "en Gorilla", weight: 180, emoji: "🦍" },
     { name: "Lejon", singular: "ett Lejon", weight: 200, emoji: "🦁" },
-    { name: "Varuautomater", singular: "en Varuautomat", weight: 300, emoji: "🎰" },
     { name: "Sibiriska Tigrar", singular: "en Sibirisk Tiger", weight: 300, emoji: "🐅" },
     { name: "Konsertflyglar", singular: "en Konsertflygel", weight: 500, emoji: "🎹" },
     { name: "Hästar", singular: "en Häst", weight: 500, emoji: "🐎" },
-    { name: "Mjölkkor", singular: "en Mjölkko", weight: 600, emoji: "🐄" },
-    { name: "Stora Älgar", singular: "en Stor Älg", weight: 700, emoji: "🫫" },
     { name: "Giraffer", singular: "en Giraff", weight: 800, emoji: "🦒" },
-    { name: "Amerikanska Bisonoxar", singular: "en Bisonoxe", weight: 900, emoji: "🦬" },
-    { name: "Smart Cars", singular: "en Smart Car", weight: 900, emoji: "🚗" },
     { name: "Personbilar", singular: "en Personbil", weight: 1500, emoji: "🚘" },
-    { name: "Flodhästar", singular: "en Flodhäst", weight: 1500, emoji: "🦛" },
     { name: "Noshörningar", singular: "en Noshörning", weight: 2000, emoji: "🛏️" },
-    { name: "Vita Hajar", singular: "en Vit Haj", weight: 2000, emoji: "🦈" },
-    { name: "Späckhuggare", singular: "en Späckhuggare", weight: 4000, emoji: "🐋" },
     { name: "Elefanter", singular: "en Elefant", weight: 5000, emoji: "🐘" },
     { name: "T-Rex", singular: "en T-Rex", weight: 8000, emoji: "🦖" },
     { name: "Skolbussar", singular: "en Skolbuss", weight: 12000, emoji: "🚌" },
-    { name: "Stridsvagnar", singular: "en Stridsvagn", weight: 60000, emoji: "🛡️" },
-    { name: "Lokomotiv", singular: "ett Lokomotiv", weight: 100000, emoji: "🚂" },
     { name: "Blåvalar", singular: "en Blåval", weight: 150000, emoji: "🐳" },
-    { name: "Frihetsgudinnor", singular: "en Frihetsgudinna", weight: 225000, emoji: "🗽" },
     { name: "Boeing 747", singular: "en Boeing 747", weight: 400000, emoji: "✈️" },
-    { name: "Rymdfärjor", singular: "en Rymdfärja", weight: 2000000, emoji: "🚀" },
-    { name: "Eiffeltorn", singular: "ett Eiffeltorn", weight: 10000000, emoji: "🗼" }
 ];
 
 const getFunComparison = (totalWeight: number) => {
@@ -253,10 +209,10 @@ const PreGameView: React.FC<{
     currentFeeling: 'good' | 'neutral' | 'bad';
 }> = ({ workoutTitle, insights, onStart, onCancel, onFeelingChange, currentFeeling }) => {
     
-    // Select the correct insight object based on the current feeling
-    const activeInsight: InsightContent = insights[currentFeeling];
+    // Switch content immediately based on selected feeling
+    const activeContent = insights[currentFeeling];
+    const displayStrategy = activeContent?.strategy || activeContent?.readiness?.message || "Laddar strategi...";
     
-    // Visual theme based on feeling
     let themeClass = "from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-800";
     
     if (currentFeeling === 'good') {
@@ -288,58 +244,50 @@ const PreGameView: React.FC<{
                 </div>
 
                 <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-xl mb-6 min-h-[300px] transition-all">
-                    {activeInsight ? (
-                        <>
-                            <div className="flex items-start gap-4 mb-6">
-                                <div className={`w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-lg ${currentFeeling === 'good' ? 'from-orange-500 to-red-600' : currentFeeling === 'bad' ? 'from-green-500 to-blue-600' : 'from-indigo-500 to-purple-600'}`}>
-                                    <SparklesIcon className="w-6 h-6 text-white" />
-                                </div>
-                                <div>
-                                    <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Dagens Fokus</h3>
-                                    <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium italic animate-fade-in">"{activeInsight.strategy || activeInsight.readiness.message}"</p>
-                                </div>
-                            </div>
-                            
-                            <div className="space-y-4 animate-fade-in">
-                                {activeInsight.suggestions && Object.keys(activeInsight.suggestions).length > 0 && (
-                                    <div className={`p-4 rounded-2xl border ${currentFeeling === 'good' ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800/30' : 'bg-gray-50 dark:bg-gray-900/30 border-gray-100 dark:border-gray-700'}`}>
-                                        <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}>
-                                            {currentFeeling === 'good' && <FireIcon className="w-4 h-4" />}
-                                            Smart Load (Förslag)
-                                        </h4>
-                                        <div className="space-y-2">
-                                            {Object.entries(activeInsight.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
-                                                <div key={exercise} className="flex justify-between items-center bg-white dark:bg-black/20 p-2.5 rounded-lg border border-gray-100 dark:border-white/5">
-                                                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{exercise}</span>
-                                                    <span className={`text-sm font-bold ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-primary'}`}>{suggestion}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                                
-                                {activeInsight.scaling && Object.keys(activeInsight.scaling).length > 0 && (
-                                    <div className="mt-4">
-                                        <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
-                                            <LightningIcon className="w-3 h-3" /> Alternativ / Skalning
-                                        </h4>
-                                        <div className="space-y-2">
-                                            {Object.entries(activeInsight.scaling).map(([exercise, alternative]) => (
-                                                <div key={exercise} className="bg-white/50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
-                                                    <div className="text-xs text-gray-500 line-through mb-0.5">{exercise}</div>
-                                                    <div className="text-sm font-bold text-gray-900 dark:text-white">👉 {alternative}</div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </>
-                    ) : (
-                         <div className="flex flex-col items-center justify-center h-full py-10">
-                            <p className="text-sm text-gray-400">Ingen strategi tillgänglig.</p>
+                    <div className="flex items-start gap-4 mb-6">
+                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-lg ${currentFeeling === 'good' ? 'from-orange-500 to-red-600' : currentFeeling === 'bad' ? 'from-green-500 to-blue-600' : 'from-indigo-500 to-purple-600'}`}>
+                            <SparklesIcon className="w-6 h-6 text-white" />
                         </div>
-                    )}
+                        <div>
+                            <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Dagens Fokus</h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium italic">"{displayStrategy}"</p>
+                        </div>
+                    </div>
+                    
+                    <div className="space-y-4">
+                        {activeContent?.suggestions && Object.keys(activeContent.suggestions).length > 0 && (
+                            <div className={`p-4 rounded-2xl border ${currentFeeling === 'good' ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800/30' : 'bg-gray-50 dark:bg-gray-900/30 border-gray-100 dark:border-gray-700'}`}>
+                                <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                                    {currentFeeling === 'good' && <FireIcon className="w-4 h-4" />}
+                                    Smart Load (Förslag)
+                                </h4>
+                                <div className="space-y-2">
+                                    {Object.entries(activeContent.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
+                                        <div key={exercise} className="flex justify-between items-center bg-white dark:bg-black/20 p-2.5 rounded-lg border border-gray-100 dark:border-white/5">
+                                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{exercise}</span>
+                                            <span className={`text-sm font-bold ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-primary'}`}>{suggestion}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                        
+                        {activeContent?.scaling && Object.keys(activeContent.scaling).length > 0 && (
+                            <div className="mt-4">
+                                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                    <LightningIcon className="w-3 h-3" /> Alternativ / Skalning
+                                </h4>
+                                <div className="space-y-2">
+                                    {Object.entries(activeContent.scaling).map(([exercise, alternative]) => (
+                                        <div key={exercise} className="bg-white/50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
+                                            <div className="text-xs text-gray-500 line-through mb-0.5">{exercise}</div>
+                                            <div className="text-sm font-bold text-gray-900 dark:text-white">👉 {alternative}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div className="mt-auto pt-4 pb-8"><button onClick={onStart} className="w-full bg-primary hover:brightness-110 text-white font-black text-lg py-5 rounded-2xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2"><span className="tracking-tight uppercase">Starta passet</span><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg></button></div>
             </div>
@@ -373,7 +321,6 @@ const ExerciseLogCard: React.FC<{
     };
 
     const handleToggleComplete = (index: number) => {
-         // Haptic feedback for "Optimistic" confirmation
          if (window.navigator.vibrate) {
              window.navigator.vibrate(result.setDetails[index].completed ? 5 : 15);
          }
@@ -409,12 +356,6 @@ const ExerciseLogCard: React.FC<{
                         </p>
                     )}
                 </div>
-                {aiSuggestion && (
-                    <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 px-2 py-1 rounded-lg border border-indigo-100 dark:border-indigo-800 flex items-center gap-1.5 shadow-sm">
-                        <SparklesIcon className="w-3 h-3 text-indigo-500" />
-                        <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 whitespace-nowrap">{aiSuggestion}</span>
-                    </div>
-                )}
             </div>
 
             <div className="space-y-2">
@@ -544,7 +485,7 @@ const cleanForFirestore = (obj: any): any => {
 
 export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigation, route }: any) => {
   const { currentUser } = useAuth();
-  const { workouts: contextWorkouts, selectedOrganization } = useStudio(); // Access selectedOrganization here
+  const { workouts: contextWorkouts, selectedOrganization } = useStudio();
   const userId = currentUser?.uid || "offline_member_uid"; 
   const passedWId = workoutId || route?.params?.workoutId;
   const isManualMode = passedWId === 'MANUAL_ENTRY';
@@ -564,7 +505,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [dailyFeeling, setDailyFeeling] = useState<'good' | 'neutral' | 'bad'>('neutral');
   const [customActivity, setCustomActivity] = useState({ name: '', duration: '', distance: '', calories: '' });
   const [sessionStats, setSessionStats] = useState({ distance: '', calories: '', time: '', rounds: '' });
-  
+
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
 
@@ -576,14 +517,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   }, [isQuickWorkoutMode, isManualMode, exerciseResults]);
 
   // --- BENCHMARK LOGIC ---
-
-  // Hitta benchmark-definitionen
   const benchmarkDefinition = useMemo(() => {
       if (!workout?.benchmarkId || !selectedOrganization?.benchmarkDefinitions) return null;
       return selectedOrganization.benchmarkDefinitions.find(b => b.id === workout.benchmarkId);
   }, [workout?.benchmarkId, selectedOrganization?.benchmarkDefinitions]);
 
-  // Hitta tidigare bästa resultat för benchmark
   const prevBenchmarkBest = useMemo(() => {
       if (!benchmarkDefinition || !allLogs) return undefined;
       const relevantLogs = allLogs.filter(l => l.benchmarkId === benchmarkDefinition.id && l.benchmarkValue !== undefined);
@@ -596,7 +534,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       return sorted[0]?.benchmarkValue;
   }, [benchmarkDefinition, allLogs]);
 
-  // Helper to format prev best based on type
   const formatPrev = (val: number, type: string) => {
       if (type === 'time') {
           const m = Math.floor(val / 60);
@@ -612,7 +549,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
           return customActivity.name.trim() !== '' && customActivity.duration.trim() !== '';
       }
 
-      // Check Benchmark requirements
       if (benchmarkDefinition) {
           if (benchmarkDefinition.type === 'time' && !sessionStats.time) return false;
           if (benchmarkDefinition.type === 'reps' && !sessionStats.rounds) return false;
@@ -660,7 +596,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                         loadedLogData = saved.logData;
                         loadedSessionStats = saved.sessionStats;
                         loadedCustomActivity = saved.customActivity;
-                        // Skip pre-game if we have a saved session
                         setViewMode('logging');
                         skipInsights = true;
                     }
@@ -673,9 +608,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                     const defaultSets: LocalSetDetail[] = [{ weight: '', reps: '', completed: false }];
 
                     block.exercises.forEach(ex => {
-                        // STRICT FILTER: Only include exercises explicitly marked for logging
                         if (ex.loggingEnabled === true) {
-                            // Use loaded result if available, else new
                             const savedRes = loadedResults?.find(lr => lr.exerciseId === ex.id);
                             exercises.push(savedRes || {
                                 exerciseId: ex.id,
@@ -693,7 +626,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                 setExerciseResults(exercises);
                 if (loadedLogData) setLogData(loadedLogData);
                 if (loadedSessionStats) {
-                    // Ensure new fields exist if loading old data
                     setSessionStats({
                         distance: loadedSessionStats.distance || '',
                         calories: loadedSessionStats.calories || '',
@@ -728,7 +660,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                     try {
                         const exerciseNames = exercises.map(e => e.exerciseName);
                         if (exerciseNames.length > 0) {
-                            // Hämta ALLA strategier direkt
+                            // Fetch complete insights immediately (good/neutral/bad)
                             const insights = await generateMemberInsights(logs, foundWorkout.title, exerciseNames);
                             setAiInsights(insights);
                         } else {
@@ -746,6 +678,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
     
     init();
   }, [wId, oId, userId, isManualMode, contextWorkouts]);
+
+  const handleFeelingChange = (feeling: 'good' | 'neutral' | 'bad') => {
+      setDailyFeeling(feeling);
+      // No async call here anymore. Content switches instantly in PreGameView.
+  };
 
   // --- AUTO-SAVE LOGIC ---
   useEffect(() => {
@@ -767,8 +704,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, userId, wId, oId, isManualMode, workout, isQuickWorkoutMode]);
 
   const handleCancel = (isSuccess = false, diploma: WorkoutDiploma | null = null) => {
-    // We don't necessarily clear it here if the user just "backs out", 
-    // unless it's a success. User must "Släng" from profile to clear it otherwise.
     if (isSuccess) {
         localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
     }
@@ -801,22 +736,17 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       try {
           const isQuickOrManual = isManualMode || workout?.logType === 'quick';
           
-          // --- IMPROVED DATE LOGIC FOR FEED AND TIME ---
           const now = new Date();
           const selectedDate = new Date(logDate);
-          // Check if selected date matches today (local time)
           const isToday = selectedDate.toDateString() === now.toDateString();
           
           let logDateMs: number;
           if (isToday) {
-              logDateMs = Date.now(); // Use exact current time for today's logs
+              logDateMs = Date.now();
           } else {
-              // For past dates, use selected date but add current hours/mins 
-              // to avoid sorting clumps and the "01:00" timezone offset issue
               selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
               logDateMs = selectedDate.getTime();
           }
-          // ----------------------------------------------
           
           let totalVolume = 0;
           
@@ -863,9 +793,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               tags: logData.tags || [],
               comment: logData.comment || '',
               exerciseResults: exerciseResultsToSave,
-              // Add Benchmark Info if applicable
               benchmarkId: benchmarkDefinition?.id,
-              // benchmarkValue: Calculated below based on type
           };
 
           if (isQuickOrManual) {
@@ -879,31 +807,25 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
               setShowCelebration(true);
           } else {
-              // Standard Workout Logic
               finalLogRaw.durationMinutes = parseFloat(sessionStats.time) || 0;
               finalLogRaw.totalDistance = parseFloat(sessionStats.distance) || 0;
               finalLogRaw.totalCalories = parseInt(sessionStats.calories) || 0;
               
-              // Calculate Benchmark Value based on type
               if (benchmarkDefinition) {
                   if (benchmarkDefinition.type === 'time') {
-                      // Save time in seconds
                       finalLogRaw.benchmarkValue = (parseFloat(sessionStats.time) || 0) * 60;
                   } else if (benchmarkDefinition.type === 'reps') {
                       finalLogRaw.benchmarkValue = parseFloat(sessionStats.rounds) || 0;
                   } else if (benchmarkDefinition.type === 'weight') {
-                      // Total volume calculated from exercises
                       finalLogRaw.benchmarkValue = totalVolume;
                   }
               }
 
-              // 1. Spara loggen först för att beräkna PBs
               setSaveStatus('Letar efter nya rekord...');
               const { log: savedLog, newRecords } = await saveWorkoutLog(cleanForFirestore(finalLogRaw));
 
               let diplomaData: WorkoutDiploma | null = null;
 
-              // 2. Skapa diplom baserat på volym
               if (totalVolume > 0) {
                   const comparison = getFunComparison(totalVolume);
                   if (comparison) {
@@ -918,11 +840,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   }
               }
 
-              // 3. Fallback till alternativt diplom om ingen volym hittades
               if (!diplomaData) {
                   setSaveStatus('AI:n skriver ditt diplom...');
                   try {
-                      // Använd fortfarande AI för texterna men välj rubrik från listan
                       diplomaData = await generateWorkoutDiploma({ ...finalLogRaw, newPBs: newRecords });
                       if (diplomaData) {
                           diplomaData.title = getRandomDiplomaTitle();
@@ -940,7 +860,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   }
               }
 
-              // 4. Generera bild och ladda upp om prompt finns
               if (diplomaData && diplomaData.imagePrompt) {
                   setSaveStatus('Genererar medaljbild...');
                   try {
@@ -953,7 +872,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   } catch (e) { console.warn(e); }
               }
 
-              // 5. VIKTIGT: Uppdatera nu den sparade loggen med det färdiga diplomet
               if (diplomaData) {
                   await updateWorkoutLog(savedLog.id, { diploma: diplomaData });
               }
@@ -988,16 +906,14 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               insights={aiInsights}
               onStart={handleStartWorkout}
               onCancel={() => handleCancel(false)}
-              onFeelingChange={setDailyFeeling}
+              onFeelingChange={handleFeelingChange}
               currentFeeling={dailyFeeling}
-              isLoadingNewInsights={false}
           />
       );
   }
 
   return (
     <div className="bg-gray-5 dark:bg-black text-gray-900 dark:text-white flex flex-col relative h-full">
-      {/* Submit Overlay - Blocks interaction during saving */}
       {isSubmitting && (
           <div className="absolute inset-0 z-[1000] bg-white/10 dark:bg-black/10 pointer-events-auto" />
       )}
@@ -1060,10 +976,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   </div>
               </div>
 
-              {!isManualMode && aiInsights && aiInsights.neutral && aiInsights.neutral.readiness && (
+              {!isManualMode && aiInsights && aiInsights.readiness && (
                   <div className={`p-5 rounded-[1.5rem] mb-8 shadow-sm flex items-start gap-4 border border-white/20 ${
-                      aiInsights[dailyFeeling].readiness.status === 'low' ? 'bg-orange-100 text-orange-900' : 
-                      aiInsights[dailyFeeling].readiness.status === 'high' ? 'bg-green-100 text-green-900' : 
+                      aiInsights.readiness.status === 'low' ? 'bg-orange-100 text-orange-900' : 
+                      aiInsights.readiness.status === 'high' ? 'bg-green-100 text-green-900' : 
                       'bg-blue-100 text-blue-900'
                   }`}>
                       <div className="p-2 bg-white/50 rounded-xl flex-shrink-0 shadow-inner">
@@ -1071,7 +987,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                       </div>
                       <div>
                           <h4 className="font-black text-xs uppercase tracking-widest opacity-70 mb-1">Dagsform</h4>
-                          <p className="font-bold text-sm leading-relaxed">{aiInsights[dailyFeeling].readiness.message}</p>
+                          <p className="font-bold text-sm leading-relaxed">{aiInsights.readiness.message}</p>
                       </div>
                   </div>
               )}
@@ -1109,7 +1025,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                     name={result.exerciseName}
                                     result={result}
                                     onUpdate={(updates) => handleUpdateResult(index, updates)}
-                                    aiSuggestion={aiInsights?.neutral?.suggestions?.[result.exerciseName]} // Use neutral suggestions by default or switch based on feeling if you want dynamic
+                                    aiSuggestion={aiInsights?.suggestions?.[result.exerciseName]}
                                     lastPerformance={history[result.exerciseName]} 
                                 />
                             </React.Fragment>
@@ -1177,7 +1093,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                 onUpdate={u => setLogData(prev => ({ ...prev, ...u }))} 
               />
 
-              {/* ACTION BUTTONS - IN CONTENT FLOW */}
               <div className="mt-12 space-y-4 pb-12">
                   {!isFormValid && !isQuickWorkoutMode && !isManualMode && uncheckedSetsCount > 0 && (
                       <div className="text-center animate-fade-in">
