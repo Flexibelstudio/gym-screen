@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useStudio } from '../context/StudioContext';
 import { getAudioContext } from '../hooks/useWorkoutTimer';
 import { listenForStudioEvents } from '../services/firebaseService';
@@ -7,6 +7,7 @@ import { StudioEvent } from '../types';
 import { Confetti } from './WorkoutCompleteModal';
 
 const DISPLAY_DURATION = 8000; 
+const EVENT_TTL = 5 * 60 * 1000; // 5 minuter - ignorera äldre events
 
 const playBellSound = () => {
     const ctx = getAudioContext();
@@ -14,31 +15,20 @@ const playBellSound = () => {
     if (ctx.state === 'suspended') ctx.resume();
 
     const now = ctx.currentTime;
-    // Bell frequencies (inharmonic overtones create the metallic feel)
-    // A mix of fundamental and multiple harmonics for a rich, gym-bell sound
     const frequencies = [350, 710, 1100, 1550, 2100];
     const duration = 4.0;
 
     frequencies.forEach((freq, i) => {
         const osc = ctx.createOscillator();
         const gain = ctx.createGain();
-        
-        // Lower frequencies use Sine for body, higher use Triangle for metallic bite
         osc.type = i < 2 ? 'sine' : 'triangle';
         osc.frequency.setValueAtTime(freq, now);
-        
-        // Initial hit volume - give the fundamental (lowest) more weight for "thump"
         const initialGainValue = i === 0 ? 0.4 : 0.12; 
-        
         gain.gain.setValueAtTime(0, now);
         gain.gain.linearRampToValueAtTime(initialGainValue, now + 0.01);
-        
-        // Exponential decay for that long, natural bell ring
         gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
-
         osc.connect(gain);
         gain.connect(ctx.destination);
-        
         osc.start(now);
         osc.stop(now + duration);
     });
@@ -48,13 +38,33 @@ export const PBOverlay: React.FC = () => {
     const { selectedOrganization } = useStudio();
     const [currentEvent, setCurrentEvent] = useState<StudioEvent | null>(null);
     const [queue, setQueue] = useState<StudioEvent[]>([]);
+    
+    // Ref för att hålla koll på behandlade ID:n utan att trigga om-renderingar
+    const processedIds = useRef<Set<string>>(new Set());
 
     useEffect(() => {
         if (!selectedOrganization) return;
 
         const unsubscribe = listenForStudioEvents(selectedOrganization.id, (event) => {
+            // 1. Tidsspärr: Ignorera gamla events (t.ex. vid omstart av skärm)
+            if (Date.now() - event.timestamp > EVENT_TTL) {
+                return;
+            }
+
+            // 2. Dubblettspärr: Har vi redan hanterat detta ID?
+            if (processedIds.current.has(event.id)) {
+                return;
+            }
+
+            // Markera som hanterad direkt
+            processedIds.current.add(event.id);
+
             if (event.type === 'pb' || event.type === 'pb_batch') {
-                setQueue(prev => [...prev, event]);
+                setQueue(prev => {
+                    // Extra säkerhetskoll ifall React-state släpar efter (dubblett i kön)
+                    if (prev.some(e => e.id === event.id)) return prev;
+                    return [...prev, event];
+                });
             }
         });
 

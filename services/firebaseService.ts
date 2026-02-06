@@ -462,13 +462,24 @@ export const updatePersonalBest = async (userId: string, exerciseName: string, w
 
 export const listenForStudioEvents = (orgId: string, callback: (event: StudioEvent) => void) => {
     if (isOffline || !db || !orgId) return () => {};
-    const startTime = Date.now() - 5000; 
-    const q = query(collection(db, 'studio_events'), where('organizationId', '==', orgId), orderBy('timestamp', 'desc'), limit(1));
+    
+    // Vi lyssnar på events skapade de senaste 2 minuterna för att ha marginal, 
+    // men klienten (PBOverlay) ansvarar för att filtrera dubbletter.
+    const startTime = Date.now() - 120000; 
+    
+    const q = query(
+        collection(db, 'studio_events'), 
+        where('organizationId', '==', orgId), 
+        where('timestamp', '>', startTime),
+        orderBy('timestamp', 'asc'), // Hämta äldsta först inom fönstret för korrekt kö-ordning
+        limit(20) // Ökat från 1 till 20 för att hantera "race conditions" där flera sparar samtidigt
+    );
+
     return onSnapshot(q, (snapshot) => {
         snapshot.docChanges().forEach((change) => {
             if (change.type === 'added') {
                 const data = change.doc.data() as StudioEvent;
-                if (data.timestamp > startTime) callback(data);
+                callback(data);
             }
         });
     });
