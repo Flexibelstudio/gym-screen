@@ -33,7 +33,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
       let iCountMode: CountMode = 'laps';
       let iTotalMinutes = 10;
 
-      if (mode === TimerMode.Interval || mode === TimerMode.Tabata) {
+      if (mode === TimerMode.Interval) {
           if (specifiedLaps !== undefined && specifiedIntervalsPerLap !== undefined) {
                iCountMode = 'laps';
                iVarv = specifiedLaps;
@@ -75,11 +75,11 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
   const [mode, setMode] = useState(initialState.mode);
   const [countMode, setCountMode] = useState<CountMode>(initialState.countMode);
   
-  // States for Interval/Tabata - Laps mode
+  // States for Interval - Laps mode
   const [varv, setVarv] = useState(initialState.varv);
   const [intervallerPerVarv, setIntervallerPerVarv] = useState(initialState.intervallerPerVarv);
   
-  // State for Interval/Tabata - Rounds mode
+  // State for Interval - Rounds mode
   const [totalOmgångar, setTotalOmgångar] = useState(initialState.totalOmgångar);
 
   // States for EMOM/TimeCap/AMRAP
@@ -103,7 +103,6 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
 
       switch (mode) {
           case TimerMode.Interval:
-          case TimerMode.Tabata:
               if (countMode !== initialState.countMode) return true;
               if (countMode === 'laps') {
                   if (varv !== initialState.varv) return true;
@@ -113,6 +112,10 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
               }
               if (workMinutes !== initialState.workMinutes || workSeconds !== initialState.workSeconds) return true;
               if (restMinutes !== initialState.restMinutes || restSeconds !== initialState.restSeconds) return true;
+              return false;
+          
+          case TimerMode.Tabata:
+              // Tabata is fixed, so mainly mode change matters, which is checked above.
               return false;
 
           case TimerMode.AMRAP:
@@ -162,7 +165,6 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
 
     switch(mode) {
       case TimerMode.Interval:
-      case TimerMode.Tabata:
         if (countMode === 'laps') {
             newSettings.rounds = varv * intervallerPerVarv;
             newSettings.specifiedLaps = varv;
@@ -174,6 +176,14 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
         }
         newSettings.workTime = workMinutes * 60 + workSeconds;
         newSettings.restTime = restMinutes * 60 + restSeconds;
+        break;
+      case TimerMode.Tabata:
+        // Fixed standard settings for Tabata
+        newSettings.rounds = 8;
+        newSettings.workTime = 20;
+        newSettings.restTime = 10;
+        newSettings.specifiedLaps = undefined;
+        newSettings.specifiedIntervalsPerLap = undefined;
         break;
       case TimerMode.AMRAP:
       case TimerMode.TimeCap:
@@ -203,7 +213,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
   
   const handleModeChange = (newMode: TimerMode) => {
     setMode(newMode);
-    if (newMode === TimerMode.Interval || newMode === TimerMode.Tabata) {
+    if (newMode === TimerMode.Interval) {
         setCountMode('laps');
         setVarv(3);
         setIntervallerPerVarv(block.exercises.length > 0 ? block.exercises.length : 1);
@@ -239,7 +249,6 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
     const animationClass = 'animate-fade-in';
     switch(mode) {
         case TimerMode.Interval:
-        case TimerMode.Tabata:
             return (
               <div className={`flex flex-col items-center gap-y-6 w-full ${animationClass}`}>
                   <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">
@@ -273,6 +282,16 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                       </div>
                   </div>
               </div>
+            );
+        case TimerMode.Tabata:
+            return (
+                <div className={`text-center text-gray-600 dark:text-gray-300 p-4 rounded-lg ${animationClass}`}>
+                    <h4 className="font-bold text-gray-800 dark:text-white text-lg">Standard Tabata</h4>
+                    <p className="mt-2">8 ronder</p>
+                    <p>20 sekunder arbete</p>
+                    <p>10 sekunder vila</p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500 mt-4">(Dessa värden är fasta för Tabata)</p>
+                </div>
             );
         case TimerMode.AMRAP:
             return <div className={animationClass}><ValueAdjuster label="AMRAP (MINUTER)" value={totalMinutes} onchange={setTotalMinutes} /></div>;
