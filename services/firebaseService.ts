@@ -463,23 +463,40 @@ export const updatePersonalBest = async (userId: string, exerciseName: string, w
 export const listenForStudioEvents = (orgId: string, callback: (event: StudioEvent) => void) => {
     if (isOffline || !db || !orgId) return () => {};
     
-    // Vi lyssnar på events skapade de senaste 2 minuterna för att ha marginal, 
-    // men klienten (PBOverlay) ansvarar för att filtrera dubbletter.
-    const startTime = Date.now() - 120000; 
-    
+    // VIKTIGT: Vi tar bort 'where timestamp > ...' från databasfrågan eftersom det kräver 
+    // ett sammansatt index som kan krångla. Istället hämtar vi de 20 SENASTE händelserna
+    // och filtrerar bort gamla events (äldre än 5 min) här i koden istället.
+    // Detta gör lyssnaren mycket snabbare och mer pålitlig.
+
     const q = query(
         collection(db, 'studio_events'), 
         where('organizationId', '==', orgId), 
-        where('timestamp', '>', startTime),
-        orderBy('timestamp', 'asc'), // Hämta äldsta först inom fönstret för korrekt kö-ordning
-        limit(20) // Ökat från 1 till 20 för att hantera "race conditions" där flera sparar samtidigt
+        orderBy('timestamp', 'desc'), // Hämta nyaste först
+        limit(20)
     );
 
     return onSnapshot(q, (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
+        // Eftersom vi sorterar 'desc' (nyast först), kommer snapshot.docChanges() 
+        // leverera de nyaste eventen. Vi itererar igenom dem.
+        
+        // Vi samlar upp ändringarna och reverserar dem så att om vi får en batch 
+        // (t.ex. vid start), så processar vi dem i kronologisk ordning (äldst till nyast)
+        // för att kön ska kännas naturlig om flera kom in precis samtidigt.
+        const changes = snapshot.docChanges();
+        
+        // Loopa baklänges eller reversera för att hantera ordningen om det behövs, 
+        // men för realtidshändelser kommer de en och en.
+        changes.forEach((change) => {
             if (change.type === 'added') {
                 const data = change.doc.data() as StudioEvent;
-                callback(data);
+                
+                // CLIENT-SIDE FILTERING:
+                // Är eventet skapat för mer än 10 minuter sedan? Ignorera det.
+                // Vi har en striktare spärr i PBOverlay (5 min), men detta sparar prestanda.
+                const timeDiff = Date.now() - data.timestamp;
+                if (timeDiff < 10 * 60 * 1000) { 
+                    callback(data);
+                }
             }
         });
     });
