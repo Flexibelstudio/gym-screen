@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog } from '../../services/firebaseService';
-import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage } from '../../services/geminiService';
+import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage, getExerciseDagsformAdvice, ExerciseDagsformAdvice } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
 import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, ChartBarIcon, HistoryIcon } from '../../components/icons'; 
@@ -9,6 +10,7 @@ import { WorkoutLogType, ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutL
 import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
 import { useStudio } from '../../context/StudioContext';
+import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
@@ -197,6 +199,44 @@ const isExerciseMatch = (targetName: string, targetId: string, candidateName: st
     return false;
 };
 
+// --- Mission Header Component (Koncept 2) ---
+const MissionHeader: React.FC<{ strategy: string; feeling: 'good' | 'neutral' | 'bad' }> = ({ strategy, feeling }) => {
+    let gradient = "from-indigo-500 to-purple-600";
+    let icon = "⚡";
+    let title = "Dagens Mission";
+
+    if (feeling === 'good') {
+        gradient = "from-orange-500 to-red-600";
+        icon = "🔥";
+        title = "Attack Mode";
+    } else if (feeling === 'bad') {
+        gradient = "from-teal-500 to-emerald-600";
+        icon = "🛡️";
+        title = "Smart & Stabilt";
+    }
+
+    return (
+        <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`relative overflow-hidden rounded-2xl bg-gradient-to-r ${gradient} p-5 text-white shadow-lg mb-6`}
+        >
+            <div className="relative z-10 flex items-start gap-4">
+                <div className="text-3xl bg-white/20 rounded-xl p-2 h-12 w-12 flex items-center justify-center backdrop-blur-sm">
+                    {icon}
+                </div>
+                <div>
+                    <h3 className="font-black uppercase tracking-wider text-sm text-white/80 mb-1">{title}</h3>
+                    <p className="font-bold text-lg leading-tight text-white">{strategy}</p>
+                </div>
+            </div>
+            
+            {/* Background decoration */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
+        </motion.div>
+    );
+};
+
 // --- Pre-Game Strategy View ---
 
 const PreGameView: React.FC<{
@@ -208,7 +248,6 @@ const PreGameView: React.FC<{
     currentFeeling: 'good' | 'neutral' | 'bad';
 }> = ({ workoutTitle, insights, onStart, onCancel, onFeelingChange, currentFeeling }) => {
     
-    // Switch content immediately based on selected feeling
     const activeContent = insights[currentFeeling];
     const displayStrategy = activeContent?.strategy || activeContent?.readiness?.message || "Laddar strategi...";
     
@@ -317,9 +356,10 @@ const ExerciseLogCard: React.FC<{
   name: string;
   result: LocalExerciseResult;
   onUpdate: (updates: Partial<LocalExerciseResult>) => void;
-  aiSuggestion?: string;
+  aiSuggestion?: string; // Koncept 1: Coach Whisper
+  scaling?: string;      // Koncept 1: Alternativ
   lastPerformance?: { weight: number, reps: string } | null;
-}> = ({ name, result, onUpdate, aiSuggestion, lastPerformance }) => {
+}> = ({ name, result, onUpdate, aiSuggestion, scaling, lastPerformance }) => {
     
     const calculate1RM = (weight: string, reps: string) => {
         const w = parseFloat(weight);
@@ -359,21 +399,65 @@ const ExerciseLogCard: React.FC<{
         onUpdate({ setDetails: result.setDetails.filter((_, i) => i !== index) });
     };
 
+    const [showTip, setShowTip] = useState(false);
+
     return (
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 mb-3 border border-gray-100 dark:border-gray-800 shadow-sm transition-all">
-            <div className="flex justify-between items-start mb-3 gap-2">
-                <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-gray-900 dark:text-white text-base truncate">{name}</h4>
-                    {lastPerformance ? (
-                        <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-0.5">
-                            Senast: <span className="text-gray-600 dark:text-gray-300">{lastPerformance.reps} x {lastPerformance.weight}kg</span>
-                        </p>
-                    ) : (
-                        <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mt-0.5">
-                           Ingen historik
-                        </p>
-                    )}
+            <div className="flex flex-col gap-2 mb-4">
+                <div className="flex justify-between items-start">
+                    <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-gray-900 dark:text-white text-base truncate">{name}</h4>
+                        {lastPerformance ? (
+                            <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-0.5">
+                                Senast: <span className="text-gray-600 dark:text-gray-300">{lastPerformance.reps} x {lastPerformance.weight}kg</span>
+                            </p>
+                        ) : (
+                            <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mt-0.5">
+                               Ingen historik
+                            </p>
+                        )}
+                    </div>
                 </div>
+
+                {/* Koncept 1: Coach Whisper & Scaling */}
+                {(aiSuggestion || scaling) && (
+                    <div className="flex flex-col gap-2">
+                        {scaling && (
+                            <div className="flex items-center gap-2 bg-yellow-50 dark:bg-yellow-900/20 px-3 py-2 rounded-lg border border-yellow-100 dark:border-yellow-800/30">
+                                <LightningIcon className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
+                                <p className="text-xs text-yellow-800 dark:text-yellow-200 font-medium leading-tight">
+                                    <span className="font-bold">Alternativ:</span> {scaling}
+                                </p>
+                            </div>
+                        )}
+                        
+                        {aiSuggestion && (
+                            <div className="relative">
+                                <button 
+                                    onClick={() => setShowTip(!showTip)}
+                                    className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 text-xs font-bold bg-indigo-50 dark:bg-indigo-900/20 px-3 py-1.5 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors w-full sm:w-auto"
+                                >
+                                    <SparklesIcon className="w-3.5 h-3.5" />
+                                    <span>{showTip ? 'Dölj coachtips' : 'Visa coachtips'}</span>
+                                </button>
+                                <AnimatePresence>
+                                    {showTip && (
+                                        <motion.div 
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="mt-2 bg-white dark:bg-black/20 p-3 rounded-lg border border-indigo-100 dark:border-indigo-800/30 text-xs text-gray-700 dark:text-gray-300 italic shadow-sm">
+                                                "{aiSuggestion}"
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             <div className="space-y-2">
@@ -931,6 +1015,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       );
   }
 
+  // --- KONCEPT 2: MISSION BANNER (Sticky Header) ---
+  const activeInsight = aiInsights?.[dailyFeeling];
+  const missionTitle = dailyFeeling === 'good' ? 'Attack Mode' : dailyFeeling === 'bad' ? 'Rehab Mode' : 'Maintenance Mode';
+
   return (
     <div className="bg-gray-5 dark:bg-black text-gray-900 dark:text-white flex flex-col relative h-full">
       {isSubmitting && (
@@ -983,7 +1071,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       <div className="flex-1 overflow-y-auto bg-gray-5 dark:bg-black scrollbar-hide">
           <div className="p-4 sm:p-8 max-w-2xl mx-auto w-full">
               
-              <div className="mb-8">
+              <div className="mb-6">
                   <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Datum</label>
                   <div className="relative">
                       <input 
@@ -995,20 +1083,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   </div>
               </div>
 
-              {!isManualMode && aiInsights && aiInsights.readiness && (
-                  <div className={`p-5 rounded-[1.5rem] mb-8 shadow-sm flex items-start gap-4 border border-white/20 ${
-                      aiInsights.readiness.status === 'low' ? 'bg-orange-100 text-orange-900' : 
-                      aiInsights.readiness.status === 'high' ? 'bg-green-100 text-green-900' : 
-                      'bg-blue-100 text-blue-900'
-                  }`}>
-                      <div className="p-2 bg-white/50 rounded-xl flex-shrink-0 shadow-inner">
-                          <SparklesIcon className="w-5 h-5" />
-                      </div>
-                      <div>
-                          <h4 className="font-black text-xs uppercase tracking-widest opacity-70 mb-1">Dagsform</h4>
-                          <p className="font-bold text-sm leading-relaxed">{aiInsights.readiness.message}</p>
-                      </div>
-                  </div>
+              {/* MISSION BANNER (KONCEPT 2) */}
+              {!isManualMode && activeInsight && (
+                  <MissionHeader 
+                      strategy={activeInsight.strategy || activeInsight.readiness.message} 
+                      feeling={dailyFeeling} 
+                  />
               )}
               
               {isManualMode || isQuickWorkoutMode ? (
@@ -1044,7 +1124,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                     name={result.exerciseName}
                                     result={result}
                                     onUpdate={(updates) => handleUpdateResult(index, updates)}
-                                    aiSuggestion={aiInsights?.suggestions?.[result.exerciseName]}
+                                    aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} // Koncept 1: Coach Whisper
+                                    scaling={activeInsight?.scaling?.[result.exerciseName]} // Koncept 1: Scaling
                                     lastPerformance={history[result.exerciseName]} 
                                 />
                             </React.Fragment>
