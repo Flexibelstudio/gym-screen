@@ -225,7 +225,7 @@ const PreGameView: React.FC<{
             {/* Background Gradient */}
             <div className={`absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b ${themeClass} to-transparent z-0 transition-colors duration-500 pointer-events-none`}></div>
             
-            {/* Scrollable Content Area - pushes content up, but leaves space for footer */}
+            {/* Scrollable Content Area */}
             <div className="relative z-10 flex-1 overflow-y-auto p-6 scrollbar-hide">
                 <div className="flex justify-between items-start mb-6">
                     <button onClick={onCancel} className="text-gray-400 dark:text-white/50 hover:text-gray-900 dark:hover:text-white font-bold text-sm uppercase tracking-widest px-2 py-1 transition-colors">Avbryt</button>
@@ -298,16 +298,16 @@ const PreGameView: React.FC<{
                         )}
                     </div>
                 </div>
-            </div>
 
-            {/* Fixed Footer for Button - Ensures it's always at bottom */}
-            <div className="relative z-20 p-6 pt-4 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)]">
-                <button onClick={onStart} className="w-full bg-primary hover:brightness-110 text-white font-black text-lg py-5 rounded-2xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2">
-                    <span className="tracking-tight uppercase">Starta passet</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                </button>
+                {/* --- START BUTTON IN SCROLL FLOW --- */}
+                <div className="mt-8 pb-12">
+                    <button onClick={onStart} className="w-full bg-primary hover:brightness-110 text-white font-black text-lg py-5 rounded-2xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2">
+                        <span className="tracking-tight uppercase">Starta passet</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
     );
