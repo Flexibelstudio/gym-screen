@@ -1,8 +1,8 @@
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, StudioConfig, UserRole, BankExercise, WorkoutLogType } from '../types';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, StudioConfig, UserRole, BankExercise, WorkoutLogType, Organization, BenchmarkDefinition } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
-import { getExerciseBank, deleteImageByUrl, saveAdminActivity } from '../services/firebaseService';
+import { getExerciseBank, getOrganizationExerciseBank, deleteImageByUrl, saveAdminActivity, updateOrganizationBenchmarks, deleteExerciseFromBank } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
 import { useAuth } from '../context/AuthContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
@@ -11,7 +11,7 @@ import { ExerciseBankPanel, ExercisePreviewModal } from './workout-builder/Exerc
 import { AICoachSidebar } from './workout-builder/AICoachPanel';
 import { EditableBlockCard } from './workout-builder/EditableBlockCard';
 import { analyzeCurrentWorkout } from '../services/geminiService';
-import { ToggleSwitch, DumbbellIcon, SparklesIcon } from './icons';
+import { ToggleSwitch, DumbbellIcon, SparklesIcon, TrophyIcon, CheckIcon } from './icons';
 
 const createNewWorkout = (): Workout => ({
   id: `workout-${Date.now()}`,
@@ -42,6 +42,34 @@ const createNewBlock = (): WorkoutBlock => ({
   },
   exercises: [],
 });
+
+// Helper to sanitize workout (remove deleted bank links)
+const sanitizeWorkoutWithBank = (currentWorkout: Workout, currentBank: BankExercise[]): Workout => {
+    const bankIds = new Set(currentBank.map(b => b.id));
+    let hasChanges = false;
+    
+    const newBlocks = currentWorkout.blocks.map(block => {
+        const newExercises = block.exercises.map(ex => {
+            if (ex.isFromBank && !bankIds.has(ex.id)) {
+                hasChanges = true;
+                // Downgrade to Ad-hoc: Generate new ID to break links to deleted bank items
+                return { 
+                    ...ex, 
+                    id: `ex-orphaned-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                    isFromBank: false, 
+                    loggingEnabled: false 
+                };
+            }
+            return ex;
+        });
+        
+        return { ...block, exercises: newExercises };
+    });
+
+    if (!hasChanges) return currentWorkout;
+    return { ...currentWorkout, blocks: newBlocks };
+};
+
 
 // Helper to check for unsaved changes
 const useUnsavedChanges = (isDirty: boolean) => {
@@ -87,9 +115,10 @@ interface WorkoutBuilderScreenProps {
   studioConfig: StudioConfig;
   sessionRole: UserRole;
   isNewDraft?: boolean;
+  organization?: Organization; // Needed for benchmarks
 }
 
-export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ initialWorkout, onSave, onCancel, focusedBlockId: initialFocusedBlockId, studioConfig, sessionRole, isNewDraft = false }) => {
+export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ initialWorkout, onSave, onCancel, focusedBlockId: initialFocusedBlockId, studioConfig, sessionRole, isNewDraft = false, organization }) => {
   const { selectedOrganization } = useStudio();
   const { userData } = useAuth();
   const [workout, setWorkout] = useState<Workout>(() => initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
@@ -101,20 +130,51 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   const [previewExercise, setPreviewExercise] = useState<BankExercise | null>(null);
   const [activeSidebarTab, setActiveSidebarTab] = useState<'bank' | 'ai'>('bank');
 
+  // Benchmark logic
+  const org = organization || selectedOrganization;
+  const existingBenchmarks = org?.benchmarkDefinitions || [];
+  const [isBenchmark, setIsBenchmark] = useState(!!initialWorkout?.benchmarkId);
+  const [matchedBenchmark, setMatchedBenchmark] = useState<BenchmarkDefinition | null>(null);
+  const [newBenchmarkType, setNewBenchmarkType] = useState<'time' | 'reps' | 'weight'>('time');
+
   const editorRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   useEffect(() => {
     const snapshot = JSON.stringify(initialWorkout || createNewWorkout());
     setInitialSnapshot(snapshot);
     setWorkout(JSON.parse(snapshot));
+    setIsBenchmark(!!(initialWorkout?.benchmarkId));
   }, [initialWorkout]);
+  
+  // Smart Benchmark Matching & Sync
+  useEffect(() => {
+      if (!isBenchmark) {
+          setMatchedBenchmark(null);
+          return;
+      }
+
+      // Check if workout title matches an existing benchmark name
+      const match = existingBenchmarks.find(b => b.title.trim().toLowerCase() === workout.title.trim().toLowerCase());
+      if (match) {
+          setMatchedBenchmark(match);
+          // Synka dropdown med existerande typ
+          setNewBenchmarkType(match.type);
+      } else {
+          setMatchedBenchmark(null);
+      }
+  }, [workout.title, isBenchmark, existingBenchmarks]);
 
   useEffect(() => {
     const fetchBank = async () => {
+        if (!selectedOrganization) return;
         setIsBankLoading(true);
         try {
-            const bank = await getExerciseBank();
+            const bank = await getOrganizationExerciseBank(selectedOrganization.id);
             setExerciseBank(bank);
+            
+            // CLEANUP: Using shared logic
+            setWorkout(prev => sanitizeWorkoutWithBank(prev, bank));
+
         } catch (error) {
             console.error("Failed to fetch exercise bank:", error);
         } finally {
@@ -122,6 +182,30 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
         }
     };
     fetchBank();
+  }, [selectedOrganization]);
+
+  const handleDeleteExerciseFromBank = useCallback(async (exercise: BankExercise) => {
+      try {
+          await deleteExerciseFromBank(exercise.id);
+          // 1. Update bank state instantly
+          const newBank = exerciseBank.filter(ex => ex.id !== exercise.id);
+          setExerciseBank(newBank);
+          
+          // 2. Run cleanup on current workout instantly
+          setWorkout(prev => sanitizeWorkoutWithBank(prev, newBank));
+          
+      } catch (error) {
+          console.error("Failed to delete exercise:", error);
+          alert("Kunde inte ta bort övningen.");
+      }
+  }, [exerciseBank]);
+
+  const handleExerciseSavedToBank = useCallback((newExercise: BankExercise) => {
+      setExerciseBank(prev => {
+          // Check if already exists to avoid duplicates
+          if (prev.some(ex => ex.id === newExercise.id)) return prev;
+          return [...prev, newExercise].sort((a, b) => a.name.localeCompare(b.name, 'sv'));
+      });
   }, []);
 
   const isDirty = useMemo(() => {
@@ -154,7 +238,44 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    const finalWorkout = { ...workout };
+
+    if (isBenchmark) {
+        if (matchedBenchmark) {
+            // Koppla till befintligt
+            finalWorkout.benchmarkId = matchedBenchmark.id;
+            
+            // Uppdatera typen om användaren ändrat den i dropdownen
+            if (matchedBenchmark.type !== newBenchmarkType && org) {
+                const updatedDefinitions = existingBenchmarks.map(b => 
+                    b.id === matchedBenchmark.id 
+                    ? { ...b, type: newBenchmarkType } 
+                    : b
+                );
+                await updateOrganizationBenchmarks(org.id, updatedDefinitions);
+            }
+
+        } else if (org) {
+            // Skapa nytt benchmark
+            const newDefinition: BenchmarkDefinition = {
+                id: `bm_${Date.now()}`,
+                title: finalWorkout.title,
+                type: newBenchmarkType
+            };
+            
+            // Uppdatera organisationens lista
+            const updatedDefinitions = [...existingBenchmarks, newDefinition];
+            await updateOrganizationBenchmarks(org.id, updatedDefinitions);
+            
+            // Koppla workout till nya IDt
+            finalWorkout.benchmarkId = newDefinition.id;
+        }
+    } else {
+        // Om användaren avmarkerat benchmark
+        finalWorkout.benchmarkId = undefined;
+    }
+
     // LOG ACTIVITY
     if (selectedOrganization && userData) {
         saveAdminActivity({
@@ -163,11 +284,11 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
             userName: userData.firstName || 'Coach',
             type: 'WORKOUT',
             action: initialWorkout ? 'UPDATE' : 'CREATE',
-            description: `${initialWorkout ? 'Uppdaterade' : 'Skapade'} passet "${workout.title}"`,
+            description: `${initialWorkout ? 'Uppdaterade' : 'Skapade'} passet "${finalWorkout.title}"`,
             timestamp: Date.now()
         });
     }
-    onSave(workout);
+    onSave(finalWorkout);
   };
   
   const handleUpdateWorkoutDetail = (field: keyof Workout, value: any) => {
@@ -282,6 +403,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
         imageUrl: bankExercise.imageUrl || '',
         reps: '', 
         isFromBank: true,
+        loggingEnabled: true // Default true för bankövningar
     };
 
     setWorkout(prev => ({
@@ -368,6 +490,45 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                     checked={workout.showDetailsToMember !== false} 
                                     onChange={val => handleUpdateWorkoutDetail('showDetailsToMember', val)}
                                 />
+                                
+                                <div className="pt-2 border-t border-gray-200 dark:border-gray-700 mt-2">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <ToggleSwitch 
+                                            label="Detta är ett Benchmark" 
+                                            checked={isBenchmark} 
+                                            onChange={setIsBenchmark} 
+                                        />
+                                        <TrophyIcon className={`w-4 h-4 ${isBenchmark ? 'text-yellow-500' : 'text-gray-400'}`} />
+                                    </div>
+                                    
+                                    {isBenchmark && (
+                                        <div className="ml-0 pl-4 border-l-2 border-primary/20 animate-fade-in mt-3">
+                                            <div className="flex flex-col gap-3">
+                                                {matchedBenchmark ? (
+                                                    <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-2 rounded-lg">
+                                                        <CheckIcon className="w-4 h-4" />
+                                                        <span>Kopplat till <strong>{matchedBenchmark.title}</strong></span>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-xs text-gray-500">Nytt benchmark skapas: <strong>{workout.title}</strong></p>
+                                                )}
+                                                
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-bold text-gray-400 uppercase">Mätvärde:</span>
+                                                    <select 
+                                                        value={newBenchmarkType}
+                                                        onChange={(e) => setNewBenchmarkType(e.target.value as any)}
+                                                        className="bg-gray-100 dark:bg-black border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-sm font-medium focus:ring-2 focus:ring-primary outline-none"
+                                                    >
+                                                        <option value="time">Tid</option>
+                                                        <option value="reps">Varv</option>
+                                                        <option value="weight">Vikt</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -394,6 +555,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                           organizationId={selectedOrganization?.id || ''}
                           onMoveExercise={(idx, direction) => handleMoveExercise(block.id, idx, direction)}
                           onMoveBlock={(direction) => handleMoveBlock(block.id, direction)}
+                          onExerciseSavedToBank={handleExerciseSavedToBank}
                         />
                     </div>
                   )
@@ -433,6 +595,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                             bank={exerciseBank}
                             onAddExercise={handleAddExerciseFromBank}
                             onPreviewExercise={setPreviewExercise}
+                            onDeleteExercise={handleDeleteExerciseFromBank}
                             isLoading={isBankLoading}
                         />
                     )}

@@ -1,13 +1,15 @@
+
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout } from '../types';
-import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration, playBoxingBell } from '../hooks/useWorkoutTimer';
+import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration, playTimerSound } from '../hooks/useWorkoutTimer';
 import { useWorkout } from '../context/WorkoutContext';
 import { saveRace, updateOrganizationActivity } from '../services/firebaseService';
 import { Confetti } from './WorkoutCompleteModal';
 import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmationModal, RaceFinishAnimation, PauseOverlay } from './timer/TimerModals';
 import { ParticipantFinishList } from './timer/ParticipantFinishList';
-import { DumbbellIcon, InformationCircleIcon, LightningIcon, SparklesIcon, ChevronRightIcon, ClockIcon } from './icons';
+import { DumbbellIcon, InformationCircleIcon, LightningIcon, SparklesIcon, ChevronRightIcon, ClockIcon, PlayIcon } from './icons';
+import { useStudio } from '../context/StudioContext';
 
 // --- Constants ---
 const HYROX_RIGHT_PANEL_WIDTH = '450px';
@@ -52,7 +54,8 @@ const getTimerStyle = (status: TimerStatus, mode: TimerMode, isHyrox: boolean, i
       return { bg: 'bg-teal-700', text: 'text-white', pulseRgb: '13, 148, 136', border: 'border-teal-400', badge: 'bg-teal-800' };
     case TimerStatus.Idle:
     default:
-      return { bg: 'bg-gray-900', text: 'text-white', pulseRgb: '0, 0, 0', border: 'border-gray-700', badge: 'bg-gray-800' };
+      // IDLE STATE - Use a neutral but ready color
+      return { bg: 'bg-slate-800', text: 'text-white', pulseRgb: '30, 41, 59', border: 'border-slate-600', badge: 'bg-slate-700' };
   }
 };
 
@@ -103,24 +106,25 @@ const getBlockTimeLabel = (block: WorkoutBlock): string => {
 
 // --- Visualization Components ---
 
-const NextRestPreview: React.FC<{ transitionTime: number; isCompact?: boolean }> = ({ transitionTime, isCompact = false }) => {
+const NextRestPreview: React.FC<{ transitionTime: number; style?: React.CSSProperties }> = ({ transitionTime, style }) => {
     return (
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className={`${isCompact ? 'flex-1' : 'flex-1'} flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[3rem] border-2 border-gray-100 dark:border-white/10 shadow-2xl p-10 justify-center text-center`}
+            className={`w-full flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[3rem] border-2 border-gray-100 dark:border-white/10 shadow-2xl p-6 justify-center text-center`}
+            style={style}
         >
-            <div className="flex flex-col items-center gap-4 mb-6">
-                <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20">
-                    <ClockIcon className="w-10 h-10 text-primary" />
+            <div className="flex flex-col items-center gap-4 mb-4">
+                <div className="bg-primary/10 p-3 rounded-2xl border border-primary/20">
+                    <ClockIcon className="w-8 h-8 text-primary" />
                 </div>
                 <div>
-                    <span className="block text-sm font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.4em] mb-2">HÄRNÄST</span>
-                    <h4 className="text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-none">VILA</h4>
+                    <span className="block text-xs font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.4em] mb-1">HÄRNÄST</span>
+                    <h4 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-none">VILA</h4>
                 </div>
             </div>
             
-            <div className="text-[10rem] font-mono font-black text-primary dark:text-primary tabular-nums drop-shadow-xl leading-none">
+            <div className="text-7xl sm:text-8xl font-mono font-black text-primary dark:text-primary tabular-nums drop-shadow-xl leading-none">
                 {formatSeconds(transitionTime)}
             </div>
         </motion.div>
@@ -161,7 +165,7 @@ const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock
     );
 };
 
-const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; flexClassName?: string }> = ({ block, label = "HÄRNÄST", flexClassName = "flex-1" }) => {
+const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; style?: React.CSSProperties }> = ({ block, label = "HÄRNÄST", style }) => {
     const timeLabel = getBlockTimeLabel(block);
     const accentColor = getTagHexColor(block.tag);
     const hasManyExercises = block.exercises.length > 5;
@@ -170,21 +174,22 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; flexClas
         <motion.div 
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className={`${flexClassName} flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[3rem] border-2 border-gray-100 dark:border-white/10 overflow-hidden shadow-2xl min-h-0`}
+            className={`w-full flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[3rem] border-2 border-gray-100 dark:border-white/10 overflow-hidden shadow-2xl min-h-0`}
+            style={style}
         >
-            <div className="p-8 bg-gray-50/50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5 flex-shrink-0">
-                <div className="flex items-center gap-4 mb-3">
+            <div className="p-6 bg-gray-50/50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5 flex-shrink-0">
+                <div className="flex items-center gap-4 mb-2">
                     <div className="bg-primary/10 p-2 rounded-xl border border-primary/20">
-                        <ChevronRightIcon className="w-6 h-6 text-primary" />
+                        <ChevronRightIcon className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                        <span className="block text-xs font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.4em] mb-1">{label}</span>
-                        <h4 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter line-clamp-1 leading-none">{block.title}</h4>
+                        <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.4em] mb-0.5">{label}</span>
+                        <h4 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter line-clamp-1 leading-none">{block.title}</h4>
                     </div>
                 </div>
                 
-                <div className="flex items-center gap-3 text-gray-400 dark:text-white/40 text-[12px] font-black uppercase tracking-[0.2em] mb-3">
-                    <span className="bg-gray-200 dark:bg-white/10 px-3 py-1 rounded-lg">{block.settings.mode}</span>
+                <div className="flex items-center gap-3 text-gray-400 dark:text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-1">
+                    <span className="bg-gray-200 dark:bg-white/10 px-2 py-0.5 rounded-lg">{block.settings.mode}</span>
                     {timeLabel && (
                         <>
                             <span className="opacity-30">•</span>
@@ -194,39 +199,35 @@ const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; flexClas
                 </div>
 
                 {block.setupDescription && (
-                    <p className="text-xl font-bold text-gray-700 dark:text-gray-200 leading-tight border-t border-gray-200 dark:border-white/10 pt-4 mt-2 whitespace-normal">
+                    <p className="text-sm font-bold text-gray-700 dark:text-gray-200 leading-tight border-t border-gray-200 dark:border-white/10 pt-2 mt-2 whitespace-normal line-clamp-2">
                         {block.setupDescription}
                     </p>
                 )}
             </div>
-            <div className="flex-grow flex flex-col overflow-y-auto p-4 custom-scrollbar gap-4">
+            <div className="flex-grow flex flex-col overflow-hidden p-4 gap-2">
                 {block.exercises.map((ex) => {
                     const nameLen = ex.name.length;
-                    let nameSize = 'text-3xl';
-                    if (nameLen > 35) nameSize = 'text-xl';
-                    else if (nameLen > 20) nameSize = 'text-2xl';
+                    // Auto-scale text based on length and number of items (rough heuristic)
+                    let nameSize = 'text-2xl';
+                    if (hasManyExercises) nameSize = 'text-lg';
+                    else if (nameLen > 25) nameSize = 'text-xl';
                     
                     return (
                         <div 
                             key={ex.id} 
-                            className={`flex-1 min-h-[100px] flex flex-col justify-center gap-2 bg-gray-50/80 dark:bg-white/5 rounded-[2.2rem] p-6 border border-gray-100 dark:border-white/5 border-l-[12px] shadow-sm transition-transform active:scale-[0.98]`}
+                            className={`flex-1 min-h-0 flex flex-col justify-center gap-1 bg-gray-50/80 dark:bg-white/5 rounded-2xl px-4 py-2 border border-gray-100 dark:border-white/5 border-l-[8px] shadow-sm transition-transform active:scale-[0.98]`}
                             style={{ borderLeftColor: accentColor }}
                         >
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-3">
                                 {ex.reps && (
-                                    <span className="text-lg font-black text-primary bg-primary/10 px-4 py-1.5 rounded-xl border border-primary/10 whitespace-nowrap shrink-0 font-mono">
+                                    <span className="text-sm font-black text-primary bg-primary/10 px-2 py-0.5 rounded-lg border border-primary/10 whitespace-nowrap shrink-0 font-mono">
                                         {formatReps(ex.reps)}
                                     </span>
                                 )}
-                                <p className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight whitespace-normal ${nameSize}`}>
+                                <p className={`font-black text-gray-900 dark:text-white leading-none tracking-tight whitespace-normal ${nameSize} line-clamp-2`}>
                                     {ex.name}
                                 </p>
                             </div>
-                            {ex.description && !hasManyExercises && (
-                                <p className="text-gray-500 dark:text-gray-400 font-medium text-lg leading-snug line-clamp-2 pl-1">
-                                    {ex.description}
-                                </p>
-                            )}
                         </div>
                     );
                 })}
@@ -333,8 +334,13 @@ const FollowMeView: React.FC<{
 }> = ({ exercise, nextExercise, timerStyle, status, nextBlock, transitionTime, isRestNext }) => {
     const isResting = status === TimerStatus.Resting;
     const isPreparing = status === TimerStatus.Preparing;
+    // IF IDLE (Lobby), show the first exercise as "Next/Ready"
+    const isIdle = status === TimerStatus.Idle;
+
     const displayExercise = exercise;
-    const label = (isResting || isPreparing) ? "Nästa övning" : "Aktuell övning";
+    let label = "Aktuell övning";
+    if (isResting || isPreparing) label = "Nästa övning";
+    if (isIdle) label = "Första övning";
 
     if (!displayExercise) return null;
 
@@ -452,7 +458,7 @@ interface BigIndicatorProps {
 }
 
 const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRounds, mode, currentInterval, totalIntervalsInLap }) => {
-    if (mode !== TimerMode.Interval || mode !== TimerMode.Tabata || mode !== TimerMode.EMOM) return null;
+    if (mode !== TimerMode.Interval && mode !== TimerMode.Tabata && mode !== TimerMode.EMOM) return null;
 
     const showInterval = currentInterval !== undefined && totalIntervalsInLap !== undefined && mode !== TimerMode.EMOM;
 
@@ -516,14 +522,20 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     isAutoTransition = false
 }) => {
   const { activeWorkout } = useWorkout();
+  const { studioConfig } = useStudio(); 
+  
+  // Use the hook with the selected sound profile
   const { 
     status, currentTime, currentPhaseDuration, currentRound, currentExercise, nextExercise,
     start, pause, resume, reset, 
     totalRounds, totalExercises,
     totalBlockDuration, totalTimeElapsed,
     completedWorkIntervals, effectiveIntervalsPerLap
-  } = useWorkoutTimer(block);
-  
+  } = useWorkoutTimer(block, studioConfig.soundProfile || 'airhorn');
+
+  // LOBBY MODE STATE - Default to TRUE unless auto-transition
+  const [isLobbyMode, setIsLobbyMode] = useState(!isAutoTransition);
+
   const [controlsVisible, setControlsVisible] = React.useState(false);
   const hideTimeoutRef = React.useRef<number | null>(null);
   const wakeLockRef = useRef<any>(null);
@@ -639,12 +651,22 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   useEffect(() => {
     if (!hasStartedRef.current && (status === TimerStatus.Idle || status === TimerStatus.Finished)) {
         if (organization) updateOrganizationActivity(organization.id);
-        start({ skipPrep: isAutoTransition });
+        
+        // IMPORTANT: Only auto-start if NOT in lobby mode
+        if (!isLobbyMode) {
+             start({ skipPrep: isAutoTransition });
+        }
+        
         hasStartedRef.current = true;
         onHeaderVisibilityChange(false);
         setIsBackButtonHidden(true);
     }
-  }, [start, status, onHeaderVisibilityChange, setIsBackButtonHidden, organization, isAutoTransition]);
+  }, [start, status, onHeaderVisibilityChange, setIsBackButtonHidden, organization, isAutoTransition, isLobbyMode]);
+
+  const handleLobbyStart = () => {
+      setIsLobbyMode(false);
+      start(); // Trigger timer start
+  };
 
   const [finishedParticipants, setFinishedParticipants] = useState<Record<string, FinishData>>({});
   const [savingParticipant, setSavingParticipant] = useState<string | null>(null);
@@ -943,6 +965,12 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const showSplitView = upcomingBlocks.length > 0 && block.autoAdvance;
 
   const isRestNext = block.autoAdvance && (block.transitionTime || 0) > 0 && status !== TimerStatus.Resting;
+  
+  // --- VIKTAD HÖJDFÖRDELNING ---
+  const getBlockWeight = (block: WorkoutBlock) => {
+    // 2 poäng för header/titel, 1 poäng per övning
+    return 2 + block.exercises.length;
+  };
 
   const handleInteraction = () => { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); restartHideTimer(); };
   const restartHideTimer = React.useCallback(() => {
@@ -973,6 +1001,21 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         onMouseMove={handleInteraction}
         onTouchStart={handleInteraction}
     >
+      {/* NEW BACK BUTTON FOR LOBBY MODE */}
+      {isLobbyMode && (
+          <button
+              onClick={() => onFinish({ isNatural: false })}
+              className="fixed top-8 left-8 z-[60] bg-black/20 hover:bg-black/40 text-white backdrop-blur-md px-6 py-3 rounded-full font-bold transition-all flex items-center gap-3 border border-white/10 shadow-lg group"
+          >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              </svg>
+              <span>TILLBAKA</span>
+          </button>
+      )}
+
+      {/* LOBBY OVERLAY REMOVED - NOW INTEGRATED INTO CARD */}
+
       {showConfetti && <Confetti />}
       {showFinishAnimation && (
           <RaceFinishAnimation 
@@ -985,7 +1028,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       )}
       
       <AnimatePresence>
-        {isActuallyPaused && !showFinishAnimation && (
+        {isActuallyPaused && !showFinishAnimation && !isLobbyMode && (
             <PauseOverlay onResume={isTransitioning ? () => setIsTransitionPaused(false) : resume} onRestart={handleConfirmReset} onFinish={() => onFinish({ isNatural: false })} />
         )}
         {participantToEdit && (
@@ -1003,7 +1046,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       </AnimatePresence>
 
       <AnimatePresence>
-        {status !== TimerStatus.Idle && !isActuallyPaused && !showFinishAnimation && (
+        {status !== TimerStatus.Idle && !isActuallyPaused && !showFinishAnimation && !isLobbyMode && (
             <motion.div 
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -1034,17 +1077,31 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               }`}
           style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
       >
-        <div className="mb-4 px-8 py-2 rounded-full bg-black/30 backdrop-blur-xl border border-white/20 shadow-lg z-20">
+        {/* LOBBY START BUTTON OVERLAY */}
+        {isLobbyMode && (
+             <div className="absolute inset-0 z-50 flex items-center justify-center">
+                 <button 
+                    onClick={handleLobbyStart}
+                    className="bg-white text-black hover:scale-110 transition-transform duration-200 rounded-full p-6 shadow-2xl border-4 border-white/50 group"
+                 >
+                    <PlayIcon className="w-16 h-16 ml-1 fill-current group-hover:text-primary transition-colors" />
+                 </button>
+             </div>
+        )}
+
+        <div className={`mb-4 px-8 py-2 rounded-full bg-black/30 backdrop-blur-xl border border-white/20 shadow-lg z-20 transition-opacity ${isLobbyMode ? 'opacity-0' : 'opacity-100'}`}>
             <span className={`font-black tracking-[0.3em] text-white uppercase drop-shadow-md text-lg md:text-xl`}>{modeLabel}</span>
         </div>
 
         {/* STATUS (ARBETE/VILA) - Överst */}
         <div className="text-center z-20 w-full px-10 mb-2">
-            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl overflow-visible whitespace-nowrap leading-none`}>{statusLabel}</h2>
+            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl overflow-visible whitespace-nowrap leading-none ${isLobbyMode ? 'opacity-100' : ''}`}>
+                {isLobbyMode ? "REDO" : statusLabel}
+            </h2>
         </div>
 
         {/* SIFFROR (Tiden) - Mitten */}
-        <div className="z-20 relative flex flex-col items-center w-full text-white">
+        <div className={`z-20 relative flex flex-col items-center w-full text-white transition-opacity duration-300 ${isLobbyMode ? 'opacity-30 blur-sm' : 'opacity-100'}`}>
             <div className="flex items-center justify-center w-full gap-2">
                  <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[8rem] sm:text-[10rem] md:text-[12rem]">
                     {minutesStr}:{secondsStr}
@@ -1151,42 +1208,86 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                             </div>
                         </div>
 
-                        {/* UPCOMING BLOCKS STACK (33% width) */}
+                        {/* UPCOMING BLOCKS STACK (33% width) - DYNAMIC HEIGHT */}
                         {showSplitView ? (
                             <div className="w-1/3 h-full flex flex-col gap-4 pb-1">
                                 {isTransitioning ? (
-                                    // Under vila: Visa kommande block C och D i sidobaren
-                                    <>
-                                        {upcomingBlocks[1] && <NextBlockPreview block={upcomingBlocks[1]} label="HÄRNÄST" flexClassName="flex-1" />}
-                                        {upcomingBlocks[2] && <NextBlockPreview block={upcomingBlocks[2]} label="DÄREFTER" flexClassName="flex-1" />}
-                                    </>
+                                    // Under vila: Visa kommande block C och D
+                                    // Beräkna vikter för blocken
+                                    (() => {
+                                        const block1 = upcomingBlocks[1];
+                                        const block2 = upcomingBlocks[2];
+                                        const w1 = block1 ? getBlockWeight(block1) : 0;
+                                        const w2 = block2 ? getBlockWeight(block2) : 0;
+                                        
+                                        return (
+                                            <>
+                                                {block1 && (
+                                                    <NextBlockPreview 
+                                                        block={block1} 
+                                                        label="HÄRNÄST" 
+                                                        style={{ flexGrow: w1 }}
+                                                    />
+                                                )}
+                                                {block2 && (
+                                                    <NextBlockPreview 
+                                                        block={block2} 
+                                                        label="DÄREFTER" 
+                                                        style={{ flexGrow: w2 }} 
+                                                    />
+                                                )}
+                                            </>
+                                        );
+                                    })()
                                 ) : isRestNext ? (
                                     // Under träning med vila efter: Visa vila och Block B
-                                    <>
-                                        <NextRestPreview 
-                                            transitionTime={block.transitionTime || 0} 
-                                            isCompact={!!upcomingBlocks[0]}
-                                        />
-                                        {upcomingBlocks[0] && (
-                                            <NextBlockPreview 
-                                                block={upcomingBlocks[0]} 
-                                                label="DÄREFTER" 
-                                                flexClassName="flex-1"
-                                            />
-                                        )}
-                                    </>
+                                    // Vila får fast vikt (typ 2), Block B får dynamisk
+                                    (() => {
+                                        const blockAfter = upcomingBlocks[0];
+                                        const restWeight = 2; // Reduced weight for rest card to make it smaller
+                                        const blockWeight = blockAfter ? getBlockWeight(blockAfter) : 0;
+                                        
+                                        return (
+                                            <>
+                                                <NextRestPreview 
+                                                    transitionTime={block.transitionTime || 0} 
+                                                    style={{ flexGrow: restWeight }}
+                                                />
+                                                {blockAfter && (
+                                                    <NextBlockPreview 
+                                                        block={blockAfter} 
+                                                        label="DÄREFTER" 
+                                                        style={{ flexGrow: blockWeight }}
+                                                    />
+                                                )}
+                                            </>
+                                        );
+                                    })()
                                 ) : (
                                     // Under träning utan vila: Visa Block B och C
-                                    <>
-                                        <NextBlockPreview block={nextBlock!} label="HÄRNÄST" flexClassName="flex-1" />
-                                        {upcomingBlocks[1] && (
-                                            <NextBlockPreview 
-                                                block={upcomingBlocks[1]} 
-                                                label="DÄREFTER" 
-                                                flexClassName="flex-1"
-                                            />
-                                        )}
-                                    </>
+                                    (() => {
+                                        const block1 = nextBlock!;
+                                        const block2 = upcomingBlocks[1];
+                                        const w1 = getBlockWeight(block1);
+                                        const w2 = block2 ? getBlockWeight(block2) : 0;
+                                        
+                                        return (
+                                            <>
+                                                <NextBlockPreview 
+                                                    block={block1} 
+                                                    label="HÄRNÄST" 
+                                                    style={{ flexGrow: w1 }} 
+                                                />
+                                                {block2 && (
+                                                    <NextBlockPreview 
+                                                        block={block2} 
+                                                        label="DÄREFTER" 
+                                                        style={{ flexGrow: w2 }} 
+                                                    />
+                                                )}
+                                            </>
+                                        );
+                                    })()
                                 )}
                             </div>
                         ) : null}
@@ -1230,21 +1331,22 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           </div>
       )}
 
-      <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[35%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
-            {isActuallyFinishedOrIdle ? (
-                <>
-                    <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-500 transition-colors text-xl backdrop-blur-md border-2 border-white/20 uppercase">TILLBAKA</button>
-                    <button onClick={() => start()} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50 uppercase">STARTA</button>
-                </>
-            ) : isActuallyPaused ? (
-                <button onClick={isTransitioning ? () => setIsTransitionPaused(false) : resume} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase">FORTSÄTT</button>
-            ) : (
-                <button onClick={isTransitioning ? () => setIsTransitionPaused(true) : pause} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50 uppercase">PAUSA</button>
-            )}
-            {isHyroxRace && status !== TimerStatus.Running && <button onClick={() => setShowBackToPrepConfirmation(true)} className="bg-gray-800/80 text-white font-bold py-4 px-8 rounded-full shadow-xl border-2 border-gray-600 hover:bg-gray-700 transition-colors text-lg uppercase">⚙️ Grupper</button>}
-      </div>
+      {/* ACTION BAR AT BOTTOM - HIDDEN IN LOBBY */}
+      {!isLobbyMode && (
+          <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[35%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
+                {isActuallyFinishedOrIdle ? (
+                    <>
+                        <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-50 transition-colors text-xl backdrop-blur-md border-2 border-white/20 uppercase">TILLBAKA</button>
+                        <button onClick={() => start()} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50 uppercase">STARTA</button>
+                    </>
+                ) : isActuallyPaused ? (
+                    <button onClick={isTransitioning ? () => setIsTransitionPaused(false) : resume} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase">FORTSÄTT</button>
+                ) : (
+                    <button onClick={isTransitioning ? () => setIsTransitionPaused(true) : pause} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50 uppercase">PAUSA</button>
+                )}
+                {isHyroxRace && status !== TimerStatus.Running && <button onClick={() => setShowBackToPrepConfirmation(true)} className="bg-gray-800/80 text-white font-bold py-4 px-8 rounded-full shadow-xl border-2 border-gray-600 hover:bg-gray-700 transition-colors text-lg uppercase">⚙️ Grupper</button>}
+          </div>
+      )}
     </div>
   );
 };
-
-export default TimerScreen;

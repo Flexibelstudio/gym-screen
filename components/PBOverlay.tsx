@@ -1,5 +1,6 @@
+
 import { motion, AnimatePresence } from 'framer-motion';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useStudio } from '../context/StudioContext';
 import { getAudioContext } from '../hooks/useWorkoutTimer';
 import { listenForStudioEvents } from '../services/firebaseService';
@@ -7,78 +8,143 @@ import { StudioEvent } from '../types';
 import { Confetti } from './WorkoutCompleteModal';
 
 const DISPLAY_DURATION = 8000; 
+// TTL (Time To Live) för events om man t.ex. tappar nätet och återansluter. 
+// Vi visar inte events som är äldre än 5 minuter i en "live"-kö.
+const EVENT_TTL = 5 * 60 * 1000; 
 
 const playBellSound = () => {
     const ctx = getAudioContext();
     if (!ctx) return;
-    if (ctx.state === 'suspended') ctx.resume();
 
-    const now = ctx.currentTime;
-    // Bell frequencies (inharmonic overtones create the metallic feel)
-    // A mix of fundamental and multiple harmonics for a rich, gym-bell sound
-    const frequencies = [350, 710, 1100, 1550, 2100];
-    const duration = 4.0;
+    // Funktion för att generera själva ljudvågorna
+    const generateSound = () => {
+        const now = ctx.currentTime;
+        const frequencies = [350, 710, 1100, 1550, 2100];
+        const duration = 4.0;
 
-    frequencies.forEach((freq, i) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        
-        // Lower frequencies use Sine for body, higher use Triangle for metallic bite
-        osc.type = i < 2 ? 'sine' : 'triangle';
-        osc.frequency.setValueAtTime(freq, now);
-        
-        // Initial hit volume - give the fundamental (lowest) more weight for "thump"
-        const initialGainValue = i === 0 ? 0.4 : 0.12; 
-        
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(initialGainValue, now + 0.01);
-        
-        // Exponential decay for that long, natural bell ring
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+        frequencies.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = i < 2 ? 'sine' : 'triangle';
+            osc.frequency.setValueAtTime(freq, now);
+            const initialGainValue = i === 0 ? 0.4 : 0.12; 
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(initialGainValue, now + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + duration);
+        });
+    };
 
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        
-        osc.start(now);
-        osc.stop(now + duration);
-    });
+    // Om ljudmotorn sover (vanligt i webbläsare innan interaktion), väck den först
+    if (ctx.state === 'suspended') {
+        ctx.resume().then(() => {
+            generateSound();
+        }).catch(err => console.error("Kunde inte starta ljudet:", err));
+    } else {
+        generateSound();
+    }
 };
 
 export const PBOverlay: React.FC = () => {
     const { selectedOrganization } = useStudio();
+    
+    // State för den som visas just nu
     const [currentEvent, setCurrentEvent] = useState<StudioEvent | null>(null);
-    const [queue, setQueue] = useState<StudioEvent[]>([]);
+    
+    // Kö-system (Ref för att undvika onödiga om-renderingar vid snabba inkommande events)
+    const queueRef = useRef<StudioEvent[]>([]);
+    // Trigger för att tvinga React att processa kön
+    const [processTrigger, setProcessTrigger] = useState(0);
+    
+    // För att förhindra dubbletter
+    const processedIds = useRef<Set<string>>(new Set());
+    
+    // För att låsa kön medan en animation pågår
+    const isLocked = useRef(false);
 
+    // VIKTIGT: Vi sparar tidpunkten då komponenten laddades.
+    // Vi ignorerar alla events som har en tidsstämpel ÄLDRE än denna tidpunkt.
+    // Detta förhindrar att senaste eventet visas igen om man laddar om sidan (refresh).
+    const mountTime = useRef(Date.now());
+
+    // 1. LYSSNA PÅ DATABASEN
     useEffect(() => {
         if (!selectedOrganization) return;
 
         const unsubscribe = listenForStudioEvents(selectedOrganization.id, (event) => {
+            const now = Date.now();
+
+            // 1. Historik-spärr: Skedde detta innan vi öppnade sidan? Ignorera.
+            // (Vi lägger på 1 sekunds marginal för säkerhets skull)
+            if (event.timestamp < (mountTime.current - 1000)) {
+                return;
+            }
+
+            // 2. TTL-spärr: Är eventet för gammalt (t.ex. vid återanslutning efter lång tid)?
+            if (now - event.timestamp > EVENT_TTL) {
+                return;
+            }
+
+            // 3. Dubblett-spärr
+            if (processedIds.current.has(event.id)) {
+                return;
+            }
+
+            // Lägg till i loggboken och kön
+            processedIds.current.add(event.id);
+            
             if (event.type === 'pb' || event.type === 'pb_batch') {
-                setQueue(prev => [...prev, event]);
+                queueRef.current.push(event);
+                // Trigga processorn
+                setProcessTrigger(prev => prev + 1);
             }
         });
 
         return () => unsubscribe();
     }, [selectedOrganization]);
 
+    // 2. PROCESSA KÖN
     useEffect(() => {
-        if (!currentEvent && queue.length > 0) {
-            const next = queue[0];
-            setQueue(prev => prev.slice(1));
-            setCurrentEvent(next);
-            playBellSound();
-        }
-    }, [queue, currentEvent]);
+        const processQueue = () => {
+            // Om vi redan visar något eller kön är tom, gör inget
+            if (isLocked.current || queueRef.current.length === 0) {
+                return;
+            }
 
-    useEffect(() => {
-        if (currentEvent) {
-            const timer = setTimeout(() => {
-                setCurrentEvent(null);
-            }, DISPLAY_DURATION);
+            // Lås processorn
+            isLocked.current = true;
 
-            return () => clearTimeout(timer);
-        }
-    }, [currentEvent]);
+            // Hämta nästa event (FIFO)
+            const nextEvent = queueRef.current.shift();
+            
+            if (nextEvent) {
+                setCurrentEvent(nextEvent);
+                playBellSound();
+
+                // Vänta visningstiden + lite extra för exit-animation
+                setTimeout(() => {
+                    setCurrentEvent(null);
+                    
+                    // Vänta på att exit-animationen ska bli klar innan vi låser upp för nästa
+                    setTimeout(() => {
+                        isLocked.current = false;
+                        // Trigga en ny koll om det finns fler i kön
+                        if (queueRef.current.length > 0) {
+                            setProcessTrigger(prev => prev + 1);
+                        }
+                    }, 600); // 0.6s exit animation buffer
+                    
+                }, DISPLAY_DURATION);
+            } else {
+                isLocked.current = false;
+            }
+        };
+
+        processQueue();
+    }, [processTrigger]); // Körs när vi får signal om nytt event eller när ett event är klart
 
     return (
         <div className="fixed inset-0 pointer-events-none z-[9999] flex items-center justify-center p-4">
@@ -87,29 +153,29 @@ export const PBOverlay: React.FC = () => {
                     <>
                         <Confetti />
                         <motion.div
-                            key={currentEvent.id}
-                            initial={{ opacity: 0, y: 100 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -50 }}
-                            transition={{ duration: 0.5, ease: "easeOut" }}
+                            key={currentEvent.id} // Viktigt: Unikt key tvingar React att rendera om helt
+                            initial={{ opacity: 0, y: 100, scale: 0.8 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -50, scale: 0.9 }}
+                            transition={{ duration: 0.5, ease: "backOut" }}
                             className="bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 p-2 rounded-[3.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.6)] w-full max-w-xl"
                         >
                             <div className="bg-white dark:bg-gray-900 rounded-[3.2rem] p-8 flex flex-col items-center border border-white/20 relative overflow-hidden min-h-[500px]">
                                 
                                 <div className="absolute inset-0 bg-yellow-500/5 animate-pulse rounded-[3rem]"></div>
                                 
-                                <div className="text-6xl sm:text-7xl mb-6 relative z-10">🔔</div>
+                                <div className="text-6xl sm:text-7xl mb-6 relative z-10 animate-bounce">🔔</div>
                                 
                                 <h2 className="text-4xl sm:text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tighter mb-4 relative z-10 leading-none text-center">
                                     {currentEvent.data.records && currentEvent.data.records.length > 1 ? 'PBREGN! 🌧️' : 'NYTT PB! 🏆'}
                                 </h2>
                                 
                                 <div className="relative z-10 mb-8 flex flex-col items-center shrink-0">
-                                    <div className="w-20 h-20 rounded-[2rem] bg-gray-100 dark:bg-gray-800 overflow-hidden mb-3 border-4 border-yellow-400 shadow-lg">
+                                    <div className="w-24 h-24 rounded-[2rem] bg-gray-100 dark:bg-gray-800 overflow-hidden mb-4 border-4 border-yellow-400 shadow-xl">
                                         {currentEvent.data.userPhotoUrl ? (
                                             <img src={currentEvent.data.userPhotoUrl} className="w-full h-full object-cover" alt="" />
                                         ) : (
-                                            <div className="w-full h-full flex items-center justify-center text-3xl font-black text-gray-300">
+                                            <div className="w-full h-full flex items-center justify-center text-4xl font-black text-gray-300 uppercase">
                                                 {currentEvent.data.userName[0]}
                                             </div>
                                         )}
@@ -150,7 +216,7 @@ export const PBOverlay: React.FC = () => {
                                     ))}
                                 </div>
 
-                                <div className="absolute bottom-0 left-0 right-0 h-2 bg-gray-100 dark:bg-white/5">
+                                <div className="absolute bottom-0 left-0 right-0 h-3 bg-gray-100 dark:bg-white/5">
                                     <motion.div 
                                         initial={{ width: "100%" }}
                                         animate={{ width: "0%" }}

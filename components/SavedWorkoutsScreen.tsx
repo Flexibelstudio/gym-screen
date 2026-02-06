@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Workout } from '../types';
-import { StarIcon, PencilIcon, InformationCircleIcon, ClockIcon } from './icons';
+import { StarIcon, PencilIcon, InformationCircleIcon, ClockIcon, PlayIcon, TrashIcon } from './icons';
 
 interface SavedWorkoutsScreenProps {
     workouts: Workout[];
@@ -12,18 +12,6 @@ interface SavedWorkoutsScreenProps {
     onCreateNewWorkout: () => void;
     isStudioMode: boolean;
 }
-
-const TrashIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-    </svg>
-);
-
-const PlayIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="currentColor">
-        <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
-    </svg>
-);
 
 const SavedWorkoutsScreen: React.FC<SavedWorkoutsScreenProps> = ({ workouts, onSelectWorkout, onEditWorkout, onDeleteWorkout, onToggleFavorite, onCreateNewWorkout, isStudioMode }) => {
 

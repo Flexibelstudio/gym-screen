@@ -8,9 +8,11 @@ import * as Prompts from '../data/aiPrompts';
 const TEXT_MODEL = 'gemini-3-flash-preview'; 
 const VISION_MODEL = 'gemini-3-flash-preview';
 const IMAGE_GEN_MODEL = 'gemini-2.5-flash-image';
+const PRO_MODEL = 'gemini-3-pro-preview';
 
 // TYPER
-export interface MemberInsightResponse {
+
+export interface InsightContent {
     readiness: {
         status: 'high' | 'moderate' | 'low';
         message: string;
@@ -18,6 +20,12 @@ export interface MemberInsightResponse {
     strategy: string;
     suggestions: Record<string, string>;
     scaling: Record<string, string>;
+}
+
+export interface MemberInsightResponse {
+    good: InsightContent;
+    neutral: InsightContent;
+    bad: InsightContent;
 }
 
 export interface MemberProgressAnalysis {
@@ -94,7 +102,7 @@ const workoutSchema = {
     }
 };
 
-const memberInsightSchema = {
+const singleInsightSchema = {
     type: Type.OBJECT,
     required: ['readiness', 'strategy', 'suggestions', 'scaling'],
     properties: {
@@ -129,6 +137,16 @@ const memberInsightSchema = {
                 }
             }
         }
+    }
+};
+
+const fullMemberInsightSchema = {
+    type: Type.OBJECT,
+    required: ['good', 'neutral', 'bad'],
+    properties: {
+        good: singleInsightSchema,
+        neutral: singleInsightSchema,
+        bad: singleInsightSchema
     }
 };
 
@@ -178,16 +196,22 @@ const exerciseBankSchema = {
 
 // --- CORE HANDLERS ---
 
-async function _callGeminiJSON<T>(modelName: string, prompt: string, schema: any): Promise<T> {
+async function _callGeminiJSON<T>(modelName: string, prompt: string, schema: any, useSearch: boolean = false): Promise<T> {
     const ai = getAIClient();
+    const config: any = {
+        systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,
+        responseMimeType: "application/json",
+        responseSchema: schema,
+    };
+
+    if (useSearch) {
+        config.tools = [{ googleSearch: {} }];
+    }
+
     const response = await ai.models.generateContent({
         model: modelName,
         contents: prompt,
-        config: {
-            systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,
-            responseMimeType: "application/json",
-            responseSchema: schema,
-        },
+        config: config,
     });
     return JSON.parse(response.text.trim()) as T;
 }
@@ -213,8 +237,8 @@ const transformWorkout = (data: any, orgId: string, isDraft: boolean = false): W
 
 // --- EXPORTED FUNCTIONS ---
 
-export async function generateWorkout(prompt: string, contextWorkouts?: Workout[]): Promise<Workout> {
-    const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.WORKOUT_GENERATOR_PROMPT(prompt), workoutSchema);
+export async function generateWorkout(prompt: string, availableExercises: string[] = [], contextWorkouts?: Workout[]): Promise<Workout> {
+    const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.WORKOUT_GENERATOR_PROMPT(prompt, availableExercises), workoutSchema);
     return transformWorkout(data, '');
 }
 
@@ -250,6 +274,28 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
     });
     // Tolkad bild (från t.ex. Idétavlan) markeras som draft så den städas om den inte sparas
     return transformWorkout(JSON.parse(response.text.trim()), '', true);
+}
+
+export async function parseWorkoutFromYoutube(url: string): Promise<Workout> {
+    const prompt = `Analysera denna YouTube-video: ${url}.
+    
+    DITT UPPDRAG:
+    Skapa ett strukturerat träningspass baserat ENBART på innehållet i videon (titel, beskrivning, transkribering, visuellt innehåll).
+
+    REGLER FÖR TOLKNING:
+    1. **KÄLLTROHET (VIKTIGAST):** Hitta inte på övningar som inte nämns eller visas. Om videon handlar om en specifik övning (t.ex. "Teknik i Marklyft"), ska passet bli ett teknikpass för den övningen, inte en slumpmässig WOD.
+    2. **KÄNDA BENCHMARKS:** Endast om videon *tydligt* namnger ett känt testpass (t.ex. "Murph", "Hyrox PFT", "Cindy"), använd den officiella standardstrukturen för det passet.
+    3. **ENSTAKA ÖVNINGAR:** Om videon är en demo av en enda övning, skapa ett "Teknik & Färdighet"-pass (t.ex. EMOM 10 min med den övningen).
+    4. **STRUKTUR:** Försök avgöra om det är AMRAP, EMOM, For Time eller Intervall. Om det är otydligt, skapa en logisk struktur (t.ex. 3-4 set).
+    5. **TIMER:** Välj lämplig timerinställning.
+    6. **FOLLOW ME:** Om videon är ett realtidspass ("Follow Along"), sätt 'followMe' till true.
+    7. **TITEL:** Använd videons titel som grund.
+    
+    Använd Google Search för att bekräfta passets detaljer via videons metadata.`;
+    
+    // Vi använder gemini-3-pro-preview och aktiverar googleSearch (true)
+    const data = await _callGeminiJSON<any>(PRO_MODEL, prompt, workoutSchema, true);
+    return transformWorkout(data, '', false);
 }
 
 export async function generateExerciseDescription(name: string): Promise<string> {
@@ -312,17 +358,37 @@ export async function interpretHandwriting(base64Image: string): Promise<string>
     return response.text.trim();
 }
 
-export async function generateMemberInsights(logs: WorkoutLog[], title: string, exercises: string[]): Promise<MemberInsightResponse> {
-    const logStr = JSON.stringify(logs.slice(0, 5));
-    const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.MEMBER_INSIGHTS_PROMPT(title, exercises, logStr), memberInsightSchema);
-    
-    // Map arrays back to objects for frontend compatibility
+// Helper to transform the array-based AI response to object-based frontend struct
+const transformInsightContent = (data: any): InsightContent => {
     const suggestions: Record<string, string> = {};
-    data.suggestions.forEach((s: any) => suggestions[s.exerciseName] = s.advice);
+    if (Array.isArray(data.suggestions)) {
+        data.suggestions.forEach((s: any) => suggestions[s.exerciseName] = s.advice);
+    }
     const scaling: Record<string, string> = {};
-    data.scaling.forEach((s: any) => scaling[s.exerciseName] = s.advice);
-
+    if (Array.isArray(data.scaling)) {
+        data.scaling.forEach((s: any) => scaling[s.exerciseName] = s.advice);
+    }
     return { ...data, suggestions, scaling };
+}
+
+export async function generateMemberInsights(
+    logs: WorkoutLog[], 
+    title: string, 
+    exercises: string[]
+): Promise<MemberInsightResponse> {
+    const logStr = JSON.stringify(logs.slice(0, 5));
+    const data = await _callGeminiJSON<any>(
+        TEXT_MODEL, 
+        Prompts.MEMBER_INSIGHTS_PROMPT(title, exercises, logStr), 
+        fullMemberInsightSchema
+    );
+    
+    // Transform all three scenarios
+    return {
+        good: transformInsightContent(data.good),
+        neutral: transformInsightContent(data.neutral),
+        bad: transformInsightContent(data.bad)
+    };
 }
 
 export async function getExerciseDagsformAdvice(exerciseName: string, feeling: string, logs: WorkoutLog[]): Promise<ExerciseDagsformAdvice> {

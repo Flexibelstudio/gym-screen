@@ -2,10 +2,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { WorkoutBlock, Exercise, BankExercise, TimerMode } from '../../types';
 import { EditableField } from './EditableField';
-import { ToggleSwitch, ChevronUpIcon, ChevronDownIcon, ChartBarIcon, PencilIcon, TrashIcon, SparklesIcon } from '../icons';
+import { ToggleSwitch, ChevronUpIcon, ChevronDownIcon, ChartBarIcon, PencilIcon, TrashIcon, SparklesIcon, BuildingIcon, PlusIcon } from '../icons';
 import { generateExerciseDescription } from '../../services/geminiService';
 import { parseSettingsFromTitle } from '../../hooks/useWorkoutTimer';
 import { motion, AnimatePresence } from 'framer-motion';
+import { saveExerciseToBank } from '../../services/firebaseService';
 
 interface ExerciseItemProps {
     exercise: Exercise;
@@ -15,9 +16,11 @@ interface ExerciseItemProps {
     index: number;
     total: number;
     onMove: (direction: 'up' | 'down') => void;
+    organizationId: string;
+    onExerciseSavedToBank?: (exercise: BankExercise) => void;
 }
 
-const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove }) => {
+const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, organizationId, onExerciseSavedToBank }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -82,16 +85,20 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
     const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newName = e.target.value;
         setSearchQuery(newName);
-        onUpdate(exercise.id, { name: newName });
+        // När man skriver manuellt blir det en Ad-hoc övning (isFromBank = false)
+        // Vi sätter också loggingEnabled till false som default för ad-hoc
+        onUpdate(exercise.id, { name: newName, isFromBank: false, loggingEnabled: false });
     };
 
     const handleSelectExercise = (bankExercise: BankExercise) => {
         onUpdate(exercise.id, {
+            id: bankExercise.id, // Koppla ID
             name: bankExercise.name,
             description: bankExercise.description,
             imageUrl: bankExercise.imageUrl,
             reps: exercise.reps, 
             isFromBank: true,
+            loggingEnabled: true // Default true för bank-övningar
         });
         setIsSearchVisible(false);
         setSearchQuery('');
@@ -101,6 +108,51 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         if (window.navigator.vibrate) window.navigator.vibrate(5);
         onUpdate(exercise.id, { loggingEnabled: !exercise.loggingEnabled });
     };
+
+    const handleSaveToBank = async () => {
+        if (!organizationId) {
+            alert("Ingen organisation vald. Kan inte spara lokalt.");
+            return;
+        }
+        if (!exercise.name.trim()) return;
+
+        // 1. Skapa unikt ID för custom exercise
+        const newId = `custom_${organizationId}_${Date.now()}`;
+        
+        const newBankExercise: BankExercise = {
+            id: newId,
+            name: exercise.name,
+            description: exercise.description || '',
+            tags: [],
+            imageUrl: exercise.imageUrl,
+            organizationId: organizationId // Viktigt för att den ska sparas i custom_exercises
+        };
+
+        try {
+            // 2. Spara till Firestore först
+            await saveExerciseToBank(newBankExercise);
+
+            // 3. VIKTIGT: Uppdatera listan i sidomenyn INNAN vi uppdaterar själva övningen
+            // Detta förhindrar att komponenten avmonteras (pga ID-byte) innan callbacken hinner köras.
+            if (onExerciseSavedToBank) {
+                onExerciseSavedToBank(newBankExercise);
+            }
+
+            // 4. Uppdatera UI för själva övningskortet (detta byter ID och orsakar re-render/unmount av denna komponent)
+            onUpdate(exercise.id, { 
+                id: newId, 
+                isFromBank: true, 
+                loggingEnabled: true // Aktivera loggning direkt
+            });
+
+        } catch (e) {
+            console.error("Failed to save custom exercise", e);
+            alert("Kunde inte spara övningen till banken.");
+        }
+    };
+
+    // STRICT CHECK: Only trust the flag. ID pattern check removed to allow "unlinking".
+    const isBanked = !!exercise.isFromBank;
     
     return (
         <div 
@@ -108,9 +160,9 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             className={`group p-3 rounded-lg flex items-start gap-3 transition-all border-l-4 relative ${
                 isSearchVisible ? 'z-[1000]' : 'z-0'
             } ${
-                exercise.loggingEnabled 
-                ? 'bg-green-50 dark:bg-green-900/10 border-green-500' 
-                : 'bg-gray-100 dark:bg-gray-700/50 border-transparent'
+                isBanked
+                ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-400' 
+                : 'bg-gray-50 dark:bg-gray-800/50 border-gray-300 dark:border-gray-600'
             }`}
         >
             <div className="flex flex-col gap-1 items-center justify-center self-center mr-2">
@@ -131,15 +183,15 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             </div>
 
             <div className="flex-grow space-y-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                     <input
                         type="text"
                         value={exercise.reps || ''}
                         onChange={e => onUpdate(exercise.id, { reps: e.target.value })}
                         placeholder="Antal"
-                        className={`appearance-none !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500 w-24`}
+                        className={`appearance-none !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500 w-20 sm:w-24`}
                     />
-                    <div className="relative flex-grow">
+                    <div className="relative flex-grow min-w-[150px]">
                         <input
                             type="text"
                             value={exercise.name}
@@ -149,17 +201,27 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                                 setSearchQuery(exercise.name);
                             }}
                             placeholder="Sök eller skriv övningsnamn"
-                            className={`appearance-none w-full !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500`}
+                            className={`appearance-none w-full !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500 pr-8`}
                         />
+                         {/* Visual Indicator inside input */}
+                         <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                            {isBanked ? (
+                                <BuildingIcon className="w-4 h-4 text-blue-500" />
+                            ) : (
+                                <span className="text-xs grayscale opacity-50">📝</span>
+                            )}
+                        </div>
+
                         {isSearchVisible && searchResults.length > 0 && (
                             <ul className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] z-[2000] max-h-80 overflow-y-auto ring-1 ring-black/5 p-1 animate-fade-in">
                                 {searchResults.map(result => (
                                     <li key={result.id}>
                                         <button
                                             onClick={() => handleSelectExercise(result)}
-                                            className="w-full text-left px-4 py-3 hover:bg-primary/10 text-gray-900 dark:text-white transition-colors font-bold rounded-xl border-b border-gray-50 dark:border-gray-700/50 last:border-0"
+                                            className="w-full text-left px-4 py-3 hover:bg-primary/10 text-gray-900 dark:text-white transition-colors font-bold rounded-xl border-b border-gray-50 dark:border-gray-700/50 last:border-0 flex justify-between items-center"
                                         >
-                                            {result.name}
+                                            <span>{result.name}</span>
+                                            <BuildingIcon className="w-3 h-3 text-blue-400" />
                                         </button>
                                     </li>
                                 ))}
@@ -167,22 +229,55 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                         )}
                     </div>
                     
-                    <button 
-                        onClick={handleToggleLogging}
-                        className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all border font-bold text-[10px] uppercase tracking-wider transform active:scale-95 ${
-                            exercise.loggingEnabled 
-                            ? 'bg-green-500 border-green-600 text-white shadow-sm' 
-                            : 'bg-gray-200 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500'
-                        }`}
-                        title={exercise.loggingEnabled ? "Loggning aktiverad" : "Aktivera loggning för medlemmar"}
-                    >
-                        <ChartBarIcon className={`w-3.5 h-3.5 ${exercise.loggingEnabled ? 'text-white' : 'text-gray-400'}`} />
-                        <span>{exercise.loggingEnabled ? 'Loggas' : 'Loggas ej'}</span>
-                    </button>
+                    <div className="flex items-center gap-1 ml-auto sm:ml-0">
+                        {/* Status Badge & Save Button */}
+                        <div className="flex items-center gap-1">
+                            {isBanked ? (
+                                <div 
+                                    className="px-2 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-wider select-none bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800"
+                                    title="Kopplad till övningsbanken (Statistik sparas)"
+                                >
+                                    Bank
+                                </div>
+                            ) : (
+                                <>
+                                    <div 
+                                        className="px-2 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-wider select-none bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700"
+                                        title="Fristående text (Ingen statistik sparas)"
+                                    >
+                                        Ad-hoc
+                                    </div>
+                                    <button
+                                        onClick={handleSaveToBank}
+                                        className="flex items-center gap-1 px-2 py-1.5 rounded-lg border border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors text-[9px] font-black uppercase tracking-wider"
+                                        title="Spara som lokal övning för att kunna logga"
+                                    >
+                                        <PlusIcon className="w-3 h-3" />
+                                        <span className="hidden sm:inline">Spara</span>
+                                    </button>
+                                </>
+                            )}
+                        </div>
 
-                    <button onClick={() => onRemove(exercise.id)} className="flex-shrink-0 text-red-500 hover:text-red-400 transition-colors text-sm font-medium p-1">
-                        <TrashIcon className="w-5 h-5" />
-                    </button>
+                        <button 
+                            onClick={handleToggleLogging}
+                            disabled={!isBanked}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all border font-bold text-[10px] uppercase tracking-wider transform active:scale-95 ${
+                                exercise.loggingEnabled 
+                                ? 'bg-green-500 border-green-600 text-white shadow-sm' 
+                                : isBanked 
+                                    ? 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 hover:border-gray-400'
+                                    : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-300 cursor-not-allowed'
+                            }`}
+                            title={!isBanked ? "Spara övningen i banken för att aktivera loggning" : (exercise.loggingEnabled ? "Loggning aktiverad" : "Aktivera loggning")}
+                        >
+                            <ChartBarIcon className={`w-3.5 h-3.5 ${exercise.loggingEnabled ? 'text-white' : 'text-current'}`} />
+                        </button>
+
+                        <button onClick={() => onRemove(exercise.id)} className="text-red-500 hover:text-red-400 transition-colors text-sm font-medium p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
+                            <TrashIcon className="w-5 h-5" />
+                        </button>
+                    </div>
                 </div>
                 
                 <div className="relative">
@@ -221,12 +316,13 @@ interface EditableBlockCardProps {
     organizationId: string;
     onMoveExercise: (index: number, direction: 'up' | 'down') => void;
     onMoveBlock: (direction: 'up' | 'down') => void;
+    onExerciseSavedToBank?: (exercise: BankExercise) => void;
 }
 
 export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({ 
     block, index, totalBlocks, onUpdate, onRemove, onEditSettings, 
     isDraggable, workoutTitle, workoutBlocksCount, editorRefs, exerciseBank, 
-    organizationId, onMoveExercise, onMoveBlock 
+    organizationId, onMoveExercise, onMoveBlock, onExerciseSavedToBank 
 }) => {
     const [isExpanded, setIsExpanded] = useState(true);
     
@@ -243,11 +339,21 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
 
     const handleToggleAllLogging = () => {
         if (window.navigator.vibrate) window.navigator.vibrate(15);
-        const allEnabled = block.exercises.length > 0 && block.exercises.every(ex => ex.loggingEnabled);
-        const updatedExercises = block.exercises.map(ex => ({
-            ...ex,
-            loggingEnabled: !allEnabled
-        }));
+        // Strict check: Only count exercises where isFromBank is true
+        const bankedExercises = block.exercises.filter(ex => !!ex.isFromBank);
+        
+        if (bankedExercises.length === 0) {
+            alert("Inga övningar i detta block är kopplade till banken. Koppla dem först för att aktivera loggning.");
+            return;
+        }
+
+        const allEnabled = bankedExercises.every(ex => ex.loggingEnabled);
+        const updatedExercises = block.exercises.map(ex => {
+            if (!!ex.isFromBank) {
+                return { ...ex, loggingEnabled: !allEnabled };
+            }
+            return ex;
+        });
         onUpdate({ ...block, exercises: updatedExercises });
     };
 
@@ -257,6 +363,8 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
         reps: '',
         description: '',
         imageUrl: '',
+        isFromBank: false, // Default ad-hoc
+        loggingEnabled: false
     });
 
     const addExercise = () => {
@@ -298,7 +406,12 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
         return `${displayString} (${formatTime(workTime)} / ${formatTime(restTime)})`;
     }, [block.settings]);
 
-    const allExercisesLogged = block.exercises.length > 0 && block.exercises.every(ex => ex.loggingEnabled);
+    // Strict check for bank exercises count using isFromBank flag only
+    const bankExercisesCount = block.exercises.filter(ex => !!ex.isFromBank).length;
+    const allBankedLogged = bankExercisesCount > 0 && block.exercises
+        .filter(ex => !!ex.isFromBank)
+        .every(ex => ex.loggingEnabled);
+        
     const isLastBlock = index === totalBlocks - 1;
 
     return (
@@ -416,12 +529,12 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                             className="ml-2 inline-block"
                         >▶</motion.span>
                     </button>
-                    {isExpanded && block.exercises.length > 0 && (
+                    {isExpanded && bankExercisesCount > 0 && (
                         <button 
                             onClick={handleToggleAllLogging}
                             className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline px-2 py-1 rounded bg-primary/5 border border-primary/10 transition-colors"
                         >
-                            {allExercisesLogged ? 'Avmarkera alla' : 'Logga alla'}
+                            {allBankedLogged ? 'Avmarkera alla (Bank)' : 'Logga alla (Bank)'}
                         </button>
                     )}
                 </div>
@@ -447,6 +560,8 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                                         index={i}
                                         total={block.exercises.length}
                                         onMove={(direction) => onMoveExercise(i, direction)}
+                                        organizationId={organizationId}
+                                        onExerciseSavedToBank={onExerciseSavedToBank}
                                     />
                                 ))
                             )}

@@ -2,18 +2,31 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { BankExercise, Exercise, Organization } from '../../types';
 import { useStudio } from '../../context/StudioContext';
-import { DumbbellIcon } from '../icons';
+import { DumbbellIcon, TrashIcon } from '../icons';
 
 interface ExerciseBankPanelProps {
     bank: BankExercise[];
     onAddExercise: (exercise: BankExercise) => void;
     onPreviewExercise: (exercise: BankExercise) => void;
+    onDeleteExercise?: (exercise: BankExercise) => Promise<void>; // New prop
     isLoading: boolean;
 }
 
-export const ExerciseBankPanel: React.FC<ExerciseBankPanelProps> = ({ bank, onAddExercise, onPreviewExercise, isLoading }) => {
+export const ExerciseBankPanel: React.FC<ExerciseBankPanelProps> = ({ bank, onAddExercise, onPreviewExercise, onDeleteExercise, isLoading }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const { selectedOrganization } = useStudio();
+    
+    // We use the 'bank' prop directly now, no local state needed for the list itself if parent manages it.
+    // However, for filtering performance or immediate feedback if parent doesn't update fast enough, we can just rely on props.
+    
+    const handleDeleteClick = async (e: React.MouseEvent, exercise: BankExercise) => {
+        e.stopPropagation();
+        if (onDeleteExercise) {
+            if (window.confirm(`Vill du ta bort "${exercise.name}" från din lokala övningsbank?`)) {
+                await onDeleteExercise(exercise);
+            }
+        }
+    };
 
     const filteredBank = useMemo(() => {
         if (!searchTerm) return bank;
@@ -42,8 +55,10 @@ export const ExerciseBankPanel: React.FC<ExerciseBankPanelProps> = ({ bank, onAd
                     <p className="text-center text-gray-500">Laddar banken...</p>
                 ) : (
                     filteredBank.map(ex => {
+                        const isCustom = ex.organizationId || ex.id.startsWith('custom_');
+
                         return (
-                            <div key={ex.id} className="bg-white dark:bg-gray-900/70 rounded-md p-2 flex items-center gap-3">
+                            <div key={ex.id} className="bg-white dark:bg-gray-900/70 rounded-md p-2 flex items-center gap-3 relative group">
                                 <div 
                                     className="flex-grow min-w-0 flex items-center gap-3 cursor-pointer"
                                     onClick={() => onPreviewExercise(ex)}
@@ -51,10 +66,28 @@ export const ExerciseBankPanel: React.FC<ExerciseBankPanelProps> = ({ bank, onAd
                                     aria-label={`Förhandsgranska ${ex.name}`}
                                 >
                                     <div className="flex-grow min-w-0">
-                                        <p className="font-semibold text-gray-900 dark:text-white truncate">{ex.name}</p>
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-semibold text-gray-900 dark:text-white truncate">{ex.name}</p>
+                                            {isCustom && (
+                                                <span className="text-[9px] font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 uppercase tracking-wide">
+                                                    Egen
+                                                </span>
+                                            )}
+                                        </div>
                                         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{ex.description}</p>
                                     </div>
                                 </div>
+                                
+                                {isCustom && onDeleteExercise && (
+                                    <button
+                                        onClick={(e) => handleDeleteClick(e, ex)}
+                                        className="p-2 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                                        title="Ta bort egen övning"
+                                    >
+                                        <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                )}
+
                                 <button 
                                     onClick={() => onAddExercise(ex)} 
                                     className="bg-primary/20 hover:bg-primary/40 text-primary font-bold w-10 h-10 flex items-center justify-center rounded-full transition-colors flex-shrink-0"

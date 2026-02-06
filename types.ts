@@ -96,6 +96,7 @@ export interface Exercise {
   isFromBank?: boolean;
   isFromAI?: boolean;
   loggingEnabled?: boolean;
+  originalBankId?: string; // NYTT: Referens till Master ID för historik
 }
 
 export interface WorkoutBlock {
@@ -132,6 +133,7 @@ export interface Workout {
   startGroups?: StartGroup[]; 
   startIntervalMinutes?: number; 
   aiCoachSummary?: string;
+  benchmarkId?: string; // NYTT: Koppling till ett Benchmark
 }
 
 export type Passkategori = string;
@@ -143,7 +145,16 @@ export interface CustomCategoryWithPrompt {
   icon?: string;
 }
 
+// NYTT: Definition av ett Benchmark
+export interface BenchmarkDefinition {
+    id: string;
+    title: string;
+    type: 'time' | 'reps' | 'weight';
+}
+
 export type ThemeOption = 'none' | 'auto' | 'winter' | 'christmas' | 'newyear' | 'valentines' | 'easter' | 'midsummer' | 'summer' | 'halloween';
+
+export type TimerSoundProfile = 'airhorn' | 'digital' | 'boxing' | 'gong';
 
 export interface StudioConfig {
   enableScreensaver?: boolean;
@@ -156,6 +167,7 @@ export interface StudioConfig {
   checkInImageEnabled?: boolean;
   checkInImageUrl?: string;
   seasonalTheme?: ThemeOption;
+  soundProfile?: TimerSoundProfile; // NYTT: Ljudprofil
   aiSettings?: {
       tone?: string;
       instructions?: string;
@@ -241,6 +253,8 @@ export interface Organization {
   infoCarousel?: InfoCarousel;
   displayWindows?: DisplayWindow[];
   exerciseOverrides?: Record<string, ExerciseOverride>;
+  // NYTT: Lista över organisationens benchmarks
+  benchmarkDefinitions?: BenchmarkDefinition[];
   companyDetails?: CompanyDetails;
   inviteCode?: string;
   lastActiveAt?: number;
@@ -285,6 +299,7 @@ export interface BankExercise {
   description?: string;
   tags?: string[];
   imageUrl?: string;
+  organizationId?: string; // NYTT: Om den tillhör en specifik org (custom)
 }
 
 export interface SuggestedExercise {
@@ -430,7 +445,9 @@ export interface WorkoutLog {
     diploma?: WorkoutDiploma;
     memberName?: string;
     memberPhotoUrl?: string;
-    newPBs?: PBRecord[]; // Added to match usage in Diploma Generator
+    newPBs?: PBRecord[]; 
+    benchmarkId?: string; // NYTT: För att enkelt gruppera benchmarks
+    benchmarkValue?: number; // NYTT: Resultatet (tid i sekunder, antal reps, eller vikt)
 }
 
 export interface CheckInEvent {
@@ -491,3 +508,17 @@ export interface MenuItem {
 }
 
 export type RepRange = string;
+export type DisplayPost = {
+  id: string;
+  internalTitle: string;
+  headline?: string;
+  body?: string;
+  layout: 'text-only' | 'image-fullscreen' | 'video-fullscreen' | 'image-left';
+  imageUrl?: string;
+  videoUrl?: string;
+  durationSeconds: number;
+  visibleInStudios: string[]; // 'all' or specific studio IDs
+  startDate?: string; // ISO string
+  endDate?: string; // ISO string
+  disableOverlay?: boolean;
+}

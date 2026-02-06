@@ -3,13 +3,13 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise } from '../types';
 import { ToggleSwitch, PencilIcon, ChartBarIcon, SparklesIcon, ChevronUpIcon, ChevronDownIcon, TrashIcon } from './icons';
 import { TimerSetupModal } from './TimerSetupModal';
-import { getExerciseBank } from '../services/firebaseService';
+import { getExerciseBank, getOrganizationExerciseBank } from '../services/firebaseService';
 import { interpretHandwriting, generateExerciseDescription } from '../services/geminiService';
 import { useStudio } from '../context/StudioContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// --- Helpers ---
+// ... (Helpers and HandwritingInputModal remain unchanged)
 const parseExerciseLine = (line: string): { reps: string; name: string } => {
     const trimmedLine = line.trim();
     const match = trimmedLine.match(/^(\d+)\s+(.*)/);
@@ -19,7 +19,6 @@ const parseExerciseLine = (line: string): { reps: string; name: string } => {
     return { reps: '', name: trimmedLine };
 };
 
-// --- Handwriting Modal ---
 interface HandwritingInputModalProps {
     onClose: () => void;
     onComplete: (text: string) => void;
@@ -162,8 +161,8 @@ const HandwritingInputModal: React.FC<HandwritingInputModalProps> = ({ onClose, 
     );
 };
 
+// ... (createNewWorkout etc. remain unchanged)
 
-// --- Helper functions to create new items ---
 const createNewWorkout = (): Workout => ({
   id: `workout-${Date.now()}`,
   title: '',
@@ -222,7 +221,7 @@ const ConfirmationModal: React.FC<{
     );
 };
 
-// --- Sub-components ---
+// ... (Sub-components remain unchanged)
 
 interface ExerciseItemProps {
     exercise: Exercise;
@@ -258,7 +257,6 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         }
     };
 
-    // Smartare sökning och sortering
     const searchResults = useMemo(() => {
         if (searchQuery.length < 2 || !isSearchVisible) return [];
         
@@ -268,15 +266,12 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             .sort((a, b) => {
                 const aName = a.name.toLowerCase();
                 const bName = b.name.toLowerCase();
-                
                 if (aName === query) return -1;
                 if (bName === query) return 1;
-                
                 const aStarts = aName.startsWith(query);
                 const bStarts = bName.startsWith(query);
                 if (aStarts && !bStarts) return -1;
                 if (!aStarts && bStarts) return 1;
-                
                 return aName.localeCompare(bName, 'sv');
             })
             .slice(0, 15);
@@ -307,6 +302,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             imageUrl: bankExercise.imageUrl,
             reps: exercise.reps,
             isFromBank: true,
+            loggingEnabled: true // Default true for bank exercises
         });
         setIsSearchVisible(false);
         setSearchQuery('');
@@ -326,96 +322,32 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             }`}
         >
             <div className="flex flex-col gap-1 items-center justify-center self-center mr-1">
-                <button 
-                    disabled={index === 0} 
-                    onClick={() => onMove('up')} 
-                    className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 transition-colors"
-                >
-                    <ChevronUpIcon className="w-5 h-5" />
-                </button>
-                <button 
-                    disabled={index === total - 1} 
-                    onClick={() => onMove('down')} 
-                    className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 transition-colors"
-                >
-                    <ChevronDownIcon className="w-5 h-5" />
-                </button>
+                <button disabled={index === 0} onClick={() => onMove('up')} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 transition-colors"><ChevronUpIcon className="w-5 h-5" /></button>
+                <button disabled={index === total - 1} onClick={() => onMove('down')} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 transition-colors"><ChevronDownIcon className="w-5 h-5" /></button>
             </div>
 
             <div className="flex-grow space-y-2">
                 <div className="flex items-center gap-2">
-                    <input
-                        type="text"
-                        value={exercise.reps || ''}
-                        onChange={e => onUpdate(exercise.id, { reps: e.target.value })}
-                        placeholder="Antal"
-                        className={`${inputBaseClasses} w-24`}
-                    />
+                    <input type="text" value={exercise.reps || ''} onChange={e => onUpdate(exercise.id, { reps: e.target.value })} placeholder="Antal" className={`${inputBaseClasses} w-24`} />
                     <div className="relative flex-grow">
-                        <input
-                            type="text"
-                            value={exercise.name}
-                            onChange={handleNameChange}
-                            onFocus={() => {
-                                setIsSearchVisible(true);
-                                setSearchQuery(exercise.name);
-                            }}
-                            placeholder="Sök eller skriv övning..."
-                            className={`${inputBaseClasses} w-full`}
-                        />
+                        <input type="text" value={exercise.name} onChange={handleNameChange} onFocus={() => { setIsSearchVisible(true); setSearchQuery(exercise.name); }} placeholder="Sök eller skriv övning..." className={`${inputBaseClasses} w-full`} />
                         {isSearchVisible && searchResults.length > 0 && (
                             <ul className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] z-[2000] max-h-80 overflow-y-auto ring-1 ring-black/5 p-1 animate-fade-in">
                                 {searchResults.map(result => (
                                     <li key={result.id}>
-                                        <button
-                                            onClick={() => handleSelectExercise(result)}
-                                            className="w-full text-left px-4 py-3 hover:bg-primary/10 text-gray-900 dark:text-white transition-colors font-bold rounded-xl border-b border-gray-50 dark:border-gray-700/50 last:border-0"
-                                        >
-                                            {result.name}
-                                        </button>
+                                        <button onClick={() => handleSelectExercise(result)} className="w-full text-left px-4 py-3 hover:bg-primary/10 text-gray-900 dark:text-white transition-colors font-bold rounded-xl border-b border-gray-50 dark:border-gray-700/50 last:border-0">{result.name}</button>
                                     </li>
                                 ))}
                             </ul>
                         )}
                     </div>
-                    
-                    <button 
-                        onClick={() => onUpdate(exercise.id, { loggingEnabled: !exercise.loggingEnabled })}
-                        className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all border font-black text-[10px] uppercase tracking-wider ${
-                            exercise.loggingEnabled 
-                            ? 'bg-green-500 border-green-600 text-white shadow-lg' 
-                            : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400'
-                        }`}
-                    >
-                        <ChartBarIcon className="w-4 h-4" />
-                        <span className="hidden sm:inline">{exercise.loggingEnabled ? 'Loggas' : 'Loggas ej'}</span>
-                    </button>
-
-                    <button onClick={onOpenHandwriting} className="text-gray-400 hover:text-primary p-2" title="Skriv för hand">
-                        <PencilIcon className="w-5 h-5" />
-                    </button>
-
-                    <button onClick={() => onRemove(exercise.id)} className="text-red-500 p-2" title="Ta bort">
-                        <TrashIcon className="w-5 h-5" />
-                    </button>
+                    <button onClick={() => onUpdate(exercise.id, { loggingEnabled: !exercise.loggingEnabled })} className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all border font-black text-[10px] uppercase tracking-wider ${exercise.loggingEnabled ? 'bg-green-500 border-green-600 text-white shadow-lg' : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400'}`}><ChartBarIcon className="w-4 h-4" /><span className="hidden sm:inline">{exercise.loggingEnabled ? 'Loggas' : 'Loggas ej'}</span></button>
+                    <button onClick={onOpenHandwriting} className="text-gray-400 hover:text-primary p-2" title="Skriv för hand"><PencilIcon className="w-5 h-5" /></button>
+                    <button onClick={() => onRemove(exercise.id)} className="text-red-500 p-2" title="Ta bort"><TrashIcon className="w-5 h-5" /></button>
                 </div>
-                
                 <div className="relative">
-                    <textarea
-                        value={exercise.description || ''}
-                        onChange={e => onUpdate(exercise.id, { description: e.target.value })}
-                        placeholder="Instruktioner..."
-                        className={`${inputBaseClasses} w-full h-20 resize-none font-medium text-sm`}
-                        rows={2}
-                    />
-                    <button
-                        onClick={handleGenerateDescription}
-                        disabled={isGeneratingDesc}
-                        className="absolute top-2 right-2 text-gray-400 hover:text-purple-500 transition-colors"
-                        title="AI-beskrivning"
-                    >
-                        {isGeneratingDesc ? <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div> : <SparklesIcon className="w-5 h-5" />}
-                    </button>
+                    <textarea value={exercise.description || ''} onChange={e => onUpdate(exercise.id, { description: e.target.value })} placeholder="Instruktioner..." className={`${inputBaseClasses} w-full h-20 resize-none font-medium text-sm`} rows={2} />
+                    <button onClick={handleGenerateDescription} disabled={isGeneratingDesc} className="absolute top-2 right-2 text-gray-400 hover:text-purple-500 transition-colors" title="AI-beskrivning">{isGeneratingDesc ? <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div> : <SparklesIcon className="w-5 h-5" />}</button>
                 </div>
             </div>
         </div>
@@ -431,8 +363,9 @@ interface BlockCardProps {
     onEditSettings: () => void;
     onOpenHandwriting: (cb: (text: string) => void) => void;
     exerciseBank: BankExercise[];
+    organizationId: string;
 }
-const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpdate, onRemove, onEditSettings, onOpenHandwriting, exerciseBank }) => {
+const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpdate, onRemove, onEditSettings, onOpenHandwriting, exerciseBank, organizationId }) => {
     const handleFieldChange = (field: keyof WorkoutBlock, value: any) => {
         const updated = { ...block, [field]: value };
         if (field === 'title' && typeof value === 'string') {
@@ -558,7 +491,7 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
                         onUpdate={(id, vals) => onUpdate({ ...block, exercises: block.exercises.map(e => e.id === id ? { ...e, ...vals } : e) })} 
                         onRemove={id => onUpdate({ ...block, exercises: block.exercises.filter(e => e.id !== id) })} 
                         onOpenHandwriting={() => onOpenHandwriting(t => { const p = parseExerciseLine(t); onUpdate({ ...block, exercises: block.exercises.map(e => e.id === ex.id ? { ...e, name: p.name, reps: p.reps } : e) }) })} 
-                        exerciseBank={exerciseBank} index={i} total={block.exercises.length} onMove={dir => moveEx(i, dir)} organizationId=""
+                        exerciseBank={exerciseBank} index={i} total={block.exercises.length} onMove={dir => moveEx(i, dir)} organizationId={organizationId}
                     />
                 ))}
                 <button 
@@ -580,7 +513,38 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
     const [handwritingCb, setHandwritingCb] = useState<((t: string) => void) | null>(null);
     const [exerciseBank, setExerciseBank] = useState<BankExercise[]>([]);
 
-    useEffect(() => { getExerciseBank().then(setExerciseBank); }, []);
+    useEffect(() => { 
+        if (selectedOrganization) {
+            getOrganizationExerciseBank(selectedOrganization.id).then(bank => {
+                setExerciseBank(bank);
+                // CLEANUP: If workout has exercises linked to deleted bank items, downgrade them AND change ID.
+                setWorkout(prev => {
+                    const bankIds = new Set(bank.map(b => b.id));
+                    let hasChanges = false;
+                    const newBlocks = prev.blocks.map(block => {
+                        const newExercises = block.exercises.map(ex => {
+                            if (ex.isFromBank && !bankIds.has(ex.id)) {
+                                hasChanges = true;
+                                return { 
+                                    ...ex, 
+                                    id: `ex-orphaned-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                                    isFromBank: false, 
+                                    loggingEnabled: false 
+                                };
+                            }
+                            return ex;
+                        });
+                        return { ...block, exercises: newExercises };
+                    });
+
+                    if (hasChanges) {
+                        return { ...prev, blocks: newBlocks };
+                    }
+                    return prev;
+                });
+            }); 
+        }
+    }, [selectedOrganization]);
 
     const handleSave = () => {
         if (!workout.title.trim()) { alert("Passet måste ha ett namn."); return; }
@@ -667,7 +631,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                                 onEditSettings={() => setEditingBlockId(block.id)} 
                                 onOpenHandwriting={(cb) => setHandwritingCb(() => cb)} 
                                 exerciseBank={exerciseBank} 
-                                organizationId=""
+                                organizationId={selectedOrganization?.id || ''}
                             />
                         ))}
                     </div>

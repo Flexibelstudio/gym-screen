@@ -1,14 +1,15 @@
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog } from '../../services/firebaseService';
-import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage } from '../../services/geminiService';
+import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog } from '../../services/firebaseService';
+import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage, getExerciseDagsformAdvice, ExerciseDagsformAdvice } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
-import { CloseIcon, DumbbellIcon, SparklesIcon, FireIcon, RunningIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, CalculatorIcon, ChartBarIcon } from '../../components/icons'; 
+import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, ChartBarIcon, HistoryIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
-import { OneRepMaxModal } from '../../components/OneRepMaxModal';
-import { WorkoutLogType, RepRange, ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, ExerciseSetDetail } from '../../types';
+import { WorkoutLogType, ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
+import { useStudio } from '../../context/StudioContext';
 import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 
 // --- Local Storage Key ---
@@ -31,7 +32,7 @@ interface LocalExerciseResult {
   isBodyweight?: boolean;
   blockId: string;
   blockTitle: string;
-  coachAdvice?: string; // NYTT: Lagrar rådet lokalt under sessionen
+  coachAdvice?: string; 
 }
 
 interface LogData {
@@ -45,6 +46,7 @@ interface WorkoutData {
   id: string;
   title: string;
   logType?: WorkoutLogType;
+  benchmarkId?: string;
   blocks: {
       id: string;
       title: string;
@@ -54,82 +56,108 @@ interface WorkoutData {
   }[];
 }
 
-// --- DIPLOMA TITLES ---
+// --- TIME INPUT COMPONENT ---
+const TimeInput: React.FC<{
+    value: string;
+    onChange: (val: string) => void;
+    placeholder?: string;
+    className?: string;
+}> = ({ value, onChange, placeholder, className }) => {
+    const [min, setMin] = useState('');
+    const [sec, setSec] = useState('');
+
+    useEffect(() => {
+        const val = parseFloat(value);
+        if (isNaN(val) && !value) {
+             if (min !== '' || sec !== '') {
+                 setMin('');
+                 setSec('');
+             }
+             return;
+        }
+
+        const currentMin = parseInt(min || '0', 10);
+        const currentSec = parseInt(sec || '0', 10);
+        const currentTotal = currentMin + (currentSec / 60);
+
+        if (!isNaN(val) && Math.abs(val - currentTotal) > 0.001) {
+            const m = Math.floor(val);
+            const s = Math.round((val - m) * 60);
+            setMin(m.toString());
+            setSec(s.toString().padStart(2, '0'));
+        }
+    }, [value]);
+
+    const update = (mStr: string, sStr: string) => {
+        setMin(mStr);
+        setSec(sStr);
+        const m = parseInt(mStr || '0', 10);
+        const s = parseInt(sStr || '0', 10);
+        const total = m + (s / 60);
+        onChange(total.toString());
+    };
+
+    return (
+        <div className={`flex items-center bg-gray-5 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 px-2 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all ${className}`}>
+             <div className="flex-1 flex flex-col justify-center">
+                <input
+                    type="number"
+                    value={min}
+                    onChange={(e) => update(e.target.value, sec)}
+                    placeholder={placeholder || "0"}
+                    className="w-full bg-transparent font-black text-lg text-gray-900 dark:text-white focus:outline-none text-center appearance-none p-4"
+                />
+                 <span className="text-[9px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider text-center -mt-2 pb-2">min</span>
+             </div>
+             <span className="text-gray-300 dark:text-gray-600 font-black text-2xl pb-4">:</span>
+             <div className="flex-1 flex flex-col justify-center">
+                <input
+                    type="number"
+                    value={sec}
+                    onChange={(e) => update(min, e.target.value)}
+                    placeholder="00"
+                    className="w-full bg-transparent font-black text-lg text-gray-900 dark:text-white focus:outline-none text-center appearance-none p-4"
+                />
+                 <span className="text-[9px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider text-center -mt-2 pb-2">sek</span>
+             </div>
+        </div>
+    );
+};
+
+// --- DIPLOMA TITLES & COMPARISONS ---
 const DIPLOMA_TITLES = [
-    "SNYGGT JOBBAT!",
-    "GRYMT KÖRT!",
-    "VILKEN KÄMPE!",
-    "STARKARE ÄN IGÅR!",
-    "VÄRLDSKLASS!",
-    "HELT OTROLIGT!",
-    "DU ÄGDE PASSET!",
-    "VILKEN INSATS!",
-    "HELT MAGISKT!",
-    "DU GJORDE DET!",
-    "GE DIG SJÄLV EN HIGH-FIVE!",
-    "PASSET ÄR DITT!",
-    "EN RIKTIG SEGER!",
-    "TOPPFORM!",
-    "OJ OJ OJ!"
+    "SNYGGT JOBBAT!", "GRYMT KÖRT!", "VILKEN KÄMPE!", "STARKARE ÄN IGÅR!", "VÄRLDSKLASS!", 
+    "HELT OTROLIGT!", "DU ÄGDE PASSET!", "VILKEN INSATS!", "HELT MAGISKT!", "DU GJORDE DET!", 
+    "GE DIG SJÄLV EN HIGH-FIVE!", "PASSET ÄR DITT!", "EN RIKTIG SEGER!", "TOPPFORM!", "OJ OJ OJ!"
 ];
 
 const getRandomDiplomaTitle = () => DIPLOMA_TITLES[Math.floor(Math.random() * DIPLOMA_TITLES.length)];
 
-// --- FUN COMPARISON DATA ---
 const WEIGHT_COMPARISONS = [
     { name: "Hamstrar", singular: "en Hamster", weight: 0.15, emoji: "🐹" },
     { name: "Fotbollar", singular: "en Fortboll", weight: 0.45, emoji: "⚽" },
-    { name: "Paket Smör", singular: "ett Paket Smör", weight: 0.5, emoji: "🧈" },
-    { name: "iPads", singular: "en iPad", weight: 0.5, emoji: "📱" },
     { name: "Ananasar", singular: "en Ananas", weight: 1, emoji: "🍍" },
     { name: "Chihuahuas", singular: "en Chihuahua", weight: 2, emoji: "🐕" },
-    { name: "Tegelstenar", singular: "en Tegelsten", weight: 3, emoji: "🧱" },
     { name: "Katter", singular: "en Katt", weight: 5, emoji: "🐈" },
-    { name: "Bowlingklot", singular: "ett Bowlingklot", weight: 7, emoji: "🎳" },
     { name: "Bildäck", singular: "ett Bildäck", weight: 10, emoji: "🛞" },
-    { name: "Vattenmeloner", singular: "en Vattenmelon", weight: 12, emoji: "🍉" },
-    { name: "Corgis", singular: "en Corgi", weight: 12, emoji: "🐶" },
-    { name: "Mikrovågsugnar", singular: "en Mikrovågsugn", weight: 15, emoji: "📟" },
     { name: "Cyklar", singular: "en Cykel", weight: 15, emoji: "🚲" },
-    { name: "Säckar Cement", singular: "en Säck Cement", weight: 25, emoji: "🏗️" },
     { name: "Golden Retrievers", singular: "en Golden Retriever", weight: 30, emoji: "🦮" },
-    { name: "Toalettstolar", singular: "en Toalettstol", weight: 40, emoji: "🚽" },
     { name: "Diskmaskiner", singular: "en Diskmaskin", weight: 50, emoji: "🍽️" },
-    { name: "Vargar", singular: "en Varg", weight: 50, emoji: "🐺" },
-    { name: "Ölkaggar", singular: "en Ölkagge", weight: 60, emoji: "🍺" },
-    { name: "Tvättmaskiner", singular: "en Tvättmaskin", weight: 80, emoji: "🧺" },
     { name: "Vuxna Män", singular: "en Genomsnittlig Man", weight: 80, emoji: "👨" },
-    { name: "Vuxna Kvinnor", singular: "en Genomsnittlig Kvinna", weight: 65, emoji: "👩" },
-    { name: "Kängurus", singular: "en Känguru", weight: 90, emoji: "🦘" },
-    { name: "Vespor", singular: "en Vespa", weight: 110, emoji: "🛵" },
     { name: "Pandor", singular: "en Panda", weight: 120, emoji: "🐼" },
-    { name: "Kylskåp", singular: "ett Kylskåp", weight: 150, emoji: "🧊" },
     { name: "Gorillor", singular: "en Gorilla", weight: 180, emoji: "🦍" },
     { name: "Lejon", singular: "ett Lejon", weight: 200, emoji: "🦁" },
-    { name: "Varuautomater", singular: "en Varuautomat", weight: 300, emoji: "🎰" },
     { name: "Sibiriska Tigrar", singular: "en Sibirisk Tiger", weight: 300, emoji: "🐅" },
     { name: "Konsertflyglar", singular: "en Konsertflygel", weight: 500, emoji: "🎹" },
     { name: "Hästar", singular: "en Häst", weight: 500, emoji: "🐎" },
-    { name: "Mjölkkor", singular: "en Mjölkko", weight: 600, emoji: "🐄" },
-    { name: "Stora Älgar", singular: "en Stor Älg", weight: 700, emoji: "🫫" },
     { name: "Giraffer", singular: "en Giraff", weight: 800, emoji: "🦒" },
-    { name: "Amerikanska Bisonoxar", singular: "en Bisonoxe", weight: 900, emoji: "🦬" },
-    { name: "Smart Cars", singular: "en Smart Car", weight: 900, emoji: "🚗" },
     { name: "Personbilar", singular: "en Personbil", weight: 1500, emoji: "🚘" },
-    { name: "Flodhästar", singular: "en Flodhäst", weight: 1500, emoji: "🦛" },
     { name: "Noshörningar", singular: "en Noshörning", weight: 2000, emoji: "🛏️" },
-    { name: "Vita Hajar", singular: "en Vit Haj", weight: 2000, emoji: "🦈" },
-    { name: "Späckhuggare", singular: "en Späckhuggare", weight: 4000, emoji: "🐋" },
     { name: "Elefanter", singular: "en Elefant", weight: 5000, emoji: "🐘" },
     { name: "T-Rex", singular: "en T-Rex", weight: 8000, emoji: "🦖" },
     { name: "Skolbussar", singular: "en Skolbuss", weight: 12000, emoji: "🚌" },
-    { name: "Stridsvagnar", singular: "en Stridsvagn", weight: 60000, emoji: "🛡️" },
-    { name: "Lokomotiv", singular: "ett Lokomotiv", weight: 100000, emoji: "🚂" },
     { name: "Blåvalar", singular: "en Blåval", weight: 150000, emoji: "🐳" },
-    { name: "Frihetsgudinnor", singular: "en Frihetsgudinna", weight: 225000, emoji: "🗽" },
     { name: "Boeing 747", singular: "en Boeing 747", weight: 400000, emoji: "✈️" },
-    { name: "Rymdfärjor", singular: "en Rymdfärja", weight: 2000000, emoji: "🚀" },
-    { name: "Eiffeltorn", singular: "ett Eiffeltorn", weight: 10000000, emoji: "🗼" }
 ];
 
 const getFunComparison = (totalWeight: number) => {
@@ -171,6 +199,44 @@ const isExerciseMatch = (targetName: string, targetId: string, candidateName: st
     return false;
 };
 
+// --- Mission Header Component (Koncept 2) ---
+const MissionHeader: React.FC<{ strategy: string; feeling: 'good' | 'neutral' | 'bad' }> = ({ strategy, feeling }) => {
+    let gradient = "from-indigo-500 to-purple-600";
+    let icon = "⚡";
+    let title = "Dagens Mission";
+
+    if (feeling === 'good') {
+        gradient = "from-orange-500 to-red-600";
+        icon = "🔥";
+        title = "Attack Mode";
+    } else if (feeling === 'bad') {
+        gradient = "from-teal-500 to-emerald-600";
+        icon = "🛡️";
+        title = "Smart & Stabilt";
+    }
+
+    return (
+        <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`relative overflow-hidden rounded-2xl bg-gradient-to-r ${gradient} p-5 text-white shadow-lg mb-6`}
+        >
+            <div className="relative z-10 flex items-start gap-4">
+                <div className="text-3xl bg-white/20 rounded-xl p-2 h-12 w-12 flex items-center justify-center backdrop-blur-sm">
+                    {icon}
+                </div>
+                <div>
+                    <h3 className="font-black uppercase tracking-wider text-sm text-white/80 mb-1">{title}</h3>
+                    <p className="font-bold text-lg leading-tight text-white">{strategy}</p>
+                </div>
+            </div>
+            
+            {/* Background decoration */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
+        </motion.div>
+    );
+};
+
 // --- Pre-Game Strategy View ---
 
 const PreGameView: React.FC<{
@@ -181,44 +247,106 @@ const PreGameView: React.FC<{
     onFeelingChange: (feeling: 'good' | 'neutral' | 'bad') => void;
     currentFeeling: 'good' | 'neutral' | 'bad';
 }> = ({ workoutTitle, insights, onStart, onCancel, onFeelingChange, currentFeeling }) => {
-    const displayStrategy = currentFeeling === 'bad' ? "Lyssna på kroppen idag. Fokusera på teknik och sänk vikterna." : (insights.strategy || insights.readiness.message);
-    const isInjuredMode = currentFeeling === 'bad';
+    
+    const activeContent = insights[currentFeeling];
+    const displayStrategy = activeContent?.strategy || activeContent?.readiness?.message || "Laddar strategi...";
+    
+    let themeClass = "from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-800";
+    
+    if (currentFeeling === 'good') {
+        themeClass = "from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20";
+    } else if (currentFeeling === 'bad') {
+        themeClass = "from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20";
+    }
+
     return (
         <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white relative overflow-hidden animate-fade-in">
-            <div className="absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b from-indigo-50 dark:from-indigo-900/40 to-transparent z-0"></div>
-            <div className="relative z-10 flex flex-col h-full overflow-y-auto p-6 scrollbar-hide">
-                <div className="flex justify-between items-start mb-6"><button onClick={onCancel} className="text-gray-400 dark:text-white/50 hover:text-gray-900 dark:hover:text-white font-bold text-sm uppercase tracking-widest px-2 py-1 transition-colors">Avbryt</button></div>
-                <div className="text-center mb-8"><span className="inline-block py-1 px-3 rounded-full bg-primary/10 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-xs font-bold uppercase tracking-widest text-primary mb-4">Pre-Game Strategy</span><h1 className="text-3xl font-black leading-tight mb-2 text-gray-900 dark:text-white">{workoutTitle}</h1><p className="text-gray-500 dark:text-gray-400 text-sm">Din personliga plan för dagens pass</p></div>
-                <div className="mb-8"><p className="text-center text-xs font-bold uppercase text-gray-400 dark:text-gray-500 mb-3 tracking-wider">Hur känns kroppen?</p><div className="flex gap-3 justify-center">
-                    {['good', 'neutral', 'bad'].map((f) => (
-                        <button key={f} onClick={() => onFeelingChange(f as any)} className={`p-4 rounded-2xl border-2 transition-all ${currentFeeling === f ? 'bg-indigo-50 dark:bg-indigo-500/20 border-primary scale-105 shadow-lg' : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-gray-200'}`}>
-                            <span className="text-2xl block">{f === 'good' ? '🔥' : f === 'bad' ? '🤕' : '🙂'}</span>
-                        </button>
-                    ))}
-                </div></div>
-                <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-xl mb-6">
-                    <div className="flex items-start gap-4 mb-6"><div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-lg"><SparklesIcon className="w-6 h-6 text-white" /></div><div><h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Dagens Fokus</h3><p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium italic">"{displayStrategy}"</p></div></div>
+            {/* Background Gradient */}
+            <div className={`absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b ${themeClass} to-transparent z-0 transition-colors duration-500 pointer-events-none`}></div>
+            
+            {/* Scrollable Content Area */}
+            <div className="relative z-10 flex-1 overflow-y-auto p-6 scrollbar-hide">
+                <div className="flex justify-between items-start mb-6">
+                    <button onClick={onCancel} className="text-gray-400 dark:text-white/50 hover:text-gray-900 dark:hover:text-white font-bold text-sm uppercase tracking-widest px-2 py-1 transition-colors">Avbryt</button>
+                </div>
+                
+                <div className="text-center mb-8">
+                    <span className="inline-block py-1 px-3 rounded-full bg-primary/10 dark:bg-white/10 border border-primary/20 dark:border-white/20 text-xs font-bold uppercase tracking-widest text-primary mb-4">Pre-Game Strategy</span>
+                    <h1 className="text-3xl font-black leading-tight mb-2 text-gray-900 dark:text-white">{workoutTitle}</h1>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm">Din personliga plan för dagens pass</p>
+                </div>
+                
+                <div className="mb-8">
+                    <p className="text-center text-xs font-bold uppercase text-gray-400 dark:text-gray-500 mb-3 tracking-wider">Hur känns kroppen?</p>
+                    <div className="flex gap-3 justify-center">
+                        {['good', 'neutral', 'bad'].map((f) => (
+                            <button 
+                                key={f} 
+                                onClick={() => onFeelingChange(f as any)} 
+                                className={`p-4 rounded-2xl border-2 transition-all ${currentFeeling === f ? 'bg-white dark:bg-gray-800 border-primary scale-110 shadow-lg z-10' : 'bg-white/50 dark:bg-gray-800/50 border-transparent hover:bg-white dark:hover:bg-gray-800'}`}
+                            >
+                                <span className="text-2xl block">{f === 'good' ? '🔥' : f === 'bad' ? '🤕' : '🙂'}</span>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-xl mb-6 transition-all">
+                    <div className="flex items-start gap-4 mb-6">
+                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-lg ${currentFeeling === 'good' ? 'from-orange-500 to-red-600' : currentFeeling === 'bad' ? 'from-green-500 to-blue-600' : 'from-indigo-500 to-purple-600'}`}>
+                            <SparklesIcon className="w-6 h-6 text-white" />
+                        </div>
+                        <div>
+                            <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Dagens Fokus</h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium italic">"{displayStrategy}"</p>
+                        </div>
+                    </div>
+                    
                     <div className="space-y-4">
-                        {!isInjuredMode && insights.suggestions && Object.keys(insights.suggestions).length > 0 && (
-                            <div><h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2">Smart Load (Förslag)</h4><div className="space-y-2">
-                                {Object.entries(insights.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
-                                    <div key={exercise} className="flex justify-between items-center bg-gray-50 dark:bg-gray-900/50 p-3 rounded-xl border border-gray-100 dark:border-gray-700/50"><span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{exercise}</span><span className="text-sm font-bold text-primary">{suggestion}</span></div>
-                                ))}
-                            </div></div>
+                        {activeContent?.suggestions && Object.keys(activeContent.suggestions).length > 0 && (
+                            <div className={`p-4 rounded-2xl border ${currentFeeling === 'good' ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800/30' : 'bg-gray-50 dark:bg-gray-900/30 border-gray-100 dark:border-gray-700'}`}>
+                                <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                                    {currentFeeling === 'good' && <FireIcon className="w-4 h-4" />}
+                                    Smart Load (Förslag)
+                                </h4>
+                                <div className="space-y-2">
+                                    {Object.entries(activeContent.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
+                                        <div key={exercise} className="flex justify-between items-center bg-white dark:bg-black/20 p-2.5 rounded-lg border border-gray-100 dark:border-white/5">
+                                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{exercise}</span>
+                                            <span className={`text-sm font-bold ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-primary'}`}>{suggestion}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         )}
-                        {(isInjuredMode || (insights.scaling && Object.keys(insights.scaling).length > 0)) && (
-                            <div className="mt-4"><h4 className="text-xs font-bold text-orange-500 dark:text-orange-400 uppercase tracking-wider mb-2 flex items-center gap-1"><LightningIcon className="w-3 h-3" /> Alternativ / Skalning</h4><div className="space-y-2">
-                                {insights.scaling && Object.entries(insights.scaling).map(([exercise, alternative]) => (
-                                    <div key={exercise} className="bg-orange-50 dark:bg-orange-500/10 p-3 rounded-xl border border-orange-100 dark:border-orange-500/20"><div className="text-xs text-orange-600 dark:text-orange-300 line-through mb-0.5">{exercise}</div><div className="text-sm font-bold text-gray-900 dark:text-white">👉 {alternative}</div></div>
-                                ))}
-                                {isInjuredMode && (!insights.scaling || Object.keys(insights.scaling).length === 0) && (
-                                    <div className="bg-orange-50 dark:bg-orange-500/10 p-3 rounded-xl border border-orange-100 dark:border-orange-500/20"><div className="text-sm font-bold text-gray-900 dark:text-white">Sänk vikterna med 30-50% och fokusera på fullt rörelseutslag.</div></div>
-                                )}
-                            </div></div>
+                        
+                        {activeContent?.scaling && Object.keys(activeContent.scaling).length > 0 && (
+                            <div className="mt-4">
+                                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                    <LightningIcon className="w-3 h-3" /> Alternativ / Skalning
+                                </h4>
+                                <div className="space-y-2">
+                                    {Object.entries(activeContent.scaling).map(([exercise, alternative]) => (
+                                        <div key={exercise} className="bg-white/50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
+                                            <div className="text-xs text-gray-500 line-through mb-0.5">{exercise}</div>
+                                            <div className="text-sm font-bold text-gray-900 dark:text-white">👉 {alternative}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         )}
                     </div>
                 </div>
-                <div className="mt-auto pt-4 pb-8"><button onClick={onStart} className="w-full bg-primary hover:brightness-110 text-white font-black text-lg py-5 rounded-2xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2"><span className="tracking-tight uppercase">Starta passet</span><svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" /></svg></button></div>
+
+                {/* --- START BUTTON IN SCROLL FLOW --- */}
+                <div className="mt-8 pb-12">
+                    <button onClick={onStart} className="w-full bg-primary hover:brightness-110 text-white font-black text-lg py-5 rounded-2xl shadow-lg shadow-primary/20 transition-all transform active:scale-95 flex items-center justify-center gap-2">
+                        <span className="tracking-tight uppercase">Starta passet</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -228,10 +356,10 @@ const ExerciseLogCard: React.FC<{
   name: string;
   result: LocalExerciseResult;
   onUpdate: (updates: Partial<LocalExerciseResult>) => void;
-  onOpenDailyForm: (exerciseName: string) => void;
-  aiSuggestion?: string;
+  aiSuggestion?: string; // Koncept 1: Coach Whisper
+  scaling?: string;      // Koncept 1: Alternativ
   lastPerformance?: { weight: number, reps: string } | null;
-}> = ({ name, result, onUpdate, onOpenDailyForm, aiSuggestion, lastPerformance }) => {
+}> = ({ name, result, onUpdate, aiSuggestion, scaling, lastPerformance }) => {
     
     const calculate1RM = (weight: string, reps: string) => {
         const w = parseFloat(weight);
@@ -251,7 +379,6 @@ const ExerciseLogCard: React.FC<{
     };
 
     const handleToggleComplete = (index: number) => {
-         // Haptic feedback for "Optimistic" confirmation
          if (window.navigator.vibrate) {
              window.navigator.vibrate(result.setDetails[index].completed ? 5 : 15);
          }
@@ -272,35 +399,66 @@ const ExerciseLogCard: React.FC<{
         onUpdate({ setDetails: result.setDetails.filter((_, i) => i !== index) });
     };
 
+    const [showTip, setShowTip] = useState(false);
+
     return (
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 mb-3 border border-gray-100 dark:border-gray-800 shadow-sm transition-all">
-            <div className="flex justify-between items-start mb-3 gap-2">
-                <div className="flex-1 min-w-0">
-                    <h4 className="font-bold text-gray-900 dark:text-white text-base truncate">{name}</h4>
-                    {lastPerformance ? (
-                        <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-0.5">
-                            Senast: <span className="text-gray-600 dark:text-gray-300">{lastPerformance.weight}kg x {lastPerformance.reps}</span>
-                        </p>
-                    ) : (
-                        <p className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-0.5">Första gången</p>
-                    )}
+            <div className="flex flex-col gap-2 mb-4">
+                <div className="flex justify-between items-start">
+                    <div className="flex-1 min-w-0">
+                        <h4 className="font-bold text-gray-900 dark:text-white text-base truncate">{name}</h4>
+                        {lastPerformance ? (
+                            <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-0.5">
+                                Senast: <span className="text-gray-600 dark:text-gray-300">{lastPerformance.reps} x {lastPerformance.weight}kg</span>
+                            </p>
+                        ) : (
+                            <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mt-0.5">
+                               Ingen historik
+                            </p>
+                        )}
+                    </div>
                 </div>
-                <button 
-                    onClick={() => onOpenDailyForm(name)}
-                    className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 shrink-0 shadow-md active:scale-95 transition-all ${result.coachAdvice ? 'bg-green-500 text-white' : 'bg-purple-600 text-white'}`}
-                >
-                    {result.coachAdvice ? <CheckIcon className="w-3.5 h-3.5" /> : <SparklesIcon className="w-3.5 h-3.5" />}
-                    <span className="text-[10px] font-black uppercase tracking-tight">{result.coachAdvice ? 'Råd sparat' : 'Hitta dagsform'}</span>
-                </button>
-            </div>
 
-            {result.coachAdvice && (
-                <div className="mb-4 p-3 bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800 rounded-xl">
-                    <p className="text-[10px] text-purple-600 dark:text-purple-400 font-bold italic leading-relaxed">
-                        🤖 Coach: "{result.coachAdvice}"
-                    </p>
-                </div>
-            )}
+                {/* Koncept 1: Coach Whisper & Scaling */}
+                {(aiSuggestion || scaling) && (
+                    <div className="flex flex-col gap-2">
+                        {scaling && (
+                            <div className="flex items-center gap-2 bg-yellow-50 dark:bg-yellow-900/20 px-3 py-2 rounded-lg border border-yellow-100 dark:border-yellow-800/30">
+                                <LightningIcon className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
+                                <p className="text-xs text-yellow-800 dark:text-yellow-200 font-medium leading-tight">
+                                    <span className="font-bold">Alternativ:</span> {scaling}
+                                </p>
+                            </div>
+                        )}
+                        
+                        {aiSuggestion && (
+                            <div className="relative">
+                                <button 
+                                    onClick={() => setShowTip(!showTip)}
+                                    className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 text-xs font-bold bg-indigo-50 dark:bg-indigo-900/20 px-3 py-1.5 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors w-full sm:w-auto"
+                                >
+                                    <SparklesIcon className="w-3.5 h-3.5" />
+                                    <span>{showTip ? 'Dölj coachtips' : 'Visa coachtips'}</span>
+                                </button>
+                                <AnimatePresence>
+                                    {showTip && (
+                                        <motion.div 
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="mt-2 bg-white dark:bg-black/20 p-3 rounded-lg border border-indigo-100 dark:border-indigo-800/30 text-xs text-gray-700 dark:text-gray-300 italic shadow-sm">
+                                                "{aiSuggestion}"
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
 
             <div className="space-y-2">
                 <div className="grid grid-cols-[30px_1fr_1fr_40px_40px] gap-2 px-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">
@@ -327,11 +485,12 @@ const ExerciseLogCard: React.FC<{
                                 </div>
                                 {oneRm && !set.completed && (
                                     <motion.div 
-                                        initial={{ scale: 0.8, opacity: 0 }}
-                                        animate={{ scale: 1, opacity: 1 }}
-                                        className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow whitespace-nowrap z-10"
+                                        initial={{ scale: 0.8, opacity: 0, y: 5 }}
+                                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                                        exit={{ scale: 0.8, opacity: 0 }}
+                                        className="absolute -top-9 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs font-black px-3 py-1.5 rounded-xl shadow-xl border border-gray-700 whitespace-nowrap z-20 pointer-events-none"
                                     >
-                                        🔥 1RM: {oneRm}
+                                        🔥 1RM: <span className="text-yellow-400">{oneRm}</span>
                                     </motion.div>
                                 )}
                             </div>
@@ -375,7 +534,7 @@ const CustomActivityForm: React.FC<{
                 )}
                 <div className={`mt-4 space-y-5 ${isQuickMode ? 'mt-0' : 'mt-8'}`}>
                     <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Aktivitet *</label><input value={activityName} onChange={(e) => onUpdate('name', e.target.value)} placeholder="T.ex. Powerwalk" disabled={isQuickMode} className={`w-full text-xl font-black text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 ${isQuickMode ? 'opacity-70' : ''}`} /></div>
-                    <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Tid (min) *</label><input type="number" value={duration} onChange={(e) => onUpdate('duration', e.target.value)} placeholder="T.ex. 60" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
+                    <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Tid *</label><TimeInput value={duration} onChange={(val) => onUpdate('duration', val)} placeholder="60" className="w-full" /></div>
                     <div className="grid grid-cols-2 gap-4">
                         <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Kcal</label><input type="number" value={calories} onChange={(e) => onUpdate('calories', e.target.value)} placeholder="T.ex. 350" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
                         <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Distans (km)</label><input type="number" value={distance} onChange={(e) => onUpdate('distance', e.target.value)} placeholder="T.ex. 5.3" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
@@ -429,7 +588,7 @@ const cleanForFirestore = (obj: any): any => {
 
 export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigation, route }: any) => {
   const { currentUser } = useAuth();
-  const { workouts: contextWorkouts } = useWorkout();
+  const { workouts: contextWorkouts, selectedOrganization } = useStudio();
   const userId = currentUser?.uid || "offline_member_uid"; 
   const passedWId = workoutId || route?.params?.workoutId;
   const isManualMode = passedWId === 'MANUAL_ENTRY';
@@ -444,14 +603,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [saveStatus, setSaveStatus] = useState('');
   const [showCelebration, setShowCelebration] = useState(false);
   const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
-  const [showCalculator, setShowCalculator] = useState(false);
-  const [dailyFormTarget, setDailyFormTarget] = useState<string | null>(null);
   const [allLogs, setAllLogs] = useState<WorkoutLog[]>([]);
   const [viewMode, setViewMode] = useState<'pre-game' | 'logging'>(isManualMode ? 'logging' : 'pre-game');
   const [dailyFeeling, setDailyFeeling] = useState<'good' | 'neutral' | 'bad'>('neutral');
   const [customActivity, setCustomActivity] = useState({ name: '', duration: '', distance: '', calories: '' });
-  const [sessionStats, setSessionStats] = useState({ distance: '', calories: '' });
-  
+  const [sessionStats, setSessionStats] = useState({ distance: '', calories: '', time: '', rounds: '' });
+
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
 
@@ -462,14 +619,47 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       return exerciseResults.reduce((acc, ex) => acc + ex.setDetails.filter(s => !s.completed).length, 0);
   }, [isQuickWorkoutMode, isManualMode, exerciseResults]);
 
+  // --- BENCHMARK LOGIC ---
+  const benchmarkDefinition = useMemo(() => {
+      if (!workout?.benchmarkId || !selectedOrganization?.benchmarkDefinitions) return null;
+      return selectedOrganization.benchmarkDefinitions.find(b => b.id === workout.benchmarkId);
+  }, [workout?.benchmarkId, selectedOrganization?.benchmarkDefinitions]);
+
+  const prevBenchmarkBest = useMemo(() => {
+      if (!benchmarkDefinition || !allLogs) return undefined;
+      const relevantLogs = allLogs.filter(l => l.benchmarkId === benchmarkDefinition.id && l.benchmarkValue !== undefined);
+      if (relevantLogs.length === 0) return undefined;
+
+      const sorted = relevantLogs.sort((a, b) => {
+          if (benchmarkDefinition.type === 'time') return (a.benchmarkValue || 0) - (b.benchmarkValue || 0);
+          return (b.benchmarkValue || 0) - (a.benchmarkValue || 0);
+      });
+      return sorted[0]?.benchmarkValue;
+  }, [benchmarkDefinition, allLogs]);
+
+  const formatPrev = (val: number, type: string) => {
+      if (type === 'time') {
+          const m = Math.floor(val / 60);
+          const s = val % 60;
+          return `${m}:${s.toString().padStart(2, '0')}`;
+      }
+      return val.toString();
+  };
+
   const isFormValid = useMemo(() => {
       if (isSubmitting) return false;
       if (isQuickWorkoutMode || isManualMode) {
           return customActivity.name.trim() !== '' && customActivity.duration.trim() !== '';
       }
+
+      if (benchmarkDefinition) {
+          if (benchmarkDefinition.type === 'time' && !sessionStats.time) return false;
+          if (benchmarkDefinition.type === 'reps' && !sessionStats.rounds) return false;
+      }
+
       const totalSets = exerciseResults.reduce((acc, ex) => acc + ex.setDetails.length, 0);
       return totalSets > 0 && uncheckedSetsCount === 0;
-  }, [isSubmitting, isQuickWorkoutMode, isManualMode, customActivity, exerciseResults, uncheckedSetsCount]);
+  }, [isSubmitting, isQuickWorkoutMode, isManualMode, customActivity, exerciseResults, uncheckedSetsCount, benchmarkDefinition, sessionStats]);
   
   // --- LOAD INITIAL DATA ---
   useEffect(() => {
@@ -509,7 +699,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                         loadedLogData = saved.logData;
                         loadedSessionStats = saved.sessionStats;
                         loadedCustomActivity = saved.customActivity;
-                        // Skip pre-game if we have a saved session
                         setViewMode('logging');
                         skipInsights = true;
                     }
@@ -522,9 +711,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                     const defaultSets: LocalSetDetail[] = [{ weight: '', reps: '', completed: false }];
 
                     block.exercises.forEach(ex => {
-                        // STRICT FILTER: Only include exercises explicitly marked for logging
                         if (ex.loggingEnabled === true) {
-                            // Use loaded result if available, else new
                             const savedRes = loadedResults?.find(lr => lr.exerciseId === ex.id);
                             exercises.push(savedRes || {
                                 exerciseId: ex.id,
@@ -541,7 +728,14 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                 
                 setExerciseResults(exercises);
                 if (loadedLogData) setLogData(loadedLogData);
-                if (loadedSessionStats) setSessionStats(loadedSessionStats);
+                if (loadedSessionStats) {
+                    setSessionStats({
+                        distance: loadedSessionStats.distance || '',
+                        calories: loadedSessionStats.calories || '',
+                        time: loadedSessionStats.time || '',
+                        rounds: loadedSessionStats.rounds || ''
+                    });
+                }
                 if (loadedCustomActivity) setCustomActivity(loadedCustomActivity);
 
                 const logs = await getMemberLogs(userId);
@@ -569,6 +763,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                     try {
                         const exerciseNames = exercises.map(e => e.exerciseName);
                         if (exerciseNames.length > 0) {
+                            // Fetch complete insights immediately (good/neutral/bad)
                             const insights = await generateMemberInsights(logs, foundWorkout.title, exerciseNames);
                             setAiInsights(insights);
                         } else {
@@ -586,6 +781,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
     
     init();
   }, [wId, oId, userId, isManualMode, contextWorkouts]);
+
+  const handleFeelingChange = (feeling: 'good' | 'neutral' | 'bad') => {
+      setDailyFeeling(feeling);
+      // No async call here anymore. Content switches instantly in PreGameView.
+  };
 
   // --- AUTO-SAVE LOGIC ---
   useEffect(() => {
@@ -607,8 +807,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, userId, wId, oId, isManualMode, workout, isQuickWorkoutMode]);
 
   const handleCancel = (isSuccess = false, diploma: WorkoutDiploma | null = null) => {
-    // We don't necessarily clear it here if the user just "backs out", 
-    // unless it's a success. User must "Släng" from profile to clear it otherwise.
     if (isSuccess) {
         localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
     }
@@ -632,20 +830,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       setViewMode('logging');
   };
 
-  const handleApplyDailyFormWeight = (exerciseName: string, weight: string, advice: string) => {
-      const index = exerciseResults.findIndex(r => r.exerciseName === exerciseName);
-      if (index !== -1) {
-          const updatedSets = exerciseResults[index].setDetails.map(set => ({
-              ...set,
-              weight: weight
-          }));
-          handleUpdateResult(index, { 
-              setDetails: updatedSets,
-              coachAdvice: advice // Sparar motiveringen lokalt
-          });
-      }
-  };
-
   const handleSubmit = async () => {
       if (!isFormValid || !oId) return;
 
@@ -655,22 +839,17 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       try {
           const isQuickOrManual = isManualMode || workout?.logType === 'quick';
           
-          // --- IMPROVED DATE LOGIC FOR FEED AND TIME ---
           const now = new Date();
           const selectedDate = new Date(logDate);
-          // Check if selected date matches today (local time)
           const isToday = selectedDate.toDateString() === now.toDateString();
           
           let logDateMs: number;
           if (isToday) {
-              logDateMs = Date.now(); // Use exact current time for today's logs
+              logDateMs = Date.now();
           } else {
-              // For past dates, use selected date but add current hours/mins 
-              // to avoid sorting clumps and the "01:00" timezone offset issue
               selectedDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
               logDateMs = selectedDate.getTime();
           }
-          // ----------------------------------------------
           
           let totalVolume = 0;
           
@@ -701,7 +880,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   reps: repsSummary, 
                   sets: r.setDetails.length,
                   blockId: r.blockId,
-                  coachAdvice: r.coachAdvice // NYTT: Skickas med till Firestore
+                  coachAdvice: r.coachAdvice
               };
           });
 
@@ -716,12 +895,13 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               feeling: logData.feeling,
               tags: logData.tags || [],
               comment: logData.comment || '',
-              exerciseResults: exerciseResultsToSave
+              exerciseResults: exerciseResultsToSave,
+              benchmarkId: benchmarkDefinition?.id,
           };
 
           if (isQuickOrManual) {
               finalLogRaw.activityType = isManualMode ? 'custom_activity' : 'gym_workout';
-              finalLogRaw.durationMinutes = parseInt(customActivity.duration) || 0;
+              finalLogRaw.durationMinutes = parseFloat(customActivity.duration) || 0;
               finalLogRaw.totalDistance = parseFloat(customActivity.distance) || 0;
               finalLogRaw.totalCalories = parseInt(customActivity.calories) || 0;
               
@@ -730,16 +910,25 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
               setShowCelebration(true);
           } else {
+              finalLogRaw.durationMinutes = parseFloat(sessionStats.time) || 0;
               finalLogRaw.totalDistance = parseFloat(sessionStats.distance) || 0;
               finalLogRaw.totalCalories = parseInt(sessionStats.calories) || 0;
+              
+              if (benchmarkDefinition) {
+                  if (benchmarkDefinition.type === 'time') {
+                      finalLogRaw.benchmarkValue = (parseFloat(sessionStats.time) || 0) * 60;
+                  } else if (benchmarkDefinition.type === 'reps') {
+                      finalLogRaw.benchmarkValue = parseFloat(sessionStats.rounds) || 0;
+                  } else if (benchmarkDefinition.type === 'weight') {
+                      finalLogRaw.benchmarkValue = totalVolume;
+                  }
+              }
 
-              // 1. Spara loggen först för att beräkna PBs
               setSaveStatus('Letar efter nya rekord...');
               const { log: savedLog, newRecords } = await saveWorkoutLog(cleanForFirestore(finalLogRaw));
 
               let diplomaData: WorkoutDiploma | null = null;
 
-              // 2. Skapa diplom baserat på volym
               if (totalVolume > 0) {
                   const comparison = getFunComparison(totalVolume);
                   if (comparison) {
@@ -754,11 +943,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   }
               }
 
-              // 3. Fallback till alternativt diplom om ingen volym hittades
               if (!diplomaData) {
                   setSaveStatus('AI:n skriver ditt diplom...');
                   try {
-                      // Använd fortfarande AI för texterna men välj rubrik från listan
                       diplomaData = await generateWorkoutDiploma({ ...finalLogRaw, newPBs: newRecords });
                       if (diplomaData) {
                           diplomaData.title = getRandomDiplomaTitle();
@@ -776,7 +963,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   }
               }
 
-              // 4. Generera bild och ladda upp om prompt finns
               if (diplomaData && diplomaData.imagePrompt) {
                   setSaveStatus('Genererar medaljbild...');
                   try {
@@ -789,7 +975,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   } catch (e) { console.warn(e); }
               }
 
-              // 5. VIKTIGT: Uppdatera nu den sparade loggen med det färdiga diplomet
               if (diplomaData) {
                   await updateWorkoutLog(savedLog.id, { diploma: diplomaData });
               }
@@ -824,15 +1009,18 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               insights={aiInsights}
               onStart={handleStartWorkout}
               onCancel={() => handleCancel(false)}
-              onFeelingChange={setDailyFeeling}
+              onFeelingChange={handleFeelingChange}
               currentFeeling={dailyFeeling}
           />
       );
   }
 
+  // --- KONCEPT 2: MISSION BANNER (Sticky Header) ---
+  const activeInsight = aiInsights?.[dailyFeeling];
+  const missionTitle = dailyFeeling === 'good' ? 'Attack Mode' : dailyFeeling === 'bad' ? 'Rehab Mode' : 'Maintenance Mode';
+
   return (
     <div className="bg-gray-5 dark:bg-black text-gray-900 dark:text-white flex flex-col relative h-full">
-      {/* Submit Overlay - Blocks interaction during saving */}
       {isSubmitting && (
           <div className="absolute inset-0 z-[1000] bg-white/10 dark:bg-black/10 pointer-events-auto" />
       )}
@@ -874,16 +1062,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Registrera dina resultat</p>
         </div>
         <div className="flex items-center gap-2">
-            {!isQuickWorkoutMode && !isManualMode && (
-                <button 
-                    onClick={() => setShowCalculator(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-full border border-indigo-100 dark:border-indigo-800 hover:bg-indigo-100 transition-all shadow-sm active:scale-95"
-                    title="1RM Kalkylator"
-                >
-                    <CalculatorIcon className="w-5 h-5" />
-                    <span className="text-[10px] font-black uppercase tracking-wider">1RM Kalkylator</span>
-                </button>
-            )}
             <button onClick={() => handleCancel(false)} className="p-3 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all flex-shrink-0 shadow-sm active:scale-90" disabled={isSubmitting}>
                 <CloseIcon className="w-6 h-6 text-gray-500 dark:text-gray-400" />
             </button>
@@ -893,7 +1071,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       <div className="flex-1 overflow-y-auto bg-gray-5 dark:bg-black scrollbar-hide">
           <div className="p-4 sm:p-8 max-w-2xl mx-auto w-full">
               
-              <div className="mb-8">
+              <div className="mb-6">
                   <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Datum</label>
                   <div className="relative">
                       <input 
@@ -905,22 +1083,14 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   </div>
               </div>
 
-              {!isManualMode && aiInsights && aiInsights.readiness && (
-                  <div className={`p-5 rounded-[1.5rem] mb-8 shadow-sm flex items-start gap-4 border border-white/20 ${
-                      aiInsights.readiness.status === 'low' ? 'bg-orange-100 text-orange-900' : 
-                      aiInsights.readiness.status === 'high' ? 'bg-green-100 text-green-900' : 
-                      'bg-blue-100 text-blue-900'
-                  }`}>
-                      <div className="p-2 bg-white/50 rounded-xl flex-shrink-0 shadow-inner">
-                          <SparklesIcon className="w-5 h-5" />
-                      </div>
-                      <div>
-                          <h4 className="font-black text-xs uppercase tracking-widest opacity-70 mb-1">Dagsform</h4>
-                          <p className="font-bold text-sm leading-relaxed">{aiInsights.readiness.message}</p>
-                      </div>
-                  </div>
+              {/* MISSION BANNER (KONCEPT 2) */}
+              {!isManualMode && activeInsight && (
+                  <MissionHeader 
+                      strategy={activeInsight.strategy || activeInsight.readiness.message} 
+                      feeling={dailyFeeling} 
+                  />
               )}
-
+              
               {isManualMode || isQuickWorkoutMode ? (
                   <CustomActivityForm 
                       activityName={customActivity.name}
@@ -954,8 +1124,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                     name={result.exerciseName}
                                     result={result}
                                     onUpdate={(updates) => handleUpdateResult(index, updates)}
-                                    onOpenDailyForm={(name) => setDailyFormTarget(name)}
-                                    aiSuggestion={aiInsights?.suggestions?.[result.exerciseName]}
+                                    aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} // Koncept 1: Coach Whisper
+                                    scaling={activeInsight?.scaling?.[result.exerciseName]} // Koncept 1: Scaling
                                     lastPerformance={history[result.exerciseName]} 
                                 />
                             </React.Fragment>
@@ -964,6 +1134,35 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
                     <div className="mt-8 mb-6 bg-white dark:bg-gray-900 p-5 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
                         <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className={`block text-11px font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'time' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                                    Tid (min)
+                                    {benchmarkDefinition?.type === 'time' && prevBenchmarkBest && (
+                                        <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'time')}</span>
+                                    )}
+                                </label>
+                                <TimeInput
+                                    value={sessionStats.time}
+                                    onChange={(val) => setSessionStats(prev => ({ ...prev, time: val }))}
+                                    placeholder={benchmarkDefinition?.type === 'time' ? "45" : "-"}
+                                    className="w-full"
+                                />
+                            </div>
+                            <div>
+                                <label className={`block text-11px font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'reps' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                                    Varv / Reps
+                                    {benchmarkDefinition?.type === 'reps' && prevBenchmarkBest && (
+                                        <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'reps')}</span>
+                                    )}
+                                </label>
+                                <input 
+                                    type="number"
+                                    value={sessionStats.rounds}
+                                    onChange={(e) => setSessionStats(prev => ({ ...prev, rounds: e.target.value }))}
+                                    placeholder={benchmarkDefinition?.type === 'reps' ? "T.ex. 5" : "-"}
+                                    className={`w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border transition-colors ${benchmarkDefinition?.type === 'reps' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}
+                                />
+                            </div>
                             <div>
                                 <label className="block text-11px font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">kcal</label>
                                 <input 
@@ -994,7 +1193,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                 onUpdate={u => setLogData(prev => ({ ...prev, ...u }))} 
               />
 
-              {/* ACTION BUTTONS - IN CONTENT FLOW */}
               <div className="mt-12 space-y-4 pb-12">
                   {!isFormValid && !isQuickWorkoutMode && !isManualMode && uncheckedSetsCount > 0 && (
                       <div className="text-center animate-fade-in">
@@ -1045,9 +1243,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               </div>
           </div>
       </div>
-
-      {showCalculator && <OneRepMaxModal onClose={() => setShowCalculator(false)} />}
-      <AnimatePresence>{dailyFormTarget && (<DailyFormInsightModal isOpen={!!dailyFormTarget} onClose={() => setDailyFormTarget(null)} exerciseName={dailyFormTarget} feeling={dailyFeeling} allLogs={allLogs} onApplySuggestion={(weight, advice) => handleApplyDailyFormWeight(dailyFormTarget, weight, advice)} />)}</AnimatePresence>
     </div>
   );
 }

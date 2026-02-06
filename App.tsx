@@ -1110,7 +1110,7 @@ const App: React.FC = () => {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-10010"
+                      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10010]"
                       onClick={() => setMobileViewData(null)}
                   />
                   <motion.div 
@@ -1118,7 +1118,7 @@ const App: React.FC = () => {
                       animate={{ y: '0%', opacity: 1 }}
                       exit={{ y: '100%', opacity: 0 }}
                       transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                      className="fixed inset-x-0 top-[8vh] bottom-0 z-10020 px-1 pointer-events-none"
+                      className="fixed inset-x-0 top-[8vh] bottom-0 z-[10020] px-1 pointer-events-none"
                   >
                       <div className="bg-white dark:bg-gray-900 rounded-t-[2.5rem] h-full max-w-2xl mx-auto shadow-2xl overflow-hidden flex flex-col pointer-events-auto border-t border-gray-200 dark:border-gray-800">
                           <div className="flex-shrink-0 p-4 flex justify-center items-center relative">
@@ -1168,7 +1168,7 @@ const App: React.FC = () => {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
-                      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-10030"
+                      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10030]"
                       onClick={() => handleCancelLog(false)}
                   />
                   <motion.div 
@@ -1176,7 +1176,7 @@ const App: React.FC = () => {
                       animate={{ y: '0%', opacity: 1 }}
                       exit={{ y: '100%', opacity: 0 }}
                       transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                      className="fixed inset-x-0 top-[5vh] bottom-[5vh] z-10040 px-1 pointer-events-none"
+                      className="fixed inset-x-0 top-[5vh] bottom-[5vh] z-[10040] px-1 pointer-events-none"
                   >
                       <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] h-full max-w-2xl mx-auto shadow-2xl overflow-hidden flex flex-col pointer-events-auto">
                           <WorkoutLogScreen 
@@ -1282,7 +1282,7 @@ const App: React.FC = () => {
        {showSupportChat && <SupportChat />}
 
        {showScanButton && !mobileLogData && !mobileViewData && !isSearchWorkoutOpen && (
-          <div className="fixed bottom-6 right-6 z-50">
+          <div className="fixed bottom-6 right-6 z-[50]">
               <ScanButton 
                 onScan={() => setIsScannerOpen(true)} 
                 onLogWorkout={handleLogWorkoutRequest}

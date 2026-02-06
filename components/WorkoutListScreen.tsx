@@ -1,3 +1,4 @@
+
 import React, { useMemo, useState } from 'react';
 import { Workout } from '../types';
 import { useWorkout } from '../context/WorkoutContext';
@@ -80,6 +81,11 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                             {!passkategori && workout.category && (
                                                 <span className="inline-block px-3 py-1 rounded-lg bg-primary/10 text-primary text-[10px] font-black uppercase tracking-widest border border-primary/10">
                                                     {workout.category}
+                                                </span>
+                                            )}
+                                            {workout.benchmarkId && (
+                                                <span className="inline-block px-3 py-1 rounded-lg bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 text-[10px] font-black uppercase tracking-widest border border-yellow-200 dark:border-yellow-800">
+                                                    BENCHMARK
                                                 </span>
                                             )}
                                             {workout.logType === 'quick' && (

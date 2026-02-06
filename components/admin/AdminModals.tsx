@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
-import { SparklesIcon, UsersIcon, ChartBarIcon, InformationCircleIcon } from '../icons';
+import { SparklesIcon, UsersIcon, ChartBarIcon, InformationCircleIcon, DumbbellIcon, TrashIcon } from '../icons';
 import { getSmartScreenPricing } from '../../services/firebaseService';
+import { BenchmarkDefinition } from '../../types';
 
 export const FeatureInfoModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => (
     <Modal isOpen={isOpen} onClose={onClose} title="Smart Medlemsupplevelse" size="lg">
@@ -166,6 +167,111 @@ export const PricingModal: React.FC<{
                     </button>
                     <button onClick={onConfirm} disabled={isProcessing} className="flex-[2] py-3 px-4 rounded-xl font-bold text-white bg-primary hover:brightness-110 shadow-lg shadow-primary/30 transition-all transform active:scale-95 disabled:opacity-50">
                         {isProcessing ? 'Aktiverar...' : 'Aktivera Passloggning'}
+                    </button>
+                </div>
+            </div>
+        </Modal>
+    );
+};
+
+export const ManageBenchmarksModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    benchmarks: BenchmarkDefinition[];
+    onSave: (benchmarks: BenchmarkDefinition[]) => Promise<void>;
+}> = ({ isOpen, onClose, benchmarks, onSave }) => {
+    const [localBenchmarks, setLocalBenchmarks] = useState<BenchmarkDefinition[]>([]);
+    const [newTitle, setNewTitle] = useState('');
+    const [newType, setNewType] = useState<'time' | 'reps' | 'weight'>('time');
+    const [isSaving, setIsSaving] = useState(false);
+
+    useEffect(() => {
+        setLocalBenchmarks([...benchmarks]);
+    }, [benchmarks]);
+
+    const handleAdd = () => {
+        if (!newTitle.trim()) return;
+        const newBenchmark: BenchmarkDefinition = {
+            id: `bm_${Date.now()}`,
+            title: newTitle.trim(),
+            type: newType
+        };
+        setLocalBenchmarks([...localBenchmarks, newBenchmark]);
+        setNewTitle('');
+    };
+
+    const handleDelete = (id: string) => {
+        setLocalBenchmarks(localBenchmarks.filter(b => b.id !== id));
+    };
+
+    const handleConfirm = async () => {
+        setIsSaving(true);
+        await onSave(localBenchmarks);
+        setIsSaving(false);
+        onClose();
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <Modal isOpen={true} onClose={onClose} title="Hantera Benchmarks" size="md">
+            <div className="space-y-6">
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                        Benchmarks är återkommande testpass (t.ex. "Murph", "Fran" eller "Max Pullups"). När du markerar ett pass som ett Benchmark, kommer medlemmar se sin historik och PB när de kör passet igen.
+                    </p>
+                </div>
+
+                <div className="space-y-2 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
+                    {localBenchmarks.map(bm => (
+                        <div key={bm.id} className="flex justify-between items-center bg-gray-50 dark:bg-gray-900 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
+                            <div>
+                                <p className="font-bold text-gray-900 dark:text-white">{bm.title}</p>
+                                <p className="text-xs text-gray-500 uppercase tracking-wider">Mäts i: {bm.type === 'time' ? 'Tid' : bm.type === 'reps' ? 'Reps' : 'Vikt'}</p>
+                            </div>
+                            <button onClick={() => handleDelete(bm.id)} className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                                <TrashIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                    ))}
+                    {localBenchmarks.length === 0 && (
+                        <p className="text-center text-gray-400 text-sm py-4 italic">Inga benchmarks tillagda än.</p>
+                    )}
+                </div>
+
+                <div className="pt-4 border-t border-gray-100 dark:border-gray-800">
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Lägg till nytt</label>
+                    <div className="flex gap-2 mb-2">
+                        <input 
+                            type="text" 
+                            placeholder="Namn (t.ex. Murph)" 
+                            value={newTitle}
+                            onChange={(e) => setNewTitle(e.target.value)}
+                            className="flex-grow bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 focus:ring-2 focus:ring-primary outline-none"
+                        />
+                        <select 
+                            value={newType}
+                            onChange={(e) => setNewType(e.target.value as any)}
+                            className="bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 focus:ring-2 focus:ring-primary outline-none"
+                        >
+                            <option value="time">Tid</option>
+                            <option value="reps">Reps</option>
+                            <option value="weight">Vikt</option>
+                        </select>
+                    </div>
+                    <button 
+                        onClick={handleAdd}
+                        disabled={!newTitle.trim()}
+                        className="w-full bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-bold py-3 rounded-xl transition-colors disabled:opacity-50"
+                    >
+                        + Lägg till i listan
+                    </button>
+                </div>
+
+                <div className="flex gap-4 pt-4">
+                    <button onClick={onClose} className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-500 font-bold py-3 rounded-xl">Avbryt</button>
+                    <button onClick={handleConfirm} disabled={isSaving} className="flex-1 bg-primary text-white font-bold py-3 rounded-xl shadow-lg">
+                        {isSaving ? 'Sparar...' : 'Spara ändringar'}
                     </button>
                 </div>
             </div>

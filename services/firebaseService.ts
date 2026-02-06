@@ -1,4 +1,5 @@
 
+// ... (imports remain the same)
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
   getAuth, 
@@ -52,12 +53,11 @@ import {
   BankExercise, SuggestedExercise, WorkoutResult, CompanyDetails, 
   SmartScreenPricing, HyroxRace, SeasonalThemeSetting, MemberGoals, 
   WorkoutLog, CheckInEvent, Member, UserRole, PersonalBest, StudioEvent,
-  CustomPage, AdminActivity
+  CustomPage, AdminActivity, BenchmarkDefinition
 } from '../types';
 import { MOCK_ORGANIZATIONS, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_MEMBERS, MOCK_SMART_SCREEN_PRICING } from '../data/mockData';
 
 // --- INITIALISERING ---
-
 const hasFirebaseConfig = !!(
     (import.meta as any).env?.VITE_FIREBASE_API_KEY || 
     (process as any).env?.VITE_FIREBASE_API_KEY
@@ -77,14 +77,13 @@ if (!isOffline) {
         auth = getAuth(app);
         db = getFirestore(app);
         storage = getStorage(app);
-        functions = getFunctions(app, 'us-central1'); // Regionen matchar backend
+        functions = getFunctions(app, 'us-central1');
     } catch (error) {
         console.error("CRITICAL: Firebase init failed.", error);
     }
 }
 
-// --- HJÄLPMETODER ---
-
+// ... (Rest of auth and helper functions remain unchanged)
 const sanitizeData = <T>(data: T): T => JSON.parse(JSON.stringify(data));
 
 const generateInviteCode = () => {
@@ -98,8 +97,9 @@ const generateInviteCode = () => {
 
 const getPBId = (name: string) => name.toLowerCase().trim().replace(/[^\w]/g, '_');
 
-// --- ADMIN AKTIVITETSLOGG ---
+const normalizeString = (str: string) => str.toLowerCase().trim().replace(/[^\w\såäöÅÄÖ]/g, '');
 
+// ... (Previous exports like saveAdminActivity, getAdminActivities etc. remain unchanged)
 export const saveAdminActivity = async (activity: Omit<AdminActivity, 'id'>) => {
     if (isOffline || !db) return;
     try {
@@ -142,8 +142,6 @@ export const listenToAdminActivities = (orgId: string, onUpdate: (activities: Ad
         onUpdate(snap.docs.map(d => d.data() as AdminActivity));
     });
 };
-
-// --- AUTHENTICERING ---
 
 export const onAuthChange = (callback: (user: User | null) => void) => {
     if (isOffline || !auth) return () => {}; 
@@ -188,8 +186,6 @@ export const updateUserTermsAccepted = async (uid: string) => {
         await updateDoc(doc(db, 'users', uid), { termsAcceptedAt: Date.now() });
     } catch (e) { console.error("Terms update failed", e); }
 };
-
-// --- PEOPLE HUB (MEDLEMSHANTERING) ---
 
 export const getMembers = async (orgId: string): Promise<Member[]> => {
     if (isOffline || !db || !orgId) return MOCK_MEMBERS;
@@ -240,13 +236,8 @@ export const updateUserProfile = async (uid: string, data: Partial<UserData>) =>
     await updateDoc(doc(db, 'users', uid), sanitizeData(data));
 };
 
-/**
- * Anropar Cloud Function via SDK (Callable). 
- * Ingen hårdkodad URL krävs!
- */
 export const updateUserRoleCloud = async (targetUid: string, newRole: UserRole) => {
     if (isOffline || !functions) throw new Error("Offline eller systemet ej redo.");
-    
     try {
         const func = httpsCallable(functions, 'flexUpdateUserRole');
         const result = await func({ targetUid, newRole });
@@ -292,8 +283,6 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
     return user;
 };
 
-// --- DATA & MOTIVATION (LOGGNING & PB) ---
-
 export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecords: { exerciseName: string, weight: number, diff: number }[] }> => {
     if (isOffline || !db || !logData.organizationId) {
         return { log: logData, newRecords: [] };
@@ -302,6 +291,24 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
     const newLogRef = doc(collection(db, 'workoutLogs'));
     const newLog = { id: newLogRef.id, ...logData };
     const newRecords: { exerciseName: string; weight: number; diff: number }[] = [];
+
+    if (logData.workoutId && logData.workoutId !== 'manual' && !logData.benchmarkId) {
+        try {
+            const wSnap = await getDoc(doc(db, 'workouts', logData.workoutId));
+            if (wSnap.exists()) {
+                const wData = wSnap.data() as Workout;
+                if (wData.benchmarkId) {
+                    newLog.benchmarkId = wData.benchmarkId;
+                    if (newLog.durationMinutes) {
+                        newLog.benchmarkValue = newLog.durationMinutes * 60;
+                    } else if (newLog.exerciseResults && newLog.exerciseResults.length > 0) {
+                         const maxWeight = Math.max(...newLog.exerciseResults.map((ex: any) => ex.weight || 0));
+                         if (maxWeight > 0) newLog.benchmarkValue = maxWeight;
+                    }
+                }
+            }
+        } catch (e) {}
+    }
 
     if (logData.memberId) {
         try {
@@ -453,17 +460,43 @@ export const updatePersonalBest = async (userId: string, exerciseName: string, w
     } catch (e) { console.error("updatePersonalBest failed", e); }
 };
 
-// --- STUDIO EVENTS ---
-
 export const listenForStudioEvents = (orgId: string, callback: (event: StudioEvent) => void) => {
     if (isOffline || !db || !orgId) return () => {};
-    const startTime = Date.now() - 5000; 
-    const q = query(collection(db, 'studio_events'), where('organizationId', '==', orgId), orderBy('timestamp', 'desc'), limit(1));
+    
+    // VIKTIGT: Vi tar bort 'where timestamp > ...' från databasfrågan eftersom det kräver 
+    // ett sammansatt index som kan krångla. Istället hämtar vi de 20 SENASTE händelserna
+    // och filtrerar bort gamla events (äldre än 5 min) här i koden istället.
+    // Detta gör lyssnaren mycket snabbare och mer pålitlig.
+
+    const q = query(
+        collection(db, 'studio_events'), 
+        where('organizationId', '==', orgId), 
+        orderBy('timestamp', 'desc'), // Hämta nyaste först
+        limit(20)
+    );
+
     return onSnapshot(q, (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
+        // Eftersom vi sorterar 'desc' (nyast först), kommer snapshot.docChanges() 
+        // leverera de nyaste eventen. Vi itererar igenom dem.
+        
+        // Vi samlar upp ändringarna och reverserar dem så att om vi får en batch 
+        // (t.ex. vid start), så processar vi dem i kronologisk ordning (äldst till nyast)
+        // för att kön ska kännas naturlig om flera kom in precis samtidigt.
+        const changes = snapshot.docChanges();
+        
+        // Loopa baklänges eller reversera för att hantera ordningen om det behövs, 
+        // men för realtidshändelser kommer de en och en.
+        changes.forEach((change) => {
             if (change.type === 'added') {
                 const data = change.doc.data() as StudioEvent;
-                if (data.timestamp > startTime) callback(data);
+                
+                // CLIENT-SIDE FILTERING:
+                // Är eventet skapat för mer än 10 minuter sedan? Ignorera det.
+                // Vi har en striktare spärr i PBOverlay (5 min), men detta sparar prestanda.
+                const timeDiff = Date.now() - data.timestamp;
+                if (timeDiff < 10 * 60 * 1000) { 
+                    callback(data);
+                }
             }
         });
     });
@@ -482,8 +515,6 @@ export const listenToWeeklyPBs = (orgId: string, onUpdate: (events: StudioEvent[
     );
     return onSnapshot(q, (snap) => onUpdate(snap.docs.map(d => d.data() as StudioEvent)));
 };
-
-// --- CORE BUSINESS ---
 
 export const getOrganizations = async (): Promise<Organization[]> => {
     if (isOffline || !db) return MOCK_ORGANIZATIONS;
@@ -520,6 +551,7 @@ export const createOrganization = async (name: string, subdomain: string): Promi
     return newOrg;
 };
 
+// ... (updateOrganization functions)
 export const updateOrganization = async (id: string, name: string, subdomain: string, inviteCode?: string) => {
     if(isOffline || !db || !id) return;
     const updateData: any = { name, subdomain };
@@ -587,6 +619,12 @@ export const updateGlobalConfig = async (id: string, config: any) => {
     await updateDoc(doc(db, 'organizations', id), { globalConfig: sanitizeData(config) });
 };
 
+export const updateOrganizationBenchmarks = async (id: string, benchmarks: BenchmarkDefinition[]) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { benchmarkDefinitions: sanitizeData(benchmarks) });
+    return getOrganizationById(id);
+};
+
 export const createStudio = async (orgId: string, name: string) => {
     if(isOffline || !db || !orgId) return { id: 'off', name };
     const org = await getOrganizationById(orgId);
@@ -620,8 +658,6 @@ export const updateStudioConfig = async (orgId: string, studioId: string, overri
     await updateDoc(doc(db, 'organizations', orgId), { studios });
     return studios.find(s => s.id === studioId) as Studio;
 };
-
-// --- TRÄNINGSMOTORN ---
 
 export const getWorkoutsForOrganization = async (orgId: string): Promise<Workout[]> => {
     if (isOffline || !db || !orgId) return [];
@@ -664,17 +700,163 @@ export const getExerciseBank = async (): Promise<BankExercise[]> => {
     } catch (e) { return MOCK_EXERCISE_BANK; }
 };
 
+export const getOrganizationExerciseBank = async (orgId: string): Promise<BankExercise[]> => {
+    if (isOffline || !db || !orgId) return MOCK_EXERCISE_BANK;
+    try {
+        // 1. Fetch Global Bank
+        const globalSnap = await getDocs(query(collection(db, 'exerciseBank'), orderBy('name')));
+        const globalBank = globalSnap.docs.map(d => d.data() as BankExercise);
+
+        // 2. Fetch Custom Bank
+        const customQ = query(collection(db, 'custom_exercises'), where('organizationId', '==', orgId));
+        const customSnap = await getDocs(customQ);
+        const customBank = customSnap.docs.map(d => d.data() as BankExercise);
+
+        return [...globalBank, ...customBank].sort((a, b) => a.name.localeCompare(b.name, 'sv'));
+    } catch (e) { return MOCK_EXERCISE_BANK; }
+};
+
+// Resolver Function (The logic engine)
+export const resolveAndCreateExercises = async (orgId: string, workout: Workout, createMissing: boolean = false): Promise<Workout> => {
+    if (isOffline || !db) return workout; // Safety
+
+    // 1. Get combined banks
+    const combinedBank = await getOrganizationExerciseBank(orgId);
+    const bankMap = new Map(combinedBank.map(b => [b.id, b])); // Create Map for O(1) lookup
+    const newlyCreatedCache: Record<string, BankExercise> = {};
+
+    // 2. Helper for matching
+    const findMatch = (name: string) => {
+        const nName = normalizeString(name);
+        
+        // Try exact normalized match first
+        let match = combinedBank.find(b => normalizeString(b.name) === nName);
+        if(match) return match;
+
+        // Try "contains" match (reversed)
+        match = combinedBank.find(b => normalizeString(b.name).includes(nName));
+        
+        if (!match) {
+             match = combinedBank.find(b => nName.includes(normalizeString(b.name)));
+        }
+
+        return match;
+    };
+
+    // 3. Process blocks
+    const resolvedBlocks = await Promise.all(workout.blocks.map(async (block) => {
+        const resolvedExercises = await Promise.all(block.exercises.map(async (ex) => {
+            // Case 1: It claims to be from the bank
+            if (ex.isFromBank) {
+                // If it claims to be from bank, we MUST verify the ID exists.
+                // If it doesn't exist (deleted), we downgrade it to ad-hoc.
+                if (bankMap.has(ex.id)) {
+                    // Valid link. Optionally sync details? 
+                    const bankEx = bankMap.get(ex.id);
+                    return {
+                        ...ex,
+                        imageUrl: bankEx?.imageUrl || ex.imageUrl, // Sync image
+                        description: bankEx?.description || ex.description, // Optional: Sync desc
+                        loggingEnabled: true // Ensure logging is enabled for valid bank items
+                    };
+                } else {
+                    // INVALID LINK (Deleted from bank). Downgrade to Ad-hoc.
+                    return {
+                        ...ex,
+                        isFromBank: false,
+                        loggingEnabled: false,
+                        // Keep existing name/reps/desc as they are in the workout
+                    };
+                }
+            }
+
+            // Case 2: Ad-hoc (Try to match by name or create new)
+            const match = findMatch(ex.name);
+
+            if (match) {
+                return {
+                    ...ex,
+                    id: match.id, // THE MAGIC: Link to Master ID
+                    originalBankId: match.id, // Helper for history tracking
+                    description: ex.description || match.description, 
+                    imageUrl: match.imageUrl || ex.imageUrl,
+                    isFromBank: true,
+                    loggingEnabled: true
+                };
+            }
+
+            // If no match found, and we are NOT allowed to create missing exercises (e.g. Ad-hoc/AI)
+            // Just return the exercise as-is but ensure logging is disabled to keep data clean
+            if (!createMissing) {
+                return {
+                    ...ex,
+                    isFromBank: false,
+                    loggingEnabled: false
+                };
+            }
+
+            // Check cache for duplicates in same workout session
+            const nName = normalizeString(ex.name);
+            if (newlyCreatedCache[nName]) {
+                const cached = newlyCreatedCache[nName];
+                return { 
+                    ...ex, 
+                    id: cached.id, 
+                    originalBankId: cached.id,
+                    isFromBank: true, 
+                    loggingEnabled: true
+                };
+            }
+
+            // Create new Custom Exercise
+            const newId = `custom_${orgId}_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+            const newBankEx: BankExercise = {
+                id: newId,
+                name: ex.name, // Use the provided name
+                description: ex.description || '',
+                tags: [], 
+                organizationId: orgId
+            };
+
+            // Add to Firestore
+            await setDoc(doc(db, 'custom_exercises', newId), newBankEx);
+
+            // Add to cache
+            newlyCreatedCache[nName] = newBankEx;
+            
+            return {
+                ...ex,
+                id: newId,
+                originalBankId: newId,
+                isFromBank: true,
+                loggingEnabled: true
+            };
+        }));
+
+        return { ...block, exercises: resolvedExercises };
+    }));
+
+    return { ...workout, blocks: resolvedBlocks };
+};
+
 export const saveExerciseToBank = async (ex: BankExercise) => {
     if (isOffline || !db || !ex.id) return;
     try {
-        await setDoc(doc(db, 'exerciseBank', ex.id), sanitizeData(ex), { merge: true });
+        // Om övningen har ett organizationId eller ID:t börjar på 'custom_', spara i custom_exercises
+        const collectionName = ex.organizationId || ex.id.startsWith('custom_') 
+            ? 'custom_exercises' 
+            : 'exerciseBank';
+            
+        await setDoc(doc(db, collectionName, ex.id), sanitizeData(ex), { merge: true });
     } catch (e) { console.error("saveExerciseToBank failed", e); }
 };
 
 export const deleteExerciseFromBank = async (id: string) => {
     if (isOffline || !db || !id) return;
     try {
-        await deleteDoc(doc(db, 'exerciseBank', id));
+        // Check if it's a custom exercise based on ID prefix
+        const collectionName = id.startsWith('custom_') ? 'custom_exercises' : 'exerciseBank';
+        await deleteDoc(doc(db, collectionName, id));
     } catch (e) { console.error("deleteExerciseFromBank failed", e); }
 };
 
@@ -691,8 +873,7 @@ export const updateExerciseImageOverride = async (orgId: string, exerciseId: str
     } catch (e) { console.error("updateExerciseImageOverride failed", e); }
 };
 
-// --- BILLING ---
-
+// ... (Rest of the file remains same: billing, images, hyrox, checkins etc.)
 export const getSmartScreenPricing = async () => {
     if (isOffline || !db) return MOCK_SMART_SCREEN_PRICING;
     try {
@@ -715,8 +896,6 @@ export const updateOrganizationBilledStatus = async (id: string, month: string) 
         return getOrganizationById(id);
     } catch (e) { console.error("updateOrganizationBilledStatus failed", e); }
 };
-
-// --- IMAGES & THEMES ---
 
 export const uploadImage = async (path: string, image: File | string): Promise<string> => {
     if (typeof image === 'string' && !image.startsWith('data:image')) return image;
@@ -774,8 +953,6 @@ export const updateOrganizationActivity = async (id: string): Promise<void> => {
     try { await updateDoc(doc(db, 'organizations', id), { lastActiveAt: Date.now() }); } catch(e){}
 };
 
-// --- HYROX & RESULTAT ---
-
 export const saveRace = async (data: any, orgId: string) => {
     if(isOffline || !db || !orgId) return { id: 'off' };
     try {
@@ -818,8 +995,6 @@ export const getWorkoutResults = async (workoutId: string, orgId: string): Promi
         return snap.docs.map(d => d.data() as WorkoutResult);
     } catch (e) { return []; }
 };
-
-// --- CHECK-INS & SPOTS ---
 
 export const sendCheckIn = async (orgId: string, userEmail: string) => {
     if (isOffline || !db || !orgId) return;

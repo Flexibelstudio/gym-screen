@@ -15,7 +15,7 @@ Ditt viktigaste uppdrag är att agera som en intelligent assistent med två läg
 Om användaren anger ett antal (t.ex. "10 övningar"), MÅSTE du generera exakt så många unika övningsobjekt i JSON-arrayen. Du får ALDRIG bara skriva "10 övningar" som ett övningsnamn.
 `;
 
-export const WORKOUT_GENERATOR_PROMPT = (userPrompt: string) => `
+export const WORKOUT_GENERATOR_PROMPT = (userPrompt: string, availableExercises: string[] = []) => `
 Skapa ett strukturerat träningspass baserat på: "${userPrompt}".
 
 INSTRUKTIONER:
@@ -24,6 +24,16 @@ INSTRUKTIONER:
 3. Ge blocken tydliga namn som "Pulsfest" eller "Styrka: Pressar".
 4. Om ett antal övningar nämns i instruktionen, skapa exakt så många unika övningar.
 5. Skriv pedagogiska beskrivningar för varje övning.
+
+${availableExercises.length > 0 ? `
+VIKTIGT OM ÖVNINGSVAL (CONTEXT INJECTION):
+Här följer en lista på övningar som redan finns i vår databas. Du MÅSTE prioritera att använda exakt dessa namn om de passar in i passet.
+Detta för att statistiken ska bli korrekt. Om du vill ha "Kettlebell Marklyft" och det finns i listan, skriv exakt så.
+Om en specifik rörelse du vill ha INTE finns i listan är det okej att hitta på ett nytt namn, men kolla alltid listan först.
+
+TILLGÄNGLIGA ÖVNINGAR (PRIORITERA DESSA):
+${availableExercises.join(', ')}
+` : ''}
 `;
 
 export const WORKOUT_REMIX_PROMPT = (workoutJson: string) => `
@@ -81,17 +91,29 @@ Skriv en minimalistisk instruktion (max 20 ord) i imperativ form för övningen:
 Beskriv endast rörelsen, inga hälsofördelar eller adjektiv.
 `;
 
-export const MEMBER_INSIGHTS_PROMPT = (title: string, exercises: string[], logs: string) => `
-Skapa en Pre-Game Strategy inför passet: "${title}".
-Övningar: ${exercises.join(', ')}
-Historik: ${logs}
+export const MEMBER_INSIGHTS_PROMPT = (title: string, exercises: string[], logs: string) => {
+    return `
+    Skapa en komplett Pre-Game Strategy inför passet: "${title}".
+    Övningar: ${exercises.join(', ')}
+    Historik: ${logs}
 
-Uppgift:
-1. Bedöm dagsform (Readiness).
-2. Ge en övergripande strategi.
-3. Föreslå vikter för dagens övningar.
-4. Ge alternativ för svårare övningar.
-`;
+    Ditt uppdrag är att generera TRE OLIKA strategier baserat på hur medlemmen känner sig idag.
+
+    SCENARIO 1: 🔥 PIGG & STARK (ATTACK MODE)
+    Strategi: Uppmuntra till att slå PB eller öka volymen. Föreslå tyngre vikter.
+    Tonläge: Utmanande och aggressivt peppande. "Idag är dagen!"
+
+    SCENARIO 2: 🙂 NEUTRAL (MAINTENANCE MODE)
+    Strategi: Fokus på konsistens och flyt. Standardvikter baserat på historik.
+    Tonläge: Stabilt och professionellt. "Keep building the base."
+
+    SCENARIO 3: 🤕 SLITEN/SKADAD (REHAB MODE)
+    Strategi: Fokus på rörlighet, teknik och att genomföra passet lugnt. Föreslå lättare vikter eller skalade övningar.
+    Tonläge: Omtänksamt och lugnande. "Kvalitet före kvantitet."
+
+    VIKTIGT: Returnera ett JSON-objekt med nycklarna "good", "neutral", och "bad", där varje nyckel innehåller 'readiness', 'strategy', 'suggestions' (array) och 'scaling' (array).
+    `;
+};
 
 export const MEMBER_PROGRESS_PROMPT = (name: string, goals: string, logs: string) => `
 Gör en strategisk analys av "${name}"'s utveckling.
