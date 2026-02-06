@@ -401,11 +401,12 @@ const ExerciseLogCard: React.FC<{
                                 </div>
                                 {oneRm && !set.completed && (
                                     <motion.div 
-                                        initial={{ scale: 0.8, opacity: 0 }}
-                                        animate={{ scale: 1, opacity: 1 }}
-                                        className="absolute -top-3 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow whitespace-nowrap z-10"
+                                        initial={{ scale: 0.8, opacity: 0, y: 5 }}
+                                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                                        exit={{ scale: 0.8, opacity: 0 }}
+                                        className="absolute -top-9 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs font-black px-3 py-1.5 rounded-xl shadow-xl border border-gray-700 whitespace-nowrap z-20 pointer-events-none"
                                     >
-                                        🔥 1RM: {oneRm}
+                                        🔥 1RM: <span className="text-yellow-400">{oneRm}</span>
                                     </motion.div>
                                 )}
                             </div>
