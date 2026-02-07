@@ -3,9 +3,9 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { Note, Workout, StudioConfig, TimerMode, TimerStatus, WorkoutBlock, Exercise, TimerSettings, TimerSoundProfile } from '../types';
 import { interpretHandwriting, parseWorkoutFromImage } from '../services/geminiService';
 import { deleteImageByUrl, resolveAndCreateExercises } from '../services/firebaseService';
-import { useWorkoutTimer } from '../hooks/useWorkoutTimer';
+import { useWorkoutTimer, getAudioContext } from '../hooks/useWorkoutTimer';
 import { useStudio } from '../context/StudioContext';
-import { ValueAdjuster, InformationCircleIcon, CloseIcon, ChevronUpIcon, ChevronDownIcon, PencilIcon } from './icons';
+import { ValueAdjuster, InformationCircleIcon, ChevronUpIcon, ChevronDownIcon } from './icons';
 import { Modal } from './ui/Modal';
 import { WorkoutCompleteModal } from './WorkoutCompleteModal';
 import { motion } from 'framer-motion';
@@ -313,23 +313,29 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
     const [workSeconds, setWorkSeconds] = useState(30);
     const [restMinutes, setRestMinutes] = useState(0);
     const [restSeconds, setRestSeconds] = useState(15);
+    const [direction, setDirection] = useState<'up' | 'down'>('down');
 
     useEffect(() => {
         switch(mode) {
             case TimerMode.Interval: setMode(TimerMode.Interval); break;
             case TimerMode.AMRAP: case TimerMode.TimeCap: case TimerMode.EMOM: setTotalMinutes(10); break;
+            case TimerMode.Tabata:
+                // Förinställda värden för Tabata vid byte till läget, men används ej i renderSettings
+                setWorkSeconds(20);
+                setRestSeconds(10);
+                setTotalOmgångar(8);
+                break;
             default: break;
         }
     }, [mode]);
 
     const handleStartTimer = () => {
-        let settings: any = { mode, prepareTime: 10 };
+        let settings: any = { mode, prepareTime: 10, direction };
         let title = mode;
         let exercises: Exercise[] = [{ id: 'ex-dummy', name: mode, reps: '', description: '' }];
 
         switch (mode) {
             case TimerMode.Interval:
-            case TimerMode.Tabata:
                 if (countMode === 'laps') {
                     settings.rounds = varv * intervallerPerVarv;
                     settings.specifiedLaps = varv;
@@ -340,6 +346,14 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
                 settings.workTime = workMinutes * 60 + workSeconds;
                 settings.restTime = restMinutes * 60 + restSeconds;
                 exercises = [{ id: 'ex-interval', name: 'Arbete', reps: '', description: '' }];
+                break;
+            case TimerMode.Tabata:
+                settings.rounds = 8;
+                settings.workTime = 20;
+                settings.restTime = 10;
+                // Standard Tabata är traditionellt nedräkning, men vi respekterar användarens val
+                settings.direction = direction; 
+                exercises = [{ id: 'ex-tabata', name: 'Arbete', reps: '', description: '' }];
                 break;
             case TimerMode.AMRAP:
             case TimerMode.TimeCap:
@@ -363,7 +377,6 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
         const animationClass = 'animate-fade-in';
         switch (mode) {
             case TimerMode.Interval:
-            case TimerMode.Tabata:
                 return (
                     <div className={`flex flex-col items-center gap-y-6 w-full ${animationClass}`}>
                         <div className="flex bg-gray-700 p-1 rounded-lg">
@@ -396,6 +409,16 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
                         </div>
                     </div>
                 );
+            case TimerMode.Tabata:
+                return (
+                    <div className={`text-center text-gray-300 p-4 rounded-lg ${animationClass}`}>
+                        <h4 className="font-bold text-white text-lg">Standard Tabata</h4>
+                        <p className="mt-2">8 ronder</p>
+                        <p>20 sekunder arbete</p>
+                        <p>10 sekunder vila</p>
+                        <p className="text-sm text-gray-500 mt-4">(Dessa värden är fasta för Tabata)</p>
+                    </div>
+                );
             case TimerMode.AMRAP:
             case TimerMode.TimeCap:
                  return <div className={animationClass}><ValueAdjuster label="TID (MINUTER)" value={totalMinutes} onchange={setTotalMinutes} /></div>;
@@ -420,7 +443,26 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
                         <button key={m} onClick={() => setMode(m)} className={`px-4 py-3 text-base font-semibold rounded-lg transition-colors ${ mode === m ? 'bg-primary text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600' }`}>{m}</button>
                     ))}
                 </div>
+                
                 <div className="bg-black/30 rounded-lg p-6 min-h-[200px] flex flex-col justify-center items-center">
+                     {mode !== TimerMode.Stopwatch && (
+                        <div className="flex justify-center mb-6 w-full">
+                            <div className="flex bg-gray-700 p-1 rounded-lg">
+                                <button 
+                                    onClick={() => setDirection('down')} 
+                                    className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md transition-colors ${direction === 'down' ? 'bg-white text-primary shadow-sm' : 'text-gray-300'}`}
+                                >
+                                    <ChevronDownIcon className="w-4 h-4" /> Räkna Ned
+                                </button>
+                                <button 
+                                    onClick={() => setDirection('up')} 
+                                    className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-md transition-colors ${direction === 'up' ? 'bg-white text-primary shadow-sm' : 'text-gray-300'}`}
+                                >
+                                    <ChevronUpIcon className="w-4 h-4" /> Räkna Upp
+                                </button>
+                            </div>
+                        </div>
+                    )}
                     {renderSettings()}
                 </div>
                 <button onClick={handleStartTimer} className="w-full bg-primary text-white font-bold py-3 rounded-lg hover:brightness-110 transition-colors uppercase tracking-widest">Starta Timer</button>
@@ -442,7 +484,7 @@ const filterTimeFromReps = (reps: string): string => {
     return reps;
 };
 
-const getTimerHexColor = (status: TimerStatus, mode: TimerMode) => {
+const getTimerHexColor = (status: TimerStatus, mode: TimerMode | string) => {
     if (status === TimerStatus.Resting) return '#2dd4bf';
     if (status === TimerStatus.Preparing) return '#3b82f6';
     if (status === TimerStatus.Paused) return '#6b7280';
@@ -1235,7 +1277,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             {isArchiveVisible && <NoteArchiveModal notes={savedNotes} onClose={() => setIsArchiveVisible(false)} onDelete={handleDeleteNoteAction} onUpdate={handleUpdateNoteAction} onLoad={handleLoadNote} />}
             {isInfoModalVisible && <IdeaBoardInfoModal onClose={() => setIsInfoModalVisible(false)} />}
             {isTimerSetupVisible && <IdeaBoardTimerSetupModal onStart={handleStartTimerSetup} onClose={() => setIsTimerSetupVisible(false)} block={lastDrawnBlock || { exercises: [] } as any} />}
-            {completionInfo && <WorkoutCompleteModal isOpen={!!completionInfo} onClose={() => setCompletionInfo(null)} workout={completionInfo.workout} isFinalBlock={completionInfo.isFinal} blockTag={completionInfo.blockTag} finishTime={completionInfo.finishTime} organizationId={studioConfig?.id || ''} />}
+            {completionInfo && <WorkoutCompleteModal isOpen={!!completionInfo} onClose={() => setCompletionInfo(null)} workout={completionInfo.workout} isFinalBlock={completionInfo.isFinal} blockTag={completionInfo.blockTag} finishTime={completionInfo.finishTime} organizationId={selectedOrganization?.id || ''} />}
         </div>
     );
 };
