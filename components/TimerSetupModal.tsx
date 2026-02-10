@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { WorkoutBlock, TimerMode, TimerSettings } from '../types';
-import { ValueAdjuster, ChevronDownIcon, ChevronUpIcon, ToggleSwitch, SparklesIcon } from './icons';
+import { WorkoutBlock, TimerMode, TimerSegment } from '../types';
+import { ValueAdjuster, ChevronDownIcon, ChevronUpIcon, ToggleSwitch, SparklesIcon, TrashIcon, PlusIcon } from './icons';
 
 interface TimerSetupModalProps {
   isOpen: boolean;
@@ -23,7 +23,7 @@ const secondsToMinSec = (totalSeconds: number) => {
 export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClose, block, onSave, isLastBlock = false }) => {
   // --- Initialize State Lazily from Props ---
   const [initialState] = useState(() => {
-      const { mode, workTime, restTime, rounds, specifiedLaps, specifiedIntervalsPerLap, direction } = block.settings;
+      const { mode, workTime, restTime, rounds, specifiedLaps, specifiedIntervalsPerLap, direction, sequence } = block.settings;
       const work = secondsToMinSec(workTime);
       const rest = secondsToMinSec(restTime);
       
@@ -53,6 +53,8 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
            iTotalMinutes = rounds;
       } else if (mode === TimerMode.AMRAP || mode === TimerMode.TimeCap) {
            iTotalMinutes = Math.floor(workTime / 60);
+      } else if (mode === TimerMode.Custom) {
+           iVarv = rounds || 1; // Reuse 'varv' variable for custom sequence loops
       }
 
       return {
@@ -68,14 +70,15 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
           totalMinutes: iTotalMinutes,
           direction: direction || 'down',
           autoAdvance: block.autoAdvance || false,
-          transitionTime: block.transitionTime || 0
+          transitionTime: block.transitionTime || 0,
+          sequence: sequence || []
       };
   });
 
   const [mode, setMode] = useState(initialState.mode);
   const [countMode, setCountMode] = useState<CountMode>(initialState.countMode);
   
-  // States for Interval - Laps mode
+  // States for Interval - Laps mode (Also used for Custom Sequence Loops)
   const [varv, setVarv] = useState(initialState.varv);
   const [intervallerPerVarv, setIntervallerPerVarv] = useState(initialState.intervallerPerVarv);
   
@@ -95,6 +98,9 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
   const [autoAdvance, setAutoAdvance] = useState(initialState.autoAdvance);
   const [transitionTime, setTransitionTime] = useState(initialState.transitionTime);
 
+  // State for Custom Sequence
+  const [sequence, setSequence] = useState<TimerSegment[]>(initialState.sequence);
+
   const hasUnsavedChanges = useMemo(() => {
       if (mode !== initialState.mode) return true;
       if (direction !== initialState.direction) return true;
@@ -102,6 +108,10 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
       if (transitionTime !== initialState.transitionTime) return true;
 
       switch (mode) {
+          case TimerMode.Custom:
+              if (varv !== initialState.varv) return true;
+              if (JSON.stringify(sequence) !== JSON.stringify(initialState.sequence)) return true;
+              return false;
           case TimerMode.Interval:
               if (countMode !== initialState.countMode) return true;
               if (countMode === 'laps') {
@@ -115,7 +125,6 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
               return false;
           
           case TimerMode.Tabata:
-              // Tabata is fixed, so mainly mode change matters, which is checked above.
               return false;
 
           case TimerMode.AMRAP:
@@ -132,7 +141,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
       }
   }, [
       mode, countMode, varv, intervallerPerVarv, totalOmgångar, totalMinutes, 
-      workMinutes, workSeconds, restMinutes, restSeconds, direction, autoAdvance, transitionTime, initialState
+      workMinutes, workSeconds, restMinutes, restSeconds, direction, autoAdvance, transitionTime, initialState, sequence
   ]);
 
   useEffect(() => {
@@ -164,6 +173,14 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
     const newSettings: any = { mode, direction };
 
     switch(mode) {
+      case TimerMode.Custom:
+        newSettings.rounds = varv; // In Custom, rounds = laps of the sequence
+        newSettings.sequence = sequence;
+        // Basic fallback time for overview (e.g. sum of 1 lap)
+        const seqTotal = sequence.reduce((acc, s) => acc + (s.duration || 0), 0);
+        newSettings.workTime = seqTotal; 
+        newSettings.restTime = 0;
+        break;
       case TimerMode.Interval:
         if (countMode === 'laps') {
             newSettings.rounds = varv * intervallerPerVarv;
@@ -219,8 +236,33 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
         setIntervallerPerVarv(block.exercises.length > 0 ? block.exercises.length : 1);
     } else if (newMode === TimerMode.AMRAP || newMode === TimerMode.TimeCap || newMode === TimerMode.EMOM) {
         setTotalMinutes(10);
+    } else if (newMode === TimerMode.Custom) {
+        if (sequence.length === 0) {
+            setSequence([
+                { type: 'work', duration: 30, title: 'Arbete' },
+                { type: 'rest', duration: 15, title: 'Vila' }
+            ]);
+        }
+        setVarv(3); // Default loop count
     }
   }
+
+  // --- CUSTOM SEQUENCE HANDLERS ---
+  const addSegment = () => {
+      setSequence(prev => [...prev, { type: 'work', duration: 30, title: 'Arbete' }]);
+  };
+
+  const removeSegment = (index: number) => {
+      setSequence(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateSegment = (index: number, updates: Partial<TimerSegment>) => {
+      setSequence(prev => {
+          const next = [...prev];
+          next[index] = { ...next[index], ...updates };
+          return next;
+      });
+  };
 
   const renderDirectionToggle = () => {
       if (mode === TimerMode.NoTimer || mode === TimerMode.Stopwatch) return null;
@@ -248,6 +290,71 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
   const renderSettingsInputs = () => {
     const animationClass = 'animate-fade-in';
     switch(mode) {
+        case TimerMode.Custom:
+             return (
+                 <div className={`w-full ${animationClass}`}>
+                    <div className="flex justify-center mb-6">
+                         <ValueAdjuster label="ANTAL VARV (LOOP)" value={varv} onchange={setVarv} />
+                    </div>
+
+                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+                        {sequence.map((seg, i) => {
+                            const { minutes, seconds } = secondsToMinSec(seg.duration);
+                            return (
+                                <div key={i} className={`flex items-center gap-3 p-3 rounded-lg border ${seg.type === 'work' ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-100 dark:border-orange-900/30' : 'bg-teal-50 dark:bg-teal-900/20 border-teal-100 dark:border-teal-900/30'}`}>
+                                    <div className="flex flex-col gap-1 items-center">
+                                        <button 
+                                            onClick={() => updateSegment(i, { type: seg.type === 'work' ? 'rest' : 'work' })}
+                                            className={`text-[10px] font-black uppercase px-2 py-1 rounded w-16 text-center transition-colors ${seg.type === 'work' ? 'bg-orange-500 text-white' : 'bg-teal-500 text-white'}`}
+                                        >
+                                            {seg.type === 'work' ? 'Arbete' : 'Vila'}
+                                        </button>
+                                        <span className="text-xs font-mono text-gray-400">{i + 1}</span>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-1">
+                                        <input 
+                                            type="number" 
+                                            value={minutes} 
+                                            onChange={e => updateSegment(i, { duration: (parseInt(e.target.value) || 0) * 60 + seconds })}
+                                            className="w-10 text-center bg-white dark:bg-black border border-gray-300 dark:border-gray-600 rounded p-1 text-sm font-bold" 
+                                            placeholder="m"
+                                        />
+                                        <span>:</span>
+                                        <input 
+                                            type="number" 
+                                            value={seconds} 
+                                            onChange={e => updateSegment(i, { duration: minutes * 60 + (parseInt(e.target.value) || 0) })}
+                                            className="w-10 text-center bg-white dark:bg-black border border-gray-300 dark:border-gray-600 rounded p-1 text-sm font-bold"
+                                            placeholder="s"
+                                        />
+                                    </div>
+
+                                    <input 
+                                        type="text" 
+                                        value={seg.title || ''} 
+                                        onChange={e => updateSegment(i, { title: e.target.value })}
+                                        className="flex-grow bg-white dark:bg-black border border-gray-300 dark:border-gray-600 rounded p-2 text-sm font-medium"
+                                        placeholder={seg.type === 'work' ? 'Titel (t.ex. Löpning)' : 'Titel (t.ex. Vila)'}
+                                    />
+
+                                    <button onClick={() => removeSegment(i)} className="text-red-400 hover:text-red-600 p-1">
+                                        <TrashIcon className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                    
+                    <button 
+                        onClick={addSegment} 
+                        className="w-full mt-4 flex items-center justify-center gap-2 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm font-bold"
+                    >
+                        <PlusIcon className="w-4 h-4" /> Lägg till steg
+                    </button>
+                 </div>
+             );
+
         case TimerMode.Interval:
             return (
               <div className={`flex flex-col items-center gap-y-6 w-full ${animationClass}`}>
@@ -328,15 +435,48 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Timertyp</label>
           <div className="flex flex-wrap gap-2">
-            {Object.values(TimerMode).filter(m => m !== TimerMode.Stopwatch).map(m => (
-              <button
-                key={m}
-                onClick={() => handleModeChange(m)}
-                className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${mode === m ? 'bg-primary text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-600'}`}
-              >
-                {m}
-              </button>
-            ))}
+            <button
+              onClick={() => handleModeChange(TimerMode.Interval)}
+              className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${mode === TimerMode.Interval ? 'bg-primary text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-600'}`}
+            >
+              Interval
+            </button>
+            <button
+              onClick={() => handleModeChange(TimerMode.Tabata)}
+              className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${mode === TimerMode.Tabata ? 'bg-primary text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-600'}`}
+            >
+              Tabata
+            </button>
+            <button
+              onClick={() => handleModeChange(TimerMode.AMRAP)}
+              className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${mode === TimerMode.AMRAP ? 'bg-primary text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-600'}`}
+            >
+              AMRAP
+            </button>
+            <button
+              onClick={() => handleModeChange(TimerMode.EMOM)}
+              className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${mode === TimerMode.EMOM ? 'bg-primary text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-600'}`}
+            >
+              EMOM
+            </button>
+            <button
+              onClick={() => handleModeChange(TimerMode.TimeCap)}
+              className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${mode === TimerMode.TimeCap ? 'bg-primary text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-600'}`}
+            >
+              TimeCap
+            </button>
+            <button
+              onClick={() => handleModeChange(TimerMode.Custom)}
+              className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${mode === TimerMode.Custom ? 'bg-primary text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-600'}`}
+            >
+              Sekvens
+            </button>
+            <button
+              onClick={() => handleModeChange(TimerMode.NoTimer)}
+              className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${mode === TimerMode.NoTimer ? 'bg-primary text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-600'}`}
+            >
+              Ingen Timer
+            </button>
           </div>
         </div>
 

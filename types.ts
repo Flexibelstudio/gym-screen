@@ -64,6 +64,7 @@ export enum TimerMode {
   EMOM = 'EMOM',
   TimeCap = 'TimeCap',
   Stopwatch = 'Stopwatch',
+  Custom = 'Custom', // NYTT: Sekvens/Custom timer
   NoTimer = 'NoTimer'
 }
 
@@ -76,6 +77,12 @@ export enum TimerStatus {
   Finished = 'Finished'
 }
 
+export interface TimerSegment {
+    type: 'work' | 'rest';
+    duration: number; // seconds
+    title?: string;
+}
+
 export interface TimerSettings {
   mode: TimerMode;
   workTime: number; // seconds
@@ -85,6 +92,7 @@ export interface TimerSettings {
   specifiedLaps?: number;
   specifiedIntervalsPerLap?: number;
   direction?: 'up' | 'down';
+  sequence?: TimerSegment[]; // NYTT: Lista för Custom Mode
 }
 
 export interface Exercise {
