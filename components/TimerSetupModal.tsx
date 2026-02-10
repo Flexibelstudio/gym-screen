@@ -313,28 +313,22 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                         {sequence.map((seg, i) => {
                             const { minutes, seconds } = secondsToMinSec(seg.duration);
                             return (
-                                <div key={i} className={`flex flex-col sm:flex-row items-center gap-4 p-4 rounded-2xl border-2 transition-all ${seg.type === 'work' ? 'bg-orange-50/50 dark:bg-orange-900/10 border-orange-100 dark:border-orange-900/30' : 'bg-teal-50/50 dark:bg-teal-900/10 border-teal-100 dark:border-teal-900/30'}`}>
+                                <div key={i} className={`flex flex-col gap-3 p-4 rounded-2xl border-2 transition-all shadow-sm ${seg.type === 'work' ? 'bg-orange-50/50 dark:bg-orange-900/10 border-orange-100 dark:border-orange-900/30' : 'bg-teal-50/50 dark:bg-teal-900/10 border-teal-100 dark:border-teal-900/30'}`}>
                                     
-                                    <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-4">
-                                        {/* Reorder Buttons */}
-                                        <div className="flex flex-col gap-2">
-                                            <button onClick={() => moveSegment(i, 'up')} disabled={i === 0} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 disabled:opacity-20 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"><ChevronUpIcon className="w-5 h-5" /></button>
-                                            <button onClick={() => moveSegment(i, 'down')} disabled={i === sequence.length - 1} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 disabled:opacity-20 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"><ChevronDownIcon className="w-5 h-5" /></button>
+                                    {/* Row 1: Controls & Step Info */}
+                                    <div className="flex justify-between items-center w-full">
+                                        <div className="flex gap-2">
+                                            <button onClick={() => moveSegment(i, 'up')} disabled={i === 0} className="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors"><ChevronUpIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => moveSegment(i, 'down')} disabled={i === sequence.length - 1} className="p-1.5 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors"><ChevronDownIcon className="w-5 h-5" /></button>
                                         </div>
-                                        
-                                        <div className="flex flex-col gap-2 items-center min-w-[90px]">
-                                            <button 
-                                                onClick={() => updateSegment(i, { type: seg.type === 'work' ? 'rest' : 'work' })}
-                                                className={`text-xs font-black uppercase px-4 py-2 rounded-xl w-full text-center transition-all shadow-sm active:scale-95 ${seg.type === 'work' ? 'bg-orange-500 text-white' : 'bg-teal-500 text-white'}`}
-                                            >
-                                                {seg.type === 'work' ? 'Arbete' : 'Vila'}
-                                            </button>
-                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Steg {i + 1}</span>
-                                        </div>
+                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Steg {i + 1}</span>
+                                        <button onClick={() => removeSegment(i)} className="text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 p-1.5 rounded-lg transition-colors" title="Ta bort steg">
+                                            <TrashIcon className="w-5 h-5" />
+                                        </button>
                                     </div>
                                     
-                                    {/* Time Adjusters - Using Standard Component */}
-                                    <div className="flex items-center gap-3 bg-white dark:bg-black/20 p-2 rounded-2xl border border-gray-100 dark:border-gray-800/50">
+                                    {/* Row 2: Time Adjusters */}
+                                    <div className="flex justify-center items-center gap-4 py-1">
                                         <ValueAdjuster 
                                             label="MIN" 
                                             value={minutes} 
@@ -350,21 +344,23 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                                         />
                                     </div>
 
-                                    {/* Title Input & Delete */}
-                                    <div className="flex-grow w-full sm:w-auto flex items-center gap-3">
+                                    {/* Row 3: Type & Title */}
+                                    <div className="flex items-center gap-3">
+                                        <button 
+                                            onClick={() => updateSegment(i, { type: seg.type === 'work' ? 'rest' : 'work' })}
+                                            className={`flex-shrink-0 text-[10px] font-black uppercase px-3 py-2.5 rounded-xl w-24 text-center transition-all shadow-sm active:scale-95 ${seg.type === 'work' ? 'bg-orange-500 text-white' : 'bg-teal-500 text-white'}`}
+                                        >
+                                            {seg.type === 'work' ? 'Arbete' : 'Vila'}
+                                        </button>
                                         <div className="flex-grow">
-                                            <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Titel</label>
                                             <input 
                                                 type="text" 
                                                 value={seg.title || ''} 
                                                 onChange={e => updateSegment(i, { title: e.target.value })}
-                                                className="w-full bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm font-bold focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm"
-                                                placeholder={seg.type === 'work' ? 'Intervall' : 'Vila'}
+                                                className="w-full bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl p-2.5 text-sm font-bold focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm placeholder-gray-400"
+                                                placeholder={seg.type === 'work' ? 'Titel (t.ex. Intervall)' : 'Titel (t.ex. Vila)'}
                                             />
                                         </div>
-                                        <button onClick={() => removeSegment(i)} className="text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-3 rounded-xl transition-colors mt-5" title="Ta bort steg">
-                                            <TrashIcon className="w-5 h-5" />
-                                        </button>
                                     </div>
                                 </div>
                             );
