@@ -260,42 +260,20 @@ const SegmentedRoadmap: React.FC<{
     totalSequenceElapsed?: number;
 }> = ({ chain, currentBlockId, totalChainElapsed, totalChainTime, isCustomMode, sequence, currentSegmentIndex, totalSequenceDuration, totalSequenceElapsed }) => {
     
-    // CUSTOM MODE ROADMAP
+    // CUSTOM MODE ROADMAP - CONTINUOUS
     if (isCustomMode && sequence && totalSequenceDuration) {
-         let accumulatedTime = 0;
+         const elapsed = totalSequenceElapsed || 0;
+         const percentage = Math.min(100, Math.max(0, (elapsed / totalSequenceDuration) * 100));
+
          return (
-            <div className="w-full flex items-center gap-1.5 h-6 mb-1">
-                {sequence.map((seg, i) => {
-                     const widthPercent = (seg.duration / totalSequenceDuration) * 100;
-                     const isActive = i === currentSegmentIndex;
-                     const segmentStart = accumulatedTime;
-                     const segmentEnd = accumulatedTime + seg.duration;
-                     
-                     let segmentProgress = 0;
-                     // Safe-guard if totalSequenceElapsed is undefined/null
-                     const elapsed = totalSequenceElapsed || 0;
-
-                     if (elapsed >= segmentEnd) segmentProgress = 100;
-                     else if (elapsed > segmentStart) segmentProgress = ((elapsed - segmentStart) / seg.duration) * 100;
-
-                     accumulatedTime += seg.duration;
-                     
-                     const baseColor = seg.type === 'work' ? 'bg-orange-600/30 border-orange-500/30' : 'bg-teal-600/30 border-teal-500/30';
-                     const activeColor = seg.type === 'work' ? 'bg-orange-600/60 border-orange-400' : 'bg-teal-600/60 border-teal-400';
-
-                     return (
-                        <div 
-                            key={i} 
-                            style={{ width: `${widthPercent}%` }} 
-                            className={`h-3 rounded-full overflow-hidden border relative shadow-sm transition-all ${isActive ? activeColor : baseColor}`}
-                        >
-                             <motion.div 
-                                className={`absolute inset-0 transition-colors duration-500 ${isActive ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]' : 'bg-white/30'}`}
-                                style={{ width: `${segmentProgress}%` }}
-                            />
-                        </div>
-                     )
-                })}
+            <div className="w-full flex items-center h-4 mb-2 bg-white/20 dark:bg-black/30 rounded-full overflow-hidden border border-white/10 shadow-inner">
+                 <motion.div 
+                    className="h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)]"
+                    style={{ width: `${percentage}%` }}
+                    // Use standard animation for smooth progress
+                    animate={{ width: `${percentage}%` }}
+                    transition={{ duration: 0.5, ease: "linear" }}
+                />
             </div>
          );
     }

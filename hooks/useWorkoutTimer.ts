@@ -409,26 +409,41 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
       if (mode === TimerMode.Custom) {
            if (status === TimerStatus.Preparing) {
                playTimerSound(soundProfile, 1);
-               startNextInterval(); // Will switch to first segment
+               // Force start next segment immediately
+               const firstSeg = flattenedSequence[0];
+               if (firstSeg) {
+                   setCompletedWorkIntervals(0);
+                   setStatus(firstSeg.type === 'work' ? TimerStatus.Running : TimerStatus.Resting);
+                   setCurrentTime(firstSeg.duration);
+                   setCurrentPhaseDuration(firstSeg.duration);
+               } else {
+                   setStatus(TimerStatus.Finished);
+               }
                return;
            }
 
-           const newCompletedCount = completedWorkIntervals + 1;
-           if (newCompletedCount >= flattenedSequence.length) {
-               setCompletedWorkIntervals(newCompletedCount);
+           // Check if we are finished with current step
+           const nextIndex = completedWorkIntervals + 1;
+           if (nextIndex >= flattenedSequence.length) {
                playTimerSound(soundProfile, 3);
                setStatus(TimerStatus.Finished);
                setTotalTimeElapsed(totalBlockDuration);
                return;
            }
            
-           setCompletedWorkIntervals(newCompletedCount);
-           // Play sound? If next is work, double beep. If rest, single beep? Or follow normal rules?
-           const nextSeg = flattenedSequence[newCompletedCount];
+           // Transition to next segment
+           const nextSeg = flattenedSequence[nextIndex];
+           setCompletedWorkIntervals(nextIndex);
+           
+           // ATOMIC UPDATE: Set time and status here to prevent '0' flicker causing loop
            if (nextSeg.type === 'work') playTimerSound(soundProfile, 2);
            else playTimerSound(soundProfile, 1);
            
-           return; // Effect will re-trigger startNextInterval because status/index changed or we call it explicitly
+           setStatus(nextSeg.type === 'work' ? TimerStatus.Running : TimerStatus.Resting);
+           setCurrentTime(nextSeg.duration);
+           setCurrentPhaseDuration(nextSeg.duration);
+           
+           return; 
       }
 
       // STANDARD Interval Logic
@@ -486,15 +501,7 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
       if (block?.settings.mode === TimerMode.Custom && currentSegment) {
           setStatus(currentSegment.type === 'work' ? TimerStatus.Running : TimerStatus.Resting);
       } else {
-          // Fallback logic for resuming standard timers (usually resume to running if not clearly resting, 
-          // but we can imply from phase. Ideally we'd store 'previousStatus' before pause)
-          // Simplified: If we were resting (restTime active), assume resting. But 'TimerStatus' is state.
-          // Since we overwrote 'status' to 'Paused', we lost if it was Running or Resting.
-          // FIX: For robust resume, we should store pre-pause status. 
-          // For now, simpler heuristics or check `currentTime`. 
-          // Actually, `startNextInterval` logic is stateless mostly. 
-          // Let's assume Running for standard resume unless we add `prePauseStatus`. 
-          // Or better: Let's assume Running. 
+          // Fallback logic for resuming standard timers 
           setStatus(TimerStatus.Running); 
       }
   }};

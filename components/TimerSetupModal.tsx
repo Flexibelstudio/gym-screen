@@ -264,6 +264,18 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
       });
   };
 
+  const moveSegment = (index: number, direction: 'up' | 'down') => {
+      setSequence(prev => {
+          const next = [...prev];
+          if (direction === 'up' && index > 0) {
+              [next[index], next[index - 1]] = [next[index - 1], next[index]];
+          } else if (direction === 'down' && index < next.length - 1) {
+              [next[index], next[index + 1]] = [next[index + 1], next[index]];
+          }
+          return next;
+      });
+  };
+
   const renderDirectionToggle = () => {
       if (mode === TimerMode.NoTimer || mode === TimerMode.Stopwatch) return null;
       
@@ -301,7 +313,13 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                         {sequence.map((seg, i) => {
                             const { minutes, seconds } = secondsToMinSec(seg.duration);
                             return (
-                                <div key={i} className={`flex items-center gap-3 p-3 rounded-lg border ${seg.type === 'work' ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-100 dark:border-orange-900/30' : 'bg-teal-50 dark:bg-teal-900/20 border-teal-100 dark:border-teal-900/30'}`}>
+                                <div key={i} className={`flex items-center gap-2 sm:gap-3 p-3 rounded-lg border ${seg.type === 'work' ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-100 dark:border-orange-900/30' : 'bg-teal-50 dark:bg-teal-900/20 border-teal-100 dark:border-teal-900/30'}`}>
+                                    {/* Reorder Buttons */}
+                                    <div className="flex flex-col gap-1">
+                                        <button onClick={() => moveSegment(i, 'up')} disabled={i === 0} className="text-gray-400 hover:text-gray-600 disabled:opacity-20"><ChevronUpIcon className="w-3 h-3" /></button>
+                                        <button onClick={() => moveSegment(i, 'down')} disabled={i === sequence.length - 1} className="text-gray-400 hover:text-gray-600 disabled:opacity-20"><ChevronDownIcon className="w-3 h-3" /></button>
+                                    </div>
+                                    
                                     <div className="flex flex-col gap-1 items-center">
                                         <button 
                                             onClick={() => updateSegment(i, { type: seg.type === 'work' ? 'rest' : 'work' })}
@@ -317,7 +335,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                                             type="number" 
                                             value={minutes} 
                                             onChange={e => updateSegment(i, { duration: (parseInt(e.target.value) || 0) * 60 + seconds })}
-                                            className="w-10 text-center bg-white dark:bg-black border border-gray-300 dark:border-gray-600 rounded p-1 text-sm font-bold" 
+                                            className="w-8 sm:w-10 text-center bg-white dark:bg-black border border-gray-300 dark:border-gray-600 rounded p-1 text-sm font-bold" 
                                             placeholder="m"
                                         />
                                         <span>:</span>
@@ -325,7 +343,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                                             type="number" 
                                             value={seconds} 
                                             onChange={e => updateSegment(i, { duration: minutes * 60 + (parseInt(e.target.value) || 0) })}
-                                            className="w-10 text-center bg-white dark:bg-black border border-gray-300 dark:border-gray-600 rounded p-1 text-sm font-bold"
+                                            className="w-8 sm:w-10 text-center bg-white dark:bg-black border border-gray-300 dark:border-gray-600 rounded p-1 text-sm font-bold"
                                             placeholder="s"
                                         />
                                     </div>
@@ -334,8 +352,8 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                                         type="text" 
                                         value={seg.title || ''} 
                                         onChange={e => updateSegment(i, { title: e.target.value })}
-                                        className="flex-grow bg-white dark:bg-black border border-gray-300 dark:border-gray-600 rounded p-2 text-sm font-medium"
-                                        placeholder={seg.type === 'work' ? 'Titel (t.ex. Löpning)' : 'Titel (t.ex. Vila)'}
+                                        className="flex-grow bg-white dark:bg-black border border-gray-300 dark:border-gray-600 rounded p-2 text-sm font-medium w-0 min-w-[60px]"
+                                        placeholder={seg.type === 'work' ? 'Titel' : 'Titel'}
                                     />
 
                                     <button onClick={() => removeSegment(i)} className="text-red-400 hover:text-red-600 p-1">
