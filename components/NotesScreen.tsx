@@ -5,7 +5,7 @@ import { interpretHandwriting, parseWorkoutFromImage } from '../services/geminiS
 import { deleteImageByUrl, resolveAndCreateExercises } from '../services/firebaseService';
 import { useWorkoutTimer, getAudioContext } from '../hooks/useWorkoutTimer';
 import { useStudio } from '../context/StudioContext';
-import { ValueAdjuster, InformationCircleIcon, ChevronUpIcon, ChevronDownIcon } from './icons';
+import { ValueAdjuster, InformationCircleIcon, ChevronUpIcon, ChevronDownIcon, CloseIcon } from './icons';
 import { Modal } from './ui/Modal';
 import { WorkoutCompleteModal } from './WorkoutCompleteModal';
 import { motion } from 'framer-motion';
