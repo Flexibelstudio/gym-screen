@@ -224,15 +224,44 @@ const transformWorkout = (data: any, orgId: string, isDraft: boolean = false): W
     isPublished: false,
     isMemberDraft: isDraft,
     category: data.category || 'AI Genererat',
-    blocks: data.blocks.map((b: any, i: number) => ({
-        ...b,
-        id: b.id || `block-${Date.now()}-${i}`,
-        exercises: b.exercises.map((ex: any, j: number) => ({
-            ...ex,
-            id: ex.id || `ex-${Date.now()}-${i}-${j}`,
-            isFromAI: true
-        }))
-    }))
+    blocks: data.blocks.map((b: any, i: number) => {
+        // Logic fix: Timer Math Correction
+        // If AI sets rounds to e.g. 3, but there are 7 exercises, it implies 3 LAPS.
+        // For Interval mode, 'rounds' means total intervals (exercises * laps).
+        const exerciseCount = b.exercises?.length || 0;
+        let settings = { ...b.settings };
+        
+        if (settings.mode === 'Interval' && exerciseCount > 0 && settings.rounds > 0 && settings.rounds < exerciseCount) {
+             // Heuristic: If rounds < exercises, assume AI meant laps.
+             // Multiply laps * exercises to get correct total rounds.
+             settings.rounds = settings.rounds * exerciseCount;
+        }
+
+        return {
+            ...b,
+            id: b.id || `block-${Date.now()}-${i}`,
+            settings, // Use the corrected settings
+            exercises: b.exercises.map((ex: any, j: number) => {
+                let cleanReps = ex.reps || '';
+
+                // Logic fix: Remove Time from Reps
+                // If timer mode implies timed work (Interval/Tabata/EMOM), strip time strings from reps.
+                if (['Interval', 'Tabata', 'EMOM'].includes(settings.mode)) {
+                     // Regex to remove "40 sek", "30s", "1 min", etc.
+                     cleanReps = cleanReps.replace(/(\d+)\s*(sek|sec|s|min|m)(?![a-z])/gi, '').trim();
+                     // Cleanup trailing punctuation
+                     cleanReps = cleanReps.replace(/^[,.\s]+|[,.\s]+$/g, '');
+                }
+
+                return {
+                    ...ex,
+                    id: ex.id || `ex-${Date.now()}-${i}-${j}`,
+                    reps: cleanReps,
+                    isFromAI: true
+                };
+            })
+        };
+    })
 });
 
 // --- EXPORTED FUNCTIONS ---

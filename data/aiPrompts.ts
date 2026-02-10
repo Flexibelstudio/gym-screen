@@ -18,12 +18,21 @@ Om användaren anger ett antal (t.ex. "10 övningar"), MÅSTE du generera exakt 
 export const WORKOUT_GENERATOR_PROMPT = (userPrompt: string, availableExercises: string[] = []) => `
 Skapa ett strukturerat träningspass baserat på: "${userPrompt}".
 
-INSTRUKTIONER:
+INSTRUKTIONER FÖR STRUKTUR:
 1. Skapa 1-3 block beroende på passets längd och typ.
 2. Använd logiska timerinställningar (t.ex. AMRAP för flås, Intervall för styrka).
 3. Ge blocken tydliga namn som "Pulsfest" eller "Styrka: Pressar".
 4. Om ett antal övningar nämns i instruktionen, skapa exakt så många unika övningar.
 5. Skriv pedagogiska beskrivningar för varje övning.
+
+VIKTIGA REGLER FÖR TIMER (INTERVALL):
+- Om du väljer 'Interval' (arbete/vila), så är 'rounds' = TOTALT ANTAL INTERVALLER.
+- Formel: rounds = (Antal övningar) * (Antal varv).
+- Exempel: Om blocket har 5 övningar och ska köras 3 varv, MÅSTE 'rounds' vara 15 (5*3). Sätt INTE 'rounds' till 3.
+
+VIKTIGA REGLER FÖR REPS-FÄLTET:
+- Om timern styr tiden (Intervall, Tabata, EMOM): Lämna 'reps'-fältet TOMT eller skriv 'Max'.
+- Skriv ALDRIG tidsangivelser (t.ex. "40 sek") i 'reps'-fältet. Det är redundant information.
 
 ${availableExercises.length > 0 ? `
 VIKTIGT OM ÖVNINGSVAL (CONTEXT INJECTION):
