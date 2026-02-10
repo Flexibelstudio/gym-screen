@@ -309,56 +309,63 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                          <ValueAdjuster label="ANTAL VARV (LOOP)" value={varv} onchange={setVarv} />
                     </div>
 
-                    <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+                    <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar p-1">
                         {sequence.map((seg, i) => {
                             const { minutes, seconds } = secondsToMinSec(seg.duration);
                             return (
-                                <div key={i} className={`flex items-center gap-2 sm:gap-3 p-3 rounded-lg border ${seg.type === 'work' ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-100 dark:border-orange-900/30' : 'bg-teal-50 dark:bg-teal-900/20 border-teal-100 dark:border-teal-900/30'}`}>
-                                    {/* Reorder Buttons */}
-                                    <div className="flex flex-col gap-1">
-                                        <button onClick={() => moveSegment(i, 'up')} disabled={i === 0} className="text-gray-400 hover:text-gray-600 disabled:opacity-20"><ChevronUpIcon className="w-3 h-3" /></button>
-                                        <button onClick={() => moveSegment(i, 'down')} disabled={i === sequence.length - 1} className="text-gray-400 hover:text-gray-600 disabled:opacity-20"><ChevronDownIcon className="w-3 h-3" /></button>
+                                <div key={i} className={`flex flex-col sm:flex-row items-center gap-4 p-4 rounded-2xl border-2 transition-all ${seg.type === 'work' ? 'bg-orange-50/50 dark:bg-orange-900/10 border-orange-100 dark:border-orange-900/30' : 'bg-teal-50/50 dark:bg-teal-900/10 border-teal-100 dark:border-teal-900/30'}`}>
+                                    
+                                    <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-4">
+                                        {/* Reorder Buttons */}
+                                        <div className="flex flex-col gap-2">
+                                            <button onClick={() => moveSegment(i, 'up')} disabled={i === 0} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 disabled:opacity-20 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"><ChevronUpIcon className="w-5 h-5" /></button>
+                                            <button onClick={() => moveSegment(i, 'down')} disabled={i === sequence.length - 1} className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 disabled:opacity-20 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"><ChevronDownIcon className="w-5 h-5" /></button>
+                                        </div>
+                                        
+                                        <div className="flex flex-col gap-2 items-center min-w-[90px]">
+                                            <button 
+                                                onClick={() => updateSegment(i, { type: seg.type === 'work' ? 'rest' : 'work' })}
+                                                className={`text-xs font-black uppercase px-4 py-2 rounded-xl w-full text-center transition-all shadow-sm active:scale-95 ${seg.type === 'work' ? 'bg-orange-500 text-white' : 'bg-teal-500 text-white'}`}
+                                            >
+                                                {seg.type === 'work' ? 'Arbete' : 'Vila'}
+                                            </button>
+                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Steg {i + 1}</span>
+                                        </div>
                                     </div>
                                     
-                                    <div className="flex flex-col gap-1 items-center">
-                                        <button 
-                                            onClick={() => updateSegment(i, { type: seg.type === 'work' ? 'rest' : 'work' })}
-                                            className={`text-[10px] font-black uppercase px-2 py-1 rounded w-16 text-center transition-colors ${seg.type === 'work' ? 'bg-orange-500 text-white' : 'bg-teal-500 text-white'}`}
-                                        >
-                                            {seg.type === 'work' ? 'Arbete' : 'Vila'}
-                                        </button>
-                                        <span className="text-xs font-mono text-gray-400">{i + 1}</span>
-                                    </div>
-                                    
-                                    <div className="flex items-center gap-1">
-                                        <input 
-                                            type="number" 
+                                    {/* Time Adjusters - Using Standard Component */}
+                                    <div className="flex items-center gap-3 bg-white dark:bg-black/20 p-2 rounded-2xl border border-gray-100 dark:border-gray-800/50">
+                                        <ValueAdjuster 
+                                            label="MIN" 
                                             value={minutes} 
-                                            onChange={e => updateSegment(i, { duration: (parseInt(e.target.value) || 0) * 60 + seconds })}
-                                            className="w-8 sm:w-10 text-center bg-white dark:bg-black border border-gray-300 dark:border-gray-600 rounded p-1 text-sm font-bold" 
-                                            placeholder="m"
+                                            onchange={(val) => updateSegment(i, { duration: val * 60 + seconds })} 
                                         />
-                                        <span>:</span>
-                                        <input 
-                                            type="number" 
+                                        <ValueAdjuster 
+                                            label="SEK" 
                                             value={seconds} 
-                                            onChange={e => updateSegment(i, { duration: minutes * 60 + (parseInt(e.target.value) || 0) })}
-                                            className="w-8 sm:w-10 text-center bg-white dark:bg-black border border-gray-300 dark:border-gray-600 rounded p-1 text-sm font-bold"
-                                            placeholder="s"
+                                            onchange={(val) => updateSegment(i, { duration: minutes * 60 + val })}
+                                            max={59}
+                                            step={5}
+                                            wrapAround={true}
                                         />
                                     </div>
 
-                                    <input 
-                                        type="text" 
-                                        value={seg.title || ''} 
-                                        onChange={e => updateSegment(i, { title: e.target.value })}
-                                        className="flex-grow bg-white dark:bg-black border border-gray-300 dark:border-gray-600 rounded p-2 text-sm font-medium w-0 min-w-[60px]"
-                                        placeholder={seg.type === 'work' ? 'Titel' : 'Titel'}
-                                    />
-
-                                    <button onClick={() => removeSegment(i)} className="text-red-400 hover:text-red-600 p-1">
-                                        <TrashIcon className="w-4 h-4" />
-                                    </button>
+                                    {/* Title Input & Delete */}
+                                    <div className="flex-grow w-full sm:w-auto flex items-center gap-3">
+                                        <div className="flex-grow">
+                                            <label className="block text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 ml-1">Titel</label>
+                                            <input 
+                                                type="text" 
+                                                value={seg.title || ''} 
+                                                onChange={e => updateSegment(i, { title: e.target.value })}
+                                                className="w-full bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm font-bold focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm"
+                                                placeholder={seg.type === 'work' ? 'Intervall' : 'Vila'}
+                                            />
+                                        </div>
+                                        <button onClick={() => removeSegment(i)} className="text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 p-3 rounded-xl transition-colors mt-5" title="Ta bort steg">
+                                            <TrashIcon className="w-5 h-5" />
+                                        </button>
+                                    </div>
                                 </div>
                             );
                         })}
@@ -366,9 +373,9 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                     
                     <button 
                         onClick={addSegment} 
-                        className="w-full mt-4 flex items-center justify-center gap-2 py-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors text-sm font-bold"
+                        className="w-full mt-6 flex items-center justify-center gap-2 py-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-2xl text-gray-500 hover:text-primary hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all text-sm font-black uppercase tracking-widest"
                     >
-                        <PlusIcon className="w-4 h-4" /> Lägg till steg
+                        <PlusIcon className="w-5 h-5" /> Lägg till steg
                     </button>
                  </div>
              );
