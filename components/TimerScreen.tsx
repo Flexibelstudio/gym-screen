@@ -367,8 +367,9 @@ const FollowMeView: React.FC<{
     status: TimerStatus,
     nextBlock?: WorkoutBlock,
     transitionTime?: number,
-    isRestNext?: boolean
-}> = ({ exercise, nextExercise, timerStyle, status, nextBlock, transitionTime, isRestNext }) => {
+    isRestNext?: boolean,
+    showDescription: boolean
+}> = ({ exercise, nextExercise, timerStyle, status, nextBlock, transitionTime, isRestNext, showDescription }) => {
     const isResting = status === TimerStatus.Resting;
     const isPreparing = status === TimerStatus.Preparing;
     // IF IDLE (Lobby), show the first exercise as "Next/Ready"
@@ -409,7 +410,7 @@ const FollowMeView: React.FC<{
                         {displayExercise.reps && (
                             <p className="text-5xl md:text-7xl font-black text-primary mb-6">{formatReps(displayExercise.reps)}</p>
                         )}
-                        {displayExercise.description && (
+                        {displayExercise.description && showDescription && (
                             <p className="text-gray-600 dark:text-gray-300 text-2xl md:text-4xl leading-relaxed max-w-4xl font-medium">
                                 {displayExercise.description}
                             </p>
@@ -432,8 +433,9 @@ const StandardListView: React.FC<{
     exercises: Exercise[], 
     timerStyle: TimerStyle,
     forceFullHeight?: boolean,
-    isHyrox?: boolean
-}> = ({ exercises, timerStyle, forceFullHeight = true, isHyrox = false }) => {
+    isHyrox?: boolean,
+    showDescriptions: boolean
+}> = ({ exercises, timerStyle, forceFullHeight = true, isHyrox = false, showDescriptions }) => {
     const count = exercises.length;
     const isLargeList = count > 12 || isHyrox; 
     
@@ -472,7 +474,7 @@ const StandardListView: React.FC<{
                             </h4>
                         </div>
 
-                        {ex.description && !isHyrox && count <= 8 && (
+                        {ex.description && showDescriptions && !isHyrox && count <= 8 && (
                             <div className="mt-2 hidden sm:block pl-2">
                                 <p className={`font-medium text-gray-600 dark:text-gray-300 leading-snug text-lg md:text-xl line-clamp-3`}>
                                     {ex.description}
@@ -1225,6 +1227,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                     nextBlock={nextBlock && block.autoAdvance ? nextBlock : undefined}
                                     isRestNext={isRestNext}
                                     transitionTime={isRestNext ? block.transitionTime : undefined}
+                                    showDescription={block.showExerciseDescriptions !== false} // PASS THE PROP
                                 />
                             </div>
                         </div>
@@ -1263,6 +1266,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                         exercises={isTransitioning ? nextBlock!.exercises : block.exercises} 
                                         timerStyle={timerStyle} 
                                         isHyrox={isHyroxRace} 
+                                        showDescriptions={block.showExerciseDescriptions !== false} // PASS THE PROP
                                     />
                                 )}
                             </div>

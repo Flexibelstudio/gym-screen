@@ -451,6 +451,11 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                     checked={!!block.showDescriptionInTimer}
                     onChange={(isChecked) => handleFieldChange('showDescriptionInTimer', isChecked)}
                 />
+                 <ToggleSwitch
+                    label="Visa övningsbeskrivningar i timer"
+                    checked={block.showExerciseDescriptions !== false} // Default true
+                    onChange={(isChecked) => handleFieldChange('showExerciseDescriptions', isChecked)}
+                />
                 <ToggleSwitch
                     label="'Följ mig'-läge"
                     checked={!!block.followMe}
@@ -494,83 +499,47 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                 )}
             </div>
 
-            <div className="bg-gray-100 dark:bg-black p-3 my-4 rounded-md flex justify-between items-center text-sm">
-                <p className="text-gray-600 dark:text-gray-300">
-                    Inställningar: <span className="font-semibold text-gray-900 dark:text-white">{settingsText}</span>
-                </p>
-                <button onClick={onEditSettings} className="text-primary hover:underline font-semibold">Anpassa</button>
+            <div className="bg-primary/5 dark:bg-primary/10 p-5 rounded-3xl flex justify-between items-center border border-primary/20">
+                <div>
+                    <p className="text-[10px] font-black text-primary/60 uppercase tracking-widest mb-1">Vald Timer</p>
+                    <p className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">{block.settings.mode}</p>
+                </div>
+                <button onClick={onEditSettings} className="bg-primary text-white font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-xl shadow-lg shadow-primary/20 active:scale-95 transition-all">Anpassa klockan</button>
             </div>
 
-            <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Välj blockets primära tagg</label>
-                <div className="flex flex-wrap gap-2">
-                    {['Styrka', 'Kondition', 'Rörlighet', 'Teknik', 'Core/Bål', 'Balans', 'Uppvärmning'].map(tag => (
-                        <button
-                            key={tag}
-                            onClick={() => handleFieldChange('tag', tag)}
-                            className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${
-                                block.tag === tag
-                                ? 'bg-primary text-white'
-                                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                            }`}
-                        >
-                            {tag}
-                        </button>
-                    ))}
-                </div>
-            </div>
-            
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-                <div className="flex justify-between items-center mb-3">
-                    <button onClick={() => setIsExpanded(!isExpanded)} className="flex justify-between items-center text-left text-lg font-bold text-gray-900 dark:text-white group">
-                        <span>Övningar ({block.exercises.length})</span>
-                        <motion.span 
-                            animate={{ rotate: isExpanded ? 90 : 0 }}
-                            className="ml-2 inline-block"
-                        >▶</motion.span>
+            <div className="space-y-4 pt-4">
+                <div className="flex justify-between items-center px-1">
+                    <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Övningar ({block.exercises.length})</h4>
+                    <button 
+                        onClick={() => {
+                            const allLog = block.exercises.every(ex => ex.loggingEnabled);
+                            onUpdate({ ...block, exercises: block.exercises.map(ex => ({ ...ex, loggingEnabled: !allLog })) });
+                        }}
+                        className="text-[10px] font-black uppercase text-primary hover:underline"
+                    >
+                        Logga alla i blocket
                     </button>
-                    {isExpanded && bankExercisesCount > 0 && (
-                        <button 
-                            onClick={handleToggleAllLogging}
-                            className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline px-2 py-1 rounded bg-primary/5 border border-primary/10 transition-colors"
-                        >
-                            {allBankedLogged ? 'Avmarkera alla (Bank)' : 'Logga alla (Bank)'}
-                        </button>
-                    )}
                 </div>
-
-                <AnimatePresence initial={false}>
-                    {isExpanded && (
-                        <motion.div 
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="space-y-3"
-                        >
-                            {block.exercises.length === 0 ? (
-                                <p className="text-center text-sm text-gray-500 py-2">Blocket är tomt. Klicka på '+ Lägg till övning'.</p>
-                            ) : (
-                                block.exercises.map((ex, i) => (
-                                    <ExerciseItem 
-                                        key={ex.id} 
-                                        exercise={ex} 
-                                        onUpdate={updateExercise} 
-                                        onRemove={() => removeExercise(ex.id)}
-                                        exerciseBank={exerciseBank}
-                                        index={i}
-                                        total={block.exercises.length}
-                                        onMove={(direction) => onMoveExercise(i, direction)}
-                                        organizationId={organizationId}
-                                        onExerciseSavedToBank={onExerciseSavedToBank}
-                                    />
-                                ))
-                            )}
-                            <button onClick={addExercise} className="w-full flex items-center justify-center gap-2 py-2 px-4 mt-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-                                <span>Lägg till övning</span>
-                            </button>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                {block.exercises.map((ex, i) => (
+                    <ExerciseItem 
+                        key={ex.id} 
+                        exercise={ex} 
+                        onUpdate={updateExercise} 
+                        onRemove={() => removeExercise(ex.id)}
+                        exerciseBank={exerciseBank}
+                        index={i}
+                        total={block.exercises.length}
+                        onMove={(direction) => onMoveExercise(i, direction)}
+                        organizationId={organizationId}
+                        onExerciseSavedToBank={onExerciseSavedToBank}
+                    />
+                ))}
+                <button 
+                    onClick={() => onUpdate({ ...block, exercises: [...block.exercises, createNewExercise()] })} 
+                    className="w-full py-5 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-[2rem] text-gray-400 font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
+                >
+                    <span className="text-xl">+</span> Lägg till övning
+                </button>
             </div>
         </div>
     );
