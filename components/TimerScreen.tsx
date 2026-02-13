@@ -439,20 +439,42 @@ const StandardListView: React.FC<{
     const count = exercises.length;
     const isLargeList = count > 12 || isHyrox; 
     
-    const repsSize = isLargeList ? 'text-lg md:text-xl' : 'text-3xl md:text-4xl';
-    const padding = isHyrox ? 'pl-16 pr-6 py-2' : isLargeList ? 'pl-8 pr-4 py-2' : count > 8 ? 'pl-8 pr-6 py-3' : 'px-8 py-6';
-    const gap = isLargeList ? 'gap-1' : 'gap-3';
+    // Reps size logic
+    let repsSize = 'text-3xl md:text-4xl';
+    if (isLargeList) repsSize = 'text-xl md:text-2xl';
+    else if (!showDescriptions && count <= 5) repsSize = 'text-5xl md:text-6xl';
+    else if (!showDescriptions && count <= 8) repsSize = 'text-4xl md:text-5xl';
+    else if (showDescriptions) repsSize = 'text-3xl md:text-4xl';
+    else repsSize = 'text-4xl md:text-5xl'; // Default clean mode
+
+    // Padding logic
+    const padding = isHyrox ? 'pl-16 pr-6 py-2' : isLargeList ? 'pl-8 pr-4 py-2' : count > 6 ? 'pl-8 pr-6 py-3' : 'px-10 py-4';
+    const gap = isLargeList ? 'gap-1' : count > 6 ? 'gap-2' : 'gap-4';
 
     return (
         <div className={`w-full h-full flex flex-col ${gap} overflow-hidden pb-1`}>
             {exercises.map((ex) => {
-                // Dynamisk textstorlek baserat på namnlängd
                 const nameLen = ex.name.length;
-                let titleSize = isLargeList ? 'text-lg sm:text-xl md:text-2xl' : count > 8 ? 'text-2xl md:text-3xl' : 'text-4xl md:text-5xl';
-                
-                // Krymp texten om den är lång för att undvika overflow
-                if (nameLen > 25) {
-                    titleSize = isLargeList ? 'text-base sm:text-lg md:text-xl' : count > 8 ? 'text-xl md:text-2xl' : 'text-3xl md:text-4xl';
+                let titleSize = '';
+
+                if (!showDescriptions && !isHyrox) {
+                    // CLEAN MODE (No descriptions) - MAXIMIZE TEXT
+                    if (count <= 4) {
+                         titleSize = nameLen > 20 ? 'text-5xl md:text-7xl' : 'text-6xl md:text-8xl';
+                    } else if (count <= 8) {
+                         titleSize = nameLen > 25 ? 'text-4xl md:text-6xl' : 'text-5xl md:text-7xl';
+                    } else {
+                         titleSize = nameLen > 25 ? 'text-2xl md:text-4xl' : 'text-3xl md:text-5xl';
+                    }
+                } else {
+                    // DETAILED MODE OR HYROX
+                    if (isLargeList) {
+                        titleSize = nameLen > 25 ? 'text-lg sm:text-xl md:text-2xl' : 'text-xl sm:text-2xl md:text-3xl';
+                    } else if (count <= 6) {
+                        titleSize = nameLen > 25 ? 'text-3xl md:text-5xl' : 'text-4xl md:text-6xl';
+                    } else {
+                         titleSize = nameLen > 25 ? 'text-2xl md:text-4xl' : 'text-3xl md:text-5xl';
+                    }
                 }
 
                 return (
@@ -463,20 +485,20 @@ const StandardListView: React.FC<{
                             borderLeftColor: isHyrox ? '#6366f1' : `rgb(${timerStyle.pulseRgb})`
                         }}
                     >
-                        <div className="flex items-center w-full gap-6">
+                        <div className="flex items-center w-full gap-6 md:gap-8">
                             {ex.reps && (
-                                <span className={`font-mono font-black text-primary bg-primary/5 px-4 py-1.5 rounded-xl whitespace-nowrap border border-primary/10 shrink-0 ${repsSize}`}>
+                                <span className={`font-mono font-black text-primary bg-primary/5 px-4 py-2 rounded-2xl whitespace-nowrap border border-primary/10 shrink-0 ${repsSize}`}>
                                     {formatReps(ex.reps)}
                                 </span>
                             )}
-                            <h4 className={`font-black text-gray-900 dark:text-white leading-tight tracking-tight overflow-visible whitespace-normal transition-all duration-300 ${titleSize}`}>
+                            <h4 className={`font-black text-gray-900 dark:text-white leading-[0.9] tracking-tight overflow-visible whitespace-normal transition-all duration-300 ${titleSize}`}>
                                 {ex.name}
                             </h4>
                         </div>
 
                         {ex.description && showDescriptions && !isHyrox && count <= 8 && (
-                            <div className="mt-2 hidden sm:block pl-2">
-                                <p className={`font-medium text-gray-600 dark:text-gray-300 leading-snug text-lg md:text-xl line-clamp-3`}>
+                            <div className="mt-3 hidden sm:block pl-1">
+                                <p className={`font-medium text-gray-600 dark:text-gray-300 leading-snug text-xl md:text-2xl line-clamp-2`}>
                                     {ex.description}
                                 </p>
                             </div>
