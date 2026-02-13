@@ -1,7 +1,7 @@
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout } from '../types';
+import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout, TimerSegment } from '../types';
 import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration, playTimerSound } from '../hooks/useWorkoutTimer';
 import { useWorkout } from '../context/WorkoutContext';
 import { saveRace, updateOrganizationActivity } from '../services/firebaseService';
@@ -24,13 +24,22 @@ interface TimerStyle {
   badge: string;
 }
 
-const getTimerStyle = (status: TimerStatus, mode: TimerMode, isHyrox: boolean, isTransitioning: boolean): TimerStyle => {
+const getTimerStyle = (status: TimerStatus, mode: TimerMode, isHyrox: boolean, isTransitioning: boolean, currentSegment: TimerSegment | null): TimerStyle => {
   if (isTransitioning) {
       return { bg: 'bg-gradient-to-br from-indigo-900 to-purple-900', text: 'text-white', pulseRgb: '168, 85, 247', border: 'border-purple-400', badge: 'bg-purple-600' };
   }
   
   if (isHyrox) {
       return { bg: 'bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 animate-pulse-hyrox-bg', text: 'text-white', pulseRgb: '255, 255, 255', border: 'border-white', badge: 'bg-white text-indigo-600' };
+  }
+
+  // CUSTOM MODE OVERRIDE
+  if (mode === TimerMode.Custom && currentSegment) {
+      if (currentSegment.type === 'work') {
+          return { bg: 'bg-orange-600', text: 'text-white', pulseRgb: '249, 115, 22', border: 'border-orange-300', badge: 'bg-orange-600' };
+      } else {
+          return { bg: 'bg-teal-500', text: 'text-white', pulseRgb: '45, 212, 191', border: 'border-teal-200', badge: 'bg-teal-600' };
+      }
   }
 
   switch (status) {
@@ -99,6 +108,8 @@ const getBlockTimeLabel = (block: WorkoutBlock): string => {
             return s.rounds ? `${s.rounds} RONDER` : "";
         case TimerMode.Interval:
             return s.rounds ? `${s.rounds} RONDER` : "";
+        case TimerMode.Custom:
+             return s.rounds ? `${s.rounds} VARV` : "";
         default:
             return "";
     }
@@ -241,7 +252,33 @@ const SegmentedRoadmap: React.FC<{
     currentBlockId: string; 
     totalChainElapsed: number; 
     totalChainTime: number;
-}> = ({ chain, currentBlockId, totalChainElapsed, totalChainTime }) => {
+    // Props for Custom Mode Roadmap
+    isCustomMode?: boolean;
+    sequence?: TimerSegment[];
+    currentSegmentIndex?: number;
+    totalSequenceDuration?: number;
+    totalSequenceElapsed?: number;
+}> = ({ chain, currentBlockId, totalChainElapsed, totalChainTime, isCustomMode, sequence, currentSegmentIndex, totalSequenceDuration, totalSequenceElapsed }) => {
+    
+    // CUSTOM MODE ROADMAP - CONTINUOUS
+    if (isCustomMode && sequence && totalSequenceDuration) {
+         const elapsed = totalSequenceElapsed || 0;
+         const percentage = Math.min(100, Math.max(0, (elapsed / totalSequenceDuration) * 100));
+
+         return (
+            <div className="w-full flex items-center h-4 mb-2 bg-white/20 dark:bg-black/30 rounded-full overflow-hidden border border-white/10 shadow-inner">
+                 <motion.div 
+                    className="h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)]"
+                    style={{ width: `${percentage}%` }}
+                    // Use standard animation for smooth progress
+                    animate={{ width: `${percentage}%` }}
+                    transition={{ duration: 0.5, ease: "linear" }}
+                />
+            </div>
+         );
+    }
+
+    // STANDARD BLOCK CHAIN ROADMAP
     let accumulatedTime = 0;
     
     return (
@@ -458,9 +495,11 @@ interface BigIndicatorProps {
 }
 
 const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRounds, mode, currentInterval, totalIntervalsInLap }) => {
-    if (mode !== TimerMode.Interval && mode !== TimerMode.Tabata && mode !== TimerMode.EMOM) return null;
+    // Also show for Custom mode
+    if (mode !== TimerMode.Interval && mode !== TimerMode.Tabata && mode !== TimerMode.EMOM && mode !== TimerMode.Custom) return null;
 
-    const showInterval = currentInterval !== undefined && totalIntervalsInLap !== undefined && mode !== TimerMode.EMOM;
+    const showInterval = currentInterval !== undefined && totalIntervalsInLap !== undefined && mode !== TimerMode.EMOM && mode !== TimerMode.Custom;
+    const label = mode === TimerMode.EMOM ? 'MINUT' : mode === TimerMode.Custom ? 'VARV' : 'VARV';
 
     return (
         <div className="flex flex-col items-end gap-3 animate-fade-in">
@@ -487,7 +526,7 @@ const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRou
                 className="bg-black/40 backdrop-blur-xl rounded-full px-6 py-3 shadow-xl flex items-center justify-center gap-3 min-w-[140px]"
             >
                 <span className="text-white/40 font-black text-[10px] uppercase tracking-[0.3em]">
-                    {mode === TimerMode.EMOM ? 'MINUT' : 'VARV'}
+                    {label}
                 </span>
                 <div className="flex items-baseline gap-1">
                     <span className="text-2xl font-black text-white">{currentRound}</span>
@@ -530,7 +569,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     start, pause, resume, reset, 
     totalRounds, totalExercises,
     totalBlockDuration, totalTimeElapsed,
-    completedWorkIntervals, effectiveIntervalsPerLap
+    completedWorkIntervals, effectiveIntervalsPerLap,
+    currentSegment // Get current segment for Custom Mode
   } = useWorkoutTimer(block, studioConfig.soundProfile || 'airhorn');
 
   // LOBBY MODE STATE - Default to TRUE unless auto-transition
@@ -909,7 +949,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       }
   }, [isHyroxRace, activeWorkout, finishedParticipants, block.exercises, startGroups, organization, speak]);
 
-  const timerStyle = getTimerStyle(status, block.settings.mode, isHyroxRace, isTransitioning);
+  const timerStyle = getTimerStyle(status, block.settings.mode, isHyroxRace, isTransitioning, currentSegment);
   
   const modeLabel = useMemo(() => {
       if (isTransitioning) return "VILA INFÖR NÄSTA";
@@ -921,6 +961,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           case TimerMode.EMOM: return "EMOM";
           case TimerMode.TimeCap: return "TIME CAP";
           case TimerMode.Stopwatch: return "STOPPUR";
+          case TimerMode.Custom: return "SEKVENS";
           default: return (block.settings.mode as string).toUpperCase();
       }
   }, [block.settings.mode, isHyroxRace, isTransitioning]);
@@ -937,6 +978,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               default: return "Redo";
           }
       }
+      
+      // CUSTOM LABELS
+      if (block.settings.mode === TimerMode.Custom && currentSegment) {
+          if (status === TimerStatus.Preparing) return "Gör dig redo";
+          if (status === TimerStatus.Finished) return "Klar";
+          // Use segment title or default
+          return currentSegment.title || (currentSegment.type === 'work' ? "ARBETE" : "VILA");
+      }
+
       switch (status) {
           case TimerStatus.Preparing: return "Gör dig redo";
           case TimerStatus.Running: return "Arbete";
@@ -945,7 +995,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           case TimerStatus.Finished: return "Klar";
           default: return "Redo";
       }
-  }, [status, isHyroxRace, isTransitioning, nextBlock]);
+  }, [status, isHyroxRace, isTransitioning, nextBlock, block.settings.mode, currentSegment]);
 
   const timeToDisplay = useMemo(() => {
       if (isTransitioning) return transitionTimeLeft;
@@ -1116,6 +1166,12 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 currentBlockId={block.id} 
                 totalChainElapsed={totalChainElapsed} 
                 totalChainTime={chainInfo.totalDuration}
+                // Custom Mode props
+                isCustomMode={block.settings.mode === TimerMode.Custom}
+                sequence={block.settings.sequence}
+                currentSegmentIndex={completedWorkIntervals}
+                totalSequenceDuration={block.settings.sequence ? block.settings.sequence.reduce((acc, s) => acc + s.duration, 0) : 0}
+                totalSequenceElapsed={totalTimeElapsed}
             />
         </div>
 

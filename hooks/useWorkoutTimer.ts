@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { WorkoutBlock, TimerStatus, Exercise, TimerSettings, TimerMode, TimerSoundProfile } from '../types';
+import { WorkoutBlock, TimerStatus, Exercise, TimerSettings, TimerMode, TimerSoundProfile, TimerSegment } from '../types';
 
 // --- Audio Generation ---
 let audioContext: AudioContext | null = null;
@@ -31,6 +31,9 @@ const playTone = (ctx: AudioContext, freq: number, type: OscillatorType, startTi
     osc.start(startTime);
     osc.stop(startTime + duration);
 };
+
+// Exporting playTone as playBeep for compatibility
+export const playBeep = playTone;
 
 // 1. BOXING BELL (Original)
 const playBellStrike = (ctx: AudioContext, startTime: number) => {
@@ -234,6 +237,10 @@ export const calculateBlockDuration = (settings: TimerSettings, exercisesCount: 
     const restTime = settings.restTime || 0;
 
     switch(settings.mode) {
+        case TimerMode.Custom:
+            if (!settings.sequence || settings.sequence.length === 0) return 0;
+            const sequenceDuration = settings.sequence.reduce((acc, seg) => acc + (seg.duration || 0), 0);
+            return sequenceDuration * (settings.rounds || 1);
         case TimerMode.Interval:
         case TimerMode.Tabata:
             const totalWork = rounds * workTime;
@@ -263,19 +270,37 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
       return calculateBlockDuration(block.settings, block.exercises.length);
   }, [block]);
 
+  // CUSTOM TIMER: Flatten sequence to simplify logic
+  const flattenedSequence = useMemo<TimerSegment[]>(() => {
+      if (block?.settings.mode !== TimerMode.Custom || !block.settings.sequence) return [];
+      const seq = block.settings.sequence;
+      const rounds = block.settings.rounds || 1;
+      const flat: TimerSegment[] = [];
+      for (let i = 0; i < rounds; i++) {
+          flat.push(...seq);
+      }
+      return flat;
+  }, [block]);
+
   const totalExercises = block?.exercises.length ?? 0;
+  
   const settingsRounds = useMemo(() => {
       if (!block) return 0;
+      if (block.settings.mode === TimerMode.Custom) {
+          return flattenedSequence.length;
+      }
       return block.settings.rounds || (totalExercises > 0 ? totalExercises : 1);
-  }, [block, totalExercises]);
+  }, [block, totalExercises, flattenedSequence.length]);
 
   const effectiveIntervalsPerLap = useMemo(() => {
+      if (block?.settings.mode === TimerMode.Custom) return block.settings.sequence?.length || 1;
       if (block?.settings.specifiedIntervalsPerLap) return block.settings.specifiedIntervalsPerLap;
       return totalExercises > 0 ? totalExercises : 1;
   }, [block, totalExercises]);
 
   const totalRounds = useMemo(() => {
       if (!block) return 0;
+      if (block.settings.mode === TimerMode.Custom) return block.settings.rounds;
       if (block.settings.mode === TimerMode.EMOM) return settingsRounds;
       if (block.settings.specifiedLaps) return block.settings.specifiedLaps;
       return totalExercises > 0 ? Math.ceil(settingsRounds / totalExercises) : settingsRounds;
@@ -287,6 +312,11 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
   const currentExerciseIndex = totalExercises > 0 ? completedWorkIntervals % totalExercises : 0;
   const currentExercise = block && totalExercises > 0 ? block.exercises[currentExerciseIndex] : null;
   const nextExercise = block && totalExercises > 0 ? block.exercises[(completedWorkIntervals + 1) % totalExercises] : null;
+  
+  // Custom: Current segment derived from completed count
+  const currentSegment = block?.settings.mode === TimerMode.Custom && flattenedSequence.length > 0 
+      ? flattenedSequence[completedWorkIntervals] || null 
+      : null;
 
   const stopTimer = useCallback(() => {
     if (intervalRef.current) {
@@ -297,7 +327,23 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
   
   const startNextInterval = useCallback(() => {
     if (!block) return;
-    const { workTime, restTime } = block.settings;
+    const { workTime, restTime, mode } = block.settings;
+
+    if (mode === TimerMode.Custom) {
+        if (!currentSegment) {
+             setStatus(TimerStatus.Finished);
+             return;
+        }
+        
+        // Map segment type to Status
+        if (currentSegment.type === 'work') setStatus(TimerStatus.Running);
+        else setStatus(TimerStatus.Resting);
+        
+        const duration = currentSegment.duration || 0;
+        setCurrentTime(duration);
+        setCurrentPhaseDuration(duration);
+        return;
+    }
 
     if (status === TimerStatus.Preparing) {
         setStatus(TimerStatus.Running);
@@ -318,7 +364,7 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
       setCurrentTime(workTime);
       setCurrentPhaseDuration(workTime);
     }
-  }, [block, status]);
+  }, [block, status, currentSegment]);
 
   useEffect(() => {
     if (status === TimerStatus.Running || status === TimerStatus.Resting || status === TimerStatus.Preparing) {
@@ -359,7 +405,48 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
         return;
       }
 
-      // Slut på intervall
+      // CUSTOM Logic
+      if (mode === TimerMode.Custom) {
+           if (status === TimerStatus.Preparing) {
+               playTimerSound(soundProfile, 1);
+               // Force start next segment immediately
+               const firstSeg = flattenedSequence[0];
+               if (firstSeg) {
+                   setCompletedWorkIntervals(0);
+                   setStatus(firstSeg.type === 'work' ? TimerStatus.Running : TimerStatus.Resting);
+                   setCurrentTime(firstSeg.duration);
+                   setCurrentPhaseDuration(firstSeg.duration);
+               } else {
+                   setStatus(TimerStatus.Finished);
+               }
+               return;
+           }
+
+           // Check if we are finished with current step
+           const nextIndex = completedWorkIntervals + 1;
+           if (nextIndex >= flattenedSequence.length) {
+               playTimerSound(soundProfile, 3);
+               setStatus(TimerStatus.Finished);
+               setTotalTimeElapsed(totalBlockDuration);
+               return;
+           }
+           
+           // Transition to next segment
+           const nextSeg = flattenedSequence[nextIndex];
+           setCompletedWorkIntervals(nextIndex);
+           
+           // ATOMIC UPDATE: Set time and status here to prevent '0' flicker causing loop
+           if (nextSeg.type === 'work') playTimerSound(soundProfile, 2);
+           else playTimerSound(soundProfile, 1);
+           
+           setStatus(nextSeg.type === 'work' ? TimerStatus.Running : TimerStatus.Resting);
+           setCurrentTime(nextSeg.duration);
+           setCurrentPhaseDuration(nextSeg.duration);
+           
+           return; 
+      }
+
+      // STANDARD Interval Logic
       if (status === TimerStatus.Running) {
         const newCompletedCount = completedWorkIntervals + 1;
         
@@ -380,7 +467,7 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
     }
     
     startNextInterval();
-  }, [currentTime, status, block, completedWorkIntervals, totalBlockDuration, settingsRounds, startNextInterval, soundProfile]);
+  }, [currentTime, status, block, completedWorkIntervals, totalBlockDuration, settingsRounds, startNextInterval, soundProfile, flattenedSequence]);
 
   const start = useCallback((options?: { skipPrep?: boolean }) => {
     if (!block) return;
@@ -389,10 +476,17 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
     setCompletedWorkIntervals(0);
     
     if (options?.skipPrep) {
-        setStatus(TimerStatus.Running);
-        const workTime = block.settings.workTime || 60;
-        setCurrentTime(workTime);
-        setCurrentPhaseDuration(workTime);
+        if (block.settings.mode === TimerMode.Custom && block.settings.sequence && block.settings.sequence.length > 0) {
+             const firstSeg = block.settings.sequence[0];
+             setStatus(firstSeg.type === 'work' ? TimerStatus.Running : TimerStatus.Resting);
+             setCurrentTime(firstSeg.duration);
+             setCurrentPhaseDuration(firstSeg.duration);
+        } else {
+             setStatus(TimerStatus.Running);
+             const workTime = block.settings.workTime || 60;
+             setCurrentTime(workTime);
+             setCurrentPhaseDuration(workTime);
+        }
         playTimerSound(soundProfile, 1);
     } else {
         setStatus(TimerStatus.Preparing);
@@ -403,7 +497,14 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
   }, [block, soundProfile]);
 
   const pause = () => { if (status !== TimerStatus.Idle && status !== TimerStatus.Finished) setStatus(TimerStatus.Paused); };
-  const resume = () => { if (status === TimerStatus.Paused) setStatus(TimerStatus.Running); };
+  const resume = () => { if (status === TimerStatus.Paused) {
+      if (block?.settings.mode === TimerMode.Custom && currentSegment) {
+          setStatus(currentSegment.type === 'work' ? TimerStatus.Running : TimerStatus.Resting);
+      } else {
+          // Fallback logic for resuming standard timers 
+          setStatus(TimerStatus.Running); 
+      }
+  }};
   
   const reset = useCallback(() => {
     stopTimer();
@@ -419,6 +520,7 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
     currentExerciseIndex, start, pause, resume, reset,
     totalRounds, totalExercises, totalBlockDuration, totalTimeElapsed,
     completedWorkIntervals, totalWorkIntervals: settingsRounds, effectiveIntervalsPerLap,
-    isLastExerciseInRound
+    isLastExerciseInRound,
+    currentSegment // Export current segment for UI
   };
 };

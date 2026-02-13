@@ -8,12 +8,20 @@ interface FreestandingTimerScreenProps {
     onStart: (block: WorkoutBlock) => void;
 }
 
+type CountMode = 'laps' | 'rounds';
+
 export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = ({ onStart }) => {
     const { studioConfig } = useStudio();
     const [mode, setMode] = useState<TimerMode>(TimerMode.Interval);
   
     // State for different timer modes
-    const [rounds, setRounds] = useState(3);
+    const [countMode, setCountMode] = useState<CountMode>('laps');
+    
+    // Interval specific states
+    const [rounds, setRounds] = useState(12); // Total rounds (Simple mode)
+    const [laps, setLaps] = useState(3); // Varv
+    const [intervalsPerLap, setIntervalsPerLap] = useState(4); // Stationer per varv
+
     const [totalMinutes, setTotalMinutes] = useState(10);
     const [workMinutes, setWorkMinutes] = useState(0);
     const [workSeconds, setWorkSeconds] = useState(30);
@@ -27,6 +35,9 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
         const totalWorkSeconds = workMinutes * 60 + workSeconds;
         switch(mode) {
           case TimerMode.Interval:
+            if (countMode === 'laps') {
+                return totalWorkSeconds > 0 && laps > 0 && intervalsPerLap > 0;
+            }
             return totalWorkSeconds > 0 && rounds > 0;
           case TimerMode.Tabata:
           case TimerMode.Stopwatch:
@@ -39,7 +50,7 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
           default:
             return false;
         }
-    }, [mode, workMinutes, workSeconds, rounds, totalMinutes]);
+    }, [mode, workMinutes, workSeconds, rounds, totalMinutes, countMode, laps, intervalsPerLap]);
 
     // Reset settings when mode changes
     useEffect(() => {
@@ -48,7 +59,10 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
 
         switch(mode) {
             case TimerMode.Interval: 
-                setRounds(3); 
+                setCountMode('laps');
+                setLaps(3);
+                setIntervalsPerLap(4);
+                setRounds(12);
                 setWorkMinutes(0); 
                 setWorkSeconds(30); 
                 setRestMinutes(0); 
@@ -76,8 +90,25 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
 
         switch (mode) {
             case TimerMode.Interval:
-                settings = { ...settings, workTime: workMinutes * 60 + workSeconds, restTime: restMinutes * 60 + restSeconds, rounds: rounds };
-                title = mode;
+                let calculatedRounds = rounds;
+                if (countMode === 'laps') {
+                    calculatedRounds = laps * intervalsPerLap;
+                    settings.specifiedLaps = laps;
+                    settings.specifiedIntervalsPerLap = intervalsPerLap;
+                }
+                
+                settings = { 
+                    ...settings, 
+                    workTime: workMinutes * 60 + workSeconds, 
+                    restTime: restMinutes * 60 + restSeconds, 
+                    rounds: calculatedRounds 
+                };
+                
+                if (countMode === 'laps') {
+                    title = `${laps} varv x ${intervalsPerLap} intervaller`;
+                } else {
+                    title = `${calculatedRounds} intervaller`;
+                }
                 exercises = [{ id: 'ex-interval-work', name: 'Arbete' }];
                 break;
             case TimerMode.Tabata:
@@ -142,8 +173,24 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
         switch (mode) {
             case TimerMode.Interval:
                 return (
-                    <div className={`flex flex-col items-center gap-y-8 w-full ${animationClass}`}>
-                        <ValueAdjuster label="ANTAL OMGÅNGAR" value={rounds} onchange={setRounds} />
+                    <div className={`flex flex-col items-center gap-y-6 w-full ${animationClass}`}>
+                        {/* Toggle Laps vs Rounds */}
+                        <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">
+                            <button onClick={() => setCountMode('laps')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${countMode === 'laps' ? 'bg-white dark:bg-black shadow-sm' : 'text-gray-600 dark:text-gray-300'}`}>Varv & Intervaller</button>
+                            <button onClick={() => setCountMode('rounds')} className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${countMode === 'rounds' ? 'bg-white dark:bg-black shadow-sm' : 'text-gray-600 dark:text-gray-300'}`}>Omgångar</button>
+                        </div>
+
+                        {countMode === 'laps' ? (
+                            <div className="flex gap-6 animate-fade-in">
+                                <ValueAdjuster label="ANTAL VARV" value={laps} onchange={setLaps} />
+                                <ValueAdjuster label="INTERVALLER/VARV" value={intervalsPerLap} onchange={setIntervalsPerLap} />
+                            </div>
+                        ) : (
+                            <div className="animate-fade-in">
+                                <ValueAdjuster label="ANTAL OMGÅNGAR" value={rounds} onchange={setRounds} />
+                            </div>
+                        )}
+
                         <div className="flex flex-col items-center w-full">
                             <span className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Arbetstid</span>
                             <div className="flex items-end justify-center gap-2 sm:gap-4">
@@ -206,7 +253,7 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
             <section className="w-full">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">1. Välj Timertyp</h2>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    {Object.values(TimerMode).filter(m => m !== TimerMode.NoTimer).map(m => (
+                    {Object.values(TimerMode).filter(m => m !== TimerMode.NoTimer && m !== TimerMode.Custom).map(m => (
                         <button 
                         key={m} 
                         onClick={() => setMode(m)} 
