@@ -1043,6 +1043,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const isActuallyPaused = status === TimerStatus.Paused || (isTransitioning && isTransitionPaused);
   const isActuallyFinishedOrIdle = (status === TimerStatus.Idle || status === TimerStatus.Finished) && !isTransitioning;
 
+  // --- Calculate total sequence duration for Custom Mode ---
+  const singleSequenceDuration = block.settings.sequence ? block.settings.sequence.reduce((acc, s) => acc + (s.duration || 0), 0) : 0;
+  const totalSequenceDuration = singleSequenceDuration * (block.settings.rounds || 1);
+
   return (
     <div 
         className={`fixed inset-0 w-full h-full overflow-hidden transition-colors duration-500 ${showFullScreenColor ? `${timerStyle.bg}` : 'bg-gray-100 dark:bg-black'}`}
@@ -1170,7 +1174,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 isCustomMode={block.settings.mode === TimerMode.Custom}
                 sequence={block.settings.sequence}
                 currentSegmentIndex={completedWorkIntervals}
-                totalSequenceDuration={block.settings.sequence ? block.settings.sequence.reduce((acc, s) => acc + s.duration, 0) : 0}
+                totalSequenceDuration={totalSequenceDuration}
                 totalSequenceElapsed={totalTimeElapsed}
             />
         </div>
