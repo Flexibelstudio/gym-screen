@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { WorkoutBlock, Exercise, BankExercise, TimerMode } from '../../types';
 import { EditableField } from './EditableField';
-import { ToggleSwitch, ChevronUpIcon, ChevronDownIcon, ChartBarIcon, PencilIcon, TrashIcon, SparklesIcon, BuildingIcon, PlusIcon } from '../icons';
+import { ToggleSwitch, ChevronUpIcon, ChevronDownIcon, ChartBarIcon, PencilIcon, TrashIcon, SparklesIcon, BuildingIcon, PlusIcon, LockClosedIcon } from '../icons';
 import { generateExerciseDescription } from '../../services/geminiService';
 import { parseSettingsFromTitle } from '../../hooks/useWorkoutTimer';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,9 +18,11 @@ interface ExerciseItemProps {
     onMove: (direction: 'up' | 'down') => void;
     organizationId: string;
     onExerciseSavedToBank?: (exercise: BankExercise) => void;
+    enableWorkoutLogging?: boolean;
+    onShowToast: (message: string) => void;
 }
 
-const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, organizationId, onExerciseSavedToBank }) => {
+const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, organizationId, onExerciseSavedToBank, enableWorkoutLogging, onShowToast }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -98,13 +100,17 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             imageUrl: bankExercise.imageUrl,
             reps: exercise.reps, 
             isFromBank: true,
-            loggingEnabled: true // Default true för bank-övningar
+            loggingEnabled: enableWorkoutLogging ? true : false // Enable ONLY if system allows
         });
         setIsSearchVisible(false);
         setSearchQuery('');
     };
 
     const handleToggleLogging = () => {
+        if (!enableWorkoutLogging) {
+            onShowToast("Aktivera Passloggning i inställningarna för att använda detta.");
+            return;
+        }
         if (window.navigator.vibrate) window.navigator.vibrate(5);
         onUpdate(exercise.id, { loggingEnabled: !exercise.loggingEnabled });
     };
@@ -142,7 +148,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             onUpdate(exercise.id, { 
                 id: newId, 
                 isFromBank: true, 
-                loggingEnabled: true // Aktivera loggning direkt
+                loggingEnabled: enableWorkoutLogging ? true : false
             });
 
         } catch (e) {
@@ -153,6 +159,9 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
 
     // STRICT CHECK: Only trust the flag. ID pattern check removed to allow "unlinking".
     const isBanked = !!exercise.isFromBank;
+    
+    // Lock State Logic
+    const isLogButtonLocked = !enableWorkoutLogging;
     
     return (
         <div 
@@ -266,12 +275,24 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                                 exercise.loggingEnabled 
                                 ? 'bg-green-500 border-green-600 text-white shadow-sm' 
                                 : isBanked 
-                                    ? 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 hover:border-gray-400'
+                                    ? isLogButtonLocked 
+                                        ? 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 cursor-not-allowed opacity-70' 
+                                        : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 hover:border-gray-400'
                                     : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-300 cursor-not-allowed'
                             }`}
-                            title={!isBanked ? "Spara övningen i banken för att aktivera loggning" : (exercise.loggingEnabled ? "Loggning aktiverad" : "Aktivera loggning")}
+                            title={
+                                !isBanked 
+                                ? "Spara övningen i banken för att aktivera loggning" 
+                                : isLogButtonLocked 
+                                    ? "Loggning inaktiverad i systemet"
+                                    : exercise.loggingEnabled ? "Loggning aktiverad" : "Aktivera loggning"
+                            }
                         >
-                            <ChartBarIcon className={`w-3.5 h-3.5 ${exercise.loggingEnabled ? 'text-white' : 'text-current'}`} />
+                             {isLogButtonLocked && isBanked ? (
+                                <LockClosedIcon className="w-3.5 h-3.5 text-current" />
+                            ) : (
+                                <ChartBarIcon className={`w-3.5 h-3.5 ${exercise.loggingEnabled ? 'text-white' : 'text-current'}`} />
+                            )}
                         </button>
 
                         <button onClick={() => onRemove(exercise.id)} className="text-red-500 hover:text-red-400 transition-colors text-sm font-medium p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
@@ -317,14 +338,15 @@ interface EditableBlockCardProps {
     onMoveExercise: (index: number, direction: 'up' | 'down') => void;
     onMoveBlock: (direction: 'up' | 'down') => void;
     onExerciseSavedToBank?: (exercise: BankExercise) => void;
+    enableWorkoutLogging?: boolean;
+    onShowToast: (message: string) => void;
 }
 
 export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({ 
     block, index, totalBlocks, onUpdate, onRemove, onEditSettings, 
     isDraggable, workoutTitle, workoutBlocksCount, editorRefs, exerciseBank, 
-    organizationId, onMoveExercise, onMoveBlock, onExerciseSavedToBank 
+    organizationId, onMoveExercise, onMoveBlock, onExerciseSavedToBank, enableWorkoutLogging, onShowToast 
 }) => {
-    const [isExpanded, setIsExpanded] = useState(true);
     
     const handleFieldChange = (field: keyof WorkoutBlock, value: any) => {
         const updatedBlock = { ...block, [field]: value };
@@ -338,6 +360,11 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
     };
 
     const handleToggleAllLogging = () => {
+        if (!enableWorkoutLogging) {
+            onShowToast("Aktivera Passloggning i inställningarna för att använda detta.");
+            return;
+        }
+
         if (window.navigator.vibrate) window.navigator.vibrate(15);
         // Strict check: Only count exercises where isFromBank is true
         const bankedExercises = block.exercises.filter(ex => !!ex.isFromBank);
@@ -366,11 +393,6 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
         isFromBank: false, // Default ad-hoc
         loggingEnabled: false
     });
-
-    const addExercise = () => {
-        const newExercises = [...block.exercises, createNewExercise()];
-        onUpdate({ ...block, exercises: newExercises });
-    };
 
     const updateExercise = (exId: string, updatedValues: Partial<Exercise>) => {
         const updatedExercises = block.exercises.map(ex => (ex.id === exId ? { ...ex, ...updatedValues } : ex));
@@ -406,13 +428,8 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
         return `${displayString} (${formatTime(workTime)} / ${formatTime(restTime)})`;
     }, [block.settings]);
 
-    // Strict check for bank exercises count using isFromBank flag only
-    const bankExercisesCount = block.exercises.filter(ex => !!ex.isFromBank).length;
-    const allBankedLogged = bankExercisesCount > 0 && block.exercises
-        .filter(ex => !!ex.isFromBank)
-        .every(ex => ex.loggingEnabled);
-        
     const isLastBlock = index === totalBlocks - 1;
+    const isLogButtonLocked = !enableWorkoutLogging;
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md border-2 border-gray-200 dark:border-gray-700">
@@ -450,6 +467,11 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                     label="Visa beskrivning i timern"
                     checked={!!block.showDescriptionInTimer}
                     onChange={(isChecked) => handleFieldChange('showDescriptionInTimer', isChecked)}
+                />
+                 <ToggleSwitch
+                    label="Visa övningsbeskrivningar i timer"
+                    checked={block.showExerciseDescriptions !== false} // Default true
+                    onChange={(isChecked) => handleFieldChange('showExerciseDescriptions', isChecked)}
                 />
                 <ToggleSwitch
                     label="'Följ mig'-läge"
@@ -494,83 +516,47 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                 )}
             </div>
 
-            <div className="bg-gray-100 dark:bg-black p-3 my-4 rounded-md flex justify-between items-center text-sm">
-                <p className="text-gray-600 dark:text-gray-300">
-                    Inställningar: <span className="font-semibold text-gray-900 dark:text-white">{settingsText}</span>
-                </p>
-                <button onClick={onEditSettings} className="text-primary hover:underline font-semibold">Anpassa</button>
+            <div className="bg-primary/5 dark:bg-primary/10 p-5 rounded-3xl flex justify-between items-center border border-primary/20">
+                <div>
+                    <p className="text-[10px] font-black text-primary/60 uppercase tracking-widest mb-1">Vald Timer</p>
+                    <p className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">{block.settings.mode}</p>
+                </div>
+                <button onClick={onEditSettings} className="bg-primary text-white font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-xl shadow-lg shadow-primary/20 active:scale-95 transition-all">Anpassa klockan</button>
             </div>
 
-            <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Välj blockets primära tagg</label>
-                <div className="flex flex-wrap gap-2">
-                    {['Styrka', 'Kondition', 'Rörlighet', 'Teknik', 'Core/Bål', 'Balans', 'Uppvärmning'].map(tag => (
-                        <button
-                            key={tag}
-                            onClick={() => handleFieldChange('tag', tag)}
-                            className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${
-                                block.tag === tag
-                                ? 'bg-primary text-white'
-                                : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                            }`}
-                        >
-                            {tag}
-                        </button>
-                    ))}
-                </div>
-            </div>
-            
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-                <div className="flex justify-between items-center mb-3">
-                    <button onClick={() => setIsExpanded(!isExpanded)} className="flex justify-between items-center text-left text-lg font-bold text-gray-900 dark:text-white group">
-                        <span>Övningar ({block.exercises.length})</span>
-                        <motion.span 
-                            animate={{ rotate: isExpanded ? 90 : 0 }}
-                            className="ml-2 inline-block"
-                        >▶</motion.span>
+            <div className="space-y-4 pt-4">
+                <div className="flex justify-between items-center px-1">
+                    <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Övningar ({block.exercises.length})</h4>
+                    <button 
+                        onClick={handleToggleAllLogging}
+                        className={`text-[10px] font-black uppercase hover:underline flex items-center gap-1 ${isLogButtonLocked ? 'text-gray-400 cursor-not-allowed opacity-70' : 'text-primary'}`}
+                    >
+                        {isLogButtonLocked && <LockClosedIcon className="w-3 h-3" />}
+                        Logga alla i blocket
                     </button>
-                    {isExpanded && bankExercisesCount > 0 && (
-                        <button 
-                            onClick={handleToggleAllLogging}
-                            className="text-[10px] font-black uppercase tracking-widest text-primary hover:underline px-2 py-1 rounded bg-primary/5 border border-primary/10 transition-colors"
-                        >
-                            {allBankedLogged ? 'Avmarkera alla (Bank)' : 'Logga alla (Bank)'}
-                        </button>
-                    )}
                 </div>
-
-                <AnimatePresence initial={false}>
-                    {isExpanded && (
-                        <motion.div 
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="space-y-3"
-                        >
-                            {block.exercises.length === 0 ? (
-                                <p className="text-center text-sm text-gray-500 py-2">Blocket är tomt. Klicka på '+ Lägg till övning'.</p>
-                            ) : (
-                                block.exercises.map((ex, i) => (
-                                    <ExerciseItem 
-                                        key={ex.id} 
-                                        exercise={ex} 
-                                        onUpdate={updateExercise} 
-                                        onRemove={() => removeExercise(ex.id)}
-                                        exerciseBank={exerciseBank}
-                                        index={i}
-                                        total={block.exercises.length}
-                                        onMove={(direction) => onMoveExercise(i, direction)}
-                                        organizationId={organizationId}
-                                        onExerciseSavedToBank={onExerciseSavedToBank}
-                                    />
-                                ))
-                            )}
-                            <button onClick={addExercise} className="w-full flex items-center justify-center gap-2 py-2 px-4 mt-2 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-                                <span>Lägg till övning</span>
-                            </button>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                {block.exercises.map((ex, i) => (
+                    <ExerciseItem 
+                        key={ex.id} 
+                        exercise={ex} 
+                        onUpdate={updateExercise} 
+                        onRemove={() => removeExercise(ex.id)}
+                        exerciseBank={exerciseBank}
+                        index={i}
+                        total={block.exercises.length}
+                        onMove={(direction) => onMoveExercise(i, direction)}
+                        organizationId={organizationId}
+                        onExerciseSavedToBank={onExerciseSavedToBank}
+                        enableWorkoutLogging={enableWorkoutLogging}
+                        onShowToast={onShowToast}
+                    />
+                ))}
+                <button 
+                    onClick={() => onUpdate({ ...block, exercises: [...block.exercises, createNewExercise()] })} 
+                    className="w-full py-5 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-[2rem] text-gray-400 font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
+                >
+                    <span className="text-xl">+</span> Lägg till övning
+                </button>
             </div>
         </div>
     );

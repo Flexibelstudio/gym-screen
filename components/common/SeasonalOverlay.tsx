@@ -197,7 +197,7 @@ const ChristmasMascot = ({ page }: { page: Page }) => {
 // Winter Mascot (Snowman) removed as requested
 
 const EasterMascot = () => (
-    <div className="fixed bottom-0 right-4 w-32 h-32 pointer-events-none z-[2000]">
+    <div className="fixed bottom-0 left-4 w-32 h-32 pointer-events-none z-[2000]">
         <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-xl">
             {/* Paws on edge */}
             <ellipse cx="30" cy="100" rx="8" ry="5" fill="white" />
@@ -218,7 +218,7 @@ const EasterMascot = () => (
 );
 
 const HalloweenMascot = () => (
-    <div className="fixed bottom-4 right-4 w-32 h-40 pointer-events-none z-[2000] animate-pulse">
+    <div className="fixed bottom-4 left-4 w-32 h-40 pointer-events-none z-[2000] animate-pulse">
         <svg viewBox="0 0 100 120" className="w-full h-full drop-shadow-2xl">
             <path d="M50,10 Q10,10 10,60 L10,110 L25,100 L40,110 L55,100 L70,110 L85,100 L90,110 L90,60 Q90,10 50,10 Z" fill="white" opacity="0.9" />
             <circle cx="35" cy="40" r="5" fill="#1f2937" />
@@ -229,7 +229,7 @@ const HalloweenMascot = () => (
 );
 
 const SummerMascot = () => (
-    <div className="fixed bottom-0 right-4 w-40 h-40 pointer-events-none z-[2000]">
+    <div className="fixed bottom-0 left-4 w-40 h-40 pointer-events-none z-[2000]">
         <svg viewBox="0 0 200 200" className="w-full h-full drop-shadow-xl">
             {/* Sun Body */}
             <circle cx="150" cy="150" r="40" fill="#fbbf24" />
@@ -249,7 +249,7 @@ const SummerMascot = () => (
 );
 
 const ValentinesMascot = () => (
-    <div className="fixed bottom-0 right-4 w-32 h-32 pointer-events-none z-[2000]">
+    <div className="fixed bottom-0 left-4 w-32 h-32 pointer-events-none z-[2000]">
         <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-xl animate-pulse">
             <path d="M50,30 Q70,5 90,30 Q100,60 50,90 Q0,60 10,30 Q30,5 50,30 Z" fill="#f43f5e" />
             <path d="M30,40 Q35,35 40,40" stroke="white" strokeWidth="2" strokeLinecap="round" fill="none" />

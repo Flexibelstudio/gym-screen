@@ -113,6 +113,7 @@ export interface WorkoutBlock {
   tag: string;
   setupDescription?: string;
   showDescriptionInTimer?: boolean;
+  showExerciseDescriptions?: boolean; // NYTT: Toggle för att visa övningsbeskrivningar i timern
   followMe: boolean;
   settings: TimerSettings;
   exercises: Exercise[];

@@ -173,7 +173,7 @@ const App: React.FC = () => {
       }
       link.href = faviconUrl;
 
-      let appleLink: HTMLLinkElement | null = document.querySelector("link[rel='apple-touch-icon']");
+      let appleLink: HTMLLinkElement | null = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement | null;
       if (!appleLink) {
         appleLink = document.createElement('apple-touch-icon');
         appleLink.rel = 'apple-touch-icon';
@@ -489,15 +489,33 @@ const App: React.FC = () => {
   };
 
   const handleSelectPasskategori = (passkategori: Passkategori) => {
-    if (isStudioMode) {
-        const categoryWorkouts = workouts.filter(w => w.category === passkategori && w.isPublished && !w.isMemberDraft);
-        if (categoryWorkouts.length === 1) {
+    const categoryWorkouts = workouts.filter(w => w.category === passkategori && w.isPublished && !w.isMemberDraft);
+    
+    // Check if there's exactly one workout AND we are in Studio Mode OR Admin (not logging flow)
+    // This allows quick access to single workouts.
+    if (categoryWorkouts.length === 1 && !isPickingForLog) {
+        if (isStudioMode) {
             handleSelectWorkout(categoryWorkouts[0]);
             return;
+        } else {
+            // Mobile/Admin flow - go to list to see options (View/Log) even if only one
+            // OR auto-select for view if desired.
+            // Let's keep consistent: If not logging, jump to detail.
+             handleSelectWorkout(categoryWorkouts[0], 'view');
+             return;
         }
-    } else {
-        setIsPickingForLog(true);
     }
+
+    if (!isStudioMode) {
+        // If user navigated here with intent to log (e.g. from 'Logga Pass' -> Category)
+        // Keep the flag active so list items show 'Log' button
+        // Logic handled inside WorkoutListScreen based on props or global state?
+        // Current implementation uses global isPickingForLog state implicitly via this flow.
+        if (isPickingForLog) {
+             setIsPickingForLog(true);
+        }
+    }
+    
     setActivePasskategori(passkategori);
     navigateTo(Page.WorkoutList);
   };
