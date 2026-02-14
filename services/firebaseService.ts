@@ -504,12 +504,12 @@ export const listenForStudioEvents = (orgId: string, callback: (event: StudioEve
 
 export const listenToWeeklyPBs = (orgId: string, onUpdate: (events: StudioEvent[]) => void) => {
     if (isOffline || !db || !orgId) { onUpdate([]); return () => {}; }
-    const rollingStart = Date.now() - (7 * 24 * 60 * 60 * 1000);
+    
+    // Vi tar bort tidsbegränsningen för att visa de senaste 20 rekorden oavsett när de sattes.
     const q = query(
         collection(db, 'studio_events'), 
         where('organizationId', '==', orgId), 
         where('type', 'in', ['pb', 'pb_batch']), 
-        where('timestamp', '>=', rollingStart), 
         orderBy('timestamp', 'desc'), 
         limit(20)
     );
