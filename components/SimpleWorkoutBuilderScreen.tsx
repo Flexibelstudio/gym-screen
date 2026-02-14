@@ -1,15 +1,16 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise } from '../types';
-import { ToggleSwitch, PencilIcon, ChartBarIcon, SparklesIcon, ChevronUpIcon, ChevronDownIcon, TrashIcon } from './icons';
+import { ToggleSwitch, PencilIcon, ChartBarIcon, SparklesIcon, ChevronUpIcon, ChevronDownIcon, TrashIcon, BuildingIcon, PlusIcon, LockClosedIcon } from './icons';
 import { TimerSetupModal } from './TimerSetupModal';
-import { getExerciseBank, getOrganizationExerciseBank } from '../services/firebaseService';
+import { getExerciseBank, getOrganizationExerciseBank, saveExerciseToBank } from '../services/firebaseService';
 import { interpretHandwriting, generateExerciseDescription } from '../services/geminiService';
 import { useStudio } from '../context/StudioContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Toast } from './ui/Notification';
 
-// ... (Helpers and HandwritingInputModal remain unchanged)
+// --- Helpers ---
 const parseExerciseLine = (line: string): { reps: string; name: string } => {
     const trimmedLine = line.trim();
     const match = trimmedLine.match(/^(\d+)\s+(.*)/);
@@ -19,6 +20,7 @@ const parseExerciseLine = (line: string): { reps: string; name: string } => {
     return { reps: '', name: trimmedLine };
 };
 
+// --- Handwriting Modal ---
 interface HandwritingInputModalProps {
     onClose: () => void;
     onComplete: (text: string) => void;
@@ -161,8 +163,8 @@ const HandwritingInputModal: React.FC<HandwritingInputModalProps> = ({ onClose, 
     );
 };
 
-// ... (createNewWorkout etc. remain unchanged)
 
+// --- Helper functions to create new items ---
 const createNewWorkout = (): Workout => ({
   id: `workout-${Date.now()}`,
   title: '',
@@ -221,7 +223,7 @@ const ConfirmationModal: React.FC<{
     );
 };
 
-// ... (Sub-components remain unchanged)
+// --- Sub-components ---
 
 interface ExerciseItemProps {
     exercise: Exercise;
@@ -233,8 +235,10 @@ interface ExerciseItemProps {
     index: number;
     total: number;
     onMove: (direction: 'up' | 'down') => void;
+    enableWorkoutLogging?: boolean;
+    onShowToast: (message: string) => void;
 }
-const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, onOpenHandwriting, exerciseBank, index, total, onMove }) => {
+const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, onOpenHandwriting, exerciseBank, index, total, onMove, enableWorkoutLogging, onShowToast }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -257,6 +261,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         }
     };
 
+    // Smartare sökning och sortering
     const searchResults = useMemo(() => {
         if (searchQuery.length < 2 || !isSearchVisible) return [];
         
@@ -266,12 +271,15 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             .sort((a, b) => {
                 const aName = a.name.toLowerCase();
                 const bName = b.name.toLowerCase();
+                
                 if (aName === query) return -1;
                 if (bName === query) return 1;
+                
                 const aStarts = aName.startsWith(query);
                 const bStarts = bName.startsWith(query);
                 if (aStarts && !bStarts) return -1;
                 if (!aStarts && bStarts) return 1;
+                
                 return aName.localeCompare(bName, 'sv');
             })
             .slice(0, 15);
@@ -292,7 +300,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
     const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newName = e.target.value;
         setSearchQuery(newName);
-        onUpdate(exercise.id, { name: newName });
+        onUpdate(exercise.id, { name: newName, isFromBank: false, loggingEnabled: false });
     };
 
     const handleSelectExercise = (bankExercise: BankExercise) => {
@@ -302,52 +310,152 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             imageUrl: bankExercise.imageUrl,
             reps: exercise.reps,
             isFromBank: true,
-            loggingEnabled: true // Default true for bank exercises
+            loggingEnabled: enableWorkoutLogging ? true : false
         });
         setIsSearchVisible(false);
         setSearchQuery('');
     };
+
+    const handleToggleLogging = () => {
+        if (!enableWorkoutLogging) {
+            onShowToast("Aktivera Passloggning i inställningarna för att använda detta.");
+            return;
+        }
+        if (window.navigator.vibrate) window.navigator.vibrate(5);
+        onUpdate(exercise.id, { loggingEnabled: !exercise.loggingEnabled });
+    };
     
     const inputBaseClasses = "appearance-none !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500";
     
+    const isBanked = !!exercise.isFromBank;
+    const isLogButtonLocked = !enableWorkoutLogging;
+
     return (
         <div 
             ref={searchContainerRef} 
             className={`group p-3 rounded-2xl flex items-start gap-3 transition-all border-l-4 relative ${
                 isSearchVisible ? 'z-[1000]' : 'z-0'
             } ${
-                exercise.loggingEnabled 
-                ? 'bg-green-50 dark:bg-green-900/10 border-green-500' 
+                isBanked
+                ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-400' 
                 : 'bg-gray-100 dark:bg-gray-700/50 border-transparent'
             }`}
         >
             <div className="flex flex-col gap-1 items-center justify-center self-center mr-1">
-                <button disabled={index === 0} onClick={() => onMove('up')} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 transition-colors"><ChevronUpIcon className="w-5 h-5" /></button>
-                <button disabled={index === total - 1} onClick={() => onMove('down')} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 transition-colors"><ChevronDownIcon className="w-5 h-5" /></button>
+                <button 
+                    disabled={index === 0} 
+                    onClick={() => onMove('up')} 
+                    className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 transition-colors"
+                >
+                    <ChevronUpIcon className="w-5 h-5" />
+                </button>
+                <button 
+                    disabled={index === total - 1} 
+                    onClick={() => onMove('down')} 
+                    className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 transition-colors"
+                >
+                    <ChevronDownIcon className="w-5 h-5" />
+                </button>
             </div>
 
             <div className="flex-grow space-y-2">
                 <div className="flex items-center gap-2">
-                    <input type="text" value={exercise.reps || ''} onChange={e => onUpdate(exercise.id, { reps: e.target.value })} placeholder="Antal" className={`${inputBaseClasses} w-24`} />
+                    <input
+                        type="text"
+                        value={exercise.reps || ''}
+                        onChange={e => onUpdate(exercise.id, { reps: e.target.value })}
+                        placeholder="Antal"
+                        className={`${inputBaseClasses} w-24`}
+                    />
                     <div className="relative flex-grow">
-                        <input type="text" value={exercise.name} onChange={handleNameChange} onFocus={() => { setIsSearchVisible(true); setSearchQuery(exercise.name); }} placeholder="Sök eller skriv övning..." className={`${inputBaseClasses} w-full`} />
+                        <input
+                            type="text"
+                            value={exercise.name}
+                            onChange={handleNameChange}
+                            onFocus={() => {
+                                setIsSearchVisible(true);
+                                setSearchQuery(exercise.name);
+                            }}
+                            placeholder="Sök eller skriv övning..."
+                            className={`${inputBaseClasses} w-full pr-8`}
+                        />
+                         {/* Visual Indicator inside input */}
+                         <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                            {isBanked ? (
+                                <BuildingIcon className="w-4 h-4 text-blue-500" />
+                            ) : (
+                                <span className="text-xs grayscale opacity-50">📝</span>
+                            )}
+                        </div>
+
                         {isSearchVisible && searchResults.length > 0 && (
                             <ul className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] z-[2000] max-h-80 overflow-y-auto ring-1 ring-black/5 p-1 animate-fade-in">
                                 {searchResults.map(result => (
                                     <li key={result.id}>
-                                        <button onClick={() => handleSelectExercise(result)} className="w-full text-left px-4 py-3 hover:bg-primary/10 text-gray-900 dark:text-white transition-colors font-bold rounded-xl border-b border-gray-50 dark:border-gray-700/50 last:border-0">{result.name}</button>
+                                        <button
+                                            onClick={() => handleSelectExercise(result)}
+                                            className="w-full text-left px-4 py-3 hover:bg-primary/10 text-gray-900 dark:text-white transition-colors font-bold rounded-xl border-b border-gray-50 dark:border-gray-700/50 last:border-0"
+                                        >
+                                            {result.name}
+                                        </button>
                                     </li>
                                 ))}
                             </ul>
                         )}
                     </div>
-                    <button onClick={() => onUpdate(exercise.id, { loggingEnabled: !exercise.loggingEnabled })} className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all border font-black text-[10px] uppercase tracking-wider ${exercise.loggingEnabled ? 'bg-green-500 border-green-600 text-white shadow-lg' : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400'}`}><ChartBarIcon className="w-4 h-4" /><span className="hidden sm:inline">{exercise.loggingEnabled ? 'Loggas' : 'Loggas ej'}</span></button>
-                    <button onClick={onOpenHandwriting} className="text-gray-400 hover:text-primary p-2" title="Skriv för hand"><PencilIcon className="w-5 h-5" /></button>
-                    <button onClick={() => onRemove(exercise.id)} className="text-red-500 p-2" title="Ta bort"><TrashIcon className="w-5 h-5" /></button>
+                    
+                    <button 
+                        onClick={handleToggleLogging}
+                        className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all border font-black text-[10px] uppercase tracking-wider transform active:scale-95 ${
+                            exercise.loggingEnabled 
+                            ? 'bg-green-500 border-green-600 text-white shadow-lg' 
+                            : isBanked
+                                ? isLogButtonLocked
+                                    ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400 cursor-not-allowed opacity-70'
+                                    : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400 hover:border-gray-400'
+                                : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-300 cursor-not-allowed'
+                        }`}
+                        title={
+                            !isBanked 
+                            ? "Spara övningen i banken för att aktivera loggning" 
+                            : isLogButtonLocked 
+                                ? "Loggning inaktiverad i systemet"
+                                : exercise.loggingEnabled ? "Loggning aktiverad" : "Aktivera loggning"
+                        }
+                    >
+                        {isLogButtonLocked && isBanked ? (
+                            <LockClosedIcon className="w-3.5 h-3.5 text-current" />
+                        ) : (
+                            <ChartBarIcon className={`w-4 h-4 ${exercise.loggingEnabled ? 'text-white' : 'text-current'}`} />
+                        )}
+                        <span className="hidden sm:inline">{exercise.loggingEnabled ? 'Loggas' : 'Loggas ej'}</span>
+                    </button>
+
+                    <button onClick={onOpenHandwriting} className="text-gray-400 hover:text-primary p-2" title="Skriv för hand">
+                        <PencilIcon className="w-5 h-5" />
+                    </button>
+
+                    <button onClick={() => onRemove(exercise.id)} className="text-red-500 p-2" title="Ta bort">
+                        <TrashIcon className="w-5 h-5" />
+                    </button>
                 </div>
+                
                 <div className="relative">
-                    <textarea value={exercise.description || ''} onChange={e => onUpdate(exercise.id, { description: e.target.value })} placeholder="Instruktioner..." className={`${inputBaseClasses} w-full h-20 resize-none font-medium text-sm`} rows={2} />
-                    <button onClick={handleGenerateDescription} disabled={isGeneratingDesc} className="absolute top-2 right-2 text-gray-400 hover:text-purple-500 transition-colors" title="AI-beskrivning">{isGeneratingDesc ? <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div> : <SparklesIcon className="w-5 h-5" />}</button>
+                    <textarea
+                        value={exercise.description || ''}
+                        onChange={e => onUpdate(exercise.id, { description: e.target.value })}
+                        placeholder="Instruktioner..."
+                        className={`${inputBaseClasses} w-full h-20 resize-none font-medium text-sm`}
+                        rows={2}
+                    />
+                    <button
+                        onClick={handleGenerateDescription}
+                        disabled={isGeneratingDesc}
+                        className="absolute top-2 right-2 text-gray-400 hover:text-purple-500 transition-colors"
+                        title="AI-beskrivning"
+                    >
+                        {isGeneratingDesc ? <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div> : <SparklesIcon className="w-5 h-5" />}
+                    </button>
                 </div>
             </div>
         </div>
@@ -363,9 +471,10 @@ interface BlockCardProps {
     onEditSettings: () => void;
     onOpenHandwriting: (cb: (text: string) => void) => void;
     exerciseBank: BankExercise[];
-    organizationId: string;
+    enableWorkoutLogging?: boolean;
+    onShowToast: (message: string) => void;
 }
-const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpdate, onRemove, onEditSettings, onOpenHandwriting, exerciseBank, organizationId }) => {
+const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpdate, onRemove, onEditSettings, onOpenHandwriting, exerciseBank, enableWorkoutLogging, onShowToast }) => {
     const handleFieldChange = (field: keyof WorkoutBlock, value: any) => {
         const updated = { ...block, [field]: value };
         if (field === 'title' && typeof value === 'string') {
@@ -381,9 +490,34 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
         else if (dir === 'down' && idx < exs.length - 1) [exs[idx], exs[idx+1]] = [exs[idx+1], exs[idx]];
         onUpdate({ ...block, exercises: exs });
     };
+    
+    const handleToggleAllLogging = () => {
+        if (!enableWorkoutLogging) {
+            onShowToast("Aktivera Passloggning i inställningarna för att använda detta.");
+            return;
+        }
+
+        if (window.navigator.vibrate) window.navigator.vibrate(15);
+        const bankedExercises = block.exercises.filter(ex => !!ex.isFromBank);
+        
+        if (bankedExercises.length === 0) {
+            alert("Inga övningar i detta block är kopplade till banken. Koppla dem först för att aktivera loggning.");
+            return;
+        }
+
+        const allEnabled = bankedExercises.every(ex => ex.loggingEnabled);
+        const updatedExercises = block.exercises.map(ex => {
+            if (!!ex.isFromBank) {
+                return { ...ex, loggingEnabled: !allEnabled };
+            }
+            return ex;
+        });
+        onUpdate({ ...block, exercises: updatedExercises });
+    };
 
     const inputBaseClasses = "appearance-none !bg-white dark:!bg-gray-900 !text-gray-900 dark:!text-white border border-gray-100 dark:border-gray-800 rounded-2xl p-4 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-black placeholder-gray-300 dark:placeholder-gray-600 shadow-inner";
     const isLastBlock = index === totalBlocks;
+    const isLogButtonLocked = !enableWorkoutLogging;
 
     return (
         <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-6 sm:p-8 shadow-xl border border-gray-100 dark:border-gray-800 space-y-6">
@@ -476,12 +610,10 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
                 <div className="flex justify-between items-center px-1">
                     <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Övningar ({block.exercises.length})</h4>
                     <button 
-                        onClick={() => {
-                            const allLog = block.exercises.every(ex => ex.loggingEnabled);
-                            onUpdate({ ...block, exercises: block.exercises.map(ex => ({ ...ex, loggingEnabled: !allLog })) });
-                        }}
-                        className="text-[10px] font-black uppercase text-primary hover:underline"
+                        onClick={handleToggleAllLogging}
+                        className={`text-[10px] font-black uppercase hover:underline flex items-center gap-1 ${isLogButtonLocked ? 'text-gray-400 cursor-not-allowed opacity-70' : 'text-primary'}`}
                     >
+                         {isLogButtonLocked && <LockClosedIcon className="w-3 h-3" />}
                         Logga alla i blocket
                     </button>
                 </div>
@@ -491,7 +623,9 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
                         onUpdate={(id, vals) => onUpdate({ ...block, exercises: block.exercises.map(e => e.id === id ? { ...e, ...vals } : e) })} 
                         onRemove={id => onUpdate({ ...block, exercises: block.exercises.filter(e => e.id !== id) })} 
                         onOpenHandwriting={() => onOpenHandwriting(t => { const p = parseExerciseLine(t); onUpdate({ ...block, exercises: block.exercises.map(e => e.id === ex.id ? { ...e, name: p.name, reps: p.reps } : e) }) })} 
-                        exerciseBank={exerciseBank} index={i} total={block.exercises.length} onMove={dir => moveEx(i, dir)} organizationId={organizationId}
+                        exerciseBank={exerciseBank} index={i} total={block.exercises.length} onMove={dir => moveEx(i, dir)} organizationId=""
+                        enableWorkoutLogging={enableWorkoutLogging}
+                        onShowToast={onShowToast}
                     />
                 ))}
                 <button 
@@ -507,11 +641,14 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
 
 // --- Main Component ---
 export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | null; onSave: (w: Workout) => void; onCancel: () => void }> = ({ initialWorkout, onSave, onCancel }) => {
-    const { selectedOrganization } = useStudio();
+    const { selectedOrganization, studioConfig } = useStudio();
     const [workout, setWorkout] = useState<Workout>(() => initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
     const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
     const [handwritingCb, setHandwritingCb] = useState<((t: string) => void) | null>(null);
     const [exerciseBank, setExerciseBank] = useState<BankExercise[]>([]);
+    
+    // Toast state
+    const [toast, setToast] = useState<{ message: string, visible: boolean }>({ message: '', visible: false });
 
     useEffect(() => { 
         if (selectedOrganization) {
@@ -590,6 +727,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
 
     return (
         <div className="w-full h-full flex flex-col animate-fade-in bg-gray-50 dark:bg-black">
+            <Toast isVisible={toast.visible} message={toast.message} onClose={() => setToast({ ...toast, visible: false })} />
             <div className="flex-grow overflow-y-auto px-4 pb-40 pt-6 custom-scrollbar scroll-smooth">
                 <div className="max-w-2xl mx-auto space-y-10">
                     
@@ -631,7 +769,8 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                                 onEditSettings={() => setEditingBlockId(block.id)} 
                                 onOpenHandwriting={(cb) => setHandwritingCb(() => cb)} 
                                 exerciseBank={exerciseBank} 
-                                organizationId={selectedOrganization?.id || ''}
+                                enableWorkoutLogging={studioConfig.enableWorkoutLogging}
+                                onShowToast={(msg) => setToast({ message: msg, visible: true })}
                             />
                         ))}
                     </div>
@@ -658,7 +797,6 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                     isOpen={!!editingBlockId} onClose={() => setEditingBlockId(null)} 
                     block={workout.blocks.find(b => b.id === editingBlockId)!} 
                     onSave={s => handleUpdateBlockSettings(editingBlockId, s)} 
-                    isLastBlock={workout.blocks[workout.blocks.length - 1]?.id === editingBlockId}
                 />
             )}
 

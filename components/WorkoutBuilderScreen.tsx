@@ -12,6 +12,7 @@ import { AICoachSidebar } from './workout-builder/AICoachPanel';
 import { EditableBlockCard } from './workout-builder/EditableBlockCard';
 import { analyzeCurrentWorkout } from '../services/geminiService';
 import { ToggleSwitch, DumbbellIcon, SparklesIcon, TrophyIcon, CheckIcon } from './icons';
+import { Toast } from './ui/Notification';
 
 const createNewWorkout = (): Workout => ({
   id: `workout-${Date.now()}`,
@@ -129,6 +130,9 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   const [isBankLoading, setIsBankLoading] = useState(true);
   const [previewExercise, setPreviewExercise] = useState<BankExercise | null>(null);
   const [activeSidebarTab, setActiveSidebarTab] = useState<'bank' | 'ai'>('bank');
+  
+  // Toast state
+  const [toast, setToast] = useState<{ message: string, visible: boolean }>({ message: '', visible: false });
 
   // Benchmark logic
   const org = organization || selectedOrganization;
@@ -445,6 +449,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
 
   return (
     <>
+      <Toast isVisible={toast.visible} message={toast.message} onClose={() => setToast({ ...toast, visible: false })} />
       <div className="w-full max-w-[1800px] mx-auto">
         <div className="flex flex-col xl:flex-row gap-6 items-start">
           
@@ -556,6 +561,8 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                           onMoveExercise={(idx, direction) => handleMoveExercise(block.id, idx, direction)}
                           onMoveBlock={(direction) => handleMoveBlock(block.id, direction)}
                           onExerciseSavedToBank={handleExerciseSavedToBank}
+                          enableWorkoutLogging={studioConfig.enableWorkoutLogging}
+                          onShowToast={(msg) => setToast({ message: msg, visible: true })}
                         />
                     </div>
                   )

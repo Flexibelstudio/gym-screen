@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { WorkoutBlock, Exercise, BankExercise, TimerMode } from '../../types';
 import { EditableField } from './EditableField';
-import { ToggleSwitch, ChevronUpIcon, ChevronDownIcon, ChartBarIcon, PencilIcon, TrashIcon, SparklesIcon, BuildingIcon, PlusIcon } from '../icons';
+import { ToggleSwitch, ChevronUpIcon, ChevronDownIcon, ChartBarIcon, PencilIcon, TrashIcon, SparklesIcon, BuildingIcon, PlusIcon, LockClosedIcon } from '../icons';
 import { generateExerciseDescription } from '../../services/geminiService';
 import { parseSettingsFromTitle } from '../../hooks/useWorkoutTimer';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,9 +18,11 @@ interface ExerciseItemProps {
     onMove: (direction: 'up' | 'down') => void;
     organizationId: string;
     onExerciseSavedToBank?: (exercise: BankExercise) => void;
+    enableWorkoutLogging?: boolean;
+    onShowToast: (message: string) => void;
 }
 
-const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, organizationId, onExerciseSavedToBank }) => {
+const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, organizationId, onExerciseSavedToBank, enableWorkoutLogging, onShowToast }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -98,13 +100,17 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             imageUrl: bankExercise.imageUrl,
             reps: exercise.reps, 
             isFromBank: true,
-            loggingEnabled: true // Default true för bank-övningar
+            loggingEnabled: enableWorkoutLogging ? true : false // Enable ONLY if system allows
         });
         setIsSearchVisible(false);
         setSearchQuery('');
     };
 
     const handleToggleLogging = () => {
+        if (!enableWorkoutLogging) {
+            onShowToast("Aktivera Passloggning i inställningarna för att använda detta.");
+            return;
+        }
         if (window.navigator.vibrate) window.navigator.vibrate(5);
         onUpdate(exercise.id, { loggingEnabled: !exercise.loggingEnabled });
     };
@@ -142,7 +148,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             onUpdate(exercise.id, { 
                 id: newId, 
                 isFromBank: true, 
-                loggingEnabled: true // Aktivera loggning direkt
+                loggingEnabled: enableWorkoutLogging ? true : false
             });
 
         } catch (e) {
@@ -153,6 +159,9 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
 
     // STRICT CHECK: Only trust the flag. ID pattern check removed to allow "unlinking".
     const isBanked = !!exercise.isFromBank;
+    
+    // Lock State Logic
+    const isLogButtonLocked = !enableWorkoutLogging;
     
     return (
         <div 
@@ -266,12 +275,24 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                                 exercise.loggingEnabled 
                                 ? 'bg-green-500 border-green-600 text-white shadow-sm' 
                                 : isBanked 
-                                    ? 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 hover:border-gray-400'
+                                    ? isLogButtonLocked 
+                                        ? 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 cursor-not-allowed opacity-70' 
+                                        : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 hover:border-gray-400'
                                     : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-300 cursor-not-allowed'
                             }`}
-                            title={!isBanked ? "Spara övningen i banken för att aktivera loggning" : (exercise.loggingEnabled ? "Loggning aktiverad" : "Aktivera loggning")}
+                            title={
+                                !isBanked 
+                                ? "Spara övningen i banken för att aktivera loggning" 
+                                : isLogButtonLocked 
+                                    ? "Loggning inaktiverad i systemet"
+                                    : exercise.loggingEnabled ? "Loggning aktiverad" : "Aktivera loggning"
+                            }
                         >
-                            <ChartBarIcon className={`w-3.5 h-3.5 ${exercise.loggingEnabled ? 'text-white' : 'text-current'}`} />
+                             {isLogButtonLocked && isBanked ? (
+                                <LockClosedIcon className="w-3.5 h-3.5 text-current" />
+                            ) : (
+                                <ChartBarIcon className={`w-3.5 h-3.5 ${exercise.loggingEnabled ? 'text-white' : 'text-current'}`} />
+                            )}
                         </button>
 
                         <button onClick={() => onRemove(exercise.id)} className="text-red-500 hover:text-red-400 transition-colors text-sm font-medium p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
@@ -317,14 +338,15 @@ interface EditableBlockCardProps {
     onMoveExercise: (index: number, direction: 'up' | 'down') => void;
     onMoveBlock: (direction: 'up' | 'down') => void;
     onExerciseSavedToBank?: (exercise: BankExercise) => void;
+    enableWorkoutLogging?: boolean;
+    onShowToast: (message: string) => void;
 }
 
 export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({ 
     block, index, totalBlocks, onUpdate, onRemove, onEditSettings, 
     isDraggable, workoutTitle, workoutBlocksCount, editorRefs, exerciseBank, 
-    organizationId, onMoveExercise, onMoveBlock, onExerciseSavedToBank 
+    organizationId, onMoveExercise, onMoveBlock, onExerciseSavedToBank, enableWorkoutLogging, onShowToast 
 }) => {
-    const [isExpanded, setIsExpanded] = useState(true);
     
     const handleFieldChange = (field: keyof WorkoutBlock, value: any) => {
         const updatedBlock = { ...block, [field]: value };
@@ -338,6 +360,11 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
     };
 
     const handleToggleAllLogging = () => {
+        if (!enableWorkoutLogging) {
+            onShowToast("Aktivera Passloggning i inställningarna för att använda detta.");
+            return;
+        }
+
         if (window.navigator.vibrate) window.navigator.vibrate(15);
         // Strict check: Only count exercises where isFromBank is true
         const bankedExercises = block.exercises.filter(ex => !!ex.isFromBank);
@@ -366,11 +393,6 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
         isFromBank: false, // Default ad-hoc
         loggingEnabled: false
     });
-
-    const addExercise = () => {
-        const newExercises = [...block.exercises, createNewExercise()];
-        onUpdate({ ...block, exercises: newExercises });
-    };
 
     const updateExercise = (exId: string, updatedValues: Partial<Exercise>) => {
         const updatedExercises = block.exercises.map(ex => (ex.id === exId ? { ...ex, ...updatedValues } : ex));
@@ -406,13 +428,8 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
         return `${displayString} (${formatTime(workTime)} / ${formatTime(restTime)})`;
     }, [block.settings]);
 
-    // Strict check for bank exercises count using isFromBank flag only
-    const bankExercisesCount = block.exercises.filter(ex => !!ex.isFromBank).length;
-    const allBankedLogged = bankExercisesCount > 0 && block.exercises
-        .filter(ex => !!ex.isFromBank)
-        .every(ex => ex.loggingEnabled);
-        
     const isLastBlock = index === totalBlocks - 1;
+    const isLogButtonLocked = !enableWorkoutLogging;
 
     return (
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md border-2 border-gray-200 dark:border-gray-700">
@@ -511,12 +528,10 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                 <div className="flex justify-between items-center px-1">
                     <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Övningar ({block.exercises.length})</h4>
                     <button 
-                        onClick={() => {
-                            const allLog = block.exercises.every(ex => ex.loggingEnabled);
-                            onUpdate({ ...block, exercises: block.exercises.map(ex => ({ ...ex, loggingEnabled: !allLog })) });
-                        }}
-                        className="text-[10px] font-black uppercase text-primary hover:underline"
+                        onClick={handleToggleAllLogging}
+                        className={`text-[10px] font-black uppercase hover:underline flex items-center gap-1 ${isLogButtonLocked ? 'text-gray-400 cursor-not-allowed opacity-70' : 'text-primary'}`}
                     >
+                        {isLogButtonLocked && <LockClosedIcon className="w-3 h-3" />}
                         Logga alla i blocket
                     </button>
                 </div>
@@ -532,6 +547,8 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                         onMove={(direction) => onMoveExercise(i, direction)}
                         organizationId={organizationId}
                         onExerciseSavedToBank={onExerciseSavedToBank}
+                        enableWorkoutLogging={enableWorkoutLogging}
+                        onShowToast={onShowToast}
                     />
                 ))}
                 <button 
