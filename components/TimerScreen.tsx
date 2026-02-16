@@ -614,6 +614,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [controlsVisible, setControlsVisible] = React.useState(false);
   const hideTimeoutRef = React.useRef<number | null>(null);
   const wakeLockRef = useRef<any>(null);
+  
+  // Get navigation position preference (default top)
+  const navPos = studioConfig.navigationControlPosition || 'top';
 
   // --- TRANSITION LOGIC ---
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -1057,7 +1060,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     return 2 + block.exercises.length;
   };
 
-  const handleInteraction = () => { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); restartHideTimer(); };
+  const handleInteraction = () => { setControlsVisible(true); onHeaderVisibilityChange(true); /* Back button hidden while running */ restartHideTimer(); };
   const restartHideTimer = React.useCallback(() => {
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     if (status === TimerStatus.Running || status === TimerStatus.Resting || status === TimerStatus.Preparing || isTransitioning) {
@@ -1094,7 +1097,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       {isLobbyMode && (
           <button
               onClick={() => onFinish({ isNatural: false })}
-              className="fixed top-8 left-8 z-[60] bg-black/20 hover:bg-black/40 text-white backdrop-blur-md px-6 py-3 rounded-full font-bold transition-all flex items-center gap-3 border border-white/10 shadow-lg group"
+              className={`fixed ${navPos === 'bottom' ? 'bottom-8' : 'top-8'} left-8 z-[60] bg-black/20 hover:bg-black/40 text-white backdrop-blur-md px-6 py-3 rounded-full font-bold transition-all flex items-center gap-3 border border-white/10 shadow-lg group`}
           >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />

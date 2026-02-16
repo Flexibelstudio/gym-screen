@@ -94,6 +94,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   // Render back button depending on position config
   const renderBackButton = () => {
+      // If manually hidden or not applicable, return null (unmounts button)
       if (!canGoBack || hideBackButton) return null;
       
       const buttonContent = (
@@ -106,10 +107,13 @@ export const Header: React.FC<HeaderProps> = ({
       );
       
       if (navPosition === 'bottom') {
+          // Apply visibility transition classes to the fixed bottom button as well
+          const visibilityClass = isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none';
+          
           return (
              <button 
                 onClick={onBack} 
-                className="fixed bottom-6 left-6 z-[100] bg-gray-900/90 dark:bg-white/90 text-white dark:text-black hover:bg-gray-800 dark:hover:bg-white transition-all py-4 px-8 rounded-full shadow-2xl backdrop-blur-md border border-white/20 active:scale-95"
+                className={`fixed bottom-6 left-6 z-[100] bg-gray-900/90 dark:bg-white/90 text-white dark:text-black hover:bg-gray-800 dark:hover:bg-white transition-all py-4 px-8 rounded-full shadow-2xl backdrop-blur-md border border-white/20 active:scale-95 duration-300 ${visibilityClass}`}
             >
                 {buttonContent}
             </button>
