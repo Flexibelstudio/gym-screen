@@ -227,10 +227,7 @@ const WorkoutBlockCard: React.FC<{
     isCoachView: boolean;
     organizationId: string;
 }> = ({ block, onStart, onVisualize, onEditSettings, onUpdateBlock, isCoachView, organizationId }) => {
-    // ... (WorkoutBlockCard logic unchanged)
-    // For brevity, keeping it as is but assuming it's the same
     
-    // ... Copy paste existing logic ...
     const [exercisesVisible, setExercisesVisible] = useState(true);
 
     const formatTime = (time: number) => {
@@ -260,6 +257,17 @@ const WorkoutBlockCard: React.FC<{
                 return `${mode}: ${rounds}x (${workTime}s / ${restTime}s)`;
         }
     }, [block.settings, block.exercises.length]);
+    
+    // Handlers for quick toggles
+    const toggleFollowMe = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onUpdateBlock({ ...block, followMe: !block.followMe });
+    };
+
+    const toggleDescriptions = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        onUpdateBlock({ ...block, showExerciseDescriptions: block.showExerciseDescriptions === false });
+    };
   
     return (
       <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden transition-all">
@@ -304,13 +312,35 @@ const WorkoutBlockCard: React.FC<{
             </div>
         </div>
         
-        <div className="bg-gray-50/50 dark:bg-black/20 px-8 py-4 flex justify-between items-center border-b border-gray-100 dark:border-gray-700/50">
+        <div className="bg-gray-50/50 dark:bg-black/20 px-6 py-4 flex flex-col sm:flex-row justify-between items-center border-b border-gray-100 dark:border-gray-700/50 gap-4">
           <div className="flex items-center gap-3 text-gray-400 dark:text-gray-500 font-black uppercase tracking-[0.15em] text-[11px]">
             <ClockIcon className="h-4 w-4" />
             <span>Inställningar: {settingsText}</span>
           </div>
+          
           {isCoachView && (
-              <button onClick={onEditSettings} className="text-primary hover:underline font-black uppercase tracking-widest text-[10px]">Anpassa klockan</button>
+            <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-center">
+                 <button 
+                    onClick={toggleFollowMe}
+                    className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border transition-all ${block.followMe ? 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800' : 'bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700 hover:border-gray-300'}`}
+                >
+                    Följ mig: {block.followMe ? 'PÅ' : 'AV'}
+                </button>
+                
+                <button 
+                    onClick={toggleDescriptions}
+                    className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border transition-all ${block.showExerciseDescriptions !== false ? 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800' : 'bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-500 border-gray-200 dark:border-gray-700 hover:border-gray-300'}`}
+                >
+                    Beskrivningar: {block.showExerciseDescriptions !== false ? 'PÅ' : 'AV'}
+                </button>
+                
+                <button 
+                    onClick={onEditSettings} 
+                    className="text-primary hover:underline font-black uppercase tracking-widest text-[10px] ml-1"
+                >
+                    Anpassa klockan
+                </button>
+            </div>
           )}
         </div>
 
