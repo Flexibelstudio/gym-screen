@@ -176,7 +176,8 @@ export interface StudioConfig {
   checkInImageEnabled?: boolean;
   checkInImageUrl?: string;
   seasonalTheme?: ThemeOption;
-  soundProfile?: TimerSoundProfile; // NYTT: Ljudprofil
+  soundProfile?: TimerSoundProfile; 
+  navigationControlPosition?: 'top' | 'bottom'; // NYTT: Position för navigationsknappar
   aiSettings?: {
       tone?: string;
       instructions?: string;

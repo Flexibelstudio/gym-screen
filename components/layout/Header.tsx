@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Page, UserRole } from '../../types';
 import { DigitalClock } from '../common/DigitalClock';
@@ -42,10 +43,13 @@ export const Header: React.FC<HeaderProps> = ({
     onEditProfileRequest,
     isStudioMode
 }) => {
-  const { selectedOrganization, studioLoading } = useStudio();
+  const { selectedOrganization, studioConfig, studioLoading } = useStudio();
   const { userData } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  // Hämta positionering från config (default 'top')
+  const navPosition = studioConfig?.navigationControlPosition || 'top';
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -86,8 +90,38 @@ export const Header: React.FC<HeaderProps> = ({
   ];
   
   const canGoBack = historyLength > 1 && !pagesWithoutBack.includes(page);
-
   const isMemberAppView = (!isStudioMode && page === Page.Home) || page === Page.MemberProfile;
+
+  // Render back button depending on position config
+  const renderBackButton = () => {
+      if (!canGoBack || hideBackButton) return null;
+      
+      const buttonContent = (
+          <div className="flex items-center gap-1">
+             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+             </svg>
+             <span className="text-lg font-bold">Tillbaka</span>
+          </div>
+      );
+      
+      if (navPosition === 'bottom') {
+          return (
+             <button 
+                onClick={onBack} 
+                className="fixed bottom-6 left-6 z-[100] bg-gray-900/90 dark:bg-white/90 text-white dark:text-black hover:bg-gray-800 dark:hover:bg-white transition-all py-4 px-8 rounded-full shadow-2xl backdrop-blur-md border border-white/20 active:scale-95"
+            >
+                {buttonContent}
+            </button>
+          );
+      }
+      
+      return (
+        <button onClick={onBack} className="text-primary hover:brightness-95 transition-colors text-lg font-semibold flex items-center gap-1">
+            {buttonContent}
+        </button>
+      );
+  };
 
   const renderHeaderBranding = () => {
       // Om vi laddar eller om vi inte har en organisation i state än, visa inget
@@ -203,47 +237,46 @@ export const Header: React.FC<HeaderProps> = ({
   }
 
   return (
-    <header className={`w-full max-w-5xl mx-auto flex items-center transition-all duration-300 ease-in-out ${isVisible ? 'pb-8 opacity-100 max-h-40' : 'pb-0 opacity-0 max-h-0 pointer-events-none overflow-hidden'}`}>
-      <div className="flex-1">
-        {canGoBack && !hideBackButton && (
-            <button onClick={onBack} className="text-primary hover:brightness-95 transition-colors text-lg font-semibold flex items-center gap-1">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-                </svg>
-                <span>Tillbaka</span>
-            </button>
-        )}
-      </div>
-      
-      <div className="flex-1 flex flex-col items-center justify-center text-center">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-none">{getTitle()}</h1>
-      </div>
+    <>
+        <header className={`w-full max-w-5xl mx-auto flex items-center transition-all duration-300 ease-in-out ${isVisible ? 'pb-8 opacity-100 max-h-40' : 'pb-0 opacity-0 max-h-0 pointer-events-none overflow-hidden'}`}>
+        <div className="flex-1">
+            {/* Standard top-left back button, only shown if pos is 'top' */}
+            {navPosition === 'top' && renderBackButton()}
+        </div>
+        
+        <div className="flex-1 flex flex-col items-center justify-center text-center">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white leading-none">{getTitle()}</h1>
+        </div>
 
-      <div className="flex-1 flex justify-end items-center gap-4">
-         {showClock && <DigitalClock />}
-         {page !== Page.MemberProfile && onMemberProfileRequest && !isStudioMode && (
-            <button onClick={onMemberProfileRequest} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-800 dark:text-white" aria-label="Min Profil">
-                <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold border border-primary/20 overflow-hidden shadow-sm">
-                    {userData?.photoUrl ? (
-                        <img src={userData.photoUrl} alt="Profil" className="w-full h-full object-cover" />
-                    ) : (
-                        <UserIcon className="w-5 h-5" />
-                    )}
-                </div>
-            </button>
-         )}
-         {showCoachButton && onCoachAccessRequest && (
-            <button onClick={onCoachAccessRequest} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-800 dark:text-white" aria-label="Coach-åtkomst">
-                <BriefcaseIcon className="w-6 h-6" />
-            </button>
-         )}
-         {themeToggleButton}
-         {onSignOut && (
-            <button onClick={onSignOut} className="text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors text-lg font-semibold px-2">
-                Logga ut
-            </button>
-         )}
-      </div>
-    </header>
+        <div className="flex-1 flex justify-end items-center gap-4">
+            {showClock && <DigitalClock />}
+            {page !== Page.MemberProfile && onMemberProfileRequest && !isStudioMode && (
+                <button onClick={onMemberProfileRequest} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-800 dark:text-white" aria-label="Min Profil">
+                    <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold border border-primary/20 overflow-hidden shadow-sm">
+                        {userData?.photoUrl ? (
+                            <img src={userData.photoUrl} alt="Profil" className="w-full h-full object-cover" />
+                        ) : (
+                            <UserIcon className="w-5 h-5" />
+                        )}
+                    </div>
+                </button>
+            )}
+            {showCoachButton && onCoachAccessRequest && (
+                <button onClick={onCoachAccessRequest} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-800 dark:text-white" aria-label="Coach-åtkomst">
+                    <BriefcaseIcon className="w-6 h-6" />
+                </button>
+            )}
+            {themeToggleButton}
+            {onSignOut && (
+                <button onClick={onSignOut} className="text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors text-lg font-semibold px-2">
+                    Logga ut
+                </button>
+            )}
+        </div>
+        </header>
+        
+        {/* Render fixed bottom back button if configured */}
+        {navPosition === 'bottom' && renderBackButton()}
+    </>
   );
 };
