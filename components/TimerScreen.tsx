@@ -439,13 +439,24 @@ const StandardListView: React.FC<{
     const count = exercises.length;
     const isLargeList = count > 12 || isHyrox; 
     
-    // Reps size logic
-    let repsSize = 'text-3xl md:text-4xl';
-    if (isLargeList) repsSize = 'text-xl md:text-2xl';
-    else if (!showDescriptions && count <= 5) repsSize = 'text-5xl md:text-6xl';
-    else if (!showDescriptions && count <= 8) repsSize = 'text-4xl md:text-5xl';
-    else if (showDescriptions) repsSize = 'text-3xl md:text-4xl';
-    else repsSize = 'text-4xl md:text-5xl'; // Default clean mode
+    // NEW REPS SIZE LOGIC
+    let repsSize = 'text-5xl md:text-6xl';
+    let repsPadding = 'px-6 py-4';
+
+    if (isHyrox) {
+        repsSize = 'text-xl md:text-2xl';
+        repsPadding = 'px-4 py-2';
+    } else if (count > 12) {
+        repsSize = 'text-3xl md:text-4xl';
+        repsPadding = 'px-5 py-3';
+    } else if (!showDescriptions && count <= 5) {
+        repsSize = 'text-7xl md:text-9xl';
+    } else if (!showDescriptions && count <= 8) {
+        repsSize = 'text-6xl md:text-8xl';
+    } else {
+        // Standard (With descriptions or medium count)
+        repsSize = 'text-5xl md:text-6xl';
+    }
 
     // Padding logic
     const padding = isHyrox ? 'pl-16 pr-6 py-2' : isLargeList ? 'pl-8 pr-4 py-2' : count > 6 ? 'pl-8 pr-6 py-3' : 'px-10 py-4';
@@ -487,7 +498,7 @@ const StandardListView: React.FC<{
                     >
                         <div className="flex items-center w-full gap-6 md:gap-8">
                             {ex.reps && (
-                                <span className={`font-mono font-black text-primary bg-primary/5 px-4 py-2 rounded-2xl whitespace-nowrap border border-primary/10 shrink-0 ${repsSize}`}>
+                                <span className={`font-mono font-black text-primary bg-primary/5 ${repsPadding} rounded-2xl whitespace-nowrap border border-primary/10 shrink-0 ${repsSize}`}>
                                     {formatReps(ex.reps)}
                                 </span>
                             )}
