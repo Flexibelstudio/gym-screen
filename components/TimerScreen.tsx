@@ -1,5 +1,4 @@
 
-// ... existing imports ...
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout, TimerSegment } from '../types';
@@ -12,9 +11,7 @@ import { ParticipantFinishList } from './timer/ParticipantFinishList';
 import { DumbbellIcon, InformationCircleIcon, LightningIcon, SparklesIcon, ChevronRightIcon, ClockIcon, PlayIcon } from './icons';
 import { useStudio } from '../context/StudioContext';
 
-// ... existing constants and helpers ...
-
-// ... (KEEP ALL EXISTING HELPER FUNCTIONS & COMPONENTS like TimerStyle, getTimerStyle, etc. UNCHANGED) ...
+// --- Constants ---
 const HYROX_RIGHT_PANEL_WIDTH = '450px';
 
 // --- Helper Components & Interfaces ---
@@ -617,9 +614,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [controlsVisible, setControlsVisible] = React.useState(false);
   const hideTimeoutRef = React.useRef<number | null>(null);
   const wakeLockRef = useRef<any>(null);
-  
-  // Get navigation position preference (default top)
-  const navPos = studioConfig.navigationControlPosition || 'top';
 
   // --- TRANSITION LOGIC ---
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -1100,7 +1094,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       {isLobbyMode && (
           <button
               onClick={() => onFinish({ isNatural: false })}
-              className={`fixed ${navPos === 'bottom' ? 'bottom-8' : 'top-8'} left-8 z-[60] bg-black/20 hover:bg-black/40 text-white backdrop-blur-md px-6 py-3 rounded-full font-bold transition-all flex items-center gap-3 border border-white/10 shadow-lg group`}
+              className="fixed top-8 left-8 z-[60] bg-black/20 hover:bg-black/40 text-white backdrop-blur-md px-6 py-3 rounded-full font-bold transition-all flex items-center gap-3 border border-white/10 shadow-lg group"
           >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
