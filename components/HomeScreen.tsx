@@ -209,8 +209,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   };
 
   const logoUrl = theme === 'dark' ? organizationLogoUrlDark || organizationLogoUrlLight : organizationLogoUrlLight || organizationLogoUrlDark;
-  const showQrCode = studioConfig.checkInImageEnabled && studioConfig.checkInImageUrl;
-
+  
   const renderBranding = () => {
       if (studioLoading || (!selectedOrganization && !logoUrl)) {
           return <div className="h-16 md:h-24 w-48 bg-transparent"></div>;
@@ -256,12 +255,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             {currentTime.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
                         </span>
                     </motion.div>
-                    
-                    {showQrCode && (
-                        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.4 }} className="bg-white p-2.5 rounded-2xl shadow-xl border border-gray-100 flex flex-col items-center">
-                            <img src={studioConfig.checkInImageUrl} alt="QR" className="w-16 h-16 object-contain" />
-                        </motion.div>
-                    )}
                 </div>
             </div>
 
