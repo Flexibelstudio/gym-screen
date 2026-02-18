@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "gym-screen"
-  }
+    "default": "gym-screen",
+    "smartskärm-staging": "smartskarm-staging"
+  },
+  "targets": {},
+  "etags": {}
 }

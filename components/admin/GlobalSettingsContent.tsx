@@ -53,6 +53,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                 <section>
                     <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Funktioner & Moduler</h4>
                     <div className="space-y-4">
+                        {/* ... Existing toggles ... */}
                         <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch 
                                 label="HYROX-modul" 
@@ -201,6 +202,20 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                             </SelectField>
                             <p className="text-xs text-gray-500 mt-2">
                                 Lägger till subtila visuella effekter (t.ex. snö, konfetti) ovanpå din befintliga design.
+                            </p>
+                        </div>
+                        
+                         <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                            <SelectField 
+                                label="Navigering (Knappar)" 
+                                value={config.navigationControlPosition || 'top'} 
+                                onChange={(val) => handleUpdateConfigField('navigationControlPosition', val as 'top' | 'bottom')}
+                            >
+                                <option value="top">Överkant (Standard)</option>
+                                <option value="bottom">Nederkant (För höga skärmar)</option>
+                            </SelectField>
+                            <p className="text-xs text-gray-500 mt-2">
+                                Bestämmer om tillbaka-knappar ska placeras högst upp eller längst ner på skärmen. Bra om skärmarna är monterade högt.
                             </p>
                         </div>
                     </div>

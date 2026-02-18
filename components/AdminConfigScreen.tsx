@@ -11,6 +11,7 @@ import { Toast } from './ui/Notification';
 type BooleanStudioConfigKeys = 'checkInImageEnabled' | 'enableNotes' | 'enableScreensaver' | 'enableExerciseBank' | 'enableHyrox' | 'enableWorkoutLogging';
 type ConfigTab = 'modules' | 'categories' | 'checkin';
 
+// ... (ImageUploader component remains unchanged) ...
 // --- Sub-component for uploading images ---
 const ImageUploader: React.FC<{
   label: string;
@@ -177,8 +178,6 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
             } else {
                 newOverrides[key] = value;
             }
-            
-            // Special cleanup: if disabling logging, maybe clear AI settings? (Optional, kept simple for now)
             return newOverrides;
         });
     };
@@ -192,8 +191,8 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
         }
         setOverrides(prev => ({ ...prev, [key]: value }));
     };
-
-    // Helper for nested AI settings changes
+    
+    // ... (handleAiConfigChange and resetFieldToGlobal) ...
     const handleAiConfigChange = (field: 'instructions' | 'tone', value: string) => {
         setOverrides(prev => ({
             ...prev,
@@ -214,13 +213,8 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
 
     const handleSave = async () => {
         setIsSaving(true);
-        // Calculate diff to only save overrides
-        // (Existing logic relies on 'overrides' state which is already a diff map)
-        
         await onSave(organization.id, studio.id, overrides);
         setIsSaving(false);
-        // Close with a slight delay so they see a "Success" if we had a toast, 
-        // but since we close immediately we rely on the parent or a quick feedback.
         onClose();
     };
     
@@ -286,15 +280,11 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                 return (
                     <div className="space-y-4 animate-fade-in">
                         <h3 className="font-semibold text-gray-900 dark:text-white mb-2 px-2">Funktioner</h3>
-                        
                         {renderToggle('enableWorkoutLogging', "Aktivera Passloggning", "Låt medlemmar logga sina resultat via QR-kod.", () => setShowPricingModal(true))}
                         
-                        {/* --- AI CONFIGURATION (CONDITIONAL) --- */}
-                        {/* Detta visas BARA om Passloggning är aktiverat */}
                         {effectiveConfig.enableWorkoutLogging && (
                             <div className="ml-14 mr-4 mb-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border-l-4 border-primary animate-fade-in">
                                 <h4 className="font-bold text-sm text-gray-900 dark:text-white mb-3">🤖 AI-Coach Inställningar</h4>
-                                
                                 <div className="space-y-4">
                                     <div>
                                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Tonläge</label>
@@ -322,7 +312,6 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                                 </div>
                             </div>
                         )}
-
                         {renderToggle('enableNotes', "Aktivera 'Idé-tavlan'", "Whiteboard för coacher.")}
                         {renderToggle('enableExerciseBank', "Aktivera Övningsbank", "Tillgång till globala övningar.")}
                         {renderToggle('enableHyrox', "Aktivera HYROX-modul", "Tävlingsläge och tidtagning.")}
@@ -330,12 +319,12 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                 );
 
             case 'categories':
-                const isOverridden = overrides.customCategories !== undefined;
+                const isOverriddenCat = overrides.customCategories !== undefined;
                 return (
                       <div className="space-y-4 animate-fade-in px-2">
                         <div className="flex justify-between items-center mb-4">
                             <h4 className="font-semibold">Anpassade Passkategorier</h4>
-                            {isOverridden ? (
+                            {isOverriddenCat ? (
                                 <button onClick={() => resetFieldToGlobal('customCategories')} className="text-xs text-yellow-500 hover:underline">Återställ till global</button>
                             ) : (
                                 <span className="text-xs text-gray-500">Ärvd från global</span>
@@ -369,10 +358,22 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                             </select>
                         </div>
 
+                         <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
+                             <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Navigering (Knappar)</h3>
+                             <p className="text-xs text-gray-500 mb-2">Anpassa var knapparna för "Tillbaka" och "Stäng" ska visas. Bra om skärmen sitter högt upp.</p>
+                             <select 
+                                value={overrides.navigationControlPosition ?? effectiveConfig.navigationControlPosition ?? 'top'}
+                                onChange={(e) => setOverrides({ ...overrides, navigationControlPosition: e.target.value as 'top' | 'bottom' })}
+                                className="w-full p-3 rounded-lg bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white"
+                            >
+                                <option value="top">Överkant (Standard)</option>
+                                <option value="bottom">Nederkant (För höga skärmar)</option>
+                            </select>
+                        </div>
+
                         <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
                             {renderToggle('enableScreensaver', "Skärmsläckare", "Visa logotyp vid inaktivitet.")}
                             
-                            {/* Conditional Screensaver Timeout */}
                             {effectiveConfig.enableScreensaver && (
                                 <div className="mt-4 ml-14 flex items-center gap-4 animate-fade-in">
                                     <label className="text-sm text-gray-700 dark:text-gray-300">
@@ -415,10 +416,8 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
     return (
         <>
         <Toast isVisible={toast.visible} message={toast.message} onClose={() => setToast({ ...toast, visible: false })} />
-        
         <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-[1001] p-4 animate-fade-in" onClick={onClose}>
             <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-2xl text-gray-900 dark:text-white shadow-2xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
-                
                 {/* Header */}
                 <div className="p-6 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
                     <div>
@@ -429,19 +428,16 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                         <CloseIcon className="w-6 h-6 text-gray-500" />
                     </button>
                 </div>
-
                 {/* Tabs */}
                 <div className="px-6 pt-2 flex gap-4 border-b border-gray-200 dark:border-gray-800">
                     <TabButton tab="modules" label="Moduler & Funktioner" />
                     <TabButton tab="checkin" label="Tema & Skärm" />
                     <TabButton tab="categories" label="Kategorier" />
                 </div>
-
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6">
                     {renderContent()}
                 </div>
-
                 {/* Footer */}
                 <div className="p-6 border-t border-gray-200 dark:border-gray-800 flex gap-4">
                     <button onClick={onClose} className="flex-1 py-3 rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 font-medium transition-colors">
@@ -457,11 +453,11 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                 </div>
             </div>
         </div>
-
-        {/* PRICING MODAL (Inline implementation to avoid extra files) */}
+        {/* Pricing Modal */}
         {showPricingModal && (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[1002] p-4 animate-fade-in" onClick={() => setShowPricingModal(false)}>
+             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[1002] p-4 animate-fade-in" onClick={() => setShowPricingModal(false)}>
                 <div className="bg-white dark:bg-gray-900 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+                    {/* ... Pricing modal content ... */}
                     <div className="p-6 bg-gradient-to-br from-blue-600 to-indigo-700 text-white text-center">
                         <h3 className="text-2xl font-black mb-1">Aktivera Passloggning 🚀</h3>
                         <p className="text-blue-100 text-sm">Ge dina medlemmar en modern träningsupplevelse</p>
@@ -472,8 +468,8 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                             <p>✅ <strong>För medlemmar:</strong> Logga resultat, se progression och få AI-feedback.</p>
                             <p>✅ <strong>För gymmet:</strong> Ökad retention, data och automatisk merförsäljning.</p>
                         </div>
-
-                        <div className="space-y-4">
+                         {/* ... costs ... */}
+                         <div className="space-y-4">
                             <div className="flex justify-between items-center p-3 rounded-lg bg-gray-100 dark:bg-gray-800">
                                 <span className="font-medium">Licenskostnad</span>
                                 <span className="font-bold">{baseCost} kr / mån</span>
@@ -501,7 +497,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                             <p className="text-xs text-green-700/70 dark:text-green-400/70 mt-1">(vid 100 medlemmar)</p>
                         </div>
                     </div>
-
+                    
                     <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex gap-3">
                         <button onClick={() => setShowPricingModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">Avbryt</button>
                         <button 

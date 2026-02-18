@@ -8,7 +8,7 @@ import { saveRace, updateOrganizationActivity } from '../services/firebaseServic
 import { Confetti } from './WorkoutCompleteModal';
 import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmationModal, RaceFinishAnimation, PauseOverlay } from './timer/TimerModals';
 import { ParticipantFinishList } from './timer/ParticipantFinishList';
-import { DumbbellIcon, InformationCircleIcon, LightningIcon, SparklesIcon, ChevronRightIcon, ClockIcon, PlayIcon } from './icons';
+import { DumbbellIcon, InformationCircleIcon, LightningIcon, SparklesIcon, ChevronRightIcon, ClockIcon, PlayIcon, SettingsIcon, RefreshIcon } from './icons'; // Added SettingsIcon if available, else standard icons
 import { useStudio } from '../context/StudioContext';
 
 // --- Constants ---
@@ -434,49 +434,30 @@ const StandardListView: React.FC<{
     timerStyle: TimerStyle,
     forceFullHeight?: boolean,
     isHyrox?: boolean,
-    showDescriptions: boolean
-}> = ({ exercises, timerStyle, forceFullHeight = true, isHyrox = false, showDescriptions }) => {
+    showDescriptions: boolean,
+    textSizeScale?: number, // NEW PROP
+    repsSizeScale?: number  // NEW PROP
+}> = ({ exercises, timerStyle, forceFullHeight = true, isHyrox = false, showDescriptions, textSizeScale = 1, repsSizeScale = 1 }) => {
     const count = exercises.length;
     const isLargeList = count > 12 || isHyrox; 
     
-    // Reps size logic
-    let repsSize = 'text-3xl md:text-4xl';
-    if (isLargeList) repsSize = 'text-xl md:text-2xl';
-    else if (!showDescriptions && count <= 5) repsSize = 'text-5xl md:text-6xl';
-    else if (!showDescriptions && count <= 8) repsSize = 'text-4xl md:text-5xl';
-    else if (showDescriptions) repsSize = 'text-3xl md:text-4xl';
-    else repsSize = 'text-4xl md:text-5xl'; // Default clean mode
+    // --- NY LOGIK FÖR STORLEKAR (REM-baserad + Skalning) ---
+    // Vi definierar en "Bas" för Standardläget och multiplicerar med skalningen.
+    
+    // Standardstorlekar i REM
+    const titleBaseRem = isHyrox ? 1.5 : 2.25; // ~text-2xl / text-4xl
+    const repsBaseRem = isHyrox ? 1.25 : 3;    // ~text-xl / text-5xl
 
-    // Padding logic
+    const calculatedTitleSize = `${titleBaseRem * textSizeScale}rem`;
+    const calculatedRepsSize = `${repsBaseRem * repsSizeScale}rem`;
+
+    // Padding logic (behåller standard-Tailwind för enkelhet, men kan skalas om man vill)
     const padding = isHyrox ? 'pl-16 pr-6 py-2' : isLargeList ? 'pl-8 pr-4 py-2' : count > 6 ? 'pl-8 pr-6 py-3' : 'px-10 py-4';
     const gap = isLargeList ? 'gap-1' : count > 6 ? 'gap-2' : 'gap-4';
 
     return (
         <div className={`w-full h-full flex flex-col ${gap} overflow-hidden pb-1`}>
             {exercises.map((ex) => {
-                const nameLen = ex.name.length;
-                let titleSize = '';
-
-                if (!showDescriptions && !isHyrox) {
-                    // CLEAN MODE (No descriptions) - MAXIMIZE TEXT
-                    if (count <= 4) {
-                         titleSize = nameLen > 20 ? 'text-5xl md:text-7xl' : 'text-6xl md:text-8xl';
-                    } else if (count <= 8) {
-                         titleSize = nameLen > 25 ? 'text-4xl md:text-6xl' : 'text-5xl md:text-7xl';
-                    } else {
-                         titleSize = nameLen > 25 ? 'text-2xl md:text-4xl' : 'text-3xl md:text-5xl';
-                    }
-                } else {
-                    // DETAILED MODE OR HYROX
-                    if (isLargeList) {
-                        titleSize = nameLen > 25 ? 'text-lg sm:text-xl md:text-2xl' : 'text-xl sm:text-2xl md:text-3xl';
-                    } else if (count <= 6) {
-                        titleSize = nameLen > 25 ? 'text-3xl md:text-5xl' : 'text-4xl md:text-6xl';
-                    } else {
-                         titleSize = nameLen > 25 ? 'text-2xl md:text-4xl' : 'text-3xl md:text-5xl';
-                    }
-                }
-
                 return (
                     <div 
                         key={ex.id} 
@@ -487,18 +468,24 @@ const StandardListView: React.FC<{
                     >
                         <div className="flex items-center w-full gap-6 md:gap-8">
                             {ex.reps && (
-                                <span className={`font-mono font-black text-primary bg-primary/5 px-4 py-2 rounded-2xl whitespace-nowrap border border-primary/10 shrink-0 ${repsSize}`}>
+                                <span 
+                                    className={`font-mono font-black text-primary bg-primary/5 px-6 py-3 rounded-2xl whitespace-nowrap border border-primary/10 shrink-0`}
+                                    style={{ fontSize: calculatedRepsSize }}
+                                >
                                     {formatReps(ex.reps)}
                                 </span>
                             )}
-                            <h4 className={`font-black text-gray-900 dark:text-white leading-[0.9] tracking-tight overflow-visible whitespace-normal transition-all duration-300 ${titleSize}`}>
+                            <h4 
+                                className={`font-black text-gray-900 dark:text-white leading-[0.9] tracking-tight overflow-visible whitespace-normal transition-all duration-300`}
+                                style={{ fontSize: calculatedTitleSize }}
+                            >
                                 {ex.name}
                             </h4>
                         </div>
 
                         {ex.description && showDescriptions && !isHyrox && count <= 8 && (
                             <div className="mt-3 hidden sm:block pl-1">
-                                <p className={`font-medium text-gray-600 dark:text-gray-300 leading-snug text-xl md:text-2xl line-clamp-2`}>
+                                <p className={`font-medium text-gray-600 dark:text-gray-300 leading-snug line-clamp-2`} style={{ fontSize: `calc(${calculatedTitleSize} * 0.6)` }}>
                                     {ex.description}
                                 </p>
                             </div>
@@ -600,9 +587,33 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   // LOBBY MODE STATE - Default to TRUE unless auto-transition
   const [isLobbyMode, setIsLobbyMode] = useState(!isAutoTransition);
 
+  // --- NEW STATES FOR TEXT/REPS SIZE ---
+  const [textSizeScale, setTextSizeScale] = useState(1);
+  const [repsSizeScale, setRepsSizeScale] = useState(1);
+
+  useEffect(() => {
+      const storedText = localStorage.getItem('timer-text-scale');
+      const storedReps = localStorage.getItem('timer-reps-scale');
+      if (storedText) setTextSizeScale(parseFloat(storedText));
+      if (storedReps) setRepsSizeScale(parseFloat(storedReps));
+  }, []);
+
+  const handleSizeChange = (type: 'text' | 'reps', val: number) => {
+      if (type === 'text') {
+          setTextSizeScale(val);
+          localStorage.setItem('timer-text-scale', val.toString());
+      } else {
+          setRepsSizeScale(val);
+          localStorage.setItem('timer-reps-scale', val.toString());
+      }
+  };
+
   const [controlsVisible, setControlsVisible] = React.useState(false);
   const hideTimeoutRef = React.useRef<number | null>(null);
   const wakeLockRef = useRef<any>(null);
+  
+  // Get navigation position preference (default top)
+  const navPos = studioConfig.navigationControlPosition || 'top';
 
   // --- TRANSITION LOGIC ---
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -1046,7 +1057,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     return 2 + block.exercises.length;
   };
 
-  const handleInteraction = () => { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); restartHideTimer(); };
+  const handleInteraction = () => { setControlsVisible(true); onHeaderVisibilityChange(true); /* Back button hidden while running */ restartHideTimer(); };
   const restartHideTimer = React.useCallback(() => {
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     if (status === TimerStatus.Running || status === TimerStatus.Resting || status === TimerStatus.Preparing || isTransitioning) {
@@ -1083,7 +1094,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       {isLobbyMode && (
           <button
               onClick={() => onFinish({ isNatural: false })}
-              className="fixed top-8 left-8 z-[60] bg-black/20 hover:bg-black/40 text-white backdrop-blur-md px-6 py-3 rounded-full font-bold transition-all flex items-center gap-3 border border-white/10 shadow-lg group"
+              className={`fixed ${navPos === 'bottom' ? 'bottom-8' : 'top-8'} left-8 z-[60] bg-black/20 hover:bg-black/40 text-white backdrop-blur-md px-6 py-3 rounded-full font-bold transition-all flex items-center gap-3 border border-white/10 shadow-lg group`}
           >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -1157,13 +1168,67 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       >
         {/* LOBBY START BUTTON OVERLAY */}
         {isLobbyMode && (
-             <div className="absolute inset-0 z-50 flex items-center justify-center">
+             <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-8">
                  <button 
                     onClick={handleLobbyStart}
                     className="bg-white text-black hover:scale-110 transition-transform duration-200 rounded-full p-6 shadow-2xl border-4 border-white/50 group"
                  >
                     <PlayIcon className="w-16 h-16 ml-1 fill-current group-hover:text-primary transition-colors" />
                  </button>
+
+
+                 {/* SETTINGS PANEL (TEXT SIZE SLIDERS) - Hide in Follow Me mode AND Freestanding mode */}
+                 {!block.followMe && block.tag !== 'Fristående' && (
+                     <div className="bg-black/60 backdrop-blur-md p-6 rounded-3xl border border-white/10 w-[90%] max-w-md animate-fade-in flex flex-col gap-4">
+                        <h3 className="text-white font-bold text-center uppercase tracking-widest text-xs mb-2">Justera Vy</h3>
+                        
+                        {/* Text Size Slider */}
+                        <div>
+                            <div className="flex justify-between text-xs font-bold text-white/70 mb-1">
+                                <span>Textstorlek</span>
+                                <span>{Math.round(textSizeScale * 100)}%</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                min="0.8" 
+                                max="2.5" 
+                                step="0.1" 
+                                value={textSizeScale} 
+                                onChange={(e) => handleSizeChange('text', parseFloat(e.target.value))}
+                                className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-primary"
+                            />
+                        </div>
+
+                        {/* Reps Size Slider */}
+                        <div>
+                            <div className="flex justify-between text-xs font-bold text-white/70 mb-1">
+                                <span>Reps-storlek</span>
+                                <span>{Math.round(repsSizeScale * 100)}%</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                min="0.8" 
+                                max="3.0" 
+                                step="0.1" 
+                                value={repsSizeScale} 
+                                onChange={(e) => handleSizeChange('reps', parseFloat(e.target.value))}
+                                className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-primary"
+                            />
+                        </div>
+
+                        <div className="pt-2 border-t border-white/10 flex justify-center">
+                            <button 
+                                onClick={() => {
+                                    handleSizeChange('text', 1.0);
+                                    handleSizeChange('reps', 1.0);
+                                }}
+                                className="text-[10px] text-white/50 hover:text-white uppercase font-bold tracking-wider flex items-center gap-1"
+                            >
+                                <RefreshIcon className="w-3 h-3" /> Återställ
+                            </button>
+                        </div>
+                     </div>
+                 )}
              </div>
         )}
 
@@ -1289,6 +1354,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                         timerStyle={timerStyle} 
                                         isHyrox={isHyroxRace} 
                                         showDescriptions={block.showExerciseDescriptions !== false} // PASS THE PROP
+                                        textSizeScale={textSizeScale}
+                                        repsSizeScale={repsSizeScale}
                                     />
                                 )}
                             </div>

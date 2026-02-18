@@ -1,4 +1,4 @@
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { setGlobalOptions } = require("firebase-functions/v2");
 const admin = require("firebase-admin");
 
@@ -70,7 +70,7 @@ exports.flexUpdateUserRole = onCall(async (request) => {
   // 2. Hämta den användare vi ska ändra på
   const targetUserDoc = await admin.firestore().collection("users").doc(targetUid).get();
   if (!targetUserDoc.exists) {
-    throw new HttpsError("not-found", "Användaren hittades inte.");
+    throw new HttpsError("not-found", "Användaren finns inte.");
   }
   const targetUserData = targetUserDoc.data();
 
@@ -154,4 +154,185 @@ exports.flexInviteUser = onCall(async (request) => {
   await admin.firestore().collection("users").doc(userRecord.uid).set(newUserDoc);
 
   return { success: true, uid: userRecord.uid };
+});
+
+/**
+ * --- API-BRYGGA: Ta emot pass från externa system ---
+ * Denna funktion är en vanlig HTTP endpoint (Webhook).
+ * Den tar emot JSON-data, loggar passet och kollar efter Personbästa (PB).
+ */
+exports.receiveExternalWorkout = onRequest(async (req, res) => {
+  // 1. CORS Headers (Tillåt anrop från din andra app)
+  res.set('Access-Control-Allow-Origin', '*');
+  
+  if (req.method === 'OPTIONS') {
+    res.set('Access-Control-Allow-Methods', 'POST');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.status(204).send('');
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    res.status(405).send('Method Not Allowed');
+    return;
+  }
+
+  try {
+    const data = req.body;
+    
+    // 2. Validering (Enkel säkerhetskoll)
+    // I en skarp version bör du byta ut "hemlig-nyckel" mot en env variabel eller hämta från databasen.
+    const SECRET_KEY = "smart-skarm-bridge-secret"; 
+    
+    if (data.secretKey !== SECRET_KEY) {
+      console.warn("Unauthorized attempt to log workout");
+      res.status(403).send('Unauthorized');
+      return;
+    }
+
+    if (!data.organizationId || !data.user || !data.workout) {
+      res.status(400).send('Missing required fields (organizationId, user, workout)');
+      return;
+    }
+
+    const db = admin.firestore();
+    const { organizationId, user, workout } = data;
+
+    // 3. Hitta eller skapa användare i Smart Skärm
+    // Vi använder e-post för att matcha användare mellan systemen.
+    let userId = null;
+    let userPhotoUrl = null;
+    let userName = user.name || "Okänd Atlet";
+
+    const userQuery = await db.collection("users").where("email", "==", user.email).limit(1).get();
+    
+    if (!userQuery.empty) {
+      const userDoc = userQuery.docs[0];
+      userId = userDoc.id;
+      const userData = userDoc.data();
+      userPhotoUrl = userData.photoUrl || null;
+      // Använd namnet från Smart Skärm om det finns, annars det inskickade
+      userName = userData.firstName ? `${userData.firstName} ${userData.lastName || ''}` : userName;
+    } else {
+      // Användaren finns inte - skapa en "Shadow User" så vi kan spara PBn
+      const newUserRef = db.collection("users").doc();
+      userId = newUserRef.id;
+      await newUserRef.set({
+        email: user.email,
+        firstName: user.name.split(" ")[0] || "Extern",
+        lastName: user.name.split(" ").slice(1).join(" ") || "Användare",
+        organizationId: organizationId,
+        role: "member",
+        isExternal: true, // Flagga för att visa att denna kommer utifrån
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
+      });
+      console.log(`Created shadow user for ${user.email}`);
+    }
+
+    // 4. Skapa loggen (Workout Log) -> Detta syns i Community Feed
+    const logRef = db.collection("workoutLogs").doc();
+    const logEntry = {
+      id: logRef.id,
+      memberId: userId,
+      organizationId: organizationId,
+      workoutId: workout.id || "external_id",
+      workoutTitle: workout.title || "Externt Pass",
+      date: workout.date || Date.now(),
+      source: "external_api",
+      memberName: userName,
+      memberPhotoUrl: userPhotoUrl,
+      // Spara hela rådatan ifall vi vill visa detaljer senare
+      exerciseResults: workout.exercises.map(ex => ({
+        exerciseName: ex.name,
+        weight: ex.weight || null,
+        reps: ex.reps || null,
+        sets: ex.sets || 1
+      })),
+      comment: workout.comment || "Loggat från medlemsappen",
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
+    };
+
+    await logRef.set(logEntry);
+
+    // 5. PB-Detektiven: Kolla efter nya rekord
+    const newRecords = [];
+    const pbCollectionRef = db.collection("users").doc(userId).collection("personalBests");
+    const currentPBsSnap = await pbCollectionRef.get();
+    const currentPBs = {};
+    
+    currentPBsSnap.forEach(doc => {
+      const pb = doc.data();
+      // Normalisera nyckeln (små bokstäver, trim) för enklare matchning
+      const key = pb.exerciseName.toLowerCase().trim();
+      currentPBs[key] = pb.weight;
+    });
+
+    const batch = db.batch();
+
+    // Loopa genom inskickade övningar
+    if (workout.exercises && Array.isArray(workout.exercises)) {
+      for (const exercise of workout.exercises) {
+        if (exercise.weight && exercise.weight > 0 && exercise.name) {
+          const normName = exercise.name.toLowerCase().trim();
+          const currentMax = currentPBs[normName] || 0;
+
+          // Om vikten är högre än nuvarande max -> NYTT PB!
+          if (exercise.weight > currentMax) {
+            const diff = exercise.weight - currentMax;
+            
+            // Skapa ett "säkert" ID för dokumentet
+            const pbId = normName.replace(/[^a-z0-9]/g, "_");
+            const pbRef = pbCollectionRef.doc(pbId);
+
+            batch.set(pbRef, {
+              id: pbId,
+              exerciseName: exercise.name, // Spara det "fina" namnet
+              weight: exercise.weight,
+              date: Date.now(),
+              source: "external"
+            });
+
+            newRecords.push({
+              exerciseName: exercise.name,
+              weight: exercise.weight,
+              diff: parseFloat(diff.toFixed(2))
+            });
+          }
+        }
+      }
+    }
+
+    // 6. Om vi hittade nya rekord -> Skapa Event för TV-skärmen
+    if (newRecords.length > 0) {
+      const eventRef = db.collection("studio_events").doc();
+      batch.set(eventRef, {
+        id: eventRef.id,
+        type: "pb", // Detta triggar animationen i PBOverlay.tsx
+        organizationId: organizationId,
+        timestamp: Date.now(),
+        data: {
+          userName: userName,
+          userPhotoUrl: userPhotoUrl,
+          records: newRecords
+        }
+      });
+      
+      // Uppdatera även loggen med PB-info för historikens skull
+      batch.update(logRef, { newPBs: newRecords });
+    }
+
+    // Kör alla DB-uppdateringar
+    await batch.commit();
+
+    // 7. Klart!
+    res.json({ 
+      success: true, 
+      message: "Workout processed", 
+      newRecordsCount: newRecords.length 
+    });
+
+  } catch (error) {
+    console.error("Error processing external workout:", error);
+    res.status(500).send("Internal Server Error");
+  }
 });
