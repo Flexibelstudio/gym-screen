@@ -1176,8 +1176,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                     <PlayIcon className="w-16 h-16 ml-1 fill-current group-hover:text-primary transition-colors" />
                  </button>
 
-                 {/* SETTINGS PANEL (TEXT SIZE SLIDERS) - Hide in Follow Me mode */}
-                 {!block.followMe && (
+
+                 {/* SETTINGS PANEL (TEXT SIZE SLIDERS) - Hide in Follow Me mode AND Freestanding mode */}
+                 {!block.followMe && block.tag !== 'Fristående' && (
                      <div className="bg-black/60 backdrop-blur-md p-6 rounded-3xl border border-white/10 w-[90%] max-w-md animate-fade-in flex flex-col gap-4">
                         <h3 className="text-white font-bold text-center uppercase tracking-widest text-xs mb-2">Justera Vy</h3>
                         
