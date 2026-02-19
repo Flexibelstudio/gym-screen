@@ -561,6 +561,8 @@ interface TimerScreenProps {
     organization: Organization | null;
     onBackToGroups: () => void;
     isAutoTransition?: boolean;
+    // NEW PROP: Remote Command
+    remoteCommand?: { type: string, timestamp: number } | null;
 }
 
 interface FinishData { time: number; placement: number | null; }
@@ -569,7 +571,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     block, onFinish, onHeaderVisibilityChange, onShowImage,
     setCompletionInfo, setIsRegisteringHyroxTime,
     setIsBackButtonHidden, followMeShowImage, organization, onBackToGroups,
-    isAutoTransition = false
+    isAutoTransition = false,
+    remoteCommand
 }) => {
   const { activeWorkout } = useWorkout();
   const { studioConfig } = useStudio(); 
@@ -614,6 +617,39 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   
   // Get navigation position preference (default top)
   const navPos = studioConfig.navigationControlPosition || 'top';
+
+  // --- REMOTE CONTROL LISTENER ---
+  useEffect(() => {
+      if (remoteCommand) {
+          switch (remoteCommand.type) {
+              case 'start':
+              case 'resume':
+                  if (status === TimerStatus.Idle) {
+                      setIsLobbyMode(false);
+                      start();
+                  } else if (status === TimerStatus.Paused) {
+                      resume();
+                  }
+                  break;
+              case 'pause':
+                  if (status === TimerStatus.Running || status === TimerStatus.Resting || status === TimerStatus.Preparing) {
+                      pause();
+                  }
+                  break;
+              case 'reset':
+                  // Reset confirms usually, but remote is forced
+                  setIsLobbyMode(true);
+                  reset();
+                  break;
+              case 'finish':
+                  onFinish({ isNatural: false });
+                  break;
+              default:
+                  break;
+          }
+      }
+  }, [remoteCommand, start, pause, resume, reset, status, onFinish]);
+
 
   // --- TRANSITION LOGIC ---
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -1091,7 +1127,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         onTouchStart={handleInteraction}
     >
       {/* NEW BACK BUTTON FOR LOBBY MODE */}
-      {isLobbyMode && (
+      {/* IMPORTANT: This should be visible if isLobbyMode OR isActuallyFinishedOrIdle */}
+      {/* UPDATE: Also visible if paused to allow exit */}
+      {(isLobbyMode || isActuallyFinishedOrIdle || isActuallyPaused) && (
           <button
               onClick={() => onFinish({ isNatural: false })}
               className={`fixed ${navPos === 'bottom' ? 'bottom-8' : 'top-8'} left-8 z-[60] bg-black/20 hover:bg-black/40 text-white backdrop-blur-md px-6 py-3 rounded-full font-bold transition-all flex items-center gap-3 border border-white/10 shadow-lg group`}
@@ -1099,7 +1137,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              <span>TILLBAKA</span>
+              <span>{isActuallyPaused ? 'AVSLUTA' : 'TILLBAKA'}</span>
           </button>
       )}
 

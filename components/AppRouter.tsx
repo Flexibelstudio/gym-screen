@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Page, Workout, WorkoutBlock, Passkategori, CustomPage, StartGroup, UserRole, UserData, StudioConfig, Organization, WorkoutDiploma, InfoCarousel } from '../types';
 import { HomeScreen } from './HomeScreen';
@@ -53,6 +54,9 @@ interface AppRouterProps {
     preferredAdminTab: string;
     profileEditTrigger: number;
     isAutoTransition: boolean;
+
+    // NEW: Remote command
+    remoteCommand?: { type: string, timestamp: number } | null;
 
     onSelectWorkout: (workout: Workout, action?: 'view' | 'log') => void;
     onSelectPasskategori: (passkategori: Passkategori) => void;
@@ -124,7 +128,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
         page, navigateTo, handleBack, role, userData, studioConfig, selectedOrganization, allOrganizations, isStudioMode, isImpersonating, theme,
         workouts, activeWorkout, activeBlock,
         passkategoriFilter, activeCustomPage, activeRaceId, racePrepState, followMeShowImage, mobileLogData,
-        preferredAdminTab, profileEditTrigger, isAutoTransition,
+        preferredAdminTab, profileEditTrigger, isAutoTransition, remoteCommand,
         onSelectWorkout, onSelectPasskategori, onCreateNewWorkout, onStartBlock, onEditWorkout, onDeleteWorkout, onSaveWorkout, onSaveWorkoutNoNav,
         onTogglePublish, onToggleFavorite, onDuplicateWorkout, onTimerFinish,
         functions
@@ -202,6 +206,8 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 organization={selectedOrganization}
                 onBackToGroups={functions.handleReturnToGroupPrep}
                 isAutoTransition={isAutoTransition}
+                // Pass command to TimerScreen
+                remoteCommand={remoteCommand}
             />;
 
         case Page.FreestandingTimer:

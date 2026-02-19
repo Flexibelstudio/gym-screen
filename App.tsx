@@ -94,6 +94,9 @@ const App: React.FC = () => {
     }
   }, [role, authLoading, isStudioMode, history, currentUser]);
 
+  // NEW: State for passing remote commands to children
+  const [remoteCommand, setRemoteCommand] = useState<{ type: string, timestamp: number } | null>(null);
+
   // --- STUDIO RECEIVER LOGIC (TV Mode) ---
   useEffect(() => {
       if (!isStudioMode || !selectedOrganization || !selectedStudio) return;
@@ -104,6 +107,16 @@ const App: React.FC = () => {
           if (updatedStudio && updatedStudio.remoteState) {
               const remote = updatedStudio.remoteState;
               
+              // Handle Commands (Play/Pause/Reset)
+              if (remote.command && remote.commandTimestamp) {
+                  setRemoteCommand(prev => {
+                      if (!prev || prev.timestamp !== remote.commandTimestamp) {
+                          return { type: remote.command!, timestamp: remote.commandTimestamp! };
+                      }
+                      return prev;
+                  });
+              }
+
               // Kolla om vi redan har detta state (för att undvika loopar)
               // Vi använder lastUpdate timestamp för att tvinga uppdatering även om ID är samma
               
@@ -1147,6 +1160,11 @@ const App: React.FC = () => {
                     handleLogWorkoutRequest: handleLogWorkoutRequest
                 }}
             />
+            
+            {/* INVISIBLE REMOTE LISTENER: React to command state changes */}
+            {remoteCommand && (
+                <div style={{ display: 'none' }} data-command={remoteCommand.type} data-timestamp={remoteCommand.timestamp} />
+            )}
           </main>
           
           {isInfoBannerVisible && (
@@ -1160,6 +1178,7 @@ const App: React.FC = () => {
           )}
       </div>
       
+      {/* ... (Existing modals) ... */}
       <AnimatePresence>
           {isSearchWorkoutOpen && (
               <>

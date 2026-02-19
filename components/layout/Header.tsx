@@ -89,13 +89,18 @@ export const Header: React.FC<HeaderProps> = ({
     Page.StudioSelection
   ];
   
-  const canGoBack = historyLength > 1 && !pagesWithoutBack.includes(page);
+  // FIX: Force back button visibility in Studio Mode if not on Home screen
+  const isStudioContent = isStudioMode && page !== Page.Home;
+  const canGoBack = (historyLength > 1 && !pagesWithoutBack.includes(page)) || isStudioContent;
+
   const isMemberAppView = (!isStudioMode && page === Page.Home) || page === Page.MemberProfile;
 
   // Render back button depending on position config
   const renderBackButton = () => {
-      // If manually hidden or not applicable, return null (unmounts button)
-      if (!canGoBack || hideBackButton) return null;
+      // If manually hidden (e.g. running timer), return null
+      if (hideBackButton) return null;
+      // If not applicable to go back
+      if (!canGoBack) return null;
       
       const buttonContent = (
           <div className="flex items-center gap-1">

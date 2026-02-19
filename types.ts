@@ -192,6 +192,8 @@ export interface RemoteSessionState {
     activeBlockId: string | null;
     lastUpdate: number; // Timestamp to force updates
     controllerName?: string; // Name of coach controlling
+    command?: 'start' | 'pause' | 'resume' | 'reset' | 'finish'; // NEW: Command channel
+    commandTimestamp?: number; // To deduplicate commands
 }
 
 export interface Studio {

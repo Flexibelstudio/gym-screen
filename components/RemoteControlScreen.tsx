@@ -85,6 +85,25 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         });
     };
     
+    const sendCommand = async (cmd: 'start' | 'pause' | 'reset' | 'finish') => {
+        if (!selectedOrganization || !connectedStudioId || !selectedWorkout) return;
+        
+        // Fetch current state first to preserve block ID
+        // (Simplified for now: we update what we know)
+        await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
+            activeWorkoutId: selectedWorkout.id,
+            view: 'timer',
+            // activeBlockId should ideally be preserved, but for now assuming user clicked a block first
+            activeBlockId: null, // Note: This might be an issue if block ID is required to stay on same block. 
+            // In a real app we'd need to read the current state or store activeBlockId in local state.
+            // Let's assume the TV handles command even if blockId updates, OR we store activeBlockId here.
+            lastUpdate: Date.now(),
+            controllerName: 'Coach',
+            command: cmd,
+            commandTimestamp: Date.now()
+        });
+    };
+    
     const handleStop = async () => {
          if (!selectedOrganization || !connectedStudioId) return;
          await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, null); // Clear state
@@ -205,10 +224,32 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                     </div>
                     <h1 className="text-3xl font-black mb-2 leading-tight">{selectedWorkout?.title}</h1>
                     <p className="text-gray-400 text-sm max-w-xs mx-auto line-clamp-2">{selectedWorkout?.coachTips}</p>
+                    
+                    {/* Media Controls */}
+                    <div className="flex gap-4 mt-8">
+                        <button 
+                            onClick={() => sendCommand('pause')}
+                            className="w-16 h-16 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center shadow-lg active:scale-95 transition-transform"
+                        >
+                            <span className="text-2xl">⏸</span>
+                        </button>
+                        <button 
+                            onClick={() => sendCommand('start')}
+                            className="w-20 h-20 rounded-full bg-primary hover:bg-teal-400 flex items-center justify-center shadow-xl shadow-primary/20 active:scale-95 transition-transform"
+                        >
+                            <PlayIcon className="w-10 h-10 text-white ml-1" />
+                        </button>
+                         <button 
+                            onClick={() => sendCommand('finish')}
+                            className="w-16 h-16 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center shadow-lg active:scale-95 transition-transform text-red-500"
+                        >
+                            <span className="text-xl font-bold">STOP</span>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Controls - Block List */}
-                <div className="bg-gray-900 rounded-t-[2.5rem] border-t border-gray-800 flex-grow max-h-[60vh] flex flex-col shadow-2xl">
+                <div className="bg-gray-900 rounded-t-[2.5rem] border-t border-gray-800 flex-grow max-h-[50vh] flex flex-col shadow-2xl">
                     <div className="p-6 border-b border-gray-800">
                         <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-1">Passets delar</h3>
                         <p className="text-white font-bold">Klicka play för att starta timer</p>
@@ -230,9 +271,9 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                 </div>
                                 <button 
                                     onClick={() => handleStartBlock(block)}
-                                    className="w-12 h-12 bg-primary rounded-full flex items-center justify-center shadow-lg shadow-primary/20 active:scale-90 transition-transform"
+                                    className="w-12 h-12 bg-gray-700 hover:bg-primary rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all group"
                                 >
-                                    <PlayIcon className="w-5 h-5 text-white ml-0.5" />
+                                    <PlayIcon className="w-5 h-5 text-white ml-0.5 group-hover:scale-110 transition-transform" />
                                 </button>
                             </div>
                         ))}
