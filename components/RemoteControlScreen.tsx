@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useStudio } from '../context/StudioContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { updateStudioRemoteState } from '../services/firebaseService';
