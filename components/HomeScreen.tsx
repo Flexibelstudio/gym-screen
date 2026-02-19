@@ -252,35 +252,27 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     </motion.div>
                 </div>
 
-                <div className="flex items-start gap-6">
-                    {/* REMOTE CONTROL QR (Only in Studio Mode) */}
+                <div className="flex flex-col items-end gap-3">
+                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="text-right">
+                        <span className="block text-5xl md:text-7xl font-thin font-mono leading-none text-gray-900 dark:text-white">
+                            {currentTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                        </span>
+                        <span className="text-primary uppercase tracking-[0.2em] font-black text-xs md:text-sm mt-1.5 block">
+                            {currentTime.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        </span>
+                    </motion.div>
+                    
+                    {/* Minimalistisk QR-kod under klockan */}
                     {isStudioMode && selectedStudio && (
-                         <motion.div 
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
                             transition={{ delay: 0.5 }}
-                            className="flex flex-col items-center bg-white p-2.5 rounded-2xl shadow-lg border border-white/20 backdrop-blur-sm group"
+                            className="bg-white p-1 rounded-lg opacity-60 hover:opacity-100 transition-opacity"
                         >
-                            <div className="bg-white p-1 rounded-lg">
-                                <QRCode value={remoteQrValue} size={80} />
-                            </div>
-                            <div className="mt-2 flex items-center gap-1 text-gray-900">
-                                <LightningIcon className="w-3 h-3 text-primary" />
-                                <span className="text-[9px] font-black uppercase tracking-widest">Styr Skärm</span>
-                            </div>
+                            <QRCode value={remoteQrValue} size={44} />
                         </motion.div>
                     )}
-
-                    <div className="flex flex-col items-end gap-4">
-                        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="text-right">
-                            <span className="block text-5xl md:text-7xl font-thin font-mono leading-none text-gray-900 dark:text-white">
-                                {currentTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                            </span>
-                            <span className="text-primary uppercase tracking-[0.2em] font-black text-xs md:text-sm mt-1.5 block">
-                                {currentTime.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
-                            </span>
-                        </motion.div>
-                    </div>
                 </div>
             </div>
 
