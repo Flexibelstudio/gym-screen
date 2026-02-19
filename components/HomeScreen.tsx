@@ -259,7 +259,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             initial={{ opacity: 0, scale: 0.8 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: 0.5 }}
-                            className="hidden lg:flex flex-col items-center bg-white p-2.5 rounded-2xl shadow-lg border border-white/20 backdrop-blur-sm group"
+                            className="flex flex-col items-center bg-white p-2.5 rounded-2xl shadow-lg border border-white/20 backdrop-blur-sm group"
                         >
                             <div className="bg-white p-1 rounded-lg">
                                 <QRCode value={remoteQrValue} size={80} />

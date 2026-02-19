@@ -1,5 +1,4 @@
 
-
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma, RemoteSessionState } from './types';
 
@@ -11,7 +10,7 @@ import { useWorkout } from './context/WorkoutContext';
 import { AppRouter } from './components/AppRouter';
 
 // --- Services ---
-import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges } from './services/firebaseService';
+import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState } from './services/firebaseService';
 
 // --- Utils ---
 import { deepCopyAndPrepareAsNew } from './utils/workoutUtils';
@@ -225,7 +224,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const faviconUrl = selectedOrganization?.faviconUrl;
     if (faviconUrl) {
-      let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
+      let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
       if (!link) {
         link = document.createElement('link');
         link.rel = 'icon';
@@ -349,6 +348,13 @@ const App: React.FC = () => {
       customBackHandler();
       return;
     }
+
+    // NEW: If in Studio Mode, always clear remote state when navigating back manually
+    // This allows local override of the remote controller
+    if (isStudioMode && selectedOrganization && selectedStudio) {
+        updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
+    }
+
     if (history.length <= 1) return;
 
     const currentPage = history[history.length - 1];
@@ -365,7 +371,7 @@ const App: React.FC = () => {
     }
     
     setHistory(newHistory);
-  }, [history, role, isImpersonating, customBackHandler, setActiveWorkout, isPickingForLog]);
+  }, [history, role, isImpersonating, customBackHandler, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio]);
 
   const handleMemberProfileRequest = () => {
       if (isStudioMode) {
@@ -965,19 +971,14 @@ const App: React.FC = () => {
   const isAnyModalOpen = !!(mobileLogData || mobileViewData || isSearchWorkoutOpen || isScannerOpen || activeDiploma);
   
   // Custom back handler for Remote Control (close it)
-  useEffect(() => {
-      if (page === Page.RemoteControl) {
-          setCustomBackHandler(() => {
-             // Confirm exit remote
-             if (confirm("Vill du avsluta fjärrkontrollen?")) {
-                 setHistory(prev => prev.slice(0, -1));
-             }
-          });
-      } else {
-          setCustomBackHandler(null);
-      }
-  }, [page]);
-
+  // UPDATED: Logic moved to handleBack for cleaner flow and TV support
+  
+  if (page === Page.RemoteControl) {
+      return (
+          <RemoteControlScreen onBack={handleBack} />
+      );
+  }
+  
   if (!authLoading && !currentUser && !isStudioMode) {
       if (showLogin) {
           return <LoginScreen onClose={() => setShowLogin(false)} />;
@@ -1012,12 +1013,6 @@ const App: React.FC = () => {
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
             <p className="text-gray-500 font-bold uppercase tracking-widest text-sm">Hämtar organisation...</p>
         </div>
-      );
-  }
-  
-  if (page === Page.RemoteControl) {
-      return (
-          <RemoteControlScreen onBack={handleBack} />
       );
   }
 
@@ -1099,7 +1094,7 @@ const App: React.FC = () => {
                 onTogglePublish={handleTogglePublishStatus}
                 onToggleFavorite={handleToggleFavoriteStatus}
                 onDuplicateWorkout={handleDuplicateWorkout}
-                onTimerFinish={handleTimerFinish}
+                onTimerFinish={onTimerFinish}
                 
                 functions={{
                     selectOrganization: handleSelectOrganization,
@@ -1237,19 +1232,19 @@ const App: React.FC = () => {
                                     onStartBlock={(block) => handleStartBlock(block, mobileViewData)} 
                                     onUpdateBlockSettings={() => {}}
                                     onEditWorkout={() => {}} 
-                                    onAdjustWorkout={handleAdjustWorkout}
+                                    onAdjustWorkout={functions.handleAdjustWorkout}
                                     isCoachView={false} 
                                     onTogglePublish={() => {}}
                                     onToggleFavorite={handleToggleFavoriteStatus}
                                     onDuplicate={() => {}}
-                                    onShowImage={setPreviewImageUrl} 
+                                    onShowImage={functions.setShowImage} 
                                     isPresentationMode={false}
                                     studioConfig={studioConfig}
                                     followMeShowImage={followMeShowImage}
-                                    setFollowMeShowImage={setFollowMeShowImage}
-                                    onUpdateWorkout={handleSaveOnly}
+                                    setFollowMeShowImage={functions.setFollowMeShowImage}
+                                    onUpdateWorkout={onSaveWorkoutNoNav}
                                     onVisualize={() => {}}
-                                    onLogWorkout={handleLogWorkoutRequest}
+                                    onLogWorkout={functions.handleLogWorkoutRequest}
                                     onClose={() => setMobileViewData(null)}
                                 />
                              )}

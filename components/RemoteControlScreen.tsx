@@ -26,6 +26,20 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         return selectedOrganization.studios.find(s => s.id === connectedStudioId)?.name || 'Okänd skärm';
     }, [selectedOrganization, connectedStudioId]);
 
+    const handleClose = () => {
+        if (connectedStudioId) {
+            if (window.confirm("Vill du avsluta fjärrkontrollen?")) {
+                // Rensa fjärrtillstånd om man går ur
+                if (selectedOrganization && connectedStudioId) {
+                     updateStudioRemoteState(selectedOrganization.id, connectedStudioId, null);
+                }
+                onBack();
+            }
+        } else {
+            onBack();
+        }
+    };
+
     // Handlers
     const handleScan = (data: string) => {
         try {
@@ -103,7 +117,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                         </p>
                         <h2 className="text-xl font-black">{connectedStudioName}</h2>
                     </div>
-                    <button onClick={onBack} className="p-2 bg-gray-700 rounded-full"><CloseIcon className="w-5 h-5" /></button>
+                    <button onClick={handleClose} className="p-2 bg-gray-700 rounded-full"><CloseIcon className="w-5 h-5" /></button>
                 </div>
 
                 {/* Workout List or Selected Detail */}
