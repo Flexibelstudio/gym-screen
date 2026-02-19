@@ -1,3 +1,5 @@
+
+
 import React, { useState } from 'react';
 import { Page, CustomPage, UserRole } from '../types';
 import { useStudio } from '../context/StudioContext';
@@ -12,7 +14,8 @@ import {
     CloseIcon,
     DumbbellIcon,
     SparklesIcon,
-    ChartBarIcon
+    ChartBarIcon,
+    LightningIcon // Used for Remote Control icon
 } from './icons';
 
 interface CoachScreenProps {
@@ -117,6 +120,19 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
       });
   } else {
       // Om vi navigerar från personlig profil (Web/Mobil)
+      
+      // NYTT: REMOTE CONTROL
+      // Bara för coacher/admins på personliga enheter (inte TV-skärmar)
+      if (role === 'coach' || role === 'organizationadmin' || role === 'systemowner') {
+          items.push({
+              title: 'Fjärrkontroll',
+              subTitle: 'Styr en skärm',
+              action: () => navigateTo(Page.RemoteControl),
+              icon: <LightningIcon className="w-8 h-8" />,
+              gradient: 'bg-gradient-to-br from-orange-500 to-amber-600'
+          });
+      }
+
       if (role === 'systemowner') {
           items.push({ 
               title: 'Systemägare', 

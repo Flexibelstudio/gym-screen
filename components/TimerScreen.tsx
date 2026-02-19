@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout, TimerSegment } from '../types';
 import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration, playTimerSound } from '../hooks/useWorkoutTimer';
@@ -1175,7 +1175,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                  >
                     <PlayIcon className="w-16 h-16 ml-1 fill-current group-hover:text-primary transition-colors" />
                  </button>
-
 
                  {/* SETTINGS PANEL (TEXT SIZE SLIDERS) - Hide in Follow Me mode AND Freestanding mode */}
                  {!block.followMe && block.tag !== 'Fristående' && (

@@ -1,5 +1,7 @@
+
+
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma } from './types';
+import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma, RemoteSessionState } from './types';
 
 import { useStudio } from './context/StudioContext';
 import { useAuth } from './context/AuthContext';
@@ -9,7 +11,7 @@ import { useWorkout } from './context/WorkoutContext';
 import { AppRouter } from './components/AppRouter';
 
 // --- Services ---
-import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon } from './services/firebaseService';
+import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges } from './services/firebaseService';
 
 // --- Utils ---
 import { deepCopyAndPrepareAsNew } from './utils/workoutUtils';
@@ -36,6 +38,7 @@ import { ScanButton } from './components/ScanButton';
 import { WorkoutLogScreen } from './mobile/screens/WorkoutLogScreen';
 import { WorkoutListScreen } from './components/WorkoutListScreen';
 import { WebQRScanner } from './components/WebQRScanner';
+import { RemoteControlScreen } from './components/RemoteControlScreen';
 import { motion, AnimatePresence } from 'framer-motion';
 import WorkoutDetailScreen from './components/WorkoutDetailScreen';
 import { CloseIcon, PencilIcon } from './components/icons';
@@ -91,6 +94,63 @@ const App: React.FC = () => {
       }
     }
   }, [role, authLoading, isStudioMode, history, currentUser]);
+
+  // --- STUDIO RECEIVER LOGIC (TV Mode) ---
+  useEffect(() => {
+      if (!isStudioMode || !selectedOrganization || !selectedStudio) return;
+
+      // Lyssna på ändringar i studion (via organisationen)
+      const unsubscribe = listenToOrganizationChanges(selectedOrganization.id, (updatedOrg) => {
+          const updatedStudio = updatedOrg.studios.find(s => s.id === selectedStudio.id);
+          if (updatedStudio && updatedStudio.remoteState) {
+              const remote = updatedStudio.remoteState;
+              
+              // Kolla om vi redan har detta state (för att undvika loopar)
+              // Vi använder lastUpdate timestamp för att tvinga uppdatering även om ID är samma
+              
+              if (remote.view === 'idle') {
+                  // Gå till hem och nollställ
+                  if (page !== Page.Home) {
+                      navigateReplace(Page.Home);
+                      setActiveWorkout(null);
+                  }
+              } else if (remote.activeWorkoutId) {
+                  // Hitta passet
+                  const workoutToLoad = workouts.find(w => w.id === remote.activeWorkoutId);
+                  if (workoutToLoad) {
+                      // Uppdatera aktivt pass om det är nytt ELLER om vi tvingar refresh
+                      if (activeWorkout?.id !== workoutToLoad.id) {
+                          setActiveWorkout(workoutToLoad);
+                      }
+
+                      if (remote.view === 'preview') {
+                          // Visa översikt
+                          if (page !== Page.WorkoutDetail) {
+                              navigateReplace(Page.WorkoutDetail);
+                          }
+                      } else if (remote.view === 'timer' && remote.activeBlockId) {
+                          // Starta specifikt block
+                          const blockToStart = workoutToLoad.blocks.find(b => b.id === remote.activeBlockId);
+                          if (blockToStart) {
+                              // Sätt aktivt block och gå till timer
+                              setActiveBlock(blockToStart);
+                              if (page !== Page.Timer) {
+                                  navigateReplace(Page.Timer);
+                              }
+                          }
+                      }
+                  }
+              }
+          } else if (updatedStudio && !updatedStudio.remoteState && page !== Page.Home) {
+               // Om remoteState tas bort (nollställs), gå hem om vi inte redan är där
+               // MEN: Vi vill inte avbryta om användaren gör något lokalt.
+               // Så detta kanske vi skippar för att tillåta lokal kontroll.
+          }
+      });
+
+      return () => unsubscribe();
+  }, [isStudioMode, selectedOrganization?.id, selectedStudio?.id, workouts, page, activeWorkout]);
+
 
   const [customBackHandler, setCustomBackHandler] = useState<(() => void) | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
@@ -205,7 +265,8 @@ const App: React.FC = () => {
       Page.IdeaBoard, 
       Page.MemberProfile, 
       Page.MemberRegistry, 
-      Page.MobileLog
+      Page.MobileLog,
+      Page.RemoteControl // Don't sleep when controlling
   ];
 
   const resetInactivityTimer = useCallback(() => {
@@ -571,7 +632,7 @@ const App: React.FC = () => {
     }
   }, [activeWorkout, handleBack]);
 
-  const handleTimerFinish = useCallback((finishData: { isNatural?: boolean; time?: number, raceId?: string } = {}) => {
+  const handleTimerFinish = useCallback((finishData: { isNatural?: boolean; time?: number, raceId?: string }) => {
     const { isNatural = false, time, raceId } = finishData;
 
     if (raceId) {
@@ -890,7 +951,7 @@ const App: React.FC = () => {
     navigateTo(Page.HyroxRaceDetail);
   };
 
-  const isFullScreenPage = page === Page.Timer || page === Page.RepsOnly || page === Page.IdeaBoard;
+  const isFullScreenPage = page === Page.Timer || page === Page.RepsOnly || page === Page.IdeaBoard || page === Page.RemoteControl;
   const paddingClass = isFullScreenPage ? '' : 'p-4 sm:p-6 lg:p-8';
   
   const isAdminOrCoach = role === 'systemowner' || role === 'organizationadmin' || role === 'coach';
@@ -902,6 +963,20 @@ const App: React.FC = () => {
 
   // NYTT: Villkor för att dölja den globala headern när popups är öppna
   const isAnyModalOpen = !!(mobileLogData || mobileViewData || isSearchWorkoutOpen || isScannerOpen || activeDiploma);
+  
+  // Custom back handler for Remote Control (close it)
+  useEffect(() => {
+      if (page === Page.RemoteControl) {
+          setCustomBackHandler(() => {
+             // Confirm exit remote
+             if (confirm("Vill du avsluta fjärrkontrollen?")) {
+                 setHistory(prev => prev.slice(0, -1));
+             }
+          });
+      } else {
+          setCustomBackHandler(null);
+      }
+  }, [page]);
 
   if (!authLoading && !currentUser && !isStudioMode) {
       if (showLogin) {
@@ -937,6 +1012,12 @@ const App: React.FC = () => {
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
             <p className="text-gray-500 font-bold uppercase tracking-widest text-sm">Hämtar organisation...</p>
         </div>
+      );
+  }
+  
+  if (page === Page.RemoteControl) {
+      return (
+          <RemoteControlScreen onBack={handleBack} />
       );
   }
 
@@ -1299,7 +1380,7 @@ const App: React.FC = () => {
        
        {showSupportChat && <SupportChat />}
 
-       {showScanButton && !mobileLogData && !mobileViewData && !isSearchWorkoutOpen && (
+       {showScanButton && !mobileLogData && !mobileViewData && !isSearchWorkoutOpen && !isScannerOpen && (
           <div className="fixed bottom-6 right-6 z-[50]">
               <ScanButton 
                 onScan={() => setIsScannerOpen(true)} 

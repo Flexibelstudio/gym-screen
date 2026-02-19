@@ -55,6 +55,7 @@ export enum Page {
   MemberRegistry,
   MobileLog,
   MyStrength, 
+  RemoteControl, // NYTT: Fjärrkontrollssida
 }
 
 export enum TimerMode {
@@ -184,11 +185,21 @@ export interface StudioConfig {
   };
 }
 
+// NYTT: Tillstånd för fjärrstyrning
+export interface RemoteSessionState {
+    activeWorkoutId: string | null;
+    view: 'idle' | 'preview' | 'timer'; // idle=logo, preview=workout detail, timer=running block
+    activeBlockId: string | null;
+    lastUpdate: number; // Timestamp to force updates
+    controllerName?: string; // Name of coach controlling
+}
+
 export interface Studio {
   id: string;
   name: string;
   createdAt?: number;
   configOverrides?: Partial<StudioConfig>;
+  remoteState?: RemoteSessionState; // NYTT: Fält för fjärrstyrning
 }
 
 export interface CompanyDetails {

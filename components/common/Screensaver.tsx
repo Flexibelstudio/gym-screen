@@ -1,5 +1,8 @@
 
+
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import QRCode from 'react-qr-code';
+import { useStudio } from '../../context/StudioContext';
 
 const formatTimeForScreensaver = (date: Date) => {
     const hours = String(date.getHours()).padStart(2, '0');
@@ -133,6 +136,8 @@ export const Screensaver: React.FC<ScreensaverProps> = ({ logoUrl, bottomOffset 
     const clockRef = useRef<HTMLDivElement>(null);
     const logoRef = useRef<HTMLDivElement>(null);
     
+    const { selectedStudio } = useStudio();
+    
     // Create refs array only for existing elements to avoid processing nulls in physics loop
     const elementRefs = useMemo(() => {
         const refs = [clockRef];
@@ -148,6 +153,9 @@ export const Screensaver: React.FC<ScreensaverProps> = ({ logoUrl, bottomOffset 
         }, 1000);
         return () => clearInterval(timerId);
     }, []);
+    
+    // QR Payload för fjärrkontroll (Bara Studio ID)
+    const remoteQrValue = selectedStudio ? JSON.stringify({ sid: selectedStudio.id, action: 'control' }) : '';
 
     return (
         <div ref={containerRef} className="fixed inset-0 bg-black z-[1000] cursor-none animate-fade-in overflow-hidden">
@@ -165,6 +173,14 @@ export const Screensaver: React.FC<ScreensaverProps> = ({ logoUrl, bottomOffset 
                     style={{ willChange: 'transform' }}
                 >
                     <img src={logoUrl} alt="Logo" className="w-full h-full object-contain drop-shadow-2xl" />
+                </div>
+            )}
+            
+            {/* Remote Control QR - Always fixed in bottom right corner */}
+            {selectedStudio && (
+                <div className="absolute bottom-8 right-8 bg-white/90 p-4 rounded-xl shadow-2xl backdrop-blur-md flex flex-col items-center gap-2 z-[2000]">
+                    <QRCode value={remoteQrValue} size={100} />
+                    <p className="text-[10px] font-black uppercase tracking-widest text-gray-800">Scanna för att styra</p>
                 </div>
             )}
         </div>

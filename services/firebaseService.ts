@@ -1,4 +1,5 @@
 
+
 // ... (imports remain the same)
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { 
@@ -53,7 +54,7 @@ import {
   BankExercise, SuggestedExercise, WorkoutResult, CompanyDetails, 
   SmartScreenPricing, HyroxRace, SeasonalThemeSetting, MemberGoals, 
   WorkoutLog, CheckInEvent, Member, UserRole, PersonalBest, StudioEvent,
-  CustomPage, AdminActivity, BenchmarkDefinition
+  CustomPage, AdminActivity, BenchmarkDefinition, RemoteSessionState, Studio
 } from '../types';
 import { MOCK_ORGANIZATIONS, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_MEMBERS, MOCK_SMART_SCREEN_PRICING } from '../data/mockData';
 
@@ -537,6 +538,35 @@ export const listenToOrganizationChanges = (id: string, onUpdate: (org: Organiza
     return onSnapshot(doc(db, 'organizations', id), (snap) => {
         if (snap.exists()) onUpdate({ id: snap.id, ...snap.data() } as Organization);
     }, (err) => console.error("listenToOrganizationChanges failed", err));
+};
+
+// NYTT: Funktion för att uppdatera remote-state för en studio
+export const updateStudioRemoteState = async (orgId: string, studioId: string, state: RemoteSessionState | null) => {
+    if (isOffline || !db || !orgId || !studioId) return;
+    try {
+        // Vi hämtar först organistionen för att kunna uppdatera rätt studio i arrayen
+        const orgRef = doc(db, 'organizations', orgId);
+        const orgSnap = await getDoc(orgRef);
+        
+        if (orgSnap.exists()) {
+            const orgData = orgSnap.data() as Organization;
+            const updatedStudios = orgData.studios.map(studio => {
+                if (studio.id === studioId) {
+                    // Om state är null, ta bort remoteState, annars uppdatera
+                    if (state === null) {
+                        const { remoteState, ...rest } = studio;
+                        return rest;
+                    }
+                    return { ...studio, remoteState: state };
+                }
+                return studio;
+            });
+            
+            await updateDoc(orgRef, { studios: updatedStudios });
+        }
+    } catch (e) {
+        console.error("Failed to update remote state:", e);
+    }
 };
 
 export const createOrganization = async (name: string, subdomain: string): Promise<Organization> => {
