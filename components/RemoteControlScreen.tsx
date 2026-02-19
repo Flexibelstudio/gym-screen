@@ -5,7 +5,7 @@ import { useWorkout } from '../context/WorkoutContext';
 import { updateStudioRemoteState, saveWorkout } from '../services/firebaseService';
 import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise } from '../types';
 import { WebQRScanner } from './WebQRScanner';
-import { DumbbellIcon, PlayIcon, CloseIcon, ChevronRightIcon, ClockIcon, SparklesIcon, LightningIcon, StarIcon, ChevronLeftIcon } from './icons';
+import { DumbbellIcon, PlayIcon, CloseIcon, ChevronRightIcon, ClockIcon, SparklesIcon, LightningIcon, StarIcon, ChevronLeftIcon, ChevronDownIcon, ChevronUpIcon } from './icons';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Types ---
@@ -16,23 +16,18 @@ const DashboardButton: React.FC<{
     onClick: () => void; 
     icon: React.ReactNode; 
     label: string; 
-    isSpecial?: boolean; // For Hyrox mostly
-}> = ({ onClick, icon, label, isSpecial = false }) => (
+}> = ({ onClick, icon, label }) => (
     <button 
         onClick={onClick}
         className={`
             p-5 rounded-2xl shadow-lg flex flex-col items-start justify-between h-32 active:scale-95 transition-transform border border-white/10 relative overflow-hidden
-            ${isSpecial 
-                ? 'bg-black border-yellow-500/30' 
-                : 'bg-gradient-to-br from-primary to-teal-700 text-white'
-            }
+            bg-gradient-to-br from-primary to-teal-700 text-white
         `}
     >
-        {isSpecial && <div className="absolute inset-0 bg-yellow-500/10 z-0"></div>}
-        <div className={`relative z-10 ${isSpecial ? 'text-yellow-500' : 'text-white'}`}>
+        <div className="relative z-10 text-white">
              {icon}
         </div>
-        <span className={`relative z-10 font-bold text-lg leading-tight ${isSpecial ? 'text-yellow-500' : 'text-white'}`}>
+        <span className="relative z-10 font-bold text-lg leading-tight text-white">
             {label}
         </span>
     </button>
@@ -155,7 +150,7 @@ const QuickTimerSetup: React.FC<{ onStart: (settings: TimerSettings, title: stri
             </div>
 
             <button onClick={handleStart} className="w-full bg-primary text-white font-black py-5 rounded-2xl text-lg uppercase tracking-widest shadow-lg shadow-primary/20 active:scale-95 transition-all">
-                Starta på TV
+                Visa på skärm
             </button>
         </div>
     );
@@ -170,6 +165,8 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
     const [connectedStudioId, setConnectedStudioId] = useState<string | null>(null);
     const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const [activeRunningBlockId, setActiveRunningBlockId] = useState<string | null>(null);
+    const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
     
     // Derived
     const connectedStudioName = useMemo(() => {
@@ -224,12 +221,16 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
     const handleStartBlock = async (block: WorkoutBlock) => {
         if (!selectedOrganization || !connectedStudioId || !selectedWorkout) return;
         
+        setActiveRunningBlockId(block.id);
+        
         await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
             activeWorkoutId: selectedWorkout.id,
             view: 'timer',
             activeBlockId: block.id,
             lastUpdate: Date.now(),
-            controllerName: 'Coach'
+            controllerName: 'Coach',
+            command: 'start', // Ensure auto-start
+            commandTimestamp: Date.now()
         });
     };
     
@@ -239,7 +240,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
             activeWorkoutId: selectedWorkout.id,
             view: 'timer',
-            activeBlockId: null, 
+            activeBlockId: null, // Keep existing active block logic in receiver
             lastUpdate: Date.now(),
             controllerName: 'Coach',
             command: cmd,
@@ -252,6 +253,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
          await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, null);
          setView('dashboard');
          setSelectedWorkout(null);
+         setActiveRunningBlockId(null);
     };
 
     const handleFreestandingStart = async (settings: TimerSettings, title: string) => {
@@ -284,13 +286,17 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
 
         // 2. Set remote state
         setSelectedWorkout(tempWorkout);
+        setActiveRunningBlockId(timerBlock.id);
+        setExpandedBlockId(timerBlock.id);
         
         await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
             activeWorkoutId: tempWorkout.id,
             view: 'timer',
             activeBlockId: timerBlock.id,
             lastUpdate: Date.now(),
-            controllerName: 'Coach'
+            controllerName: 'Coach',
+            command: 'start',
+            commandTimestamp: Date.now()
         });
 
         setView('controls');
@@ -349,7 +355,6 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                     onClick={() => { setSelectedCategory('HYROX'); setView('list'); }}
                                     icon={<LightningIcon className="w-8 h-8" />}
                                     label="HYROX"
-                                    isSpecial={true}
                                 />
                             )}
 
@@ -403,8 +408,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                             onClick={handleCastWorkout}
                                             className="w-full bg-primary text-white font-black py-4 rounded-xl text-lg shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center justify-center gap-2"
                                         >
-                                            <span className="text-2xl">📺</span>
-                                            VISA PÅ TV
+                                            Visa på skärm
                                         </button>
                                     </div>
                                 </div>
@@ -459,69 +463,116 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                     <button onClick={handleStop} className="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg border border-gray-700 transition-colors">Avsluta Session</button>
                 </div>
 
-                {/* Now Playing Area */}
-                <div className="flex-grow p-6 flex flex-col items-center justify-center text-center">
-                    <div className="w-24 h-24 bg-gray-800 rounded-3xl flex items-center justify-center mb-6 shadow-2xl border border-gray-700">
-                        <DumbbellIcon className="w-10 h-10 text-gray-500" />
-                    </div>
-                    <h1 className="text-3xl font-black mb-2 leading-tight">{selectedWorkout?.title}</h1>
-                    <p className="text-gray-400 text-sm max-w-xs mx-auto line-clamp-2">{selectedWorkout?.coachTips}</p>
-                    
-                    {/* Media Controls */}
-                    <div className="flex gap-6 mt-10">
-                        <button 
-                            onClick={() => sendCommand('pause')}
-                            className="w-20 h-20 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center shadow-lg active:scale-95 transition-transform border border-gray-700"
-                        >
-                            <span className="text-3xl">⏸</span>
-                        </button>
-                        <button 
-                            onClick={() => sendCommand('start')}
-                            className="w-24 h-24 rounded-full bg-primary hover:bg-teal-400 flex items-center justify-center shadow-xl shadow-primary/20 active:scale-95 transition-transform"
-                        >
-                            <PlayIcon className="w-12 h-12 text-white ml-1" />
-                        </button>
-                         <button 
-                            onClick={() => sendCommand('finish')}
-                            className="w-20 h-20 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center shadow-lg active:scale-95 transition-transform text-red-500 border border-gray-700"
-                        >
-                            <span className="text-sm font-black uppercase">STOP</span>
-                        </button>
-                    </div>
+                {/* Compact Info Header */}
+                 <div className="px-6 py-4 bg-gray-900/50">
+                    <p className="text-gray-500 text-[10px] font-black uppercase tracking-widest mb-1">Nu visas</p>
+                    <h1 className="text-xl font-black leading-tight text-white">{selectedWorkout?.title}</h1>
+                    {selectedWorkout?.coachTips && <p className="text-gray-400 text-xs mt-1 line-clamp-1">{selectedWorkout.coachTips}</p>}
                 </div>
 
                 {/* Controls - Block List */}
                 {selectedWorkout && selectedWorkout.category !== 'Fristående' && (
-                    <div className="bg-gray-900 rounded-t-[2.5rem] border-t border-gray-800 flex-grow max-h-[40vh] flex flex-col shadow-2xl">
-                        <div className="p-6 border-b border-gray-800">
-                            <h3 className="text-xs font-black text-gray-500 uppercase tracking-widest mb-1">Passets delar</h3>
-                            <p className="text-white font-bold text-sm">Klicka play för att hoppa till block</p>
-                        </div>
-                        
-                        <div className="overflow-y-auto p-4 space-y-3 pb-24 custom-scrollbar">
-                            {selectedWorkout.blocks.map((block, i) => (
-                                <div key={block.id} className="bg-gray-800/50 p-4 rounded-2xl border border-gray-700 flex items-center gap-4">
-                                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-400">
-                                        {i+1}
-                                    </div>
-                                    <div className="flex-grow min-w-0">
-                                        <h4 className="font-bold text-white truncate">{block.title}</h4>
-                                        <div className="flex items-center gap-2 text-xs text-gray-400">
-                                            <span className="uppercase">{block.tag}</span>
-                                            <span>•</span>
-                                            <span>{block.settings.mode}</span>
-                                        </div>
-                                    </div>
-                                    <button 
-                                        onClick={() => handleStartBlock(block)}
-                                        className="w-10 h-10 bg-gray-700 hover:bg-primary rounded-full flex items-center justify-center shadow-lg active:scale-90 transition-all group"
+                    <div className="flex-grow flex flex-col bg-black">
+                        <div className="overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                            {selectedWorkout.blocks.map((block, i) => {
+                                const isExpanded = expandedBlockId === block.id;
+                                const isRunning = activeRunningBlockId === block.id;
+                                
+                                return (
+                                    <div 
+                                        key={block.id} 
+                                        className={`rounded-2xl transition-all border ${isRunning ? 'bg-gray-900 border-primary/50 shadow-sm shadow-primary/10' : 'bg-gray-900 border-gray-800'}`}
                                     >
-                                        <PlayIcon className="w-4 h-4 text-white ml-0.5 group-hover:scale-110 transition-transform" />
-                                    </button>
-                                </div>
-                            ))}
+                                        {/* Block Header (Click to Expand) */}
+                                        <button 
+                                            onClick={() => setExpandedBlockId(isExpanded ? null : block.id)}
+                                            className="w-full p-4 flex items-center justify-between"
+                                        >
+                                            <div className="flex items-center gap-4 text-left">
+                                                <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${isRunning ? 'bg-primary text-white' : 'bg-gray-800 text-gray-500'}`}>
+                                                    {i+1}
+                                                </div>
+                                                <div>
+                                                    <h4 className={`font-bold text-sm ${isRunning ? 'text-primary' : 'text-white'}`}>{block.title}</h4>
+                                                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                                                        <span className="uppercase">{block.tag}</span>
+                                                        <span>•</span>
+                                                        <span>{block.settings.mode}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {isExpanded ? <ChevronUpIcon className="w-5 h-5 text-gray-500" /> : <ChevronDownIcon className="w-5 h-5 text-gray-500" />}
+                                        </button>
+
+                                        {/* Expanded Controls */}
+                                        <AnimatePresence>
+                                            {isExpanded && (
+                                                <motion.div 
+                                                    initial={{ height: 0, opacity: 0 }}
+                                                    animate={{ height: 'auto', opacity: 1 }}
+                                                    exit={{ height: 0, opacity: 0 }}
+                                                    className="overflow-hidden border-t border-gray-800"
+                                                >
+                                                    <div className="p-4 space-y-3">
+                                                        {isRunning ? (
+                                                            // Controls for ACTIVE block
+                                                            <div className="grid grid-cols-2 gap-3">
+                                                                <button onClick={() => sendCommand('pause')} className="bg-gray-800 hover:bg-gray-700 p-4 rounded-xl font-bold text-white flex flex-col items-center gap-1">
+                                                                    <span className="text-xl">⏸</span>
+                                                                    <span className="text-[10px] uppercase">Pausa</span>
+                                                                </button>
+                                                                <button onClick={() => sendCommand('start')} className="bg-green-600 hover:bg-green-500 p-4 rounded-xl font-bold text-white flex flex-col items-center gap-1">
+                                                                    <span className="text-xl">▶</span>
+                                                                    <span className="text-[10px] uppercase">Fortsätt</span>
+                                                                </button>
+                                                                 <button onClick={() => sendCommand('reset')} className="col-span-2 bg-gray-800 hover:bg-gray-700 p-3 rounded-xl font-bold text-yellow-500 text-xs uppercase tracking-wider">
+                                                                    Starta om blocket
+                                                                </button>
+                                                            </div>
+                                                        ) : (
+                                                            // Start button for INACTIVE block
+                                                            <button 
+                                                                onClick={() => handleStartBlock(block)}
+                                                                className="w-full bg-primary hover:brightness-110 text-white font-black py-4 rounded-xl shadow-lg shadow-primary/20 text-sm uppercase tracking-widest flex items-center justify-center gap-2"
+                                                            >
+                                                                <PlayIcon className="w-4 h-4" />
+                                                                Starta detta block
+                                                            </button>
+                                                        )}
+                                                        
+                                                        {/* Exercises List (Mini) */}
+                                                        <div className="mt-4 pt-4 border-t border-gray-800">
+                                                            <p className="text-[10px] text-gray-500 font-bold uppercase mb-2">Innehåll</p>
+                                                            <ul className="space-y-1">
+                                                                {block.exercises.map((ex, idx) => (
+                                                                    <li key={idx} className="text-xs text-gray-400 flex justify-between">
+                                                                        <span>{ex.name}</span>
+                                                                        <span className="text-gray-600">{ex.reps}</span>
+                                                                    </li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
+                )}
+                
+                {/* Fallback controls for Freestanding or if something breaks */}
+                {(!selectedWorkout || selectedWorkout.category === 'Fristående') && (
+                     <div className="p-6 flex flex-col items-center justify-center h-full">
+                        <div className="flex gap-6">
+                            <button onClick={() => sendCommand('pause')} className="p-6 bg-gray-800 rounded-full"><span className="text-3xl">⏸</span></button>
+                            <button onClick={() => sendCommand('start')} className="p-8 bg-primary rounded-full shadow-lg shadow-primary/30"><PlayIcon className="w-12 h-12 text-white" /></button>
+                            <button onClick={() => sendCommand('finish')} className="p-6 bg-gray-800 rounded-full text-red-500"><span className="text-xl font-black">STOP</span></button>
+                        </div>
+                        <p className="mt-8 text-gray-500 text-sm">Fristående Timer</p>
+                     </div>
                 )}
             </div>
         );
