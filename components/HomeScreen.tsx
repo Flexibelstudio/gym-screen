@@ -262,16 +262,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         </span>
                     </motion.div>
                     
-                    {/* Minimalistisk QR-kod under klockan */}
+                    {/* Minimalistisk QR-kod under klockan - Ingen animation delay, full opacitet */}
                     {isStudioMode && selectedStudio && (
-                        <motion.div 
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            transition={{ delay: 0.5 }}
-                            className="bg-white p-1 rounded-lg opacity-60 hover:opacity-100 transition-opacity"
-                        >
+                        <div className="bg-white p-1 rounded-lg">
                             <QRCode value={remoteQrValue} size={44} />
-                        </motion.div>
+                        </div>
                     )}
                 </div>
             </div>
