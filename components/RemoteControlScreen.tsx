@@ -11,6 +11,33 @@ import { motion, AnimatePresence } from 'framer-motion';
 // --- Types ---
 type RemoteView = 'scan' | 'dashboard' | 'list' | 'timer_setup' | 'controls';
 
+// Helper component for uniform buttons
+const DashboardButton: React.FC<{ 
+    onClick: () => void; 
+    icon: React.ReactNode; 
+    label: string; 
+    isSpecial?: boolean; // For Hyrox mostly
+}> = ({ onClick, icon, label, isSpecial = false }) => (
+    <button 
+        onClick={onClick}
+        className={`
+            p-5 rounded-2xl shadow-lg flex flex-col items-start justify-between h-32 active:scale-95 transition-transform border border-white/10 relative overflow-hidden
+            ${isSpecial 
+                ? 'bg-black border-yellow-500/30' 
+                : 'bg-gradient-to-br from-primary to-teal-700 text-white'
+            }
+        `}
+    >
+        {isSpecial && <div className="absolute inset-0 bg-yellow-500/10 z-0"></div>}
+        <div className={`relative z-10 ${isSpecial ? 'text-yellow-500' : 'text-white'}`}>
+             {icon}
+        </div>
+        <span className={`relative z-10 font-bold text-lg leading-tight ${isSpecial ? 'text-yellow-500' : 'text-white'}`}>
+            {label}
+        </span>
+    </button>
+);
+
 const QuickTimerSetup: React.FC<{ onStart: (settings: TimerSettings, title: string) => void, onBack: () => void }> = ({ onStart, onBack }) => {
     const [mode, setMode] = useState<TimerMode>(TimerMode.Interval);
     
@@ -306,47 +333,39 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                     {/* --- DASHBOARD VIEW --- */}
                     {view === 'dashboard' && (
                         <div className="grid grid-cols-2 gap-4">
-                            {/* Static: Freestanding Timer */}
-                            <button 
-                                onClick={() => setView('timer_setup')}
-                                className="bg-gradient-to-br from-indigo-600 to-purple-700 p-5 rounded-2xl shadow-lg border border-white/10 flex flex-col items-start justify-between h-32 active:scale-95 transition-transform"
-                            >
-                                <ClockIcon className="w-8 h-8 text-white/80" />
-                                <span className="font-bold text-white text-lg leading-tight">Fristående Timer</span>
-                            </button>
-
-                            {/* Configured Categories */}
+                            {/* 1. Configured Categories (Mapped to match Studio View order) */}
                             {studioConfig.customCategories.map(cat => (
-                                <button 
+                                <DashboardButton 
                                     key={cat.id}
                                     onClick={() => { setSelectedCategory(cat.name); setView('list'); }}
-                                    className="bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-700 flex flex-col items-start justify-between h-32 active:scale-95 transition-transform hover:bg-gray-750"
-                                >
-                                    <DumbbellIcon className="w-8 h-8 text-primary" />
-                                    <span className="font-bold text-white text-lg leading-tight">{cat.name}</span>
-                                </button>
+                                    icon={<DumbbellIcon className="w-8 h-8" />}
+                                    label={cat.name}
+                                />
                             ))}
                             
-                             {/* Static: HYROX (if enabled) */}
+                             {/* 2. HYROX (if enabled) */}
                              {studioConfig.enableHyrox && (
-                                <button 
+                                <DashboardButton 
                                     onClick={() => { setSelectedCategory('HYROX'); setView('list'); }}
-                                    className="bg-black p-5 rounded-2xl shadow-sm border border-yellow-500/30 flex flex-col items-start justify-between h-32 active:scale-95 transition-transform relative overflow-hidden"
-                                >
-                                    <div className="absolute inset-0 bg-yellow-500/10 z-0"></div>
-                                    <LightningIcon className="w-8 h-8 text-yellow-500 z-10" />
-                                    <span className="font-bold text-yellow-500 text-lg leading-tight z-10">HYROX</span>
-                                </button>
+                                    icon={<LightningIcon className="w-8 h-8" />}
+                                    label="HYROX"
+                                    isSpecial={true}
+                                />
                             )}
 
-                             {/* Static: Other Workouts */}
-                             <button 
+                             {/* 3. Timer (Renamed from Fristående Timer) */}
+                            <DashboardButton 
+                                onClick={() => setView('timer_setup')}
+                                icon={<ClockIcon className="w-8 h-8" />}
+                                label="Timer"
+                            />
+
+                             {/* 4. Other Workouts */}
+                            <DashboardButton 
                                 onClick={() => { setSelectedCategory('other'); setView('list'); }}
-                                className="bg-gray-800 p-5 rounded-2xl shadow-sm border border-gray-700 flex flex-col items-start justify-between h-32 active:scale-95 transition-transform"
-                            >
-                                <StarIcon className="w-8 h-8 text-gray-400" />
-                                <span className="font-bold text-gray-300 text-lg leading-tight">Övriga Pass</span>
-                            </button>
+                                icon={<StarIcon className="w-8 h-8" />}
+                                label="Övriga Pass"
+                            />
                         </div>
                     )}
 
