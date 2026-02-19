@@ -632,6 +632,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                   }
                   break;
               case 'pause':
+                  // FIX: Force Lobby Mode off. If we pause, we are definitely not in the lobby.
+                  // This ensures the PauseOverlay is visible.
+                  setIsLobbyMode(false);
+                  
                   if (status === TimerStatus.Running || status === TimerStatus.Resting || status === TimerStatus.Preparing) {
                       pause();
                   }
@@ -649,7 +653,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           }
       }
   }, [remoteCommand, start, pause, resume, reset, status, onFinish]);
-
 
   // --- TRANSITION LOGIC ---
   const [isTransitioning, setIsTransitioning] = useState(false);
