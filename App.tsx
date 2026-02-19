@@ -102,8 +102,6 @@ const App: React.FC = () => {
   useEffect(() => {
       const clearRemoteStateOnMount = async () => {
           if (isStudioMode && selectedOrganization && selectedStudio) {
-               // Only clear if we actually have a stale session to clear. 
-               // But simply clearing on mount is safer and acts as the requested "reload to disconnect".
                await updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
           }
       };
@@ -117,13 +115,11 @@ const App: React.FC = () => {
   useEffect(() => {
       if (!isStudioMode || !selectedOrganization || !selectedStudio) return;
 
-      // Lyssna på ändringar i studion (via organisationen)
       const unsubscribe = listenToOrganizationChanges(selectedOrganization.id, (updatedOrg) => {
           const updatedStudio = updatedOrg.studios.find(s => s.id === selectedStudio.id);
           if (updatedStudio && updatedStudio.remoteState) {
               const remote = updatedStudio.remoteState;
               
-              // Handle Commands (Play/Pause/Reset)
               if (remote.command && remote.commandTimestamp) {
                   setRemoteCommand(prev => {
                       if (!prev || prev.timestamp !== remote.commandTimestamp) {
@@ -133,34 +129,25 @@ const App: React.FC = () => {
                   });
               }
 
-              // Kolla om vi redan har detta state (för att undvika loopar)
-              // Vi använder lastUpdate timestamp för att tvinga uppdatering även om ID är samma
-              
               if (remote.view === 'idle') {
-                  // Gå till hem och nollställ
                   if (page !== Page.Home) {
                       navigateReplace(Page.Home);
                       setActiveWorkout(null);
                   }
               } else if (remote.activeWorkoutId) {
-                  // Hitta passet
                   const workoutToLoad = workouts.find(w => w.id === remote.activeWorkoutId);
                   if (workoutToLoad) {
-                      // Uppdatera aktivt pass om det är nytt ELLER om vi tvingar refresh
                       if (activeWorkout?.id !== workoutToLoad.id) {
                           setActiveWorkout(workoutToLoad);
                       }
 
                       if (remote.view === 'preview') {
-                          // Visa översikt
                           if (page !== Page.WorkoutDetail) {
                               navigateReplace(Page.WorkoutDetail);
                           }
                       } else if (remote.view === 'timer' && remote.activeBlockId) {
-                          // Starta specifikt block
                           const blockToStart = workoutToLoad.blocks.find(b => b.id === remote.activeBlockId);
                           if (blockToStart) {
-                              // Sätt aktivt block och gå till timer
                               setActiveBlock(blockToStart);
                               if (page !== Page.Timer) {
                                   navigateReplace(Page.Timer);
@@ -170,8 +157,6 @@ const App: React.FC = () => {
                   }
               }
           } else if (updatedStudio && !updatedStudio.remoteState && page !== Page.Home) {
-               // Om remoteState tas bort (nollställs) av controllern
-               // Gå till Hem
                navigateReplace(Page.Home);
                setActiveWorkout(null);
           }
@@ -295,7 +280,7 @@ const App: React.FC = () => {
       Page.MemberProfile, 
       Page.MemberRegistry, 
       Page.MobileLog,
-      Page.RemoteControl // Don't sleep when controlling
+      Page.RemoteControl 
   ];
 
   const resetInactivityTimer = useCallback(() => {
@@ -379,10 +364,31 @@ const App: React.FC = () => {
       return;
     }
 
-    // NEW: If in Studio Mode, always clear remote state when navigating back manually
-    // This allows local override of the remote controller
+    // UPDATED: Handle Remote State in Studio Mode
     if (isStudioMode && selectedOrganization && selectedStudio) {
-        updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
+        // If back from Timer -> Go to Preview, Set Remote State to Preview
+        if (page === Page.Timer && activeWorkout) {
+             updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+                 activeWorkoutId: activeWorkout.id,
+                 view: 'preview',
+                 activeBlockId: null,
+                 lastUpdate: Date.now(),
+                 controllerName: 'Coach' // Preserve controller name if possible, simplified here
+             });
+        } 
+        // If back from Preview -> Go to Idle, Set Remote State to Idle
+        else if (page === Page.WorkoutDetail) {
+             updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+                 activeWorkoutId: null,
+                 view: 'idle',
+                 activeBlockId: null,
+                 lastUpdate: Date.now()
+             });
+        }
+        else {
+             // Fallback: Clear completely
+             updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
+        }
     }
 
     if (history.length <= 1) return;
@@ -401,7 +407,7 @@ const App: React.FC = () => {
     }
     
     setHistory(newHistory);
-  }, [history, role, isImpersonating, customBackHandler, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio]);
+  }, [history, role, isImpersonating, customBackHandler, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio, page, activeWorkout]);
 
   const handleMemberProfileRequest = () => {
       if (isStudioMode) {
@@ -467,7 +473,6 @@ const App: React.FC = () => {
 
   const handleSaveAndNavigate = async (workout: Workout, startFirstBlock?: boolean) => {
     const isMemberRole = sessionRole === 'member' || isStudioMode;
-    // Bevara isMemberDraft om den redan är satt, annars sätt baserat på roll/läge
     const workoutToSave = { 
         ...workout, 
         isMemberDraft: workout.isMemberDraft ?? isMemberRole 
@@ -480,10 +485,8 @@ const App: React.FC = () => {
         setActiveWorkout(savedWorkout);
         
         if (isStudioMode) {
-            // På skärmen: gå till passet för att kunna starta
             navigateReplace(Page.WorkoutDetail);
         } else {
-            // I Admin: gå tillbaka till där vi kom ifrån (t.ex. listan)
             handleBack();
             setPreferredAdminTab('pass-program');
         }
@@ -492,7 +495,6 @@ const App: React.FC = () => {
 
   const handleSaveOnly = async (workout: Workout) => {
       const isMemberRole = sessionRole === 'member' || isStudioMode;
-      // Bevara isMemberDraft om den redan är satt, annars sätt baserat på roll/läge
       return await saveWorkout({ 
           ...workout, 
           isMemberDraft: workout.isMemberDraft ?? isMemberRole 
@@ -517,7 +519,7 @@ const App: React.FC = () => {
   };
   
   const handleStartBlock = (block: WorkoutBlock, workoutContext: Workout) => {
-    setIsAutoTransition(false); // Manuell start återställer flaggan
+    setIsAutoTransition(false); 
     setActiveWorkout(workoutContext);
     setActiveBlock(block);
     if (block.settings.mode === TimerMode.NoTimer) navigateTo(Page.RepsOnly);
@@ -588,26 +590,17 @@ const App: React.FC = () => {
   const handleSelectPasskategori = (passkategori: Passkategori) => {
     const categoryWorkouts = workouts.filter(w => w.category === passkategori && w.isPublished && !w.isMemberDraft);
     
-    // Check if there's exactly one workout AND we are in Studio Mode OR Admin (not logging flow)
-    // This allows quick access to single workouts.
     if (categoryWorkouts.length === 1 && !isPickingForLog) {
         if (isStudioMode) {
             handleSelectWorkout(categoryWorkouts[0]);
             return;
         } else {
-            // Mobile/Admin flow - go to list to see options (View/Log) even if only one
-            // OR auto-select for view if desired.
-            // Let's keep consistent: If not logging, jump to detail.
              handleSelectWorkout(categoryWorkouts[0], 'view');
              return;
         }
     }
 
     if (!isStudioMode) {
-        // If user navigated here with intent to log (e.g. from 'Logga Pass' -> Category)
-        // Keep the flag active so list items show 'Log' button
-        // Logic handled inside WorkoutListScreen based on props or global state?
-        // Current implementation uses global isPickingForLog state implicitly via this flow.
         if (isPickingForLog) {
              setIsPickingForLog(true);
         }
@@ -635,7 +628,6 @@ const App: React.FC = () => {
   }
   
   const handleWorkoutInterpretedFromNote = (workout: Workout) => {
-    // Säkra orgId omedelbart så QR-koden fungerar direkt på detaljskärmen
     const workoutWithOrg = { 
         ...workout, 
         organizationId: selectedOrganization?.id || '',
@@ -646,14 +638,15 @@ const App: React.FC = () => {
     navigateTo(Page.SimpleWorkoutBuilder);
   };
   
-  const handleWorkoutInterpretedFromAIPrompt = (workout: Workout) => {
-    // Säkra orgId omedelbart så QR-koden fungerar direkt på detaljskärmen
-    const workoutWithOrg = { 
-        ...workout, 
-        organizationId: selectedOrganization?.id || '',
-        isMemberDraft: true
-    };
-    setActiveWorkout(workoutWithOrg);
+  const handleAdjustWorkout = (workoutToAdjust: Workout) => {
+    const newDraft = deepCopyAndPrepareAsNew(workoutToAdjust);
+    newDraft.title = `Justering: ${workoutToAdjust.title}`;
+    newDraft.isMemberDraft = true;
+    newDraft.isPublished = false;
+    if (!newDraft.organizationId && selectedOrganization) {
+        newDraft.organizationId = selectedOrganization.id;
+    }
+    setActiveWorkout(newDraft);
     setIsEditingNewDraft(true);
     navigateTo(Page.SimpleWorkoutBuilder);
   };
@@ -689,7 +682,7 @@ const App: React.FC = () => {
         const blockIndex = activeWorkout.blocks.findIndex(b => b.id === activeBlock.id);
         const nextBlockInWorkout = activeWorkout.blocks[blockIndex + 1];
         if (nextBlockInWorkout) {
-            setIsAutoTransition(true); // Markera som automatisk start för nästa block
+            setIsAutoTransition(true);
             setActiveBlock(null);
             setTimeout(() => {
                 setActiveBlock(nextBlockInWorkout);

@@ -5,7 +5,7 @@ import { useWorkout } from '../context/WorkoutContext';
 import { updateStudioRemoteState, saveWorkout } from '../services/firebaseService';
 import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise } from '../types';
 import { WebQRScanner } from './WebQRScanner';
-import { DumbbellIcon, PlayIcon, CloseIcon, ChevronRightIcon, ClockIcon, SparklesIcon, LightningIcon, StarIcon, ChevronLeftIcon, ChevronDownIcon, ChevronUpIcon } from './icons';
+import { DumbbellIcon, PlayIcon, CloseIcon, ChevronRightIcon, ClockIcon, SparklesIcon, LightningIcon, StarIcon, ChevronLeftIcon, ChevronDownIcon, ChevronUpIcon, RefreshIcon } from './icons';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // --- Types ---
@@ -150,7 +150,7 @@ const QuickTimerSetup: React.FC<{ onStart: (settings: TimerSettings, title: stri
             </div>
 
             <button onClick={handleStart} className="w-full bg-primary text-white font-black py-5 rounded-2xl text-lg uppercase tracking-widest shadow-lg shadow-primary/20 active:scale-95 transition-all">
-                Visa på skärm
+                Ladda på skärm
             </button>
         </div>
     );
@@ -176,9 +176,10 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
 
     const handleClose = () => {
         if (connectedStudioId) {
-            if (window.confirm("Vill du avsluta fjärrkontrollen?")) {
+            if (window.confirm("Vill du koppla från fjärrkontrollen?")) {
                 if (selectedOrganization && connectedStudioId) {
-                     updateStudioRemoteState(selectedOrganization.id, connectedStudioId, null);
+                    // Reset to idle on disconnect? Or just leave it? 
+                    // Let's leave it running but disconnect remote.
                 }
                 onBack();
             }
@@ -218,10 +219,12 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         setView('controls');
     };
 
-    const handleStartBlock = async (block: WorkoutBlock) => {
+    // LOAD Block (Does not start timer)
+    const handleLoadBlock = async (block: WorkoutBlock) => {
         if (!selectedOrganization || !connectedStudioId || !selectedWorkout) return;
         
         setActiveRunningBlockId(block.id);
+        setExpandedBlockId(block.id); // Auto expand
         
         await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
             activeWorkoutId: selectedWorkout.id,
@@ -229,8 +232,21 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
             activeBlockId: block.id,
             lastUpdate: Date.now(),
             controllerName: 'Coach',
-            command: 'start', // Ensure auto-start
-            commandTimestamp: Date.now()
+            // NO START COMMAND HERE - Just load it
+        });
+    };
+
+    const handleCloseBlock = async () => {
+        if (!selectedOrganization || !connectedStudioId || !selectedWorkout) return;
+        
+        setActiveRunningBlockId(null);
+        
+        await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
+            activeWorkoutId: selectedWorkout.id,
+            view: 'preview', // Go back to workout detail
+            activeBlockId: null,
+            lastUpdate: Date.now(),
+            controllerName: 'Coach'
         });
     };
     
@@ -240,7 +256,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
             activeWorkoutId: selectedWorkout.id,
             view: 'timer',
-            activeBlockId: null, // Keep existing active block logic in receiver
+            activeBlockId: activeRunningBlockId, // Keep current block
             lastUpdate: Date.now(),
             controllerName: 'Coach',
             command: cmd,
@@ -248,12 +264,14 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         });
     };
     
-    const handleStop = async () => {
+    const handleExitSession = async () => {
          if (!selectedOrganization || !connectedStudioId) return;
-         await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, null);
-         setView('dashboard');
-         setSelectedWorkout(null);
-         setActiveRunningBlockId(null);
+         if (window.confirm("Vill du avsluta hela sessionen och gå till hemskärmen?")) {
+             await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, null);
+             setView('dashboard');
+             setSelectedWorkout(null);
+             setActiveRunningBlockId(null);
+         }
     };
 
     const handleFreestandingStart = async (settings: TimerSettings, title: string) => {
@@ -284,7 +302,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         // 1. Save workout to Firebase so TV can fetch it
         await saveWorkout(tempWorkout);
 
-        // 2. Set remote state
+        // 2. Set remote state - LOAD ONLY first
         setSelectedWorkout(tempWorkout);
         setActiveRunningBlockId(timerBlock.id);
         setExpandedBlockId(timerBlock.id);
@@ -294,9 +312,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
             view: 'timer',
             activeBlockId: timerBlock.id,
             lastUpdate: Date.now(),
-            controllerName: 'Coach',
-            command: 'start',
-            commandTimestamp: Date.now()
+            controllerName: 'Coach'
         });
 
         setView('controls');
@@ -460,7 +476,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                         <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Live på {connectedStudioName}</span>
                     </div>
-                    <button onClick={handleStop} className="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg border border-gray-700 transition-colors">Avsluta Session</button>
+                    <button onClick={handleExitSession} className="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg border border-gray-700 transition-colors">Tillbaka till menyn</button>
                 </div>
 
                 {/* Compact Info Header */}
@@ -515,28 +531,35 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                                 >
                                                     <div className="p-4 space-y-3">
                                                         {isRunning ? (
-                                                            // Controls for ACTIVE block
+                                                            // Controls for ACTIVE block (State B)
                                                             <div className="grid grid-cols-2 gap-3">
+                                                                <button onClick={() => sendCommand('start')} className="bg-green-600 hover:bg-green-500 p-6 rounded-2xl font-bold text-white flex flex-col items-center gap-1 col-span-2 shadow-lg">
+                                                                    <span className="text-3xl"><PlayIcon className="w-8 h-8 fill-current" /></span>
+                                                                    <span className="text-xs uppercase tracking-widest">Starta / Fortsätt</span>
+                                                                </button>
+                                                                
                                                                 <button onClick={() => sendCommand('pause')} className="bg-gray-800 hover:bg-gray-700 p-4 rounded-xl font-bold text-white flex flex-col items-center gap-1">
                                                                     <span className="text-xl">⏸</span>
                                                                     <span className="text-[10px] uppercase">Pausa</span>
                                                                 </button>
-                                                                <button onClick={() => sendCommand('start')} className="bg-green-600 hover:bg-green-500 p-4 rounded-xl font-bold text-white flex flex-col items-center gap-1">
-                                                                    <span className="text-xl">▶</span>
-                                                                    <span className="text-[10px] uppercase">Fortsätt</span>
+                                                                
+                                                                 <button onClick={() => sendCommand('reset')} className="bg-gray-800 hover:bg-gray-700 p-4 rounded-xl font-bold text-yellow-500 flex flex-col items-center gap-1">
+                                                                    <span className="text-xl"><RefreshIcon className="w-5 h-5" /></span>
+                                                                    <span className="text-[10px] uppercase">Nollställ</span>
                                                                 </button>
-                                                                 <button onClick={() => sendCommand('reset')} className="col-span-2 bg-gray-800 hover:bg-gray-700 p-3 rounded-xl font-bold text-yellow-500 text-xs uppercase tracking-wider">
-                                                                    Starta om blocket
+
+                                                                <button onClick={handleCloseBlock} className="col-span-2 mt-2 bg-red-900/30 hover:bg-red-900/50 border border-red-900 text-red-400 p-3 rounded-xl font-bold text-xs uppercase tracking-wider">
+                                                                    Stäng block
                                                                 </button>
                                                             </div>
                                                         ) : (
-                                                            // Start button for INACTIVE block
+                                                            // Load button for INACTIVE block (State A)
                                                             <button 
-                                                                onClick={() => handleStartBlock(block)}
-                                                                className="w-full bg-primary hover:brightness-110 text-white font-black py-4 rounded-xl shadow-lg shadow-primary/20 text-sm uppercase tracking-widest flex items-center justify-center gap-2"
+                                                                onClick={() => handleLoadBlock(block)}
+                                                                className="w-full bg-primary hover:brightness-110 text-white font-black py-6 rounded-xl shadow-lg shadow-primary/20 text-lg uppercase tracking-widest flex items-center justify-center gap-3"
                                                             >
-                                                                <PlayIcon className="w-4 h-4" />
-                                                                Starta detta block
+                                                                <LightningIcon className="w-6 h-6" />
+                                                                Ladda på skärm
                                                             </button>
                                                         )}
                                                         

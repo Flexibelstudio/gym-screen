@@ -890,7 +890,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     } else {
         setStartGroups([]);
     }
-    start();
+    // RESET LOBBY MODE
+    setIsLobbyMode(true);
+    reset(); // Reset will stop timer and set status to Idle
   };
 
   useEffect(() => { return () => stopAllAudio(); }, [stopAllAudio]);
