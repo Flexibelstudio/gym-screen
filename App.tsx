@@ -638,19 +638,6 @@ const App: React.FC = () => {
     navigateTo(Page.SimpleWorkoutBuilder);
   };
   
-  const handleAdjustWorkout = (workoutToAdjust: Workout) => {
-    const newDraft = deepCopyAndPrepareAsNew(workoutToAdjust);
-    newDraft.title = `Justering: ${workoutToAdjust.title}`;
-    newDraft.isMemberDraft = true;
-    newDraft.isPublished = false;
-    if (!newDraft.organizationId && selectedOrganization) {
-        newDraft.organizationId = selectedOrganization.id;
-    }
-    setActiveWorkout(newDraft);
-    setIsEditingNewDraft(true);
-    navigateTo(Page.SimpleWorkoutBuilder);
-  };
-  
   const handleReturnToGroupPrep = useCallback(() => {
     if (activeWorkout && (activeWorkout.id.startsWith('hyrox-full-race') || activeWorkout.id.startsWith('custom-race'))) {
         setRacePrepState({
@@ -1264,7 +1251,7 @@ const App: React.FC = () => {
                                     onStartBlock={(block) => handleStartBlock(block, mobileViewData)} 
                                     onUpdateBlockSettings={() => {}}
                                     onEditWorkout={() => {}} 
-                                    onAdjustWorkout={functions.handleAdjustWorkout}
+                                    onAdjustWorkout={handleAdjustWorkout}
                                     isCoachView={false} 
                                     onTogglePublish={() => {}}
                                     onToggleFavorite={handleToggleFavoriteStatus}
