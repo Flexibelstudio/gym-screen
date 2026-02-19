@@ -3,11 +3,13 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Page, Workout, MenuItem, StudioConfig, Passkategori, CustomCategoryWithPrompt } from '../types';
 import { welcomeMessages } from '../data/welcomeMessages';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DumbbellIcon, SparklesIcon, StarIcon, PencilIcon, getIconComponent, CloseIcon } from './icons';
+import { DumbbellIcon, SparklesIcon, StarIcon, PencilIcon, getIconComponent, CloseIcon, LightningIcon } from './icons';
 import { WeeklyPBList } from './WeeklyPBList'; 
 import { CommunityFeed } from './CommunityFeed';
 import { Modal } from './ui/Modal';
 import { useStudio } from '../context/StudioContext';
+import { useAuth } from '../context/AuthContext';
+import QRCode from 'react-qr-code';
 
 const TimerIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -146,7 +148,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     theme,
     studioLoading = false
 }) => {
-  const { selectedOrganization } = useStudio();
+  const { selectedOrganization, selectedStudio } = useStudio();
+  const { isStudioMode } = useAuth();
   const [welcomeMessage, setWelcomeMessage] = useState({ title: "Hej på er!", subtitle: "Redo att köra?" });
   const [currentTime, setCurrentTime] = useState(new Date());
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -229,6 +232,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
       return <h1 className="text-2xl font-black text-primary uppercase tracking-tighter">Smart Skärm</h1>;
   };
+  
+  // Remote Control Payload
+  const remoteQrValue = selectedStudio ? JSON.stringify({ sid: selectedStudio.id, action: 'control' }) : '';
 
   return (
     <>
@@ -246,15 +252,35 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     </motion.div>
                 </div>
 
-                <div className="flex flex-col items-end gap-4">
-                    <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="text-right">
-                        <span className="block text-5xl md:text-7xl font-thin font-mono leading-none text-gray-900 dark:text-white">
-                            {currentTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', hour12: false })}
-                        </span>
-                        <span className="text-primary uppercase tracking-[0.2em] font-black text-xs md:text-sm mt-1.5 block">
-                            {currentTime.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
-                        </span>
-                    </motion.div>
+                <div className="flex items-start gap-6">
+                    {/* REMOTE CONTROL QR (Only in Studio Mode) */}
+                    {isStudioMode && selectedStudio && (
+                         <motion.div 
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: 0.5 }}
+                            className="hidden lg:flex flex-col items-center bg-white p-2.5 rounded-2xl shadow-lg border border-white/20 backdrop-blur-sm group"
+                        >
+                            <div className="bg-white p-1 rounded-lg">
+                                <QRCode value={remoteQrValue} size={80} />
+                            </div>
+                            <div className="mt-2 flex items-center gap-1 text-gray-900">
+                                <LightningIcon className="w-3 h-3 text-primary" />
+                                <span className="text-[9px] font-black uppercase tracking-widest">Styr Skärm</span>
+                            </div>
+                        </motion.div>
+                    )}
+
+                    <div className="flex flex-col items-end gap-4">
+                        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="text-right">
+                            <span className="block text-5xl md:text-7xl font-thin font-mono leading-none text-gray-900 dark:text-white">
+                                {currentTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', hour12: false })}
+                            </span>
+                            <span className="text-primary uppercase tracking-[0.2em] font-black text-xs md:text-sm mt-1.5 block">
+                                {currentTime.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
+                            </span>
+                        </motion.div>
+                    </div>
                 </div>
             </div>
 
