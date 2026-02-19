@@ -654,6 +654,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       }
   }, [remoteCommand, start, pause, resume, reset, status, onFinish]);
 
+
   // --- TRANSITION LOGIC ---
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [transitionTimeLeft, setTransitionTimeLeft] = useState(0);

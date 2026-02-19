@@ -135,7 +135,6 @@ const App: React.FC = () => {
                       setActiveWorkout(null);
                   }
               } else if (remote.activeWorkoutId) {
-                  
                   const workoutToLoad = workouts.find(w => w.id === remote.activeWorkoutId);
                   if (workoutToLoad) {
                       if (activeWorkout?.id !== workoutToLoad.id) {
@@ -149,13 +148,13 @@ const App: React.FC = () => {
                       } else if (remote.view === 'timer' && remote.activeBlockId) {
                           const blockToStart = workoutToLoad.blocks.find(b => b.id === remote.activeBlockId);
                           if (blockToStart) {
-                              // FIX: Only update activeBlock if the ID has actually changed.
+                              // CRITICAL FIX: Only update activeBlock if the ID has actually changed.
                               // This prevents TimerScreen from re-mounting (and resetting to Idle/Lobby) 
                               // every time a remote command (start/pause) updates the timestamp in Firestore.
                               if (activeBlock?.id !== blockToStart.id) {
                                   setActiveBlock(blockToStart);
                               }
-                              
+
                               if (page !== Page.Timer) {
                                   navigateReplace(Page.Timer);
                               }
@@ -164,6 +163,14 @@ const App: React.FC = () => {
                   }
               }
           } else if (updatedStudio && !updatedStudio.remoteState && page !== Page.Home) {
+               navigateReplace(Page.Home);
+               setActiveWorkout(null);
+          }
+      });
+
+      return () => unsubscribe();
+  }, [isStudioMode, selectedOrganization?.id, selectedStudio?.id, workouts, page, activeWorkout, activeBlock]); // Added activeBlock to dependency
+
 
   const [customBackHandler, setCustomBackHandler] = useState<(() => void) | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
