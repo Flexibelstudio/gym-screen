@@ -97,6 +97,22 @@ const App: React.FC = () => {
   // NEW: State for passing remote commands to children
   const [remoteCommand, setRemoteCommand] = useState<{ type: string, timestamp: number } | null>(null);
 
+  // --- STUDIO RESET LOGIC (Emergency Brake) ---
+  // If the page is reloaded in Studio Mode, clear the remote state.
+  useEffect(() => {
+      const clearRemoteStateOnMount = async () => {
+          if (isStudioMode && selectedOrganization && selectedStudio) {
+               // Only clear if we actually have a stale session to clear. 
+               // But simply clearing on mount is safer and acts as the requested "reload to disconnect".
+               await updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
+          }
+      };
+      
+      if (!studioLoading) {
+          clearRemoteStateOnMount();
+      }
+  }, [isStudioMode, selectedOrganization?.id, selectedStudio?.id, studioLoading]);
+
   // --- STUDIO RECEIVER LOGIC (TV Mode) ---
   useEffect(() => {
       if (!isStudioMode || !selectedOrganization || !selectedStudio) return;
@@ -154,9 +170,10 @@ const App: React.FC = () => {
                   }
               }
           } else if (updatedStudio && !updatedStudio.remoteState && page !== Page.Home) {
-               // Om remoteState tas bort (nollställs), gå hem om vi inte redan är där
-               // MEN: Vi vill inte avbryta om användaren gör något lokalt.
-               // Så detta kanske vi skippar för att tillåta lokal kontroll.
+               // Om remoteState tas bort (nollställs) av controllern
+               // Gå till Hem
+               navigateReplace(Page.Home);
+               setActiveWorkout(null);
           }
       });
 
@@ -1108,6 +1125,9 @@ const App: React.FC = () => {
                 onToggleFavorite={handleToggleFavoriteStatus}
                 onDuplicateWorkout={handleDuplicateWorkout}
                 onTimerFinish={handleTimerFinish}
+                
+                // Pass command to AppRouter to distribute to screens
+                remoteCommand={remoteCommand}
                 
                 functions={{
                     selectOrganization: handleSelectOrganization,
