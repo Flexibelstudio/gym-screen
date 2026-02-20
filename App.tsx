@@ -375,6 +375,10 @@ const App: React.FC = () => {
                  lastUpdate: Date.now(),
                  controllerName: 'Coach' // Preserve controller name if possible, simplified here
              });
+             
+             // EXPLICIT NAVIGATION: Ensure we go to WorkoutDetail, not just pop history (which might be Home)
+             navigateReplace(Page.WorkoutDetail);
+             return;
         } 
         // If back from Preview -> Go to Idle, Set Remote State to Idle
         else if (page === Page.WorkoutDetail) {
