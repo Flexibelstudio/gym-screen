@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout, TimerSegment } from '../types';
 import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration, playTimerSound } from '../hooks/useWorkoutTimer';
 import { useWorkout } from '../context/WorkoutContext';
-import { saveRace, updateOrganizationActivity } from '../services/firebaseService';
+import { saveRace, updateOrganizationActivity, updateStudioRemoteState } from '../services/firebaseService';
 import { Confetti } from './WorkoutCompleteModal';
 import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmationModal, RaceFinishAnimation, PauseOverlay } from './timer/TimerModals';
 import { ParticipantFinishList } from './timer/ParticipantFinishList';
@@ -575,7 +575,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     remoteCommand
 }) => {
   const { activeWorkout } = useWorkout();
-  const { studioConfig } = useStudio(); 
+  const { studioConfig, selectedStudio, selectedOrganization } = useStudio(); 
   
   // Use the hook with the selected sound profile
   const { 
@@ -632,10 +632,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                   }
                   break;
               case 'pause':
-                  // FIX: Force Lobby Mode off. If we pause, we are definitely not in the lobby.
-                  // This ensures the PauseOverlay is visible.
-                  setIsLobbyMode(false);
-                  
                   if (status === TimerStatus.Running || status === TimerStatus.Resting || status === TimerStatus.Preparing) {
                       pause();
                   }
@@ -898,6 +894,37 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     setIsLobbyMode(true);
     reset(); // Reset will stop timer and set status to Idle
   };
+
+  // --- REMOTE SYNC HANDLER ---
+  const handleRemoteAction = useCallback((action: 'start' | 'pause' | 'resume' | 'reset') => {
+      // 1. Perform Local Action
+      if (action === 'start') {
+          setIsLobbyMode(false);
+          start(); 
+      }
+      else if (action === 'pause') {
+          if (isTransitioning) setIsTransitionPaused(true);
+          else pause();
+      }
+      else if (action === 'resume') {
+          if (isTransitioning) setIsTransitionPaused(false);
+          else resume();
+      }
+      else if (action === 'reset') {
+          handleConfirmReset();
+      }
+
+      // 2. Sync to Firebase (if in Studio Mode)
+      if (selectedOrganization && selectedStudio) {
+          const currentState = selectedStudio.remoteState || {};
+          // Optimistically update remote state to prevent "flicker" from incoming listener
+          updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+              ...currentState,
+              command: action,
+              commandTimestamp: Date.now()
+          });
+      }
+  }, [selectedOrganization, selectedStudio, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset]);
 
   useEffect(() => { return () => stopAllAudio(); }, [stopAllAudio]);
 
@@ -1162,7 +1189,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       
       <AnimatePresence>
         {isActuallyPaused && !showFinishAnimation && !isLobbyMode && (
-            <PauseOverlay onResume={isTransitioning ? () => setIsTransitionPaused(false) : resume} onRestart={handleConfirmReset} onFinish={() => onFinish({ isNatural: false })} />
+            <PauseOverlay onResume={() => handleRemoteAction('resume')} onRestart={() => handleRemoteAction('reset')} onFinish={() => onFinish({ isNatural: false })} />
         )}
         {participantToEdit && (
             <EditResultModal 
@@ -1214,7 +1241,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         {isLobbyMode && (
              <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-8">
                  <button 
-                    onClick={handleLobbyStart}
+                    onClick={() => handleRemoteAction('start')}
                     className="bg-white text-black hover:scale-110 transition-transform duration-200 rounded-full p-6 shadow-2xl border-4 border-white/50 group"
                  >
                     <PlayIcon className="w-16 h-16 ml-1 fill-current group-hover:text-primary transition-colors" />
@@ -1533,12 +1560,12 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 {isActuallyFinishedOrIdle ? (
                     <>
                         <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-50 transition-colors text-xl backdrop-blur-md border-2 border-white/20 uppercase">TILLBAKA</button>
-                        <button onClick={() => start()} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50 uppercase">STARTA</button>
+                        <button onClick={() => handleRemoteAction('start')} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50 uppercase">STARTA</button>
                     </>
                 ) : isActuallyPaused ? (
-                    <button onClick={isTransitioning ? () => setIsTransitionPaused(false) : resume} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase">FORTSÄTT</button>
+                    <button onClick={() => handleRemoteAction('resume')} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase">FORTSÄTT</button>
                 ) : (
-                    <button onClick={isTransitioning ? () => setIsTransitionPaused(true) : pause} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50 uppercase">PAUSA</button>
+                    <button onClick={() => handleRemoteAction('pause')} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50 uppercase">PAUSA</button>
                 )}
                 {isHyroxRace && status !== TimerStatus.Running && <button onClick={() => setShowBackToPrepConfirmation(true)} className="bg-gray-800/80 text-white font-bold py-4 px-8 rounded-full shadow-xl border-2 border-gray-600 hover:bg-gray-700 transition-colors text-lg uppercase">⚙️ Grupper</button>}
           </div>
