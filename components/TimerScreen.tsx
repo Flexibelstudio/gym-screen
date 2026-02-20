@@ -896,7 +896,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   };
 
   // --- REMOTE SYNC HANDLER ---
-  const handleRemoteAction = useCallback((action: 'start' | 'pause' | 'resume' | 'reset') => {
+  const handleRemoteAction = useCallback(async (action: 'start' | 'pause' | 'resume' | 'reset') => {
       // 1. Perform Local Action
       if (action === 'start') {
           setIsLobbyMode(false);
@@ -915,16 +915,25 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       }
 
       // 2. Sync to Firebase (if in Studio Mode)
-      if (selectedOrganization && selectedStudio) {
-          const currentState = selectedStudio.remoteState || {};
-          // Optimistically update remote state to prevent "flicker" from incoming listener
-          updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-              ...currentState,
+      if (selectedOrganization && selectedStudio && activeWorkout) {
+          // CRITICAL FIX: We cannot rely on selectedStudio.remoteState from context because it might be stale
+          // (App.tsx listens to changes but might not update the context immediately).
+          // Instead, we explicitly enforce the current correct state (Timer View) to prevent
+          // the App.tsx listener from redirecting us to Home/Idle.
+          
+          const newState = {
+              activeWorkoutId: activeWorkout.id,
+              view: 'timer',
+              activeBlockId: block.id,
               command: action,
-              commandTimestamp: Date.now()
-          });
+              commandTimestamp: Date.now(),
+              lastUpdate: Date.now(),
+              controllerName: 'Coach' // Default fallback
+          };
+
+          await updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, newState);
       }
-  }, [selectedOrganization, selectedStudio, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset]);
+  }, [selectedOrganization, selectedStudio, activeWorkout, block.id, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset]);
 
   useEffect(() => { return () => stopAllAudio(); }, [stopAllAudio]);
 
