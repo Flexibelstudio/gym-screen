@@ -194,6 +194,10 @@ export interface RemoteSessionState {
     controllerName?: string; // Name of coach controlling
     command?: 'start' | 'pause' | 'resume' | 'reset' | 'finish'; // NEW: Command channel
     commandTimestamp?: number; // To deduplicate commands
+    viewerSettings?: {
+        textScale: number;
+        repsScale: number;
+    };
 }
 
 export interface Studio {

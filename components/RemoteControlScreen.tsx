@@ -318,6 +318,31 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         setView('controls');
     };
 
+    const [showViewSettings, setShowViewSettings] = useState(false);
+
+    // --- VIEW SETTINGS HANDLER ---
+    const handleUpdateViewSettings = async (setting: 'text' | 'reps', value: number) => {
+        if (!selectedOrganization || !connectedStudioId) return;
+        
+        const studio = selectedOrganization.studios.find(s => s.id === connectedStudioId);
+        const currentSettings = studio?.remoteState?.viewerSettings || { textScale: 1, repsScale: 1 };
+        
+        const newViewerSettings = {
+            textScale: currentSettings.textScale || 1,
+            repsScale: currentSettings.repsScale || 1,
+            [setting === 'text' ? 'textScale' : 'repsScale']: value
+        };
+
+        // We only need to send the partial update, updateStudioRemoteState handles merging usually, 
+        // but let's be safe and send what we know. Actually updateStudioRemoteState likely merges at top level but replaces nested?
+        // Let's assume it merges top level keys.
+        
+        await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
+            viewerSettings: newViewerSettings,
+            lastUpdate: Date.now()
+        } as any);
+    };
+
     // --- RENDERERS ---
 
     if (view === 'scan') {
@@ -471,13 +496,93 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         return (
             <div className="fixed inset-0 bg-black text-white z-50 flex flex-col animate-fade-in">
                  {/* Mini Header */}
-                 <div className="p-4 bg-gray-900 border-b border-gray-800 flex justify-between items-center">
+                 <div className="p-4 bg-gray-900 border-b border-gray-800 flex justify-between items-center relative z-20">
                     <div className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Live på {connectedStudioName}</span>
                     </div>
-                    <button onClick={handleExitSession} className="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg border border-gray-700 transition-colors">Tillbaka till menyn</button>
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => setShowViewSettings(!showViewSettings)}
+                            className={`p-2 rounded-lg border transition-colors ${showViewSettings ? 'bg-primary border-primary text-white' : 'bg-gray-800 border-gray-700 text-gray-400 hover:text-white'}`}
+                        >
+                            <SettingsIcon className="w-5 h-5" />
+                        </button>
+                        <button onClick={handleExitSession} className="text-xs bg-gray-800 hover:bg-gray-700 px-3 py-1.5 rounded-lg border border-gray-700 transition-colors">Tillbaka</button>
+                    </div>
                 </div>
+
+                {/* VIEW SETTINGS OVERLAY */}
+                <AnimatePresence>
+                    {showViewSettings && (
+                        <motion.div 
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="bg-gray-800 border-b border-gray-700 overflow-hidden relative z-10"
+                        >
+                            <div className="p-6 space-y-6">
+                                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest text-center">Justera Vy på Skärmen</h3>
+                                
+                                {/* Text Size Slider */}
+                                <div>
+                                    <div className="flex justify-between text-xs font-bold text-white mb-2">
+                                        <span>Textstorlek</span>
+                                        <span>{Math.round((selectedOrganization?.studios.find(s => s.id === connectedStudioId)?.remoteState?.viewerSettings?.textScale || 1) * 100)}%</span>
+                                    </div>
+                                    <input 
+                                        type="range" 
+                                        min="0.5" 
+                                        max="2.0" 
+                                        step="0.1" 
+                                        value={selectedOrganization?.studios.find(s => s.id === connectedStudioId)?.remoteState?.viewerSettings?.textScale || 1} 
+                                        onChange={(e) => handleUpdateViewSettings('text', parseFloat(e.target.value))}
+                                        className="w-full h-4 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                                    />
+                                    <div className="flex justify-between text-[10px] text-gray-500 mt-1 font-bold uppercase">
+                                        <span>Liten</span>
+                                        <span>Normal</span>
+                                        <span>Stor</span>
+                                    </div>
+                                </div>
+
+                                {/* Reps Size Slider */}
+                                <div>
+                                    <div className="flex justify-between text-xs font-bold text-white mb-2">
+                                        <span>Reps-storlek</span>
+                                        <span>{Math.round((selectedOrganization?.studios.find(s => s.id === connectedStudioId)?.remoteState?.viewerSettings?.repsScale || 1) * 100)}%</span>
+                                    </div>
+                                    <input 
+                                        type="range" 
+                                        min="0.5" 
+                                        max="2.5" 
+                                        step="0.1" 
+                                        value={selectedOrganization?.studios.find(s => s.id === connectedStudioId)?.remoteState?.viewerSettings?.repsScale || 1} 
+                                        onChange={(e) => handleUpdateViewSettings('reps', parseFloat(e.target.value))}
+                                        className="w-full h-4 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                                    />
+                                    <div className="flex justify-between text-[10px] text-gray-500 mt-1 font-bold uppercase">
+                                        <span>Liten</span>
+                                        <span>Normal</span>
+                                        <span>Stor</span>
+                                    </div>
+                                </div>
+                                
+                                <div className="flex justify-center pt-2">
+                                    <button 
+                                        onClick={() => {
+                                            handleUpdateViewSettings('text', 1);
+                                            handleUpdateViewSettings('reps', 1);
+                                        }}
+                                        className="text-xs text-gray-500 hover:text-white font-bold uppercase tracking-wider flex items-center gap-1"
+                                    >
+                                        <RefreshIcon className="w-3 h-3" /> Återställ
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
 
                 {/* Compact Info Header */}
                  <div className="px-6 py-4 bg-gray-900/50">

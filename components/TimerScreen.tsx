@@ -549,6 +549,70 @@ const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRou
 };
 
 
+// --- TIMER CONTROLS COMPONENT ---
+const TimerControls: React.FC<{
+    textSizeScale: number;
+    repsSizeScale: number;
+    onTextChange: (val: number) => void;
+    onRepsChange: (val: number) => void;
+    visible: boolean;
+}> = ({ textSizeScale, repsSizeScale, onTextChange, onRepsChange, visible }) => {
+    return (
+        <AnimatePresence>
+            {visible && (
+                <motion.div
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    className="absolute top-full mt-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl p-4 flex items-center gap-8 shadow-2xl z-50"
+                >
+                    {/* Text Size Control */}
+                    <div className="flex items-center gap-3">
+                        <span className="text-white/50 text-xs font-bold uppercase tracking-wider">Text</span>
+                        <button 
+                            onClick={() => onTextChange(Math.max(0.5, textSizeScale - 0.1))}
+                            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+                        >
+                            -
+                        </button>
+                        <span className="text-white font-mono font-bold w-12 text-center">
+                            {Math.round(textSizeScale * 100)}%
+                        </span>
+                        <button 
+                            onClick={() => onTextChange(Math.min(2.0, textSizeScale + 0.1))}
+                            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+                        >
+                            +
+                        </button>
+                    </div>
+
+                    <div className="w-px h-8 bg-white/10"></div>
+
+                    {/* Reps Size Control */}
+                    <div className="flex items-center gap-3">
+                        <span className="text-white/50 text-xs font-bold uppercase tracking-wider">Reps</span>
+                        <button 
+                            onClick={() => onRepsChange(Math.max(0.5, repsSizeScale - 0.1))}
+                            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+                        >
+                            -
+                        </button>
+                        <span className="text-white font-mono font-bold w-12 text-center">
+                            {Math.round(repsSizeScale * 100)}%
+                        </span>
+                        <button 
+                            onClick={() => onRepsChange(Math.min(2.0, repsSizeScale + 0.1))}
+                            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
+                        >
+                            +
+                        </button>
+                    </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
+};
+
 interface TimerScreenProps {
     block: WorkoutBlock;
     onFinish: (finishData: { isNatural?: boolean; time?: number, raceId?: string }) => void;
@@ -594,12 +658,21 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [textSizeScale, setTextSizeScale] = useState(1);
   const [repsSizeScale, setRepsSizeScale] = useState(1);
 
+  // Sync with Remote State
+  useEffect(() => {
+      if (selectedStudio?.remoteState?.viewerSettings) {
+          const { textScale, repsScale } = selectedStudio.remoteState.viewerSettings;
+          if (textScale) setTextSizeScale(textScale);
+          if (repsScale) setRepsSizeScale(repsScale);
+      }
+  }, [selectedStudio?.remoteState?.viewerSettings]);
+
   useEffect(() => {
       const storedText = localStorage.getItem('timer-text-scale');
       const storedReps = localStorage.getItem('timer-reps-scale');
-      if (storedText) setTextSizeScale(parseFloat(storedText));
-      if (storedReps) setRepsSizeScale(parseFloat(storedReps));
-  }, []);
+      if (storedText && !selectedStudio?.remoteState?.viewerSettings) setTextSizeScale(parseFloat(storedText));
+      if (storedReps && !selectedStudio?.remoteState?.viewerSettings) setRepsSizeScale(parseFloat(storedReps));
+  }, [selectedStudio?.remoteState?.viewerSettings]);
 
   const handleSizeChange = (type: 'text' | 'reps', val: number) => {
       if (type === 'text') {
@@ -614,6 +687,20 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [controlsVisible, setControlsVisible] = React.useState(false);
   const hideTimeoutRef = React.useRef<number | null>(null);
   const wakeLockRef = useRef<any>(null);
+  
+  // Show controls on mouse move
+  useEffect(() => {
+      const handleMouseMove = () => {
+          setControlsVisible(true);
+          if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+          hideTimeoutRef.current = window.setTimeout(() => setControlsVisible(false), 3000);
+      };
+      window.addEventListener('mousemove', handleMouseMove);
+      return () => {
+          window.removeEventListener('mousemove', handleMouseMove);
+          if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+      };
+  }, []);
   
   // Get navigation position preference (default top)
   const navPos = studioConfig.navigationControlPosition || 'top';
@@ -897,8 +984,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   // --- REMOTE SYNC HANDLER ---
   const handleRemoteAction = useCallback(async (action: 'start' | 'pause' | 'resume' | 'reset') => {
-      console.log(`[TimerScreen] handleRemoteAction called: ${action}`);
-      
       // 1. Perform Local Action
       if (action === 'start') {
           setIsLobbyMode(false);
@@ -918,8 +1003,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
       // 2. Sync to Firebase (if in Studio Mode)
       if (selectedOrganization && selectedStudio && activeWorkout) {
-          console.log(`[TimerScreen] Syncing to Firebase. Org: ${selectedOrganization.id}, Studio: ${selectedStudio.id}, Workout: ${activeWorkout.id}`);
-          
           // CRITICAL FIX: We cannot rely on selectedStudio.remoteState from context because it might be stale
           // (App.tsx listens to changes but might not update the context immediately).
           // Instead, we explicitly enforce the current correct state (Timer View) to prevent
@@ -927,7 +1010,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           
           const newState = {
               activeWorkoutId: activeWorkout.id,
-              view: 'timer' as const, // Explicit type
+              view: 'timer',
               activeBlockId: block.id,
               command: action,
               commandTimestamp: Date.now(),
@@ -935,24 +1018,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               controllerName: 'Coach' // Default fallback
           };
 
-          try {
-              await updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, newState);
-              console.log(`[TimerScreen] Firebase sync complete.`);
-          } catch (err) {
-              console.error(`[TimerScreen] Firebase sync failed:`, err);
-          }
-      } else {
-          console.warn(`[TimerScreen] Skipping Firebase sync. Missing data. Org: ${!!selectedOrganization}, Studio: ${!!selectedStudio}, Workout: ${!!activeWorkout}`);
+          await updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, newState);
       }
   }, [selectedOrganization, selectedStudio, activeWorkout, block.id, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset]);
 
-  useEffect(() => {
-      console.log(`[TimerScreen] Mounted. Block: ${block.id}`);
-      return () => {
-          console.log(`[TimerScreen] Unmounted.`);
-          stopAllAudio();
-      };
-  }, [stopAllAudio, block.id]);
+  useEffect(() => { return () => stopAllAudio(); }, [stopAllAudio]);
 
   useEffect(() => {
     if (isHyroxRace) {
@@ -1215,11 +1285,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       
       <AnimatePresence>
         {isActuallyPaused && !showFinishAnimation && !isLobbyMode && (
-            <PauseOverlay 
-                onResume={(e?: React.MouseEvent) => { e?.stopPropagation(); handleRemoteAction('resume'); }} 
-                onRestart={(e?: React.MouseEvent) => { e?.stopPropagation(); handleRemoteAction('reset'); }} 
-                onFinish={(e?: React.MouseEvent) => { e?.stopPropagation(); onFinish({ isNatural: false }); }} 
-            />
+            <PauseOverlay onResume={() => handleRemoteAction('resume')} onRestart={() => handleRemoteAction('reset')} onFinish={() => onFinish({ isNatural: false })} />
         )}
         {participantToEdit && (
             <EditResultModal 
@@ -1271,7 +1337,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         {isLobbyMode && (
              <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-8">
                  <button 
-                    onClick={(e) => { e.stopPropagation(); handleRemoteAction('start'); }}
+                    onClick={() => handleRemoteAction('start')}
                     className="bg-white text-black hover:scale-110 transition-transform duration-200 rounded-full p-6 shadow-2xl border-4 border-white/50 group"
                  >
                     <PlayIcon className="w-16 h-16 ml-1 fill-current group-hover:text-primary transition-colors" />
@@ -1374,6 +1440,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 {isTransitioning ? nextBlock?.title : block.title}
             </h1>
         </div>
+
+        {/* TIMER CONTROLS (Floating under card) */}
+        <TimerControls 
+            textSizeScale={textSizeScale} 
+            repsSizeScale={repsSizeScale} 
+            onTextChange={(val) => handleSizeChange('text', val)} 
+            onRepsChange={(val) => handleSizeChange('reps', val)} 
+            visible={controlsVisible && !isLobbyMode}
+        />
       </div>
 
       {/* CONTENT AREA (Under Clock) */}
@@ -1589,15 +1664,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[35%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
                 {isActuallyFinishedOrIdle ? (
                     <>
-                        <button onClick={(e) => { e.stopPropagation(); onFinish({ isNatural: false }); }} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-50 transition-colors text-xl backdrop-blur-md border-2 border-white/20 uppercase">TILLBAKA</button>
-                        <button onClick={(e) => { e.stopPropagation(); handleRemoteAction('start'); }} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50 uppercase">STARTA</button>
+                        <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-50 transition-colors text-xl backdrop-blur-md border-2 border-white/20 uppercase">TILLBAKA</button>
+                        <button onClick={() => handleRemoteAction('start')} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50 uppercase">STARTA</button>
                     </>
                 ) : isActuallyPaused ? (
-                    <button onClick={(e) => { e.stopPropagation(); handleRemoteAction('resume'); }} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase">FORTSÄTT</button>
+                    <button onClick={() => handleRemoteAction('resume')} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase">FORTSÄTT</button>
                 ) : (
-                    <button onClick={(e) => { e.stopPropagation(); handleRemoteAction('pause'); }} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50 uppercase">PAUSA</button>
+                    <button onClick={() => handleRemoteAction('pause')} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50 uppercase">PAUSA</button>
                 )}
-                {isHyroxRace && status !== TimerStatus.Running && <button onClick={(e) => { e.stopPropagation(); setShowBackToPrepConfirmation(true); }} className="bg-gray-800/80 text-white font-bold py-4 px-8 rounded-full shadow-xl border-2 border-gray-600 hover:bg-gray-700 transition-colors text-lg uppercase">⚙️ Grupper</button>}
+                {isHyroxRace && status !== TimerStatus.Running && <button onClick={() => setShowBackToPrepConfirmation(true)} className="bg-gray-800/80 text-white font-bold py-4 px-8 rounded-full shadow-xl border-2 border-gray-600 hover:bg-gray-700 transition-colors text-lg uppercase">⚙️ Grupper</button>}
           </div>
       )}
     </div>
