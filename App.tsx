@@ -116,9 +116,6 @@ const App: React.FC = () => {
       if (!isStudioMode || !selectedOrganization || !selectedStudio) return;
 
       const unsubscribe = listenToOrganizationChanges(selectedOrganization.id, (updatedOrg) => {
-          // If a coach/admin is logged in on the screen, ignore remote commands to prevent interruption
-          if (sessionRole !== 'member') return;
-
           const updatedStudio = updatedOrg.studios.find(s => s.id === selectedStudio.id);
           if (updatedStudio && updatedStudio.remoteState) {
               const remote = updatedStudio.remoteState;
@@ -166,7 +163,7 @@ const App: React.FC = () => {
       });
 
       return () => unsubscribe();
-  }, [isStudioMode, selectedOrganization?.id, selectedStudio?.id, workouts, page, activeWorkout, sessionRole]);
+  }, [isStudioMode, selectedOrganization?.id, selectedStudio?.id, workouts, page, activeWorkout]);
 
 
   const [customBackHandler, setCustomBackHandler] = useState<(() => void) | null>(null);
