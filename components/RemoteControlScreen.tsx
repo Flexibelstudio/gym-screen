@@ -324,6 +324,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
     const handleUpdateViewSettings = async (setting: 'text' | 'reps', value: number) => {
         if (!selectedOrganization || !connectedStudioId) return;
         
+        // Fetch the LATEST state directly from the organization object in context to avoid stale closure issues
         const studio = selectedOrganization.studios.find(s => s.id === connectedStudioId);
         const currentSettings = studio?.remoteState?.viewerSettings || { textScale: 1, repsScale: 1 };
         
@@ -333,10 +334,9 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
             [setting === 'text' ? 'textScale' : 'repsScale']: value
         };
 
-        // We only need to send the partial update, updateStudioRemoteState handles merging usually, 
-        // but let's be safe and send what we know. Actually updateStudioRemoteState likely merges at top level but replaces nested?
-        // Let's assume it merges top level keys.
-        
+        // Optimistic update (optional, but good for UI responsiveness if we had local state for sliders)
+        // For now, we rely on the prop update from Firebase to reflect back in the UI
+
         await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
             viewerSettings: newViewerSettings,
             lastUpdate: Date.now()
