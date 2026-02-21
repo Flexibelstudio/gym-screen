@@ -111,59 +111,60 @@ const App: React.FC = () => {
       }
   }, [isStudioMode, selectedOrganization?.id, selectedStudio?.id, studioLoading]);
 
-  // --- STUDIO RECEIVER LOGIC (TV Mode) ---
-  useEffect(() => {
-      if (!isStudioMode || !selectedOrganization || !selectedStudio) return;
-
-      const unsubscribe = listenToOrganizationChanges(selectedOrganization.id, (updatedOrg) => {
-          const updatedStudio = updatedOrg.studios.find(s => s.id === selectedStudio.id);
-          if (updatedStudio && updatedStudio.remoteState) {
-              const remote = updatedStudio.remoteState;
-              
-              if (remote.command && remote.commandTimestamp) {
-                  setRemoteCommand(prev => {
-                      if (!prev || prev.timestamp !== remote.commandTimestamp) {
-                          return { type: remote.command!, timestamp: remote.commandTimestamp! };
-                      }
-                      return prev;
-                  });
-              }
-
-              if (remote.view === 'idle') {
-                  if (page !== Page.Home) {
-                      navigateReplace(Page.Home);
-                      setActiveWorkout(null);
-                  }
-              } else if (remote.activeWorkoutId) {
-                  const workoutToLoad = workouts.find(w => w.id === remote.activeWorkoutId);
-                  if (workoutToLoad) {
-                      if (activeWorkout?.id !== workoutToLoad.id) {
-                          setActiveWorkout(workoutToLoad);
-                      }
-
-                      if (remote.view === 'preview') {
-                          if (page !== Page.WorkoutDetail) {
-                              navigateReplace(Page.WorkoutDetail);
+      // STUDIO RECEIVER LOGIC (TV Mode)
+      useEffect(() => {
+          if (!isStudioMode || !selectedOrganization || !selectedStudio) return;
+    
+          const unsubscribe = listenToOrganizationChanges(selectedOrganization.id, (updatedOrg) => {
+              const updatedStudio = updatedOrg.studios.find(s => s.id === selectedStudio.id);
+              if (updatedStudio && updatedStudio.remoteState) {
+                  const remote = updatedStudio.remoteState;
+                  
+                  if (remote.command && remote.commandTimestamp) {
+                      setRemoteCommand(prev => {
+                          if (!prev || prev.timestamp !== remote.commandTimestamp) {
+                              return { type: remote.command!, timestamp: remote.commandTimestamp! };
                           }
-                      } else if (remote.view === 'timer' && remote.activeBlockId) {
-                          const blockToStart = workoutToLoad.blocks.find(b => b.id === remote.activeBlockId);
-                          if (blockToStart) {
-                              setActiveBlock(blockToStart);
-                              if (page !== Page.Timer) {
-                                  navigateReplace(Page.Timer);
+                          return prev;
+                      });
+                  }
+    
+                  if (remote.view === 'idle') {
+                      if (page !== Page.Home) {
+                          navigateReplace(Page.Home);
+                          setActiveWorkout(null);
+                      }
+                  } else if (remote.activeWorkoutId) {
+                      const workoutToLoad = workouts.find(w => w.id === remote.activeWorkoutId);
+                      if (workoutToLoad) {
+                          if (activeWorkout?.id !== workoutToLoad.id) {
+                              setActiveWorkout(workoutToLoad);
+                          }
+    
+                          if (remote.view === 'preview') {
+                              if (page !== Page.WorkoutDetail) {
+                                  navigateReplace(Page.WorkoutDetail);
+                              }
+                          } else if (remote.view === 'timer' && remote.activeBlockId) {
+                              const blockToStart = workoutToLoad.blocks.find(b => b.id === remote.activeBlockId);
+                              if (blockToStart) {
+                                  setActiveBlock(blockToStart);
+                                  const targetPage = blockToStart.settings.mode === TimerMode.NoTimer ? Page.RepsOnly : Page.Timer;
+                                  if (page !== targetPage) {
+                                      navigateReplace(targetPage);
+                                  }
                               }
                           }
                       }
                   }
+              } else if (updatedStudio && !updatedStudio.remoteState && page !== Page.Home) {
+                   navigateReplace(Page.Home);
+                   setActiveWorkout(null);
               }
-          } else if (updatedStudio && !updatedStudio.remoteState && page !== Page.Home) {
-               navigateReplace(Page.Home);
-               setActiveWorkout(null);
-          }
-      });
-
-      return () => unsubscribe();
-  }, [isStudioMode, selectedOrganization?.id, selectedStudio?.id, workouts, page, activeWorkout]);
+          });
+    
+          return () => unsubscribe();
+      }, [isStudioMode, selectedOrganization?.id, selectedStudio?.id, workouts, page, activeWorkout]);
 
 
   const [customBackHandler, setCustomBackHandler] = useState<(() => void) | null>(null);
@@ -523,6 +524,19 @@ const App: React.FC = () => {
   };
   
   const handleStartBlock = (block: WorkoutBlock, workoutContext: Workout) => {
+    const isSavedWorkout = workouts.some(w => w.id === workoutContext.id);
+
+    if (isStudioMode && selectedOrganization && selectedStudio && isSavedWorkout) {
+        updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+            activeWorkoutId: workoutContext.id,
+            view: 'timer',
+            activeBlockId: block.id,
+            lastUpdate: Date.now(),
+            controllerName: 'Touch Screen'
+        });
+        return;
+    }
+
     setIsAutoTransition(false); 
     setActiveWorkout(workoutContext);
     setActiveBlock(block);
