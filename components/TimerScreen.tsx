@@ -561,10 +561,10 @@ const TimerControls: React.FC<{
         <AnimatePresence>
             {visible && (
                 <motion.div
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    className="absolute top-full mt-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl p-4 flex items-center gap-8 shadow-2xl z-50"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl p-4 flex items-center gap-8 shadow-2xl overflow-hidden"
                 >
                     {/* Text Size Control */}
                     <div className="flex items-center gap-3">
@@ -1441,14 +1441,16 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             </h1>
         </div>
 
-        {/* TIMER CONTROLS (Floating under card) */}
-        <TimerControls 
-            textSizeScale={textSizeScale} 
-            repsSizeScale={repsSizeScale} 
-            onTextChange={(val) => handleSizeChange('text', val)} 
-            onRepsChange={(val) => handleSizeChange('reps', val)} 
-            visible={controlsVisible && !isLobbyMode}
-        />
+        {/* TIMER CONTROLS (Relative under title) */}
+        <div className="relative z-50 mt-4">
+            <TimerControls 
+                textSizeScale={textSizeScale} 
+                repsSizeScale={repsSizeScale} 
+                onTextChange={(val) => handleSizeChange('text', val)} 
+                onRepsChange={(val) => handleSizeChange('reps', val)} 
+                visible={controlsVisible && !isLobbyMode}
+            />
+        </div>
       </div>
 
       {/* CONTENT AREA (Under Clock) */}
