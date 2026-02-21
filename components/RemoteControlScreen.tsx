@@ -656,6 +656,55 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                                                 <button onClick={handleCloseBlock} className="col-span-2 mt-2 bg-red-900/30 hover:bg-red-900/50 border border-red-900 text-red-400 p-3 rounded-xl font-bold text-xs uppercase tracking-wider">
                                                                     Stäng block
                                                                 </button>
+
+                                                                {/* VIEW SETTINGS (Embedded) */}
+                                                                <div className="col-span-2 mt-4 pt-4 border-t border-gray-800">
+                                                                    <p className="text-[10px] text-gray-500 font-bold uppercase mb-3 text-center">Justera Vy</p>
+                                                                    
+                                                                    <div className="space-y-4">
+                                                                        {/* Text Size */}
+                                                                        <div className="flex items-center gap-3">
+                                                                            <span className="text-xs font-bold text-gray-400 w-8">Text</span>
+                                                                            <input 
+                                                                                type="range" 
+                                                                                min="0.5" 
+                                                                                max="2.0" 
+                                                                                step="0.1" 
+                                                                                value={selectedOrganization?.studios.find(s => s.id === connectedStudioId)?.remoteState?.viewerSettings?.textScale || 1} 
+                                                                                onChange={(e) => handleUpdateViewSettings('text', parseFloat(e.target.value))}
+                                                                                className="flex-grow h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                                                                            />
+                                                                            <span className="text-xs font-mono text-gray-400 w-8 text-right">{Math.round((selectedOrganization?.studios.find(s => s.id === connectedStudioId)?.remoteState?.viewerSettings?.textScale || 1) * 100)}%</span>
+                                                                        </div>
+
+                                                                        {/* Reps Size */}
+                                                                        <div className="flex items-center gap-3">
+                                                                            <span className="text-xs font-bold text-gray-400 w-8">Reps</span>
+                                                                            <input 
+                                                                                type="range" 
+                                                                                min="0.5" 
+                                                                                max="2.5" 
+                                                                                step="0.1" 
+                                                                                value={selectedOrganization?.studios.find(s => s.id === connectedStudioId)?.remoteState?.viewerSettings?.repsScale || 1} 
+                                                                                onChange={(e) => handleUpdateViewSettings('reps', parseFloat(e.target.value))}
+                                                                                className="flex-grow h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                                                                            />
+                                                                            <span className="text-xs font-mono text-gray-400 w-8 text-right">{Math.round((selectedOrganization?.studios.find(s => s.id === connectedStudioId)?.remoteState?.viewerSettings?.repsScale || 1) * 100)}%</span>
+                                                                        </div>
+                                                                        
+                                                                        <div className="flex justify-center">
+                                                                             <button 
+                                                                                onClick={() => {
+                                                                                    handleUpdateViewSettings('text', 1);
+                                                                                    handleUpdateViewSettings('reps', 1);
+                                                                                }}
+                                                                                className="text-[10px] text-gray-600 hover:text-gray-400 uppercase font-bold tracking-wider flex items-center gap-1"
+                                                                            >
+                                                                                <RefreshIcon className="w-3 h-3" /> Återställ
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
                                                             </div>
                                                         ) : (
                                                             // Load button for INACTIVE block (State A)
