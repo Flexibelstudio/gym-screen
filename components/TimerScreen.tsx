@@ -659,20 +659,27 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [repsSizeScale, setRepsSizeScale] = useState(1);
 
   // Sync with Remote State
+  // IMPORTANT: We need to listen to the selectedStudio from context which gets updated via the snapshot listener in App.tsx
+  // The previous implementation might have been relying on a stale reference or not triggering re-renders correctly.
+  
+  const remoteViewerSettings = selectedStudio?.remoteState?.viewerSettings;
+
   useEffect(() => {
-      if (selectedStudio?.remoteState?.viewerSettings) {
-          const { textScale, repsScale } = selectedStudio.remoteState.viewerSettings;
-          if (textScale) setTextSizeScale(textScale);
-          if (repsScale) setRepsSizeScale(repsScale);
+      if (remoteViewerSettings) {
+          const { textScale, repsScale } = remoteViewerSettings;
+          // Only update if values are different to avoid loops, though React state setter handles this.
+          if (textScale !== undefined) setTextSizeScale(textScale);
+          if (repsScale !== undefined) setRepsSizeScale(repsScale);
       }
-  }, [selectedStudio?.remoteState?.viewerSettings]);
+  }, [remoteViewerSettings]); // Dependency on the specific object part
 
   useEffect(() => {
       const storedText = localStorage.getItem('timer-text-scale');
       const storedReps = localStorage.getItem('timer-reps-scale');
-      if (storedText && !selectedStudio?.remoteState?.viewerSettings) setTextSizeScale(parseFloat(storedText));
-      if (storedReps && !selectedStudio?.remoteState?.viewerSettings) setRepsSizeScale(parseFloat(storedReps));
-  }, [selectedStudio?.remoteState?.viewerSettings]);
+      // Only load from local storage if NO remote settings are present
+      if (storedText && !remoteViewerSettings) setTextSizeScale(parseFloat(storedText));
+      if (storedReps && !remoteViewerSettings) setRepsSizeScale(parseFloat(storedReps));
+  }, [remoteViewerSettings]);
 
   const handleSizeChange = (type: 'text' | 'reps', val: number) => {
       if (type === 'text') {
