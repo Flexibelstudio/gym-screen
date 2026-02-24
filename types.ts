@@ -188,7 +188,7 @@ export interface StudioConfig {
 // NYTT: Tillstånd för fjärrstyrning
 export interface RemoteSessionState {
     activeWorkoutId: string | null;
-    view: 'idle' | 'preview' | 'timer'; // idle=logo, preview=workout detail, timer=running block
+    view: 'idle' | 'preview' | 'timer' | 'menu'; // idle=logo, preview=workout detail, timer=running block, menu=other pages
     activeBlockId: string | null;
     lastUpdate: number; // Timestamp to force updates
     controllerName?: string; // Name of coach controlling

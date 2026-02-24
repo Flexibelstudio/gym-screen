@@ -96,6 +96,9 @@ const App: React.FC = () => {
 
   // NEW: State for passing remote commands to children
   const [remoteCommand, setRemoteCommand] = useState<{ type: string, timestamp: number } | null>(null);
+  
+  // NEW: Ref to track local navigation timestamp to prevent race conditions with remote state
+  const lastLocalNavigationRef = useRef<number>(0);
 
   // --- STUDIO RESET LOGIC (Emergency Brake) ---
   // If the page is reloaded in Studio Mode, clear the remote state.
@@ -130,6 +133,11 @@ const App: React.FC = () => {
                   }
     
                   if (remote.view === 'idle') {
+                      // Prevent bounce back if we just navigated locally (within 3 seconds)
+                      if (Date.now() - lastLocalNavigationRef.current < 3000) {
+                          return;
+                      }
+                      
                       if (page !== Page.Home) {
                           navigateReplace(Page.Home);
                           setActiveWorkout(null);
@@ -158,6 +166,10 @@ const App: React.FC = () => {
                       }
                   }
               } else if (updatedStudio && !updatedStudio.remoteState && page !== Page.Home) {
+                   // Prevent bounce back if we just navigated locally (within 3 seconds)
+                   if (Date.now() - lastLocalNavigationRef.current < 3000) {
+                       return;
+                   }
                    navigateReplace(Page.Home);
                    setActiveWorkout(null);
               }
@@ -347,8 +359,32 @@ const App: React.FC = () => {
     else root.style.removeProperty('--color-primary');
   }, [selectedOrganization]);
 
-  const navigateTo = (page: Page) => {
-    setHistory(prev => [...prev, page]);
+  const navigateTo = (targetPage: Page) => {
+    if (isStudioMode && selectedOrganization && selectedStudio) {
+         // Update remote state to prevent "bounce back"
+         // We use 'menu' for generic pages, or specific ones if we map them
+         let view: RemoteSessionState['view'] = 'menu';
+         
+         if (targetPage === Page.Timer || targetPage === Page.FreestandingTimer) {
+             view = 'timer';
+         } else if (targetPage === Page.WorkoutDetail) {
+             view = 'preview';
+         } else if (targetPage === Page.Home) {
+             view = 'idle';
+         }
+         
+         // Set local navigation timestamp to prevent race condition with remote state listener
+         lastLocalNavigationRef.current = Date.now();
+
+         updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+             view,
+             activeWorkoutId: activeWorkout?.id || null,
+             activeBlockId: activeBlock?.id || null,
+             lastUpdate: Date.now(),
+             controllerName: 'Touch Screen'
+         });
+    }
+    setHistory(prev => [...prev, targetPage]);
   };
   
   const navigateReplace = (page: Page) => {
