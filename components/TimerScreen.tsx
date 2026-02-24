@@ -4,8 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout, TimerSegment } from '../types';
 import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration, playTimerSound } from '../hooks/useWorkoutTimer';
 import { useWorkout } from '../context/WorkoutContext';
-import { saveRace, updateOrganizationActivity, updateStudioRemoteState, db } from '../services/firebaseService';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { saveRace, updateOrganizationActivity, updateStudioRemoteState } from '../services/firebaseService';
 import { Confetti } from './WorkoutCompleteModal';
 import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmationModal, RaceFinishAnimation, PauseOverlay } from './timer/TimerModals';
 import { ParticipantFinishList } from './timer/ParticipantFinishList';
@@ -562,51 +561,45 @@ const TimerControls: React.FC<{
         <AnimatePresence>
             {visible && (
                 <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="bg-black/60 backdrop-blur-md border border-white/10 rounded-2xl p-4 flex items-center gap-8 shadow-2xl overflow-hidden"
+                    initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, height: 'auto', scale: 1 }}
+                    exit={{ opacity: 0, height: 0, scale: 0.95 }}
+                    className="bg-white/80 dark:bg-black/60 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-6 shadow-2xl overflow-hidden mx-auto max-w-2xl mt-4"
                 >
                     {/* Text Size Control */}
-                    <div className="flex items-center gap-3">
-                        <span className="text-white/50 text-xs font-bold uppercase tracking-wider">Text</span>
-                        <button 
-                            onClick={() => onTextChange(Math.max(0.5, textSizeScale - 0.1))}
-                            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
-                        >
-                            -
-                        </button>
-                        <span className="text-white font-mono font-bold w-12 text-center">
+                    <div className="flex items-center gap-4 w-full">
+                        <span className="text-gray-500 dark:text-white/50 text-xs font-bold uppercase tracking-wider w-12">Text</span>
+                        <input 
+                            type="range" 
+                            min="0.5" 
+                            max="2.0" 
+                            step="0.1" 
+                            value={textSizeScale}
+                            onChange={(e) => onTextChange(parseFloat(e.target.value))}
+                            className="flex-grow h-2 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
+                        <span className="text-gray-900 dark:text-white font-mono font-bold w-12 text-right">
                             {Math.round(textSizeScale * 100)}%
                         </span>
-                        <button 
-                            onClick={() => onTextChange(Math.min(2.0, textSizeScale + 0.1))}
-                            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
-                        >
-                            +
-                        </button>
                     </div>
 
-                    <div className="w-px h-8 bg-white/10"></div>
+                    <div className="hidden sm:block w-px h-8 bg-gray-300 dark:bg-white/10"></div>
 
                     {/* Reps Size Control */}
-                    <div className="flex items-center gap-3">
-                        <span className="text-white/50 text-xs font-bold uppercase tracking-wider">Reps</span>
-                        <button 
-                            onClick={() => onRepsChange(Math.max(0.5, repsSizeScale - 0.1))}
-                            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
-                        >
-                            -
-                        </button>
-                        <span className="text-white font-mono font-bold w-12 text-center">
+                    <div className="flex items-center gap-4 w-full">
+                        <span className="text-gray-500 dark:text-white/50 text-xs font-bold uppercase tracking-wider w-12">Reps</span>
+                        <input 
+                            type="range" 
+                            min="0.5" 
+                            max="2.5" 
+                            step="0.1" 
+                            value={repsSizeScale}
+                            onChange={(e) => onRepsChange(parseFloat(e.target.value))}
+                            className="flex-grow h-2 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
+                        <span className="text-gray-900 dark:text-white font-mono font-bold w-12 text-right">
                             {Math.round(repsSizeScale * 100)}%
                         </span>
-                        <button 
-                            onClick={() => onRepsChange(Math.min(2.0, repsSizeScale + 0.1))}
-                            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white"
-                        >
-                            +
-                        </button>
                     </div>
                 </motion.div>
             )}
@@ -659,35 +652,28 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [textSizeScale, setTextSizeScale] = useState(1);
   const [repsSizeScale, setRepsSizeScale] = useState(1);
 
-  // DIRECT FIRESTORE LISTENER FOR REAL-TIME UPDATES
-  // This bypasses potential context update delays or stale closures
+  // Sync with Remote State
+  // IMPORTANT: We need to listen to the selectedStudio from context which gets updated via the snapshot listener in App.tsx
+  // The previous implementation might have been relying on a stale reference or not triggering re-renders correctly.
+  
+  const remoteViewerSettings = selectedStudio?.remoteState?.viewerSettings;
+
   useEffect(() => {
-      if (!selectedOrganization?.id || !selectedStudio?.id || !db) return;
+      if (remoteViewerSettings) {
+          const { textScale, repsScale } = remoteViewerSettings;
+          // Only update if values are different to avoid loops, though React state setter handles this.
+          if (textScale !== undefined) setTextSizeScale(textScale);
+          if (repsScale !== undefined) setRepsSizeScale(repsScale);
+      }
+  }, [remoteViewerSettings]); // Dependency on the specific object part
 
-      const unsub = onSnapshot(doc(db, 'organizations', selectedOrganization.id), (docSnap) => {
-          if (docSnap.exists()) {
-              const data = docSnap.data();
-              const studio = data.studios?.find((s: any) => s.id === selectedStudio.id);
-              const settings = studio?.remoteState?.viewerSettings;
-              
-              if (settings) {
-                  if (settings.textScale !== undefined) setTextSizeScale(settings.textScale);
-                  if (settings.repsScale !== undefined) setRepsSizeScale(settings.repsScale);
-              }
-          }
-      });
-
-      return () => unsub();
-  }, [selectedOrganization?.id, selectedStudio?.id]);
-
-  // Fallback to local storage if no remote settings (initial load)
   useEffect(() => {
       const storedText = localStorage.getItem('timer-text-scale');
       const storedReps = localStorage.getItem('timer-reps-scale');
-      // Only load from local if we haven't received remote updates yet (default state is 1)
-      if (textSizeScale === 1 && storedText) setTextSizeScale(parseFloat(storedText));
-      if (repsSizeScale === 1 && storedReps) setRepsSizeScale(parseFloat(storedReps));
-  }, []); // Run once on mount
+      // Only load from local storage if NO remote settings are present
+      if (storedText && !remoteViewerSettings) setTextSizeScale(parseFloat(storedText));
+      if (storedReps && !remoteViewerSettings) setRepsSizeScale(parseFloat(storedReps));
+  }, [remoteViewerSettings]);
 
   const handleSizeChange = (type: 'text' | 'reps', val: number) => {
       if (type === 'text') {
