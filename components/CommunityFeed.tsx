@@ -80,7 +80,10 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
                     <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">Gymflödet</h3>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-gray-500 dark:text-white/40 uppercase tracking-[0.2em] bg-gray-100 dark:bg-white/5 px-2 py-1 rounded-lg border border-gray-200 dark:border-white/5">Live</span>
+                    <div className="flex items-center gap-1.5 bg-green-500/10 px-2 py-1 rounded-lg border border-green-500/20">
+                        <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                        <span className="text-[10px] font-black text-green-600 dark:text-green-400 uppercase tracking-[0.2em]">Live</span>
+                    </div>
                     {!isExpanded && <span className="text-[10px] font-black text-primary uppercase">Visa mer</span>}
                 </div>
             </div>

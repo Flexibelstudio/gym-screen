@@ -180,6 +180,14 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 prevOrgs.map(o => o.id === updatedOrg.id ? updatedOrg : o)
             );
             setAllStudios(updatedOrg.studios);
+
+            // FIX: Update selectedStudio if it exists in the updated list to ensure we have the latest remoteState
+            setSelectedStudio(prevStudio => {
+                if (!prevStudio) return null;
+                const updated = updatedOrg.studios.find(s => s.id === prevStudio.id);
+                // Only update if actually changed to avoid unnecessary re-renders (though object ref change will trigger it anyway)
+                return updated || prevStudio;
+            });
         });
 
         return () => unsubscribe();
