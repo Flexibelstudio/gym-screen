@@ -5,11 +5,12 @@ import { useWorkout } from '../context/WorkoutContext';
 import { updateStudioRemoteState, saveWorkout } from '../services/firebaseService';
 import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise } from '../types';
 import { WebQRScanner } from './WebQRScanner';
-import { DumbbellIcon, PlayIcon, CloseIcon, ChevronRightIcon, ClockIcon, SparklesIcon, LightningIcon, StarIcon, ChevronLeftIcon, ChevronDownIcon, ChevronUpIcon, RefreshIcon, SettingsIcon } from './icons';
+import { DumbbellIcon, PlayIcon, CloseIcon, ChevronRightIcon, ClockIcon, SparklesIcon, LightningIcon, StarIcon, ChevronLeftIcon, ChevronDownIcon, ChevronUpIcon, RefreshIcon, SettingsIcon, PencilIcon } from './icons';
 import { motion, AnimatePresence } from 'framer-motion';
+import { SimpleWorkoutBuilderScreen } from './SimpleWorkoutBuilderScreen';
 
 // --- Types ---
-type RemoteView = 'scan' | 'dashboard' | 'list' | 'timer_setup' | 'controls';
+type RemoteView = 'scan' | 'dashboard' | 'list' | 'timer_setup' | 'controls' | 'edit';
 
 // Helper component for uniform buttons
 const DashboardButton: React.FC<{ 
@@ -168,26 +169,6 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
     const [activeRunningBlockId, setActiveRunningBlockId] = useState<string | null>(null);
     const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
     
-    // --- STICKY REMOTE LOGIC ---
-    useEffect(() => {
-        // Set flag when component mounts
-        localStorage.setItem('smart-skarm-active-remote', 'true');
-        
-        // Clear flag when component unmounts (or user navigates back explicitly)
-        return () => {
-            // We only clear it if we are truly leaving. 
-            // However, a page reload will trigger unmount -> mount.
-            // So we need to be careful. 
-            // Actually, the App.tsx logic will handle the redirect on load.
-            // Here we just need to ensure we clear it when the user *intentionally* closes the remote.
-        };
-    }, []);
-
-    const handleBackAndClearSticky = () => {
-        localStorage.removeItem('smart-skarm-active-remote');
-        onBack();
-    };
-
     // Derived
     const connectedStudioName = useMemo(() => {
         if (!selectedOrganization || !connectedStudioId) return '';
@@ -201,10 +182,10 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                     // Reset to idle on disconnect? Or just leave it? 
                     // Let's leave it running but disconnect remote.
                 }
-                handleBackAndClearSticky();
+                onBack();
             }
         } else {
-            handleBackAndClearSticky();
+            onBack();
         }
     };
 
@@ -400,7 +381,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
     if (view === 'scan') {
         return (
             <div className="fixed inset-0 bg-black z-50 flex flex-col">
-                <WebQRScanner onScan={handleScan} onClose={handleBackAndClearSticky} />
+                <WebQRScanner onScan={handleScan} onClose={onBack} />
                 <div className="absolute bottom-20 left-0 right-0 text-center pointer-events-none">
                     <p className="text-white font-bold text-lg drop-shadow-md">Scanna QR-koden på TV:n</p>
                 </div>
@@ -496,10 +477,17 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                             ))}
                                         </div>
                                     </div>
-                                    <div className="p-4 bg-gray-800 border-t border-gray-700 rounded-2xl">
+                                    <div className="p-4 bg-gray-800 border-t border-gray-700 rounded-2xl grid grid-cols-2 gap-3">
+                                        <button 
+                                            onClick={() => setView('edit')}
+                                            className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-4 rounded-xl text-sm shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <PencilIcon className="w-5 h-5" />
+                                            Anpassa
+                                        </button>
                                         <button 
                                             onClick={handleCastWorkout}
-                                            className="w-full bg-primary text-white font-black py-4 rounded-xl text-lg shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                            className="bg-primary hover:brightness-110 text-white font-black py-4 rounded-xl text-lg shadow-lg shadow-primary/20 active:scale-95 transition-all flex items-center justify-center gap-2"
                                         >
                                             Visa på skärm
                                         </button>
@@ -540,6 +528,44 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                         </div>
                     )}
                 </div>
+            </div>
+        );
+    }
+
+    if (view === 'edit' && selectedWorkout) {
+        return (
+            <div className="fixed inset-0 bg-gray-900 z-50 flex flex-col">
+                <SimpleWorkoutBuilderScreen 
+                    initialWorkout={selectedWorkout}
+                    onSave={async (modifiedWorkout) => {
+                        if (!selectedOrganization || !connectedStudioId) return;
+                        
+                        // Create a temporary copy
+                        const workoutToSave: Workout = {
+                            ...modifiedWorkout,
+                            id: `custom-${Date.now()}`,
+                            title: `Anpassat: ${modifiedWorkout.title}`,
+                            isMemberDraft: true,
+                            organizationId: selectedOrganization.id,
+                            createdAt: Date.now()
+                        };
+
+                        await saveWorkout(workoutToSave);
+                        setSelectedWorkout(workoutToSave);
+                        
+                        // Load on screen
+                        await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
+                            activeWorkoutId: workoutToSave.id,
+                            view: 'preview',
+                            activeBlockId: null,
+                            lastUpdate: Date.now(),
+                            controllerName: 'Coach'
+                        });
+                        
+                        setView('list');
+                    }}
+                    onCancel={() => setView('list')}
+                />
             </div>
         );
     }
