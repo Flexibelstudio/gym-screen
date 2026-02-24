@@ -125,8 +125,8 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
       // Bara för coacher/admins på personliga enheter (inte TV-skärmar)
       if (role === 'coach' || role === 'organizationadmin' || role === 'systemowner') {
           items.push({
-              title: 'Fjärrkontroll',
-              subTitle: 'Styr en skärm',
+              title: 'Mobilstyrning',
+              subTitle: 'Styr skärmen med din mobil',
               action: () => navigateTo(Page.RemoteControl),
               icon: <LightningIcon className="w-8 h-8" />,
               gradient: 'bg-gradient-to-br from-orange-500 to-amber-600'
