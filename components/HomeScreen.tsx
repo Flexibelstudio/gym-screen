@@ -335,7 +335,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         {/* Internal Header with Close Button */}
                         <div className="flex items-center justify-between p-8 border-b border-gray-100 dark:border-gray-800">
                              <h3 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
-                                 {expandedList === 'feed' ? 'Fullständigt Flöde' : 'Veckans Hall of Fame'}
+                                 {expandedList === 'feed' ? 'Fullständigt Flöde' : 'Wall of Fame'}
                              </h3>
                              <button 
                                 onClick={() => setExpandedList(null)}

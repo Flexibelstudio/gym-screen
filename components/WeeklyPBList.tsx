@@ -64,7 +64,7 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
                     <h3 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">Personbästa</h3>
                 </div>
                 <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black text-gray-500 dark:text-white/40 uppercase tracking-[0.2em] bg-gray-100 dark:bg-white/5 px-2 py-1 rounded-lg border border-gray-200 dark:border-white/5">Hof</span>
+                    <span className="text-[10px] font-black text-gray-500 dark:text-white/40 uppercase tracking-[0.2em] bg-gray-100 dark:bg-white/5 px-2 py-1 rounded-lg border border-gray-200 dark:border-white/5">WoF</span>
                     {!isExpanded && <span className="text-[10px] font-black text-primary uppercase">Visa mer</span>}
                 </div>
             </div>
