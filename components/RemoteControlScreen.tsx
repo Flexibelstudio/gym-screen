@@ -168,6 +168,26 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
     const [activeRunningBlockId, setActiveRunningBlockId] = useState<string | null>(null);
     const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
     
+    // --- STICKY REMOTE LOGIC ---
+    useEffect(() => {
+        // Set flag when component mounts
+        localStorage.setItem('smart-skarm-active-remote', 'true');
+        
+        // Clear flag when component unmounts (or user navigates back explicitly)
+        return () => {
+            // We only clear it if we are truly leaving. 
+            // However, a page reload will trigger unmount -> mount.
+            // So we need to be careful. 
+            // Actually, the App.tsx logic will handle the redirect on load.
+            // Here we just need to ensure we clear it when the user *intentionally* closes the remote.
+        };
+    }, []);
+
+    const handleBackAndClearSticky = () => {
+        localStorage.removeItem('smart-skarm-active-remote');
+        onBack();
+    };
+
     // Derived
     const connectedStudioName = useMemo(() => {
         if (!selectedOrganization || !connectedStudioId) return '';
@@ -181,10 +201,10 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                     // Reset to idle on disconnect? Or just leave it? 
                     // Let's leave it running but disconnect remote.
                 }
-                onBack();
+                handleBackAndClearSticky();
             }
         } else {
-            onBack();
+            handleBackAndClearSticky();
         }
     };
 
@@ -380,7 +400,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
     if (view === 'scan') {
         return (
             <div className="fixed inset-0 bg-black z-50 flex flex-col">
-                <WebQRScanner onScan={handleScan} onClose={onBack} />
+                <WebQRScanner onScan={handleScan} onClose={handleBackAndClearSticky} />
                 <div className="absolute bottom-20 left-0 right-0 text-center pointer-events-none">
                     <p className="text-white font-bold text-lg drop-shadow-md">Scanna QR-koden på TV:n</p>
                 </div>
