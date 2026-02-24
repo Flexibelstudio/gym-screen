@@ -68,6 +68,7 @@ const MenuCard: React.FC<{
 
     return (
         <motion.button
+            type="button"
             initial="initial"
             animate={isActive ? "active" : isBlurred ? "blurred" : "enter"}
             whileTap={!isActive && !isBlurred ? "tap" : undefined}
