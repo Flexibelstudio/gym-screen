@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout, TimerSegment } from '../types';
 import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration, playTimerSound } from '../hooks/useWorkoutTimer';
 import { useWorkout } from '../context/WorkoutContext';
-import { saveRace, updateOrganizationActivity, updateStudioRemoteState } from '../services/firebaseService';
+import { saveRace, updateOrganizationActivity, updateStudioRemoteState, db } from '../services/firebaseService';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { Confetti } from './WorkoutCompleteModal';
 import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmationModal, RaceFinishAnimation, PauseOverlay } from './timer/TimerModals';
 import { ParticipantFinishList } from './timer/ParticipantFinishList';
@@ -658,28 +659,35 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [textSizeScale, setTextSizeScale] = useState(1);
   const [repsSizeScale, setRepsSizeScale] = useState(1);
 
-  // Sync with Remote State
-  // IMPORTANT: We need to listen to the selectedStudio from context which gets updated via the snapshot listener in App.tsx
-  // The previous implementation might have been relying on a stale reference or not triggering re-renders correctly.
-  
-  const remoteViewerSettings = selectedStudio?.remoteState?.viewerSettings;
-
+  // DIRECT FIRESTORE LISTENER FOR REAL-TIME UPDATES
+  // This bypasses potential context update delays or stale closures
   useEffect(() => {
-      if (remoteViewerSettings) {
-          const { textScale, repsScale } = remoteViewerSettings;
-          // Only update if values are different to avoid loops, though React state setter handles this.
-          if (textScale !== undefined) setTextSizeScale(textScale);
-          if (repsScale !== undefined) setRepsSizeScale(repsScale);
-      }
-  }, [remoteViewerSettings]); // Dependency on the specific object part
+      if (!selectedOrganization?.id || !selectedStudio?.id || !db) return;
 
+      const unsub = onSnapshot(doc(db, 'organizations', selectedOrganization.id), (docSnap) => {
+          if (docSnap.exists()) {
+              const data = docSnap.data();
+              const studio = data.studios?.find((s: any) => s.id === selectedStudio.id);
+              const settings = studio?.remoteState?.viewerSettings;
+              
+              if (settings) {
+                  if (settings.textScale !== undefined) setTextSizeScale(settings.textScale);
+                  if (settings.repsScale !== undefined) setRepsSizeScale(settings.repsScale);
+              }
+          }
+      });
+
+      return () => unsub();
+  }, [selectedOrganization?.id, selectedStudio?.id]);
+
+  // Fallback to local storage if no remote settings (initial load)
   useEffect(() => {
       const storedText = localStorage.getItem('timer-text-scale');
       const storedReps = localStorage.getItem('timer-reps-scale');
-      // Only load from local storage if NO remote settings are present
-      if (storedText && !remoteViewerSettings) setTextSizeScale(parseFloat(storedText));
-      if (storedReps && !remoteViewerSettings) setRepsSizeScale(parseFloat(storedReps));
-  }, [remoteViewerSettings]);
+      // Only load from local if we haven't received remote updates yet (default state is 1)
+      if (textSizeScale === 1 && storedText) setTextSizeScale(parseFloat(storedText));
+      if (repsSizeScale === 1 && storedReps) setRepsSizeScale(parseFloat(storedReps));
+  }, []); // Run once on mount
 
   const handleSizeChange = (type: 'text' | 'reps', val: number) => {
       if (type === 'text') {
