@@ -1343,59 +1343,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                  >
                     <PlayIcon className="w-16 h-16 ml-1 fill-current group-hover:text-primary transition-colors" />
                  </button>
-
-                 {/* SETTINGS PANEL (TEXT SIZE SLIDERS) - Hide in Follow Me mode AND Freestanding mode */}
-                 {!block.followMe && block.tag !== 'Fristående' && (
-                     <div className="bg-black/60 backdrop-blur-md p-6 rounded-3xl border border-white/10 w-[90%] max-w-md animate-fade-in flex flex-col gap-4">
-                        <h3 className="text-white font-bold text-center uppercase tracking-widest text-xs mb-2">Justera Vy</h3>
-                        
-                        {/* Text Size Slider */}
-                        <div>
-                            <div className="flex justify-between text-xs font-bold text-white/70 mb-1">
-                                <span>Textstorlek</span>
-                                <span>{Math.round(textSizeScale * 100)}%</span>
-                            </div>
-                            <input 
-                                type="range" 
-                                min="0.8" 
-                                max="2.5" 
-                                step="0.1" 
-                                value={textSizeScale} 
-                                onChange={(e) => handleSizeChange('text', parseFloat(e.target.value))}
-                                className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-primary"
-                            />
-                        </div>
-
-                        {/* Reps Size Slider */}
-                        <div>
-                            <div className="flex justify-between text-xs font-bold text-white/70 mb-1">
-                                <span>Reps-storlek</span>
-                                <span>{Math.round(repsSizeScale * 100)}%</span>
-                            </div>
-                            <input 
-                                type="range" 
-                                min="0.8" 
-                                max="3.0" 
-                                step="0.1" 
-                                value={repsSizeScale} 
-                                onChange={(e) => handleSizeChange('reps', parseFloat(e.target.value))}
-                                className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-primary"
-                            />
-                        </div>
-
-                        <div className="pt-2 border-t border-white/10 flex justify-center">
-                            <button 
-                                onClick={() => {
-                                    handleSizeChange('text', 1.0);
-                                    handleSizeChange('reps', 1.0);
-                                }}
-                                className="text-[10px] text-white/50 hover:text-white uppercase font-bold tracking-wider flex items-center gap-1"
-                            >
-                                <RefreshIcon className="w-3 h-3" /> Återställ
-                            </button>
-                        </div>
-                     </div>
-                 )}
              </div>
         )}
 
@@ -1449,7 +1396,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 repsSizeScale={repsSizeScale} 
                 onTextChange={(val) => handleSizeChange('text', val)} 
                 onRepsChange={(val) => handleSizeChange('reps', val)} 
-                visible={controlsVisible && !isLobbyMode}
+                visible={controlsVisible}
             />
         </div>
       </div>
