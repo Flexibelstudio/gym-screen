@@ -38,6 +38,7 @@ import { WorkoutLogScreen } from './mobile/screens/WorkoutLogScreen';
 import { WorkoutListScreen } from './components/WorkoutListScreen';
 import { WebQRScanner } from './components/WebQRScanner';
 import { RemoteControlScreen } from './components/RemoteControlScreen';
+import { RemoteConnectionIndicator } from './components/RemoteConnectionIndicator';
 import { motion, AnimatePresence } from 'framer-motion';
 import WorkoutDetailScreen from './components/WorkoutDetailScreen';
 import { CloseIcon, PencilIcon } from './components/icons';
@@ -236,6 +237,30 @@ const App: React.FC = () => {
   const [followMeShowImage, setFollowMeShowImage] = useState(true);
   const inactivityTimerRef = useRef<number | null>(null);
   const [profileEditTrigger, setProfileEditTrigger] = useState(0);
+
+  // NEW: Track if remote is active (sticky)
+  const [isRemoteActive, setIsRemoteActive] = useState(false);
+
+  useEffect(() => {
+    // Check on mount and listen for storage changes
+    const checkRemoteStatus = () => {
+        const isActive = localStorage.getItem('smart-skarm-active-remote') === 'true';
+        setIsRemoteActive(isActive);
+    };
+    
+    checkRemoteStatus();
+    
+    // Listen for storage events (if multiple tabs/windows)
+    window.addEventListener('storage', checkRemoteStatus);
+    
+    // Also poll occasionally to catch changes within the same window if not using storage event
+    const interval = setInterval(checkRemoteStatus, 2000);
+    
+    return () => {
+        window.removeEventListener('storage', checkRemoteStatus);
+        clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     const faviconUrl = selectedOrganization?.faviconUrl;
@@ -1412,45 +1437,6 @@ const App: React.FC = () => {
        
        {showSupportChat && <SupportChat />}
 
-import { RemoteConnectionIndicator } from './components/RemoteConnectionIndicator';
-
-// ... (existing imports)
-
-const App: React.FC = () => {
-  // ... (existing state)
-
-  // NEW: Track if remote is active (sticky)
-  const [isRemoteActive, setIsRemoteActive] = useState(false);
-
-  useEffect(() => {
-    // Check on mount and listen for storage changes
-    const checkRemoteStatus = () => {
-        const isActive = localStorage.getItem('smart-skarm-active-remote') === 'true';
-        setIsRemoteActive(isActive);
-    };
-    
-    checkRemoteStatus();
-    
-    // Listen for storage events (if multiple tabs/windows)
-    window.addEventListener('storage', checkRemoteStatus);
-    
-    // Also poll occasionally to catch changes within the same window if not using storage event
-    const interval = setInterval(checkRemoteStatus, 2000);
-    
-    return () => {
-        window.removeEventListener('storage', checkRemoteStatus);
-        clearInterval(interval);
-    };
-  }, []);
-
-  // ... (rest of component)
-
-  const handleOpenRemote = () => {
-      navigateTo(Page.RemoteControl);
-  };
-
-  // ... (inside return statement, before closing div)
-  
        {/* Floating Remote Indicator */}
        <RemoteConnectionIndicator 
            isVisible={isRemoteActive && page !== Page.RemoteControl && !isStudioMode && (role === 'coach' || role === 'organizationadmin' || role === 'systemowner')}
