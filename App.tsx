@@ -998,6 +998,10 @@ const App: React.FC = () => {
       navigateTo(Page.SuperAdmin);
   };
 
+  const handleOpenRemote = () => {
+      navigateTo(Page.RemoteControl);
+  };
+
   const handleSwitchToStudioView = (studio: Studio) => {
     if (selectedOrganization) selectOrganization(selectedOrganization);
     selectStudio(studio);
