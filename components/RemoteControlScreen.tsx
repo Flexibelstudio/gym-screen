@@ -321,26 +321,58 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
     const [showViewSettings, setShowViewSettings] = useState(false);
 
     // --- VIEW SETTINGS HANDLER ---
-    const handleUpdateViewSettings = async (setting: 'text' | 'reps', value: number) => {
+    // Use a ref to store the latest values to debounce updates
+    const pendingSettingsRef = React.useRef<{ textScale?: number, repsScale?: number } | null>(null);
+    const updateTimeoutRef = React.useRef<number | null>(null);
+    
+    // Local state for immediate UI feedback
+    const [localTextScale, setLocalTextScale] = useState<number | null>(null);
+    const [localRepsScale, setLocalRepsScale] = useState<number | null>(null);
+
+    // Sync local state with remote state when not dragging
+    useEffect(() => {
         if (!selectedOrganization || !connectedStudioId) return;
-        
-        // Fetch the LATEST state directly from the organization object in context to avoid stale closure issues
         const studio = selectedOrganization.studios.find(s => s.id === connectedStudioId);
-        const currentSettings = studio?.remoteState?.viewerSettings || { textScale: 1, repsScale: 1 };
+        const remoteSettings = studio?.remoteState?.viewerSettings;
         
-        const newViewerSettings = {
-            textScale: currentSettings.textScale || 1,
-            repsScale: currentSettings.repsScale || 1,
-            [setting === 'text' ? 'textScale' : 'repsScale']: value
-        };
+        if (remoteSettings) {
+            if (pendingSettingsRef.current?.textScale === undefined) setLocalTextScale(remoteSettings.textScale);
+            if (pendingSettingsRef.current?.repsScale === undefined) setLocalRepsScale(remoteSettings.repsScale);
+        }
+    }, [selectedOrganization, connectedStudioId]);
 
-        // Optimistic update (optional, but good for UI responsiveness if we had local state for sliders)
-        // For now, we rely on the prop update from Firebase to reflect back in the UI
+    const handleUpdateViewSettings = (setting: 'text' | 'reps', value: number) => {
+        if (!selectedOrganization || !connectedStudioId) return;
 
-        await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
-            viewerSettings: newViewerSettings,
-            lastUpdate: Date.now()
-        } as any);
+        // 1. Update local state immediately for smooth slider
+        if (setting === 'text') setLocalTextScale(value);
+        else setLocalRepsScale(value);
+
+        // 2. Store in pending ref
+        if (!pendingSettingsRef.current) pendingSettingsRef.current = {};
+        if (setting === 'text') pendingSettingsRef.current.textScale = value;
+        else pendingSettingsRef.current.repsScale = value;
+
+        // 3. Debounce the Firebase update
+        if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+        
+        updateTimeoutRef.current = window.setTimeout(async () => {
+            const studio = selectedOrganization.studios.find(s => s.id === connectedStudioId);
+            const currentSettings = studio?.remoteState?.viewerSettings || { textScale: 1, repsScale: 1 };
+            
+            const newViewerSettings = {
+                textScale: pendingSettingsRef.current?.textScale ?? currentSettings.textScale ?? 1,
+                repsScale: pendingSettingsRef.current?.repsScale ?? currentSettings.repsScale ?? 1,
+            };
+
+            // Clear pending ref BEFORE await to allow new updates to queue
+            pendingSettingsRef.current = null;
+
+            await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
+                viewerSettings: newViewerSettings,
+                lastUpdate: Date.now()
+            } as any);
+        }, 300); // 300ms debounce
     };
 
     // --- RENDERERS ---
@@ -592,11 +624,11 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                                                                 min="0.5" 
                                                                                 max="2.0" 
                                                                                 step="0.1" 
-                                                                                value={selectedOrganization?.studios.find(s => s.id === connectedStudioId)?.remoteState?.viewerSettings?.textScale || 1} 
+                                                                                value={localTextScale ?? selectedOrganization?.studios.find(s => s.id === connectedStudioId)?.remoteState?.viewerSettings?.textScale ?? 1} 
                                                                                 onChange={(e) => handleUpdateViewSettings('text', parseFloat(e.target.value))}
                                                                                 className="flex-grow h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary"
                                                                             />
-                                                                            <span className="text-xs font-mono text-gray-400 w-8 text-right">{Math.round((selectedOrganization?.studios.find(s => s.id === connectedStudioId)?.remoteState?.viewerSettings?.textScale || 1) * 100)}%</span>
+                                                                            <span className="text-xs font-mono text-gray-400 w-8 text-right">{Math.round((localTextScale ?? selectedOrganization?.studios.find(s => s.id === connectedStudioId)?.remoteState?.viewerSettings?.textScale ?? 1) * 100)}%</span>
                                                                         </div>
 
                                                                         {/* Reps Size */}
@@ -607,11 +639,11 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                                                                 min="0.5" 
                                                                                 max="2.5" 
                                                                                 step="0.1" 
-                                                                                value={selectedOrganization?.studios.find(s => s.id === connectedStudioId)?.remoteState?.viewerSettings?.repsScale || 1} 
+                                                                                value={localRepsScale ?? selectedOrganization?.studios.find(s => s.id === connectedStudioId)?.remoteState?.viewerSettings?.repsScale ?? 1} 
                                                                                 onChange={(e) => handleUpdateViewSettings('reps', parseFloat(e.target.value))}
                                                                                 className="flex-grow h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary"
                                                                             />
-                                                                            <span className="text-xs font-mono text-gray-400 w-8 text-right">{Math.round((selectedOrganization?.studios.find(s => s.id === connectedStudioId)?.remoteState?.viewerSettings?.repsScale || 1) * 100)}%</span>
+                                                                            <span className="text-xs font-mono text-gray-400 w-8 text-right">{Math.round((localRepsScale ?? selectedOrganization?.studios.find(s => s.id === connectedStudioId)?.remoteState?.viewerSettings?.repsScale ?? 1) * 100)}%</span>
                                                                         </div>
                                                                         
                                                                         <div className="flex justify-center">
