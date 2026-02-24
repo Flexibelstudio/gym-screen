@@ -1412,6 +1412,51 @@ const App: React.FC = () => {
        
        {showSupportChat && <SupportChat />}
 
+import { RemoteConnectionIndicator } from './components/RemoteConnectionIndicator';
+
+// ... (existing imports)
+
+const App: React.FC = () => {
+  // ... (existing state)
+
+  // NEW: Track if remote is active (sticky)
+  const [isRemoteActive, setIsRemoteActive] = useState(false);
+
+  useEffect(() => {
+    // Check on mount and listen for storage changes
+    const checkRemoteStatus = () => {
+        const isActive = localStorage.getItem('smart-skarm-active-remote') === 'true';
+        setIsRemoteActive(isActive);
+    };
+    
+    checkRemoteStatus();
+    
+    // Listen for storage events (if multiple tabs/windows)
+    window.addEventListener('storage', checkRemoteStatus);
+    
+    // Also poll occasionally to catch changes within the same window if not using storage event
+    const interval = setInterval(checkRemoteStatus, 2000);
+    
+    return () => {
+        window.removeEventListener('storage', checkRemoteStatus);
+        clearInterval(interval);
+    };
+  }, []);
+
+  // ... (rest of component)
+
+  const handleOpenRemote = () => {
+      navigateTo(Page.RemoteControl);
+  };
+
+  // ... (inside return statement, before closing div)
+  
+       {/* Floating Remote Indicator */}
+       <RemoteConnectionIndicator 
+           isVisible={isRemoteActive && page !== Page.RemoteControl && !isStudioMode && (role === 'coach' || role === 'organizationadmin' || role === 'systemowner')}
+           onClick={handleOpenRemote}
+       />
+
        {showScanButton && !mobileLogData && !mobileViewData && !isSearchWorkoutOpen && !isScannerOpen && (
           <div className="fixed bottom-6 right-6 z-[50]">
               <ScanButton 
