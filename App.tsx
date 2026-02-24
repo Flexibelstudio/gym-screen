@@ -403,19 +403,34 @@ const App: React.FC = () => {
 
     // UPDATED: Handle Remote State in Studio Mode
     if (isStudioMode && selectedOrganization && selectedStudio) {
+        // Set local navigation timestamp to prevent race condition with remote state listener
+        lastLocalNavigationRef.current = Date.now();
+
         // If back from Timer -> Go to Preview, Set Remote State to Preview
         if (page === Page.Timer && activeWorkout) {
-             updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-                 activeWorkoutId: activeWorkout.id,
-                 view: 'preview',
-                 activeBlockId: null,
-                 lastUpdate: Date.now(),
-                 controllerName: 'Coach' // Preserve controller name if possible, simplified here
-             });
-             
-             // EXPLICIT NAVIGATION: Ensure we go to WorkoutDetail, not just pop history (which might be Home)
-             navigateReplace(Page.WorkoutDetail);
-             return;
+             // FIX: If it's a freestanding timer, go back to menu/list instead of detail view
+             if (activeWorkout.id.startsWith('freestanding-workout-')) {
+                 updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+                     activeWorkoutId: null,
+                     view: 'menu',
+                     activeBlockId: null,
+                     lastUpdate: Date.now(),
+                     controllerName: 'Touch Screen'
+                 });
+                 // Allow fall-through to standard history pop (returns to FreestandingTimer list)
+             } else {
+                 updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+                     activeWorkoutId: activeWorkout.id,
+                     view: 'preview',
+                     activeBlockId: null,
+                     lastUpdate: Date.now(),
+                     controllerName: 'Coach' // Preserve controller name if possible, simplified here
+                 });
+                 
+                 // EXPLICIT NAVIGATION: Ensure we go to WorkoutDetail, not just pop history (which might be Home)
+                 navigateReplace(Page.WorkoutDetail);
+                 return;
+             }
         } 
         // If back from Preview -> Go to Idle, Set Remote State to Idle
         else if (page === Page.WorkoutDetail) {
