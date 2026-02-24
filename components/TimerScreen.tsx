@@ -368,8 +368,10 @@ const FollowMeView: React.FC<{
     nextBlock?: WorkoutBlock,
     transitionTime?: number,
     isRestNext?: boolean,
-    showDescription: boolean
-}> = ({ exercise, nextExercise, timerStyle, status, nextBlock, transitionTime, isRestNext, showDescription }) => {
+    showDescription: boolean,
+    textSizeScale?: number, // NEW PROP
+    repsSizeScale?: number  // NEW PROP
+}> = ({ exercise, nextExercise, timerStyle, status, nextBlock, transitionTime, isRestNext, showDescription, textSizeScale = 1, repsSizeScale = 1 }) => {
     const isResting = status === TimerStatus.Resting;
     const isPreparing = status === TimerStatus.Preparing;
     // IF IDLE (Lobby), show the first exercise as "Next/Ready"
@@ -382,11 +384,17 @@ const FollowMeView: React.FC<{
 
     if (!displayExercise) return null;
 
-    // Dynamisk storlek för övningsnamnet baserat på teckenantal
+    // Dynamisk storlek för övningsnamnet baserat på teckenantal + SKALNING
     const nameLen = displayExercise.name.length;
-    let titleSize = 'text-6xl md:text-8xl'; // Standard
-    if (nameLen > 35) titleSize = 'text-4xl md:text-6xl';
-    else if (nameLen > 20) titleSize = 'text-5xl md:text-7xl';
+    
+    // Base sizes in REM (approximate to previous Tailwind classes)
+    // text-8xl = 6rem, text-7xl = 4.5rem, text-6xl = 3.75rem
+    let baseTitleRem = 6; 
+    if (nameLen > 35) baseTitleRem = 3.75;
+    else if (nameLen > 20) baseTitleRem = 4.5;
+
+    const calculatedTitleSize = `${baseTitleRem * textSizeScale}rem`;
+    const calculatedRepsSize = `${4.5 * repsSizeScale}rem`; // Base 4.5rem (~text-7xl)
 
     return (
         <div className="flex flex-col h-full items-center justify-between">
@@ -404,11 +412,19 @@ const FollowMeView: React.FC<{
                         <span className="block text-xl md:text-2xl font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 mb-4">
                             {label}
                         </span>
-                        <h3 className={`font-black text-gray-900 dark:text-white leading-tight mb-6 tracking-tight transition-all duration-300 ${titleSize}`}>
+                        <h3 
+                            className="font-black text-gray-900 dark:text-white leading-tight mb-6 tracking-tight transition-all duration-300"
+                            style={{ fontSize: calculatedTitleSize }}
+                        >
                             {displayExercise.name}
                         </h3>
                         {displayExercise.reps && (
-                            <p className="text-5xl md:text-7xl font-black text-primary mb-6">{formatReps(displayExercise.reps)}</p>
+                            <p 
+                                className="font-black text-primary mb-6 transition-all duration-300"
+                                style={{ fontSize: calculatedRepsSize }}
+                            >
+                                {formatReps(displayExercise.reps)}
+                            </p>
                         )}
                         {displayExercise.description && showDescription && (
                             <p className="text-gray-600 dark:text-gray-300 text-2xl md:text-4xl leading-relaxed max-w-4xl font-medium">
@@ -1396,7 +1412,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 repsSizeScale={repsSizeScale} 
                 onTextChange={(val) => handleSizeChange('text', val)} 
                 onRepsChange={(val) => handleSizeChange('reps', val)} 
-                visible={controlsVisible}
+                visible={controlsVisible && !isFreestanding && !block.followMe}
             />
         </div>
       </div>
@@ -1440,6 +1456,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                     isRestNext={isRestNext}
                                     transitionTime={isRestNext ? block.transitionTime : undefined}
                                     showDescription={block.showExerciseDescriptions !== false} // PASS THE PROP
+                                    textSizeScale={textSizeScale}
+                                    repsSizeScale={repsSizeScale}
                                 />
                             </div>
                         </div>
