@@ -417,8 +417,13 @@ const App: React.FC = () => {
                      lastUpdate: Date.now(),
                      controllerName: 'Touch Screen'
                  });
-                 // Force navigation to FreestandingTimer menu
-                 navigateReplace(Page.FreestandingTimer);
+                 
+                 // Clear active state
+                 setActiveWorkout(null);
+                 setActiveBlock(null);
+
+                 // Reset history to land on FreestandingTimer menu and avoid loops
+                 setHistory([Page.Home, Page.FreestandingTimer]);
                  return;
              } else {
                  updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
@@ -760,7 +765,31 @@ const App: React.FC = () => {
 
   const handleCloseWorkoutCompleteModal = () => {
     const isFinalBlock = completionInfo?.isFinal;
+    const isFreestanding = completionInfo?.workout.id.startsWith('freestanding-workout-') || 
+                           completionInfo?.workout.id.startsWith('fs-workout-');
+
     setCompletionInfo(null);
+
+    if (isFreestanding) {
+        // Explicitly handle freestanding finish
+        setActiveWorkout(null);
+        setActiveBlock(null);
+        
+        if (isStudioMode && selectedOrganization && selectedStudio) {
+            updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+                activeWorkoutId: null,
+                view: 'menu',
+                activeBlockId: null,
+                lastUpdate: Date.now(),
+                controllerName: 'Touch Screen'
+            });
+        }
+        
+        // Reset history to land on FreestandingTimer
+        setHistory([Page.Home, Page.FreestandingTimer]);
+        return;
+    }
+
     if (isFinalBlock) {
       if (history.length > 1) {
           handleBack();

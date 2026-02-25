@@ -168,6 +168,10 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
 
         case Page.WorkoutDetail:
             if (!activeWorkout) return <div>Inget pass valt</div>;
+            // Prevent flickering for freestanding timers
+            if (activeWorkout.id.startsWith('freestanding-workout-') || activeWorkout.id.startsWith('fs-workout-')) {
+                return <div className="flex items-center justify-center h-screen bg-black text-white">Laddar timer...</div>;
+            }
             return <WorkoutDetailScreen 
                 workout={activeWorkout} 
                 onStartBlock={(block) => onStartBlock(block, activeWorkout)} 
