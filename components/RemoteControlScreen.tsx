@@ -327,8 +327,30 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
     const updateTimeoutRef = React.useRef<number | null>(null);
     
     // Local state for immediate UI feedback
-    const [localTextScale, setLocalTextScale] = useState<number | null>(null);
     const [localRepsScale, setLocalRepsScale] = useState<number | null>(null);
+    const [localTextScale, setLocalTextScale] = useState<number | null>(null);
+
+    // --- SYNC WITH STUDIO STATE ---
+    // If the studio we are controlling exits the workout/timer, we should also exit the controls view
+    useEffect(() => {
+        if (!selectedOrganization || !connectedStudioId || view !== 'controls') return;
+        
+        const studio = selectedOrganization.studios.find(s => s.id === connectedStudioId);
+        const remoteState = studio?.remoteState;
+        
+        // If the screen has returned to idle or menu, or has no active workout, we should exit controls
+        if (remoteState && (remoteState.view === 'idle' || remoteState.view === 'menu' || !remoteState.activeWorkoutId)) {
+            const wasFreestanding = selectedWorkout?.id.startsWith('fs-workout-') || selectedWorkout?.id.startsWith('freestanding-workout-');
+            
+            if (wasFreestanding) {
+                setView('timer_setup');
+            } else {
+                setView('dashboard');
+            }
+            setSelectedWorkout(null);
+            setActiveRunningBlockId(null);
+        }
+    }, [selectedOrganization, connectedStudioId, view, selectedWorkout]);
 
     // Sync local state with remote state when not dragging
     useEffect(() => {

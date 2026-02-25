@@ -764,9 +764,12 @@ const App: React.FC = () => {
   }, [completionInfo, handleBack, activeWorkout, activeBlock]);
 
   const handleCloseWorkoutCompleteModal = () => {
-    const isFinalBlock = completionInfo?.isFinal;
-    const isFreestanding = completionInfo?.workout.id.startsWith('freestanding-workout-') || 
-                           completionInfo?.workout.id.startsWith('fs-workout-');
+    if (!completionInfo) return;
+
+    const isFinalBlock = completionInfo.isFinal;
+    const workoutId = completionInfo.workout.id;
+    const isFreestanding = workoutId.startsWith('freestanding-workout-') || 
+                           workoutId.startsWith('fs-workout-');
 
     setCompletionInfo(null);
 
