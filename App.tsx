@@ -409,7 +409,7 @@ const App: React.FC = () => {
         // If back from Timer -> Go to Preview, Set Remote State to Preview
         if (page === Page.Timer && activeWorkout) {
              // FIX: If it's a freestanding timer, go back to menu/list instead of detail view
-             if (activeWorkout.id.startsWith('freestanding-workout-')) {
+             if (activeWorkout.id.startsWith('freestanding-workout-') || activeWorkout.id.startsWith('fs-workout-')) {
                  updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
                      activeWorkoutId: null,
                      view: 'menu',
@@ -417,7 +417,9 @@ const App: React.FC = () => {
                      lastUpdate: Date.now(),
                      controllerName: 'Touch Screen'
                  });
-                 // Allow fall-through to standard history pop (returns to FreestandingTimer list)
+                 // Force navigation to FreestandingTimer menu
+                 navigateReplace(Page.FreestandingTimer);
+                 return;
              } else {
                  updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
                      activeWorkoutId: activeWorkout.id,
