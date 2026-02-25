@@ -737,6 +737,22 @@ const App: React.FC = () => {
     if (completionInfo) return; 
     
     if (!isNatural) {
+      // FIX: If it's a freestanding timer, handle it explicitly here too to ensure we exit correctly
+      if (activeWorkout && (activeWorkout.id.startsWith('freestanding-workout-') || activeWorkout.id.startsWith('fs-workout-'))) {
+          setActiveWorkout(null);
+          setActiveBlock(null);
+          if (isStudioMode && selectedOrganization && selectedStudio) {
+              updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+                  activeWorkoutId: null,
+                  view: 'menu',
+                  activeBlockId: null,
+                  lastUpdate: Date.now(),
+                  controllerName: 'Touch Screen'
+              });
+          }
+          setHistory([Page.Home, Page.FreestandingTimer]);
+          return;
+      }
       handleBack();
       return;
     }

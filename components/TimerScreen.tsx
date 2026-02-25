@@ -723,8 +723,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const navPos = studioConfig.navigationControlPosition || 'top';
 
   // --- REMOTE CONTROL LISTENER ---
+  const lastProcessedCommandTimestamp = useRef<number>(0);
   useEffect(() => {
-      if (remoteCommand) {
+      if (remoteCommand && remoteCommand.timestamp > lastProcessedCommandTimestamp.current) {
+          lastProcessedCommandTimestamp.current = remoteCommand.timestamp;
           switch (remoteCommand.type) {
               case 'start':
               case 'resume':
