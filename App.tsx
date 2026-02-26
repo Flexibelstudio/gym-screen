@@ -461,10 +461,18 @@ const App: React.FC = () => {
                  activeBlockId: null,
                  lastUpdate: Date.now()
              });
+             setActiveWorkout(null);
+             setActiveBlock(null);
+             navigateReplace(Page.Home);
+             return;
         }
         else {
              // Fallback: Clear completely
              updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
+             setActiveWorkout(null);
+             setActiveBlock(null);
+             navigateReplace(Page.Home);
+             return;
         }
     }
 

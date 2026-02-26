@@ -723,7 +723,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const navPos = studioConfig.navigationControlPosition || 'top';
 
   // --- REMOTE CONTROL LISTENER ---
-  const lastProcessedCommandTimestamp = useRef<number>(0);
+  const lastProcessedCommandTimestamp = useRef<number>(remoteCommand ? remoteCommand.timestamp : 0);
   useEffect(() => {
       if (remoteCommand && remoteCommand.timestamp > lastProcessedCommandTimestamp.current) {
           lastProcessedCommandTimestamp.current = remoteCommand.timestamp;
@@ -875,8 +875,13 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         }
         
         hasStartedRef.current = true;
-        onHeaderVisibilityChange(false);
-        setIsBackButtonHidden(true);
+        if (!isLobbyMode) {
+             onHeaderVisibilityChange(false);
+             setIsBackButtonHidden(true);
+        } else {
+             onHeaderVisibilityChange(true);
+             setIsBackButtonHidden(false);
+        }
     }
   }, [start, status, onHeaderVisibilityChange, setIsBackButtonHidden, organization, isAutoTransition, isLobbyMode]);
 
