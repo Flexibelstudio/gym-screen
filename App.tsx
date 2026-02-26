@@ -434,8 +434,8 @@ const App: React.FC = () => {
                  setActiveWorkout(null);
                  setActiveBlock(null);
 
-                 // Reset history to land on FreestandingTimer menu and avoid loops
-                 setHistory([Page.Home, Page.FreestandingTimer]);
+                 // Use navigateReplace for a robust exit
+                 navigateReplace(Page.FreestandingTimer);
                  return;
              } else {
                  updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
@@ -773,7 +773,8 @@ const App: React.FC = () => {
                   controllerName: 'Touch Screen'
               });
           }
-          setHistory([Page.Home, Page.FreestandingTimer]);
+          // Use navigateReplace for a robust exit
+          navigateReplace(Page.FreestandingTimer);
           return;
       }
       handleBack();
@@ -829,8 +830,8 @@ const App: React.FC = () => {
             });
         }
         
-        // Reset history to land on FreestandingTimer
-        setHistory([Page.Home, Page.FreestandingTimer]);
+        // Use navigateReplace for a robust exit that doesn't rely on history manipulation
+        navigateReplace(Page.FreestandingTimer);
         return;
     }
 
