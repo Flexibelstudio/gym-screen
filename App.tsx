@@ -99,6 +99,9 @@ const App: React.FC = () => {
   
   // NEW: Ref to track local navigation timestamp to prevent race conditions with remote state
   const lastLocalNavigationRef = useRef<number>(0);
+  
+  // NEW: Ref to track when we entered the current page/timer to ignore old remote commands
+  const pageEntryTimestampRef = useRef<number>(Date.now());
 
   // --- STUDIO RESET LOGIC (Emergency Brake) ---
   // If the page is reloaded in Studio Mode, clear the remote state.
@@ -124,12 +127,15 @@ const App: React.FC = () => {
                   const remote = updatedStudio.remoteState;
                   
                   if (remote.command && remote.commandTimestamp) {
-                      setRemoteCommand(prev => {
-                          if (!prev || prev.timestamp !== remote.commandTimestamp) {
-                              return { type: remote.command!, timestamp: remote.commandTimestamp! };
-                          }
-                          return prev;
-                      });
+                      // Only accept commands that were sent AFTER we entered the current page/timer
+                      if (remote.commandTimestamp > pageEntryTimestampRef.current) {
+                          setRemoteCommand(prev => {
+                              if (!prev || prev.timestamp !== remote.commandTimestamp) {
+                                  return { type: remote.command!, timestamp: remote.commandTimestamp! };
+                              }
+                              return prev;
+                          });
+                      }
                   }
     
                   if (remote.view === 'idle') {
@@ -195,6 +201,8 @@ const App: React.FC = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    // Update entry timestamp whenever page changes to ignore old remote commands
+    pageEntryTimestampRef.current = Date.now();
   }, [page]);
 
   const [activeBlock, setActiveBlock] = useState<WorkoutBlock | null>(null);
@@ -407,9 +415,12 @@ const App: React.FC = () => {
         lastLocalNavigationRef.current = Date.now();
 
         // If back from Timer -> Go to Preview, Set Remote State to Preview
-        if (page === Page.Timer && activeWorkout) {
+        if ((page === Page.Timer || page === Page.RepsOnly) && activeWorkout) {
              // FIX: If it's a freestanding timer, go back to menu/list instead of detail view
-             if (activeWorkout.id.startsWith('freestanding-workout-') || activeWorkout.id.startsWith('fs-workout-')) {
+             const isFreestanding = activeWorkout.id.startsWith('freestanding-workout-') || 
+                                    activeWorkout.id.startsWith('fs-workout-');
+             
+             if (isFreestanding) {
                  updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
                      activeWorkoutId: null,
                      view: 'menu',
@@ -583,6 +594,9 @@ const App: React.FC = () => {
   
   const handleStartBlock = (block: WorkoutBlock, workoutContext: Workout) => {
     const isSavedWorkout = workouts.some(w => w.id === workoutContext.id);
+
+    // Update entry timestamp when starting a new block to ignore old remote commands
+    pageEntryTimestampRef.current = Date.now();
 
     if (isStudioMode && selectedOrganization && selectedStudio && isSavedWorkout) {
         updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
@@ -764,6 +778,8 @@ const App: React.FC = () => {
             setIsAutoTransition(true);
             setActiveBlock(null);
             setTimeout(() => {
+                // Update entry timestamp for the next block to ignore old remote commands
+                pageEntryTimestampRef.current = Date.now();
                 setActiveBlock(nextBlockInWorkout);
             }, 50);
             return;
