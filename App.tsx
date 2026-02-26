@@ -415,12 +415,9 @@ const App: React.FC = () => {
         lastLocalNavigationRef.current = Date.now();
 
         // If back from Timer -> Go to Preview, Set Remote State to Preview
-        if ((page === Page.Timer || page === Page.RepsOnly) && activeWorkout) {
-             // FIX: If it's a freestanding timer, go back to menu/list instead of detail view
-             const isFreestanding = activeWorkout.id.startsWith('freestanding-workout-') || 
-                                    activeWorkout.id.startsWith('fs-workout-');
-             
-             if (isFreestanding) {
+        if ((page === Page.Timer || page === Page.RepsOnly)) {
+             // If no active workout, it's a freestanding timer
+             if (!activeWorkout) {
                  updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
                      activeWorkoutId: null,
                      view: 'menu',
@@ -430,7 +427,6 @@ const App: React.FC = () => {
                  });
                  
                  // Clear active state
-                 setActiveWorkout(null);
                  setActiveBlock(null);
 
                  // Reset history to land on FreestandingTimer menu and avoid loops
@@ -617,18 +613,14 @@ const App: React.FC = () => {
   };
 
   const handleStartFreestandingTimer = (block: WorkoutBlock) => {
-    if (!selectedOrganization) return alert("Kan inte starta timer: ingen organisation är vald.");
-    const tempWorkout: Workout = {
-        id: `freestanding-workout-${Date.now()}`,
-        title: block.title,
-        coachTips: '',
-        blocks: [block],
-        category: 'Ej kategoriserad',
-        isPublished: false,
-        organizationId: selectedOrganization.id,
-        createdAt: Date.now() 
-    };
-    handleStartBlock(block, tempWorkout);
+    // Update entry timestamp when starting a new block to ignore old remote commands
+    pageEntryTimestampRef.current = Date.now();
+
+    setIsAutoTransition(false); 
+    setActiveWorkout(null); // Explicitly NO workout for freestanding timer
+    setActiveBlock(block);
+    if (block.settings.mode === TimerMode.NoTimer) navigateTo(Page.RepsOnly);
+    else navigateTo(Page.Timer);
   };
 
   const handleSelectWorkout = (workout: Workout, action: 'view' | 'log' = 'view') => {
@@ -751,9 +743,8 @@ const App: React.FC = () => {
     if (completionInfo) return; 
     
     if (!isNatural) {
-      // FIX: If it's a freestanding timer, handle it explicitly here too to ensure we exit correctly
-      if (activeWorkout && (activeWorkout.id.startsWith('freestanding-workout-') || activeWorkout.id.startsWith('fs-workout-'))) {
-          setActiveWorkout(null);
+      // FIX: If it's a freestanding timer (no active workout), handle it explicitly here too to ensure we exit correctly
+      if (!activeWorkout) {
           setActiveBlock(null);
           if (isStudioMode && selectedOrganization && selectedStudio) {
               updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
@@ -792,6 +783,9 @@ const App: React.FC = () => {
         setCompletionInfo({ workout: activeWorkout, isFinal: isLastBlock, blockTag: activeBlock.tag, finishTime: time });
     } else if (activeWorkout) {
         setCompletionInfo({ workout: activeWorkout, isFinal: true, blockTag: activeWorkout.blocks[0]?.tag, finishTime: time });
+    } else if (activeBlock) {
+        // Freestanding timer finish
+        setCompletionInfo({ workout: null as any, isFinal: true, blockTag: activeBlock.tag, finishTime: time });
     }
   }, [completionInfo, handleBack, activeWorkout, activeBlock]);
 
@@ -799,15 +793,12 @@ const App: React.FC = () => {
     if (!completionInfo) return;
 
     const isFinalBlock = completionInfo.isFinal;
-    const workoutId = completionInfo.workout.id;
-    const isFreestanding = workoutId.startsWith('freestanding-workout-') || 
-                           workoutId.startsWith('fs-workout-');
+    const isFreestanding = !completionInfo.workout;
 
     setCompletionInfo(null);
 
     if (isFreestanding) {
         // Explicitly handle freestanding finish
-        setActiveWorkout(null);
         setActiveBlock(null);
         
         if (isStudioMode && selectedOrganization && selectedStudio) {
