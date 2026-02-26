@@ -90,13 +90,13 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
 
   if (!isOpen) return null;
   
-  const isHyroxRace = workout?.id?.startsWith('hyrox-full-race') && isFinalBlock && finishTime !== undefined;
+  const isHyroxRace = workout.id.startsWith('hyrox-full-race') && isFinalBlock && finishTime !== undefined;
   const isRegistrationView = isHyroxRace || isRegistration;
   const isWarmup = blockTag === 'Uppvärmning';
 
   const handleSaveResult = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (!participantName.trim() || !organizationId || finishTime === undefined || !workout) return;
+      if (!participantName.trim() || !organizationId || finishTime === undefined) return;
       
       setIsSaving(true);
       const nameToSave = participantName.trim();
