@@ -552,12 +552,18 @@ export const updateStudioRemoteState = async (orgId: string, studioId: string, s
             const orgData = orgSnap.data() as Organization;
             const updatedStudios = orgData.studios.map(studio => {
                 if (studio.id === studioId) {
-                    // Om state är null, ta bort remoteState, annars uppdatera
+                    // Om state är null, ta bort remoteState, annars slå ihop med befintlig state
                     if (state === null) {
                         const { remoteState, ...rest } = studio;
                         return rest;
                     }
-                    return { ...studio, remoteState: state };
+                    return { 
+                        ...studio, 
+                        remoteState: {
+                            ...(studio.remoteState || {}),
+                            ...state
+                        } 
+                    };
                 }
                 return studio;
             });
@@ -566,6 +572,27 @@ export const updateStudioRemoteState = async (orgId: string, studioId: string, s
         }
     } catch (e) {
         console.error("Failed to update remote state:", e);
+    }
+};
+
+export const clearStudioRemoteCommand = async (orgId: string, studioId: string) => {
+    if (isOffline || !db || !orgId || !studioId) return;
+    try {
+        const orgRef = doc(db, 'organizations', orgId);
+        const orgSnap = await getDoc(orgRef);
+        if (orgSnap.exists()) {
+            const orgData = orgSnap.data() as Organization;
+            const updatedStudios = orgData.studios.map(studio => {
+                if (studio.id === studioId && studio.remoteState) {
+                    const { command, commandTimestamp, ...rest } = studio.remoteState;
+                    return { ...studio, remoteState: rest };
+                }
+                return studio;
+            });
+            await updateDoc(orgRef, { studios: updatedStudios });
+        }
+    } catch (e) {
+        console.error("Failed to clear remote command:", e);
     }
 };
 
