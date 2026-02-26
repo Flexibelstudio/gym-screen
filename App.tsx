@@ -412,6 +412,7 @@ const App: React.FC = () => {
 
     // UPDATED: Handle Remote State in Studio Mode
     if (isStudioMode && selectedOrganization && selectedStudio) {
+        setRemoteCommand(null);
         // Set local navigation timestamp to prevent race condition with remote state listener
         lastLocalNavigationRef.current = Date.now();
 
@@ -600,6 +601,9 @@ const App: React.FC = () => {
     // Update entry timestamp when starting a new block to ignore old remote commands
     pageEntryTimestampRef.current = Date.now();
 
+    // Reset auto-transition state when starting a new workout/block manually
+    setIsAutoTransition(false); 
+
     if (isStudioMode && selectedOrganization && selectedStudio && isSavedWorkout) {
         setRemoteCommand(null);
         updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
@@ -611,8 +615,6 @@ const App: React.FC = () => {
         });
         return;
     }
-
-    setIsAutoTransition(false); 
     setActiveWorkout(workoutContext);
     setActiveBlock(block);
     if (block.settings.mode === TimerMode.NoTimer) navigateTo(Page.RepsOnly);
@@ -620,6 +622,9 @@ const App: React.FC = () => {
   };
 
   const handleStartFreestandingTimer = (block: WorkoutBlock) => {
+    // Reset auto-transition state when starting a new freestanding timer
+    setIsAutoTransition(false);
+
     if (!selectedOrganization) return alert("Kan inte starta timer: ingen organisation är vald.");
     const tempWorkout: Workout = {
         id: `freestanding-workout-${Date.now()}`,
@@ -817,6 +822,7 @@ const App: React.FC = () => {
                            workoutId.startsWith('fs-workout-');
 
     setCompletionInfo(null);
+    setRemoteCommand(null);
 
     if (isFreestanding) {
         // Explicitly handle freestanding finish
