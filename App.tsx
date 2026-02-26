@@ -138,34 +138,34 @@ const App: React.FC = () => {
                       }
                   }
     
-                  if (remote.view === 'idle') {
-                      // Prevent bounce back if we just navigated locally (within 3 seconds)
-                      if (Date.now() - lastLocalNavigationRef.current < 3000) {
-                          return;
-                      }
-                      
-                      if (page !== Page.Home) {
-                          navigateReplace(Page.Home);
-                          setActiveWorkout(null);
-                      }
-                  } else if (remote.activeWorkoutId) {
-                      const workoutToLoad = workouts.find(w => w.id === remote.activeWorkoutId);
-                      if (workoutToLoad) {
-                          if (activeWorkout?.id !== workoutToLoad.id) {
-                              setActiveWorkout(workoutToLoad);
+                  // Prevent bounce back for view changes if we just navigated locally (within 3 seconds)
+                  const isRecentLocalNav = Date.now() - lastLocalNavigationRef.current < 3000;
+
+                  if (!isRecentLocalNav) {
+                      if (remote.view === 'idle') {
+                          if (page !== Page.Home) {
+                              navigateReplace(Page.Home);
+                              setActiveWorkout(null);
                           }
-    
-                          if (remote.view === 'preview') {
-                              if (page !== Page.WorkoutDetail) {
-                                  navigateReplace(Page.WorkoutDetail);
+                      } else if (remote.activeWorkoutId) {
+                          const workoutToLoad = workouts.find(w => w.id === remote.activeWorkoutId);
+                          if (workoutToLoad) {
+                              if (activeWorkout?.id !== workoutToLoad.id) {
+                                  setActiveWorkout(workoutToLoad);
                               }
-                          } else if (remote.view === 'timer' && remote.activeBlockId) {
-                              const blockToStart = workoutToLoad.blocks.find(b => b.id === remote.activeBlockId);
-                              if (blockToStart) {
-                                  setActiveBlock(blockToStart);
-                                  const targetPage = blockToStart.settings.mode === TimerMode.NoTimer ? Page.RepsOnly : Page.Timer;
-                                  if (page !== targetPage) {
-                                      navigateReplace(targetPage);
+        
+                              if (remote.view === 'preview') {
+                                  if (page !== Page.WorkoutDetail) {
+                                      navigateReplace(Page.WorkoutDetail);
+                                  }
+                              } else if (remote.view === 'timer' && remote.activeBlockId) {
+                                  const blockToStart = workoutToLoad.blocks.find(b => b.id === remote.activeBlockId);
+                                  if (blockToStart) {
+                                      setActiveBlock(blockToStart);
+                                      const targetPage = blockToStart.settings.mode === TimerMode.NoTimer ? Page.RepsOnly : Page.Timer;
+                                      if (page !== targetPage) {
+                                          navigateReplace(targetPage);
+                                      }
                                   }
                               }
                           }
@@ -396,6 +396,7 @@ const App: React.FC = () => {
   };
   
   const navigateReplace = (page: Page) => {
+    lastLocalNavigationRef.current = Date.now();
     setHistory(prev => {
         const newHistory = prev.slice(0, -1);
         newHistory.push(page);
@@ -600,6 +601,7 @@ const App: React.FC = () => {
     pageEntryTimestampRef.current = Date.now();
 
     if (isStudioMode && selectedOrganization && selectedStudio && isSavedWorkout) {
+        setRemoteCommand(null);
         updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
             activeWorkoutId: workoutContext.id,
             view: 'timer',
@@ -632,6 +634,7 @@ const App: React.FC = () => {
 
     // Update entry timestamp when starting a new block to ignore old remote commands
     pageEntryTimestampRef.current = Date.now();
+    setRemoteCommand(null);
 
     setIsAutoTransition(false); 
     setActiveWorkout(tempWorkout);
