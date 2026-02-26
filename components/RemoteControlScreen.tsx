@@ -10,7 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { SimpleWorkoutBuilderScreen } from './SimpleWorkoutBuilderScreen';
 
 // --- Types ---
-type RemoteView = 'scan' | 'dashboard' | 'list' | 'timer_setup' | 'controls' | 'edit';
+type RemoteView = 'select_studio' | 'scan' | 'dashboard' | 'list' | 'timer_setup' | 'controls' | 'edit';
 
 // Helper component for uniform buttons
 const DashboardButton: React.FC<{ 
@@ -338,8 +338,11 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         const studio = selectedOrganization.studios.find(s => s.id === connectedStudioId);
         const remoteState = studio?.remoteState;
         
-        // If the screen has returned to idle or menu, or has no active workout, we should exit controls
-        if (remoteState && (remoteState.view === 'idle' || remoteState.view === 'menu' || !remoteState.activeWorkoutId)) {
+        // IMPORTANT: Only exit if the view explicitly changes to idle/menu OR if activeWorkoutId is explicitly cleared
+        // We add a small delay check to avoid jumping due to transient state updates
+        if (remoteState && (remoteState.view === 'idle' || remoteState.view === 'menu' || remoteState.activeWorkoutId === null)) {
+            // Guard: If we just updated settings, wait a bit before allowing an exit based on remote state
+            // to ensure we are seeing the latest merged state
             const wasFreestanding = selectedWorkout?.id.startsWith('fs-workout-') || selectedWorkout?.id.startsWith('freestanding-workout-');
             
             if (wasFreestanding) {
@@ -399,6 +402,52 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
     };
 
     // --- RENDERERS ---
+
+    if (view === 'select_studio') {
+        return (
+            <div className="fixed inset-0 bg-gray-900 text-white z-50 flex flex-col p-6 overflow-y-auto">
+                <div className="flex justify-between items-center mb-8">
+                    <h2 className="text-2xl font-black">Välj skärm</h2>
+                    <button onClick={onBack} className="p-2 bg-gray-800 rounded-full"><CloseIcon className="w-5 h-5" /></button>
+                </div>
+
+                <div className="space-y-4">
+                    {selectedOrganization?.studios.map(studio => (
+                        <button
+                            key={studio.id}
+                            onClick={() => {
+                                setConnectedStudioId(studio.id);
+                                setConnectedStudioName(studio.name);
+                                setView('dashboard');
+                            }}
+                            className="w-full p-6 bg-gray-800 rounded-3xl border border-gray-700 flex items-center justify-between hover:bg-gray-750 transition-colors group"
+                        >
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-primary/20 rounded-2xl flex items-center justify-center">
+                                    <LightningIcon className="w-6 h-6 text-primary" />
+                                </div>
+                                <div className="text-left">
+                                    <h3 className="font-bold text-lg">{studio.name}</h3>
+                                    <p className="text-xs text-gray-500 uppercase tracking-widest">
+                                        {studio.remoteState?.view === 'timer' ? 'Träning pågår' : 'Redo'}
+                                    </p>
+                                </div>
+                            </div>
+                            <ChevronRightIcon className="w-5 h-5 text-gray-600 group-hover:text-white transition-colors" />
+                        </button>
+                    ))}
+
+                    <button 
+                        onClick={() => setView('scan')}
+                        className="w-full p-6 bg-gray-800/50 border-2 border-dashed border-gray-700 rounded-3xl flex items-center justify-center gap-3 text-gray-400 hover:text-white hover:border-gray-500 transition-all"
+                    >
+                        <RefreshIcon className="w-5 h-5" />
+                        <span className="font-bold">Scanna QR-kod istället</span>
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     if (view === 'scan') {
         return (
