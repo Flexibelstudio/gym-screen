@@ -384,6 +384,23 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         }
     }, [selectedOrganization, connectedStudioId]);
 
+    // Effect to handle being kicked off
+    useEffect(() => {
+        if (!connectedStudioId || !selectedOrganization) return;
+        
+        const studio = selectedOrganization.studios.find(s => s.id === connectedStudioId);
+        const remoteController = studio?.remoteState?.controllerName;
+        
+        // If someone else is now the controller (and it's not undefined/null), we have been kicked off
+        if (remoteController && remoteController !== currentControllerName) {
+            alert(`${remoteController} har tagit över styrningen.`);
+            setConnectedStudioId(null);
+            setView('select_studio');
+            setSelectedWorkout(null);
+            setActiveRunningBlockId(null);
+        }
+    }, [connectedStudioId, selectedOrganization, currentControllerName]);
+
     const handleUpdateViewSettings = (setting: 'text' | 'reps', value: number) => {
         if (!selectedOrganization || !connectedStudioId) return;
 
