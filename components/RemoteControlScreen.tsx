@@ -174,6 +174,9 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
     // Optimistic state for commands
     const [isSendingCommand, setIsSendingCommand] = useState<string | null>(null);
     
+    // Ref to track if we just initiated a connection (to prevent immediate kick-off due to state lag)
+    const justConnectedRef = React.useRef(false);
+
     // Derived
     const connectedStudioName = useMemo(() => {
         if (!selectedOrganization || !connectedStudioId) return '';
@@ -391,8 +394,16 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         const studio = selectedOrganization.studios.find(s => s.id === connectedStudioId);
         const remoteController = studio?.remoteState?.controllerName;
         
+        // If we are now the controller, clear the "just connected" flag
+        if (remoteController === currentControllerName) {
+            justConnectedRef.current = false;
+        }
+
         // If someone else is now the controller (and it's not undefined/null), we have been kicked off
         if (remoteController && remoteController !== currentControllerName) {
+            // If we just connected, ignore this mismatch (it's likely the old state)
+            if (justConnectedRef.current) return;
+
             alert(`${remoteController} har tagit över styrningen.`);
             setConnectedStudioId(null);
             setView('select_studio');
@@ -458,6 +469,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                     if (!confirmTakeover) return;
                                 }
 
+                                justConnectedRef.current = true;
                                 setConnectedStudioId(studio.id);
                                 setView('dashboard');
                                 
