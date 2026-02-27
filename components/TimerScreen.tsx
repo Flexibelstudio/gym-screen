@@ -722,6 +722,17 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   // Get navigation position preference (default top)
   const navPos = studioConfig.navigationControlPosition || 'top';
 
+  // --- REMOTE STATUS SYNC ---
+  useEffect(() => {
+    if (selectedOrganization && selectedStudio && activeWorkout) {
+        // We only sync status changes, not every second
+        updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+            status: status,
+            lastUpdate: Date.now()
+        } as any);
+    }
+  }, [status, selectedOrganization?.id, selectedStudio?.id, activeWorkout?.id]);
+
   // --- REMOTE CONTROL LISTENER ---
   const lastProcessedCommandTimestamp = useRef<number>(remoteCommand ? remoteCommand.timestamp : 0);
   useEffect(() => {
@@ -1008,7 +1019,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   // --- REMOTE SYNC HANDLER ---
   const handleRemoteAction = useCallback(async (action: 'start' | 'pause' | 'resume' | 'reset') => {
-      // 1. Perform Local Action
+      // 1. Perform Local Action IMMEDIATELY
       if (action === 'start') {
           setIsLobbyMode(false);
           start(); 
@@ -1027,22 +1038,19 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
       // 2. Sync to Firebase (if in Studio Mode)
       if (selectedOrganization && selectedStudio && activeWorkout) {
-          // CRITICAL FIX: We cannot rely on selectedStudio.remoteState from context because it might be stale
-          // (App.tsx listens to changes but might not update the context immediately).
-          // Instead, we explicitly enforce the current correct state (Timer View) to prevent
-          // the App.tsx listener from redirecting us to Home/Idle.
-          
           const newState = {
               activeWorkoutId: activeWorkout.id,
               view: 'timer',
               activeBlockId: block.id,
               command: action,
               commandTimestamp: Date.now(),
+              status: action === 'pause' ? TimerStatus.Paused : (action === 'start' || action === 'resume' ? TimerStatus.Running : TimerStatus.Idle),
               lastUpdate: Date.now(),
-              controllerName: 'Coach' // Default fallback
+              controllerName: 'Coach'
           };
 
-          await updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, newState);
+          // Don't await here to keep UI snappy, but fire it off
+          updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, newState as any);
       }
   }, [selectedOrganization, selectedStudio, activeWorkout, block.id, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset]);
 

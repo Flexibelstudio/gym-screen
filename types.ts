@@ -194,6 +194,7 @@ export interface RemoteSessionState {
     controllerName?: string; // Name of coach controlling
     command?: 'start' | 'pause' | 'resume' | 'reset' | 'finish'; // NEW: Command channel
     commandTimestamp?: number; // To deduplicate commands
+    status?: TimerStatus; // NEW: Track current timer status (Running, Paused, etc.)
     viewerSettings?: {
         textScale: number;
         repsScale: number;

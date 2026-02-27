@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useStudio } from '../context/StudioContext';
 import { useWorkout } from '../context/WorkoutContext';
 import { updateStudioRemoteState, saveWorkout } from '../services/firebaseService';
-import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise } from '../types';
+import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, TimerStatus } from '../types';
 import { WebQRScanner } from './WebQRScanner';
 import { DumbbellIcon, PlayIcon, CloseIcon, ChevronRightIcon, ClockIcon, SparklesIcon, LightningIcon, StarIcon, ChevronLeftIcon, ChevronDownIcon, ChevronUpIcon, RefreshIcon, SettingsIcon, PencilIcon } from './icons';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -162,12 +162,15 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
     const { selectedOrganization, studioConfig } = useStudio();
     
     // State
-    const [view, setView] = useState<RemoteView>('scan');
+    const [view, setView] = useState<RemoteView>('select_studio');
     const [connectedStudioId, setConnectedStudioId] = useState<string | null>(null);
     const [selectedWorkout, setSelectedWorkout] = useState<Workout | null>(null);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const [activeRunningBlockId, setActiveRunningBlockId] = useState<string | null>(null);
     const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
+    
+    // Optimistic state for commands
+    const [isSendingCommand, setIsSendingCommand] = useState<string | null>(null);
     
     // Derived
     const connectedStudioName = useMemo(() => {
@@ -251,9 +254,13 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         });
     };
     
-    const sendCommand = async (cmd: 'start' | 'pause' | 'reset' | 'finish') => {
+    const sendCommand = async (cmd: 'start' | 'pause' | 'resume' | 'reset' | 'finish') => {
         if (!selectedOrganization || !connectedStudioId || !selectedWorkout) return;
         
+        // Optimistic feedback
+        setIsSendingCommand(cmd);
+        setTimeout(() => setIsSendingCommand(null), 1000);
+
         await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
             activeWorkoutId: selectedWorkout.id,
             view: 'timer',
@@ -429,21 +436,13 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                 <div className="text-left">
                                     <h3 className="font-bold text-lg">{studio.name}</h3>
                                     <p className="text-xs text-gray-500 uppercase tracking-widest">
-                                        {studio.remoteState?.view === 'timer' ? 'Träning pågår' : 'Redo'}
+                                        {studio.remoteState?.status === TimerStatus.Running ? 'Träning pågår' : 'Redo'}
                                     </p>
                                 </div>
                             </div>
                             <ChevronRightIcon className="w-5 h-5 text-gray-600 group-hover:text-white transition-colors" />
                         </button>
                     ))}
-
-                    <button 
-                        onClick={() => setView('scan')}
-                        className="w-full p-6 bg-gray-800/50 border-2 border-dashed border-gray-700 rounded-3xl flex items-center justify-center gap-3 text-gray-400 hover:text-white hover:border-gray-500 transition-all"
-                    >
-                        <RefreshIcon className="w-5 h-5" />
-                        <span className="font-bold">Scanna QR-kod istället</span>
-                    </button>
                 </div>
             </div>
         );
@@ -709,17 +708,42 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                                         {isRunning ? (
                                                             // Controls for ACTIVE block (State B)
                                                             <div className="grid grid-cols-2 gap-3">
-                                                                <button onClick={() => sendCommand('start')} className="bg-green-600 hover:bg-green-500 p-6 rounded-2xl font-bold text-white flex flex-col items-center gap-1 col-span-2 shadow-lg">
-                                                                    <span className="text-3xl"><PlayIcon className="w-8 h-8 fill-current" /></span>
-                                                                    <span className="text-xs uppercase tracking-widest">Starta / Fortsätt</span>
-                                                                </button>
+                                                                {(() => {
+                                                                    const studio = selectedOrganization?.studios.find(s => s.id === connectedStudioId);
+                                                                    const isTimerRunning = studio?.remoteState?.status === TimerStatus.Running || 
+                                                                                         studio?.remoteState?.status === TimerStatus.Preparing || 
+                                                                                         studio?.remoteState?.status === TimerStatus.Resting;
+                                                                    
+                                                                    return (
+                                                                        <button 
+                                                                            onClick={() => sendCommand(isTimerRunning ? 'pause' : 'start')} 
+                                                                            disabled={isSendingCommand !== null}
+                                                                            className={`${isTimerRunning ? 'bg-gray-700' : 'bg-green-600 hover:bg-green-500'} p-6 rounded-2xl font-bold text-white flex flex-col items-center gap-1 col-span-2 shadow-lg transition-all active:scale-95 disabled:opacity-50`}
+                                                                        >
+                                                                            <span className="text-3xl">
+                                                                                {isTimerRunning ? '⏸' : <PlayIcon className="w-8 h-8 fill-current" />}
+                                                                            </span>
+                                                                            <span className="text-xs uppercase tracking-widest">
+                                                                                {isTimerRunning ? 'Pausa' : 'Starta / Fortsätt'}
+                                                                            </span>
+                                                                        </button>
+                                                                    );
+                                                                })()}
                                                                 
-                                                                <button onClick={() => sendCommand('pause')} className="bg-gray-800 hover:bg-gray-700 p-4 rounded-xl font-bold text-white flex flex-col items-center gap-1">
+                                                                <button 
+                                                                    onClick={() => sendCommand('pause')} 
+                                                                    disabled={isSendingCommand !== null}
+                                                                    className="bg-gray-800 hover:bg-gray-700 p-4 rounded-xl font-bold text-white flex flex-col items-center gap-1 disabled:opacity-50"
+                                                                >
                                                                     <span className="text-xl">⏸</span>
                                                                     <span className="text-[10px] uppercase">Pausa</span>
                                                                 </button>
                                                                 
-                                                                 <button onClick={() => sendCommand('reset')} className="bg-gray-800 hover:bg-gray-700 p-4 rounded-xl font-bold text-yellow-500 flex flex-col items-center gap-1">
+                                                                 <button 
+                                                                    onClick={() => sendCommand('reset')} 
+                                                                    disabled={isSendingCommand !== null}
+                                                                    className="bg-gray-800 hover:bg-gray-700 p-4 rounded-xl font-bold text-yellow-500 flex flex-col items-center gap-1 disabled:opacity-50"
+                                                                >
                                                                     <span className="text-xl"><RefreshIcon className="w-5 h-5" /></span>
                                                                     <span className="text-[10px] uppercase">Nollställ</span>
                                                                 </button>
