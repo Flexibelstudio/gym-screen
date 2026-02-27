@@ -9,7 +9,6 @@ import { CommunityFeed } from './CommunityFeed';
 import { Modal } from './ui/Modal';
 import { useStudio } from '../context/StudioContext';
 import { useAuth } from '../context/AuthContext';
-import QRCode from 'react-qr-code';
 
 const TimerIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -233,9 +232,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
       return <h1 className="text-2xl font-black text-primary uppercase tracking-tighter">Smart Skärm</h1>;
   };
-  
-  // Remote Control Payload
-  const remoteQrValue = selectedStudio ? JSON.stringify({ sid: selectedStudio.id, action: 'control' }) : '';
 
   return (
     <>
@@ -262,13 +258,6 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             {currentTime.toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}
                         </span>
                     </motion.div>
-                    
-                    {/* Minimalistisk QR-kod under klockan - Ingen animation delay, full opacitet */}
-                    {isStudioMode && selectedStudio && (
-                        <div className="bg-white p-1 rounded-lg">
-                            <QRCode value={remoteQrValue} size={44} />
-                        </div>
-                    )}
                 </div>
             </div>
 

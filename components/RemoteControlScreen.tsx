@@ -424,7 +424,6 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                             key={studio.id}
                             onClick={() => {
                                 setConnectedStudioId(studio.id);
-                                setConnectedStudioName(studio.name);
                                 setView('dashboard');
                             }}
                             className="w-full p-6 bg-gray-800 rounded-3xl border border-gray-700 flex items-center justify-between hover:bg-gray-750 transition-colors group"
