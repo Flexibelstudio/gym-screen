@@ -189,16 +189,25 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         return 'Coach';
     }, [userData, currentUser]);
 
+    const [isDisconnecting, setIsDisconnecting] = useState(false);
+
     const handleClose = async () => {
         if (connectedStudioId) {
             if (window.confirm("Vill du koppla från fjärrkontrollen?")) {
-                if (selectedOrganization && connectedStudioId) {
-                    // Clear controller name when disconnecting
-                    await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
-                        controllerName: null // Explicitly set to null to clear
-                    } as any);
+                setIsDisconnecting(true);
+                try {
+                    if (selectedOrganization && connectedStudioId) {
+                        // Clear controller name when disconnecting
+                        await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
+                            controllerName: null // Explicitly set to null to clear
+                        } as any);
+                    }
+                } catch (error) {
+                    console.error("Failed to disconnect:", error);
+                } finally {
+                    setIsDisconnecting(false);
+                    onBack();
                 }
-                onBack();
             }
         } else {
             onBack();
@@ -533,7 +542,13 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                         </p>
                         <h2 className="text-lg font-black truncate max-w-[200px]">{connectedStudioName}</h2>
                     </div>
-                    <button onClick={handleClose} className="p-2 bg-gray-700 rounded-full hover:bg-gray-600"><CloseIcon className="w-5 h-5" /></button>
+                    <button 
+                        onClick={handleClose} 
+                        disabled={isDisconnecting}
+                        className={`p-2 bg-gray-700 rounded-full hover:bg-gray-600 ${isDisconnecting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                        {isDisconnecting ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CloseIcon className="w-5 h-5" />}
+                    </button>
                 </div>
 
                 <div className="flex-grow overflow-y-auto p-4 custom-scrollbar">
