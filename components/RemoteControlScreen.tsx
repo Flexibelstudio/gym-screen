@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useStudio } from '../context/StudioContext';
 import { useWorkout } from '../context/WorkoutContext';
+import { useAuth } from '../context/AuthContext';
 import { updateStudioRemoteState, saveWorkout } from '../services/firebaseService';
 import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, TimerStatus } from '../types';
 import { WebQRScanner } from './WebQRScanner';
@@ -160,6 +161,7 @@ const QuickTimerSetup: React.FC<{ onStart: (settings: TimerSettings, title: stri
 export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
     const { workouts } = useWorkout();
     const { selectedOrganization, studioConfig } = useStudio();
+    const { userData, currentUser } = useAuth();
     
     // State
     const [view, setView] = useState<RemoteView>('select_studio');
@@ -178,12 +180,20 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         return selectedOrganization.studios.find(s => s.id === connectedStudioId)?.name || 'Okänd skärm';
     }, [selectedOrganization, connectedStudioId]);
 
-    const handleClose = () => {
+    const currentControllerName = useMemo(() => {
+        if (userData?.firstName) return `${userData.firstName} ${userData.lastName || ''}`.trim();
+        if (currentUser?.email) return currentUser.email.split('@')[0];
+        return 'Coach';
+    }, [userData, currentUser]);
+
+    const handleClose = async () => {
         if (connectedStudioId) {
             if (window.confirm("Vill du koppla från fjärrkontrollen?")) {
                 if (selectedOrganization && connectedStudioId) {
-                    // Reset to idle on disconnect? Or just leave it? 
-                    // Let's leave it running but disconnect remote.
+                    // Clear controller name when disconnecting
+                    await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
+                        controllerName: undefined // This should remove the field or set it to undefined
+                    } as any);
                 }
                 onBack();
             }
@@ -217,7 +227,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
             view: 'preview',
             activeBlockId: null,
             lastUpdate: Date.now(),
-            controllerName: 'Coach'
+            controllerName: currentControllerName
         });
         
         setView('controls');
@@ -235,7 +245,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
             view: 'timer',
             activeBlockId: block.id,
             lastUpdate: Date.now(),
-            controllerName: 'Coach',
+            controllerName: currentControllerName,
             // NO START COMMAND HERE - Just load it
         });
     };
@@ -250,7 +260,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
             view: 'preview', // Go back to workout detail
             activeBlockId: null,
             lastUpdate: Date.now(),
-            controllerName: 'Coach'
+            controllerName: currentControllerName
         });
     };
     
@@ -266,7 +276,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
             view: 'timer',
             activeBlockId: activeRunningBlockId, // Keep current block
             lastUpdate: Date.now(),
-            controllerName: 'Coach',
+            controllerName: currentControllerName,
             command: cmd,
             commandTimestamp: Date.now()
         });
@@ -320,7 +330,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
             view: 'timer',
             activeBlockId: timerBlock.id,
             lastUpdate: Date.now(),
-            controllerName: 'Coach'
+            controllerName: currentControllerName
         });
 
         setView('controls');
@@ -435,7 +445,10 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                 <div className="text-left">
                                     <h3 className="font-bold text-lg">{studio.name}</h3>
                                     <p className="text-xs text-gray-500 uppercase tracking-widest">
-                                        {studio.remoteState?.status === TimerStatus.Running ? 'Träning pågår' : 'Redo'}
+                                        {studio.remoteState?.controllerName 
+                                            ? <span className="text-primary animate-pulse">{studio.remoteState.controllerName} uppkopplad</span>
+                                            : (studio.remoteState?.status === TimerStatus.Running ? 'Träning pågår' : 'Redo')
+                                        }
                                     </p>
                                 </div>
                             </div>
@@ -628,7 +641,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                             view: 'preview',
                             activeBlockId: null,
                             lastUpdate: Date.now(),
-                            controllerName: 'Coach'
+                            controllerName: currentControllerName
                         });
                         
                         setView('list');
