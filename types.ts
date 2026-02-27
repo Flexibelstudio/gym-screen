@@ -188,7 +188,7 @@ export interface StudioConfig {
 // NYTT: Tillstånd för fjärrstyrning
 export interface RemoteSessionState {
     activeWorkoutId: string | null;
-    view: 'idle' | 'preview' | 'timer' | 'menu'; // idle=logo, preview=workout detail, timer=running block, menu=other pages
+    view: 'idle' | 'preview' | 'timer' | 'menu' | 'ideaboard'; // idle=logo, preview=workout detail, timer=running block, menu=other pages, ideaboard=drawing
     activeBlockId: string | null;
     lastUpdate: number; // Timestamp to force updates
     controllerName?: string | null; // Name of coach controlling
@@ -198,6 +198,12 @@ export interface RemoteSessionState {
     viewerSettings?: {
         textScale: number;
         repsScale: number;
+    };
+    latestStroke?: {
+        color: string;
+        points: {x: number, y: number}[];
+        timestamp: number;
+        isClear?: boolean; // If true, clear the board
     };
 }
 

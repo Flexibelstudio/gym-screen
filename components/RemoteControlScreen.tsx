@@ -11,7 +11,144 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { SimpleWorkoutBuilderScreen } from './SimpleWorkoutBuilderScreen';
 
 // --- Types ---
-type RemoteView = 'select_studio' | 'scan' | 'dashboard' | 'list' | 'timer_setup' | 'controls' | 'edit';
+type RemoteView = 'select_studio' | 'scan' | 'dashboard' | 'list' | 'timer_setup' | 'controls' | 'edit' | 'ideaboard';
+
+// --- REMOTE DRAWING PAD COMPONENT ---
+interface RemoteDrawingPadProps {
+    onStroke: (stroke: { color: string, points: {x: number, y: number}[], timestamp: number }) => void;
+    onClear: () => void;
+}
+
+const RemoteDrawingPad: React.FC<RemoteDrawingPadProps> = ({ onStroke, onClear }) => {
+    const canvasRef = React.useRef<HTMLCanvasElement>(null);
+    const [color, setColor] = useState('#FFFFFF');
+    const isDrawing = React.useRef(false);
+    const currentStroke = React.useRef<{x: number, y: number}[]>([]);
+    const COLORS = ['#FFFFFF', '#FACC15', '#3B82F6', '#4ADE80', '#EF4444'];
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        
+        // Resize canvas to fill container
+        const resize = () => {
+            const parent = canvas.parentElement;
+            if (parent) {
+                canvas.width = parent.clientWidth;
+                canvas.height = parent.clientHeight;
+            }
+        };
+        resize();
+        window.addEventListener('resize', resize);
+        return () => window.removeEventListener('resize', resize);
+    }, []);
+
+    const getPos = (e: React.TouchEvent | React.MouseEvent) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return { x: 0, y: 0 };
+        const rect = canvas.getBoundingClientRect();
+        
+        let clientX, clientY;
+        if ('touches' in e) {
+            clientX = e.touches[0].clientX;
+            clientY = e.touches[0].clientY;
+        } else {
+            clientX = (e as React.MouseEvent).clientX;
+            clientY = (e as React.MouseEvent).clientY;
+        }
+        
+        return {
+            x: (clientX - rect.left) / rect.width, // Normalize 0-1
+            y: (clientY - rect.top) / rect.height
+        };
+    };
+
+    const startDrawing = (e: React.TouchEvent | React.MouseEvent) => {
+        // e.preventDefault(); // Removed to allow some interaction if needed, but usually good for canvas
+        isDrawing.current = true;
+        const pos = getPos(e);
+        currentStroke.current = [pos];
+        
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext('2d');
+        if (ctx && canvas) {
+            ctx.beginPath();
+            ctx.moveTo(pos.x * canvas.width, pos.y * canvas.height);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+        }
+    };
+
+    const draw = (e: React.TouchEvent | React.MouseEvent) => {
+        if (!isDrawing.current) return;
+        e.preventDefault(); // Prevent scrolling while drawing
+        const pos = getPos(e);
+        currentStroke.current.push(pos);
+        
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext('2d');
+        if (ctx && canvas) {
+            ctx.lineTo(pos.x * canvas.width, pos.y * canvas.height);
+            ctx.stroke();
+        }
+    };
+
+    const stopDrawing = () => {
+        if (!isDrawing.current) return;
+        isDrawing.current = false;
+        
+        if (currentStroke.current.length > 0) {
+            onStroke({
+                color,
+                points: currentStroke.current,
+                timestamp: Date.now()
+            });
+        }
+        currentStroke.current = [];
+    };
+
+    const clearCanvas = () => {
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext('2d');
+        if (ctx && canvas) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            onClear();
+        }
+    };
+
+    return (
+        <div className="w-full h-full flex flex-col">
+            <canvas 
+                ref={canvasRef}
+                className="flex-grow bg-gray-900 touch-none"
+                onTouchStart={startDrawing}
+                onTouchMove={draw}
+                onTouchEnd={stopDrawing}
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseLeave={stopDrawing}
+            />
+            
+            <div className="p-4 bg-gray-800 flex justify-between items-center gap-4 border-t border-gray-700">
+                <div className="flex gap-2">
+                    {COLORS.map(c => (
+                        <button 
+                            key={c}
+                            onClick={() => setColor(c)}
+                            className={`w-8 h-8 rounded-full border-2 transition-transform ${color === c ? 'border-white scale-110' : 'border-transparent'}`}
+                            style={{ backgroundColor: c }}
+                        />
+                    ))}
+                </div>
+                <button onClick={clearCanvas} className="text-red-400 font-bold text-sm px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors">
+                    Rensa
+                </button>
+            </div>
+        </div>
+    );
+};
 
 // Helper component for uniform buttons
 const DashboardButton: React.FC<{ 
@@ -535,20 +672,36 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
             <div className="fixed inset-0 bg-gray-900 text-white z-50 flex flex-col animate-fade-in">
                 {/* Header */}
                 <div className="p-5 bg-gray-800 border-b border-gray-700 flex justify-between items-center shadow-lg z-10">
-                    <div>
-                        <p className="text-[10px] text-green-400 font-bold uppercase tracking-widest flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                            Ansluten till
-                        </p>
-                        <h2 className="text-lg font-black truncate max-w-[200px]">{connectedStudioName}</h2>
-                    </div>
-                    <button 
-                        onClick={handleClose} 
-                        disabled={isDisconnecting}
-                        className={`p-2 bg-gray-700 rounded-full hover:bg-gray-600 ${isDisconnecting ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                        {isDisconnecting ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CloseIcon className="w-5 h-5" />}
-                    </button>
+                    {view === 'list' ? (
+                        <button 
+                            onClick={() => { setView('dashboard'); setSelectedWorkout(null); }} 
+                            className="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded-full text-sm flex items-center gap-2 transition-colors"
+                        >
+                            <ChevronLeftIcon className="w-4 h-4" />
+                            Tillbaka
+                        </button>
+                    ) : (
+                        <div>
+                            <p className="text-[10px] text-green-400 font-bold uppercase tracking-widest flex items-center gap-1">
+                                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                                Ansluten till
+                            </p>
+                            <h2 className="text-lg font-black truncate max-w-[200px]">{connectedStudioName}</h2>
+                        </div>
+                    )}
+
+                    {view === 'dashboard' && (
+                        <button 
+                            onClick={handleClose} 
+                            disabled={isDisconnecting}
+                            className={`p-2 bg-gray-700 rounded-full hover:bg-gray-600 ${isDisconnecting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        >
+                            {isDisconnecting ? <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <CloseIcon className="w-5 h-5" />}
+                        </button>
+                    )}
+                    
+                    {/* Placeholder for layout balance in list view if needed, or just empty */}
+                    {view === 'list' && <div className="w-8"></div>}
                 </div>
 
                 <div className="flex-grow overflow-y-auto p-4 custom-scrollbar">
@@ -570,7 +723,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                 <DashboardButton 
                                     onClick={() => { setSelectedCategory('HYROX'); setView('list'); }}
                                     icon={<LightningIcon className="w-8 h-8" />}
-                                    label="HYROX"
+                                    label="Simuleringslopp"
                                 />
                             )}
 
@@ -581,7 +734,27 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                 label="Timer"
                             />
 
-                             {/* 4. Other Workouts */}
+                            {/* 4. Idea Board (if enabled) */}
+                            {studioConfig.enableNotes && (
+                                <DashboardButton 
+                                    onClick={() => {
+                                        setView('ideaboard');
+                                        // Immediately switch studio to Idea Board view
+                                        if (selectedOrganization && connectedStudioId) {
+                                            updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
+                                                view: 'ideaboard',
+                                                activeWorkoutId: null,
+                                                activeBlockId: null,
+                                                lastUpdate: Date.now()
+                                            } as any);
+                                        }
+                                    }}
+                                    icon={<PencilIcon className="w-8 h-8" />}
+                                    label="Idétavlan"
+                                />
+                            )}
+
+                             {/* 5. Other Workouts */}
                             <DashboardButton 
                                 onClick={() => { setSelectedCategory('other'); setView('list'); }}
                                 icon={<StarIcon className="w-8 h-8" />}
@@ -592,11 +765,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
 
                     {/* --- LIST VIEW --- */}
                     {view === 'list' && (
-                        <div className="space-y-4">
-                            <button onClick={() => { setView('dashboard'); setSelectedWorkout(null); }} className="text-gray-400 text-sm font-bold flex items-center gap-1 mb-2">
-                                <ChevronLeftIcon className="w-4 h-4" /> Tillbaka till menyn
-                            </button>
-
+                        <div className="space-y-3 animate-fade-in">
                             {selectedWorkout ? (
                                 // WORKOUT DETAIL PREVIEW
                                 <div className="space-y-6 animate-fade-in">
@@ -642,7 +811,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                     {workouts.filter(w => {
                                         if (!w.isPublished) return false;
                                         if (selectedCategory === 'other') return !w.category || !studioConfig.customCategories.some(c => c.name === w.category);
-                                        if (selectedCategory === 'HYROX') return w.id.startsWith('hyrox'); // Simplified check
+                                        if (selectedCategory === 'HYROX') return w.id.startsWith('hyrox') || w.category === 'HYROX' || w.category === 'Hyrox';
                                         return w.category === selectedCategory;
                                     }).map(workout => (
                                         <button 
@@ -660,7 +829,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                     {workouts.filter(w => { // Empty state check
                                          if (!w.isPublished) return false;
                                          if (selectedCategory === 'other') return !w.category || !studioConfig.customCategories.some(c => c.name === w.category);
-                                         if (selectedCategory === 'HYROX') return w.id.startsWith('hyrox');
+                                         if (selectedCategory === 'HYROX') return w.id.startsWith('hyrox') || w.category === 'HYROX' || w.category === 'Hyrox';
                                          return w.category === selectedCategory;
                                     }).length === 0 && (
                                         <p className="text-gray-500 italic text-center py-8">Inga pass hittades i denna kategori.</p>
@@ -708,6 +877,57 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                     }}
                     onCancel={() => setView('list')}
                 />
+            </div>
+        );
+    }
+
+    if (view === 'ideaboard') {
+        return (
+            <div className="fixed inset-0 bg-gray-900 text-white z-50 flex flex-col">
+                {/* Header */}
+                <div className="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center shadow-lg z-10">
+                    <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Live på {connectedStudioName}</span>
+                    </div>
+                    <button 
+                        onClick={() => {
+                            setView('dashboard');
+                            // Reset studio view when leaving
+                            if (selectedOrganization && connectedStudioId) {
+                                updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
+                                    view: 'idle',
+                                    lastUpdate: Date.now()
+                                } as any);
+                            }
+                        }} 
+                        className="text-xs bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded-lg border border-gray-600 transition-colors"
+                    >
+                        Stäng
+                    </button>
+                </div>
+
+                {/* Drawing Area */}
+                <div className="flex-grow relative bg-black touch-none overflow-hidden" id="drawing-area">
+                    <RemoteDrawingPad 
+                        onStroke={(stroke) => {
+                            if (selectedOrganization && connectedStudioId) {
+                                updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
+                                    latestStroke: stroke,
+                                    lastUpdate: Date.now()
+                                } as any);
+                            }
+                        }}
+                        onClear={() => {
+                            if (selectedOrganization && connectedStudioId) {
+                                updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
+                                    latestStroke: { isClear: true, timestamp: Date.now(), color: '#000000', points: [] },
+                                    lastUpdate: Date.now()
+                                } as any);
+                            }
+                        }}
+                    />
+                </div>
             </div>
         );
     }

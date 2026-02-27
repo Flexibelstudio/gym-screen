@@ -147,6 +147,11 @@ const App: React.FC = () => {
                               navigateReplace(Page.Home);
                               setActiveWorkout(null);
                           }
+                      } else if (remote.view === 'ideaboard') {
+                          if (page !== Page.IdeaBoard) {
+                              navigateReplace(Page.IdeaBoard);
+                              setActiveWorkout(null);
+                          }
                       } else if (remote.activeWorkoutId) {
                           const workoutToLoad = workouts.find(w => w.id === remote.activeWorkoutId);
                           if (workoutToLoad) {
