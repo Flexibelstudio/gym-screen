@@ -192,7 +192,7 @@ export interface RemoteSessionState {
     activeBlockId: string | null;
     lastUpdate: number; // Timestamp to force updates
     controllerName?: string | null; // Name of coach controlling
-    command?: 'start' | 'pause' | 'resume' | 'reset' | 'finish'; // NEW: Command channel
+    command?: 'start' | 'pause' | 'resume' | 'reset' | 'finish' | 'start_hyrox' | 'undo_note' | 'save_note'; // NEW: Command channel
     commandTimestamp?: number; // To deduplicate commands
     status?: TimerStatus; // NEW: Track current timer status (Running, Paused, etc.)
     viewerSettings?: {

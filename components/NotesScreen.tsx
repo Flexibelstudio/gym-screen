@@ -15,6 +15,7 @@ interface NotesScreenProps {
     studioConfig: StudioConfig;
     initialWorkoutToDraw: Workout | null;
     onBack: () => void;
+    remoteCommand?: { type: string, timestamp: number } | null;
 }
 
 const BoilingCauldron: React.FC<{ className?: string }> = ({ className }) => (
@@ -596,7 +597,7 @@ const CompactTimer: React.FC<{
 
 // --- Main Component ---
 
-export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, studioConfig, initialWorkoutToDraw, onBack }) => {
+export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, studioConfig, initialWorkoutToDraw, onBack, remoteCommand }) => {
     const { selectedOrganization, selectedStudio } = useStudio();
     const [savedNotes, setSavedNotes] = useState<Note[]>([]);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -1001,6 +1002,19 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             setIsSavingNote(false);
         }
     };
+
+    const lastProcessedCommandRef = useRef<number>(0);
+
+    useEffect(() => {
+        if (remoteCommand && remoteCommand.timestamp > lastProcessedCommandRef.current) {
+            lastProcessedCommandRef.current = remoteCommand.timestamp;
+            if (remoteCommand.type === 'undo_note') {
+                handleUndo();
+            } else if (remoteCommand.type === 'save_note') {
+                handleSaveNote();
+            }
+        }
+    }, [remoteCommand]);
     
     const handleInterpretAsWorkout = async () => {
         if (!canvasRef.current || history.length === 0) return;

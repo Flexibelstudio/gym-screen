@@ -57,6 +57,7 @@ interface AppRouterProps {
 
     // NEW: Remote command
     remoteCommand?: { type: string, timestamp: number } | null;
+    selectedStudio?: any;
 
     onSelectWorkout: (workout: Workout, action?: 'view' | 'log') => void;
     onSelectPasskategori: (passkategori: Passkategori) => void;
@@ -128,7 +129,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
         page, navigateTo, handleBack, role, userData, studioConfig, selectedOrganization, allOrganizations, isStudioMode, isImpersonating, theme,
         workouts, activeWorkout, activeBlock,
         passkategoriFilter, activeCustomPage, activeRaceId, racePrepState, followMeShowImage, mobileLogData,
-        preferredAdminTab, profileEditTrigger, isAutoTransition, remoteCommand,
+        preferredAdminTab, profileEditTrigger, isAutoTransition, remoteCommand, selectedStudio,
         onSelectWorkout, onSelectPasskategori, onCreateNewWorkout, onStartBlock, onEditWorkout, onDeleteWorkout, onSaveWorkout, onSaveWorkoutNoNav,
         onTogglePublish, onToggleFavorite, onDuplicateWorkout, onTimerFinish,
         functions
@@ -212,6 +213,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 isAutoTransition={isAutoTransition}
                 // Pass command to TimerScreen
                 remoteCommand={remoteCommand}
+                selectedStudio={selectedStudio}
             />;
 
         case Page.FreestandingTimer:
@@ -259,6 +261,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 studioConfig={studioConfig}
                 initialWorkoutToDraw={null}
                 onBack={handleBack}
+                remoteCommand={remoteCommand}
             />;
 
         case Page.RepsOnly:
@@ -277,6 +280,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 studioConfig={studioConfig}
                 racePrepState={racePrepState}
                 onPrepComplete={() => {}}
+                remoteCommand={remoteCommand}
             />;
 
         case Page.HyroxRaceList:

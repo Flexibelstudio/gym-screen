@@ -6,8 +6,14 @@ import { useAuth } from '../context/AuthContext';
 import { updateStudioRemoteState, saveWorkout } from '../services/firebaseService';
 import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, TimerStatus } from '../types';
 import { WebQRScanner } from './WebQRScanner';
-import { DumbbellIcon, PlayIcon, CloseIcon, ChevronRightIcon, ClockIcon, SparklesIcon, LightningIcon, StarIcon, ChevronLeftIcon, ChevronDownIcon, ChevronUpIcon, RefreshIcon, SettingsIcon, PencilIcon } from './icons';
+import { DumbbellIcon, PlayIcon, CloseIcon, ChevronRightIcon, ClockIcon, SparklesIcon, LightningIcon, StarIcon, ChevronLeftIcon, ChevronDownIcon, ChevronUpIcon, RefreshIcon, SettingsIcon, PencilIcon, TrashIcon } from './icons';
 import { motion, AnimatePresence } from 'framer-motion';
+
+const UndoIcon = ({ className }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+    </svg>
+);
 import { SimpleWorkoutBuilderScreen } from './SimpleWorkoutBuilderScreen';
 
 // --- Types ---
@@ -17,9 +23,11 @@ type RemoteView = 'select_studio' | 'scan' | 'dashboard' | 'list' | 'timer_setup
 interface RemoteDrawingPadProps {
     onStroke: (stroke: { color: string, points: {x: number, y: number}[], timestamp: number }) => void;
     onClear: () => void;
+    onUndo: () => void;
+    onSave: () => void;
 }
 
-const RemoteDrawingPad: React.FC<RemoteDrawingPadProps> = ({ onStroke, onClear }) => {
+const RemoteDrawingPad: React.FC<RemoteDrawingPadProps> = ({ onStroke, onClear, onUndo, onSave }) => {
     const canvasRef = React.useRef<HTMLCanvasElement>(null);
     const [color, setColor] = useState('#FFFFFF');
     const isDrawing = React.useRef(false);
@@ -142,9 +150,19 @@ const RemoteDrawingPad: React.FC<RemoteDrawingPadProps> = ({ onStroke, onClear }
                         />
                     ))}
                 </div>
-                <button onClick={clearCanvas} className="text-red-400 font-bold text-sm px-4 py-2 bg-gray-700 rounded-lg hover:bg-gray-600 transition-colors">
-                    Rensa
-                </button>
+                <div className="flex gap-2 items-center">
+                    <button onClick={onUndo} className="bg-gray-700 p-2 rounded-full text-white active:scale-95 transition-transform" title="Ångra">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                        </svg>
+                    </button>
+                    <button onClick={clearCanvas} className="bg-gray-700 p-2 rounded-full text-white active:scale-95 transition-transform" title="Rensa">
+                        <TrashIcon className="w-6 h-6" />
+                    </button>
+                    <button onClick={onSave} className="bg-primary hover:brightness-110 text-white px-4 py-2 rounded-lg text-sm font-bold ml-2 active:scale-95 transition-all shadow-lg shadow-primary/20">
+                        Spara
+                    </button>
+                </div>
             </div>
         </div>
     );
@@ -808,6 +826,30 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                 // WORKOUT LIST
                                 <div className="space-y-3 animate-fade-in">
                                     <h3 className="text-xl font-bold text-white mb-4">{selectedCategory === 'other' ? 'Övriga Pass' : selectedCategory}</h3>
+                                    
+                                    {/* Special Button for HYROX Simulation */}
+                                    {selectedCategory === 'HYROX' && (
+                                        <button 
+                                            onClick={() => {
+                                                if (selectedOrganization && connectedStudioId) {
+                                                    updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
+                                                        command: 'start_hyrox',
+                                                        commandTimestamp: Date.now()
+                                                    } as any);
+                                                }
+                                            }}
+                                            className="w-full mb-4 bg-gradient-to-r from-yellow-500 to-orange-500 p-5 rounded-2xl shadow-lg active:scale-95 transition-all flex justify-between items-center group border border-yellow-400/30"
+                                        >
+                                            <div className="text-left">
+                                                <h4 className="font-black text-white text-xl uppercase italic tracking-tighter drop-shadow-md">STARTA SIMULERINGSLOPP</h4>
+                                                <p className="text-white/90 text-xs mt-1 font-bold">Kör hela loppet "For Time"</p>
+                                            </div>
+                                            <div className="bg-white/20 p-2 rounded-full">
+                                                <ChevronRightIcon className="w-6 h-6 text-white" />
+                                            </div>
+                                        </button>
+                                    )}
+
                                     {workouts.filter(w => {
                                         if (!w.isPublished) return false;
                                         if (selectedCategory === 'other') return !w.category || !studioConfig.customCategories.some(c => c.name === w.category);
@@ -923,6 +965,22 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                 updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
                                     latestStroke: { isClear: true, timestamp: Date.now(), color: '#000000', points: [] },
                                     lastUpdate: Date.now()
+                                } as any);
+                            }
+                        }}
+                        onUndo={() => {
+                            if (selectedOrganization && connectedStudioId) {
+                                updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
+                                    command: 'undo_note',
+                                    commandTimestamp: Date.now()
+                                } as any);
+                            }
+                        }}
+                        onSave={() => {
+                            if (selectedOrganization && connectedStudioId) {
+                                updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
+                                    command: 'save_note',
+                                    commandTimestamp: Date.now()
                                 } as any);
                             }
                         }}
