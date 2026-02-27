@@ -737,13 +737,13 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                             ))}
                             
                              {/* 2. HYROX (if enabled) */}
-                             {studioConfig.enableHyrox && (
+                             {/* {studioConfig.enableHyrox && (
                                 <DashboardButton 
                                     onClick={() => { setSelectedCategory('HYROX'); setView('list'); }}
                                     icon={<LightningIcon className="w-8 h-8" />}
                                     label="Simuleringslopp"
                                 />
-                            )}
+                            )} */}
 
                              {/* 3. Timer (Renamed from Fristående Timer) */}
                             <DashboardButton 
@@ -753,7 +753,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                             />
 
                             {/* 4. Idea Board (if enabled) */}
-                            {studioConfig.enableNotes && (
+                            {/* {studioConfig.enableNotes && (
                                 <DashboardButton 
                                     onClick={() => {
                                         setView('ideaboard');
@@ -770,7 +770,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                     icon={<PencilIcon className="w-8 h-8" />}
                                     label="Idétavlan"
                                 />
-                            )}
+                            )} */}
 
                              {/* 5. Other Workouts */}
                             <DashboardButton 
@@ -828,7 +828,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                     <h3 className="text-xl font-bold text-white mb-4">{selectedCategory === 'other' ? 'Övriga Pass' : selectedCategory}</h3>
                                     
                                     {/* Special Button for HYROX Simulation */}
-                                    {selectedCategory === 'HYROX' && (
+                                    {/* {selectedCategory === 'HYROX' && (
                                         <button 
                                             onClick={() => {
                                                 if (selectedOrganization && connectedStudioId) {
@@ -848,7 +848,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                                 <ChevronRightIcon className="w-6 h-6 text-white" />
                                             </div>
                                         </button>
-                                    )}
+                                    )} */}
 
                                     {workouts.filter(w => {
                                         if (!w.isPublished) return false;
