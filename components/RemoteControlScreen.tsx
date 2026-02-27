@@ -195,7 +195,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                 if (selectedOrganization && connectedStudioId) {
                     // Clear controller name when disconnecting
                     await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
-                        controllerName: undefined // This should remove the field or set it to undefined
+                        controllerName: null // Explicitly set to null to clear
                     } as any);
                 }
                 onBack();
@@ -491,7 +491,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                     <h3 className="font-bold text-lg">{studio.name}</h3>
                                     <p className="text-xs text-gray-500 uppercase tracking-widest">
                                         {studio.remoteState?.controllerName 
-                                            ? <span className="text-primary animate-pulse">{studio.remoteState.controllerName} uppkopplad</span>
+                                            ? <span className="text-primary animate-pulse">Styrs av {studio.remoteState.controllerName}</span>
                                             : (studio.remoteState?.status === TimerStatus.Running ? 'Träning pågår' : 'Redo')
                                         }
                                     </p>
