@@ -432,9 +432,17 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                     {selectedOrganization?.studios.map(studio => (
                         <button
                             key={studio.id}
-                            onClick={() => {
+                            onClick={async () => {
                                 setConnectedStudioId(studio.id);
                                 setView('dashboard');
+                                
+                                // Immediately mark as connected in Firebase
+                                if (selectedOrganization) {
+                                    await updateStudioRemoteState(selectedOrganization.id, studio.id, {
+                                        controllerName: currentControllerName,
+                                        lastUpdate: Date.now()
+                                    } as any);
+                                }
                             }}
                             className="w-full p-6 bg-gray-800 rounded-3xl border border-gray-700 flex items-center justify-between hover:bg-gray-750 transition-colors group"
                         >
