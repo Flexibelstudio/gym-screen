@@ -450,6 +450,14 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                         <button
                             key={studio.id}
                             onClick={async () => {
+                                // Check if someone else is connected
+                                if (studio.remoteState?.controllerName && studio.remoteState.controllerName !== currentControllerName) {
+                                    const confirmTakeover = window.confirm(
+                                        `${studio.remoteState.controllerName} är redan uppkopplad mot denna skärm. Vill du ta över styrningen?`
+                                    );
+                                    if (!confirmTakeover) return;
+                                }
+
                                 setConnectedStudioId(studio.id);
                                 setView('dashboard');
                                 
