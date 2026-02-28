@@ -95,8 +95,15 @@ const MenuCard: React.FC<{
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none mix-blend-overlay"></div>
 
             <div className="z-10 flex flex-col h-full justify-between relative">
-                <div className="mb-2 p-2 bg-white/15 w-fit rounded-xl text-white backdrop-blur-md border border-white/10 shadow-inner">
-                    {icon || <DumbbellIcon className="w-6 h-6" />}
+                <div className="flex justify-between items-start">
+                    <div className="mb-2 p-2 bg-white/15 w-fit rounded-xl text-white backdrop-blur-md border border-white/10 shadow-inner">
+                        {icon || <DumbbellIcon className="w-6 h-6" />}
+                    </div>
+                    {isLocked && (
+                        <div className="p-2 bg-black/20 rounded-full text-white/80 backdrop-blur-sm border border-white/10">
+                            <LockIcon className="w-4 h-4" />
+                        </div>
+                    )}
                 </div>
                 <div>
                     <h3 className="text-lg sm:text-xl md:text-2xl font-black leading-tight drop-shadow-md tracking-tight uppercase">
@@ -158,6 +165,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   // State för expanded view
   const [expandedList, setExpandedList] = useState<'feed' | 'pb' | null>(null);
+  
+  // State för lösenordsmodal
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [pendingCategory, setPendingCategory] = useState<string | null>(null);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState(false);
 
   useEffect(() => {
     const updateGreeting = () => {
@@ -176,13 +189,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   }, []);
   
   const menuItems = useMemo(() => {
-    const items: (MenuItem & { passkategori?: Passkategori, icon?: React.ReactNode })[] = [];
+    const items: (MenuItem & { passkategori?: Passkategori, icon?: React.ReactNode, isLocked?: boolean })[] = [];
     studioConfig.customCategories.forEach((category) => {
         items.push({ 
             title: category.name, 
-            action: () => onSelectPasskategori(category.name), 
+            action: () => {
+                if (category.isLocked && !isStudioMode) {
+                    setPendingCategory(category.name);
+                    setShowPasswordModal(true);
+                } else {
+                    onSelectPasskategori(category.name);
+                }
+            }, 
             passkategori: category.name,
-            icon: getIconForCategory(category)
+            icon: getIconForCategory(category),
+            isLocked: category.isLocked
         });
     });
     if (studioConfig.enableHyrox) items.push({ title: 'HYROX', action: () => navigateTo(Page.Hyrox), icon: <HyroxIcon /> });
