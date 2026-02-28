@@ -4,7 +4,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useStudio } from '../context/StudioContext';
 import { getAudioContext } from '../hooks/useWorkoutTimer';
 import { listenForStudioEvents } from '../services/firebaseService';
-import { StudioEvent } from '../types';
+import { StudioEvent, TimerStatus } from '../types';
 import { Confetti } from './WorkoutCompleteModal';
 
 const DISPLAY_DURATION = 8000; 
@@ -70,6 +70,9 @@ export const PBOverlay: React.FC = () => {
     // Detta förhindrar att senaste eventet visas igen om man laddar om sidan (refresh).
     const mountTime = useRef(Date.now());
 
+    // För att hålla koll på föregående status
+    const prevStatusRef = useRef<TimerStatus | undefined>(undefined);
+
     // 1. LYSSNA PÅ DATABASEN
     useEffect(() => {
         if (!selectedOrganization) return;
@@ -109,19 +112,32 @@ export const PBOverlay: React.FC = () => {
     // 2. PROCESSA KÖN
     useEffect(() => {
         const processQueue = () => {
-            // Kolla om timern är igång (vi vill bara visa PB när timern är klar eller på startskärmen)
             const timerStatus = selectedStudio?.remoteState?.status;
-            const isTimerActive = timerStatus === 'running' || 
-                                  timerStatus === 'preparing' || 
-                                  timerStatus === 'resting' ||
-                                  timerStatus === 'paused';
+            const isTimerFinished = timerStatus === TimerStatus.Finished;
+
+            // Om vi precis lämnade Grattis-vyn (t.ex. coachen stängde passet) -> Rensa kön och dölj
+            if (prevStatusRef.current === TimerStatus.Finished && !isTimerFinished) {
+                if (currentEvent) {
+                    setCurrentEvent(null);
+                    isLocked.current = false;
+                }
+                queueRef.current = []; // Töm kön
+            }
+            
+            // Uppdatera föregående status
+            prevStatusRef.current = timerStatus;
+
+            // Om skärmen INTE är i Grattis-vyn, gör inget mer (pausa kön)
+            if (!isTimerFinished) {
+                return;
+            }
 
             // Rensa gamla events från kön (äldre än 10 minuter)
             const now = Date.now();
             queueRef.current = queueRef.current.filter(event => (now - event.timestamp) <= EVENT_TTL);
 
-            // Om vi redan visar något, kön är tom, eller timern är aktiv, gör inget
-            if (isLocked.current || queueRef.current.length === 0 || isTimerActive) {
+            // Om vi redan visar något eller kön är tom, gör inget
+            if (isLocked.current || queueRef.current.length === 0) {
                 return;
             }
 
