@@ -153,6 +153,7 @@ export interface CustomCategoryWithPrompt {
   name: string;
   prompt: string;
   icon?: string;
+  isLocked?: boolean;
 }
 
 // NYTT: Definition av ett Benchmark
