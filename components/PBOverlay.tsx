@@ -9,8 +9,8 @@ import { Confetti } from './WorkoutCompleteModal';
 
 const DISPLAY_DURATION = 8000; 
 // TTL (Time To Live) för events om man t.ex. tappar nätet och återansluter. 
-// Vi visar inte events som är äldre än 5 minuter i en "live"-kö.
-const EVENT_TTL = 5 * 60 * 1000; 
+// Vi visar inte events som är äldre än 10 minuter i en "live"-kö.
+const EVENT_TTL = 10 * 60 * 1000; 
 
 const playBellSound = () => {
     const ctx = getAudioContext();
@@ -49,7 +49,7 @@ const playBellSound = () => {
 };
 
 export const PBOverlay: React.FC = () => {
-    const { selectedOrganization } = useStudio();
+    const { selectedOrganization, selectedStudio } = useStudio();
     
     // State för den som visas just nu
     const [currentEvent, setCurrentEvent] = useState<StudioEvent | null>(null);
@@ -109,8 +109,19 @@ export const PBOverlay: React.FC = () => {
     // 2. PROCESSA KÖN
     useEffect(() => {
         const processQueue = () => {
-            // Om vi redan visar något eller kön är tom, gör inget
-            if (isLocked.current || queueRef.current.length === 0) {
+            // Kolla om timern är igång (vi vill bara visa PB när timern är klar eller på startskärmen)
+            const timerStatus = selectedStudio?.remoteState?.status;
+            const isTimerActive = timerStatus === 'running' || 
+                                  timerStatus === 'preparing' || 
+                                  timerStatus === 'resting' ||
+                                  timerStatus === 'paused';
+
+            // Rensa gamla events från kön (äldre än 10 minuter)
+            const now = Date.now();
+            queueRef.current = queueRef.current.filter(event => (now - event.timestamp) <= EVENT_TTL);
+
+            // Om vi redan visar något, kön är tom, eller timern är aktiv, gör inget
+            if (isLocked.current || queueRef.current.length === 0 || isTimerActive) {
                 return;
             }
 
@@ -144,7 +155,7 @@ export const PBOverlay: React.FC = () => {
         };
 
         processQueue();
-    }, [processTrigger]); // Körs när vi får signal om nytt event eller när ett event är klart
+    }, [processTrigger, selectedStudio?.remoteState?.status]); // Körs när vi får signal om nytt event, när ett event är klart, eller när timer-status ändras
 
     return (
         <div className="fixed inset-0 pointer-events-none z-[9999] flex items-center justify-center p-4">
