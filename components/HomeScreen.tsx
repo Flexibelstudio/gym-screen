@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Page, Workout, MenuItem, StudioConfig, Passkategori, CustomCategoryWithPrompt } from '../types';
 import { welcomeMessages } from '../data/welcomeMessages';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DumbbellIcon, SparklesIcon, StarIcon, PencilIcon, getIconComponent, CloseIcon, LightningIcon } from './icons';
+import { DumbbellIcon, SparklesIcon, StarIcon, PencilIcon, getIconComponent, CloseIcon, LightningIcon, LockIcon } from './icons';
 import { WeeklyPBList } from './WeeklyPBList'; 
 import { CommunityFeed } from './CommunityFeed';
 import { Modal } from './ui/Modal';
