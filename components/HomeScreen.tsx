@@ -195,7 +195,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         items.push({ 
             title: category.name, 
             action: () => {
-                if (category.isLocked && !isStudioMode) {
+                if (category.isLocked) {
                     setPendingCategory(category.name);
                     setShowPasswordModal(true);
                 } else {
