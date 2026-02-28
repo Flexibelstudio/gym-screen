@@ -42,7 +42,8 @@ const MenuCard: React.FC<{
     isActive?: boolean;
     isBlurred?: boolean;
     isSparkling?: boolean;
-}> = ({ title, subTitle, onClick, icon, delay = 0, isActive = false, isBlurred = false, isSparkling = false }) => {
+    isLocked?: boolean;
+}> = ({ title, subTitle, onClick, icon, delay = 0, isActive = false, isBlurred = false, isSparkling = false, isLocked = false }) => {
     const variants = {
         initial: { opacity: 0, y: 20, scale: 1, filter: "blur(0px)" },
         enter: { 
