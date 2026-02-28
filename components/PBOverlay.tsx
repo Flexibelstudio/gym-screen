@@ -73,6 +73,22 @@ export const PBOverlay: React.FC = () => {
     // För att hålla koll på föregående status
     const prevStatusRef = useRef<TimerStatus | undefined>(undefined);
 
+    // State för att hålla koll på om vi har väntat 5 sekunder i Grattis-vyn
+    const [isGrattisReady, setIsGrattisReady] = useState(false);
+
+    // Hantera 5 sekunders fördröjning innan PB-regnet börjar
+    useEffect(() => {
+        const timerStatus = selectedStudio?.remoteState?.status;
+        if (timerStatus === TimerStatus.Finished) {
+            const timer = setTimeout(() => {
+                setIsGrattisReady(true);
+            }, 5000);
+            return () => clearTimeout(timer);
+        } else {
+            setIsGrattisReady(false);
+        }
+    }, [selectedStudio?.remoteState?.status]);
+
     // 1. LYSSNA PÅ DATABASEN
     useEffect(() => {
         if (!selectedOrganization) return;
@@ -127,8 +143,8 @@ export const PBOverlay: React.FC = () => {
             // Uppdatera föregående status
             prevStatusRef.current = timerStatus;
 
-            // Om skärmen INTE är i Grattis-vyn, gör inget mer (pausa kön)
-            if (!isTimerFinished) {
+            // Om skärmen INTE är i Grattis-vyn, eller om vi inte väntat 5 sekunder än, gör inget mer (pausa kön)
+            if (!isTimerFinished || !isGrattisReady) {
                 return;
             }
 
@@ -171,7 +187,7 @@ export const PBOverlay: React.FC = () => {
         };
 
         processQueue();
-    }, [processTrigger, selectedStudio?.remoteState?.status]); // Körs när vi får signal om nytt event, när ett event är klart, eller när timer-status ändras
+    }, [processTrigger, selectedStudio?.remoteState?.status, isGrattisReady]); // Körs när vi får signal om nytt event, när ett event är klart, när timer-status ändras, eller när 5 sekunder har gått
 
     return (
         <div className="fixed inset-0 pointer-events-none z-[9999] flex items-center justify-center p-4">
