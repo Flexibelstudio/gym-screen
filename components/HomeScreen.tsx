@@ -297,6 +297,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             isActive={activeIndex === index}
                             isBlurred={activeIndex !== null && activeIndex !== index}
                             isSparkling={sparklingIndex === index}
+                            isLocked={item.isLocked}
                         />
                     ))}
                 </div>
