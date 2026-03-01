@@ -121,73 +121,70 @@ const App: React.FC = () => {
       useEffect(() => {
           if (!isStudioMode || !selectedOrganization || !selectedStudio) return;
     
-          const unsubscribe = listenToOrganizationChanges(selectedOrganization.id, (updatedOrg) => {
-              const updatedStudio = updatedOrg.studios.find(s => s.id === selectedStudio.id);
-              if (updatedStudio && updatedStudio.remoteState) {
-                  const remote = updatedStudio.remoteState;
-                  
-                  if (remote.command && remote.commandTimestamp) {
-                      // Only accept commands that were sent AFTER we entered the current page/timer
-                      if (remote.commandTimestamp > pageEntryTimestampRef.current) {
-                          setRemoteCommand(prev => {
-                              if (!prev || prev.timestamp !== remote.commandTimestamp) {
-                                  return { type: remote.command!, timestamp: remote.commandTimestamp! };
-                              }
-                              return prev;
-                          });
-                      }
+          const remote = selectedStudio.remoteState;
+          
+          if (remote) {
+              if (remote.command && remote.commandTimestamp) {
+                  // Only accept commands that were sent AFTER we entered the current page/timer
+                  if (remote.commandTimestamp > pageEntryTimestampRef.current) {
+                      setRemoteCommand(prev => {
+                          if (!prev || prev.timestamp !== remote.commandTimestamp) {
+                              return { type: remote.command!, timestamp: remote.commandTimestamp! };
+                          }
+                          return prev;
+                      });
                   }
-    
-                  // Prevent bounce back for view changes if we just navigated locally (within 3 seconds)
-                  const isRecentLocalNav = Date.now() - lastLocalNavigationRef.current < 3000;
-
-                  if (!isRecentLocalNav) {
-                      if (remote.view === 'idle') {
-                          if (page !== Page.Home) {
-                              navigateReplace(Page.Home);
-                              setActiveWorkout(null);
-                          }
-                      } else if (remote.view === 'ideaboard') {
-                          if (page !== Page.IdeaBoard) {
-                              navigateReplace(Page.IdeaBoard);
-                              setActiveWorkout(null);
-                          }
-                      } else if (remote.activeWorkoutId) {
-                          const workoutToLoad = workouts.find(w => w.id === remote.activeWorkoutId);
-                          if (workoutToLoad) {
-                              if (activeWorkout?.id !== workoutToLoad.id) {
-                                  setActiveWorkout(workoutToLoad);
-                              }
-        
-                              if (remote.view === 'preview') {
-                                  if (page !== Page.WorkoutDetail) {
-                                      navigateReplace(Page.WorkoutDetail);
-                                  }
-                              } else if (remote.view === 'timer' && remote.activeBlockId) {
-                                  const blockToStart = workoutToLoad.blocks.find(b => b.id === remote.activeBlockId);
-                                  if (blockToStart) {
-                                      setActiveBlock(blockToStart);
-                                      const targetPage = blockToStart.settings.mode === TimerMode.NoTimer ? Page.RepsOnly : Page.Timer;
-                                      if (page !== targetPage) {
-                                          navigateReplace(targetPage);
-                                      }
-                                  }
-                              }
-                          }
-                      }
-                  }
-              } else if (updatedStudio && !updatedStudio.remoteState && page !== Page.Home) {
-                   // Prevent bounce back if we just navigated locally (within 3 seconds)
-                   if (Date.now() - lastLocalNavigationRef.current < 3000) {
-                       return;
-                   }
-                   navigateReplace(Page.Home);
-                   setActiveWorkout(null);
               }
-          });
+
+              // Prevent bounce back for view changes if we just navigated locally (within 3 seconds)
+              const isRecentLocalNav = Date.now() - lastLocalNavigationRef.current < 3000;
+
+              if (!isRecentLocalNav) {
+                  if (remote.view === 'idle') {
+                      if (page !== Page.Home) {
+                          navigateReplace(Page.Home);
+                          setActiveWorkout(null);
+                      }
+                  } else if (remote.view === 'ideaboard') {
+                      if (page !== Page.IdeaBoard) {
+                          navigateReplace(Page.IdeaBoard);
+                          setActiveWorkout(null);
+                      }
+                  } else if (remote.activeWorkoutId) {
+                      const workoutToLoad = workouts.find(w => w.id === remote.activeWorkoutId);
+                      if (workoutToLoad) {
+                          if (activeWorkout?.id !== workoutToLoad.id) {
+                              setActiveWorkout(workoutToLoad);
+                          }
     
-          return () => unsubscribe();
-      }, [isStudioMode, selectedOrganization?.id, selectedStudio?.id, workouts, page, activeWorkout]);
+                          if (remote.view === 'preview') {
+                              if (page !== Page.WorkoutDetail) {
+                                  navigateReplace(Page.WorkoutDetail);
+                              }
+                          } else if (remote.view === 'timer' && remote.activeBlockId) {
+                              const blockToStart = workoutToLoad.blocks.find(b => b.id === remote.activeBlockId);
+                              if (blockToStart) {
+                                  if (activeBlock?.id !== blockToStart.id) {
+                                      setActiveBlock(blockToStart);
+                                  }
+                                  const targetPage = blockToStart.settings.mode === TimerMode.NoTimer ? Page.RepsOnly : Page.Timer;
+                                  if (page !== targetPage) {
+                                      navigateReplace(targetPage);
+                                  }
+                              }
+                          }
+                      }
+                  }
+              }
+          } else if (page !== Page.Home) {
+               // Prevent bounce back if we just navigated locally (within 3 seconds)
+               if (Date.now() - lastLocalNavigationRef.current < 3000) {
+                   return;
+               }
+               navigateReplace(Page.Home);
+               setActiveWorkout(null);
+          }
+      }, [isStudioMode, selectedOrganization, selectedStudio, workouts, page, activeWorkout, activeBlock, navigateReplace]);
 
 
   const [customBackHandler, setCustomBackHandler] = useState<(() => void) | null>(null);
