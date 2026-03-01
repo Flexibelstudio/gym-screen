@@ -368,6 +368,90 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </motion.div>
             )}
         </AnimatePresence>
+
+        {/* Lösenordsmodal för låsta kategorier */}
+        <AnimatePresence>
+            {showPasswordModal && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                        className="bg-white dark:bg-gray-900 rounded-3xl p-8 max-w-md w-full shadow-2xl border border-gray-100 dark:border-gray-800"
+                    >
+                        <div className="flex justify-center mb-6">
+                            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                                <LockIcon className="w-8 h-8" />
+                            </div>
+                        </div>
+                        
+                        <h2 className="text-2xl font-black text-center text-gray-900 dark:text-white mb-2 uppercase tracking-tight">
+                            Låst Kategori
+                        </h2>
+                        <p className="text-center text-gray-500 dark:text-gray-400 mb-8">
+                            Ange coach-lösenordet för att låsa upp "{pendingCategory}".
+                        </p>
+
+                        <form onSubmit={(e) => {
+                            e.preventDefault();
+                            if (passwordInput === studioConfig.coachPassword) {
+                                setShowPasswordModal(false);
+                                setPasswordInput("");
+                                setPasswordError(false);
+                                if (pendingCategory) {
+                                    onSelectPasskategori(pendingCategory);
+                                }
+                            } else {
+                                setPasswordError(true);
+                                setPasswordInput("");
+                            }
+                        }}>
+                            <input
+                                type="password"
+                                value={passwordInput}
+                                onChange={(e) => {
+                                    setPasswordInput(e.target.value);
+                                    setPasswordError(false);
+                                }}
+                                placeholder="Lösenord"
+                                className={`w-full text-center text-2xl tracking-widest p-4 rounded-xl border-2 bg-gray-50 dark:bg-black text-gray-900 dark:text-white focus:outline-none transition-colors ${
+                                    passwordError 
+                                        ? 'border-red-500 focus:border-red-500' 
+                                        : 'border-gray-200 dark:border-gray-800 focus:border-primary'
+                                }`}
+                                autoFocus
+                            />
+                            
+                            {passwordError && (
+                                <p className="text-red-500 text-center text-sm font-bold mt-3 animate-shake">
+                                    Fel lösenord, försök igen.
+                                </p>
+                            )}
+
+                            <div className="flex gap-3 mt-8">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowPasswordModal(false);
+                                        setPasswordInput("");
+                                        setPasswordError(false);
+                                    }}
+                                    className="flex-1 py-4 rounded-xl font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                                >
+                                    AVBRYT
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 py-4 rounded-xl font-bold text-white bg-primary hover:bg-primary/90 transition-colors"
+                                >
+                                    LÅS UPP
+                                </button>
+                            </div>
+                        </form>
+                    </motion.div>
+                </div>
+            )}
+        </AnimatePresence>
     </>
   );
 };
