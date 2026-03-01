@@ -96,12 +96,50 @@ const App: React.FC = () => {
 
   // NEW: State for passing remote commands to children
   const [remoteCommand, setRemoteCommand] = useState<{ type: string, timestamp: number } | null>(null);
+  const [activeBlock, setActiveBlock] = useState<WorkoutBlock | null>(null);
   
   // NEW: Ref to track local navigation timestamp to prevent race conditions with remote state
   const lastLocalNavigationRef = useRef<number>(0);
   
   // NEW: Ref to track when we entered the current page/timer to ignore old remote commands
   const pageEntryTimestampRef = useRef<number>(Date.now());
+
+  const navigateTo = useCallback((targetPage: Page) => {
+    if (isStudioMode && selectedOrganization && selectedStudio) {
+         // Update remote state to prevent "bounce back"
+         // We use 'menu' for generic pages, or specific ones if we map them
+         let view: RemoteSessionState['view'] = 'menu';
+         
+         if (targetPage === Page.Timer || targetPage === Page.FreestandingTimer) {
+             view = 'timer';
+         } else if (targetPage === Page.WorkoutDetail) {
+             view = 'preview';
+         } else if (targetPage === Page.Home) {
+             view = 'idle';
+         }
+         
+         // Set local navigation timestamp to prevent race condition with remote state listener
+         lastLocalNavigationRef.current = Date.now();
+
+         updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+             view,
+             activeWorkoutId: activeWorkout?.id || null,
+             activeBlockId: activeBlock?.id || null,
+             lastUpdate: Date.now(),
+             controllerName: 'Touch Screen'
+         });
+    }
+    setHistory(prev => [...prev, targetPage]);
+  }, [isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock]);
+
+  const navigateReplace = useCallback((page: Page) => {
+    lastLocalNavigationRef.current = Date.now();
+    setHistory(prev => {
+        const newHistory = prev.slice(0, -1);
+        newHistory.push(page);
+        return newHistory;
+    });
+  }, []);
 
   // --- STUDIO RESET LOGIC (Emergency Brake) ---
   // If the page is reloaded in Studio Mode, clear the remote state.
@@ -207,7 +245,6 @@ const App: React.FC = () => {
     pageEntryTimestampRef.current = Date.now();
   }, [page]);
 
-  const [activeBlock, setActiveBlock] = useState<WorkoutBlock | null>(null);
   const [activePasskategori, setActivePasskategori] = useState<string | null>(null);
   const [isPickingForLog, setIsPickingForLog] = useState(false);
   const [activeCustomPage, setActiveCustomPage] = useState<CustomPage | null>(null);
@@ -369,42 +406,7 @@ const App: React.FC = () => {
     else root.style.removeProperty('--color-primary');
   }, [selectedOrganization]);
 
-  const navigateTo = (targetPage: Page) => {
-    if (isStudioMode && selectedOrganization && selectedStudio) {
-         // Update remote state to prevent "bounce back"
-         // We use 'menu' for generic pages, or specific ones if we map them
-         let view: RemoteSessionState['view'] = 'menu';
-         
-         if (targetPage === Page.Timer || targetPage === Page.FreestandingTimer) {
-             view = 'timer';
-         } else if (targetPage === Page.WorkoutDetail) {
-             view = 'preview';
-         } else if (targetPage === Page.Home) {
-             view = 'idle';
-         }
-         
-         // Set local navigation timestamp to prevent race condition with remote state listener
-         lastLocalNavigationRef.current = Date.now();
 
-         updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-             view,
-             activeWorkoutId: activeWorkout?.id || null,
-             activeBlockId: activeBlock?.id || null,
-             lastUpdate: Date.now(),
-             controllerName: 'Touch Screen'
-         });
-    }
-    setHistory(prev => [...prev, targetPage]);
-  };
-  
-  const navigateReplace = (page: Page) => {
-    lastLocalNavigationRef.current = Date.now();
-    setHistory(prev => {
-        const newHistory = prev.slice(0, -1);
-        newHistory.push(page);
-        return newHistory;
-    });
-  };
 
   const handleBack = useCallback(() => {
     if (customBackHandler) {
