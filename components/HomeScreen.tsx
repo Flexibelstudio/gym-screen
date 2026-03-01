@@ -394,7 +394,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
                         <form onSubmit={(e) => {
                             e.preventDefault();
-                            if (passwordInput === studioConfig.coachPassword) {
+                            if (passwordInput === selectedOrganization?.passwords.coach) {
                                 setShowPasswordModal(false);
                                 setPasswordInput("");
                                 setPasswordError(false);
