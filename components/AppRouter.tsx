@@ -217,7 +217,10 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
             />;
 
         case Page.FreestandingTimer:
-            return <FreestandingTimerScreen onStart={functions.handleStartFreestandingTimer} />;
+            return <FreestandingTimerScreen 
+                onStart={functions.handleStartFreestandingTimer} 
+                onCancel={handleBack}
+            />;
 
         case Page.AIGenerator:
             return <AIGeneratorScreen 
