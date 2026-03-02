@@ -131,6 +131,14 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
               icon: <LightningIcon className="w-8 h-8" />,
               gradient: 'bg-gradient-to-br from-orange-500 to-amber-600'
           });
+
+          items.push({
+              title: 'Studiovy',
+              subTitle: 'Se och starta pass',
+              action: () => navigateTo(Page.Home),
+              icon: <DumbbellIcon className="w-8 h-8" />,
+              gradient: 'bg-gradient-to-br from-blue-500 to-indigo-600'
+          });
       }
 
       if (role === 'systemowner') {
