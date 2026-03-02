@@ -79,6 +79,16 @@ export const CategoryPromptManager: React.FC<CategoryPromptManagerProps> = ({ ca
                                     ) : (
                                         <p className="p-2 font-semibold text-gray-900 dark:text-white">{cat.name}</p>
                                     )}
+                                    <label className="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-400 cursor-pointer mt-1 ml-2">
+                                        <input 
+                                            type="checkbox" 
+                                            checked={!!cat.isLocked} 
+                                            onChange={(e) => handleUpdateCategory(cat.id, 'isLocked', e.target.checked)}
+                                            className="w-3.5 h-3.5 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary dark:focus:ring-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                            disabled={isSaving}
+                                        />
+                                        <span>Låst på studioskärmen (kräver coach-lösenord)</span>
+                                    </label>
                                 </div>
                             </div>
                             
@@ -122,16 +132,6 @@ export const CategoryPromptManager: React.FC<CategoryPromptManagerProps> = ({ ca
                         {isExpanded && (
                             <div className="mt-3 space-y-3 animate-fade-in">
                                 <textarea value={cat.prompt} onChange={(e) => handleUpdateCategory(cat.id, 'prompt', e.target.value)} placeholder="AI-instruktioner..." className="w-full h-32 bg-white dark:bg-gray-900 text-black dark:text-white p-2 rounded-md border border-slate-400 dark:border-gray-500 focus:ring-2 focus:ring-primary focus:outline-none transition text-sm" disabled={isSaving}/>
-                                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-                                    <input 
-                                        type="checkbox" 
-                                        checked={!!cat.isLocked} 
-                                        onChange={(e) => handleUpdateCategory(cat.id, 'isLocked', e.target.checked)}
-                                        className="w-4 h-4 text-primary bg-gray-100 border-gray-300 rounded focus:ring-primary dark:focus:ring-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                                        disabled={isSaving}
-                                    />
-                                    <span>Lås kategori på studioskärmen (kräver coach-lösenord)</span>
-                                </label>
                             </div>
                         )}
                     </div>
