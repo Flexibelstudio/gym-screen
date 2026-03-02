@@ -95,23 +95,26 @@ const MenuCard: React.FC<{
 
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none mix-blend-overlay"></div>
 
-            <div className="z-10 flex flex-col h-full justify-between relative">
-                <div className="flex justify-between items-start">
-                    <div className="mb-2 p-2 bg-white/15 w-fit rounded-xl text-white backdrop-blur-md border border-white/10 shadow-inner">
+            <div className="z-10 flex flex-col h-full justify-between relative min-w-0 w-full">
+                <div className="flex justify-between items-start w-full flex-shrink-0 gap-2">
+                    <div className="mb-2 p-2 bg-white/15 w-fit rounded-xl text-white backdrop-blur-md border border-white/10 shadow-inner flex-shrink-0">
                         {icon || <DumbbellIcon className="w-6 h-6" />}
                     </div>
                     {isLocked && (
-                        <div className="p-2 bg-black/20 rounded-full text-white/80 backdrop-blur-sm border border-white/10">
+                        <div className="p-2 bg-black/20 rounded-full text-white/80 backdrop-blur-sm border border-white/10 flex-shrink-0">
                             <LockIcon className="w-4 h-4" />
                         </div>
                     )}
                 </div>
-                <div>
-                    <h3 className="text-lg sm:text-xl md:text-2xl font-black leading-tight drop-shadow-md tracking-tight uppercase">
+                <div className="min-w-0 w-full">
+                    <h3 
+                        className="text-base sm:text-lg md:text-xl lg:text-2xl font-black leading-tight drop-shadow-md tracking-tight uppercase break-words line-clamp-3"
+                        style={{ wordBreak: 'break-word', hyphens: 'auto' }}
+                    >
                         {title}
                     </h3>
                     {subTitle && (
-                        <p className="text-[10px] md:text-xs font-bold text-white/80 mt-1 uppercase tracking-widest">
+                        <p className="text-[10px] md:text-xs font-bold text-white/80 mt-1 uppercase tracking-widest truncate">
                             {subTitle}
                         </p>
                     )}
