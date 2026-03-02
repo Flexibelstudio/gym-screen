@@ -10,7 +10,7 @@ import { useWorkout } from './context/WorkoutContext';
 import { AppRouter } from './components/AppRouter';
 
 // --- Services ---
-import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState } from './services/firebaseService';
+import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById } from './services/firebaseService';
 
 // --- Utils ---
 import { deepCopyAndPrepareAsNew } from './utils/workoutUtils';
@@ -190,9 +190,10 @@ const App: React.FC = () => {
                       }
                   } else if (remote.activeWorkoutId) {
                       const workoutToLoad = workouts.find(w => w.id === remote.activeWorkoutId);
-                      if (workoutToLoad) {
-                          if (activeWorkout?.id !== workoutToLoad.id) {
-                              setActiveWorkout(workoutToLoad);
+                      
+                      const loadAndNavigate = (workout: Workout) => {
+                          if (activeWorkout?.id !== workout.id) {
+                              setActiveWorkout(workout);
                           }
     
                           if (remote.view === 'preview') {
@@ -200,7 +201,7 @@ const App: React.FC = () => {
                                   navigateReplace(Page.WorkoutDetail);
                               }
                           } else if (remote.view === 'timer' && remote.activeBlockId) {
-                              const blockToStart = workoutToLoad.blocks.find(b => b.id === remote.activeBlockId);
+                              const blockToStart = workout.blocks.find(b => b.id === remote.activeBlockId);
                               if (blockToStart) {
                                   if (activeBlock?.id !== blockToStart.id) {
                                       setActiveBlock(blockToStart);
@@ -211,6 +212,17 @@ const App: React.FC = () => {
                                   }
                               }
                           }
+                      };
+
+                      if (workoutToLoad) {
+                          loadAndNavigate(workoutToLoad);
+                      } else {
+                          // Workout not in local state (e.g., freestanding or newly created), fetch it
+                          getWorkoutById(remote.activeWorkoutId).then(fetchedWorkout => {
+                              if (fetchedWorkout) {
+                                  loadAndNavigate(fetchedWorkout);
+                              }
+                          });
                       }
                   }
               }

@@ -575,27 +575,6 @@ export const updateStudioRemoteState = async (orgId: string, studioId: string, s
     }
 };
 
-export const clearStudioRemoteCommand = async (orgId: string, studioId: string) => {
-    if (isOffline || !db || !orgId || !studioId) return;
-    try {
-        const orgRef = doc(db, 'organizations', orgId);
-        const orgSnap = await getDoc(orgRef);
-        if (orgSnap.exists()) {
-            const orgData = orgSnap.data() as Organization;
-            const updatedStudios = orgData.studios.map(studio => {
-                if (studio.id === studioId && studio.remoteState) {
-                    const { command, commandTimestamp, ...rest } = studio.remoteState;
-                    return { ...studio, remoteState: rest };
-                }
-                return studio;
-            });
-            await updateDoc(orgRef, { studios: updatedStudios });
-        }
-    } catch (e) {
-        console.error("Failed to clear remote command:", e);
-    }
-};
-
 export const createOrganization = async (name: string, subdomain: string): Promise<Organization> => {
     if(isOffline || !db) throw new Error("Offline");
     const id = `org_${subdomain}_${Date.now()}`;
@@ -732,6 +711,17 @@ export const getWorkoutsForOrganization = async (orgId: string): Promise<Workout
     } catch (e) { 
         console.error("getWorkoutsForOrganization failed", e);
         return []; 
+    }
+};
+
+export const getWorkoutById = async (id: string): Promise<Workout | null> => {
+    if (isOffline || !db || !id) return null;
+    try {
+        const snap = await getDoc(doc(db, 'workouts', id));
+        return snap.exists() ? snap.data() as Workout : null;
+    } catch (e) {
+        console.error("getWorkoutById failed", e);
+        return null;
     }
 };
 
