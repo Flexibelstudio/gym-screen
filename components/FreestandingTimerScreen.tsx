@@ -32,6 +32,38 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
     // New state for direction
     const [direction, setDirection] = useState<'up' | 'down'>('down');
 
+    // Load saved settings on mount
+    useEffect(() => {
+        try {
+            const savedSettings = localStorage.getItem('freestandingTimerSettings');
+            if (savedSettings) {
+                const parsed = JSON.parse(savedSettings);
+                if (parsed.mode) setMode(parsed.mode);
+                if (parsed.countMode) setCountMode(parsed.countMode);
+                if (parsed.rounds !== undefined) setRounds(parsed.rounds);
+                if (parsed.laps !== undefined) setLaps(parsed.laps);
+                if (parsed.intervalsPerLap !== undefined) setIntervalsPerLap(parsed.intervalsPerLap);
+                if (parsed.totalMinutes !== undefined) setTotalMinutes(parsed.totalMinutes);
+                if (parsed.workMinutes !== undefined) setWorkMinutes(parsed.workMinutes);
+                if (parsed.workSeconds !== undefined) setWorkSeconds(parsed.workSeconds);
+                if (parsed.restMinutes !== undefined) setRestMinutes(parsed.restMinutes);
+                if (parsed.restSeconds !== undefined) setRestSeconds(parsed.restSeconds);
+                if (parsed.direction) setDirection(parsed.direction);
+            }
+        } catch (e) {
+            console.error("Could not load saved timer settings", e);
+        }
+    }, []);
+
+    // Save settings whenever they change
+    useEffect(() => {
+        const settingsToSave = {
+            mode, countMode, rounds, laps, intervalsPerLap, 
+            totalMinutes, workMinutes, workSeconds, restMinutes, restSeconds, direction
+        };
+        localStorage.setItem('freestandingTimerSettings', JSON.stringify(settingsToSave));
+    }, [mode, countMode, rounds, laps, intervalsPerLap, totalMinutes, workMinutes, workSeconds, restMinutes, restSeconds, direction]);
+
     // Prevent ghost clicks from modals closing by adding a small mount delay
     const [isReady, setIsReady] = useState(false);
     useEffect(() => {
@@ -60,12 +92,12 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
         }
     }, [mode, workMinutes, workSeconds, rounds, totalMinutes, countMode, laps, intervalsPerLap]);
 
-    // Reset settings when mode changes
-    useEffect(() => {
-        // Reset direction to down by default when switching modes, unless it's stopwatch
+    // Reset settings when mode changes manually (only if not loading from storage)
+    const handleModeChange = (newMode: TimerMode) => {
+        setMode(newMode);
         setDirection('down');
 
-        switch(mode) {
+        switch(newMode) {
             case TimerMode.Interval: 
                 setCountMode('laps');
                 setLaps(3);
@@ -85,7 +117,7 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
                 break;
             default: break;
         }
-    }, [mode]);
+    };
 
     const handleStartTimer = () => {
         let settings: Partial<TimerSettings> & { mode: TimerMode, prepareTime: number } = { 
@@ -276,7 +308,7 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
                     {Object.values(TimerMode).filter(m => m !== TimerMode.NoTimer && m !== TimerMode.Custom).map(m => (
                         <button 
                         key={m} 
-                        onClick={() => setMode(m)} 
+                        onClick={() => handleModeChange(m)} 
                         className={`px-6 py-4 text-lg font-semibold rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-black ${
                             mode === m 
                             ? 'bg-primary text-white' 
