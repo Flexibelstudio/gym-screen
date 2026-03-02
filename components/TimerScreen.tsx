@@ -1370,9 +1370,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
              <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-8">
                  <button 
                     onClick={() => handleRemoteAction('start')}
-                    className="bg-white text-black hover:scale-110 transition-transform duration-200 rounded-full p-6 shadow-2xl border-4 border-white/50 group"
+                    className="bg-white text-black active:scale-110 transition-transform duration-200 rounded-full p-6 shadow-2xl border-4 border-white/50 group"
                  >
-                    <PlayIcon className="w-16 h-16 ml-1 fill-current group-hover:text-primary transition-colors" />
+                    <PlayIcon className="w-16 h-16 ml-1 fill-current group-active:text-primary transition-colors" />
                  </button>
              </div>
         )}
@@ -1648,12 +1648,12 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 {isActuallyFinishedOrIdle ? (
                     <>
                         <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-50 transition-colors text-xl backdrop-blur-md border-2 border-white/20 uppercase">TILLBAKA</button>
-                        <button onClick={() => handleRemoteAction('start')} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50 uppercase">STARTA</button>
+                        <button onClick={() => handleRemoteAction('start')} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl active:scale-105 transition-transform text-xl border-4 border-white/50 uppercase">STARTA</button>
                     </>
                 ) : isActuallyPaused ? (
                     <button onClick={() => handleRemoteAction('resume')} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase">FORTSÄTT</button>
                 ) : (
-                    <button onClick={() => handleRemoteAction('pause')} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50 uppercase">PAUSA</button>
+                    <button onClick={() => handleRemoteAction('pause')} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl active:bg-gray-100 transition-transform active:scale-105 text-xl border-4 border-white/50 uppercase">PAUSA</button>
                 )}
                 {isHyroxRace && status !== TimerStatus.Running && <button onClick={() => setShowBackToPrepConfirmation(true)} className="bg-gray-800/80 text-white font-bold py-4 px-8 rounded-full shadow-xl border-2 border-gray-600 hover:bg-gray-700 transition-colors text-lg uppercase">⚙️ Grupper</button>}
           </div>

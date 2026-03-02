@@ -1068,7 +1068,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                                                         <button 
                                                                             onClick={() => sendCommand(isTimerRunning ? 'pause' : 'start')} 
                                                                             disabled={isSendingCommand !== null}
-                                                                            className={`${isTimerRunning ? 'bg-gray-700' : 'bg-green-600 hover:bg-green-500'} p-6 rounded-2xl font-bold text-white flex flex-col items-center gap-1 col-span-2 shadow-lg transition-all active:scale-95 disabled:opacity-50`}
+                                                                            className={`${isTimerRunning ? 'bg-gray-700' : 'bg-green-600 active:bg-green-500'} p-6 rounded-2xl font-bold text-white flex flex-col items-center gap-1 col-span-2 shadow-lg transition-all active:scale-95 disabled:opacity-50`}
                                                                         >
                                                                             <span className="text-3xl">
                                                                                 {isTimerRunning ? '⏸' : <PlayIcon className="w-8 h-8 fill-current" />}
@@ -1083,7 +1083,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                                                 <button 
                                                                     onClick={() => sendCommand('pause')} 
                                                                     disabled={isSendingCommand !== null}
-                                                                    className="bg-gray-800 hover:bg-gray-700 p-4 rounded-xl font-bold text-white flex flex-col items-center gap-1 disabled:opacity-50"
+                                                                    className="bg-gray-800 active:bg-gray-700 p-4 rounded-xl font-bold text-white flex flex-col items-center gap-1 disabled:opacity-50"
                                                                 >
                                                                     <span className="text-xl">⏸</span>
                                                                     <span className="text-[10px] uppercase">Pausa</span>
@@ -1092,7 +1092,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                                                  <button 
                                                                     onClick={() => sendCommand('reset')} 
                                                                     disabled={isSendingCommand !== null}
-                                                                    className="bg-gray-800 hover:bg-gray-700 p-4 rounded-xl font-bold text-yellow-500 flex flex-col items-center gap-1 disabled:opacity-50"
+                                                                    className="bg-gray-800 active:bg-gray-700 p-4 rounded-xl font-bold text-yellow-500 flex flex-col items-center gap-1 disabled:opacity-50"
                                                                 >
                                                                     <span className="text-xl"><RefreshIcon className="w-5 h-5" /></span>
                                                                     <span className="text-[10px] uppercase">Nollställ</span>
@@ -1155,7 +1155,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                                             // Load button for INACTIVE block (State A)
                                                             <button 
                                                                 onClick={() => handleLoadBlock(block)}
-                                                                className="w-full bg-primary hover:brightness-110 text-white font-black py-6 rounded-xl shadow-lg shadow-primary/20 text-lg uppercase tracking-widest flex items-center justify-center gap-3"
+                                                                className="w-full bg-primary active:brightness-110 text-white font-black py-6 rounded-xl shadow-lg shadow-primary/20 text-lg uppercase tracking-widest flex items-center justify-center gap-3"
                                                             >
                                                                 <LightningIcon className="w-6 h-6" />
                                                                 Ladda på skärm
