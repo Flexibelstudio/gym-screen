@@ -3,11 +3,12 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Page, Workout, MenuItem, StudioConfig, Passkategori, CustomCategoryWithPrompt } from '../types';
 import { welcomeMessages } from '../data/welcomeMessages';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DumbbellIcon, SparklesIcon, StarIcon, PencilIcon, getIconComponent, CloseIcon } from './icons';
+import { DumbbellIcon, SparklesIcon, StarIcon, PencilIcon, getIconComponent, CloseIcon, LightningIcon, LockIcon } from './icons';
 import { WeeklyPBList } from './WeeklyPBList'; 
 import { CommunityFeed } from './CommunityFeed';
 import { Modal } from './ui/Modal';
 import { useStudio } from '../context/StudioContext';
+import { useAuth } from '../context/AuthContext';
 
 const TimerIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -41,7 +42,8 @@ const MenuCard: React.FC<{
     isActive?: boolean;
     isBlurred?: boolean;
     isSparkling?: boolean;
-}> = ({ title, subTitle, onClick, icon, delay = 0, isActive = false, isBlurred = false, isSparkling = false }) => {
+    isLocked?: boolean;
+}> = ({ title, subTitle, onClick, icon, delay = 0, isActive = false, isBlurred = false, isSparkling = false, isLocked = false }) => {
     const variants = {
         initial: { opacity: 0, y: 20, scale: 1, filter: "blur(0px)" },
         enter: { 
@@ -66,6 +68,7 @@ const MenuCard: React.FC<{
 
     return (
         <motion.button
+            type="button"
             initial="initial"
             animate={isActive ? "active" : isBlurred ? "blurred" : "enter"}
             whileTap={!isActive && !isBlurred ? "tap" : undefined}
@@ -92,16 +95,26 @@ const MenuCard: React.FC<{
 
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full blur-2xl -mr-10 -mt-10 pointer-events-none mix-blend-overlay"></div>
 
-            <div className="z-10 flex flex-col h-full justify-between relative">
-                <div className="mb-2 p-2 bg-white/15 w-fit rounded-xl text-white backdrop-blur-md border border-white/10 shadow-inner">
-                    {icon || <DumbbellIcon className="w-6 h-6" />}
+            <div className="z-10 flex flex-col h-full justify-between relative min-w-0 w-full">
+                <div className="flex justify-between items-start w-full flex-shrink-0 gap-2">
+                    <div className="mb-2 p-2 bg-white/15 w-fit rounded-xl text-white backdrop-blur-md border border-white/10 shadow-inner flex-shrink-0">
+                        {icon || <DumbbellIcon className="w-6 h-6" />}
+                    </div>
+                    {isLocked && (
+                        <div className="p-2 bg-black/20 rounded-full text-white/80 backdrop-blur-sm border border-white/10 flex-shrink-0">
+                            <LockIcon className="w-4 h-4" />
+                        </div>
+                    )}
                 </div>
-                <div>
-                    <h3 className="text-lg sm:text-xl md:text-2xl font-black leading-tight drop-shadow-md tracking-tight uppercase">
+                <div className="min-w-0 w-full">
+                    <h3 
+                        className="text-base sm:text-lg md:text-xl lg:text-2xl font-black leading-tight drop-shadow-md tracking-tight uppercase break-words line-clamp-3"
+                        style={{ wordBreak: 'break-word', hyphens: 'auto' }}
+                    >
                         {title}
                     </h3>
                     {subTitle && (
-                        <p className="text-[10px] md:text-xs font-bold text-white/80 mt-1 uppercase tracking-widest">
+                        <p className="text-[10px] md:text-xs font-bold text-white/80 mt-1 uppercase tracking-widest truncate">
                             {subTitle}
                         </p>
                     )}
@@ -146,7 +159,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     theme,
     studioLoading = false
 }) => {
-  const { selectedOrganization } = useStudio();
+  const { selectedOrganization, selectedStudio } = useStudio();
+  const { isStudioMode } = useAuth();
   const [welcomeMessage, setWelcomeMessage] = useState({ title: "Hej på er!", subtitle: "Redo att köra?" });
   const [currentTime, setCurrentTime] = useState(new Date());
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -155,6 +169,12 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   // State för expanded view
   const [expandedList, setExpandedList] = useState<'feed' | 'pb' | null>(null);
+  
+  // State för lösenordsmodal
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [pendingCategory, setPendingCategory] = useState<string | null>(null);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState(false);
 
   useEffect(() => {
     const updateGreeting = () => {
@@ -173,13 +193,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   }, []);
   
   const menuItems = useMemo(() => {
-    const items: (MenuItem & { passkategori?: Passkategori, icon?: React.ReactNode })[] = [];
+    const items: (MenuItem & { passkategori?: Passkategori, icon?: React.ReactNode, isLocked?: boolean })[] = [];
     studioConfig.customCategories.forEach((category) => {
         items.push({ 
             title: category.name, 
-            action: () => onSelectPasskategori(category.name), 
+            action: () => {
+                if (category.isLocked) {
+                    setPendingCategory(category.name);
+                    setShowPasswordModal(true);
+                } else {
+                    onSelectPasskategori(category.name);
+                }
+            }, 
             passkategori: category.name,
-            icon: getIconForCategory(category)
+            icon: getIconForCategory(category),
+            isLocked: category.isLocked
         });
     });
     if (studioConfig.enableHyrox) items.push({ title: 'HYROX', action: () => navigateTo(Page.Hyrox), icon: <HyroxIcon /> });
@@ -246,7 +274,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                     </motion.div>
                 </div>
 
-                <div className="flex flex-col items-end gap-4">
+                <div className="flex flex-col items-end gap-3">
                     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="text-right">
                         <span className="block text-5xl md:text-7xl font-thin font-mono leading-none text-gray-900 dark:text-white">
                             {currentTime.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', hour12: false })}
@@ -272,6 +300,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             isActive={activeIndex === index}
                             isBlurred={activeIndex !== null && activeIndex !== index}
                             isSparkling={sparklingIndex === index}
+                            isLocked={item.isLocked}
                         />
                     ))}
                 </div>
@@ -321,7 +350,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         {/* Internal Header with Close Button */}
                         <div className="flex items-center justify-between p-8 border-b border-gray-100 dark:border-gray-800">
                              <h3 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
-                                 {expandedList === 'feed' ? 'Fullständigt Flöde' : 'Veckans Hall of Fame'}
+                                 {expandedList === 'feed' ? 'Fullständigt Flöde' : 'Wall of Fame'}
                              </h3>
                              <button 
                                 onClick={() => setExpandedList(null)}
@@ -340,6 +369,90 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         </div>
                     </motion.div>
                 </motion.div>
+            )}
+        </AnimatePresence>
+
+        {/* Lösenordsmodal för låsta kategorier */}
+        <AnimatePresence>
+            {showPasswordModal && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                        className="bg-white dark:bg-gray-900 rounded-3xl p-8 max-w-md w-full shadow-2xl border border-gray-100 dark:border-gray-800"
+                    >
+                        <div className="flex justify-center mb-6">
+                            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                                <LockIcon className="w-8 h-8" />
+                            </div>
+                        </div>
+                        
+                        <h2 className="text-2xl font-black text-center text-gray-900 dark:text-white mb-2 uppercase tracking-tight">
+                            Låst Kategori
+                        </h2>
+                        <p className="text-center text-gray-500 dark:text-gray-400 mb-8">
+                            Ange coach-lösenordet för att låsa upp "{pendingCategory}".
+                        </p>
+
+                        <form onSubmit={(e) => {
+                            e.preventDefault();
+                            if (passwordInput === selectedOrganization?.passwords.coach) {
+                                setShowPasswordModal(false);
+                                setPasswordInput("");
+                                setPasswordError(false);
+                                if (pendingCategory) {
+                                    onSelectPasskategori(pendingCategory);
+                                }
+                            } else {
+                                setPasswordError(true);
+                                setPasswordInput("");
+                            }
+                        }}>
+                            <input
+                                type="password"
+                                value={passwordInput}
+                                onChange={(e) => {
+                                    setPasswordInput(e.target.value);
+                                    setPasswordError(false);
+                                }}
+                                placeholder="Lösenord"
+                                className={`w-full text-center text-2xl tracking-widest p-4 rounded-xl border-2 bg-gray-50 dark:bg-black text-gray-900 dark:text-white focus:outline-none transition-colors ${
+                                    passwordError 
+                                        ? 'border-red-500 focus:border-red-500' 
+                                        : 'border-gray-200 dark:border-gray-800 focus:border-primary'
+                                }`}
+                                autoFocus
+                            />
+                            
+                            {passwordError && (
+                                <p className="text-red-500 text-center text-sm font-bold mt-3 animate-shake">
+                                    Fel lösenord, försök igen.
+                                </p>
+                            )}
+
+                            <div className="flex gap-3 mt-8">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowPasswordModal(false);
+                                        setPasswordInput("");
+                                        setPasswordError(false);
+                                    }}
+                                    className="flex-1 py-4 rounded-xl font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                                >
+                                    AVBRYT
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="flex-1 py-4 rounded-xl font-bold text-white bg-primary hover:bg-primary/90 transition-colors"
+                                >
+                                    LÅS UPP
+                                </button>
+                            </div>
+                        </form>
+                    </motion.div>
+                </div>
             )}
         </AnimatePresence>
     </>

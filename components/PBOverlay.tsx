@@ -4,13 +4,13 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useStudio } from '../context/StudioContext';
 import { getAudioContext } from '../hooks/useWorkoutTimer';
 import { listenForStudioEvents } from '../services/firebaseService';
-import { StudioEvent } from '../types';
+import { StudioEvent, TimerStatus } from '../types';
 import { Confetti } from './WorkoutCompleteModal';
 
 const DISPLAY_DURATION = 8000; 
 // TTL (Time To Live) för events om man t.ex. tappar nätet och återansluter. 
-// Vi visar inte events som är äldre än 5 minuter i en "live"-kö.
-const EVENT_TTL = 5 * 60 * 1000; 
+// Vi visar inte events som är äldre än 10 minuter i en "live"-kö.
+const EVENT_TTL = 10 * 60 * 1000; 
 
 const playBellSound = () => {
     const ctx = getAudioContext();
@@ -49,7 +49,7 @@ const playBellSound = () => {
 };
 
 export const PBOverlay: React.FC = () => {
-    const { selectedOrganization } = useStudio();
+    const { selectedOrganization, selectedStudio } = useStudio();
     
     // State för den som visas just nu
     const [currentEvent, setCurrentEvent] = useState<StudioEvent | null>(null);
@@ -69,6 +69,25 @@ export const PBOverlay: React.FC = () => {
     // Vi ignorerar alla events som har en tidsstämpel ÄLDRE än denna tidpunkt.
     // Detta förhindrar att senaste eventet visas igen om man laddar om sidan (refresh).
     const mountTime = useRef(Date.now());
+
+    // För att hålla koll på föregående status
+    const prevStatusRef = useRef<TimerStatus | undefined>(undefined);
+
+    // State för att hålla koll på om vi har väntat 5 sekunder i Grattis-vyn
+    const [isGrattisReady, setIsGrattisReady] = useState(false);
+
+    // Hantera 5 sekunders fördröjning innan PB-regnet börjar
+    useEffect(() => {
+        const timerStatus = selectedStudio?.remoteState?.status;
+        if (timerStatus === TimerStatus.Finished) {
+            const timer = setTimeout(() => {
+                setIsGrattisReady(true);
+            }, 5000);
+            return () => clearTimeout(timer);
+        } else {
+            setIsGrattisReady(false);
+        }
+    }, [selectedStudio?.remoteState?.status]);
 
     // 1. LYSSNA PÅ DATABASEN
     useEffect(() => {
@@ -109,6 +128,30 @@ export const PBOverlay: React.FC = () => {
     // 2. PROCESSA KÖN
     useEffect(() => {
         const processQueue = () => {
+            const timerStatus = selectedStudio?.remoteState?.status;
+            const isTimerFinished = timerStatus === TimerStatus.Finished;
+
+            // Om vi precis lämnade Grattis-vyn (t.ex. coachen stängde passet) -> Rensa kön och dölj
+            if (prevStatusRef.current === TimerStatus.Finished && !isTimerFinished) {
+                if (currentEvent) {
+                    setCurrentEvent(null);
+                    isLocked.current = false;
+                }
+                queueRef.current = []; // Töm kön
+            }
+            
+            // Uppdatera föregående status
+            prevStatusRef.current = timerStatus;
+
+            // Om skärmen INTE är i Grattis-vyn, eller om vi inte väntat 5 sekunder än, gör inget mer (pausa kön)
+            if (!isTimerFinished || !isGrattisReady) {
+                return;
+            }
+
+            // Rensa gamla events från kön (äldre än 10 minuter)
+            const now = Date.now();
+            queueRef.current = queueRef.current.filter(event => (now - event.timestamp) <= EVENT_TTL);
+
             // Om vi redan visar något eller kön är tom, gör inget
             if (isLocked.current || queueRef.current.length === 0) {
                 return;
@@ -144,7 +187,7 @@ export const PBOverlay: React.FC = () => {
         };
 
         processQueue();
-    }, [processTrigger]); // Körs när vi får signal om nytt event eller när ett event är klart
+    }, [processTrigger, selectedStudio?.remoteState?.status, isGrattisReady]); // Körs när vi får signal om nytt event, när ett event är klart, när timer-status ändras, eller när 5 sekunder har gått
 
     return (
         <div className="fixed inset-0 pointer-events-none z-[9999] flex items-center justify-center p-4">

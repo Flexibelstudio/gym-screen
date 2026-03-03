@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Page, Workout, WorkoutBlock, Passkategori, CustomPage, StartGroup, UserRole, UserData, StudioConfig, Organization, WorkoutDiploma, InfoCarousel } from '../types';
 import { HomeScreen } from './HomeScreen';
@@ -53,6 +54,10 @@ interface AppRouterProps {
     preferredAdminTab: string;
     profileEditTrigger: number;
     isAutoTransition: boolean;
+
+    // NEW: Remote command
+    remoteCommand?: { type: string, timestamp: number } | null;
+    selectedStudio?: any;
 
     onSelectWorkout: (workout: Workout, action?: 'view' | 'log') => void;
     onSelectPasskategori: (passkategori: Passkategori) => void;
@@ -124,7 +129,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
         page, navigateTo, handleBack, role, userData, studioConfig, selectedOrganization, allOrganizations, isStudioMode, isImpersonating, theme,
         workouts, activeWorkout, activeBlock,
         passkategoriFilter, activeCustomPage, activeRaceId, racePrepState, followMeShowImage, mobileLogData,
-        preferredAdminTab, profileEditTrigger, isAutoTransition,
+        preferredAdminTab, profileEditTrigger, isAutoTransition, remoteCommand, selectedStudio,
         onSelectWorkout, onSelectPasskategori, onCreateNewWorkout, onStartBlock, onEditWorkout, onDeleteWorkout, onSaveWorkout, onSaveWorkoutNoNav,
         onTogglePublish, onToggleFavorite, onDuplicateWorkout, onTimerFinish,
         functions
@@ -164,6 +169,10 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
 
         case Page.WorkoutDetail:
             if (!activeWorkout) return <div>Inget pass valt</div>;
+            // Prevent flickering for freestanding timers
+            if (activeWorkout.id.startsWith('freestanding-workout-') || activeWorkout.id.startsWith('fs-workout-')) {
+                return <div className="flex items-center justify-center h-screen bg-black text-white">Laddar timer...</div>;
+            }
             return <WorkoutDetailScreen 
                 workout={activeWorkout} 
                 onStartBlock={(block) => onStartBlock(block, activeWorkout)} 
@@ -202,10 +211,16 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 organization={selectedOrganization}
                 onBackToGroups={functions.handleReturnToGroupPrep}
                 isAutoTransition={isAutoTransition}
+                // Pass command to TimerScreen
+                remoteCommand={remoteCommand}
+                selectedStudio={selectedStudio}
             />;
 
         case Page.FreestandingTimer:
-            return <FreestandingTimerScreen onStart={functions.handleStartFreestandingTimer} />;
+            return <FreestandingTimerScreen 
+                onStart={functions.handleStartFreestandingTimer} 
+                onCancel={handleBack}
+            />;
 
         case Page.AIGenerator:
             return <AIGeneratorScreen 
@@ -249,6 +264,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 studioConfig={studioConfig}
                 initialWorkoutToDraw={null}
                 onBack={handleBack}
+                remoteCommand={remoteCommand}
             />;
 
         case Page.RepsOnly:
@@ -267,6 +283,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 studioConfig={studioConfig}
                 racePrepState={racePrepState}
                 onPrepComplete={() => {}}
+                remoteCommand={remoteCommand}
             />;
 
         case Page.HyroxRaceList:

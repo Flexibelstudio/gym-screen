@@ -15,6 +15,7 @@ interface NotesScreenProps {
     studioConfig: StudioConfig;
     initialWorkoutToDraw: Workout | null;
     onBack: () => void;
+    remoteCommand?: { type: string, timestamp: number } | null;
 }
 
 const BoilingCauldron: React.FC<{ className?: string }> = ({ className }) => (
@@ -596,8 +597,8 @@ const CompactTimer: React.FC<{
 
 // --- Main Component ---
 
-export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, studioConfig, initialWorkoutToDraw, onBack }) => {
-    const { selectedOrganization } = useStudio();
+export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, studioConfig, initialWorkoutToDraw, onBack, remoteCommand }) => {
+    const { selectedOrganization, selectedStudio } = useStudio();
     const [savedNotes, setSavedNotes] = useState<Note[]>([]);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -623,6 +624,50 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const points = useRef<{x: number, y: number}[]>([]);
     
     const [timerBlock, setTimerBlock] = useState<WorkoutBlock | null>(null);
+
+    // --- REMOTE DRAWING LISTENER ---
+    const lastProcessedStrokeRef = useRef<number>(0);
+
+    useEffect(() => {
+        if (!selectedStudio?.remoteState?.latestStroke) return;
+        
+        const stroke = selectedStudio.remoteState.latestStroke;
+        if (stroke.timestamp <= lastProcessedStrokeRef.current) return;
+        
+        lastProcessedStrokeRef.current = stroke.timestamp;
+        
+        const canvas = canvasRef.current;
+        const ctx = canvas?.getContext('2d');
+        if (!canvas || !ctx) return;
+        
+        if (stroke.isClear) {
+            ctx.fillStyle = '#030712';
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            setHistory([]); 
+            return;
+        }
+        
+        if (stroke.points && stroke.points.length > 0) {
+            ctx.strokeStyle = stroke.color;
+            ctx.lineWidth = 4 * (window.devicePixelRatio || 1);
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            ctx.beginPath();
+            const p0 = stroke.points[0];
+            ctx.moveTo(p0.x * canvas.width, p0.y * canvas.height);
+            
+            for (let i = 1; i < stroke.points.length; i++) {
+                const p = stroke.points[i];
+                ctx.lineTo(p.x * canvas.width, p.y * canvas.height);
+            }
+            ctx.stroke();
+            
+            // Update history so undo/save works
+            setHistory(prev => [...prev, ctx.getImageData(0, 0, canvas.width, canvas.height)]);
+        }
+    }, [selectedStudio?.remoteState?.latestStroke]);
     
     // UPDATED: Pass sound profile to timer
     const timer = useWorkoutTimer(timerBlock, studioConfig.soundProfile || 'airhorn');
@@ -957,6 +1002,19 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             setIsSavingNote(false);
         }
     };
+
+    const lastProcessedCommandRef = useRef<number>(0);
+
+    useEffect(() => {
+        if (remoteCommand && remoteCommand.timestamp > lastProcessedCommandRef.current) {
+            lastProcessedCommandRef.current = remoteCommand.timestamp;
+            if (remoteCommand.type === 'undo_note') {
+                handleUndo();
+            } else if (remoteCommand.type === 'save_note') {
+                handleSaveNote();
+            }
+        }
+    }, [remoteCommand]);
     
     const handleInterpretAsWorkout = async () => {
         if (!canvasRef.current || history.length === 0) return;

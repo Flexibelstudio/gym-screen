@@ -55,6 +55,7 @@ export enum Page {
   MemberRegistry,
   MobileLog,
   MyStrength, 
+  RemoteControl, // NYTT: Fjärrkontrollssida
 }
 
 export enum TimerMode {
@@ -152,6 +153,7 @@ export interface CustomCategoryWithPrompt {
   name: string;
   prompt: string;
   icon?: string;
+  isLocked?: boolean;
 }
 
 // NYTT: Definition av ett Benchmark
@@ -184,11 +186,34 @@ export interface StudioConfig {
   };
 }
 
+// NYTT: Tillstånd för fjärrstyrning
+export interface RemoteSessionState {
+    activeWorkoutId: string | null;
+    view: 'idle' | 'preview' | 'timer' | 'menu' | 'ideaboard'; // idle=logo, preview=workout detail, timer=running block, menu=other pages, ideaboard=drawing
+    activeBlockId: string | null;
+    lastUpdate: number; // Timestamp to force updates
+    controllerName?: string | null; // Name of coach controlling
+    command?: 'start' | 'pause' | 'resume' | 'reset' | 'finish' | 'start_hyrox' | 'undo_note' | 'save_note'; // NEW: Command channel
+    commandTimestamp?: number; // To deduplicate commands
+    status?: TimerStatus; // NEW: Track current timer status (Running, Paused, etc.)
+    viewerSettings?: {
+        textScale: number;
+        repsScale: number;
+    };
+    latestStroke?: {
+        color: string;
+        points: {x: number, y: number}[];
+        timestamp: number;
+        isClear?: boolean; // If true, clear the board
+    };
+}
+
 export interface Studio {
   id: string;
   name: string;
   createdAt?: number;
   configOverrides?: Partial<StudioConfig>;
+  remoteState?: RemoteSessionState; // NYTT: Fält för fjärrstyrning
 }
 
 export interface CompanyDetails {

@@ -161,6 +161,7 @@ interface HyroxScreenProps {
     studioConfig: StudioConfig;
     racePrepState: { groups: StartGroup[]; interval: number } | null;
     onPrepComplete: () => void;
+    remoteCommand?: { type: string, timestamp: number } | null;
 }
 
 const StartGroupPrepModal: React.FC<{
@@ -312,9 +313,17 @@ const createCustomRaceWorkout = (
 };
 
 
-export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWorkout, studioConfig, racePrepState, onPrepComplete }) => {
+export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWorkout, studioConfig, racePrepState, onPrepComplete, remoteCommand }) => {
     const { selectedOrganization } = useStudio();
     const [view, setView] = useState<'hub' | 'editor' | 'prep'>('hub');
+    const lastProcessedCommandRef = useRef<number>(0);
+
+    useEffect(() => {
+        if (remoteCommand && remoteCommand.type === 'start_hyrox' && remoteCommand.timestamp > lastProcessedCommandRef.current) {
+            lastProcessedCommandRef.current = remoteCommand.timestamp;
+            handleSimulateFullRaceClick();
+        }
+    }, [remoteCommand]);
     const [raceConfig, setRaceConfig] = useState<{ name: string; exercises: Exercise[] } | null>(() => {
         try {
             const savedConfig = localStorage.getItem(RACE_CONFIG_STORAGE_KEY);

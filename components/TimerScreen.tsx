@@ -1,10 +1,10 @@
 
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout, TimerSegment } from '../types';
 import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration, playTimerSound } from '../hooks/useWorkoutTimer';
 import { useWorkout } from '../context/WorkoutContext';
-import { saveRace, updateOrganizationActivity } from '../services/firebaseService';
+import { saveRace, updateOrganizationActivity, updateStudioRemoteState } from '../services/firebaseService';
 import { Confetti } from './WorkoutCompleteModal';
 import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmationModal, RaceFinishAnimation, PauseOverlay } from './timer/TimerModals';
 import { ParticipantFinishList } from './timer/ParticipantFinishList';
@@ -368,8 +368,10 @@ const FollowMeView: React.FC<{
     nextBlock?: WorkoutBlock,
     transitionTime?: number,
     isRestNext?: boolean,
-    showDescription: boolean
-}> = ({ exercise, nextExercise, timerStyle, status, nextBlock, transitionTime, isRestNext, showDescription }) => {
+    showDescription: boolean,
+    textSizeScale?: number, // NEW PROP
+    repsSizeScale?: number  // NEW PROP
+}> = ({ exercise, nextExercise, timerStyle, status, nextBlock, transitionTime, isRestNext, showDescription, textSizeScale = 1, repsSizeScale = 1 }) => {
     const isResting = status === TimerStatus.Resting;
     const isPreparing = status === TimerStatus.Preparing;
     // IF IDLE (Lobby), show the first exercise as "Next/Ready"
@@ -382,11 +384,17 @@ const FollowMeView: React.FC<{
 
     if (!displayExercise) return null;
 
-    // Dynamisk storlek för övningsnamnet baserat på teckenantal
+    // Dynamisk storlek för övningsnamnet baserat på teckenantal + SKALNING
     const nameLen = displayExercise.name.length;
-    let titleSize = 'text-6xl md:text-8xl'; // Standard
-    if (nameLen > 35) titleSize = 'text-4xl md:text-6xl';
-    else if (nameLen > 20) titleSize = 'text-5xl md:text-7xl';
+    
+    // Base sizes in REM (approximate to previous Tailwind classes)
+    // text-8xl = 6rem, text-7xl = 4.5rem, text-6xl = 3.75rem
+    let baseTitleRem = 6; 
+    if (nameLen > 35) baseTitleRem = 3.75;
+    else if (nameLen > 20) baseTitleRem = 4.5;
+
+    const calculatedTitleSize = `${baseTitleRem * textSizeScale}rem`;
+    const calculatedRepsSize = `${4.5 * repsSizeScale}rem`; // Base 4.5rem (~text-7xl)
 
     return (
         <div className="flex flex-col h-full items-center justify-between">
@@ -404,11 +412,19 @@ const FollowMeView: React.FC<{
                         <span className="block text-xl md:text-2xl font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 mb-4">
                             {label}
                         </span>
-                        <h3 className={`font-black text-gray-900 dark:text-white leading-tight mb-6 tracking-tight transition-all duration-300 ${titleSize}`}>
+                        <h3 
+                            className="font-black text-gray-900 dark:text-white leading-tight mb-6 tracking-tight transition-all duration-300"
+                            style={{ fontSize: calculatedTitleSize }}
+                        >
                             {displayExercise.name}
                         </h3>
                         {displayExercise.reps && (
-                            <p className="text-5xl md:text-7xl font-black text-primary mb-6">{formatReps(displayExercise.reps)}</p>
+                            <p 
+                                className="font-black text-primary mb-6 transition-all duration-300"
+                                style={{ fontSize: calculatedRepsSize }}
+                            >
+                                {formatReps(displayExercise.reps)}
+                            </p>
                         )}
                         {displayExercise.description && showDescription && (
                             <p className="text-gray-600 dark:text-gray-300 text-2xl md:text-4xl leading-relaxed max-w-4xl font-medium">
@@ -549,6 +565,64 @@ const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRou
 };
 
 
+// --- TIMER CONTROLS COMPONENT ---
+const TimerControls: React.FC<{
+    textSizeScale: number;
+    repsSizeScale: number;
+    onTextChange: (val: number) => void;
+    onRepsChange: (val: number) => void;
+    visible: boolean;
+}> = ({ textSizeScale, repsSizeScale, onTextChange, onRepsChange, visible }) => {
+    return (
+        <AnimatePresence>
+            {visible && (
+                <motion.div
+                    initial={{ opacity: 0, height: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, height: 'auto', scale: 1 }}
+                    exit={{ opacity: 0, height: 0, scale: 0.95 }}
+                    className="bg-white/80 dark:bg-black/60 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-6 shadow-2xl overflow-hidden mx-auto max-w-2xl mt-4"
+                >
+                    {/* Text Size Control */}
+                    <div className="flex items-center gap-4 w-full">
+                        <span className="text-gray-500 dark:text-white/50 text-xs font-bold uppercase tracking-wider w-12">Text</span>
+                        <input 
+                            type="range" 
+                            min="0.5" 
+                            max="2.0" 
+                            step="0.1" 
+                            value={textSizeScale}
+                            onChange={(e) => onTextChange(parseFloat(e.target.value))}
+                            className="flex-grow h-2 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
+                        <span className="text-gray-900 dark:text-white font-mono font-bold w-12 text-right">
+                            {Math.round(textSizeScale * 100)}%
+                        </span>
+                    </div>
+
+                    <div className="hidden sm:block w-px h-8 bg-gray-300 dark:bg-white/10"></div>
+
+                    {/* Reps Size Control */}
+                    <div className="flex items-center gap-4 w-full">
+                        <span className="text-gray-500 dark:text-white/50 text-xs font-bold uppercase tracking-wider w-12">Reps</span>
+                        <input 
+                            type="range" 
+                            min="0.5" 
+                            max="2.5" 
+                            step="0.1" 
+                            value={repsSizeScale}
+                            onChange={(e) => onRepsChange(parseFloat(e.target.value))}
+                            className="flex-grow h-2 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
+                        <span className="text-gray-900 dark:text-white font-mono font-bold w-12 text-right">
+                            {Math.round(repsSizeScale * 100)}%
+                        </span>
+                    </div>
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
+};
+
 interface TimerScreenProps {
     block: WorkoutBlock;
     onFinish: (finishData: { isNatural?: boolean; time?: number, raceId?: string }) => void;
@@ -561,6 +635,8 @@ interface TimerScreenProps {
     organization: Organization | null;
     onBackToGroups: () => void;
     isAutoTransition?: boolean;
+    // NEW PROP: Remote Command
+    remoteCommand?: { type: string, timestamp: number } | null;
 }
 
 interface FinishData { time: number; placement: number | null; }
@@ -569,10 +645,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     block, onFinish, onHeaderVisibilityChange, onShowImage,
     setCompletionInfo, setIsRegisteringHyroxTime,
     setIsBackButtonHidden, followMeShowImage, organization, onBackToGroups,
-    isAutoTransition = false
+    isAutoTransition = false,
+    remoteCommand
 }) => {
   const { activeWorkout } = useWorkout();
-  const { studioConfig } = useStudio(); 
+  const { studioConfig, selectedStudio, selectedOrganization } = useStudio(); 
   
   // Use the hook with the selected sound profile
   const { 
@@ -591,12 +668,28 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [textSizeScale, setTextSizeScale] = useState(1);
   const [repsSizeScale, setRepsSizeScale] = useState(1);
 
+  // Sync with Remote State
+  // IMPORTANT: We need to listen to the selectedStudio from context which gets updated via the snapshot listener in App.tsx
+  // The previous implementation might have been relying on a stale reference or not triggering re-renders correctly.
+  
+  const remoteViewerSettings = selectedStudio?.remoteState?.viewerSettings;
+
+  useEffect(() => {
+      if (remoteViewerSettings) {
+          const { textScale, repsScale } = remoteViewerSettings;
+          // Only update if values are different to avoid loops, though React state setter handles this.
+          if (textScale !== undefined) setTextSizeScale(textScale);
+          if (repsScale !== undefined) setRepsSizeScale(repsScale);
+      }
+  }, [remoteViewerSettings]); // Dependency on the specific object part
+
   useEffect(() => {
       const storedText = localStorage.getItem('timer-text-scale');
       const storedReps = localStorage.getItem('timer-reps-scale');
-      if (storedText) setTextSizeScale(parseFloat(storedText));
-      if (storedReps) setRepsSizeScale(parseFloat(storedReps));
-  }, []);
+      // Only load from local storage if NO remote settings are present
+      if (storedText && !remoteViewerSettings) setTextSizeScale(parseFloat(storedText));
+      if (storedReps && !remoteViewerSettings) setRepsSizeScale(parseFloat(storedReps));
+  }, [remoteViewerSettings]);
 
   const handleSizeChange = (type: 'text' | 'reps', val: number) => {
       if (type === 'text') {
@@ -612,8 +705,68 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const hideTimeoutRef = React.useRef<number | null>(null);
   const wakeLockRef = useRef<any>(null);
   
+  // Show controls on mouse move
+  useEffect(() => {
+      const handleMouseMove = () => {
+          setControlsVisible(true);
+          if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+          hideTimeoutRef.current = window.setTimeout(() => setControlsVisible(false), 3000);
+      };
+      window.addEventListener('mousemove', handleMouseMove);
+      return () => {
+          window.removeEventListener('mousemove', handleMouseMove);
+          if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+      };
+  }, []);
+  
   // Get navigation position preference (default top)
   const navPos = studioConfig.navigationControlPosition || 'top';
+
+  // --- REMOTE STATUS SYNC ---
+  useEffect(() => {
+    if (selectedOrganization && selectedStudio && activeWorkout) {
+        // We only sync status changes, not every second
+        updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+            status: status,
+            lastUpdate: Date.now()
+        } as any);
+    }
+  }, [status, selectedOrganization?.id, selectedStudio?.id, activeWorkout?.id]);
+
+  // --- REMOTE CONTROL LISTENER ---
+  const lastProcessedCommandTimestamp = useRef<number>(remoteCommand ? remoteCommand.timestamp : 0);
+  useEffect(() => {
+      if (remoteCommand && remoteCommand.timestamp > lastProcessedCommandTimestamp.current) {
+          lastProcessedCommandTimestamp.current = remoteCommand.timestamp;
+          switch (remoteCommand.type) {
+              case 'start':
+              case 'resume':
+                  if (status === TimerStatus.Idle) {
+                      setIsLobbyMode(false);
+                      start();
+                  } else if (status === TimerStatus.Paused) {
+                      resume();
+                  }
+                  break;
+              case 'pause':
+                  if (status === TimerStatus.Running || status === TimerStatus.Resting || status === TimerStatus.Preparing) {
+                      pause();
+                  }
+                  break;
+              case 'reset':
+                  // Reset confirms usually, but remote is forced
+                  setIsLobbyMode(true);
+                  reset();
+                  break;
+              case 'finish':
+                  onFinish({ isNatural: false });
+                  break;
+              default:
+                  break;
+          }
+      }
+  }, [remoteCommand, start, pause, resume, reset, status, onFinish]);
+
 
   // --- TRANSITION LOGIC ---
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -733,8 +886,13 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         }
         
         hasStartedRef.current = true;
-        onHeaderVisibilityChange(false);
-        setIsBackButtonHidden(true);
+        if (!isLobbyMode) {
+             onHeaderVisibilityChange(false);
+             setIsBackButtonHidden(true);
+        } else {
+             onHeaderVisibilityChange(true);
+             setIsBackButtonHidden(false);
+        }
     }
   }, [start, status, onHeaderVisibilityChange, setIsBackButtonHidden, organization, isAutoTransition, isLobbyMode]);
 
@@ -854,8 +1012,47 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     } else {
         setStartGroups([]);
     }
-    start();
+    // RESET LOBBY MODE
+    setIsLobbyMode(true);
+    reset(); // Reset will stop timer and set status to Idle
   };
+
+  // --- REMOTE SYNC HANDLER ---
+  const handleRemoteAction = useCallback(async (action: 'start' | 'pause' | 'resume' | 'reset') => {
+      // 1. Perform Local Action IMMEDIATELY
+      if (action === 'start') {
+          setIsLobbyMode(false);
+          start(); 
+      }
+      else if (action === 'pause') {
+          if (isTransitioning) setIsTransitionPaused(true);
+          else pause();
+      }
+      else if (action === 'resume') {
+          if (isTransitioning) setIsTransitionPaused(false);
+          else resume();
+      }
+      else if (action === 'reset') {
+          handleConfirmReset();
+      }
+
+      // 2. Sync to Firebase (if in Studio Mode)
+      if (selectedOrganization && selectedStudio && activeWorkout) {
+          const newState = {
+              activeWorkoutId: activeWorkout.id,
+              view: 'timer',
+              activeBlockId: block.id,
+              command: action,
+              commandTimestamp: Date.now(),
+              status: action === 'pause' ? TimerStatus.Paused : (action === 'start' || action === 'resume' ? TimerStatus.Running : TimerStatus.Idle),
+              lastUpdate: Date.now(),
+              controllerName: 'Coach'
+          };
+
+          // Don't await here to keep UI snappy, but fire it off
+          updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, newState as any);
+      }
+  }, [selectedOrganization, selectedStudio, activeWorkout, block.id, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset]);
 
   useEffect(() => { return () => stopAllAudio(); }, [stopAllAudio]);
 
@@ -1091,7 +1288,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         onTouchStart={handleInteraction}
     >
       {/* NEW BACK BUTTON FOR LOBBY MODE */}
-      {isLobbyMode && (
+      {/* IMPORTANT: This should be visible if isLobbyMode OR isActuallyFinishedOrIdle */}
+      {/* UPDATE: Also visible if paused to allow exit */}
+      {(isLobbyMode || isActuallyFinishedOrIdle || isActuallyPaused) && (
           <button
               onClick={() => onFinish({ isNatural: false })}
               className={`fixed ${navPos === 'bottom' ? 'bottom-8' : 'top-8'} left-8 z-[60] bg-black/20 hover:bg-black/40 text-white backdrop-blur-md px-6 py-3 rounded-full font-bold transition-all flex items-center gap-3 border border-white/10 shadow-lg group`}
@@ -1099,7 +1298,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              <span>TILLBAKA</span>
+              <span>{isActuallyPaused ? 'AVSLUTA' : 'TILLBAKA'}</span>
           </button>
       )}
 
@@ -1118,7 +1317,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       
       <AnimatePresence>
         {isActuallyPaused && !showFinishAnimation && !isLobbyMode && (
-            <PauseOverlay onResume={isTransitioning ? () => setIsTransitionPaused(false) : resume} onRestart={handleConfirmReset} onFinish={() => onFinish({ isNatural: false })} />
+            <PauseOverlay onResume={() => handleRemoteAction('resume')} onRestart={() => handleRemoteAction('reset')} onFinish={() => onFinish({ isNatural: false })} />
         )}
         {participantToEdit && (
             <EditResultModal 
@@ -1170,65 +1369,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         {isLobbyMode && (
              <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-8">
                  <button 
-                    onClick={handleLobbyStart}
-                    className="bg-white text-black hover:scale-110 transition-transform duration-200 rounded-full p-6 shadow-2xl border-4 border-white/50 group"
+                    onClick={() => handleRemoteAction('start')}
+                    className="bg-white text-black active:scale-110 transition-transform duration-200 rounded-full p-6 shadow-2xl border-4 border-white/50 group"
                  >
-                    <PlayIcon className="w-16 h-16 ml-1 fill-current group-hover:text-primary transition-colors" />
+                    <PlayIcon className="w-16 h-16 ml-1 fill-current group-active:text-primary transition-colors" />
                  </button>
-
-
-                 {/* SETTINGS PANEL (TEXT SIZE SLIDERS) - Hide in Follow Me mode AND Freestanding mode */}
-                 {!block.followMe && block.tag !== 'Fristående' && (
-                     <div className="bg-black/60 backdrop-blur-md p-6 rounded-3xl border border-white/10 w-[90%] max-w-md animate-fade-in flex flex-col gap-4">
-                        <h3 className="text-white font-bold text-center uppercase tracking-widest text-xs mb-2">Justera Vy</h3>
-                        
-                        {/* Text Size Slider */}
-                        <div>
-                            <div className="flex justify-between text-xs font-bold text-white/70 mb-1">
-                                <span>Textstorlek</span>
-                                <span>{Math.round(textSizeScale * 100)}%</span>
-                            </div>
-                            <input 
-                                type="range" 
-                                min="0.8" 
-                                max="2.5" 
-                                step="0.1" 
-                                value={textSizeScale} 
-                                onChange={(e) => handleSizeChange('text', parseFloat(e.target.value))}
-                                className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-primary"
-                            />
-                        </div>
-
-                        {/* Reps Size Slider */}
-                        <div>
-                            <div className="flex justify-between text-xs font-bold text-white/70 mb-1">
-                                <span>Reps-storlek</span>
-                                <span>{Math.round(repsSizeScale * 100)}%</span>
-                            </div>
-                            <input 
-                                type="range" 
-                                min="0.8" 
-                                max="3.0" 
-                                step="0.1" 
-                                value={repsSizeScale} 
-                                onChange={(e) => handleSizeChange('reps', parseFloat(e.target.value))}
-                                className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-primary"
-                            />
-                        </div>
-
-                        <div className="pt-2 border-t border-white/10 flex justify-center">
-                            <button 
-                                onClick={() => {
-                                    handleSizeChange('text', 1.0);
-                                    handleSizeChange('reps', 1.0);
-                                }}
-                                className="text-[10px] text-white/50 hover:text-white uppercase font-bold tracking-wider flex items-center gap-1"
-                            >
-                                <RefreshIcon className="w-3 h-3" /> Återställ
-                            </button>
-                        </div>
-                     </div>
-                 )}
              </div>
         )}
 
@@ -1274,6 +1419,17 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 {isTransitioning ? nextBlock?.title : block.title}
             </h1>
         </div>
+
+        {/* TIMER CONTROLS (Relative under title) */}
+        <div className="relative z-50 mt-4">
+            <TimerControls 
+                textSizeScale={textSizeScale} 
+                repsSizeScale={repsSizeScale} 
+                onTextChange={(val) => handleSizeChange('text', val)} 
+                onRepsChange={(val) => handleSizeChange('reps', val)} 
+                visible={controlsVisible && !isFreestanding && !block.followMe}
+            />
+        </div>
       </div>
 
       {/* CONTENT AREA (Under Clock) */}
@@ -1315,6 +1471,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                     isRestNext={isRestNext}
                                     transitionTime={isRestNext ? block.transitionTime : undefined}
                                     showDescription={block.showExerciseDescriptions !== false} // PASS THE PROP
+                                    textSizeScale={textSizeScale}
+                                    repsSizeScale={repsSizeScale}
                                 />
                             </div>
                         </div>
@@ -1490,12 +1648,12 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 {isActuallyFinishedOrIdle ? (
                     <>
                         <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-50 transition-colors text-xl backdrop-blur-md border-2 border-white/20 uppercase">TILLBAKA</button>
-                        <button onClick={() => start()} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl hover:scale-105 transition-transform text-xl border-4 border-white/50 uppercase">STARTA</button>
+                        <button onClick={() => handleRemoteAction('start')} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl active:scale-105 transition-transform text-xl border-4 border-white/50 uppercase">STARTA</button>
                     </>
                 ) : isActuallyPaused ? (
-                    <button onClick={isTransitioning ? () => setIsTransitionPaused(false) : resume} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase">FORTSÄTT</button>
+                    <button onClick={() => handleRemoteAction('resume')} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase">FORTSÄTT</button>
                 ) : (
-                    <button onClick={isTransitioning ? () => setIsTransitionPaused(true) : pause} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl hover:bg-gray-100 transition-transform hover:scale-105 text-xl border-4 border-white/50 uppercase">PAUSA</button>
+                    <button onClick={() => handleRemoteAction('pause')} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl active:bg-gray-100 transition-transform active:scale-105 text-xl border-4 border-white/50 uppercase">PAUSA</button>
                 )}
                 {isHyroxRace && status !== TimerStatus.Running && <button onClick={() => setShowBackToPrepConfirmation(true)} className="bg-gray-800/80 text-white font-bold py-4 px-8 rounded-full shadow-xl border-2 border-gray-600 hover:bg-gray-700 transition-colors text-lg uppercase">⚙️ Grupper</button>}
           </div>
