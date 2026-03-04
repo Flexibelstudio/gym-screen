@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma, RemoteSessionState } from './types';
 
@@ -8,6 +7,9 @@ import { useWorkout } from './context/WorkoutContext';
 
 // --- ROUTER ---
 import { AppRouter } from './components/AppRouter';
+
+// --- PAYWALL ---
+import { PaywallScreen } from './components/PaywallScreen';
 
 // --- Services ---
 import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById } from './services/firebaseService';
@@ -69,12 +71,26 @@ const App: React.FC = () => {
 
   const page = history[history.length - 1];
 
-  // Global laddning inkluderar nu studioLoading för att täcka inläsning av organisationens data
+  // --- NY BETALVÄGG LOGIK ---
+  const hasActiveSubscription = useMemo(() => {
+    // Om användaren är Admin, Coach eller Systemägare -> Alltid tillgång
+    if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
+    
+    // Om användaren har status active -> Tillgång
+    if (userData?.subscriptionStatus === 'active') return true;
+
+    // Standard: Ingen tillgång
+    return false;
+  }, [role, userData?.subscriptionStatus]);
+
+  // Ska vi visa betalväggen just nu?
+  // Visa bara om inloggad, inte i Studio-läge, och saknar abonnemang
+  const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription;
+
   const isGlobalLoading = authLoading || studioLoading || (currentUser && !userData && !isStudioMode);
   
   const isOrgMismatch = useMemo(() => {
       if (!currentUser || !userData?.organizationId || !selectedOrganization) return false;
-      // Systemägare ska alltid kunna se vilken org som helst utan mismatch-spärr
       if (role === 'systemowner') return false;
       return userData.organizationId !== selectedOrganization.id;
   }, [userData?.organizationId, selectedOrganization?.id, currentUser, role]);
@@ -94,22 +110,14 @@ const App: React.FC = () => {
     }
   }, [role, authLoading, isStudioMode, history, currentUser]);
 
-  // NEW: State for passing remote commands to children
   const [remoteCommand, setRemoteCommand] = useState<{ type: string, timestamp: number } | null>(null);
   const [activeBlock, setActiveBlock] = useState<WorkoutBlock | null>(null);
-  
-  // NEW: Ref to track local navigation timestamp to prevent race conditions with remote state
   const lastLocalNavigationRef = useRef<number>(0);
-  
-  // NEW: Ref to track when we entered the current page/timer to ignore old remote commands
   const pageEntryTimestampRef = useRef<number>(Date.now());
 
   const navigateTo = useCallback((targetPage: Page) => {
     if (isStudioMode && selectedOrganization && selectedStudio) {
-         // Update remote state to prevent "bounce back"
-         // We use 'menu' for generic pages, or specific ones if we map them
          let view: RemoteSessionState['view'] = 'menu';
-         
          if (targetPage === Page.Timer || targetPage === Page.FreestandingTimer) {
              view = 'timer';
          } else if (targetPage === Page.WorkoutDetail) {
@@ -117,10 +125,7 @@ const App: React.FC = () => {
          } else if (targetPage === Page.Home) {
              view = 'idle';
          }
-         
-         // Set local navigation timestamp to prevent race condition with remote state listener
          lastLocalNavigationRef.current = Date.now();
-
          updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
              view,
              activeWorkoutId: activeWorkout?.id || null,
@@ -141,100 +146,72 @@ const App: React.FC = () => {
     });
   }, []);
 
-  // --- STUDIO RESET LOGIC (Emergency Brake) ---
-  // If the page is reloaded in Studio Mode, clear the remote state.
   useEffect(() => {
       const clearRemoteStateOnMount = async () => {
           if (isStudioMode && selectedOrganization && selectedStudio) {
                await updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
           }
       };
-      
       if (!studioLoading) {
           clearRemoteStateOnMount();
       }
   }, [isStudioMode, selectedOrganization?.id, selectedStudio?.id, studioLoading]);
 
-      // STUDIO RECEIVER LOGIC (TV Mode)
-      useEffect(() => {
-          if (!isStudioMode || !selectedOrganization || !selectedStudio) return;
-    
-          const remote = selectedStudio.remoteState;
-          
-          if (remote) {
-              if (remote.command && remote.commandTimestamp) {
-                  // Only accept commands that were sent AFTER we entered the current page/timer
-                  if (remote.commandTimestamp > pageEntryTimestampRef.current) {
-                      setRemoteCommand(prev => {
-                          if (!prev || prev.timestamp !== remote.commandTimestamp) {
-                              return { type: remote.command!, timestamp: remote.commandTimestamp! };
+  useEffect(() => {
+      if (!isStudioMode || !selectedOrganization || !selectedStudio) return;
+      const remote = selectedStudio.remoteState;
+      if (remote) {
+          if (remote.command && remote.commandTimestamp) {
+              if (remote.commandTimestamp > pageEntryTimestampRef.current) {
+                  setRemoteCommand(prev => {
+                      if (!prev || prev.timestamp !== remote.commandTimestamp) {
+                          return { type: remote.command!, timestamp: remote.commandTimestamp! };
+                      }
+                      return prev;
+                  });
+              }
+          }
+          const isRecentLocalNav = Date.now() - lastLocalNavigationRef.current < 3000;
+          if (!isRecentLocalNav) {
+              if (remote.view === 'idle') {
+                  if (page !== Page.Home) {
+                      navigateReplace(Page.Home);
+                      setActiveWorkout(null);
+                  }
+              } else if (remote.view === 'ideaboard') {
+                  if (page !== Page.IdeaBoard) {
+                      navigateReplace(Page.IdeaBoard);
+                      setActiveWorkout(null);
+                  }
+              } else if (remote.activeWorkoutId) {
+                  const workoutToLoad = workouts.find(w => w.id === remote.activeWorkoutId);
+                  const loadAndNavigate = (workout: Workout) => {
+                      if (activeWorkout?.id !== workout.id) setActiveWorkout(workout);
+                      if (remote.view === 'preview') {
+                          if (page !== Page.WorkoutDetail) navigateReplace(Page.WorkoutDetail);
+                      } else if (remote.view === 'timer' && remote.activeBlockId) {
+                          const blockToStart = workout.blocks.find(b => b.id === remote.activeBlockId);
+                          if (blockToStart) {
+                              if (activeBlock?.id !== blockToStart.id) setActiveBlock(blockToStart);
+                              const targetPage = blockToStart.settings.mode === TimerMode.NoTimer ? Page.RepsOnly : Page.Timer;
+                              if (page !== targetPage) navigateReplace(targetPage);
                           }
-                          return prev;
+                      }
+                  };
+                  if (workoutToLoad) loadAndNavigate(workoutToLoad);
+                  else {
+                      getWorkoutById(remote.activeWorkoutId).then(fetchedWorkout => {
+                          if (fetchedWorkout) loadAndNavigate(fetchedWorkout);
                       });
                   }
               }
-
-              // Prevent bounce back for view changes if we just navigated locally (within 3 seconds)
-              const isRecentLocalNav = Date.now() - lastLocalNavigationRef.current < 3000;
-
-              if (!isRecentLocalNav) {
-                  if (remote.view === 'idle') {
-                      if (page !== Page.Home) {
-                          navigateReplace(Page.Home);
-                          setActiveWorkout(null);
-                      }
-                  } else if (remote.view === 'ideaboard') {
-                      if (page !== Page.IdeaBoard) {
-                          navigateReplace(Page.IdeaBoard);
-                          setActiveWorkout(null);
-                      }
-                  } else if (remote.activeWorkoutId) {
-                      const workoutToLoad = workouts.find(w => w.id === remote.activeWorkoutId);
-                      
-                      const loadAndNavigate = (workout: Workout) => {
-                          if (activeWorkout?.id !== workout.id) {
-                              setActiveWorkout(workout);
-                          }
-    
-                          if (remote.view === 'preview') {
-                              if (page !== Page.WorkoutDetail) {
-                                  navigateReplace(Page.WorkoutDetail);
-                              }
-                          } else if (remote.view === 'timer' && remote.activeBlockId) {
-                              const blockToStart = workout.blocks.find(b => b.id === remote.activeBlockId);
-                              if (blockToStart) {
-                                  if (activeBlock?.id !== blockToStart.id) {
-                                      setActiveBlock(blockToStart);
-                                  }
-                                  const targetPage = blockToStart.settings.mode === TimerMode.NoTimer ? Page.RepsOnly : Page.Timer;
-                                  if (page !== targetPage) {
-                                      navigateReplace(targetPage);
-                                  }
-                              }
-                          }
-                      };
-
-                      if (workoutToLoad) {
-                          loadAndNavigate(workoutToLoad);
-                      } else {
-                          // Workout not in local state (e.g., freestanding or newly created), fetch it
-                          getWorkoutById(remote.activeWorkoutId).then(fetchedWorkout => {
-                              if (fetchedWorkout) {
-                                  loadAndNavigate(fetchedWorkout);
-                              }
-                          });
-                      }
-                  }
-              }
-          } else if (page !== Page.Home) {
-               // Prevent bounce back if we just navigated locally (within 3 seconds)
-               if (Date.now() - lastLocalNavigationRef.current < 3000) {
-                   return;
-               }
-               navigateReplace(Page.Home);
-               setActiveWorkout(null);
           }
-      }, [isStudioMode, selectedOrganization, selectedStudio, workouts, page, activeWorkout, activeBlock, navigateReplace]);
+      } else if (page !== Page.Home) {
+           if (Date.now() - lastLocalNavigationRef.current < 3000) return;
+           navigateReplace(Page.Home);
+           setActiveWorkout(null);
+      }
+  }, [isStudioMode, selectedOrganization, selectedStudio, workouts, page, activeWorkout, activeBlock, navigateReplace]);
 
 
   const [customBackHandler, setCustomBackHandler] = useState<(() => void) | null>(null);
@@ -253,7 +230,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    // Update entry timestamp whenever page changes to ignore old remote commands
     pageEntryTimestampRef.current = Date.now();
   }, [page]);
 
@@ -318,14 +294,6 @@ const App: React.FC = () => {
         document.getElementsByTagName('head')[0].appendChild(link);
       }
       link.href = faviconUrl;
-
-      let appleLink: HTMLLinkElement | null = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement | null;
-      if (!appleLink) {
-        appleLink = document.createElement('apple-touch-icon');
-        appleLink.rel = 'apple-touch-icon';
-        document.getElementsByTagName('head')[0].appendChild(appleLink);
-      }
-      appleLink.href = faviconUrl;
     }
   }, [selectedOrganization?.faviconUrl]);
 
@@ -426,20 +394,15 @@ const App: React.FC = () => {
       return;
     }
 
-    // UPDATED: Handle Remote State in Studio Mode
     if (isStudioMode && selectedOrganization && selectedStudio) {
         setRemoteCommand(null);
-        // Set local navigation timestamp to prevent race condition with remote state listener
         lastLocalNavigationRef.current = Date.now();
 
-        // If back from Timer -> Go to Preview, Set Remote State to Preview
         if ((page === Page.Timer || page === Page.RepsOnly) && activeWorkout) {
-             // FIX: If it's a freestanding timer, go back to menu/list instead of detail view
              const isFreestanding = activeWorkout.id.startsWith('freestanding-workout-') || 
                                     activeWorkout.id.startsWith('fs-workout-');
              
              if (isFreestanding) {
-                 // Explicitly clear remote state to ensure no ghost signals remain
                  updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
                      activeWorkoutId: null,
                      view: 'menu',
@@ -447,12 +410,8 @@ const App: React.FC = () => {
                      lastUpdate: Date.now(),
                      controllerName: 'Touch Screen'
                  });
-                 
-                 // Clear active state
                  setActiveWorkout(null);
                  setActiveBlock(null);
-
-                 // Use navigateReplace for a robust exit
                  navigateReplace(Page.FreestandingTimer);
                  return;
              } else {
@@ -461,15 +420,12 @@ const App: React.FC = () => {
                      view: 'preview',
                      activeBlockId: null,
                      lastUpdate: Date.now(),
-                     controllerName: 'Coach' // Preserve controller name if possible, simplified here
+                     controllerName: 'Coach'
                  });
-                 
-                 // EXPLICIT NAVIGATION: Ensure we go to WorkoutDetail, not just pop history (which might be Home)
                  navigateReplace(Page.WorkoutDetail);
                  return;
              }
         } 
-        // If back from Preview -> Go to Idle, Set Remote State to Idle
         else if (page === Page.WorkoutDetail) {
              updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
                  activeWorkoutId: null,
@@ -483,7 +439,6 @@ const App: React.FC = () => {
              return;
         }
         else {
-             // Fallback: Clear completely
              updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
              setActiveWorkout(null);
              setActiveBlock(null);
@@ -621,11 +576,7 @@ const App: React.FC = () => {
   
   const handleStartBlock = (block: WorkoutBlock, workoutContext: Workout) => {
     const isSavedWorkout = workouts.some(w => w.id === workoutContext.id);
-
-    // Update entry timestamp when starting a new block to ignore old remote commands
     pageEntryTimestampRef.current = Date.now();
-
-    // Reset auto-transition state when starting a new workout/block manually
     setIsAutoTransition(false); 
 
     if (isStudioMode && selectedOrganization && selectedStudio && isSavedWorkout) {
@@ -646,9 +597,7 @@ const App: React.FC = () => {
   };
 
   const handleStartFreestandingTimer = (block: WorkoutBlock) => {
-    // Reset auto-transition state when starting a new freestanding timer
     setIsAutoTransition(false);
-
     if (!selectedOrganization) return alert("Kan inte starta timer: ingen organisation är vald.");
     const tempWorkout: Workout = {
         id: `freestanding-workout-${Date.now()}`,
@@ -660,11 +609,8 @@ const App: React.FC = () => {
         organizationId: selectedOrganization.id,
         createdAt: Date.now() 
     };
-
-    // Update entry timestamp when starting a new block to ignore old remote commands
     pageEntryTimestampRef.current = Date.now();
     setRemoteCommand(null);
-
     setIsAutoTransition(false); 
     setActiveWorkout(tempWorkout);
     setActiveBlock(block);
@@ -678,27 +624,22 @@ const App: React.FC = () => {
         navigateTo(Page.WorkoutDetail);
         return;
     }
-
     if (action === 'view') {
         setMobileViewData(workout);
         return;
     }
-
     if (isSearchWorkoutOpen && selectedOrganization) {
         handleLogWorkoutRequest(workout.id, selectedOrganization.id);
         return;
     }
-
     if (isPickingForLog && selectedOrganization) {
         handleLogWorkoutRequest(workout.id, selectedOrganization.id);
         return;
     }
-
     if (action === 'log' && selectedOrganization) {
         handleLogWorkoutRequest(workout.id, selectedOrganization.id);
         return;
     }
-
     setActiveWorkout(workout);
     if ((workout.id.startsWith('hyrox-full-race') || workout.id.startsWith('custom-race')) && workout.blocks.length > 0) {
       handleStartBlock(workout.blocks[0], workout);
@@ -720,7 +661,6 @@ const App: React.FC = () => {
 
   const handleSelectPasskategori = (passkategori: Passkategori) => {
     const categoryWorkouts = workouts.filter(w => w.category === passkategori && w.isPublished && !w.isMemberDraft);
-    
     if (categoryWorkouts.length === 1 && !isPickingForLog) {
         if (isStudioMode) {
             handleSelectWorkout(categoryWorkouts[0]);
@@ -730,13 +670,11 @@ const App: React.FC = () => {
              return;
         }
     }
-
     if (!isStudioMode) {
         if (isPickingForLog) {
              setIsPickingForLog(true);
         }
     }
-    
     setActivePasskategori(passkategori);
     navigateTo(Page.WorkoutList);
   };
@@ -781,18 +719,14 @@ const App: React.FC = () => {
 
   const handleTimerFinish = useCallback((finishData: { isNatural?: boolean; time?: number, raceId?: string }) => {
     const { isNatural = false, time, raceId } = finishData;
-
     if (raceId) {
         setIsBackButtonHidden(false);
         setActiveRaceId(raceId);
         navigateReplace(Page.HyroxRaceDetail);
         return;
     }
-
     if (completionInfo) return; 
-    
     if (!isNatural) {
-      // FIX: If it's a freestanding timer, handle it explicitly here too to ensure we exit correctly
       if (activeWorkout && (activeWorkout.id.startsWith('freestanding-workout-') || activeWorkout.id.startsWith('fs-workout-'))) {
           setActiveWorkout(null);
           setActiveBlock(null);
@@ -805,14 +739,12 @@ const App: React.FC = () => {
                   controllerName: 'Touch Screen'
               });
           }
-          // Use navigateReplace for a robust exit
           navigateReplace(Page.FreestandingTimer);
           return;
       }
       handleBack();
       return;
     }
-
     if (activeWorkout && activeBlock && activeBlock.autoAdvance) {
         const blockIndex = activeWorkout.blocks.findIndex(b => b.id === activeBlock.id);
         const nextBlockInWorkout = activeWorkout.blocks[blockIndex + 1];
@@ -820,14 +752,12 @@ const App: React.FC = () => {
             setIsAutoTransition(true);
             setActiveBlock(null);
             setTimeout(() => {
-                // Update entry timestamp for the next block to ignore old remote commands
                 pageEntryTimestampRef.current = Date.now();
                 setActiveBlock(nextBlockInWorkout);
             }, 50);
             return;
         }
     }
-
     if (activeWorkout && activeBlock) {
         const blockIndex = activeWorkout.blocks.findIndex(b => b.id === activeBlock.id);
         const isLastBlock = blockIndex === activeWorkout.blocks.length - 1;
@@ -839,20 +769,15 @@ const App: React.FC = () => {
 
   const handleCloseWorkoutCompleteModal = () => {
     if (!completionInfo) return;
-
     const isFinalBlock = completionInfo.isFinal;
     const workoutId = completionInfo.workout.id;
     const isFreestanding = workoutId.startsWith('freestanding-workout-') || 
                            workoutId.startsWith('fs-workout-');
-
     setCompletionInfo(null);
     setRemoteCommand(null);
-
     if (isFreestanding) {
-        // Explicitly handle freestanding finish
         setActiveWorkout(null);
         setActiveBlock(null);
-        
         if (isStudioMode && selectedOrganization && selectedStudio) {
             updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
                 activeWorkoutId: null,
@@ -862,12 +787,9 @@ const App: React.FC = () => {
                 controllerName: 'Touch Screen'
             });
         }
-        
-        // Use navigateReplace for a robust exit that doesn't rely on history manipulation
         navigateReplace(Page.FreestandingTimer);
         return;
     }
-
     if (isFinalBlock) {
       if (history.length > 1) {
           handleBack();
@@ -1155,11 +1077,7 @@ const App: React.FC = () => {
   const showSupportChat = !isStudioMode && isAdminOrCoach && isAdminFacingPage;
   const showScanButton = ((!isStudioMode && isMemberFacingPage) || (page === Page.MemberProfile)) && studioConfig.enableWorkoutLogging;
 
-  // NYTT: Villkor för att dölja den globala headern när popups är öppna
   const isAnyModalOpen = !!(mobileLogData || mobileViewData || isSearchWorkoutOpen || isScannerOpen || activeDiploma);
-  
-  // Custom back handler for Remote Control (close it)
-  // UPDATED: Logic moved to handleBack for cleaner flow and TV support
   
   if (page === Page.RemoteControl) {
       return (
@@ -1185,7 +1103,6 @@ const App: React.FC = () => {
     );
   }
 
-  // Guard för alla lägen som säkerställer att vi väntar in organisationens data
   if (isGlobalLoading) {
     return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
@@ -1219,7 +1136,6 @@ const App: React.FC = () => {
        {isStudioMode && <SpotlightOverlay />} 
        {isStudioMode && <PBOverlay />}
 
-       {/* HEADER VISIBILITY LOGIC UPDATED TO HIDE ON MODALS */}
        {!isAnyModalOpen && (page === Page.Timer || !isFullScreenPage) && <Header 
         page={page} 
         onBack={handleBack} 
@@ -1243,103 +1159,106 @@ const App: React.FC = () => {
           <main 
             className={`flex-1 min-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
           >
-            <AppRouter 
-                page={page}
-                navigateTo={navigateTo}
-                handleBack={handleBack}
-                role={sessionRole}
-                userData={userData}
-                studioConfig={studioConfig}
-                selectedOrganization={selectedOrganization}
-                allOrganizations={allOrganizations}
-                isStudioMode={isStudioMode}
-                isImpersonating={isImpersonating}
-                theme={theme}
-                
-                workouts={workouts}
-                activeWorkout={activeWorkout}
-                activeBlock={activeBlock}
-                
-                passkategoriFilter={activePasskategori}
-                activeCustomPage={activeCustomPage}
-                activeRaceId={activeRaceId}
-                racePrepState={racePrepState}
-                followMeShowImage={followMeShowImage}
-                mobileLogData={null}
-                
-                preferredAdminTab={preferredAdminTab}
-                profileEditTrigger={profileEditTrigger}
-                isAutoTransition={isAutoTransition}
+            {/* PAYWALL LOGIK: Visa antingen PaywallScreen eller AppRouter */}
+            {showPaywall ? (
+                <PaywallScreen onLogout={signOut} />
+            ) : (
+                <AppRouter 
+                    page={page}
+                    navigateTo={navigateTo}
+                    handleBack={handleBack}
+                    role={sessionRole}
+                    userData={userData}
+                    studioConfig={studioConfig}
+                    selectedOrganization={selectedOrganization}
+                    allOrganizations={allOrganizations}
+                    isStudioMode={isStudioMode}
+                    isImpersonating={isImpersonating}
+                    theme={theme}
+                    
+                    workouts={workouts}
+                    activeWorkout={activeWorkout}
+                    activeBlock={activeBlock}
+                    
+                    passkategoriFilter={activePasskategori}
+                    activeCustomPage={activeCustomPage}
+                    activeRaceId={activeRaceId}
+                    racePrepState={racePrepState}
+                    followMeShowImage={followMeShowImage}
+                    mobileLogData={null}
+                    
+                    preferredAdminTab={preferredAdminTab}
+                    profileEditTrigger={profileEditTrigger}
+                    isAutoTransition={isAutoTransition}
 
-                onSelectWorkout={handleSelectWorkout}
-                onSelectPasskategori={handleSelectPasskategori}
-                onCreateNewWorkout={handleCreateNewWorkout}
-                onStartBlock={handleStartBlock}
-                onEditWorkout={handleEditWorkout}
-                onDeleteWorkout={handleDeleteWorkout}
-                onSaveWorkout={handleSaveAndNavigate}
-                onSaveWorkoutNoNav={handleSaveOnly}
-                onTogglePublish={handleTogglePublishStatus}
-                onToggleFavorite={handleToggleFavoriteStatus}
-                onDuplicateWorkout={handleDuplicateWorkout}
-                onTimerFinish={handleTimerFinish}
-                
-                // Pass command to AppRouter to distribute to screens
-                remoteCommand={remoteCommand}
-                
-                functions={{
-                    selectOrganization: handleSelectOrganization,
-                    createOrganization: handleCreateOrganization,
-                    deleteOrganization: handleDeleteOrganization,
-                    saveGlobalConfig: handleSaveGlobalConfig,
-                    createStudio: handleCreateStudio,
-                    updateStudio: handleUpdateStudio,
-                    deleteStudio: handleDeleteStudio,
-                    updatePasswords: handleUpdateOrganizationPasswords,
-                    updateLogos: handleUpdateOrganizationLogos,
-                    updateFavicon: handleUpdateOrganizationFavicon,
-                    updatePrimaryColor: handleUpdateOrganizationPrimaryColor,
-                    updateOrganization: handleUpdateOrganization,
-                    updateCustomPages: handleUpdateOrganizationCustomPages,
-                    updateInfoCarousel: handleUpdateOrganizationInfoCarousel,
+                    onSelectWorkout={handleSelectWorkout}
+                    onSelectPasskategori={handleSelectPasskategori}
+                    onCreateNewWorkout={handleCreateNewWorkout}
+                    onStartBlock={handleStartBlock}
+                    onEditWorkout={handleEditWorkout}
+                    onDeleteWorkout={handleDeleteWorkout}
+                    onSaveWorkout={handleSaveAndNavigate}
+                    onSaveWorkoutNoNav={handleSaveOnly}
+                    onTogglePublish={handleTogglePublishStatus}
+                    onToggleFavorite={handleToggleFavoriteStatus}
+                    onDuplicateWorkout={handleDuplicateWorkout}
+                    onTimerFinish={handleTimerFinish}
                     
-                    saveCustomPage: handleSaveCustomPage,
-                    deleteCustomPage: handleDeleteCustomPage,
-                    editCustomPage: handleEditCustomPage,
+                    remoteCommand={remoteCommand}
                     
-                    editStudioConfig: handleEditStudioConfig,
-                    switchToStudioView: handleSwitchToStudioView,
-                    
-                    handleCoachAccessRequest: handleCoachAccessRequest,
-                    handleReturnToAdmin: handleReturnToAdminRequest, 
-                    handleGoToSystemOwner: () => setHistory([Page.SystemOwner]),
-                    setShowImage: (url) => setPreviewImageUrl(url),
-                    setTimerHeaderVisible: setIsTimerHeaderVisible,
-                    setBackButtonHidden: setIsBackButtonHidden,
-                    setRacePrepState: setRacePrepState,
-                    setCompletionInfo: setCompletionInfo,
-                    setRegisteringHyroxTime: setIsRegisteringHyroxTime,
-                    setFollowMeShowImage: setFollowMeShowImage,
-                    
-                    handleGeneratedWorkout: handleGeneratedWorkout,
-                    handleWorkoutInterpreted: handleWorkoutInterpretedFromNote,
-                    handleAdjustWorkout: handleAdjustWorkout,
-                    setAiGeneratorInitialTab: setAiGeneratorInitialTab,
-                    setCustomBackHandler: setCustomBackHandler,
-                    
-                    handleStartFreestandingTimer: handleStartFreestandingTimer,
-                    handleStartRace: handleStartRace,
-                    handleSelectRace: handleSelectRace,
-                    handleReturnToGroupPrep: handleReturnToGroupPrep,
-                    handleSelectCustomPage: handleSelectCustomPage,
-                    
-                    handleMemberProfileRequest: handleMemberProfileRequest,
-                    handleEditProfileRequest: handleEditProfileRequest,
-                    handleLogWorkoutRequest: handleLogWorkoutRequest
-                }}
-            />
+                    functions={{
+                        selectOrganization: handleSelectOrganization,
+                        createOrganization: handleCreateOrganization,
+                        deleteOrganization: handleDeleteOrganization,
+                        saveGlobalConfig: handleSaveGlobalConfig,
+                        createStudio: handleCreateStudio,
+                        updateStudio: handleUpdateStudio,
+                        deleteStudio: handleDeleteStudio,
+                        updatePasswords: handleUpdateOrganizationPasswords,
+                        updateLogos: handleUpdateOrganizationLogos,
+                        updateFavicon: handleUpdateOrganizationFavicon,
+                        updatePrimaryColor: handleUpdateOrganizationPrimaryColor,
+                        updateOrganization: handleUpdateOrganization,
+                        updateCustomPages: handleUpdateOrganizationCustomPages,
+                        updateInfoCarousel: handleUpdateOrganizationInfoCarousel,
+                        
+                        saveCustomPage: handleSaveCustomPage,
+                        deleteCustomPage: handleDeleteCustomPage,
+                        editCustomPage: handleEditCustomPage,
+                        
+                        editStudioConfig: handleEditStudioConfig,
+                        switchToStudioView: handleSwitchToStudioView,
+                        
+                        handleCoachAccessRequest: handleCoachAccessRequest,
+                        handleReturnToAdmin: handleReturnToAdminRequest, 
+                        handleGoToSystemOwner: () => setHistory([Page.SystemOwner]),
+                        setShowImage: (url) => setPreviewImageUrl(url),
+                        setTimerHeaderVisible: setIsTimerHeaderVisible,
+                        setBackButtonHidden: setIsBackButtonHidden,
+                        setRacePrepState: setRacePrepState,
+                        setCompletionInfo: setCompletionInfo,
+                        setRegisteringHyroxTime: setIsRegisteringHyroxTime,
+                        setFollowMeShowImage: setFollowMeShowImage,
+                        
+                        handleGeneratedWorkout: handleGeneratedWorkout,
+                        handleWorkoutInterpreted: handleWorkoutInterpretedFromNote,
+                        handleAdjustWorkout: handleAdjustWorkout,
+                        setAiGeneratorInitialTab: setAiGeneratorInitialTab,
+                        setCustomBackHandler: setCustomBackHandler,
+                        
+                        handleStartFreestandingTimer: handleStartFreestandingTimer,
+                        handleStartRace: handleStartRace,
+                        handleSelectRace: handleSelectRace,
+                        handleReturnToGroupPrep: handleReturnToGroupPrep,
+                        handleSelectCustomPage: handleSelectCustomPage,
+                        
+                        handleMemberProfileRequest: handleMemberProfileRequest,
+                        handleEditProfileRequest: handleEditProfileRequest,
+                        handleLogWorkoutRequest: handleLogWorkoutRequest
+                    }}
+                />
+            )}
             
-            {/* INVISIBLE REMOTE LISTENER: React to command state changes */}
             {remoteCommand && (
                 <div style={{ display: 'none' }} data-command={remoteCommand.type} data-timestamp={remoteCommand.timestamp} />
             )}
@@ -1356,7 +1275,6 @@ const App: React.FC = () => {
           )}
       </div>
       
-      {/* ... (Existing modals) ... */}
       <AnimatePresence>
           {isSearchWorkoutOpen && (
               <>

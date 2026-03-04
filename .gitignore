@@ -18,12 +18,15 @@ dist-ssr
 coverage
 
 # --- Security / Environment Variables (VIKTIGAST) ---
+# Detta blockerar alla .env-filer i både roten och i functions-mappen
 .env
+.env.*
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 *.local
+functions/.env*
 
 # --- Editor / IDE ---
 .vscode/*
@@ -40,6 +43,9 @@ coverage
 # --- Firebase ---
 .firebase/
 firebase-debug.log
+fireauth.log
+firestore-debug.log
+ui-debug.log
 
 # --- Netlify ---
 .netlify/
@@ -48,3 +54,4 @@ firebase-debug.log
 /test-results/
 /playwright-report/
 /blob-report/
+/test-results/
