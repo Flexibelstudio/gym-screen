@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useStudio } from '../context/StudioContext'; // Importerar StudioContext för att slå upp org-namn
 import { registerMemberWithCode } from '../services/firebaseService';
 import { resizeImage } from '../utils/imageUtils';
 import { CloseIcon } from './icons';
@@ -13,8 +12,7 @@ interface LoginScreenProps {
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
-    const { signIn, sendPasswordResetEmail } = useAuth();
-    const { allOrganizations } = useStudio(); // Hämtar alla organisationer för att kunna matcha ID -> Kod
+    const { signIn, signInAsStudio, sendPasswordResetEmail } = useAuth();
     const [view, setView] = useState<'login' | 'reset' | 'register'>('login');
     
     // UI States for Modals
@@ -50,32 +48,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
     const [regLoading, setRegLoading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // --- NY LOGIK: Hantera inbjudan från Pass-QR ---
+    // Kolla URL-parametrar vid start
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
-        
-        // 1. Kolla om vi har en direkt invite-kod (den korta)
-        const directCode = params.get('code'); 
-        
-        // 2. Kolla om vi har ett organizationId från pass-QR (invite-parametern)
-        const orgIdFromPass = params.get('invite');
-
-        if (directCode) {
-            setInviteCode(directCode.toUpperCase());
+        const invite = params.get('invite');
+        if (invite) {
+            setInviteCode(invite.toUpperCase());
             setView('register');
+            // Rensa URL:en så den ser snygg ut efteråt
             window.history.replaceState({}, document.title, window.location.pathname);
-        } 
-        else if (orgIdFromPass && allOrganizations.length > 0) {
-            // Om vi fick ett långt ID, försök hitta motsvarande korta inbjudningskod
-            const matchedOrg = allOrganizations.find(o => o.id === orgIdFromPass);
-            if (matchedOrg && matchedOrg.inviteCode) {
-                setInviteCode(matchedOrg.inviteCode.toUpperCase());
-                setView('register');
-                // Vi behåller eventuella log-parametrar i URL:en för App.tsx, 
-                // men rensar bara invite-id för att inte störa.
-            }
         }
-    }, [allOrganizations]); // Körs när organisationerna har laddats in
+    }, []);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -86,6 +69,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
             if (onClose) onClose();
         } catch (err) {
             setError('Inloggningen misslyckades. Kontrollera e-post och lösenord.');
+            console.error(err);
         } finally {
             setLoading(false);
         }
@@ -113,6 +97,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                 const base64 = await resizeImage(file, 400, 400, 0.8);
                 setProfileImage(base64);
             } catch (err) {
+                console.error("Failed to process image", err);
                 setRegError("Kunde inte läsa bilden.");
             }
         }
@@ -155,7 +140,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
             );
             if (onClose) onClose();
         } catch (err: any) {
-            setRegError(err.message || "Registrering misslyckades. Kontrollera koden.");
+            setRegError(err.message || "Registrering misslyckades. Kontrollera koden och försök igen.");
         } finally {
             setRegLoading(false);
         }
@@ -168,35 +153,63 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                 <p className="text-gray-400 mt-1">För administratörer och medlemmar</p>
             </div>
             
-            {error && <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg text-sm text-center mb-4">{error}</div>}
+            {error && (
+                <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-3 rounded-lg text-sm text-center mb-4">
+                    {error}
+                </div>
+            )}
 
             <div className="space-y-6">
                 <form onSubmit={handleLogin} className="space-y-6">
-                    <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="E-postadress"
-                        required
-                        className="w-full bg-black text-white p-4 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
-                    />
-                    <input
-                        type="password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Lösenord"
-                        required
-                        className="w-full bg-black text-white p-4 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
-                    />
-                    <div className="text-right text-sm">
-                        <button type="button" onClick={() => setView('reset')} className="text-primary/80 hover:text-primary">Glömt lösenord?</button>
+                    <div>
+                        <label htmlFor="email" className="sr-only">E-post</label>
+                        <input
+                            id="email"
+                            type="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            placeholder="E-postadress"
+                            required
+                            autoComplete="username"
+                            className="w-full bg-black text-white p-4 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                        />
                     </div>
-                    <button type="submit" disabled={loading} className="w-full bg-primary text-white font-bold py-4 rounded-lg disabled:bg-gray-600">
-                        {loading ? 'Loggar in...' : 'Logga in'}
-                    </button>
+                    <div>
+                        <label htmlFor="password-input" className="sr-only">Lösenord</label>
+                        <input
+                            id="password-input"
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Lösenord"
+                            required
+                            autoComplete="current-password"
+                            className="w-full bg-black text-white p-4 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                        />
+                    </div>
+                    
+                    <div className="text-right text-sm">
+                        <button type="button" onClick={() => setView('reset')} className="font-medium text-primary/80 hover:text-primary transition-colors">
+                            Glömt lösenord?
+                        </button>
+                    </div>
+
+                    <div>
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full bg-primary hover:brightness-95 text-white font-bold py-4 rounded-lg transition-colors disabled:bg-gray-600"
+                        >
+                            {loading ? 'Loggar in...' : 'Logga in'}
+                        </button>
+                    </div>
                 </form>
-                <div className="text-center text-sm text-gray-400">
-                    Har du inget konto? <button type="button" onClick={() => setView('register')} className="text-primary hover:text-white">Skapa ett här</button>
+                
+                <div className="text-center text-sm">
+                    <span className="text-gray-400">Har du inget konto? </span>
+                    <button type="button" onClick={() => setView('register')} className="font-medium text-primary hover:text-white transition-colors">
+                        Skapa ett med inbjudningskod
+                    </button>
                 </div>
             </div>
         </>
@@ -206,19 +219,41 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
         <>
             <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold text-white">Återställ lösenord</h2>
+                <p className="text-gray-400 mt-1">Ange din e-post så skickar vi en länk.</p>
             </div>
             <form onSubmit={handleResetPassword} className="space-y-6">
-                <input
-                    type="email"
-                    value={resetEmail}
-                    onChange={(e) => setResetEmail(e.target.value)}
-                    placeholder="E-postadress"
-                    required
-                    className="w-full bg-black text-white p-4 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary"
-                />
+                <div>
+                    <label htmlFor="reset-email" className="sr-only">E-post</label>
+                    <input
+                        id="reset-email"
+                        type="email"
+                        value={resetEmail}
+                        onChange={(e) => setResetEmail(e.target.value)}
+                        placeholder="E-postadress"
+                        required
+                        autoFocus
+                        className="w-full bg-black text-white p-4 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                    />
+                </div>
+                
                 {resetSuccess && <p className="text-green-400 text-sm text-center">{resetSuccess}</p>}
-                <button type="submit" disabled={resetLoading} className="w-full bg-primary text-white font-bold py-4 rounded-lg">Skicka länk</button>
-                <button type="button" onClick={() => setView('login')} className="w-full text-primary/80">Tillbaka</button>
+                {resetError && <p className="text-red-400 text-sm text-center">{resetError}</p>}
+
+                <div>
+                    <button
+                        type="submit"
+                        disabled={resetLoading}
+                        className="w-full bg-primary hover:brightness-95 text-white font-bold py-4 rounded-lg transition-colors disabled:bg-gray-600"
+                    >
+                        {resetLoading ? 'Skickar...' : 'Skicka återställningslänk'}
+                    </button>
+                </div>
+
+                <div className="text-center text-sm">
+                    <button type="button" onClick={() => setView('login')} className="font-medium text-primary/80 hover:text-primary transition-colors">
+                        &larr; Tillbaka till inloggning
+                    </button>
+                </div>
             </form>
         </>
     );
@@ -227,69 +262,172 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
         <>
             <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold text-white">Skapa konto</h2>
-                <p className="text-gray-400 mt-1">Fyll i dina uppgifter för att gå med.</p>
+                <p className="text-gray-400 mt-1">Fyll i dina uppgifter och inbjudningskod.</p>
             </div>
             <form onSubmit={handleRegister} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
                 
                 <div className="flex flex-col items-center mb-4">
                     <div 
-                        className="w-20 h-20 rounded-full bg-gray-800 border-2 border-gray-700 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary transition-colors relative"
+                        className="w-24 h-24 rounded-full bg-gray-800 border-2 border-gray-700 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary transition-colors relative group"
                         onClick={() => fileInputRef.current?.click()}
                     >
-                        {profileImage ? <img src={profileImage} alt="Profil" className="w-full h-full object-cover" /> : <CloseIcon className="w-8 h-8 text-gray-500 rotate-45" />}
+                        {profileImage ? (
+                            <img src={profileImage} alt="Profil" className="w-full h-full object-cover" />
+                        ) : (
+                            <svg className="w-10 h-10 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        )}
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                            <span className="text-xs text-white font-bold">Ändra</span>
+                        </div>
                     </div>
-                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
-                    <button type="button" onClick={() => fileInputRef.current?.click()} className="text-primary text-xs mt-2">Välj profilbild</button>
+                    <input 
+                        type="file" 
+                        ref={fileInputRef} 
+                        onChange={handleFileChange} 
+                        accept="image/*" 
+                        className="hidden" 
+                    />
+                    <button type="button" onClick={() => fileInputRef.current?.click()} className="text-primary text-sm mt-2 font-medium hover:underline">Välj profilbild</button>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                    <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Förnamn" required className="bg-black text-white p-3 rounded-md border border-gray-700" />
-                    <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Efternamn" required className="bg-black text-white p-3 rounded-md border border-gray-700" />
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Förnamn</label>
+                        <input
+                            type="text"
+                            value={firstName}
+                            onChange={(e) => setFirstName(e.target.value)}
+                            placeholder="Anna"
+                            required
+                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Efternamn</label>
+                        <input
+                            type="text"
+                            value={lastName}
+                            onChange={(e) => setLastName(e.target.value)}
+                            placeholder="Andersson"
+                            required
+                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                        />
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                    <input type="number" value={age} onChange={(e) => setAge(e.target.value)} placeholder="Ålder" className="bg-black text-white p-3 rounded-md border border-gray-700" />
-                    <select value={gender} onChange={(e) => setGender(e.target.value)} className="bg-black text-white p-3 rounded-md border border-gray-700">
-                        <option value="prefer_not_to_say">Kön</option>
-                        <option value="male">Man</option>
-                        <option value="female">Kvinna</option>
-                    </select>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Ålder</label>
+                        <input
+                            type="number"
+                            value={age}
+                            onChange={(e) => setAge(e.target.value)}
+                            placeholder="30"
+                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kön</label>
+                        <select
+                            value={gender}
+                            onChange={(e) => setGender(e.target.value)}
+                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition appearance-none"
+                        >
+                            <option value="prefer_not_to_say">Vill ej ange</option>
+                            <option value="male">Man</option>
+                            <option value="female">Kvinna</option>
+                            <option value="other">Annat</option>
+                        </select>
+                    </div>
                 </div>
 
-                <div className="bg-primary/10 p-4 rounded-lg border border-primary/20">
-                    <label className="block text-xs font-bold text-primary uppercase mb-1">Inbjudningskod</label>
+                <div>
+                    <label htmlFor="invite-code" className="block text-xs font-bold text-gray-500 uppercase mb-1">Inbjudningskod</label>
                     <input
+                        id="invite-code"
                         type="text"
                         value={inviteCode}
                         onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                        placeholder="KOD"
+                        placeholder="KOD (6 tecken)"
                         required
-                        className="w-full bg-black text-white p-3 rounded-md border border-primary/30 text-center font-mono tracking-widest text-lg"
+                        className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition text-center font-mono tracking-widest text-lg uppercase"
                         maxLength={6}
                     />
                 </div>
-
-                <input type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} placeholder="E-post" required className="w-full bg-black text-white p-3 rounded-md border border-gray-700" />
-                
+                <div>
+                    <label htmlFor="reg-email" className="block text-xs font-bold text-gray-500 uppercase mb-1">E-post</label>
+                    <input
+                        id="reg-email"
+                        type="email"
+                        value={regEmail}
+                        onChange={(e) => setRegEmail(e.target.value)}
+                        placeholder="din@email.com"
+                        required
+                        autoComplete="username"
+                        className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                    />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
-                    <input type="password" value={regPassword} onChange={(e) => setRegPassword(e.target.value)} placeholder="Lösenord" required className="bg-black text-white p-3 rounded-md border border-gray-700" />
-                    <input type="password" value={regConfirmPassword} onChange={(e) => setRegConfirmPassword(e.target.value)} placeholder="Bekräfta" required className="bg-black text-white p-3 rounded-md border border-gray-700" />
+                    <div>
+                        <label htmlFor="reg-password" className="block text-xs font-bold text-gray-500 uppercase mb-1">Lösenord</label>
+                        <input
+                            id="reg-password"
+                            type="password"
+                            value={regPassword}
+                            onChange={(e) => setRegPassword(e.target.value)}
+                            placeholder="Minst 6 tecken"
+                            required
+                            autoComplete="new-password"
+                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="reg-confirm-password" className="block text-xs font-bold text-gray-500 uppercase mb-1">Bekräfta</label>
+                        <input
+                            id="reg-confirm-password"
+                            type="password"
+                            value={regConfirmPassword}
+                            onChange={(e) => setRegConfirmPassword(e.target.value)}
+                            placeholder="Upprepa"
+                            required
+                            autoComplete="new-password"
+                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                        />
+                    </div>
                 </div>
 
-                {regError && <p className="text-red-400 text-xs text-center">{regError}</p>}
+                {regError && <p className="text-red-400 text-sm text-center">{regError}</p>}
 
+                {/* TERMS AND PRIVACY NOTE */}
                 <div className="py-2 text-center">
                     <p className="text-[10px] text-gray-500 leading-relaxed">
-                        Genom att skapa ett konto godkänner du våra <button type="button" onClick={() => setShowTerms(true)} className="text-primary hover:underline">Användarvillkor</button> och <button type="button" onClick={() => setShowPrivacy(true)} className="text-primary hover:underline">Integritetspolicy</button>.
+                        Genom att skapa ett konto godkänner du våra{' '}
+                        <button type="button" onClick={() => setShowTerms(true)} className="text-primary font-bold hover:underline">Användarvillkor</button>
+                        {' '}och bekräftar att du läst vara{' '}
+                        <button type="button" onClick={() => setShowPrivacy(true)} className="text-primary font-bold hover:underline">Integritetspolicy</button>.
                     </p>
                 </div>
 
-                <button type="submit" disabled={regLoading} className="w-full bg-primary text-white font-black py-4 rounded-lg shadow-lg">
-                    {regLoading ? 'Skapar konto...' : 'Gå med nu'}
-                </button>
+                <div className="pt-2">
+                    <button
+                        type="submit"
+                        disabled={regLoading}
+                        className="w-full bg-primary hover:brightness-110 text-white font-black py-4 rounded-lg transition-colors disabled:bg-gray-600 shadow-lg shadow-primary/20"
+                    >
+                        {regLoading ? 'Skapar konto...' : 'Gå med och logga in'}
+                    </button>
+                </div>
 
-                <button type="button" onClick={() => setView('login')} className="w-full text-sm text-gray-400 text-center">Har du redan ett konto? Logga in</button>
+                <div className="text-center text-sm pb-2">
+                    <button type="button" onClick={() => setView('login')} className="font-medium text-primary/80 hover:text-primary transition-colors">
+                        &larr; Har du redan ett konto? Logga in
+                    </button>
+                </div>
             </form>
+            
             <UserTermsModal isOpen={showTerms} onClose={() => setShowTerms(false)} />
             <PrivacyPolicyModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />
         </>
@@ -297,13 +435,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
 
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white p-4">
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="w-full max-w-md relative">
+            <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="w-full max-w-md relative"
+            >
                 {onClose && (
-                    <button onClick={onClose} className="absolute -top-12 right-0 text-white opacity-50 hover:opacity-100 transition-opacity">
+                    <button onClick={onClose} className="absolute -top-12 right-0 text-white hover:text-gray-300">
                         <CloseIcon className="w-8 h-8" />
                     </button>
                 )}
-                <div className="bg-gray-900 border border-gray-700 rounded-2xl p-8 max-h-[95vh] flex flex-col shadow-2xl overflow-hidden">
+                <div className="bg-gray-900 border border-gray-700 rounded-lg p-8 max-h-[95vh] flex flex-col shadow-2xl">
                     {view === 'login' && renderLoginView()}
                     {view === 'reset' && renderResetView()}
                     {view === 'register' && renderRegisterView()}
