@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma, StudioConfig, BenchmarkDefinition } from '../types';
 import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog } from '../services/firebaseService';
@@ -9,6 +8,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MyStrengthScreen } from './MyStrengthScreen';
 import { WorkoutDiplomaView } from './WorkoutDiplomaView';
 import { useStudio } from '../context/StudioContext';
+
+// --- NY IMPORT AV ER PAYWALL SCREEN ---
+import { PaywallScreen } from './PaywallScreen';
 
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
@@ -284,7 +286,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [isEditingGoals, setIsEditingGoals] = useState(false);
     const [isMyStrengthVisible, setIsMyStrengthVisible] = useState(false);
     const [viewingDiploma, setViewingDiploma] = useState<WorkoutDiploma | null>(null);
-    
     const [activeTab, setActiveTab] = useState<'overview' | 'benchmarks' | 'history'>('overview');
     
     // Resume session state
@@ -298,6 +299,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [photoUrl, setPhotoUrl] = useState(userData.photoUrl || '');
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // --- STRIPE PAYWALL LOGIC ---
+    const hasActiveSubscription = userData.subscriptionStatus === 'active' || userData.subscriptionStatus === 'trialing';
 
     useEffect(() => {
         if (profileEditTrigger > 0) setIsEditing(true);
@@ -521,6 +525,21 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     return (
         <div className="w-full max-w-4xl mx-auto px-1 sm:px-6 py-6 animate-fade-in pb-24">
             
+            {/* --- BETALVÄGG OCH LOGIK START --- */}
+            {!hasActiveSubscription && (
+                <PaywallScreen 
+                    onLogout={() => {
+                        if (functions && functions.handleLogout) {
+                            functions.handleLogout();
+                        } else {
+                            // En fallback om funktionen saknas
+                            window.location.reload();
+                        }
+                    }} 
+                />
+            )}
+            {/* --- BETALVÄGG SLUT --- */}
+
             {/* 1. Resume Workout Banner */}
             {activeSession && (
                 <ResumeWorkoutBanner 
