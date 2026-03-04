@@ -10,8 +10,8 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({ onLogout }) => {
     
     const handleSubscribe = async () => {
         try {
-            // TODO: Call backend to create Stripe Checkout Session
-            const response = await fetch('/api/create-checkout-session', {
+            // Använder din Firebase URL från Netlify's miljövariabler
+            const response = await fetch(`${import.meta.env.VITE_API_URL}/create-checkout-session`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -30,7 +30,7 @@ export const PaywallScreen: React.FC<PaywallScreenProps> = ({ onLogout }) => {
             }
         } catch (error) {
             console.error("Error starting checkout:", error);
-            alert('Ett fel uppstod. Försök igen senare.');
+            alert('Ett fel uppstod vid anslutning till servern. Försök igen senare.');
         }
     };
 
