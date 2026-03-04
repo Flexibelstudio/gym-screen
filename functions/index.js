@@ -381,7 +381,7 @@ function getStripe() {
 }
 
 // 1. WEBHOOKS - DENNA KOD UPPDATERAR DATABASEN!
-app.post("/webhook", express.raw({ type: 'application/json' }), async (req, res) => {
+app.post("/webhook", async (req, res) => {
   try {
     const stripe = getStripe();
     const sig = req.headers['stripe-signature'];
@@ -389,7 +389,8 @@ app.post("/webhook", express.raw({ type: 'application/json' }), async (req, res)
 
     let event;
     try {
-      event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
+      // FIREBASE FIX: Använder req.rawBody som Firebase skapar åt oss!
+      event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
     } catch (err) {
       console.error(`Webhook Error: ${err.message}`);
       return res.status(400).send(`Webhook Error: ${err.message}`);
