@@ -359,6 +359,11 @@ export interface UserData {
   age?: number;
   gender?: string;
   goals?: MemberGoals;
+  
+  // Subscription / Payment fields
+  subscriptionStatus?: 'active' | 'inactive' | 'trialing' | 'past_due' | 'canceled';
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
 }
 
 export interface SmartGoalDetail {
