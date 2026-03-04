@@ -22,7 +22,7 @@ export const WorkoutQRDisplay: React.FC<WorkoutQRDisplayProps> = ({
     const [payload, setPayload] = useState<WorkoutQRPayload | null>(null);
 
     useEffect(() => {
-        // Vi kräver nu explicit att organizationId finns för att generera koden
+        // Säkerställ att vi har både workoutId och organizationId innan vi skapar koden
         if (isEnabled && workoutId && organizationId) {
             setPayload({
                 oid: organizationId,
@@ -30,9 +30,6 @@ export const WorkoutQRDisplay: React.FC<WorkoutQRDisplayProps> = ({
                 ts: Date.now()
             });
         } else {
-            if (isEnabled) {
-                console.warn("WorkoutQRDisplay: Saknar workoutId eller organizationId", { workoutId, organizationId });
-            }
             setPayload(null);
         }
     }, [isEnabled, workoutId, organizationId]);
@@ -41,13 +38,14 @@ export const WorkoutQRDisplay: React.FC<WorkoutQRDisplayProps> = ({
         return null;
     }
 
-    // Skapa payload
+    // 1. Skapa Base64-payload för själva loggningen
     const encodedPayload = btoa(JSON.stringify(payload));
     
-    // Säkerställ att vi pekar på rätt domän. 
-    // Om vi är i produktion vill vi kanske alltid skicka dem till den skarpa domänen
+    // 2. Definiera bas-URL (använder nuvarande domän eller fallback)
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://gym-screen.netlify.app';
-    const qrValue = `${baseUrl}/?log=${encodedPayload}`;
+    
+    // 3. SKAPAR QR-VÄRDET: Vi lägger till invite-parametern så att LoginScreen kan läsa org-id direkt!
+    const qrValue = `${baseUrl}/?log=${encodedPayload}&invite=${organizationId}`;
 
     const qrElement = (
         <QRCode 
@@ -59,6 +57,7 @@ export const WorkoutQRDisplay: React.FC<WorkoutQRDisplayProps> = ({
         />
     );
 
+    // Om den visas inline (t.ex. i admin-listor)
     if (inline) {
         return (
             <div className="bg-white p-2 rounded-xl shadow-sm border border-gray-100 flex flex-col items-center gap-1 inline-block">
@@ -70,6 +69,7 @@ export const WorkoutQRDisplay: React.FC<WorkoutQRDisplayProps> = ({
         );
     }
 
+    // Portal-lösning för studioskärmen (TV-läge)
     const portalContent = (
         <div 
             className="fixed bottom-10 right-10 z-[9999] bg-white p-4 rounded-[2rem] shadow-[0_20px_50px_-15px_rgba(0,0,0,0.3)] flex flex-col items-center gap-2 transition-all duration-500 animate-fade-in border border-gray-100"
@@ -83,6 +83,8 @@ export const WorkoutQRDisplay: React.FC<WorkoutQRDisplayProps> = ({
                 <p className="text-primary font-black text-xl uppercase tracking-tighter leading-none">LOGGA</p>
                 <p className="text-gray-400 text-[8px] font-bold uppercase tracking-widest pt-1">Starta appen</p>
             </div>
+            
+            {/* Dekorativt hörn-element */}
             <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-primary rounded-tl-xl opacity-20"></div>
         </div>
     );
