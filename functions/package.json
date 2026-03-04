@@ -17,8 +17,10 @@
     "build": "echo skip build"
   },
   "dependencies": {
+    "express": "^5.2.1",
     "firebase-admin": "^12.0.0",
-    "firebase-functions": "^5.1.1"
+    "firebase-functions": "^5.1.1",
+    "stripe": "^20.4.0"
   },
   "devDependencies": {
     "eslint": "^8.57.0",

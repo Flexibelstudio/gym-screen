@@ -2,6 +2,10 @@ const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https")
 const { setGlobalOptions } = require("firebase-functions/v2");
 const admin = require("firebase-admin");
 
+// --- STRIPE & EXPRESS IMPORTER ---
+const express = require("express");
+const Stripe = require("stripe");
+
 admin.initializeApp();
 
 // Sätt regionen till us-central1 (standard)
@@ -58,7 +62,6 @@ const verifyAdminPrivileges = async (auth) => {
 
 // --- FUNKTION: Uppdatera Roll ---
 exports.flexUpdateUserRole = onCall(async (request) => {
-  // 1. Verifiera att den som anropar är Admin (eller Systemägare)
   const caller = await verifyAdminPrivileges(request.auth);
 
   const { targetUid, newRole } = request.data;
@@ -67,38 +70,31 @@ exports.flexUpdateUserRole = onCall(async (request) => {
     throw new HttpsError("invalid-argument", "Mål-UID och ny roll krävs.");
   }
 
-  // 2. Hämta den användare vi ska ändra på
   const targetUserDoc = await admin.firestore().collection("users").doc(targetUid).get();
   if (!targetUserDoc.exists) {
     throw new HttpsError("not-found", "Användaren finns inte.");
   }
   const targetUserData = targetUserDoc.data();
 
-  // 3. Säkerhetsregler: Vem får ändra vem?
   if (caller.role === "organizationadmin") {
-    // OrgAdmin får bara ändra folk i sin egen org
     if (targetUserData.organizationId !== caller.organizationId) {
       throw new HttpsError("permission-denied", "Du kan bara hantera din egen organisation.");
     }
-    // OrgAdmin får inte skapa systemägare
     if (newRole === "systemowner") {
       throw new HttpsError("permission-denied", "Behörighet saknas för att skapa systemägare.");
     }
   }
 
-  // 4. Uppdatera Auth (Custom Claims) - Detta fixar token för nästa gång
   const newClaims = {
     role: newRole,
     organizationId: targetUserData.organizationId
   };
-  // Lägg till extra admin-flagga för admins
   if (newRole === "organizationadmin") {
     newClaims.adminRole = "admin";
   }
 
   await admin.auth().setCustomUserClaims(targetUid, newClaims);
 
-  // 5. Uppdatera Databasen (Firestore)
   const firestoreUpdate = {
     role: newRole,
     updatedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -121,28 +117,24 @@ exports.flexInviteUser = onCall(async (request) => {
 
   const { email, role: inRole, organizationId, password } = request.data;
   
-  // Säkerställ att OrgAdmin bara skapar i sin egen org
   if (caller.role === "organizationadmin") {
     if (organizationId !== caller.organizationId) {
       throw new HttpsError("permission-denied", "Du kan bara bjuda in till din egen organisation.");
     }
   }
 
-  // Skapa användaren i Auth
   const userRecord = await admin.auth().createUser({
     email,
     password,
     emailVerified: false,
   });
 
-  // Sätt claims direkt
   const finalRole = inRole === "admin" ? "organizationadmin" : "coach";
   const claims = { role: finalRole, organizationId };
   if (inRole === "admin") claims.adminRole = "admin";
   
   await admin.auth().setCustomUserClaims(userRecord.uid, claims);
 
-  // Spara i Firestore
   const newUserDoc = {
     email,
     role: finalRole,
@@ -158,11 +150,8 @@ exports.flexInviteUser = onCall(async (request) => {
 
 /**
  * --- API-BRYGGA: Ta emot pass från externa system ---
- * Denna funktion är en vanlig HTTP endpoint (Webhook).
- * Den tar emot JSON-data, loggar passet och kollar efter Personbästa (PB).
  */
 exports.receiveExternalWorkout = onRequest(async (req, res) => {
-  // 1. CORS Headers (Tillåt anrop från din andra app)
   res.set('Access-Control-Allow-Origin', '*');
   
   if (req.method === 'OPTIONS') {
@@ -179,27 +168,21 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
 
   try {
     const data = req.body;
-    
-    // 2. Validering (Enkel säkerhetskoll)
-    // I en skarp version bör du byta ut "hemlig-nyckel" mot en env variabel eller hämta från databasen.
     const SECRET_KEY = "smart-skarm-bridge-secret"; 
     
     if (data.secretKey !== SECRET_KEY) {
-      console.warn("Unauthorized attempt to log workout");
       res.status(403).send('Unauthorized');
       return;
     }
 
     if (!data.organizationId || !data.user || !data.workout) {
-      res.status(400).send('Missing required fields (organizationId, user, workout)');
+      res.status(400).send('Missing required fields');
       return;
     }
 
     const db = admin.firestore();
     const { organizationId, user, workout } = data;
 
-    // 3. Hitta eller skapa användare i Smart Skärm
-    // Vi använder e-post för att matcha användare mellan systemen.
     let userId = null;
     let userPhotoUrl = null;
     let userName = user.name || "Okänd Atlet";
@@ -211,10 +194,8 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
       userId = userDoc.id;
       const userData = userDoc.data();
       userPhotoUrl = userData.photoUrl || null;
-      // Använd namnet från Smart Skärm om det finns, annars det inskickade
       userName = userData.firstName ? `${userData.firstName} ${userData.lastName || ''}` : userName;
     } else {
-      // Användaren finns inte - skapa en "Shadow User" så vi kan spara PBn
       const newUserRef = db.collection("users").doc();
       userId = newUserRef.id;
       await newUserRef.set({
@@ -223,13 +204,11 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
         lastName: user.name.split(" ").slice(1).join(" ") || "Användare",
         organizationId: organizationId,
         role: "member",
-        isExternal: true, // Flagga för att visa att denna kommer utifrån
+        isExternal: true,
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
-      console.log(`Created shadow user for ${user.email}`);
     }
 
-    // 4. Skapa loggen (Workout Log) -> Detta syns i Community Feed
     const logRef = db.collection("workoutLogs").doc();
     const logEntry = {
       id: logRef.id,
@@ -241,7 +220,6 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
       source: "external_api",
       memberName: userName,
       memberPhotoUrl: userPhotoUrl,
-      // Spara hela rådatan ifall vi vill visa detaljer senare
       exerciseResults: workout.exercises.map(ex => ({
         exerciseName: ex.name,
         weight: ex.weight || null,
@@ -254,7 +232,6 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
 
     await logRef.set(logEntry);
 
-    // 5. PB-Detektiven: Kolla efter nya rekord
     const newRecords = [];
     const pbCollectionRef = db.collection("users").doc(userId).collection("personalBests");
     const currentPBsSnap = await pbCollectionRef.get();
@@ -262,31 +239,26 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
     
     currentPBsSnap.forEach(doc => {
       const pb = doc.data();
-      // Normalisera nyckeln (små bokstäver, trim) för enklare matchning
       const key = pb.exerciseName.toLowerCase().trim();
       currentPBs[key] = pb.weight;
     });
 
     const batch = db.batch();
 
-    // Loopa genom inskickade övningar
     if (workout.exercises && Array.isArray(workout.exercises)) {
       for (const exercise of workout.exercises) {
         if (exercise.weight && exercise.weight > 0 && exercise.name) {
           const normName = exercise.name.toLowerCase().trim();
           const currentMax = currentPBs[normName] || 0;
 
-          // Om vikten är högre än nuvarande max -> NYTT PB!
           if (exercise.weight > currentMax) {
             const diff = exercise.weight - currentMax;
-            
-            // Skapa ett "säkert" ID för dokumentet
             const pbId = normName.replace(/[^a-z0-9]/g, "_");
             const pbRef = pbCollectionRef.doc(pbId);
 
             batch.set(pbRef, {
               id: pbId,
-              exerciseName: exercise.name, // Spara det "fina" namnet
+              exerciseName: exercise.name,
               weight: exercise.weight,
               date: Date.now(),
               source: "external"
@@ -302,37 +274,128 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
       }
     }
 
-    // 6. Om vi hittade nya rekord -> Skapa Event för TV-skärmen
     if (newRecords.length > 0) {
       const eventRef = db.collection("studio_events").doc();
       batch.set(eventRef, {
         id: eventRef.id,
-        type: "pb", // Detta triggar animationen i PBOverlay.tsx
+        type: "pb",
         organizationId: organizationId,
         timestamp: Date.now(),
-        data: {
-          userName: userName,
-          userPhotoUrl: userPhotoUrl,
-          records: newRecords
-        }
+        data: { userName, userPhotoUrl, records: newRecords }
       });
-      
-      // Uppdatera även loggen med PB-info för historikens skull
       batch.update(logRef, { newPBs: newRecords });
     }
 
-    // Kör alla DB-uppdateringar
     await batch.commit();
 
-    // 7. Klart!
-    res.json({ 
-      success: true, 
-      message: "Workout processed", 
-      newRecordsCount: newRecords.length 
-    });
-
+    res.json({ success: true, message: "Workout processed", newRecordsCount: newRecords.length });
   } catch (error) {
     console.error("Error processing external workout:", error);
     res.status(500).send("Internal Server Error");
   }
 });
+
+
+// ============================================================================
+// STRIPE API & EXPRESS SERVER (Ersätter gamla server.ts)
+// ============================================================================
+
+const app = express();
+
+// CORS Middleware - VIKTIGT för att Netlify ska få prata med Firebase
+app.use((req, res, next) => {
+  // Tillåt din staging-URL och din lokala Vite-URL under utveckling
+  const allowedOrigins = ['https://staging-smartskarm.netlify.app', 'http://localhost:5173'];
+  const origin = req.headers.origin;
+  
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
+
+// Hjälpfunktion för att ladda Stripe
+let stripeClient = null;
+function getStripe() {
+  if (!stripeClient) {
+    const key = process.env.STRIPE_SECRET_KEY;
+    if (!key) {
+      console.error("STRIPE_SECRET_KEY saknas i miljön!");
+      throw new Error('STRIPE_SECRET_KEY environment variable is required');
+    }
+    stripeClient = new Stripe(key, { apiVersion: '2024-04-10' });
+  }
+  return stripeClient;
+}
+
+// 1. WEBHOOKS (Måste ha raw body)
+app.post("/webhook", express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const stripe = getStripe();
+    // TODO: Implementera webhook-logik (uppdatera subscriptionStatus i databasen)
+    console.log("Webhook mottagen!");
+    res.json({ received: true });
+  } catch (error) {
+    console.error("Webhook error:", error);
+    res.status(400).send(`Webhook Error: ${error.message}`);
+  }
+});
+
+// 2. PARSE JSON FÖR RESTEN AV ROUTERNA
+app.use(express.json());
+
+// 3. CREATE CHECKOUT SESSION
+app.post("/create-checkout-session", async (req, res) => {
+  try {
+    console.log("Tar emot checkout request...");
+    const stripe = getStripe();
+    const { userId, organizationId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId saknas" });
+    }
+
+    const priceId = process.env.STRIPE_PRICE_ID;
+    if (!priceId) {
+      throw new Error("STRIPE_PRICE_ID saknas i miljön");
+    }
+
+    // Vart användaren ska omdirigeras
+    const domain = req.headers.origin || 'https://staging-smartskarm.netlify.app';
+
+    console.log(`Skapar session för användare ${userId} med pris ${priceId}`);
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'subscription',
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      success_url: `${domain}/?success=true`,
+      cancel_url: `${domain}/?canceled=true`,
+      client_reference_id: userId,
+      metadata: {
+        userId: userId,
+        organizationId: organizationId || 'unknown'
+      }
+    });
+
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error("Checkout session error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// EXPORTERA EXPRESS-APPEN SOM EN FIREBASE-FUNKTION
+exports.api = onRequest(app);
