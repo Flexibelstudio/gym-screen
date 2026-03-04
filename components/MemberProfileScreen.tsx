@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma, StudioConfig, BenchmarkDefinition } from '../types';
 import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog } from '../services/firebaseService';
@@ -75,6 +74,45 @@ const ResumeWorkoutBanner: React.FC<{
                 >
                     Fortsätt logga
                 </button>
+            </div>
+        </div>
+    </motion.div>
+);
+
+// --- NY KOMPONENT: Betalvägg ---
+const Paywall: React.FC<{ onPurchase: () => void, isProcessing: boolean }> = ({ onPurchase, isProcessing }) => (
+    <motion.div 
+        initial={{ opacity: 0 }} 
+        animate={{ opacity: 1 }}
+        className="fixed inset-0 z-[5000] flex items-center justify-center p-6 bg-white/90 dark:bg-gray-950/90 backdrop-blur-xl"
+    >
+        <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-[3rem] p-8 shadow-2xl border border-gray-100 dark:border-gray-800 text-center relative overflow-hidden">
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/10 rounded-full blur-3xl"></div>
+            
+            <div className="relative z-10">
+                <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                    <SparklesIcon className="w-10 h-10 text-primary animate-pulse" />
+                </div>
+                
+                <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-4 leading-tight uppercase tracking-tight">
+                    Dags att börja träna?
+                </h2>
+                
+                <p className="text-gray-500 dark:text-gray-400 mb-8 font-medium leading-relaxed">
+                    Välkommen! För att låsa upp dina pass, se din styrkeutveckling och börja logga din träning behöver du aktivera ditt medlemskap.
+                </p>
+
+                <button 
+                    onClick={onPurchase}
+                    disabled={isProcessing}
+                    className="w-full bg-primary hover:brightness-110 text-white font-black py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 text-lg uppercase tracking-widest disabled:opacity-50"
+                >
+                    {isProcessing ? "Laddar..." : "Köp Medlemskap"}
+                </button>
+                
+                <p className="mt-6 text-[10px] text-gray-400 uppercase tracking-widest font-bold">
+                    Ingen bindningstid • Avsluta när du vill
+                </p>
             </div>
         </div>
     </motion.div>
@@ -272,35 +310,6 @@ const LogDetailModal: React.FC<{ log: WorkoutLog, onClose: () => void, onUpdate:
     );
 };
 
-const Paywall: React.FC<{ onPurchase: () => void, isProcessing: boolean }> = ({ onPurchase, isProcessing }) => (
-    <motion.div 
-        initial={{ opacity: 0 }} 
-        animate={{ opacity: 1 }}
-        className="fixed inset-0 z-[5000] flex items-center justify-center p-6 bg-white/90 dark:bg-gray-950/90 backdrop-blur-xl"
-    >
-        <div className="w-full max-w-md bg-white dark:bg-gray-900 rounded-[3rem] p-8 shadow-2xl border border-gray-100 dark:border-gray-800 text-center relative overflow-hidden">
-            <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/10 rounded-full blur-3xl"></div>
-            <div className="relative z-10">
-                <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                    <SparklesIcon className="w-10 h-10 text-primary animate-pulse" />
-                </div>
-                <h2 className="text-3xl font-black text-gray-900 dark:text-white mb-4 leading-tight uppercase tracking-tight">Dags att börja träna?</h2>
-                <p className="text-gray-500 dark:text-gray-400 mb-8 font-medium leading-relaxed">
-                    Välkommen! För att låsa upp dina pass, se din styrkeutveckling och börja logga din träning behöver du aktivera ditt medlemskap.
-                </p>
-                <button 
-                    onClick={onPurchase}
-                    disabled={isProcessing}
-                    className="w-full bg-primary hover:brightness-110 text-white font-black py-5 rounded-2xl shadow-xl shadow-primary/20 transition-all transform active:scale-95 text-lg uppercase tracking-widest disabled:opacity-50"
-                >
-                    {isProcessing ? "Laddar..." : "Köp Medlemskap"}
-                </button>
-                <p className="mt-6 text-[10px] text-gray-400 uppercase tracking-widest font-bold">Ingen bindningstid • Avsluta när du vill</p>
-            </div>
-        </div>
-    </motion.div>
-);
-
 export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userData, onBack, profileEditTrigger, navigateTo, functions, studioConfig }) => {
     const { selectedOrganization } = useStudio();
     const isNewUser = !userData.firstName || !userData.organizationId;
@@ -314,14 +323,13 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [isMyStrengthVisible, setIsMyStrengthVisible] = useState(false);
     const [viewingDiploma, setViewingDiploma] = useState<WorkoutDiploma | null>(null);
     
-// --- STRIPE LOGIK START ---
+    // --- STRIPE LOGIK: Tillagd här ---
     const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
+    const hasActiveSubscription = userData.subscriptionStatus === 'active' || userData.subscriptionStatus === 'trialing';
 
     const handleCheckout = async () => {
         setIsProcessingCheckout(true);
         try {
-            // Vi anropar din backend. Se till att VITE_API_URL finns i din .env 
-            // eller byt ut mot din lokala adress: http://localhost:3001
             const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/create-checkout-session`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -344,9 +352,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             setIsProcessingCheckout(false);
         }
     };
-
-    const hasActiveSubscription = userData.subscriptionStatus === 'active' || userData.subscriptionStatus === 'trialing';
-    // --- STRIPE LOGIK SLUT ---
+    // --- SLUT PÅ STRIPE LOGIK ---
 
     const [activeTab, setActiveTab] = useState<'overview' | 'benchmarks' | 'history'>('overview');
     
@@ -584,15 +590,14 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     return (
         <div className="w-full max-w-4xl mx-auto px-1 sm:px-6 py-6 animate-fade-in pb-24">
             
-{/* --- BETALVÄGG START --- */}
+            {/* --- BETALVÄGG: Tillagd här --- */}
             {!hasActiveSubscription && (
                 <Paywall 
                     onPurchase={handleCheckout} 
                     isProcessing={isProcessingCheckout} 
                 />
             )}
-            {/* --- BETALVÄGG SLUT --- */}
-
+            
             {/* 1. Resume Workout Banner */}
             {activeSession && (
                 <ResumeWorkoutBanner 
