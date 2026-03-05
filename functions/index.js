@@ -336,3 +336,139 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
+
+
+// ============================================================================
+// STRIPE API & EXPRESS SERVER (Den nya delen)
+// ============================================================================
+
+const express = require("express");
+const Stripe = require("stripe");
+
+const app = express();
+
+// CORS Middleware - VIKTIGT för att Netlify ska få prata med Firebase
+app.use((req, res, next) => {
+  // Tillåt din staging-URL och din lokala Vite-URL under utveckling
+  const allowedOrigins = ['https://staging-smartskarm.netlify.app', 'http://localhost:5173'];
+  const origin = req.headers.origin;
+  
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
+
+// Hjälpfunktion för att ladda Stripe
+let stripeClient = null;
+function getStripe() {
+  if (!stripeClient) {
+    const key = process.env.STRIPE_SECRET_KEY;
+    if (!key) {
+      console.error("STRIPE_SECRET_KEY saknas i miljön!");
+      throw new Error('STRIPE_SECRET_KEY environment variable is required');
+    }
+    stripeClient = new Stripe(key, { apiVersion: '2024-04-10' });
+  }
+  return stripeClient;
+}
+
+// 1. WEBHOOKS - DENNA KOD UPPDATERAR DATABASEN!
+app.post("/webhook", async (req, res) => {
+  try {
+    const stripe = getStripe();
+    const sig = req.headers['stripe-signature'];
+    const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    let event;
+    try {
+      // FIREBASE FIX: Använder req.rawBody som Firebase skapar åt oss!
+      event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
+    } catch (err) {
+      console.error(`Webhook Error: ${err.message}`);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+
+    // Om betalningen var framgångsrik...
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      
+      // Hämta userId som vi skickade med när de klickade på knappen
+      const userId = session.metadata.userId;
+      
+      if (userId) {
+        console.log(`Uppdaterar användare ${userId} till aktiv!`);
+        // UPPDATERA FIREBASE SÅ BETALVÄGGEN FÖRSVINNER!
+        await admin.firestore().collection('users').doc(userId).update({
+          subscriptionStatus: 'active',
+          stripeCustomerId: session.customer,
+          stripeSubscriptionId: session.subscription
+        });
+      }
+    }
+
+    res.json({ received: true });
+  } catch (error) {
+    console.error("Webhook error:", error);
+    res.status(500).send(`Server Error`);
+  }
+});
+
+// 2. PARSE JSON FÖR RESTEN AV ROUTERNA
+app.use(express.json());
+
+// 3. CREATE CHECKOUT SESSION
+app.post("/create-checkout-session", async (req, res) => {
+  try {
+    console.log("Tar emot checkout request...");
+    const stripe = getStripe();
+    const { userId, organizationId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId saknas" });
+    }
+
+    const priceId = process.env.STRIPE_PRICE_ID;
+    if (!priceId) {
+      throw new Error("STRIPE_PRICE_ID saknas i miljön");
+    }
+
+    // Vart användaren ska omdirigeras
+    const domain = req.headers.origin || 'https://staging-smartskarm.netlify.app';
+
+    console.log(`Skapar session för användare ${userId} med pris ${priceId}`);
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card'],
+      mode: 'subscription',
+      line_items: [
+        {
+          price: priceId,
+          quantity: 1,
+        },
+      ],
+      success_url: `${domain}/?success=true`,
+      cancel_url: `${domain}/?canceled=true`,
+      client_reference_id: userId,
+      metadata: {
+        userId: userId,
+        organizationId: organizationId || 'unknown'
+      }
+    });
+
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error("Checkout session error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// EXPORTERA EXPRESS-APPEN SOM EN FIREBASE-FUNKTION
+exports.api = onRequest(app);

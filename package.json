@@ -7,12 +7,16 @@
     "node": "20"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "tsx server.ts",
     "build": "vite build",
+    "lint": "tsc --noEmit",
+    "start": "node server.ts",
     "preview": "vite preview"
   },
   "dependencies": {
     "@google/genai": "0.14.0",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
     "firebase": "9.23.0",
     "framer-motion": "11.2.12",
     "react": "18.3.1",
@@ -20,11 +24,14 @@
     "react-qr-code": "^2.0.18",
     "react-virtualized-auto-sizer": "1.0.24",
     "react-window": "1.8.10",
+    "stripe": "^20.4.0",
     "zod": "3.23.8"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^20.19.35",
     "@vitejs/plugin-react": "^5.0.0",
+    "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

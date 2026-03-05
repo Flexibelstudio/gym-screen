@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma, RemoteSessionState } from './types';
 
@@ -8,6 +7,9 @@ import { useWorkout } from './context/WorkoutContext';
 
 // --- ROUTER ---
 import { AppRouter } from './components/AppRouter';
+
+// --- PAYWALL ---
+import { PaywallScreen } from './components/PaywallScreen'; 
 
 // --- Services ---
 import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById } from './services/firebaseService';
@@ -68,6 +70,20 @@ const App: React.FC = () => {
   });
 
   const page = history[history.length - 1];
+
+  // --- NY LOGIK FÖR BETALVÄGG (Flyttad upp hit) ---
+  const hasActiveSubscription = useMemo(() => {
+      // Admins, Systemägare och Coacher slipper alltid betalvägg
+      if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
+      
+      // Kolla om status är active i databasen
+      if (userData?.subscriptionStatus === 'active') return true;
+      
+      return false;
+  }, [role, userData?.subscriptionStatus]);
+
+  // Visa bara paywall om användaren är inloggad, inte i studio-läge och INTE har aktivt abonnemang
+  const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription;
 
   // Global laddning inkluderar nu studioLoading för att täcka inläsning av organisationens data
   const isGlobalLoading = authLoading || studioLoading || (currentUser && !userData && !isStudioMode);
@@ -234,7 +250,7 @@ const App: React.FC = () => {
                navigateReplace(Page.Home);
                setActiveWorkout(null);
           }
-      }, [isStudioMode, selectedOrganization, selectedStudio, workouts, page, activeWorkout, activeBlock, navigateReplace]);
+      }, [isStudioMode, selectedOrganization, selectedStudio, workouts, page, activeWorkout, activeBlock, navigateReplace, setActiveWorkout]);
 
 
   const [customBackHandler, setCustomBackHandler] = useState<(() => void) | null>(null);
@@ -337,7 +353,7 @@ const App: React.FC = () => {
               const decoded = JSON.parse(atob(logPayload));
               if (decoded.wid && decoded.oid) {
                   setMobileLogData({ workoutId: decoded.wid, organizationId: decoded.oid });
-                  window.history.replaceState({}, document.title, window.location.pathname);
+                  // Vi rensar inte URL:en direkt så att mobileLogData finns kvar om användaren behöver gå genom betalväggen
               }
           } catch (e) {
               console.error("Failed to parse QR payload from URL", e);
@@ -471,24 +487,24 @@ const App: React.FC = () => {
         } 
         // If back from Preview -> Go to Idle, Set Remote State to Idle
         else if (page === Page.WorkoutDetail) {
-             updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-                 activeWorkoutId: null,
-                 view: 'idle',
-                 activeBlockId: null,
-                 lastUpdate: Date.now()
-             });
-             setActiveWorkout(null);
-             setActiveBlock(null);
-             navigateReplace(Page.Home);
-             return;
+              updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+                  activeWorkoutId: null,
+                  view: 'idle',
+                  activeBlockId: null,
+                  lastUpdate: Date.now()
+              });
+              setActiveWorkout(null);
+              setActiveBlock(null);
+              navigateReplace(Page.Home);
+              return;
         }
         else {
-             // Fallback: Clear completely
-             updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
-             setActiveWorkout(null);
-             setActiveBlock(null);
-             navigateReplace(Page.Home);
-             return;
+              // Fallback: Clear completely
+              updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
+              setActiveWorkout(null);
+              setActiveBlock(null);
+              navigateReplace(Page.Home);
+              return;
         }
     }
 
@@ -508,7 +524,7 @@ const App: React.FC = () => {
     }
     
     setHistory(newHistory);
-  }, [history, role, isImpersonating, customBackHandler, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio, page, activeWorkout]);
+  }, [history, role, isImpersonating, customBackHandler, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio, page, activeWorkout, navigateReplace]);
 
   const handleMemberProfileRequest = () => {
       if (isStudioMode) {
@@ -835,7 +851,7 @@ const App: React.FC = () => {
     } else if (activeWorkout) {
         setCompletionInfo({ workout: activeWorkout, isFinal: true, blockTag: activeWorkout.blocks[0]?.tag, finishTime: time });
     }
-  }, [completionInfo, handleBack, activeWorkout, activeBlock]);
+  }, [completionInfo, handleBack, activeWorkout, activeBlock, isStudioMode, navigateReplace, selectedOrganization, selectedStudio]);
 
   const handleCloseWorkoutCompleteModal = () => {
     if (!completionInfo) return;
@@ -890,6 +906,8 @@ const App: React.FC = () => {
   const handleCancelLog = (isSuccess?: boolean, diploma?: WorkoutDiploma) => {
       if (isSuccess === true) {
           setMobileLogData(null);
+          // NYTT: Rensa URL:en från log-payload när man är klar med loggningen
+          window.history.replaceState({}, document.title, window.location.pathname);
           if (diploma) {
               setActiveDiploma(diploma);
           }
@@ -902,6 +920,8 @@ const App: React.FC = () => {
       localStorage.removeItem('smart-skarm-active-log');
       setMobileLogData(null);
       setShowLogCancelModal(false);
+      // Rensa URL även vid avbruten loggning
+      window.history.replaceState({}, document.title, window.location.pathname);
   };
 
   const closeCancelModal = () => {
@@ -1219,8 +1239,8 @@ const App: React.FC = () => {
        {isStudioMode && <SpotlightOverlay />} 
        {isStudioMode && <PBOverlay />}
 
-       {/* HEADER VISIBILITY LOGIC UPDATED TO HIDE ON MODALS */}
-       {!isAnyModalOpen && (page === Page.Timer || !isFullScreenPage) && <Header 
+       {/* HEADER VISIBILITY LOGIC UPDATED TO HIDE ON MODALS OR PAYWALL */}
+       {!isAnyModalOpen && !showPaywall && (page === Page.Timer || !isFullScreenPage) && <Header 
         page={page} 
         onBack={handleBack} 
         theme={theme}
@@ -1243,7 +1263,11 @@ const App: React.FC = () => {
           <main 
             className={`flex-1 min-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
           >
-            <AppRouter 
+            {/* PAYWALL LOGIK: Visa antingen PaywallScreen eller AppRouter */}
+            {showPaywall ? (
+              <PaywallScreen onLogout={signOut} />
+            ) : (
+              <AppRouter 
                 page={page}
                 navigateTo={navigateTo}
                 handleBack={handleBack}
@@ -1284,7 +1308,6 @@ const App: React.FC = () => {
                 onDuplicateWorkout={handleDuplicateWorkout}
                 onTimerFinish={handleTimerFinish}
                 
-                // Pass command to AppRouter to distribute to screens
                 remoteCommand={remoteCommand}
                 
                 functions={{
@@ -1337,7 +1360,8 @@ const App: React.FC = () => {
                     handleEditProfileRequest: handleEditProfileRequest,
                     handleLogWorkoutRequest: handleLogWorkoutRequest
                 }}
-            />
+              />
+            )}
             
             {/* INVISIBLE REMOTE LISTENER: React to command state changes */}
             {remoteCommand && (
@@ -1443,6 +1467,7 @@ const App: React.FC = () => {
                                     onVisualize={() => {}}
                                     onLogWorkout={functions.handleLogWorkoutRequest}
                                     onClose={() => setMobileViewData(null)}
+                                    onHeaderVisibilityChange={functions.setTimerHeaderVisible}
                                 />
                              )}
                           </div>
@@ -1453,7 +1478,8 @@ const App: React.FC = () => {
       </AnimatePresence>
 
       <AnimatePresence>
-          {mobileLogData && (
+          {/* NYTT: Visa bara loggningsskärmen om användaren INTE blockeras av betalväggen */}
+          {mobileLogData && !showPaywall && (
               <>
                   <motion.div 
                       initial={{ opacity: 0 }}
@@ -1572,7 +1598,8 @@ const App: React.FC = () => {
        
        {showSupportChat && <SupportChat />}
 
-       {showScanButton && !mobileLogData && !mobileViewData && !isSearchWorkoutOpen && !isScannerOpen && (
+       {/* NYTT: Skanningsknapp döljs automatiskt om betalväggen visas */}
+       {showScanButton && !showPaywall && !mobileLogData && !mobileViewData && !isSearchWorkoutOpen && !isScannerOpen && (
           <div className="fixed bottom-6 right-6 z-[50]">
               <ScanButton 
                 onScan={() => setIsScannerOpen(true)} 
