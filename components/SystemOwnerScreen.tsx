@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Organization, SmartScreenPricing, InvoiceDetails, SeasonalThemeSetting, ThemeDateRange } from '../types';
 import { OvningsbankContent } from './OvningsbankContent';
-import { getSmartScreenPricing, updateSmartScreenPricing, updateOrganizationDiscount, updateOrganizationBilledStatus, undoLastBilling, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, restoreOrganization, deleteOrganizationPermanently } from '../services/firebaseService';
+import { getSmartScreenPricing, updateSmartScreenPricing, updateOrganizationDiscount, updateOrganizationFreeCoaches, updateOrganizationBilledStatus, undoLastBilling, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, restoreOrganization, deleteOrganizationPermanently } from '../services/firebaseService';
 import { PencilIcon, HomeIcon, BuildingIcon, SparklesIcon, ToggleSwitch, ChevronDownIcon, CloseIcon } from './icons';
 import { calculateInvoiceDetails } from '../utils/billing';
 import { SystemDashboardContent } from './admin/SystemDashboardContent';
@@ -22,14 +22,16 @@ interface OrganizationCardProps {
     onRestore?: () => void;
     onDeletePermanent?: () => void;
     onUpdateDiscount: (orgId: string, discount: { type: 'percentage' | 'fixed', value: number }) => Promise<void>;
+    onUpdateFreeCoaches: (orgId: string, count: number) => Promise<void>;
     onMarkAsBilled: (orgId: string, month: string) => void;
     onUndoBilling: (orgId: string) => void;
 }
 
-const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, pricing, onSelect, onArchive, onRestore, onDeletePermanent, onUpdateDiscount, onMarkAsBilled, onUndoBilling }) => {
+const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, pricing, onSelect, onArchive, onRestore, onDeletePermanent, onUpdateDiscount, onUpdateFreeCoaches, onMarkAsBilled, onUndoBilling }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>(org.discountType || 'percentage');
     const [discountValue, setDiscountValue] = useState(org.discountValue || org.discountPercentage || 0);
+    const [freeCoaches, setFreeCoaches] = useState(org.freeCoachAccounts || 0);
     const [isSaving, setIsSaving] = useState(false);
 
     const isArchived = org.status === 'archived';
@@ -37,7 +39,8 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, pri
     useEffect(() => {
         setDiscountType(org.discountType || 'percentage');
         setDiscountValue(org.discountValue || org.discountPercentage || 0);
-    }, [org.discountType, org.discountValue, org.discountPercentage]);
+        setFreeCoaches(org.freeCoachAccounts || 0);
+    }, [org.discountType, org.discountValue, org.discountPercentage, org.freeCoachAccounts]);
 
     const billingDetails = useMemo(() => {
         if (!pricing) return { currentInvoice: null, nextInvoicePrognosis: null };
@@ -59,8 +62,9 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, pri
         setIsSaving(true);
         try {
             await onUpdateDiscount(org.id, { type: discountType, value: discountValue });
+            await onUpdateFreeCoaches(org.id, freeCoaches);
         } catch (error) {
-            alert("Kunde inte spara rabatten.");
+            alert("Kunde inte spara inställningarna.");
         } finally {
             setIsSaving(false);
         }
@@ -167,21 +171,34 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, pri
                         </div>
                     </div>
                     <div className="bg-white dark:bg-black/20 p-4 rounded-lg">
-                        <h4 className="font-semibold text-gray-800 dark:text-white mb-2">Ange rabatt</h4>
-                        <div className="flex items-center gap-2">
-                             <input 
-                                id={`discount-${org.id}`}
-                                type="number" 
-                                value={discountValue}
-                                onChange={(e) => setDiscountValue(Number(e.target.value))}
-                                className="w-32 bg-white dark:bg-gray-900 text-black dark:text-white p-2 rounded-md border border-slate-300 dark:border-gray-600 text-right"
-                            />
-                            <div className="bg-slate-300 dark:bg-gray-700 p-1 rounded-lg flex text-sm">
-                                <button onClick={() => setDiscountType('percentage')} className={`px-3 py-1 rounded-md transition-colors ${discountType === 'percentage' ? 'bg-white dark:bg-black shadow font-semibold' : ''}`}>%</button>
-                                <button onClick={() => setDiscountType('fixed')} className={`px-3 py-1 rounded-md transition-colors ${discountType === 'fixed' ? 'bg-white dark:bg-black shadow font-semibold' : ''}`}>kr</button>
+                        <h4 className="font-semibold text-gray-800 dark:text-white mb-2">Inställningar (Rabatt & Coacher)</h4>
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <label className="text-sm text-gray-600 dark:text-gray-400 w-24">Rabatt:</label>
+                                <input 
+                                    id={`discount-${org.id}`}
+                                    type="number" 
+                                    value={discountValue}
+                                    onChange={(e) => setDiscountValue(Number(e.target.value))}
+                                    className="w-24 bg-white dark:bg-gray-900 text-black dark:text-white p-2 rounded-md border border-slate-300 dark:border-gray-600 text-right"
+                                />
+                                <div className="bg-slate-300 dark:bg-gray-700 p-1 rounded-lg flex text-sm">
+                                    <button onClick={() => setDiscountType('percentage')} className={`px-3 py-1 rounded-md transition-colors ${discountType === 'percentage' ? 'bg-white dark:bg-black shadow font-semibold' : ''}`}>%</button>
+                                    <button onClick={() => setDiscountType('fixed')} className={`px-3 py-1 rounded-md transition-colors ${discountType === 'fixed' ? 'bg-white dark:bg-black shadow font-semibold' : ''}`}>kr</button>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <label className="text-sm text-gray-600 dark:text-gray-400 w-32">Gratis coacher:</label>
+                                <input 
+                                    type="number" 
+                                    value={freeCoaches}
+                                    onChange={(e) => setFreeCoaches(Number(e.target.value))}
+                                    className="w-20 bg-white dark:bg-gray-900 text-black dark:text-white p-2 rounded-md border border-slate-300 dark:border-gray-600 text-right"
+                                />
+                                <span className="text-sm text-gray-500">st</span>
                             </div>
                              <button onClick={handleSaveDiscount} disabled={isSaving} className="ml-auto bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg text-sm disabled:opacity-50">
-                                {isSaving ? 'Sparar...' : 'Spara rabatt'}
+                                {isSaving ? 'Sparar...' : 'Spara inställningar'}
                             </button>
                         </div>
                     </div>
@@ -525,6 +542,11 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
         setLocalOrgs(prev => prev.map(o => o.id === orgId ? updatedOrg : o));
     }, []);
 
+    const handleUpdateFreeCoaches = useCallback(async (orgId: string, count: number) => {
+        const updatedOrg = await updateOrganizationFreeCoaches(orgId, count);
+        setLocalOrgs(prev => prev.map(o => o.id === orgId ? updatedOrg : o));
+    }, []);
+
     const handleMarkAsBilled = useCallback(async (orgId: string, monthToMarkAsBilled: string) => {
         if (!window.confirm(`Är du säker på att du vill markera denna period som fakturerad?`)) return;
         try {
@@ -669,6 +691,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                                                     onSelect={() => onSelectOrganization(org)}
                                                     onArchive={() => handleArchive(org)}
                                                     onUpdateDiscount={handleUpdateDiscount}
+                                                    onUpdateFreeCoaches={handleUpdateFreeCoaches}
                                                     onMarkAsBilled={handleMarkAsBilled}
                                                     onUndoBilling={handleUndoBilling}
                                                 />
@@ -692,6 +715,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                                                         onRestore={() => handleRestore(org)}
                                                         onDeletePermanent={() => handleDeletePermanent(org)}
                                                         onUpdateDiscount={handleUpdateDiscount}
+                                                        onUpdateFreeCoaches={handleUpdateFreeCoaches}
                                                         onMarkAsBilled={handleMarkAsBilled}
                                                         onUndoBilling={handleUndoBilling}
                                                     />
