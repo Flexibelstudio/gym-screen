@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { db } from '../firebase';
+import { db } from '../services/firebaseService';
 import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { CloseIcon } from './icons';
 
