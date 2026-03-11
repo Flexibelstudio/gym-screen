@@ -10,6 +10,7 @@ import { AppRouter } from './components/AppRouter';
 
 // --- PAYWALL ---
 import { PaywallScreen } from './components/PaywallScreen'; 
+import { WelcomePaywall } from './components/WelcomePaywall'; // NY: För gym-registrering
 
 // --- Services ---
 import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById } from './services/firebaseService';
@@ -24,6 +25,7 @@ import { ReAuthModal } from './components/ReAuthModal';
 import { StudioSelectionScreen } from './components/StudioSelectionScreen';
 import { StudioConfigModal } from './components/AdminConfigScreen';
 import { LoginScreen } from './components/LoginScreen';
+import { RegisterGymScreen } from './components/RegisterGymScreen'; // NY: För att skapa gym
 import { LandingPage } from './components/LandingPage';
 import { DeveloperToolbar } from './components/DeveloperToolbar';
 import { InfoCarouselBanner } from './components/InfoCarouselBanner';
@@ -61,6 +63,7 @@ const App: React.FC = () => {
   
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
   const [showLogin, setShowLogin] = useState(true);
+  const [showRegisterGym, setShowRegisterGym] = useState(false); // NY: State för gym-registrering
   
   const [history, setHistory] = useState<Page[]>(() => {
       if (isStudioMode) return [Page.Home];
@@ -71,7 +74,14 @@ const App: React.FC = () => {
 
   const page = history[history.length - 1];
 
-  // --- NY LOGIK FÖR BETALVÄGG (Flyttad upp hit) ---
+  // --- NY LOGIK FÖR SYSTEMAVGIFT (GYM-ÄGARE) ---
+  const showWelcomePaywall = useMemo(() => {
+      // Endast relevant för inloggad admin som inte betalat systemavgiften
+      if (!currentUser || role !== 'organizationadmin' || isStudioMode) return false;
+      return userData?.systemFeePaid === false;
+  }, [role, userData?.systemFeePaid, isStudioMode, currentUser]);
+
+  // --- NY LOGIK FÖR BETALVÄGG (MEDLEMMAR) ---
   const hasActiveSubscription = useMemo(() => {
       // Admins, Systemägare och Coacher slipper alltid betalvägg
       if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
@@ -82,8 +92,8 @@ const App: React.FC = () => {
       return false;
   }, [role, userData?.subscriptionStatus]);
 
-  // Visa bara paywall om användaren är inloggad, inte i studio-läge och INTE har aktivt abonnemang
-  const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription;
+  // Visa bara paywall om användaren är inloggad, inte i studio-läge, INTE har aktivt abonnemang och INTE blockeras av systemavgiften
+  const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription && !showWelcomePaywall;
 
   // Global laddning inkluderar nu studioLoading för att täcka inläsning av organisationens data
   const isGlobalLoading = authLoading || studioLoading || (currentUser && !userData && !isStudioMode);
@@ -1186,10 +1196,36 @@ const App: React.FC = () => {
           <RemoteControlScreen onBack={handleBack} />
       );
   }
+
+  // --- NY LOGIK FÖR SYSTEMAVGIFT (GYM-ÄGARE) ---
+  const showWelcomePaywall = useMemo(() => {
+      // Endast relevant för inloggad admin som inte betalat systemavgiften
+      if (!currentUser || role !== 'organizationadmin' || isStudioMode) return false;
+      return userData?.systemFeePaid === false;
+  }, [role, userData?.systemFeePaid, isStudioMode, currentUser]);
+
+  // --- NY LOGIK FÖR BETALVÄGG (MEDLEMMAR) ---
+  const hasActiveSubscription = useMemo(() => {
+      // Admins, Systemägare och Coacher slipper alltid betalvägg
+      if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
+      
+      // Kolla om status är active i databasen
+      if (userData?.subscriptionStatus === 'active') return true;
+      
+      return false;
+  }, [role, userData?.subscriptionStatus]);
+
+  // Visa bara paywall om användaren är inloggad, inte i studio-läge, INTE har aktivt abonnemang och INTE blockeras av systemavgiften
+  const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription && !showWelcomePaywall;
+
+  const [showRegisterGym, setShowRegisterGym] = useState(false);
   
   if (!authLoading && !currentUser && !isStudioMode) {
+      if (showRegisterGym) {
+          return <RegisterGymScreen onCancel={() => setShowRegisterGym(false)} />;
+      }
       if (showLogin) {
-          return <LoginScreen onClose={() => setShowLogin(false)} />;
+          return <LoginScreen onClose={() => setShowLogin(false)} onRegisterGym={() => setShowRegisterGym(true)} />;
       }
       return <LandingPage onLoginClick={() => setShowLogin(true)} />;
   }
@@ -1239,8 +1275,8 @@ const App: React.FC = () => {
        {isStudioMode && <SpotlightOverlay />} 
        {isStudioMode && <PBOverlay />}
 
-       {/* HEADER VISIBILITY LOGIC UPDATED TO HIDE ON MODALS OR PAYWALL */}
-       {!isAnyModalOpen && !showPaywall && (page === Page.Timer || !isFullScreenPage) && <Header 
+       {/* HEADER VISIBILITY LOGIC UPDATED TO HIDE ON MODALS ELLER PAYWALLS */}
+       {!isAnyModalOpen && !showPaywall && !showWelcomePaywall && (page === Page.Timer || !isFullScreenPage) && <Header 
         page={page} 
         onBack={handleBack} 
         theme={theme}
@@ -1263,11 +1299,13 @@ const App: React.FC = () => {
           <main 
             className={`flex-1 min-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
           >
-            {/* PAYWALL LOGIK: Visa antingen PaywallScreen eller AppRouter */}
-            {showPaywall ? (
-              <PaywallScreen onLogout={signOut} />
+            {/* PRIORITERING: WelcomePaywall (Gym-setup) -> Paywall (Medlemskap) -> AppRouter */}
+            {showWelcomePaywall ? (
+                <WelcomePaywall onLogout={signOut} userData={userData} />
+            ) : showPaywall ? (
+                <PaywallScreen onLogout={signOut} />
             ) : (
-              <AppRouter 
+                <AppRouter 
                 page={page}
                 navigateTo={navigateTo}
                 handleBack={handleBack}
@@ -1478,7 +1516,6 @@ const App: React.FC = () => {
       </AnimatePresence>
 
       <AnimatePresence>
-          {/* NYTT: Visa bara loggningsskärmen om användaren INTE blockeras av betalväggen */}
           {mobileLogData && !showPaywall && (
               <>
                   <motion.div 
@@ -1599,7 +1636,7 @@ const App: React.FC = () => {
        {showSupportChat && <SupportChat />}
 
        {/* NYTT: Skanningsknapp döljs automatiskt om betalväggen visas */}
-       {showScanButton && !showPaywall && !mobileLogData && !mobileViewData && !isSearchWorkoutOpen && !isScannerOpen && (
+       {showScanButton && !showPaywall && !showWelcomePaywall && !mobileLogData && !mobileViewData && !isSearchWorkoutOpen && !isScannerOpen && (
           <div className="fixed bottom-6 right-6 z-[50]">
               <ScanButton 
                 onScan={() => setIsScannerOpen(true)} 

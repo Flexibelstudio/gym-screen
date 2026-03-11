@@ -9,9 +9,10 @@ import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 
 interface LoginScreenProps {
     onClose?: () => void;
+    onRegisterGym?: () => void; // TILLAGD PROP
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym }) => {
     const { signIn, signInAsStudio, sendPasswordResetEmail } = useAuth();
     const [view, setView] = useState<'login' | 'reset' | 'register'>('login');
     
@@ -170,7 +171,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="E-postadress"
                             required
-                            autoComplete="username"
                             className="w-full bg-black text-white p-4 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                     </div>
@@ -183,7 +183,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="Lösenord"
                             required
-                            autoComplete="current-password"
                             className="w-full bg-black text-white p-4 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                     </div>
@@ -205,11 +204,25 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                     </div>
                 </form>
                 
-                <div className="text-center text-sm">
-                    <span className="text-gray-400">Har du inget konto? </span>
-                    <button type="button" onClick={() => setView('register')} className="font-medium text-primary hover:text-white transition-colors">
-                        Skapa ett med inbjudningskod
-                    </button>
+                <div className="text-center text-sm space-y-4">
+                    <div>
+                        <span className="text-gray-400">Har du inget konto? </span>
+                        <button type="button" onClick={() => setView('register')} className="font-medium text-primary hover:text-white transition-colors">
+                            Skapa ett med inbjudningskod
+                        </button>
+                    </div>
+
+                    {/* --- NY SEKTION FÖR GYM-REGISTRERING --- */}
+                    <div className="pt-4 border-t border-gray-800">
+                        <p className="text-xs text-gray-500 mb-2 uppercase font-bold tracking-wider">Vill du ansluta ditt gym?</p>
+                        <button 
+                            type="button" 
+                            onClick={onRegisterGym}
+                            className="text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 px-6 py-2 rounded-full text-sm font-bold transition-all active:scale-95"
+                        >
+                            Registrera din verksamhet här
+                        </button>
+                    </div>
                 </div>
             </div>
         </>
@@ -406,7 +419,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                     <p className="text-[10px] text-gray-500 leading-relaxed">
                         Genom att skapa ett konto godkänner du våra{' '}
                         <button type="button" onClick={() => setShowTerms(true)} className="text-primary font-bold hover:underline">Användarvillkor</button>
-                        {' '}och bekräftar att du läst vara{' '}
+                        {' '}och bekräftar att du läst våra{' '}
                         <button type="button" onClick={() => setShowPrivacy(true)} className="text-primary font-bold hover:underline">Integritetspolicy</button>.
                     </p>
                 </div>

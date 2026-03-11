@@ -158,6 +158,8 @@ exports.flexInviteUser = onCall(async (request) => {
 
 /**
  * --- API-BRYGGA: Ta emot pass från externa system ---
+ * Denna funktion är en vanlig HTTP endpoint (Webhook).
+ * Den tar emot JSON-data, loggar passet och kollar efter Personbästa (PB).
  */
 exports.receiveExternalWorkout = onRequest(async (req, res) => {
   // 1. CORS Headers (Tillåt anrop från din andra app)
@@ -177,6 +179,9 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
 
   try {
     const data = req.body;
+    
+    // 2. Validering (Enkel säkerhetskoll)
+    // I en skarp version bör du byta ut "hemlig-nyckel" mot en env variabel eller hämta från databasen.
     const SECRET_KEY = "smart-skarm-bridge-secret"; 
     
     if (data.secretKey !== SECRET_KEY) {
@@ -193,6 +198,8 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
     const db = admin.firestore();
     const { organizationId, user, workout } = data;
 
+    // 3. Hitta eller skapa användare i Smart Skärm
+    // Vi använder e-post för att matcha användare mellan systemen.
     let userId = null;
     let userPhotoUrl = null;
     let userName = user.name || "Okänd Atlet";
@@ -204,8 +211,10 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
       userId = userDoc.id;
       const userData = userDoc.data();
       userPhotoUrl = userData.photoUrl || null;
+      // Använd namnet från Smart Skärm om det finns, annars det inskickade
       userName = userData.firstName ? `${userData.firstName} ${userData.lastName || ''}` : userName;
     } else {
+      // Användaren finns inte - skapa en "Shadow User" så vi kan spara PBn
       const newUserRef = db.collection("users").doc();
       userId = newUserRef.id;
       await newUserRef.set({
@@ -214,12 +223,13 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
         lastName: user.name.split(" ").slice(1).join(" ") || "Användare",
         organizationId: organizationId,
         role: "member",
-        isExternal: true,
+        isExternal: true, // Flagga för att visa att denna kommer utifrån
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
       console.log(`Created shadow user for ${user.email}`);
     }
 
+    // 4. Skapa loggen (Workout Log) -> Detta syns i Community Feed
     const logRef = db.collection("workoutLogs").doc();
     const logEntry = {
       id: logRef.id,
@@ -231,6 +241,7 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
       source: "external_api",
       memberName: userName,
       memberPhotoUrl: userPhotoUrl,
+      // Spara hela rådatan ifall vi vill visa detaljer senare
       exerciseResults: workout.exercises.map(ex => ({
         exerciseName: ex.name,
         weight: ex.weight || null,
@@ -243,6 +254,7 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
 
     await logRef.set(logEntry);
 
+    // 5. PB-Detektiven: Kolla efter nya rekord
     const newRecords = [];
     const pbCollectionRef = db.collection("users").doc(userId).collection("personalBests");
     const currentPBsSnap = await pbCollectionRef.get();
@@ -250,26 +262,31 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
     
     currentPBsSnap.forEach(doc => {
       const pb = doc.data();
+      // Normalisera nyckeln (små bokstäver, trim) för enklare matchning
       const key = pb.exerciseName.toLowerCase().trim();
       currentPBs[key] = pb.weight;
     });
 
     const batch = db.batch();
 
+    // Loopa genom inskickade övningar
     if (workout.exercises && Array.isArray(workout.exercises)) {
       for (const exercise of workout.exercises) {
         if (exercise.weight && exercise.weight > 0 && exercise.name) {
           const normName = exercise.name.toLowerCase().trim();
           const currentMax = currentPBs[normName] || 0;
 
+          // Om vikten är högre än nuvarande max -> NYTT PB!
           if (exercise.weight > currentMax) {
             const diff = exercise.weight - currentMax;
+            
+            // Skapa ett "säkert" ID för dokumentet
             const pbId = normName.replace(/[^a-z0-9]/g, "_");
             const pbRef = pbCollectionRef.doc(pbId);
 
             batch.set(pbRef, {
               id: pbId,
-              exerciseName: exercise.name,
+              exerciseName: exercise.name, // Spara det "fina" namnet
               weight: exercise.weight,
               date: Date.now(),
               source: "external"
@@ -285,11 +302,12 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
       }
     }
 
+    // 6. Om vi hittade nya rekord -> Skapa Event för TV-skärmen
     if (newRecords.length > 0) {
       const eventRef = db.collection("studio_events").doc();
       batch.set(eventRef, {
         id: eventRef.id,
-        type: "pb",
+        type: "pb", // Detta triggar animationen i PBOverlay.tsx
         organizationId: organizationId,
         timestamp: Date.now(),
         data: {
@@ -298,11 +316,15 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
           records: newRecords
         }
       });
+      
+      // Uppdatera även loggen med PB-info för historikens skull
       batch.update(logRef, { newPBs: newRecords });
     }
 
+    // Kör alla DB-uppdateringar
     await batch.commit();
 
+    // 7. Klart!
     res.json({ 
       success: true, 
       message: "Workout processed", 
@@ -317,7 +339,7 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
 
 
 // ============================================================================
-// STRIPE API & EXPRESS SERVER
+// STRIPE API & EXPRESS SERVER (Den nya delen)
 // ============================================================================
 
 const express = require("express");
@@ -325,13 +347,13 @@ const Stripe = require("stripe");
 
 const app = express();
 
-// CORS Middleware
+// CORS Middleware - VIKTIGT för att Netlify ska få prata med Firebase
 app.use((req, res, next) => {
-  // UPPDATERAD: Tillåt din riktiga prod-domän
+  // Tillåt din staging-URL och din lokala Vite-URL under utveckling
   const allowedOrigins = [
     'https://staging-smartskarm.netlify.app', 
-    'https://smartskarm.netlify.app', // Om Netlify-domänen används direkt
-    'https://smartskarm.se',           // DIN PROD-DOMÄN
+    'https://smartskarm.netlify.app', 
+    'https://smartskarm.se', 
     'http://localhost:5173'
   ];
   const origin = req.headers.origin;
@@ -349,6 +371,7 @@ app.use((req, res, next) => {
   next();
 });
 
+// Hjälpfunktion för att ladda Stripe
 let stripeClient = null;
 function getStripe() {
   if (!stripeClient) {
@@ -362,7 +385,7 @@ function getStripe() {
   return stripeClient;
 }
 
-// 1. WEBHOOKS
+// 1. WEBHOOKS - DENNA KOD UPPDATERAR DATABASEN!
 app.post("/webhook", async (req, res) => {
   try {
     const stripe = getStripe();
@@ -371,23 +394,38 @@ app.post("/webhook", async (req, res) => {
 
     let event;
     try {
+      // FIREBASE FIX: Använder req.rawBody som Firebase skapar åt oss!
       event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
     } catch (err) {
       console.error(`Webhook Error: ${err.message}`);
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
+    // Om betalningen var framgångsrik...
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
+      
+      // Hämta userId som vi skickade med när de klickade på knappen
       const userId = session.metadata.userId;
+      const paymentType = session.metadata.paymentType;
       
       if (userId) {
-        console.log(`Uppdaterar användare ${userId} till aktiv!`);
-        await admin.firestore().collection('users').doc(userId).update({
-          subscriptionStatus: 'active',
-          stripeCustomerId: session.customer,
-          stripeSubscriptionId: session.subscription
-        });
+        console.log(`Uppdaterar användare ${userId} baserat på betalningstyp: ${paymentType}`);
+        
+        const updateData = {
+          stripeCustomerId: session.customer
+        };
+
+        // NYTT: Differentiera uppdateringen baserat på vad de köpte
+        if (paymentType === 'system_fee') {
+          updateData.systemFeePaid = true;
+          updateData.systemFeeDate = admin.firestore.FieldValue.serverTimestamp();
+        } else {
+          updateData.subscriptionStatus = 'active';
+          updateData.stripeSubscriptionId = session.subscription;
+        }
+
+        await admin.firestore().collection('users').doc(userId).update(updateData);
       }
     }
 
@@ -398,6 +436,7 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
+// 2. PARSE JSON FÖR RESTEN AV ROUTERNA
 app.use(express.json());
 
 // 3. CREATE CHECKOUT SESSION
@@ -405,25 +444,33 @@ app.post("/create-checkout-session", async (req, res) => {
   try {
     console.log("Tar emot checkout request...");
     const stripe = getStripe();
-    const { userId, organizationId } = req.body;
+    const { userId, organizationId, paymentType } = req.body;
 
     if (!userId) {
       return res.status(400).json({ error: "userId saknas" });
     }
 
-    const priceId = process.env.STRIPE_PRICE_ID;
-    if (!priceId) {
-      throw new Error("STRIPE_PRICE_ID saknas i miljön");
+    // NY LOGIK: Välj pris-ID och betalningsläge baserat på paymentType
+    let priceId = process.env.STRIPE_PRICE_ID; // Default: Medlemskap
+    let mode = 'subscription';
+
+    if (paymentType === 'system_fee') {
+      priceId = process.env.STRIPE_SYSTEM_FEE_PRICE_ID;
+      mode = 'payment'; // Engångsköp
     }
 
-    // JUSTERAD: Din prod-domän som fallback
+    if (!priceId) {
+      throw new Error("Kunde inte hitta giltigt Price ID i miljön");
+    }
+
+    // Vart användaren ska omdirigeras
     const domain = req.headers.origin || 'https://smartskarm.se';
 
-    console.log(`Skapar session för användare ${userId} med pris ${priceId}`);
+    console.log(`Skapar ${mode}-session för användare ${userId} med pris ${priceId}`);
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      mode: 'subscription',
+      mode: mode,
       allow_promotion_codes: true,
       line_items: [
         {
@@ -431,12 +478,13 @@ app.post("/create-checkout-session", async (req, res) => {
           quantity: 1,
         },
       ],
-      success_url: `${domain}/?success=true`,
+      success_url: `${domain}/?success=true&type=${paymentType || 'sub'}`,
       cancel_url: `${domain}/?canceled=true`,
       client_reference_id: userId,
       metadata: {
         userId: userId,
-        organizationId: organizationId || 'unknown'
+        organizationId: organizationId || 'unknown',
+        paymentType: paymentType || 'subscription'
       }
     });
 
@@ -447,4 +495,5 @@ app.post("/create-checkout-session", async (req, res) => {
   }
 });
 
+// EXPORTERA EXPRESS-APPEN SOM EN FIREBASE-FUNKTION
 exports.api = onRequest(app);
