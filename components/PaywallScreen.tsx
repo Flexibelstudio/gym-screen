@@ -1,7 +1,58 @@
-
-import React from 'react';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Organization } from '../../types';
 
+// --- NY EXPORT: PAYWALL SCREEN (Dörrvakten) ---
+export const PaywallScreen: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
+    const [loading, setLoading] = useState(false);
+
+    const handleSubscribe = async () => {
+        setLoading(true);
+        try {
+            const response = await fetch('https://api-632314644342.us-central1.run.app/api/create-checkout-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    paymentType: 'subscription' 
+                }),
+            });
+            const data = await response.json();
+            if (data.url) window.location.href = data.url;
+        } catch (error) {
+            console.error("Betalningsfel:", error);
+            alert("Kunde inte starta betalning.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
+            <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="max-w-md w-full bg-gray-900 border border-gray-800 rounded-[2.5rem] p-10 shadow-2xl"
+            >
+                <h2 className="text-3xl font-black text-white mb-4">Aktivera Medlemskap</h2>
+                <p className="text-gray-400 mb-8">Få full tillgång till alla träningspass och funktioner för endast 39 kr/mån.</p>
+                
+                <button
+                    onClick={handleSubscribe}
+                    disabled={loading}
+                    className="w-full bg-primary text-white font-black py-4 rounded-2xl text-lg mb-4 hover:brightness-110 transition-all active:scale-95"
+                >
+                    {loading ? 'Laddar...' : 'STARTA PRENUMERATION'}
+                </button>
+
+                <button onClick={onLogout} className="text-gray-500 hover:text-white text-sm transition-colors">
+                    Logga ut
+                </button>
+            </motion.div>
+        </div>
+    );
+};
+
+// --- DIN BEFINTLIGA KOMPONENT (Företagsinfo) ---
 export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: () => void }> = ({ organization, onEdit }) => {
     const { companyDetails } = organization;
     const hasDetails = companyDetails && (companyDetails.legalName || companyDetails.orgNumber);
