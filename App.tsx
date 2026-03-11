@@ -10,7 +10,7 @@ import { AppRouter } from './components/AppRouter';
 
 // --- PAYWALL ---
 import { PaywallScreen } from './components/PaywallScreen'; 
-import { WelcomePaywall } from './components/WelcomePaywall'; // NY: För gym-registrering
+import { WelcomePaywall } from './components/WelcomePaywall'; // NY IMPORT
 
 // --- Services ---
 import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById } from './services/firebaseService';
@@ -25,7 +25,7 @@ import { ReAuthModal } from './components/ReAuthModal';
 import { StudioSelectionScreen } from './components/StudioSelectionScreen';
 import { StudioConfigModal } from './components/AdminConfigScreen';
 import { LoginScreen } from './components/LoginScreen';
-import { RegisterGymScreen } from './components/RegisterGymScreen'; // NY: För att skapa gym
+import { RegisterGymScreen } from './components/RegisterGymScreen'; // NY IMPORT
 import { LandingPage } from './components/LandingPage';
 import { DeveloperToolbar } from './components/DeveloperToolbar';
 import { InfoCarouselBanner } from './components/InfoCarouselBanner';
@@ -63,7 +63,7 @@ const App: React.FC = () => {
   
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
   const [showLogin, setShowLogin] = useState(true);
-  const [showRegisterGym, setShowRegisterGym] = useState(false); // NY: State för gym-registrering
+  const [showRegisterGym, setShowRegisterGym] = useState(false); // NY STATE
   
   const [history, setHistory] = useState<Page[]>(() => {
       if (isStudioMode) return [Page.Home];
@@ -76,7 +76,6 @@ const App: React.FC = () => {
 
   // --- NY LOGIK FÖR SYSTEMAVGIFT (GYM-ÄGARE) ---
   const showWelcomePaywall = useMemo(() => {
-      // Endast relevant för inloggad admin som inte betalat systemavgiften
       if (!currentUser || role !== 'organizationadmin' || isStudioMode) return false;
       return userData?.systemFeePaid === false;
   }, [role, userData?.systemFeePaid, isStudioMode, currentUser]);
@@ -92,7 +91,7 @@ const App: React.FC = () => {
       return false;
   }, [role, userData?.subscriptionStatus]);
 
-  // Visa bara paywall om användaren är inloggad, inte i studio-läge, INTE har aktivt abonnemang och INTE blockeras av systemavgiften
+  // Visa bara paywall om användaren är inloggad, inte i studio-läge och INTE har aktivt abonnemang
   const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription && !showWelcomePaywall;
 
   // Global laddning inkluderar nu studioLoading för att täcka inläsning av organisationens data
@@ -1196,30 +1195,8 @@ const App: React.FC = () => {
           <RemoteControlScreen onBack={handleBack} />
       );
   }
-
-  // --- NY LOGIK FÖR SYSTEMAVGIFT (GYM-ÄGARE) ---
-  const showWelcomePaywall = useMemo(() => {
-      // Endast relevant för inloggad admin som inte betalat systemavgiften
-      if (!currentUser || role !== 'organizationadmin' || isStudioMode) return false;
-      return userData?.systemFeePaid === false;
-  }, [role, userData?.systemFeePaid, isStudioMode, currentUser]);
-
-  // --- NY LOGIK FÖR BETALVÄGG (MEDLEMMAR) ---
-  const hasActiveSubscription = useMemo(() => {
-      // Admins, Systemägare och Coacher slipper alltid betalvägg
-      if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
-      
-      // Kolla om status är active i databasen
-      if (userData?.subscriptionStatus === 'active') return true;
-      
-      return false;
-  }, [role, userData?.subscriptionStatus]);
-
-  // Visa bara paywall om användaren är inloggad, inte i studio-läge, INTE har aktivt abonnemang och INTE blockeras av systemavgiften
-  const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription && !showWelcomePaywall;
-
-  const [showRegisterGym, setShowRegisterGym] = useState(false);
   
+  // NYTT: Render-logik för Registrering
   if (!authLoading && !currentUser && !isStudioMode) {
       if (showRegisterGym) {
           return <RegisterGymScreen onCancel={() => setShowRegisterGym(false)} />;
@@ -1275,7 +1252,7 @@ const App: React.FC = () => {
        {isStudioMode && <SpotlightOverlay />} 
        {isStudioMode && <PBOverlay />}
 
-       {/* HEADER VISIBILITY LOGIC UPDATED TO HIDE ON MODALS ELLER PAYWALLS */}
+       {/* HEADER VISIBILITY LOGIC UPDATED TO HIDE ON MODALS OR PAYWALL */}
        {!isAnyModalOpen && !showPaywall && !showWelcomePaywall && (page === Page.Timer || !isFullScreenPage) && <Header 
         page={page} 
         onBack={handleBack} 
@@ -1299,13 +1276,13 @@ const App: React.FC = () => {
           <main 
             className={`flex-1 min-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
           >
-            {/* PRIORITERING: WelcomePaywall (Gym-setup) -> Paywall (Medlemskap) -> AppRouter */}
+            {/* PRIORITERING: WelcomePaywall (Setup) -> Paywall (Medlem) -> AppRouter */}
             {showWelcomePaywall ? (
                 <WelcomePaywall onLogout={signOut} userData={userData} />
             ) : showPaywall ? (
-                <PaywallScreen onLogout={signOut} />
+              <PaywallScreen onLogout={signOut} />
             ) : (
-                <AppRouter 
+              <AppRouter 
                 page={page}
                 navigateTo={navigateTo}
                 handleBack={handleBack}
@@ -1354,15 +1331,15 @@ const App: React.FC = () => {
                     deleteOrganization: handleDeleteOrganization,
                     saveGlobalConfig: handleSaveGlobalConfig,
                     createStudio: handleCreateStudio,
-                    updateStudio: handleUpdateStudio,
-                    deleteStudio: handleDeleteStudio,
-                    updatePasswords: handleUpdateOrganizationPasswords,
-                    updateLogos: handleUpdateOrganizationLogos,
-                    updateFavicon: handleUpdateOrganizationFavicon,
-                    updatePrimaryColor: handleUpdateOrganizationPrimaryColor,
+                    updateStudio: updateStudio,
+                    deleteStudio: deleteStudio,
+                    updatePasswords: updateOrganizationPasswords,
+                    updateLogos: updateOrganizationLogos,
+                    updateFavicon: updateOrganizationFavicon,
+                    updatePrimaryColor: updateOrganizationPrimaryColor,
                     updateOrganization: handleUpdateOrganization,
-                    updateCustomPages: handleUpdateOrganizationCustomPages,
-                    updateInfoCarousel: handleUpdateOrganizationInfoCarousel,
+                    updateCustomPages: updateOrganizationCustomPages,
+                    updateInfoCarousel: updateOrganizationInfoCarousel,
                     
                     saveCustomPage: handleSaveCustomPage,
                     deleteCustomPage: handleDeleteCustomPage,
@@ -1496,16 +1473,16 @@ const App: React.FC = () => {
                                     onTogglePublish={() => {}}
                                     onToggleFavorite={handleToggleFavoriteStatus}
                                     onDuplicate={() => {}}
-                                    onShowImage={functions.setShowImage} 
+                                    onShowImage={setPreviewImageUrl} 
                                     isPresentationMode={false}
                                     studioConfig={studioConfig}
                                     followMeShowImage={followMeShowImage}
-                                    setFollowMeShowImage={functions.setFollowMeShowImage}
-                                    onUpdateWorkout={onSaveWorkoutNoNav}
+                                    setFollowMeShowImage={setFollowMeShowImage}
+                                    onUpdateWorkout={handleSaveOnly}
                                     onVisualize={() => {}}
-                                    onLogWorkout={functions.handleLogWorkoutRequest}
+                                    onLogWorkout={handleLogWorkoutRequest}
                                     onClose={() => setMobileViewData(null)}
-                                    onHeaderVisibilityChange={functions.setTimerHeaderVisible}
+                                    onHeaderVisibilityChange={setIsTimerHeaderVisible}
                                 />
                              )}
                           </div>
