@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useAuth } from '../context/AuthContext';
-import { db } from '../services/firebaseService';
+import { auth, db } from '../services/firebaseService'; // Importera auth direkt
+import { createUserWithEmailAndPassword } from 'firebase/auth'; // Importera Firebase-metoden direkt
 import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { CloseIcon } from './icons';
 
@@ -10,7 +10,6 @@ interface RegisterGymScreenProps {
 }
 
 export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }) => {
-    const { signUp } = useAuth();
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -27,8 +26,8 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
         setError(null);
 
         try {
-            // 1. Skapa användaren i Auth
-            const userCredential = await signUp(email, password);
+            // 1. Skapa användaren i Firebase Auth (direkt anrop för att undvika hook-fel)
+            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
 
             // 2. Skapa en ny organisation
@@ -45,10 +44,15 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
                     primaryColor: '#6366f1',
                     enableWorkoutLogging: true,
                     enableScreensaver: true
+                },
+                // Lägger till standardlösenord för att matcha er Organizations-typ
+                passwords: {
+                    admin: '1234',
+                    coach: '1234'
                 }
             });
 
-            // 3. Skapa användarprofilen
+            // 3. Skapa användarprofilen i Firestore
             await setDoc(doc(db, "users", user.uid), {
                 uid: user.uid,
                 email,
@@ -56,13 +60,23 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
                 lastName,
                 organizationId: orgId,
                 role: 'organizationadmin',
-                systemFeePaid: false, // Detta triggar WelcomePaywall
+                systemFeePaid: false, // Detta triggar WelcomePaywall i App.tsx
                 createdAt: serverTimestamp()
             });
 
+            // OBS: Vi behöver inte navigera manuellt. 
+            // App.tsx kommer känna av den nya inloggade användaren och visa WelcomePaywall.
+
         } catch (err: any) {
             console.error(err);
-            setError(err.message || "Ett fel uppstod vid registreringen.");
+            // Översätt vanliga felmeddelanden
+            if (err.code === 'auth/email-already-in-use') {
+                setError("E-postadressen används redan av ett annat konto.");
+            } else if (err.code === 'auth/weak-password') {
+                setError("Lösenordet är för svagt. Välj minst 6 tecken.");
+            } else {
+                setError(err.message || "Ett fel uppstod vid registreringen.");
+            }
         } finally {
             setLoading(false);
         }
@@ -75,81 +89,105 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
                 animate={{ opacity: 1, y: 0 }}
                 className="w-full max-w-md bg-gray-900 border border-gray-700 rounded-lg p-8 relative"
             >
-                <button onClick={onCancel} className="absolute top-4 right-4 text-gray-500 hover:text-white">
+                <button onClick={onCancel} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
                     <CloseIcon className="w-6 h-6" />
                 </button>
 
                 <div className="text-center mb-8">
-                    <h2 className="text-3xl font-bold text-white">Registrera ditt gym</h2>
+                    <h2 className="text-3xl font-bold text-white tracking-tight">Registrera ditt gym</h2>
                     <p className="text-gray-400 mt-2">Börja använda Smart Skärm i din verksamhet idag.</p>
                 </div>
 
-                {error && <div className="bg-red-900/50 border border-red-500 text-red-200 p-3 rounded mb-4 text-sm">{error}</div>}
+                {error && (
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-red-900/50 border border-red-500 text-red-200 p-3 rounded-lg mb-6 text-sm text-center font-medium"
+                    >
+                        {error}
+                    </motion.div>
+                )}
 
                 <form onSubmit={handleRegister} className="space-y-4">
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Gymmet / Företagets Namn</label>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1 tracking-wider">Gymmet / Företagets Namn</label>
                         <input
                             type="text"
                             required
                             value={gymName}
                             onChange={(e) => setGymName(e.target.value)}
                             placeholder="t.ex. Flexibel Fitness"
-                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none"
+                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition-all"
                         />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Ditt Förnamn</label>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1 tracking-wider">Ditt Förnamn</label>
                             <input
                                 type="text"
                                 required
                                 value={firstName}
                                 onChange={(e) => setFirstName(e.target.value)}
-                                className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none"
+                                placeholder="Anna"
+                                className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition-all"
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Efternamn</label>
+                            <label className="block text-xs font-bold text-gray-500 uppercase mb-1 tracking-wider">Efternamn</label>
                             <input
                                 type="text"
                                 required
                                 value={lastName}
                                 onChange={(e) => setLastName(e.target.value)}
-                                className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none"
+                                placeholder="Andersson"
+                                className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition-all"
                             />
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">E-post (Inloggning)</label>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1 tracking-wider">E-post (Inloggning)</label>
                         <input
                             type="email"
                             required
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none"
+                            placeholder="namn@gym.se"
+                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition-all"
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Välj Lösenord</label>
+                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1 tracking-wider">Välj Lösenord</label>
                         <input
                             type="password"
                             required
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="Minst 6 tecken"
-                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none"
+                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition-all"
                         />
                     </div>
 
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="w-full bg-primary hover:brightness-110 text-white font-bold py-4 rounded-lg mt-4 transition-all disabled:opacity-50"
-                    >
-                        {loading ? 'Skapar konto...' : 'SKAPA GYMKONTO'}
-                    </button>
+                    <div className="pt-2">
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full bg-primary hover:brightness-110 text-white font-black py-4 rounded-lg mt-4 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20 active:scale-[0.98]"
+                        >
+                            {loading ? (
+                                <div className="flex items-center justify-center gap-2">
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                                    <span>SKAPAR KONTO...</span>
+                                </div>
+                            ) : (
+                                'SKAPA GYMKONTO'
+                            )}
+                        </button>
+                    </div>
                 </form>
+
+                <p className="text-[10px] text-gray-600 mt-6 text-center leading-relaxed">
+                    Genom att registrera dig skapar du en ny organisation i Smart Skärm. Systemavgiften betalas i nästa steg för att aktivera ditt medlemskap.
+                </p>
             </motion.div>
         </div>
     );
