@@ -386,7 +386,7 @@ function getStripe() {
 }
 
 // 1. WEBHOOKS - DENNA KOD UPPDATERAR DATABASEN!
-app.post("/webhook", async (req, res) => {
+app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) => {
   try {
     const stripe = getStripe();
     const sig = req.headers['stripe-signature'];
@@ -394,18 +394,14 @@ app.post("/webhook", async (req, res) => {
 
     let event;
     try {
-      // FIREBASE FIX: Använder req.rawBody som Firebase skapar åt oss!
       event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
     } catch (err) {
       console.error(`Webhook Error: ${err.message}`);
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
-    // Om betalningen var framgångsrik...
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
-      
-      // Hämta userId som vi skickade med när de klickade på knappen
       const userId = session.metadata.userId;
       const paymentType = session.metadata.paymentType;
       
@@ -416,7 +412,6 @@ app.post("/webhook", async (req, res) => {
           stripeCustomerId: session.customer
         };
 
-        // NYTT: Differentiera uppdateringen baserat på vad de köpte
         if (paymentType === 'system_fee') {
           updateData.systemFeePaid = true;
           updateData.systemFeeDate = admin.firestore.FieldValue.serverTimestamp();
@@ -450,14 +445,11 @@ app.post("/create-checkout-session", async (req, res) => {
       return res.status(400).json({ error: "userId saknas" });
     }
 
-    // NY KORREKT LOGIK: Välj pris-ID baserat på paymentType
-    // Båda typerna körs nu som 'subscription' eftersom priserna är återkommande i Stripe
-    let priceId = process.env.STRIPE_PRICE_ID; // Default: Medlemskap (39kr)
-    let mode = 'subscription';
-
+    // NY KORREKT LOGIK: Eftersom priset på 995kr är recurring, MÅSTE mode vara 'subscription'
+    let priceId = process.env.STRIPE_PRICE_ID; 
+    
     if (paymentType === 'system_fee') {
-      priceId = process.env.STRIPE_SYSTEM_FEE_PRICE_ID; // Gym-licens (995kr)
-      // Vi behåller mode som 'subscription' här också
+      priceId = process.env.STRIPE_SYSTEM_FEE_PRICE_ID;
     }
 
     if (!priceId) {
@@ -465,14 +457,13 @@ app.post("/create-checkout-session", async (req, res) => {
       throw new Error("Kunde inte hitta giltigt Price ID i miljön");
     }
 
-    // Vart användaren ska omdirigeras
     const domain = req.headers.origin || 'https://smartskarm.se';
 
-    console.log(`Skapar ${mode}-session för användare ${userId} med pris ${priceId}`);
+    console.log(`Skapar subscription-session för användare ${userId} med pris ${priceId}`);
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      mode: mode,
+      mode: 'subscription', // Ändrat till alltid subscription för att matcha dina recurring priser
       allow_promotion_codes: true,
       line_items: [
         {
@@ -497,5 +488,7 @@ app.post("/create-checkout-session", async (req, res) => {
   }
 });
 
-// EXPORTERA EXPRESS-APPEN SOM EN FIREBASE-FUNKTION
-exports.api = onRequest(app);
+// EXPORTERA MED RÄTT SECRETS-BEHÖRIGHET (Viktigt för v2)
+exports.api = onRequest({ 
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_SYSTEM_FEE_PRICE_ID", "STRIPE_PRICE_ID", "STRIPE_WEBHOOK_SECRET"] 
+}, app);
