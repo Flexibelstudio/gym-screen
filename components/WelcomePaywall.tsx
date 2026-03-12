@@ -17,13 +17,15 @@ export const WelcomePaywall: React.FC<WelcomePaywallProps> = ({ onLogout, userDa
         setLoading(true);
         setError(null);
         try {
-            const response = await fetch('https://api-632314644342.us-central1.run.app/api/create-checkout-session', {
+            // Använder miljövariabeln istället för hårdkodad URL
+            const apiUrl = import.meta.env.VITE_API_URL;
+            const response = await fetch(`${apiUrl}/create-checkout-session`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     userId: userData.uid,
                     organizationId: userData.organizationId,
-                    paymentType: 'system_fee' // Vi använder samma backend-logik men texten är nu prenumerationsfokuserad
+                    paymentType: 'system_fee' 
                 }),
             });
             
