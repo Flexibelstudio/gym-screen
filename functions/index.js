@@ -450,16 +450,18 @@ app.post("/create-checkout-session", async (req, res) => {
       return res.status(400).json({ error: "userId saknas" });
     }
 
-    // NY LOGIK: Välj pris-ID och betalningsläge baserat på paymentType
-    let priceId = process.env.STRIPE_PRICE_ID; // Default: Medlemskap
+    // NY KORREKT LOGIK: Välj pris-ID baserat på paymentType
+    // Båda typerna körs nu som 'subscription' eftersom priserna är återkommande i Stripe
+    let priceId = process.env.STRIPE_PRICE_ID; // Default: Medlemskap (39kr)
     let mode = 'subscription';
 
     if (paymentType === 'system_fee') {
-      priceId = process.env.STRIPE_SYSTEM_FEE_PRICE_ID;
-      mode = 'payment'; // Engångsköp
+      priceId = process.env.STRIPE_SYSTEM_FEE_PRICE_ID; // Gym-licens (995kr)
+      // Vi behåller mode som 'subscription' här också
     }
 
     if (!priceId) {
+      console.error("Price ID saknas för typ:", paymentType);
       throw new Error("Kunde inte hitta giltigt Price ID i miljön");
     }
 
