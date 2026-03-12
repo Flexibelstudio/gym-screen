@@ -365,8 +365,10 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   
+  // FIX: Hantera preflight-anrop (OPTIONS) genom att svara direkt med 204
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    res.status(204).send('');
+    return;
   }
   next();
 });
