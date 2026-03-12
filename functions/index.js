@@ -349,26 +349,24 @@ const app = express();
 
 // CORS Middleware - VIKTIGT för att Netlify ska få prata med Firebase
 app.use((req, res, next) => {
-  // Tillåt din staging-URL och din lokala Vite-URL under utveckling
+  const origin = req.headers.origin;
   const allowedOrigins = [
-    'https://staging-smartskarm.netlify.app', 
-    'https://smartskarm.netlify.app', 
-    'https://smartskarm.se', 
+    'https://staging-smartskarm.netlify.app',
+    'https://smartskarm.netlify.app',
+    'https://smartskarm.se',
     'http://localhost:5173'
   ];
-  const origin = req.headers.origin;
-  
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
+
+  if (allowedOrigins.includes(origin) || !origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
   }
-  
+
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  
-  // FIX: Hantera preflight-anrop (OPTIONS) genom att svara direkt med 204
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+
   if (req.method === 'OPTIONS') {
-    res.status(204).send('');
-    return;
+    return res.status(204).send('');
   }
   next();
 });
