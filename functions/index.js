@@ -375,12 +375,18 @@ app.use((req, res, next) => {
 let stripeClient = null;
 function getStripe() {
   if (!stripeClient) {
+    // Prova hämta nyckeln direkt från process.env
     const key = process.env.STRIPE_SECRET_KEY;
-    if (!key) {
-      console.error("STRIPE_SECRET_KEY saknas i miljön!");
-      throw new Error('STRIPE_SECRET_KEY environment variable is required');
+    
+    if (!key || key.trim() === "") {
+      console.error("STRIPE_SECRET_KEY är tom eller saknas!");
+      throw new Error('STRIPE_SECRET_KEY is missing or empty');
     }
-    stripeClient = new Stripe(key, { apiVersion: '2024-04-10' });
+    
+    stripeClient = new Stripe(key, { 
+      apiVersion: '2024-04-10',
+      timeout: 20000 // Ge den lite extra tid
+    });
   }
   return stripeClient;
 }
