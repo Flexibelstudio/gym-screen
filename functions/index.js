@@ -24,6 +24,7 @@ function generateInviteCode() {
  * Strategi: 1. Kolla Token. 2. Om det misslyckas, kolla Databasen.
  */
 const verifyAdminPrivileges = async (auth) => {
+  // 1. Grundkoll: Är man inloggad?
   if (!auth) {
     throw new HttpsError("unauthenticated", "Du måste vara inloggad.");
   }
@@ -31,6 +32,7 @@ const verifyAdminPrivileges = async (auth) => {
   const uid = auth.uid;
   const tokenRole = auth.token.role || "";
 
+  // 2. Snabbkoll: Har token redan rätt roll? (Systemägare eller OrgAdmin)
   if (tokenRole === "systemowner" || tokenRole === "organizationadmin") {
     return {
       uid,
@@ -39,6 +41,7 @@ const verifyAdminPrivileges = async (auth) => {
     };
   }
 
+  // 3. BACKUP: Om token saknar roll, hämta användaren direkt från Firestore.
   console.log(`Token saknar admin-roll för ${uid}, kollar databasen...`);
   const userDoc = await admin.firestore().collection("users").doc(uid).get();
   
@@ -49,7 +52,9 @@ const verifyAdminPrivileges = async (auth) => {
   const userData = userDoc.data();
   const dbRole = userData.role;
 
+  // Kolla om rollen i databasen är godkänd
   if (dbRole === "systemowner" || dbRole === "organizationadmin") {
+    console.log(`Godkänd via databasen: ${uid} är ${dbRole}`);
     return {
       uid,
       role: dbRole,
@@ -57,6 +62,7 @@ const verifyAdminPrivileges = async (auth) => {
     };
   }
 
+  // Om vi kommer hit är man varken admin i Token eller Databas
   throw new HttpsError("permission-denied", "Du saknar administratörsrättigheter.");
 };
 
@@ -163,6 +169,7 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
   try {
     const data = req.body;
     const SECRET_KEY = "smart-skarm-bridge-secret";
+    
     if (data.secretKey !== SECRET_KEY) {
       res.status(403).send('Unauthorized');
       return;
@@ -224,6 +231,7 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
     const pbCollectionRef = db.collection("users").doc(userId).collection("personalBests");
     const currentPBsSnap = await pbCollectionRef.get();
     const currentPBs = {};
+    
     currentPBsSnap.forEach(doc => {
       const pb = doc.data();
       currentPBs[pb.exerciseName.toLowerCase().trim()] = pb.weight;
@@ -314,7 +322,7 @@ function getStripe() {
   return stripeClient;
 }
 
-// 1. WEBHOOKS (UPPDATERAD FÖR EXAKT MATCHNING AV GAMLA STRUKTUREN)
+// 1. WEBHOOKS (LÅST TILL EXAKT STRUKTUR)
 app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) => {
   try {
     const stripe = getStripe();
@@ -325,6 +333,7 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
     try {
       event = stripe.webhooks.constructEvent(req.rawBody, sig, endpointSecret);
     } catch (err) {
+      console.error(`Webhook Error: ${err.message}`);
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
@@ -342,25 +351,27 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
           const orgId = orgDoc.id;
           const currentOrgData = orgDoc.data();
 
-          // --- MATCHAR EXAKT DIN GAMLA STRUKTUR ---
-          const orgInitialization = {
+          // MATCHAR EXAKT DIN BEGÄRDA STRUKTUR (Rensar bort fält som createdAt, ownerUid etc)
+          const exactStructure = {
             customPages: currentOrgData.customPages || [],
-            globalConfig: currentOrgData.globalConfig || {},
-            customCategories: currentOrgData.customCategories || [
-              { id: "1", name: "Standard", prompt: "" }
-            ],
-            // Behåll ID men säkra resten av den gamla listan
+            globalConfig: {
+              customCategories: (currentOrgData.globalConfig && currentOrgData.globalConfig.customCategories) || [
+                { id: "1", name: "Standard", prompt: "" }
+              ]
+            },
+            id: orgId,
             inviteCode: currentOrgData.inviteCode || generateInviteCode(),
-            name: currentOrgData.name || "Mitt Gym",
-            passwords: currentOrgData.passwords || {
-              coach: "1234"
+            name: currentOrgData.name || "Näst bästa gymmet",
+            passwords: {
+              coach: (currentOrgData.passwords && currentOrgData.passwords.coach) || "1234"
             },
             status: "active",
             studios: currentOrgData.studios || [],
             subdomain: currentOrgData.subdomain || ""
           };
 
-          await db.collection('organizations').doc(orgId).update(orgInitialization);
+          // Vi använder .set(exactStructure) för att tvinga dokumentet att BARA ha dessa fält
+          await db.collection('organizations').doc(orgId).set(exactStructure);
 
           const userUpdateData = {
             stripeCustomerId: session.customer,
@@ -384,22 +395,26 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
             adminRole: 'admin'
           });
 
-          console.log(`Org ${orgId} initierad med GAMLA strukturen.`);
+          console.log(`Org ${orgId} återställd till exakt mall och kopplad till ${userId}`);
         }
       }
     }
     res.json({ received: true });
   } catch (error) {
+    console.error("Webhook error:", error);
     res.status(500).send(`Server Error`);
   }
 });
 
 app.use(express.json());
 
+// 2. CREATE CHECKOUT SESSION
 app.post("/create-checkout-session", async (req, res) => {
   try {
     const stripe = getStripe();
     const { userId, organizationId, paymentType, email } = req.body;
+    if (!userId) return res.status(400).json({ error: "userId saknas" });
+
     const customer = await stripe.customers.create({
       email: email || `test_${userId}@example.com`,
       metadata: { userId }
@@ -416,6 +431,7 @@ app.post("/create-checkout-session", async (req, res) => {
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${domain}/?success=true&type=${paymentType || 'sub'}`,
       cancel_url: `${domain}/?canceled=true`,
+      client_reference_id: userId,
       metadata: { userId, organizationId: organizationId || 'unknown', paymentType: paymentType || 'subscription' }
     });
 
@@ -430,24 +446,28 @@ exports.api = onRequest({
 }, app);
 
 /**
- * --- FUNKTION: Uppdatera Organisation ---
+ * --- FUNKTION: Uppdatera Organisation (Global Config, Custom Pages etc) ---
  */
 exports.flexUpdateOrganization = onCall(async (request) => {
   const caller = await verifyAdminPrivileges(request.auth);
   const { organizationId, updateData } = request.data;
 
   if (!organizationId || !updateData) {
-    throw new HttpsError("invalid-argument", "Data saknas.");
+    throw new HttpsError("invalid-argument", "organizationId och updateData krävs.");
   }
   if (caller.role === "organizationadmin" && caller.organizationId !== organizationId) {
-    throw new HttpsError("permission-denied", "Ej behörig.");
+    throw new HttpsError("permission-denied", "Du kan bara uppdatera din egen organisation.");
   }
 
-  await admin.firestore().collection("organizations").doc(organizationId).update({
-    ...updateData,
-    lastUpdatedBy: caller.uid,
-    updatedAt: admin.firestore.FieldValue.serverTimestamp()
-  });
-
-  return { success: true };
+  try {
+    const db = admin.firestore();
+    await db.collection("organizations").doc(organizationId).update({
+      ...updateData,
+      lastUpdatedBy: caller.uid,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+    return { success: true };
+  } catch (error) {
+    throw new HttpsError("internal", "Ett fel uppstod vid uppdatering.");
+  }
 });
