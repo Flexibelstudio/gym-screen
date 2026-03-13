@@ -8,6 +8,18 @@ admin.initializeApp();
 setGlobalOptions({ region: "us-central1" });
 
 /**
+ * Hjälpfunktion för att generera slumpmässig inbjudningskod (t.ex. SMG6WY)
+ */
+function generateInviteCode() {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+/**
  * Hjälpfunktion för att kolla admin-behörighet
  * Strategi: 1. Kolla Token. 2. Om det misslyckas, kolla Databasen.
  */
@@ -22,14 +34,14 @@ const verifyAdminPrivileges = async (auth) => {
 
   // 2. Snabbkoll: Har token redan rätt roll? (Systemägare eller OrgAdmin)
   if (tokenRole === "systemowner" || tokenRole === "organizationadmin") {
-    return { 
-      uid, 
-      role: tokenRole, 
-      organizationId: auth.token.organizationId 
+    return {
+      uid,
+      role: tokenRole,
+      organizationId: auth.token.organizationId
     };
   }
 
-  // 3. BACKUP (Detta är vad som räddar dig nu!): 
+  // 3. BACKUP:
   // Om token saknar roll, hämta användaren direkt från Firestore.
   console.log(`Token saknar admin-roll för ${uid}, kollar databasen...`);
   
@@ -158,11 +170,8 @@ exports.flexInviteUser = onCall(async (request) => {
 
 /**
  * --- API-BRYGGA: Ta emot pass från externa system ---
- * Denna funktion är en vanlig HTTP endpoint (Webhook).
- * Den tar emot JSON-data, loggar passet och kollar efter Personbästa (PB).
  */
 exports.receiveExternalWorkout = onRequest(async (req, res) => {
-  // 1. CORS Headers (Tillåt anrop från din andra app)
   res.set('Access-Control-Allow-Origin', '*');
   
   if (req.method === 'OPTIONS') {
@@ -179,10 +188,7 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
 
   try {
     const data = req.body;
-    
-    // 2. Validering (Enkel säkerhetskoll)
-    // I en skarp version bör du byta ut "hemlig-nyckel" mot en env variabel eller hämta från databasen.
-    const SECRET_KEY = "smart-skarm-bridge-secret"; 
+    const SECRET_KEY = "smart-skarm-bridge-secret";
     
     if (data.secretKey !== SECRET_KEY) {
       console.warn("Unauthorized attempt to log workout");
@@ -198,8 +204,6 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
     const db = admin.firestore();
     const { organizationId, user, workout } = data;
 
-    // 3. Hitta eller skapa användare i Smart Skärm
-    // Vi använder e-post för att matcha användare mellan systemen.
     let userId = null;
     let userPhotoUrl = null;
     let userName = user.name || "Okänd Atlet";
@@ -211,10 +215,8 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
       userId = userDoc.id;
       const userData = userDoc.data();
       userPhotoUrl = userData.photoUrl || null;
-      // Använd namnet från Smart Skärm om det finns, annars det inskickade
       userName = userData.firstName ? `${userData.firstName} ${userData.lastName || ''}` : userName;
     } else {
-      // Användaren finns inte - skapa en "Shadow User" så vi kan spara PBn
       const newUserRef = db.collection("users").doc();
       userId = newUserRef.id;
       await newUserRef.set({
@@ -223,13 +225,11 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
         lastName: user.name.split(" ").slice(1).join(" ") || "Användare",
         organizationId: organizationId,
         role: "member",
-        isExternal: true, // Flagga för att visa att denna kommer utifrån
+        isExternal: true,
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
-      console.log(`Created shadow user for ${user.email}`);
     }
 
-    // 4. Skapa loggen (Workout Log) -> Detta syns i Community Feed
     const logRef = db.collection("workoutLogs").doc();
     const logEntry = {
       id: logRef.id,
@@ -241,7 +241,6 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
       source: "external_api",
       memberName: userName,
       memberPhotoUrl: userPhotoUrl,
-      // Spara hela rådatan ifall vi vill visa detaljer senare
       exerciseResults: workout.exercises.map(ex => ({
         exerciseName: ex.name,
         weight: ex.weight || null,
@@ -254,7 +253,6 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
 
     await logRef.set(logEntry);
 
-    // 5. PB-Detektiven: Kolla efter nya rekord
     const newRecords = [];
     const pbCollectionRef = db.collection("users").doc(userId).collection("personalBests");
     const currentPBsSnap = await pbCollectionRef.get();
@@ -262,31 +260,26 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
     
     currentPBsSnap.forEach(doc => {
       const pb = doc.data();
-      // Normalisera nyckeln (små bokstäver, trim) för enklare matchning
       const key = pb.exerciseName.toLowerCase().trim();
       currentPBs[key] = pb.weight;
     });
 
     const batch = db.batch();
 
-    // Loopa genom inskickade övningar
     if (workout.exercises && Array.isArray(workout.exercises)) {
       for (const exercise of workout.exercises) {
         if (exercise.weight && exercise.weight > 0 && exercise.name) {
           const normName = exercise.name.toLowerCase().trim();
           const currentMax = currentPBs[normName] || 0;
 
-          // Om vikten är högre än nuvarande max -> NYTT PB!
           if (exercise.weight > currentMax) {
             const diff = exercise.weight - currentMax;
-            
-            // Skapa ett "säkert" ID för dokumentet
             const pbId = normName.replace(/[^a-z0-9]/g, "_");
             const pbRef = pbCollectionRef.doc(pbId);
 
             batch.set(pbRef, {
               id: pbId,
-              exerciseName: exercise.name, // Spara det "fina" namnet
+              exerciseName: exercise.name,
               weight: exercise.weight,
               date: Date.now(),
               source: "external"
@@ -302,12 +295,11 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
       }
     }
 
-    // 6. Om vi hittade nya rekord -> Skapa Event för TV-skärmen
     if (newRecords.length > 0) {
       const eventRef = db.collection("studio_events").doc();
       batch.set(eventRef, {
         id: eventRef.id,
-        type: "pb", // Detta triggar animationen i PBOverlay.tsx
+        type: "pb",
         organizationId: organizationId,
         timestamp: Date.now(),
         data: {
@@ -316,19 +308,15 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
           records: newRecords
         }
       });
-      
-      // Uppdatera även loggen med PB-info för historikens skull
       batch.update(logRef, { newPBs: newRecords });
     }
 
-    // Kör alla DB-uppdateringar
     await batch.commit();
 
-    // 7. Klart!
-    res.json({ 
-      success: true, 
-      message: "Workout processed", 
-      newRecordsCount: newRecords.length 
+    res.json({
+      success: true,
+      message: "Workout processed",
+      newRecordsCount: newRecords.length
     });
 
   } catch (error) {
@@ -339,7 +327,7 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
 
 
 // ============================================================================
-// STRIPE API & EXPRESS SERVER (Den nya delen)
+// STRIPE API & EXPRESS SERVER
 // ============================================================================
 
 const express = require("express");
@@ -347,7 +335,6 @@ const Stripe = require("stripe");
 
 const app = express();
 
-// CORS Middleware - VIKTIGT för att Netlify ska få prata med Firebase
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowedOrigins = [
@@ -371,27 +358,26 @@ app.use((req, res, next) => {
   next();
 });
 
-// Hjälpfunktion för att ladda Stripe
 let stripeClient = null;
 function getStripe() {
   if (!stripeClient) {
-    // Prova hämta nyckeln direkt från process.env
     const key = process.env.STRIPE_SECRET_KEY;
+    console.log("Försöker initiera Stripe. Nyckel finns:", !!key);
     
     if (!key || key.trim() === "") {
       console.error("STRIPE_SECRET_KEY är tom eller saknas!");
       throw new Error('STRIPE_SECRET_KEY is missing or empty');
     }
     
-    stripeClient = new Stripe(key, { 
+    stripeClient = new Stripe(key, {
       apiVersion: '2024-04-10',
-      timeout: 20000 // Ge den lite extra tid
+      timeout: 20000
     });
   }
   return stripeClient;
 }
 
-// 1. WEBHOOKS - DENNA KOD UPPDATERAR DATABASEN!
+// 1. WEBHOOKS (UPPDATERAD FÖR ATT POPULERA ALLA FÄLT)
 app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) => {
   try {
     const stripe = getStripe();
@@ -412,21 +398,87 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
       const paymentType = session.metadata.paymentType;
       
       if (userId) {
-        console.log(`Uppdaterar användare ${userId} baserat på betalningstyp: ${paymentType}`);
+        const db = admin.firestore();
         
-        const updateData = {
-          stripeCustomerId: session.customer
-        };
+        // Hitta organisationen som redan skapats (där ownerUid är användaren)
+        const orgQuery = await db.collection('organizations')
+          .where('ownerUid', '==', userId)
+          .limit(1)
+          .get();
 
-        if (paymentType === 'system_fee') {
-          updateData.systemFeePaid = true;
-          updateData.systemFeeDate = admin.firestore.FieldValue.serverTimestamp();
-        } else {
-          updateData.subscriptionStatus = 'active';
-          updateData.stripeSubscriptionId = session.subscription;
+        let orgIdFromDb = null;
+        if (!orgQuery.empty) {
+          const orgDoc = orgQuery.docs[0];
+          orgIdFromDb = orgDoc.id;
+          const currentOrgData = orgDoc.data();
+
+          // UPPDATERING: Injicera alla saknade fält så att frontenden inte kraschar
+          const orgInitialization = {
+            // Arrays (viktigt för .map())
+            customPages: currentOrgData.customPages || [],
+            studios: currentOrgData.studios || [],
+            
+            // Standard-mappen som du visade i din struktur
+            customCategories: currentOrgData.customCategories || [
+              { 
+                id: "1", 
+                name: "Standard", 
+                prompt: "" 
+              }
+            ],
+
+            // Global Config (standardvärden)
+            globalConfig: currentOrgData.globalConfig || {
+              enableWorkoutLogging: true,
+              themeColor: "#000000",
+              brandName: currentOrgData.name || "Mitt Gym"
+            },
+
+            // Lösenord och inbjudningskod
+            passwords: currentOrgData.passwords || {
+              coach: "1234",
+              admin: "1234"
+            },
+            inviteCode: currentOrgData.inviteCode || generateInviteCode(),
+            
+            status: "active",
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+          };
+
+          // Spara ner de nya fälten till organisationen
+          await db.collection('organizations').doc(orgIdFromDb).update(orgInitialization);
         }
 
-        await admin.firestore().collection('users').doc(userId).update(updateData);
+        const userUpdateData = {
+          stripeCustomerId: session.customer,
+          role: 'organizationadmin' // Säkerställer rollen
+        };
+
+        // Om vi hittade organisationen i Firebase, koppla den till användaren
+        if (orgIdFromDb) {
+          userUpdateData.organizationId = orgIdFromDb;
+        }
+
+        if (paymentType === 'system_fee') {
+          userUpdateData.systemFeePaid = true;
+          userUpdateData.systemFeeDate = admin.firestore.FieldValue.serverTimestamp();
+        } else {
+          userUpdateData.subscriptionStatus = 'active';
+          userUpdateData.stripeSubscriptionId = session.subscription;
+        }
+
+        await db.collection('users').doc(userId).update(userUpdateData);
+
+        // Uppdatera Custom Claims så användaren blir Admin direkt utan om-loggning
+        if (orgIdFromDb) {
+          await admin.auth().setCustomUserClaims(userId, {
+            role: 'organizationadmin',
+            organizationId: orgIdFromDb,
+            adminRole: 'admin'
+          });
+        }
+
+        console.log(`Automatisk koppling och initiering klar för ${userId}. Org: ${orgIdFromDb}`);
       }
     }
 
@@ -437,46 +489,40 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
   }
 });
 
-// 2. PARSE JSON FÖR RESTEN AV ROUTERNA
 app.use(express.json());
 
-// 3. CREATE CHECKOUT SESSION
+// 2. CREATE CHECKOUT SESSION
 app.post("/create-checkout-session", async (req, res) => {
   try {
     console.log("Tar emot checkout request...");
     const stripe = getStripe();
-    const { userId, organizationId, paymentType } = req.body;
+    const { userId, organizationId, paymentType, email } = req.body;
 
     if (!userId) {
       return res.status(400).json({ error: "userId saknas" });
     }
 
-    // NY KORREKT LOGIK: Eftersom priset på 995kr är recurring, MÅSTE mode vara 'subscription'
-    let priceId = process.env.STRIPE_PRICE_ID; 
-    
-    if (paymentType === 'system_fee') {
-      priceId = process.env.STRIPE_SYSTEM_FEE_PRICE_ID;
-    }
+    const customer = await stripe.customers.create({
+      email: email || `test_${userId}@example.com`,
+      metadata: { userId }
+    });
+
+    let priceId = paymentType === 'system_fee'
+      ? process.env.STRIPE_SYSTEM_FEE_PRICE_ID
+      : process.env.STRIPE_PRICE_ID;
 
     if (!priceId) {
-      console.error("Price ID saknas för typ:", paymentType);
       throw new Error("Kunde inte hitta giltigt Price ID i miljön");
     }
 
     const domain = req.headers.origin || 'https://smartskarm.se';
 
-    console.log(`Skapar subscription-session för användare ${userId} med pris ${priceId}`);
-
     const session = await stripe.checkout.sessions.create({
+      customer: customer.id,
       payment_method_types: ['card'],
-      mode: 'subscription', // Ändrat till alltid subscription för att matcha dina recurring priser
+      mode: 'subscription',
       allow_promotion_codes: true,
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
+      line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${domain}/?success=true&type=${paymentType || 'sub'}`,
       cancel_url: `${domain}/?canceled=true`,
       client_reference_id: userId,
@@ -494,7 +540,40 @@ app.post("/create-checkout-session", async (req, res) => {
   }
 });
 
-// EXPORTERA MED RÄTT SECRETS-BEHÖRIGHET (Viktigt för v2)
-exports.api = onRequest({ 
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_SYSTEM_FEE_PRICE_ID", "STRIPE_PRICE_ID", "STRIPE_WEBHOOK_SECRET"] 
+exports.api = onRequest({
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_SYSTEM_FEE_PRICE_ID", "STRIPE_PRICE_ID", "STRIPE_WEBHOOK_SECRET"]
 }, app);
+
+/**
+ * --- FUNKTION: Uppdatera Organisation (Global Config, Custom Pages etc) ---
+ */
+exports.flexUpdateOrganization = onCall(async (request) => {
+  // 1. Verifiera admin
+  const caller = await verifyAdminPrivileges(request.auth);
+  const { organizationId, updateData } = request.data;
+
+  if (!organizationId || !updateData) {
+    throw new HttpsError("invalid-argument", "organizationId och updateData krävs.");
+  }
+
+  // 2. Säkerhet: OrgAdmin får bara ändra sin egen org
+  if (caller.role === "organizationadmin" && caller.organizationId !== organizationId) {
+    throw new HttpsError("permission-denied", "Du kan bara uppdatera din egen organisation.");
+  }
+
+  try {
+    const db = admin.firestore();
+    
+    // 3. Utför uppdateringen
+    await db.collection("organizations").doc(organizationId).update({
+      ...updateData,
+      lastUpdatedBy: caller.uid,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    return { success: true, message: "Organisationen har uppdaterats." };
+  } catch (error) {
+    console.error("Error updating organization:", error);
+    throw new HttpsError("internal", "Ett fel uppstod vid uppdatering av organisationen.");
+  }
+});
