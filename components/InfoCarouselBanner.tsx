@@ -31,7 +31,10 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
     useEffect(() => {
         if (messages.length <= 1) return;
 
-        const currentMessage = messages[currentIndex];
+        const safeIndex = currentIndex >= messages.length ? 0 : currentIndex;
+        const currentMessage = messages[safeIndex];
+        if (!currentMessage) return;
+
         // Ensure duration is a positive number
         const duration = (currentMessage.durationSeconds || 10) * 1000;
 
@@ -50,7 +53,9 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
         return null;
     }
 
-    const currentMessage = messages[currentIndex];
+    const safeIndex = currentIndex >= messages.length ? 0 : currentIndex;
+    const currentMessage = messages[safeIndex];
+    if (!currentMessage) return null;
 
     const layout = currentMessage.layout || 'text-only';
     const hasImage = layout !== 'text-only' && currentMessage.imageUrl;
@@ -73,22 +78,22 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
         : 'border-gray-200 dark:border-gray-700/50';
 
     return (
-        <div className={`fixed left-0 right-0 h-[512px] ${bgClass} backdrop-blur-md ${textClass} z-[1001] border-t ${borderClass} flex items-center justify-center p-8 ${className}`}>
+        <div className={`w-full h-full ${bgClass} backdrop-blur-md ${textClass} z-[1001] border-t ${borderClass} flex items-center justify-center p-4 lg:p-8 ${className}`}>
              <div
-                key={currentIndex} // This key is crucial to re-trigger the animation
+                key={safeIndex} // This key is crucial to re-trigger the animation
                 className={`w-full max-w-6xl mx-auto px-4 transition-opacity duration-500 ${isFading ? 'opacity-0' : 'opacity-100'} ${getAnimationClass(currentMessage.animation)}`}
             >
-                <div className={`flex items-center h-full gap-12 ${layout === 'image-right' ? 'flex-row-reverse justify-end' : 'justify-start'}`}>
+                <div className={`flex items-center h-full gap-6 lg:gap-12 ${layout === 'image-right' ? 'flex-row-reverse justify-end' : 'justify-start'}`}>
                     {hasImage && (
                         <img 
                             src={currentMessage.imageUrl} 
                             alt={currentMessage.headline} 
-                            className="w-96 h-96 object-cover rounded-2xl flex-shrink-0 shadow-xl"
+                            className="w-48 h-48 md:w-64 md:h-64 lg:w-80 lg:h-80 xl:w-96 xl:h-96 object-cover rounded-2xl flex-shrink-0 shadow-xl"
                         />
                     )}
                     <div className={`flex-grow min-w-0 ${layout === 'image-right' ? 'text-right' : 'text-left'}`}>
-                        <h4 className="font-bold text-4xl text-primary line-clamp-2 mb-4 leading-tight">{currentMessage.headline}</h4>
-                        <p className={`text-xl ${secondaryTextClass} line-clamp-12 whitespace-pre-wrap leading-relaxed`}>{currentMessage.body}</p>
+                        <h4 className="font-bold text-2xl md:text-3xl lg:text-4xl text-primary line-clamp-2 mb-2 lg:mb-4 leading-tight">{currentMessage.headline}</h4>
+                        <p className={`text-base md:text-lg lg:text-xl ${secondaryTextClass} line-clamp-6 md:line-clamp-8 lg:line-clamp-12 whitespace-pre-wrap leading-relaxed`}>{currentMessage.body}</p>
                     </div>
                 </div>
             </div>
