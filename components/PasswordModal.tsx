@@ -6,11 +6,13 @@ interface PasswordModalProps {
   onClose: () => void;
   onSuccess: () => void;
   coachPassword?: string;
+  onLogout?: () => void;
 }
 
-export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess, coachPassword }) => {
+export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess, coachPassword, onLogout }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [failedAttempts, setFailedAttempts] = useState(0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,6 +22,7 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
       onSuccess();
     } else {
       setError('Fel lösenord. Försök igen.');
+      setFailedAttempts(prev => prev + 1);
       setPassword('');
     }
   };
@@ -80,13 +83,27 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
             >
               Lås upp
             </button>
-            <button 
-              type="button" 
-              onClick={onClose} 
-              className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold py-4 rounded-2xl transition-colors uppercase tracking-widest text-xs"
-            >
-              Avbryt
-            </button>
+            <div className="flex flex-1 gap-3">
+              <button 
+                type="button" 
+                onClick={onClose} 
+                className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold py-4 rounded-2xl transition-colors uppercase tracking-widest text-xs"
+              >
+                Avbryt
+              </button>
+              {failedAttempts > 0 && onLogout && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onLogout();
+                    onClose();
+                  }}
+                  className="flex-1 bg-red-100 hover:bg-red-200 dark:bg-red-900/40 dark:hover:bg-red-900/60 text-red-700 dark:text-red-300 font-bold py-4 rounded-2xl transition-colors uppercase tracking-widest text-xs"
+                >
+                  Logga ut
+                </button>
+              )}
+            </div>
           </div>
         </form>
       </motion.div>
