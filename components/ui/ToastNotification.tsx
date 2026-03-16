@@ -1,3 +1,4 @@
+
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CheckIcon, InformationCircleIcon } from '../icons';
@@ -10,7 +11,7 @@ interface ToastProps {
     duration?: number;
 }
 
-export const Notification: React.FC<ToastProps> = ({ message, type = 'info', isVisible, onClose, duration = 3000 }) => {
+export const Toast: React.FC<ToastProps> = ({ message, type = 'success', isVisible, onClose, duration = 3000 }) => {
     useEffect(() => {
         if (isVisible) {
             const timer = setTimeout(onClose, duration);

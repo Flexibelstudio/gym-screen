@@ -8,7 +8,7 @@ import { interpretHandwriting, generateExerciseDescription } from '../services/g
 import { useStudio } from '../context/StudioContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Toast } from './ui/Notification';
+import { Toast } from './ui/ToastNotification';
 
 // --- Helpers ---
 const parseExerciseLine = (line: string): { reps: string; name: string } => {

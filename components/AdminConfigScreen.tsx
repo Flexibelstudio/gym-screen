@@ -5,7 +5,7 @@ import { ToggleSwitch, CloseIcon, SaveIcon, InformationCircleIcon } from './icon
 import { uploadImage, deleteImageByUrl, getSmartScreenPricing } from '../services/firebaseService';
 import { resizeImage } from '../utils/imageUtils';
 import { CategoryPromptManager } from './CategoryPromptManager';
-import { Toast } from './ui/Notification';
+import { Toast } from './ui/ToastNotification';
 
 // Define a type for keys that have boolean values in StudioConfig
 type BooleanStudioConfigKeys = 'checkInImageEnabled' | 'enableNotes' | 'enableScreensaver' | 'enableExerciseBank' | 'enableHyrox' | 'enableWorkoutLogging';
