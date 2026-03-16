@@ -81,11 +81,7 @@ const getTagHexColor = (tag: string) => {
 
 const formatReps = (reps: string | undefined): string => {
     if (!reps) return '';
-    const trimmed = reps.trim();
-    if (!trimmed) return '';
-    const isNumericLike = /^[\d\s\-\.,/]+$/.test(trimmed);
-    if (isNumericLike) return `${trimmed} reps`;
-    return trimmed;
+    return reps.trim();
 };
 
 const formatSeconds = (totalSeconds: number) => {
