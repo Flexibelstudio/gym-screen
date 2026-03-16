@@ -12,7 +12,7 @@ import { AICoachSidebar } from './workout-builder/AICoachPanel';
 import { EditableBlockCard } from './workout-builder/EditableBlockCard';
 import { analyzeCurrentWorkout } from '../services/geminiService';
 import { ToggleSwitch, DumbbellIcon, SparklesIcon, TrophyIcon, CheckIcon } from './icons';
-import { Toast } from './ui/Notification';
+import Toast from './ui/Notification';
 
 const createNewWorkout = (): Workout => ({
   id: `workout-${Date.now()}`,
