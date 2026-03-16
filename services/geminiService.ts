@@ -301,8 +301,8 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
             responseSchema: workoutSchema,
         }
     });
-    // Tolkad bild (från t.ex. Idétavlan) markeras som draft så den städas om den inte sparas
-    return transformWorkout(JSON.parse(response.text.trim()), '', true);
+    // Tolkad bild från coachen bör inte vara ett "medlemsutkast" som raderas
+    return transformWorkout(JSON.parse(response.text.trim()), '', false);
 }
 
 export async function parseWorkoutFromYoutube(url: string): Promise<Workout> {
