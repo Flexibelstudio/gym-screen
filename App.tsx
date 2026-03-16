@@ -1274,7 +1274,7 @@ const App: React.FC = () => {
 
       <div className="flex flex-col items-center flex-1 min-h-0 overflow-hidden relative">
           <main 
-            className={`flex-1 min-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
+            className={`flex-1 min-h-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
           >
             {/* PRIORITERING: WelcomePaywall (Setup) -> Paywall (Medlem) -> AppRouter */}
             {showWelcomePaywall ? (
@@ -1565,6 +1565,7 @@ const App: React.FC = () => {
         <PasswordModal
           coachPassword={selectedOrganization?.passwords.coach}
           onClose={handleClosePasswordModal}
+          onLogout={signOut}
           onSuccess={() => {
             setIsPasswordModalOpen(false);
             setSessionRole('coach');
