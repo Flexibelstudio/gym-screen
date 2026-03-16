@@ -1565,7 +1565,6 @@ const App: React.FC = () => {
         <PasswordModal
           coachPassword={selectedOrganization?.passwords.coach}
           onClose={handleClosePasswordModal}
-          onLogout={signOut}
           onSuccess={() => {
             setIsPasswordModalOpen(false);
             setSessionRole('coach');

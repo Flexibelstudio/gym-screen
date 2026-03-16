@@ -1,18 +1,17 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
+import { getAuth, signOut } from 'firebase/auth';
 import { CloseIcon, LockClosedIcon } from './icons';
 
 interface PasswordModalProps {
   onClose: () => void;
   onSuccess: () => void;
   coachPassword?: string;
-  onLogout?: () => void;
 }
 
-export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess, coachPassword, onLogout }) => {
+export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess, coachPassword }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [failedAttempts, setFailedAttempts] = useState(0);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,11 +21,28 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
       onSuccess();
     } else {
       setError('Fel lösenord. Försök igen.');
-      setFailedAttempts(prev => prev + 1);
       setPassword('');
     }
   };
   
+  // --- NY FUNKTION: Logga ut och tvinga en omstart ---
+  const handleForceLogout = async () => {
+    try {
+      const auth = getAuth();
+      await signOut(auth);
+      
+      // Rensa all lokal data så att skärmen inte försöker minnas gamla uppgifter
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      // Tvinga omladdning av hela appen. Detta skickar dem automatiskt tillbaka 
+      // till inloggningsskärmen tack vare er auth-routing.
+      window.location.href = '/';
+    } catch (err) {
+      console.error('Kunde inte logga ut:', err);
+    }
+  };
+
   return (
     <div className="fixed inset-0 bg-black/40 dark:bg-black/70 backdrop-blur-md flex items-center justify-center z-[1000] p-4" onClick={onClose} role="dialog" aria-modal="true" aria-labelledby="password-modal-title">
       <motion.div 
@@ -67,13 +83,24 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
           </div>
 
           {error && (
-            <motion.p 
+            <motion.div 
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="text-red-500 mt-4 font-bold text-sm"
+              className="flex flex-col items-center w-full mt-4"
             >
-              {error}
-            </motion.p>
+              <p className="text-red-500 font-bold text-sm mb-4">
+                {error}
+              </p>
+              
+              {/* --- NY KNAPP: Nödutgången som dyker upp vid fel lösenord --- */}
+              <button
+                type="button"
+                onClick={handleForceLogout}
+                className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 underline underline-offset-4 transition-colors"
+              >
+                Fungerar det inte? Logga ut och starta om skärmen
+              </button>
+            </motion.div>
           )}
 
           <div className="mt-10 flex flex-col sm:flex-row gap-3 w-full">
@@ -83,27 +110,13 @@ export const PasswordModal: React.FC<PasswordModalProps> = ({ onClose, onSuccess
             >
               Lås upp
             </button>
-            <div className="flex flex-1 gap-3">
-              <button 
-                type="button" 
-                onClick={onClose} 
-                className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold py-4 rounded-2xl transition-colors uppercase tracking-widest text-xs"
-              >
-                Avbryt
-              </button>
-              {failedAttempts > 0 && onLogout && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onLogout();
-                    onClose();
-                  }}
-                  className="flex-1 bg-red-100 hover:bg-red-200 dark:bg-red-900/40 dark:hover:bg-red-900/60 text-red-700 dark:text-red-300 font-bold py-4 rounded-2xl transition-colors uppercase tracking-widest text-xs"
-                >
-                  Logga ut
-                </button>
-              )}
-            </div>
+            <button 
+              type="button" 
+              onClick={onClose} 
+              className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-bold py-4 rounded-2xl transition-colors uppercase tracking-widest text-xs"
+            >
+              Avbryt
+            </button>
           </div>
         </form>
       </motion.div>
