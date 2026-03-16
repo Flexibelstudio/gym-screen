@@ -198,7 +198,7 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (organization) {
             localStorage.setItem(LOCAL_STORAGE_ORG_KEY, JSON.stringify({ id: organization.id, name: organization.name }));
             setAllStudios(organization.studios);
-            if (isStudioMode && currentUser) {
+            if (currentUser) {
                  localStorage.removeItem(getLocalStorageStudioKey(currentUser.uid));
             }
             setSelectedStudio(null);
@@ -207,21 +207,21 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             setAllStudios([]);
             setSelectedStudio(null);
         }
-    }, [currentUser, isStudioMode]);
+    }, [currentUser]);
 
     const selectStudio = useCallback((studio: Studio) => {
         setSelectedStudio(studio);
-        if (currentUser && isStudioMode) {
+        if (currentUser) {
             localStorage.setItem(getLocalStorageStudioKey(currentUser.uid), JSON.stringify(studio));
         }
-    }, [currentUser, isStudioMode]);
+    }, [currentUser]);
     
     const clearStudio = useCallback(() => {
         setSelectedStudio(null);
-        if (currentUser && isStudioMode) {
+        if (currentUser) {
             localStorage.removeItem(getLocalStorageStudioKey(currentUser.uid));
         }
-    }, [currentUser, isStudioMode]);
+    }, [currentUser]);
 
     const studioConfig = useMemo(() => getEffectiveConfig(selectedStudio, selectedOrganization), [selectedStudio, selectedOrganization]);
 
