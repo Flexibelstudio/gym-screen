@@ -488,16 +488,6 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
     return null; 
   }
 
-  // --- MEMBER VIEW SWITCH ---
-  const showCoachView = isStudioMode || isCoachView;
-
-  if (!showCoachView) {
-      // Member view implementation (omitted for brevity, use existing)
-      return null;
-  }
-
-  // --- COACH / ADMIN VIEW (Below) ---
-
   const isLoggingEnabled = studioConfig.enableWorkoutLogging || false;
   const showSidebar = !isStudioMode; 
   const showQR = isLoggingEnabled && isWorkoutLoggable && !isPresentationMode;
@@ -605,7 +595,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                             onVisualize={() => setVisualizingBlock(block)}
                             onEditSettings={() => setEditingBlockId(block.id)}
                             onUpdateBlock={handleUpdateBlock}
-                            isCoachView={true}
+                            isCoachView={isCoachView}
                             organizationId={selectedOrganization?.id || ''}
                         />
                     </div>

@@ -521,7 +521,11 @@ export const getOrganizations = async (): Promise<Organization[]> => {
     if (isOffline || !db) return MOCK_ORGANIZATIONS;
     try {
         const snap = await getDocs(collection(db, 'organizations'));
-        return snap.docs.map(d => ({ id: d.id, ...d.data() } as Organization));
+        return snap.docs.map(d => {
+            const data = { id: d.id, ...d.data() } as Organization;
+            if (!data.studios) data.studios = [];
+            return data;
+        });
     } catch (e) { return []; }
 };
 
@@ -529,14 +533,21 @@ export const getOrganizationById = async (id: string): Promise<Organization | nu
     if (isOffline || !db || !id) return MOCK_ORGANIZATIONS.find(o => o.id === id) || null;
     try {
         const snap = await getDoc(doc(db, 'organizations', id));
-        return snap.exists() ? { id: snap.id, ...snap.data() } as Organization : null;
+        if (!snap.exists()) return null;
+        const data = { id: snap.id, ...snap.data() } as Organization;
+        if (!data.studios) data.studios = [];
+        return data;
     } catch (e) { return null; }
 };
 
 export const listenToOrganizationChanges = (id: string, onUpdate: (org: Organization) => void) => {
     if (isOffline || !db || !id) return () => {}; 
     return onSnapshot(doc(db, 'organizations', id), (snap) => {
-        if (snap.exists()) onUpdate({ id: snap.id, ...snap.data() } as Organization);
+        if (snap.exists()) {
+            const data = { id: snap.id, ...snap.data() } as Organization;
+            if (!data.studios) data.studios = [];
+            onUpdate(data);
+        }
     }, (err) => console.error("listenToOrganizationChanges failed", err));
 };
 
@@ -713,7 +724,18 @@ export const getWorkoutsForOrganization = async (orgId: string): Promise<Workout
           )
         );
         const snap = await getDocs(q);
-        return snap.docs.map(d => d.data() as Workout).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+        return snap.docs.map(d => {
+            const data = d.data() as Workout;
+            if (!data.blocks) {
+                data.blocks = [];
+            } else {
+                data.blocks = data.blocks.map(block => ({
+                    ...block,
+                    exercises: block.exercises || []
+                }));
+            }
+            return data;
+        }).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
     } catch (e) { 
         console.error("getWorkoutsForOrganization failed", e);
         return []; 
@@ -724,7 +746,17 @@ export const getWorkoutById = async (id: string): Promise<Workout | null> => {
     if (isOffline || !db || !id) return null;
     try {
         const snap = await getDoc(doc(db, 'workouts', id));
-        return snap.exists() ? snap.data() as Workout : null;
+        if (!snap.exists()) return null;
+        const data = snap.data() as Workout;
+        if (!data.blocks) {
+            data.blocks = [];
+        } else {
+            data.blocks = data.blocks.map(block => ({
+                ...block,
+                exercises: block.exercises || []
+            }));
+        }
+        return data;
     } catch (e) {
         console.error("getWorkoutById failed", e);
         return null;
