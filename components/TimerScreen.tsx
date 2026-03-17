@@ -525,20 +525,20 @@ const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRou
     const label = mode === TimerMode.EMOM ? 'MINUT' : mode === TimerMode.Custom ? 'VARV' : 'VARV';
 
     return (
-        <div className="flex flex-col items-end gap-3 animate-fade-in">
+        <div className="flex flex-col items-end gap-1 animate-fade-in">
             {showInterval && (
-                <div className="bg-black/40 backdrop-blur-xl rounded-[2.5rem] px-10 py-6 shadow-2xl flex flex-col items-center min-w-[200px]">
-                    <span className="block text-white/40 font-black text-xs sm:text-sm uppercase tracking-[0.4em] mb-2">INTERVALL</span>
-                    <div className="flex items-baseline justify-center gap-1">
+                <div className="flex flex-col items-end">
+                    <span className="block text-white/80 font-black text-xs sm:text-sm uppercase tracking-[0.4em] mb-1 drop-shadow-md">INTERVALL</span>
+                    <div className="flex items-baseline justify-end gap-1">
                         <motion.span 
                             key={`interval-${currentInterval}`} 
                             initial={{ opacity: 0, scale: 0.8 }} 
                             animate={{ opacity: 1, scale: 1 }} 
-                            className="font-black text-6xl sm:text-7xl text-white drop-shadow-2xl leading-none"
+                            className="font-black text-6xl sm:text-7xl text-white drop-shadow-lg leading-none"
                         >
                             {currentInterval}
                         </motion.span>
-                        <span className="text-2xl sm:text-3xl font-black text-white/40">/ {totalIntervalsInLap}</span>
+                        <span className="text-2xl sm:text-3xl font-black text-white/80 drop-shadow-md">/ {totalIntervalsInLap}</span>
                     </div>
                 </div>
             )}
@@ -546,14 +546,14 @@ const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRou
             <motion.div 
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-black/40 backdrop-blur-xl rounded-full px-6 py-3 shadow-xl flex items-center justify-center gap-3 min-w-[140px]"
+                className="flex items-center justify-end gap-3 mt-2"
             >
-                <span className="text-white/40 font-black text-[10px] uppercase tracking-[0.3em]">
+                <span className="text-white/80 font-black text-[10px] sm:text-xs uppercase tracking-[0.3em] drop-shadow-md">
                     {label}
                 </span>
                 <div className="flex items-baseline gap-1">
-                    <span className="text-2xl font-black text-white">{currentRound}</span>
-                    <span className="text-sm font-bold text-white/40">/ {totalRounds}</span>
+                    <span className="text-2xl sm:text-3xl font-black text-white drop-shadow-lg">{currentRound}</span>
+                    <span className="text-sm sm:text-base font-bold text-white/80 drop-shadow-md">/ {totalRounds}</span>
                 </div>
             </motion.div>
         </div>
@@ -1335,7 +1335,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 initial={{ opacity: 0, x: 50 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 50 }}
-                className="absolute top-16 z-[100]"
+                className="absolute top-10 z-[100]"
                 style={{ right: isHyroxRace ? `calc(${HYROX_RIGHT_PANEL_WIDTH} + 2.5rem)` : '2.5rem' }}
             >
                 {!isTransitioning && (
