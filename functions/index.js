@@ -371,7 +371,7 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
           };
 
           // Vi använder .set(exactStructure) för att tvinga dokumentet att BARA ha dessa fält
-          await db.collection('organizations').doc(orgId).set(exactStructure);
+          await db.collection('organizations').doc(orgId).set(exactStructure, { merge: true });
 
           const userUpdateData = {
             stripeCustomerId: session.customer,
