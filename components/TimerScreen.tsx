@@ -480,12 +480,14 @@ const StandardListView: React.FC<{
                     >
                         <div className="flex items-center w-full gap-6 md:gap-8">
                             {ex.reps && (
-                                <span 
-                                    className={`font-mono font-black text-primary bg-primary/5 px-6 py-3 rounded-2xl whitespace-nowrap border border-primary/10 shrink-0`}
-                                    style={{ fontSize: calculatedRepsSize }}
-                                >
-                                    {formatReps(ex.reps)}
-                                </span>
+                                <div className="shrink-0 flex items-center justify-center bg-primary/5 rounded-2xl border border-primary/10 px-4 py-2 min-w-[80px] md:min-w-[120px]">
+                                    <span 
+                                        className={`font-mono font-black text-primary whitespace-nowrap leading-none`}
+                                        style={{ fontSize: calculatedRepsSize }}
+                                    >
+                                        {formatReps(ex.reps)}
+                                    </span>
+                                </div>
                             )}
                             <h4 
                                 className={`font-black text-gray-900 dark:text-white leading-[0.9] tracking-tight overflow-visible whitespace-normal transition-all duration-300`}
