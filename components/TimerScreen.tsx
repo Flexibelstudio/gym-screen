@@ -366,8 +366,9 @@ const FollowMeView: React.FC<{
     isRestNext?: boolean,
     showDescription: boolean,
     textSizeScale?: number, // NEW PROP
-    repsSizeScale?: number  // NEW PROP
-}> = ({ exercise, nextExercise, timerStyle, status, nextBlock, transitionTime, isRestNext, showDescription, textSizeScale = 1, repsSizeScale = 1 }) => {
+    repsSizeScale?: number,  // NEW PROP
+    upcomingText?: string | null
+}> = ({ exercise, nextExercise, timerStyle, status, nextBlock, transitionTime, isRestNext, showDescription, textSizeScale = 1, repsSizeScale = 1, upcomingText }) => {
     const isResting = status === TimerStatus.Resting;
     const isPreparing = status === TimerStatus.Preparing;
     // IF IDLE (Lobby), show the first exercise as "Next/Ready"
@@ -429,6 +430,22 @@ const FollowMeView: React.FC<{
                         )}
                     </div>
                 </motion.div>
+            </AnimatePresence>
+            
+            <AnimatePresence>
+                {upcomingText && (
+                    <motion.div 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 20 }}
+                        className="mt-8 bg-white px-10 py-5 rounded-3xl shadow-2xl flex items-center gap-4"
+                    >
+                        <span className="text-gray-500 font-bold uppercase tracking-widest text-xl">Nästa:</span>
+                        <span className="text-gray-900 font-black uppercase tracking-tight text-3xl md:text-4xl">
+                            {upcomingText}
+                        </span>
+                    </motion.div>
+                )}
             </AnimatePresence>
             
             {(isRestNext || nextBlock) && (
@@ -656,7 +673,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     totalRounds, totalExercises,
     totalBlockDuration, totalTimeElapsed,
     completedWorkIntervals, effectiveIntervalsPerLap,
-    currentSegment // Get current segment for Custom Mode
+    currentSegment, // Get current segment for Custom Mode
+    nextSegment,
+    totalWorkIntervals
   } = useWorkoutTimer(block, studioConfig.soundProfile || 'airhorn');
 
   // LOBBY MODE STATE - Default to TRUE unless auto-transition
@@ -1277,6 +1296,27 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const singleSequenceDuration = block.settings.sequence ? block.settings.sequence.reduce((acc, s) => acc + (s.duration || 0), 0) : 0;
   const totalSequenceDuration = singleSequenceDuration * (block.settings.rounds || 1);
 
+  const upcomingText = useMemo(() => {
+      if (status !== TimerStatus.Running || currentTime > 10) return null;
+      
+      const { mode, restTime } = block.settings;
+      
+      if (mode === TimerMode.Custom) {
+          if (nextSegment) {
+              return nextSegment.type === 'rest' ? 'Vila' : (nextSegment.name || 'Nästa övning');
+          }
+      } else if (mode === TimerMode.Interval || mode === TimerMode.Tabata || mode === TimerMode.EMOM) {
+          if (completedWorkIntervals + 1 >= totalWorkIntervals) return null;
+
+          if (restTime > 0) {
+              return 'Vila';
+          } else if (nextExercise) {
+              return nextExercise.name;
+          }
+      }
+      return null;
+  }, [status, currentTime, block.settings, nextSegment, nextExercise, completedWorkIntervals, totalWorkIntervals]);
+
   return (
     <div 
         className={`fixed inset-0 w-full h-full overflow-hidden transition-colors duration-500 ${showFullScreenColor ? `${timerStyle.bg}` : 'bg-gray-100 dark:bg-black'}`}
@@ -1471,6 +1511,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                     showDescription={block.showExerciseDescriptions !== false} // PASS THE PROP
                                     textSizeScale={textSizeScale}
                                     repsSizeScale={repsSizeScale}
+                                    upcomingText={upcomingText}
                                 />
                             </div>
                         </div>

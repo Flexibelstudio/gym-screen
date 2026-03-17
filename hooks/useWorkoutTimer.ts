@@ -317,6 +317,10 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
   const currentSegment = block?.settings.mode === TimerMode.Custom && flattenedSequence.length > 0 
       ? flattenedSequence[completedWorkIntervals] || null 
       : null;
+      
+  const nextSegment = block?.settings.mode === TimerMode.Custom && flattenedSequence.length > completedWorkIntervals + 1
+      ? flattenedSequence[completedWorkIntervals + 1] || null
+      : null;
 
   const stopTimer = useCallback(() => {
     if (intervalRef.current) {
@@ -521,6 +525,7 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
     totalRounds, totalExercises, totalBlockDuration, totalTimeElapsed,
     completedWorkIntervals, totalWorkIntervals: settingsRounds, effectiveIntervalsPerLap,
     isLastExerciseInRound,
-    currentSegment // Export current segment for UI
+    currentSegment, // Export current segment for UI
+    nextSegment
   };
 };
