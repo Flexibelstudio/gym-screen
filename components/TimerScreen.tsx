@@ -81,11 +81,7 @@ const getTagHexColor = (tag: string) => {
 
 const formatReps = (reps: string | undefined): string => {
     if (!reps) return '';
-    const trimmed = reps.trim();
-    if (!trimmed) return '';
-    const isNumericLike = /^[\d\s\-\.,/]+$/.test(trimmed);
-    if (isNumericLike) return `${trimmed} reps`;
-    return trimmed;
+    return reps.trim();
 };
 
 const formatSeconds = (totalSeconds: number) => {
@@ -1361,73 +1357,73 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'} 
               ${showFullScreenColor 
                   ? `top-[12%] min-h-[50%] justify-center` 
-                  : `pt-10 pb-10 top-4 min-h-[25%] mx-4 sm:mx-6 rounded-[3rem] shadow-2xl ${timerStyle.bg}`
+                  : `pt-6 pb-6 top-4 min-h-[25%] mx-4 sm:mx-6 rounded-[3rem] shadow-2xl ${timerStyle.bg}`
               }`}
           style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
       >
         {/* LOBBY START BUTTON OVERLAY */}
-        {isLobbyMode && (
-             <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-8">
-                 <button 
-                    onClick={() => handleRemoteAction('start')}
-                    className="bg-white text-black active:scale-110 transition-transform duration-200 rounded-full p-6 shadow-2xl border-4 border-white/50 group"
-                 >
-                    <PlayIcon className="w-16 h-16 ml-1 fill-current group-active:text-primary transition-colors" />
-                 </button>
-             </div>
-        )}
+            {isLobbyMode && (
+                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-8">
+                     <button 
+                        onClick={() => handleRemoteAction('start')}
+                        className="bg-white text-black active:scale-110 transition-transform duration-200 rounded-full p-6 shadow-2xl border-4 border-white/50 group"
+                     >
+                        <PlayIcon className="w-16 h-16 ml-1 fill-current group-active:text-primary transition-colors" />
+                     </button>
+                 </div>
+            )}
 
-        <div className={`mb-4 px-8 py-2 rounded-full bg-black/30 backdrop-blur-xl border border-white/20 shadow-lg z-20 transition-opacity ${isLobbyMode ? 'opacity-0' : 'opacity-100'}`}>
-            <span className={`font-black tracking-[0.3em] text-white uppercase drop-shadow-md text-lg md:text-xl`}>{modeLabel}</span>
-        </div>
-
-        {/* STATUS (ARBETE/VILA) - Överst */}
-        <div className="text-center z-20 w-full px-10 mb-2">
-            <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-5xl lg:text-6xl overflow-visible whitespace-nowrap leading-none ${isLobbyMode ? 'opacity-100' : ''}`}>
-                {isLobbyMode ? "REDO" : statusLabel}
-            </h2>
-        </div>
-
-        {/* SIFFROR (Tiden) - Mitten */}
-        <div className={`z-20 relative flex flex-col items-center w-full text-white transition-opacity duration-300 ${isLobbyMode ? 'opacity-30 blur-sm' : 'opacity-100'}`}>
-            <div className="flex items-center justify-center w-full gap-2">
-                 <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[8rem] sm:text-[10rem] md:text-[12rem]">
-                    {minutesStr}:{secondsStr}
-                 </span>
+            <div className={`mb-2 px-8 py-1.5 rounded-full bg-black/30 backdrop-blur-xl border border-white/20 shadow-lg z-20 transition-opacity ${isLobbyMode ? 'opacity-0' : 'opacity-100'}`}>
+                <span className={`font-black tracking-[0.3em] text-white uppercase drop-shadow-md text-base md:text-lg`}>{modeLabel}</span>
             </div>
-        </div>
 
-        {/* TIDSLINJE (Roadmap) - Under tiden */}
-        <div className="w-[80%] max-w-4xl mt-2 mb-2 z-20">
-            <SegmentedRoadmap 
-                chain={workoutChain} 
-                currentBlockId={block.id} 
-                totalChainElapsed={totalChainElapsed} 
-                totalChainTime={chainInfo.totalDuration}
-                // Custom Mode props
-                isCustomMode={block.settings.mode === TimerMode.Custom}
-                sequence={block.settings.sequence}
-                currentSegmentIndex={completedWorkIntervals}
-                totalSequenceDuration={totalSequenceDuration}
-                totalSequenceElapsed={totalTimeElapsed}
-            />
-        </div>
+            {/* STATUS (ARBETE/VILA) - Överst */}
+            <div className="text-center z-20 w-full px-10 mb-1">
+                <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-4xl lg:text-5xl overflow-visible whitespace-nowrap leading-none ${isLobbyMode ? 'opacity-100' : ''}`}>
+                    {isLobbyMode ? "REDO" : statusLabel}
+                </h2>
+            </div>
 
-        {/* BLOCK RUBRIK (Stort) - Längst ner */}
-        <div className="text-center z-20 w-full px-10 mt-4 mb-2">
-            <h1 className="font-black text-white/90 uppercase tracking-tighter text-2xl sm:text-3xl md:text-4xl drop-shadow-lg overflow-visible whitespace-nowrap leading-none">
-                {isTransitioning ? nextBlock?.title : block.title}
-            </h1>
-        </div>
+            {/* SIFFROR (Tiden) - Mitten */}
+            <div className={`z-20 relative flex flex-col items-center w-full text-white transition-opacity duration-300 ${isLobbyMode ? 'opacity-30 blur-sm' : 'opacity-100'}`}>
+                <div className="flex items-center justify-center w-full gap-2">
+                     <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[7rem] sm:text-[9rem] md:text-[11rem]">
+                        {minutesStr}:{secondsStr}
+                     </span>
+                </div>
+            </div>
+
+            {/* TIDSLINJE (Roadmap) - Under tiden */}
+            <div className="w-[80%] max-w-4xl mt-1 mb-1 z-20">
+                <SegmentedRoadmap 
+                    chain={workoutChain} 
+                    currentBlockId={block.id} 
+                    totalChainElapsed={totalChainElapsed} 
+                    totalChainTime={chainInfo.totalDuration}
+                    // Custom Mode props
+                    isCustomMode={block.settings.mode === TimerMode.Custom}
+                    sequence={block.settings.sequence}
+                    currentSegmentIndex={completedWorkIntervals}
+                    totalSequenceDuration={totalSequenceDuration}
+                    totalSequenceElapsed={totalTimeElapsed}
+                />
+            </div>
+
+            {/* BLOCK RUBRIK (Stort) - Längst ner */}
+            <div className="text-center z-20 w-full px-10 mt-2 mb-1">
+                <h1 className="font-black text-white/90 uppercase tracking-tighter text-xl sm:text-2xl md:text-3xl drop-shadow-lg overflow-visible whitespace-nowrap leading-none">
+                    {isTransitioning ? nextBlock?.title : block.title}
+                </h1>
+            </div>
 
         {/* TIMER CONTROLS (Relative under title) */}
-        <div className="relative z-50 mt-4">
+        <div className="relative z-50 mt-2">
             <TimerControls 
                 textSizeScale={textSizeScale} 
                 repsSizeScale={repsSizeScale} 
                 onTextChange={(val) => handleSizeChange('text', val)} 
                 onRepsChange={(val) => handleSizeChange('reps', val)} 
-                visible={controlsVisible && !isFreestanding && !block.followMe}
+                visible={controlsVisible && !isFreestanding}
             />
         </div>
       </div>

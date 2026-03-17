@@ -6,7 +6,7 @@ import { getAdminsForOrganization, getCoachesForOrganization, saveAdminActivity 
 import { OvningsbankContent } from './OvningsbankContent';
 import { useStudio } from '../context/StudioContext';
 import { CompanyDetailsOnboardingModal } from './CompanyDetailsOnboardingModal';
-import { Toast } from './ui/Notification';
+import { Toast } from './ui/ToastNotification';
 import { DashboardContent, PassProgramContent } from './admin/DashboardContent';
 import { StudiosContent } from './admin/StudiosContent';
 import { InfosidorContent } from './admin/InfosidorContent';

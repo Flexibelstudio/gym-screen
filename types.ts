@@ -298,6 +298,7 @@ export interface Organization {
   discountPercentage?: number;
   lastBilledMonth?: string; 
   lastBilledDate?: number;
+  freeCoachAccounts?: number; // NYTT: Antal gratis coach-konton
 }
 
 export interface StartGroup {

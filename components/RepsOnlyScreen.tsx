@@ -10,19 +10,10 @@ interface RepsOnlyScreenProps {
     organization: Organization | null;
 }
 
-// Helper to ensure units are displayed
+// Helper to format reps without automatically appending 'reps'
 const formatReps = (reps: string | undefined): string => {
     if (!reps) return '';
-    const trimmed = reps.trim();
-    if (!trimmed) return '';
-
-    // If the string contains only numbers, ranges (-), commas, or slashes, append 'reps'
-    const isNumericLike = /^[\d\s\-\.,/]+$/.test(trimmed);
-
-    if (isNumericLike) {
-        return `${trimmed} reps`;
-    }
-    return trimmed;
+    return reps.trim();
 };
 
 export const RepsOnlyScreen: React.FC<RepsOnlyScreenProps> = ({ block, onFinish, onShowImage, organization }) => {

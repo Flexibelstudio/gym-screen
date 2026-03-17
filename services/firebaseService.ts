@@ -644,6 +644,12 @@ export const updateOrganizationDiscount = async (id: string, discount: { type: '
     return getOrganizationById(id);
 };
 
+export const updateOrganizationFreeCoaches = async (id: string, count: number) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { freeCoachAccounts: count });
+    return getOrganizationById(id);
+};
+
 export const undoLastBilling = async (id: string) => {
     if(isOffline || !db || !id) return;
     await updateDoc(doc(db, 'organizations', id), { lastBilledMonth: deleteField(), lastBilledDate: deleteField() });

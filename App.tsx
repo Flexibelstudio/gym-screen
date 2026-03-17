@@ -10,6 +10,7 @@ import { AppRouter } from './components/AppRouter';
 
 // --- PAYWALL ---
 import { PaywallScreen } from './components/PaywallScreen'; 
+import { WelcomePaywall } from './components/WelcomePaywall'; // NY IMPORT
 
 // --- Services ---
 import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById } from './services/firebaseService';
@@ -24,6 +25,7 @@ import { ReAuthModal } from './components/ReAuthModal';
 import { StudioSelectionScreen } from './components/StudioSelectionScreen';
 import { StudioConfigModal } from './components/AdminConfigScreen';
 import { LoginScreen } from './components/LoginScreen';
+import { RegisterGymScreen } from './components/RegisterGymScreen'; // NY IMPORT
 import { LandingPage } from './components/LandingPage';
 import { DeveloperToolbar } from './components/DeveloperToolbar';
 import { InfoCarouselBanner } from './components/InfoCarouselBanner';
@@ -61,6 +63,7 @@ const App: React.FC = () => {
   
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
   const [showLogin, setShowLogin] = useState(true);
+  const [showRegisterGym, setShowRegisterGym] = useState(false); // NY STATE
   
   const [history, setHistory] = useState<Page[]>(() => {
       if (isStudioMode) return [Page.Home];
@@ -71,7 +74,13 @@ const App: React.FC = () => {
 
   const page = history[history.length - 1];
 
-  // --- NY LOGIK FÖR BETALVÄGG (Flyttad upp hit) ---
+  // --- NY LOGIK FÖR SYSTEMAVGIFT (GYM-ÄGARE) ---
+  const showWelcomePaywall = useMemo(() => {
+      if (!currentUser || role !== 'organizationadmin' || isStudioMode) return false;
+      return userData?.systemFeePaid === false;
+  }, [role, userData?.systemFeePaid, isStudioMode, currentUser]);
+
+  // --- NY LOGIK FÖR BETALVÄGG (MEDLEMMAR) ---
   const hasActiveSubscription = useMemo(() => {
       // Admins, Systemägare och Coacher slipper alltid betalvägg
       if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
@@ -83,7 +92,7 @@ const App: React.FC = () => {
   }, [role, userData?.subscriptionStatus]);
 
   // Visa bara paywall om användaren är inloggad, inte i studio-läge och INTE har aktivt abonnemang
-  const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription;
+  const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription && !showWelcomePaywall;
 
   // Global laddning inkluderar nu studioLoading för att täcka inläsning av organisationens data
   const isGlobalLoading = authLoading || studioLoading || (currentUser && !userData && !isStudioMode);
@@ -1187,9 +1196,13 @@ const App: React.FC = () => {
       );
   }
   
+  // NYTT: Render-logik för Registrering
   if (!authLoading && !currentUser && !isStudioMode) {
+      if (showRegisterGym) {
+          return <RegisterGymScreen onCancel={() => setShowRegisterGym(false)} />;
+      }
       if (showLogin) {
-          return <LoginScreen onClose={() => setShowLogin(false)} />;
+          return <LoginScreen onClose={() => setShowLogin(false)} onRegisterGym={() => setShowRegisterGym(true)} />;
       }
       return <LandingPage onLoginClick={() => setShowLogin(true)} />;
   }
@@ -1240,7 +1253,7 @@ const App: React.FC = () => {
        {isStudioMode && <PBOverlay />}
 
        {/* HEADER VISIBILITY LOGIC UPDATED TO HIDE ON MODALS OR PAYWALL */}
-       {!isAnyModalOpen && !showPaywall && (page === Page.Timer || !isFullScreenPage) && <Header 
+       {!isAnyModalOpen && !showPaywall && !showWelcomePaywall && (page === Page.Timer || !isFullScreenPage) && <Header 
         page={page} 
         onBack={handleBack} 
         theme={theme}
@@ -1261,10 +1274,12 @@ const App: React.FC = () => {
 
       <div className="flex flex-col items-center flex-1 min-h-0 overflow-hidden relative">
           <main 
-            className={`flex-1 min-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
+            className={`flex-1 min-h-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
           >
-            {/* PAYWALL LOGIK: Visa antingen PaywallScreen eller AppRouter */}
-            {showPaywall ? (
+            {/* PRIORITERING: WelcomePaywall (Setup) -> Paywall (Medlem) -> AppRouter */}
+            {showWelcomePaywall ? (
+                <WelcomePaywall onLogout={signOut} userData={userData} />
+            ) : showPaywall ? (
               <PaywallScreen onLogout={signOut} />
             ) : (
               <AppRouter 
@@ -1316,15 +1331,15 @@ const App: React.FC = () => {
                     deleteOrganization: handleDeleteOrganization,
                     saveGlobalConfig: handleSaveGlobalConfig,
                     createStudio: handleCreateStudio,
-                    updateStudio: handleUpdateStudio,
-                    deleteStudio: handleDeleteStudio,
-                    updatePasswords: handleUpdateOrganizationPasswords,
-                    updateLogos: handleUpdateOrganizationLogos,
-                    updateFavicon: handleUpdateOrganizationFavicon,
-                    updatePrimaryColor: handleUpdateOrganizationPrimaryColor,
+                    updateStudio: updateStudio,
+                    deleteStudio: deleteStudio,
+                    updatePasswords: updateOrganizationPasswords,
+                    updateLogos: updateOrganizationLogos,
+                    updateFavicon: updateOrganizationFavicon,
+                    updatePrimaryColor: updateOrganizationPrimaryColor,
                     updateOrganization: handleUpdateOrganization,
-                    updateCustomPages: handleUpdateOrganizationCustomPages,
-                    updateInfoCarousel: handleUpdateOrganizationInfoCarousel,
+                    updateCustomPages: updateOrganizationCustomPages,
+                    updateInfoCarousel: updateOrganizationInfoCarousel,
                     
                     saveCustomPage: handleSaveCustomPage,
                     deleteCustomPage: handleDeleteCustomPage,
@@ -1458,16 +1473,16 @@ const App: React.FC = () => {
                                     onTogglePublish={() => {}}
                                     onToggleFavorite={handleToggleFavoriteStatus}
                                     onDuplicate={() => {}}
-                                    onShowImage={functions.setShowImage} 
+                                    onShowImage={setPreviewImageUrl} 
                                     isPresentationMode={false}
                                     studioConfig={studioConfig}
                                     followMeShowImage={followMeShowImage}
-                                    setFollowMeShowImage={functions.setFollowMeShowImage}
-                                    onUpdateWorkout={onSaveWorkoutNoNav}
+                                    setFollowMeShowImage={setFollowMeShowImage}
+                                    onUpdateWorkout={handleSaveOnly}
                                     onVisualize={() => {}}
-                                    onLogWorkout={functions.handleLogWorkoutRequest}
+                                    onLogWorkout={handleLogWorkoutRequest}
                                     onClose={() => setMobileViewData(null)}
-                                    onHeaderVisibilityChange={functions.setTimerHeaderVisible}
+                                    onHeaderVisibilityChange={setIsTimerHeaderVisible}
                                 />
                              )}
                           </div>
@@ -1478,7 +1493,6 @@ const App: React.FC = () => {
       </AnimatePresence>
 
       <AnimatePresence>
-          {/* NYTT: Visa bara loggningsskärmen om användaren INTE blockeras av betalväggen */}
           {mobileLogData && !showPaywall && (
               <>
                   <motion.div 
@@ -1551,6 +1565,7 @@ const App: React.FC = () => {
         <PasswordModal
           coachPassword={selectedOrganization?.passwords.coach}
           onClose={handleClosePasswordModal}
+          onLogout={signOut}
           onSuccess={() => {
             setIsPasswordModalOpen(false);
             setSessionRole('coach');
@@ -1599,7 +1614,7 @@ const App: React.FC = () => {
        {showSupportChat && <SupportChat />}
 
        {/* NYTT: Skanningsknapp döljs automatiskt om betalväggen visas */}
-       {showScanButton && !showPaywall && !mobileLogData && !mobileViewData && !isSearchWorkoutOpen && !isScannerOpen && (
+       {showScanButton && !showPaywall && !showWelcomePaywall && !mobileLogData && !mobileViewData && !isSearchWorkoutOpen && !isScannerOpen && (
           <div className="fixed bottom-6 right-6 z-[50]">
               <ScanButton 
                 onScan={() => setIsScannerOpen(true)} 

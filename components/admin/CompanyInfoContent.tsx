@@ -73,6 +73,43 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
                              </div>
                          </div>
                      )}
+
+                     {/* Economy & Billing */}
+                     <div>
+                         <h4 className="text-sm font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                             <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                             Ekonomi & Utbetalningar
+                         </h4>
+                         <div className="bg-white dark:bg-gray-900 p-6 rounded-lg border border-slate-200 dark:border-gray-700 space-y-4">
+                             <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-800 pb-4">
+                                 <div>
+                                     <p className="font-bold text-gray-900 dark:text-white">Medlemspris i appen</p>
+                                     <p className="text-sm text-gray-500">Pris som era medlemmar betalar för tillgång</p>
+                                 </div>
+                                 <div className="text-right">
+                                     <p className="font-bold text-lg text-gray-900 dark:text-white">39 kr/mån</p>
+                                     <p className="text-sm font-semibold text-green-600 dark:text-green-400">Er intäkt: 20 kr/mån</p>
+                                 </div>
+                             </div>
+                             
+                             <div className="flex justify-between items-center pt-2">
+                                 <div>
+                                     <p className="font-bold text-gray-900 dark:text-white">Coach-konton</p>
+                                     <p className="text-sm text-gray-500">
+                                        Ni har {organization.freeCoachAccounts || 0} gratis coach-konton.
+                                     </p>
+                                 </div>
+                                 <div className="text-right">
+                                     <p className="text-sm text-gray-900 dark:text-white">Kostnad utöver gratis:</p>
+                                     <p className="font-bold text-red-600 dark:text-red-400">19 kr/mån per konto</p>
+                                 </div>
+                             </div>
+                             
+                             <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm text-blue-800 dark:text-blue-300">
+                                 <p><strong>Information om utbetalningar:</strong> Utbetalning av er intäkt (20 kr per aktiv betalande medlem) sker månadsvis. Eventuella kostnader för extra coach-konton eller rabatterade medlemmar dras av från denna summa. Den exakta sammanställningen hanteras via vår betalningspartner (Stripe).</p>
+                             </div>
+                         </div>
+                     </div>
                  </div>
              ) : (
                  <div className="text-center py-8">
