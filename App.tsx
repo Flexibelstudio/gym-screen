@@ -154,13 +154,19 @@ const App: React.FC = () => {
              controllerName: 'Touch Screen'
          });
     }
-    setHistory(prev => [...prev, targetPage]);
+    setHistory(prev => {
+        if (prev[prev.length - 1] === targetPage) return prev;
+        return [...prev, targetPage];
+    });
   }, [isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock]);
 
   const navigateReplace = useCallback((page: Page) => {
     lastLocalNavigationRef.current = Date.now();
     setHistory(prev => {
         const newHistory = prev.slice(0, -1);
+        if (newHistory.length > 0 && newHistory[newHistory.length - 1] === page) {
+            return newHistory;
+        }
         newHistory.push(page);
         return newHistory;
     });
@@ -909,11 +915,17 @@ const App: React.FC = () => {
     }
 
     if (isFinalBlock) {
-      if (history.length > 1) {
+      if (page === Page.Timer || page === Page.RepsOnly) {
+          navigateReplace(Page.WorkoutDetail);
+      } else if (history.length > 1) {
           handleBack();
       }
     } else {
-      handleBack();
+      if (page === Page.Timer || page === Page.RepsOnly) {
+          navigateReplace(Page.WorkoutDetail);
+      } else {
+          handleBack();
+      }
     }
   };
 
