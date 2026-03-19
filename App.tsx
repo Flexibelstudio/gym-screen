@@ -849,27 +849,25 @@ const App: React.FC = () => {
         const nextBlockInWorkout = activeWorkout.blocks[blockIndex + 1];
         if (nextBlockInWorkout) {
             setIsAutoTransition(true);
-            setActiveBlock(null);
-            setTimeout(() => {
-                // Update entry timestamp for the next block to ignore old remote commands
-                pageEntryTimestampRef.current = Date.now();
-                lastLocalNavigationRef.current = Date.now(); // Prevent bounce back from remote state
-                
-                // If in studio mode, update remote state to reflect the auto-advance
-                const isSavedWorkout = workouts.some(w => w.id === activeWorkout.id);
-                if (isStudioMode && selectedOrganization && selectedStudio && isSavedWorkout) {
-                    setRemoteCommand(null);
-                    updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-                        activeWorkoutId: activeWorkout.id,
-                        view: 'timer',
-                        activeBlockId: nextBlockInWorkout.id,
-                        lastUpdate: Date.now(),
-                        controllerName: 'Auto-Advance'
-                    });
-                }
-                
-                setActiveBlock(nextBlockInWorkout);
-            }, 50);
+            
+            // Update entry timestamp for the next block to ignore old remote commands
+            pageEntryTimestampRef.current = Date.now();
+            lastLocalNavigationRef.current = Date.now(); // Prevent bounce back from remote state
+            
+            // If in studio mode, update remote state to reflect the auto-advance
+            const isSavedWorkout = workouts.some(w => w.id === activeWorkout.id);
+            if (isStudioMode && selectedOrganization && selectedStudio && isSavedWorkout) {
+                setRemoteCommand(null);
+                updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+                    activeWorkoutId: activeWorkout.id,
+                    view: 'timer',
+                    activeBlockId: nextBlockInWorkout.id,
+                    lastUpdate: Date.now(),
+                    controllerName: 'Auto-Advance'
+                });
+            }
+            
+            setActiveBlock(nextBlockInWorkout);
             return;
         }
     }
