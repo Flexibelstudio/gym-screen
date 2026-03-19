@@ -993,13 +993,12 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   const hasCalledFinishRef = useRef(false);
   useEffect(() => {
-    if (status === TimerStatus.Finished && !isHyroxRace && block.settings.mode !== TimerMode.Stopwatch) {
-        if (block.autoAdvance && nextBlock) return;
+    if (status === TimerStatus.Finished && !isHyroxRace && block.settings.mode !== TimerMode.Stopwatch && !block.autoAdvance) {
         if (hasCalledFinishRef.current) return;
         const timerId = setTimeout(() => { onFinish({ isNatural: true, time: totalTimeElapsed }); hasCalledFinishRef.current = true; }, 500);
         return () => clearTimeout(timerId);
     } else if (status !== TimerStatus.Finished) { hasCalledFinishRef.current = false; }
-  }, [status, isHyroxRace, block.settings.mode, block.autoAdvance, nextBlock, onFinish, totalTimeElapsed]);
+  }, [status, isHyroxRace, block.settings.mode, block.autoAdvance, onFinish, totalTimeElapsed]);
 
   const handleConfirmReset = () => {
     setShowResetConfirmation(false);
