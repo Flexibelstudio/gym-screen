@@ -549,7 +549,15 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
             if (pendingSettingsRef.current?.textScale === undefined) setLocalTextScale(remoteSettings.textScale);
             if (pendingSettingsRef.current?.repsScale === undefined) setLocalRepsScale(remoteSettings.repsScale);
         }
-    }, [selectedOrganization, connectedStudioId]);
+        
+        // Sync active block if it changed remotely (e.g. auto-advance)
+        if (studio?.remoteState?.view === 'timer' && studio.remoteState.activeBlockId) {
+            if (studio.remoteState.activeBlockId !== activeRunningBlockId) {
+                setActiveRunningBlockId(studio.remoteState.activeBlockId);
+                setExpandedBlockId(studio.remoteState.activeBlockId);
+            }
+        }
+    }, [selectedOrganization, connectedStudioId, activeRunningBlockId]);
 
     // Effect to handle being kicked off
     useEffect(() => {

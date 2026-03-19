@@ -33,7 +33,8 @@ import {
   writeBatch, 
   deleteField,
   serverTimestamp,
-  Firestore
+  Firestore,
+  runTransaction
 } from 'firebase/firestore';
 import { 
   getStorage, 
@@ -555,15 +556,16 @@ export const listenToOrganizationChanges = (id: string, onUpdate: (org: Organiza
 export const updateStudioRemoteState = async (orgId: string, studioId: string, state: RemoteSessionState | null) => {
     if (isOffline || !db || !orgId || !studioId) return;
     try {
-        // Vi hämtar först organistionen för att kunna uppdatera rätt studio i arrayen
         const orgRef = doc(db, 'organizations', orgId);
-        const orgSnap = await getDoc(orgRef);
-        
-        if (orgSnap.exists()) {
+        await runTransaction(db, async (transaction) => {
+            const orgSnap = await transaction.get(orgRef);
+            if (!orgSnap.exists()) {
+                throw new Error("Organization does not exist!");
+            }
+            
             const orgData = orgSnap.data() as Organization;
             const updatedStudios = orgData.studios.map(studio => {
                 if (studio.id === studioId) {
-                    // Om state är null, ta bort remoteState, annars slå ihop med befintlig state
                     if (state === null) {
                         const { remoteState, ...rest } = studio;
                         return rest;
@@ -579,8 +581,8 @@ export const updateStudioRemoteState = async (orgId: string, studioId: string, s
                 return studio;
             });
             
-            await updateDoc(orgRef, { studios: updatedStudios });
-        }
+            transaction.update(orgRef, { studios: updatedStudios });
+        });
     } catch (e) {
         console.error("Failed to update remote state:", e);
     }

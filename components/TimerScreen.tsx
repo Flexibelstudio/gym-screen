@@ -1543,23 +1543,31 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                             {isTransitioning && !isAutostartMode ? (
                                 // Header för vila-läget (Döljs i AutostartMode)
                                 <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-center bg-white/80 dark:bg-black/20 p-8 rounded-[2.5rem] border border-gray-100 dark:border-white/5 shadow-lg gap-6">
-                                    <div>
+                                    <div className="flex-1">
                                         <span className="inline-block px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-black uppercase tracking-[0.2em] mb-3">Uppladdning</span>
                                         <h3 className="text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-none">{nextBlock?.title}</h3>
                                         <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Gör er redo för nästa del av passet</p>
+                                        {nextBlock?.showDescriptionInTimer && nextBlock?.setupDescription && (
+                                            <p className="text-gray-900 dark:text-white text-xl md:text-2xl font-bold leading-tight tracking-tight mt-4 border-t border-gray-200 dark:border-white/10 pt-4">
+                                                {nextBlock.setupDescription}
+                                            </p>
+                                        )}
                                     </div>
                                     <button 
                                         onClick={handleStartNextBlock}
-                                        className="bg-gray-900 dark:bg-white text-white dark:text-black font-black py-4 px-10 rounded-2xl shadow-2xl hover:scale-105 transition-all text-lg uppercase tracking-widest border-4 border-gray-700 dark:border-white/30"
+                                        className="bg-gray-900 dark:bg-white text-white dark:text-black font-black py-4 px-10 rounded-2xl shadow-2xl hover:scale-105 transition-all text-lg uppercase tracking-widest border-4 border-gray-700 dark:border-white/30 whitespace-nowrap"
                                     >
                                         Starta nu
                                     </button>
                                 </div>
                             ) : (
-                                !isTransitioning && block.showDescriptionInTimer && block.setupDescription && (
+                                ((!isTransitioning && block.showDescriptionInTimer && block.setupDescription) || 
+                                 (isTransitioning && nextBlock?.showDescriptionInTimer && nextBlock?.setupDescription)) && (
                                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0">
                                             <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
-                                            <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight">{block.setupDescription}</p>
+                                            <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight">
+                                                {isTransitioning ? nextBlock!.setupDescription : block.setupDescription}
+                                            </p>
                                     </motion.div>
                                 )
                             )}
