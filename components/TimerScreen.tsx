@@ -26,7 +26,7 @@ interface TimerStyle {
 
 const getTimerStyle = (status: TimerStatus, mode: TimerMode, isHyrox: boolean, isTransitioning: boolean, currentSegment: TimerSegment | null): TimerStyle => {
   if (isTransitioning) {
-      return { bg: 'bg-gradient-to-br from-indigo-900 to-purple-900', text: 'text-white', pulseRgb: '168, 85, 247', border: 'border-purple-400', badge: 'bg-purple-600' };
+      return { bg: 'bg-teal-500', text: 'text-white', pulseRgb: '45, 212, 191', border: 'border-teal-200', badge: 'bg-teal-600' };
   }
   
   if (isHyrox) {
@@ -1171,7 +1171,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       
       const raceResults = sortedFinishers.map(([participant, data], index) => {
           const group = startGroups.find(g => g.participants.includes(participant));
-          return { participant, time: data.time, groupId: group?.id || 'unknown' };
+          return { participant, time: (data as FinishData).time, groupId: group?.id || 'unknown' };
       });
 
       try {
@@ -1260,8 +1260,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   const currentIntervalInLap = (completedWorkIntervals % effectiveIntervalsPerLap) + 1;
   
-  // Visa split-vyn om vi har kommande block, antingen i träning eller under transition
-  const showSplitView = upcomingBlocks.length > 0 && block.autoAdvance;
+  // Autostart 2.0 Mode Detection
+  const isAutostartMode = useMemo(() => {
+      if (!activeWorkout) return false;
+      return activeWorkout.blocks.length > 1 && activeWorkout.blocks.some(b => b.autoAdvance);
+  }, [activeWorkout]);
+
+  // Visa split-vyn (sida-vid-sida) om vi har kommande block, antingen i träning eller under transition
+  // Men INTE om vi är i AutostartMode (då stackar vi vertikalt istället)
+  const showSplitView = upcomingBlocks.length > 0 && block.autoAdvance && !isAutostartMode;
 
   const isRestNext = block.autoAdvance && (block.transitionTime || 0) > 0 && status !== TimerStatus.Resting;
   
@@ -1399,7 +1406,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'} 
               ${showFullScreenColor 
                   ? `top-[12%] min-h-[50%] justify-center` 
-                  : `pt-6 pb-6 top-4 min-h-[25%] mx-4 sm:mx-6 rounded-[3rem] shadow-2xl ${timerStyle.bg}`
+                  : `${isAutostartMode ? 'pt-4 pb-4' : 'pt-6 pb-6'} top-4 min-h-[25%] mx-4 sm:mx-6 rounded-[3rem] shadow-2xl ${timerStyle.bg}`
               }`}
           style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
       >
@@ -1415,15 +1422,23 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                  </div>
             )}
 
-            <div className={`mb-2 px-8 py-1.5 rounded-full bg-black/30 backdrop-blur-xl border border-white/20 shadow-lg z-20 transition-opacity ${isLobbyMode ? 'opacity-0' : 'opacity-100'}`}>
-                <span className={`font-black tracking-[0.3em] text-white uppercase drop-shadow-md text-base md:text-lg`}>{modeLabel}</span>
-            </div>
+            {!isAutostartMode && (
+                <div className={`mb-2 px-8 py-1.5 rounded-full bg-black/30 backdrop-blur-xl border border-white/20 shadow-lg z-20 transition-opacity ${isLobbyMode ? 'opacity-0' : 'opacity-100'}`}>
+                    <span className={`font-black tracking-[0.3em] text-white uppercase drop-shadow-md text-base md:text-lg`}>{modeLabel}</span>
+                </div>
+            )}
 
-            {/* STATUS (ARBETE/VILA) - Överst */}
+            {/* STATUS (ARBETE/VILA) ELLER BLOCK RUBRIK - Överst */}
             <div className="text-center z-20 w-full px-10 mb-1">
-                <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-4xl lg:text-5xl overflow-visible whitespace-nowrap leading-none ${isLobbyMode ? 'opacity-100' : ''}`}>
-                    {isLobbyMode ? "REDO" : statusLabel}
-                </h2>
+                {isAutostartMode ? (
+                    <h1 className={`font-black text-white/90 uppercase tracking-tighter text-xl sm:text-2xl md:text-3xl drop-shadow-lg overflow-visible whitespace-nowrap leading-none ${isTransitioning ? 'animate-pulse' : ''}`}>
+                        {isTransitioning ? "VILA - GÖR REDO" : block.title}
+                    </h1>
+                ) : (
+                    <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-4xl lg:text-5xl overflow-visible whitespace-nowrap leading-none ${isLobbyMode ? 'opacity-100' : ''}`}>
+                        {isLobbyMode ? "REDO" : statusLabel}
+                    </h2>
+                )}
             </div>
 
             {/* SIFFROR (Tiden) - Mitten */}
@@ -1451,12 +1466,14 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 />
             </div>
 
-            {/* BLOCK RUBRIK (Stort) - Längst ner */}
-            <div className="text-center z-20 w-full px-10 mt-2 mb-1">
-                <h1 className="font-black text-white/90 uppercase tracking-tighter text-xl sm:text-2xl md:text-3xl drop-shadow-lg overflow-visible whitespace-nowrap leading-none">
-                    {isTransitioning ? nextBlock?.title : block.title}
-                </h1>
-            </div>
+            {/* BLOCK RUBRIK (Stort) - Längst ner (Döljs i AutostartMode) */}
+            {!isAutostartMode && (
+                <div className="text-center z-20 w-full px-10 mt-2 mb-1">
+                    <h1 className="font-black text-white/90 uppercase tracking-tighter text-xl sm:text-2xl md:text-3xl drop-shadow-lg overflow-visible whitespace-nowrap leading-none">
+                        {isTransitioning ? nextBlock?.title : block.title}
+                    </h1>
+                </div>
+            )}
 
         {/* TIMER CONTROLS (Relative under title) */}
         <div className="relative z-50 mt-2">
@@ -1520,8 +1537,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                     // STANDARD LIST LAYOUT (Side by side if next blocks exist)
                     <div className="flex gap-4 flex-grow items-stretch w-full min-h-0">
                          <div className={`flex flex-col gap-6 transition-all duration-500 h-full min-h-0 ${showSplitView ? 'w-2/3' : 'w-full mx-auto max-w-6xl'}`}>
-                            {isTransitioning ? (
-                                // Header för vila-läget
+                            {isTransitioning && !isAutostartMode ? (
+                                // Header för vila-läget (Döljs i AutostartMode)
                                 <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-center bg-white/80 dark:bg-black/20 p-8 rounded-[2.5rem] border border-gray-100 dark:border-white/5 shadow-lg gap-6">
                                     <div>
                                         <span className="inline-block px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-black uppercase tracking-[0.2em] mb-3">Uppladdning</span>
@@ -1536,7 +1553,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                     </button>
                                 </div>
                             ) : (
-                                block.showDescriptionInTimer && block.setupDescription && (
+                                !isTransitioning && block.showDescriptionInTimer && block.setupDescription && (
                                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0">
                                             <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
                                             <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight">{block.setupDescription}</p>
@@ -1546,14 +1563,46 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
                             <div className="w-full flex-grow min-h-0"> 
                                 {!isFreestanding && (
-                                    <StandardListView 
-                                        exercises={isTransitioning ? nextBlock!.exercises : block.exercises} 
-                                        timerStyle={timerStyle} 
-                                        isHyrox={isHyroxRace} 
-                                        showDescriptions={block.showExerciseDescriptions !== false} // PASS THE PROP
-                                        textSizeScale={textSizeScale}
-                                        repsSizeScale={repsSizeScale}
-                                    />
+                                    <div className="flex flex-col gap-8 w-full h-full">
+                                        {/* Current Block (or Next Block if transitioning) */}
+                                        <div className={`flex-1 min-h-0 ${isAutostartMode && !isTransitioning ? 'opacity-100' : ''}`}>
+                                            <StandardListView 
+                                                exercises={isTransitioning ? nextBlock!.exercises : block.exercises} 
+                                                timerStyle={timerStyle} 
+                                                isHyrox={isHyroxRace} 
+                                                showDescriptions={block.showExerciseDescriptions !== false} // PASS THE PROP
+                                                textSizeScale={textSizeScale}
+                                                repsSizeScale={repsSizeScale}
+                                            />
+                                        </div>
+                                        
+                                        {/* Upcoming Block (only in AutostartMode) */}
+                                        {isAutostartMode && (
+                                            (() => {
+                                                const upcomingBlock = isTransitioning ? upcomingBlocks[1] : nextBlock;
+                                                if (!upcomingBlock) return null;
+                                                return (
+                                                    <div className="flex-1 min-h-0 opacity-50 transition-opacity duration-500">
+                                                        <div className="mb-4 flex items-center gap-4">
+                                                            <div className="h-px bg-gray-300 dark:bg-gray-700 flex-1"></div>
+                                                            <span className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest text-sm">
+                                                                Kommande: {upcomingBlock.title}
+                                                            </span>
+                                                            <div className="h-px bg-gray-300 dark:bg-gray-700 flex-1"></div>
+                                                        </div>
+                                                        <StandardListView 
+                                                            exercises={upcomingBlock.exercises} 
+                                                            timerStyle={getTimerStyle(TimerStatus.Idle, upcomingBlock.settings.mode, isHyroxRace, false, null)} 
+                                                            isHyrox={isHyroxRace} 
+                                                            showDescriptions={false} // Hide descriptions for upcoming
+                                                            textSizeScale={textSizeScale * 0.8} // Maybe slightly smaller?
+                                                            repsSizeScale={repsSizeScale * 0.8}
+                                                        />
+                                                    </div>
+                                                );
+                                            })()
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         </div>
