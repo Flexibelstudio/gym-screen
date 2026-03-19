@@ -1022,7 +1022,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         try {
             const dataUrl = canvasRef.current.toDataURL('image/png');
             const base64Image = dataUrl.split(',')[1];
-            const workout = await parseWorkoutFromImage(base64Image, undefined, true);
+            const workout = await parseWorkoutFromImage(base64Image);
             setInterpretedWorkout(workout);
         } catch(e) {
             alert(e instanceof Error ? e.message : 'Ett okänt fel inträffade.');
@@ -1335,7 +1335,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             {isArchiveVisible && <NoteArchiveModal notes={savedNotes} onClose={() => setIsArchiveVisible(false)} onDelete={handleDeleteNoteAction} onUpdate={handleUpdateNoteAction} onLoad={handleLoadNote} />}
             {isInfoModalVisible && <IdeaBoardInfoModal onClose={() => setIsInfoModalVisible(false)} />}
             {isTimerSetupVisible && <IdeaBoardTimerSetupModal onStart={handleStartTimerSetup} onClose={() => setIsTimerSetupVisible(false)} block={lastDrawnBlock || { exercises: [] } as any} />}
-            {completionInfo && <WorkoutCompleteModal isOpen={!!completionInfo} onClose={() => { setCompletionInfo(null); handleCloseTimer(); }} workout={completionInfo.workout} isFinalBlock={completionInfo.isFinal} blockTag={completionInfo.blockTag} finishTime={completionInfo.finishTime} organizationId={selectedOrganization?.id || ''} />}
+            {completionInfo && <WorkoutCompleteModal isOpen={!!completionInfo} onClose={() => setCompletionInfo(null)} workout={completionInfo.workout} isFinalBlock={completionInfo.isFinal} blockTag={completionInfo.blockTag} finishTime={completionInfo.finishTime} organizationId={selectedOrganization?.id || ''} />}
         </div>
     );
 };

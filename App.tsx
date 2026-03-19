@@ -276,6 +276,12 @@ const App: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    // Update entry timestamp whenever page changes to ignore old remote commands
+    pageEntryTimestampRef.current = Date.now();
+  }, [page]);
+
   const [activePasskategori, setActivePasskategori] = useState<string | null>(null);
   const [isPickingForLog, setIsPickingForLog] = useState(false);
   const [activeCustomPage, setActiveCustomPage] = useState<CustomPage | null>(null);
@@ -288,17 +294,10 @@ const App: React.FC = () => {
   const [completionInfo, setCompletionInfo] = useState<{ workout: Workout, isFinal: boolean, blockTag?: string, finishTime?: number } | null>(null);
   const [preferredAdminTab, setPreferredAdminTab] = useState<string>('dashboard');
   const [isAutoTransition, setIsAutoTransition] = useState(false);
-
+  
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isReAuthModalOpen, setIsReAuthModalOpen] = useState(false);
   const [reAuthPurpose, setReAuthPurpose] = useState<'admin' | 'profile'>('admin');
-
-  useEffect(() => {
-    window.scrollTo(0, 0);
-    // Update entry timestamp whenever page changes to ignore old remote commands
-    pageEntryTimestampRef.current = Date.now();
-    setCompletionInfo(null);
-  }, [page]);
 
   const [isRegisteringHyroxTime, setIsRegisteringHyroxTime] = useState(false);
   const [aiGeneratorInitialTab, setAiGeneratorInitialTab] = useState<'generate' | 'parse' | 'manage' | 'create'>('create');
@@ -508,16 +507,6 @@ const App: React.FC = () => {
               navigateReplace(Page.Home);
               return;
         }
-        // If back from FreestandingTimer -> just pop history
-        else if (page === Page.FreestandingTimer) {
-              if (history.length > 1) {
-                  const newHistory = history.slice(0, -1);
-                  setHistory(newHistory);
-              } else {
-                  navigateReplace(Page.Home);
-              }
-              return;
-        }
         else {
               // Fallback: Clear completely
               updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
@@ -528,12 +517,7 @@ const App: React.FC = () => {
         }
     }
 
-    if (history.length <= 1) {
-        if (page !== Page.Home) {
-            navigateReplace(Page.Home);
-        }
-        return;
-    }
+    if (history.length <= 1) return;
 
     const currentPage = history[history.length - 1];
     const newHistory = history.slice(0, -1);
@@ -919,17 +903,18 @@ const App: React.FC = () => {
             });
         }
         
-        // Go back TWO steps to exit both Timer and FreestandingTimer setup
-        setHistory(prev => {
-            if (prev.length > 2) {
-                return prev.slice(0, -2);
-            }
-            return [Page.Home];
-        });
+        // Use navigateReplace for a robust exit that doesn't rely on history manipulation
+        navigateReplace(Page.FreestandingTimer);
         return;
     }
 
-    handleBack();
+    if (isFinalBlock) {
+      if (history.length > 1) {
+          handleBack();
+      }
+    } else {
+      handleBack();
+    }
   };
 
   const handleClosePasswordModal = () => {
