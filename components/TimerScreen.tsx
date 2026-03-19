@@ -722,20 +722,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const hideTimeoutRef = React.useRef<number | null>(null);
   const wakeLockRef = useRef<any>(null);
   
-  // Show controls on mouse move
-  useEffect(() => {
-      const handleMouseMove = () => {
-          setControlsVisible(true);
-          if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-          hideTimeoutRef.current = window.setTimeout(() => setControlsVisible(false), 3000);
-      };
-      window.addEventListener('mousemove', handleMouseMove);
-      return () => {
-          window.removeEventListener('mousemove', handleMouseMove);
-          if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-      };
-  }, []);
-  
   // Get navigation position preference (default top)
   const navPos = studioConfig.navigationControlPosition || 'top';
 
@@ -1278,7 +1264,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     return 2 + block.exercises.length;
   };
 
-  const handleInteraction = () => { setControlsVisible(true); onHeaderVisibilityChange(true); /* Back button hidden while running */ restartHideTimer(); };
   const restartHideTimer = React.useCallback(() => {
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     if (status === TimerStatus.Running || status === TimerStatus.Resting || status === TimerStatus.Preparing || isTransitioning) {
@@ -1286,15 +1271,33 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     }
   }, [status, isTransitioning, onHeaderVisibilityChange, setIsBackButtonHidden]);
 
+  const handleInteraction = React.useCallback(() => { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); restartHideTimer(); }, [onHeaderVisibilityChange, setIsBackButtonHidden, restartHideTimer]);
+
+  // Show controls on mouse move or touch
+  useEffect(() => {
+      window.addEventListener('mousemove', handleInteraction);
+      window.addEventListener('touchstart', handleInteraction);
+      return () => {
+          window.removeEventListener('mousemove', handleInteraction);
+          window.removeEventListener('touchstart', handleInteraction);
+      };
+  }, [handleInteraction]);
+
   useEffect(() => {
     if (controlsVisible) restartHideTimer();
     return () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); };
   }, [controlsVisible, restartHideTimer]);
 
   useEffect(() => {
-    if (status === TimerStatus.Running || status === TimerStatus.Preparing || status === TimerStatus.Resting || isTransitioning) restartHideTimer();
-    else { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); }
-  }, [status, restartHideTimer, onHeaderVisibilityChange, setIsBackButtonHidden, isTransitioning]);
+    if (status === TimerStatus.Running || status === TimerStatus.Preparing || status === TimerStatus.Resting || isTransitioning) {
+        restartHideTimer();
+    } else if (isLobbyMode) { 
+        setControlsVisible(true); 
+        onHeaderVisibilityChange(true); 
+        setIsBackButtonHidden(false); 
+        if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); 
+    }
+  }, [status, restartHideTimer, onHeaderVisibilityChange, setIsBackButtonHidden, isTransitioning, isLobbyMode]);
 
   const isActuallyPaused = status === TimerStatus.Paused || (isTransitioning && isTransitionPaused);
   const isActuallyFinishedOrIdle = (status === TimerStatus.Idle || status === TimerStatus.Finished) && !isTransitioning;
@@ -1406,7 +1409,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'} 
               ${showFullScreenColor 
                   ? `top-[12%] min-h-[50%] justify-center` 
-                  : `${isAutostartMode ? 'pt-4 pb-4' : 'pt-6 pb-6'} top-4 min-h-[25%] mx-4 sm:mx-6 rounded-[3rem] shadow-2xl ${timerStyle.bg}`
+                  : `${isAutostartMode ? (controlsVisible ? 'pt-4 pb-4 min-h-[25%]' : 'pt-4 pb-2 min-h-[20%]') : 'pt-6 pb-6 min-h-[25%]'} top-4 mx-4 sm:mx-6 rounded-[3rem] shadow-2xl ${timerStyle.bg}`
               }`}
           style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
       >
@@ -1476,7 +1479,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             )}
 
         {/* TIMER CONTROLS (Relative under title) */}
-        <div className="relative z-50 mt-2">
+        <div className="relative z-50">
             <TimerControls 
                 textSizeScale={textSizeScale} 
                 repsSizeScale={repsSizeScale} 
@@ -1488,8 +1491,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       </div>
 
       {/* CONTENT AREA (Under Clock) */}
-      <div className={`absolute bottom-4 left-0 flex flex-col items-center justify-start z-0 pt-2
-          ${showFullScreenColor ? 'top-[65%]' : 'top-[28%]'} 
+      <div className={`absolute bottom-4 left-0 flex flex-col items-center justify-start z-0 pt-2 transition-all duration-500
+          ${showFullScreenColor ? 'top-[65%]' : (isAutostartMode ? (controlsVisible ? 'top-[26%]' : 'top-[24%]') : 'top-[28%]')} 
           ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] px-6` : 'right-0 px-6'}`}>
           
           <div className="w-full max-w-[1500px] h-full flex flex-col">

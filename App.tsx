@@ -346,7 +346,7 @@ const App: React.FC = () => {
 
       let appleLink: HTMLLinkElement | null = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement | null;
       if (!appleLink) {
-        appleLink = document.createElement('apple-touch-icon');
+        appleLink = document.createElement('link');
         appleLink.rel = 'apple-touch-icon';
         document.getElementsByTagName('head')[0].appendChild(appleLink);
       }
@@ -847,6 +847,21 @@ const App: React.FC = () => {
             setTimeout(() => {
                 // Update entry timestamp for the next block to ignore old remote commands
                 pageEntryTimestampRef.current = Date.now();
+                lastLocalNavigationRef.current = Date.now(); // Prevent bounce back from remote state
+                
+                // If in studio mode, update remote state to reflect the auto-advance
+                const isSavedWorkout = workouts.some(w => w.id === activeWorkout.id);
+                if (isStudioMode && selectedOrganization && selectedStudio && isSavedWorkout) {
+                    setRemoteCommand(null);
+                    updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+                        activeWorkoutId: activeWorkout.id,
+                        view: 'timer',
+                        activeBlockId: nextBlockInWorkout.id,
+                        lastUpdate: Date.now(),
+                        controllerName: 'Auto-Advance'
+                    });
+                }
+                
                 setActiveBlock(nextBlockInWorkout);
             }, 50);
             return;
@@ -860,7 +875,7 @@ const App: React.FC = () => {
     } else if (activeWorkout) {
         setCompletionInfo({ workout: activeWorkout, isFinal: true, blockTag: activeWorkout.blocks[0]?.tag, finishTime: time });
     }
-  }, [completionInfo, handleBack, activeWorkout, activeBlock, isStudioMode, navigateReplace, selectedOrganization, selectedStudio]);
+  }, [completionInfo, handleBack, activeWorkout, activeBlock, isStudioMode, navigateReplace, selectedOrganization, selectedStudio, workouts]);
 
   const handleCloseWorkoutCompleteModal = () => {
     if (!completionInfo) return;
