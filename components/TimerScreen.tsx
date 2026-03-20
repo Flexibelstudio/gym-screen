@@ -1426,7 +1426,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                  </div>
             )}
 
-            {!isAutostartMode && (
+            {isAutostartMode ? (
+                <div className={`absolute top-4 left-4 sm:top-6 sm:left-6 px-3 py-1 sm:px-4 sm:py-1.5 rounded-full bg-black/20 backdrop-blur-md border border-white/10 shadow-sm z-20 transition-opacity ${isLobbyMode ? 'opacity-0' : 'opacity-100'}`}>
+                    <span className={`font-bold tracking-widest text-white/90 uppercase drop-shadow-sm text-[10px] sm:text-xs`}>{modeLabel}</span>
+                </div>
+            ) : (
                 <div className={`mb-2 px-8 py-1.5 rounded-full bg-black/30 backdrop-blur-xl border border-white/20 shadow-lg z-20 transition-opacity ${isLobbyMode ? 'opacity-0' : 'opacity-100'}`}>
                     <span className={`font-black tracking-[0.3em] text-white uppercase drop-shadow-md text-base md:text-lg`}>{modeLabel}</span>
                 </div>
