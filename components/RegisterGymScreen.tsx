@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { auth, db } from '../services/firebaseService'; // Importera auth direkt
 import { createUserWithEmailAndPassword } from 'firebase/auth'; // Importera Firebase-metoden direkt
 import { collection, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { CloseIcon } from './icons';
+import { CloseIcon, EyeIcon, EyeOffIcon } from './icons';
 
 interface RegisterGymScreenProps {
     onCancel: () => void;
@@ -19,6 +19,7 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
     const [password, setPassword] = useState('');
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
 
     const handleRegister = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -83,7 +84,7 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
     };
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-black p-4">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-black p-4 w-full">
             <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -157,14 +158,28 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1 tracking-wider">Välj Lösenord</label>
-                        <input
-                            type="password"
-                            required
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Minst 6 tecken"
-                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition-all"
-                        />
+                        <div className="relative">
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                required
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                placeholder="Minst 6 tecken"
+                                className="w-full bg-black text-white p-3 pr-12 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition-all"
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 focus:outline-none p-1"
+                                aria-label={showPassword ? "Dölj lösenord" : "Visa lösenord"}
+                            >
+                                {showPassword ? (
+                                    <EyeOffIcon className="w-5 h-5" />
+                                ) : (
+                                    <EyeIcon className="w-5 h-5" />
+                                )}
+                            </button>
+                        </div>
                     </div>
 
                     <div className="pt-2">
