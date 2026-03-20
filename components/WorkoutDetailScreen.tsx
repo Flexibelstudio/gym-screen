@@ -366,7 +366,7 @@ const ResultsLeaderboard: React.FC<{
 
 interface WorkoutDetailScreenProps {
   workout: Workout;
-  onStartBlock: (block: WorkoutBlock, workout: Workout) => void;
+  onStartBlock: (block: WorkoutBlock) => void;
   onUpdateBlockSettings: (blockId: string, newSettings: Partial<WorkoutBlock['settings']>) => void;
   onEditWorkout: (workout: Workout, blockId?: string) => void;
   onAdjustWorkout?: (workout: Workout) => void;
@@ -591,7 +591,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                     <div key={block.id} ref={el => { blockRefs.current[block.id] = el }}>
                         <WorkoutBlockCard 
                             block={block} 
-                            onStart={() => onStartBlock(block, sessionWorkout)} 
+                            onStart={() => onStartBlock(block)} 
                             onVisualize={() => setVisualizingBlock(block)}
                             onEditSettings={() => setEditingBlockId(block.id)}
                             onUpdateBlock={handleUpdateBlock}

@@ -175,7 +175,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
             }
             return <WorkoutDetailScreen 
                 workout={activeWorkout} 
-                onStartBlock={(block, workout) => onStartBlock(block, workout)} 
+                onStartBlock={(block) => onStartBlock(block, activeWorkout)} 
                 onUpdateBlockSettings={() => {}}
                 onEditWorkout={onEditWorkout} 
                 onAdjustWorkout={functions.handleAdjustWorkout}

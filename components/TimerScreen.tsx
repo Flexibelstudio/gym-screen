@@ -848,7 +848,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   }, []);
 
   useEffect(() => {
-      if (status === TimerStatus.Finished && totalTimeElapsed >= 0 && nextBlock && block.autoAdvance && !hasTriggeredFinish.current) {
+      if (status === TimerStatus.Finished && totalTimeElapsed > 0 && nextBlock && block.autoAdvance && !hasTriggeredFinish.current) {
           const waitTime = block.transitionTime || 0;
           if (waitTime === 0) {
               handleStartNextBlock();
