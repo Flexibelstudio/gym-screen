@@ -294,6 +294,7 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
 
   const effectiveIntervalsPerLap = useMemo(() => {
       if (block?.settings.mode === TimerMode.Custom) return block.settings.sequence?.length || 1;
+      if (block?.settings.mode === TimerMode.Tabata) return block.settings.rounds || 8;
       if (block?.settings.specifiedIntervalsPerLap) return block.settings.specifiedIntervalsPerLap;
       return totalExercises > 0 ? totalExercises : 1;
   }, [block, totalExercises]);
@@ -302,6 +303,7 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
       if (!block) return 0;
       if (block.settings.mode === TimerMode.Custom) return block.settings.rounds;
       if (block.settings.mode === TimerMode.EMOM) return settingsRounds;
+      if (block.settings.mode === TimerMode.Tabata) return 1;
       if (block.settings.specifiedLaps) return block.settings.specifiedLaps;
       return totalExercises > 0 ? Math.ceil(settingsRounds / totalExercises) : settingsRounds;
   }, [block, totalExercises, settingsRounds]);
