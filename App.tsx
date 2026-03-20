@@ -1490,7 +1490,7 @@ const App: React.FC = () => {
                              {selectedOrganization && (
                                 <WorkoutDetailScreen 
                                     workout={mobileViewData} 
-                                    onStartBlock={(block) => handleStartBlock(block, mobileViewData)} 
+                                    onStartBlock={(block, workout) => handleStartBlock(block, workout)} 
                                     onUpdateBlockSettings={() => {}}
                                     onEditWorkout={() => {}} 
                                     onAdjustWorkout={handleAdjustWorkout}

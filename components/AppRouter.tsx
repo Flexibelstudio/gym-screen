@@ -175,7 +175,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
             }
             return <WorkoutDetailScreen 
                 workout={activeWorkout} 
-                onStartBlock={(block) => onStartBlock(block, activeWorkout)} 
+                onStartBlock={(block, workout) => onStartBlock(block, workout)} 
                 onUpdateBlockSettings={() => {}}
                 onEditWorkout={onEditWorkout} 
                 onAdjustWorkout={functions.handleAdjustWorkout}
@@ -304,6 +304,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onClose={handleBack}
                 navigation={{ goBack: handleBack }}
                 route={{ params: mobileLogData }}
+                workouts={workouts}
             />;
 
         case Page.AdminAnalytics:
