@@ -739,40 +739,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     }
   }, [status, selectedOrganization?.id, selectedStudio?.id, activeWorkout?.id]);
 
-  // --- REMOTE CONTROL LISTENER ---
-  const lastProcessedCommandTimestamp = useRef<number>(remoteCommand ? remoteCommand.timestamp : 0);
-  useEffect(() => {
-      if (remoteCommand && remoteCommand.timestamp > lastProcessedCommandTimestamp.current) {
-          lastProcessedCommandTimestamp.current = remoteCommand.timestamp;
-          switch (remoteCommand.type) {
-              case 'start':
-              case 'resume':
-                  if (status === TimerStatus.Idle) {
-                      setIsLobbyMode(false);
-                      start();
-                  } else if (status === TimerStatus.Paused) {
-                      resume();
-                  }
-                  break;
-              case 'pause':
-                  if (status === TimerStatus.Running || status === TimerStatus.Resting || status === TimerStatus.Preparing) {
-                      pause();
-                  }
-                  break;
-              case 'reset':
-                  // Reset confirms usually, but remote is forced
-                  setIsLobbyMode(true);
-                  reset();
-                  break;
-              case 'finish':
-                  onFinish({ isNatural: false });
-                  break;
-              default:
-                  break;
-          }
-      }
-  }, [remoteCommand, start, pause, resume, reset, status, onFinish]);
-
 
   // --- TRANSITION LOGIC ---
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -845,6 +811,46 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           onFinish({ isNatural: true, time: totalTimeElapsed }); 
       }
   }, [nextBlock, totalTimeElapsed, onFinish]);
+
+  // --- REMOTE CONTROL LISTENER ---
+  const lastProcessedCommandTimestamp = useRef<number>(remoteCommand ? remoteCommand.timestamp : 0);
+  useEffect(() => {
+      if (remoteCommand && remoteCommand.timestamp > lastProcessedCommandTimestamp.current) {
+          lastProcessedCommandTimestamp.current = remoteCommand.timestamp;
+          switch (remoteCommand.type) {
+              case 'start':
+              case 'resume':
+                  if (status === TimerStatus.Idle) {
+                      setIsLobbyMode(false);
+                      start();
+                  } else if (status === TimerStatus.Paused) {
+                      resume();
+                  } else if (status === TimerStatus.Finished) {
+                      if (nextBlock) {
+                          handleStartNextBlock();
+                      } else {
+                          onFinish({ isNatural: true, time: totalTimeElapsed });
+                      }
+                  }
+                  break;
+              case 'pause':
+                  if (status === TimerStatus.Running || status === TimerStatus.Resting || status === TimerStatus.Preparing) {
+                      pause();
+                  }
+                  break;
+              case 'reset':
+                  // Reset confirms usually, but remote is forced
+                  setIsLobbyMode(true);
+                  reset();
+                  break;
+              case 'finish':
+                  onFinish({ isNatural: false });
+                  break;
+              default:
+                  break;
+          }
+      }
+  }, [remoteCommand, start, pause, resume, reset, status, onFinish, nextBlock, handleStartNextBlock, totalTimeElapsed]);
 
   useEffect(() => {
       hasTriggeredFinish.current = false;
@@ -1028,8 +1034,16 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const handleRemoteAction = useCallback(async (action: 'start' | 'pause' | 'resume' | 'reset') => {
       // 1. Perform Local Action IMMEDIATELY
       if (action === 'start') {
-          setIsLobbyMode(false);
-          start(); 
+          if (status === TimerStatus.Finished) {
+              if (nextBlock) {
+                  handleStartNextBlock();
+              } else {
+                  onFinish({ isNatural: true, time: totalTimeElapsed });
+              }
+          } else {
+              setIsLobbyMode(false);
+              start(); 
+          }
       }
       else if (action === 'pause') {
           if (isTransitioning) setIsTransitionPaused(true);
@@ -1059,7 +1073,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           // Don't await here to keep UI snappy, but fire it off
           updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, newState as any);
       }
-  }, [selectedOrganization, selectedStudio, activeWorkout, block.id, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset]);
+  }, [selectedOrganization, selectedStudio, activeWorkout, block.id, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset, status, nextBlock, handleStartNextBlock, totalTimeElapsed, onFinish]);
 
   useEffect(() => { return () => stopAllAudio(); }, [stopAllAudio]);
 
@@ -1253,10 +1267,18 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   // Autostart 2.0 Mode Detection
   const isAutostartMode = useMemo(() => {
       if (!activeWorkout) return false;
+      
       if (isTransitioning) {
-          return nextBlock?.autoAdvance === true && upcomingBlocks.length > 1;
+          // If we are transitioning, we look at the next block.
+          // If the next block has autoAdvance, we are in autostart mode (if there is a block after that)
+          if (nextBlock?.autoAdvance && upcomingBlocks.length > 1) return true;
+      } else {
+          // If we are NOT transitioning, we look at the current block.
+          // If the current block has autoAdvance, we are in autostart mode (if there is a next block)
+          if (block.autoAdvance && upcomingBlocks.length > 0) return true;
       }
-      return block.autoAdvance === true && upcomingBlocks.length > 0;
+      
+      return false;
   }, [activeWorkout, isTransitioning, nextBlock, block.autoAdvance, upcomingBlocks.length]);
 
   const isRestNext = block.autoAdvance && (block.transitionTime || 0) > 0 && status !== TimerStatus.Resting;
@@ -1526,20 +1548,49 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                         <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight">{block.setupDescription}</p>
                                 </motion.div>
                             )}
-                            <div className="flex-grow min-h-0">
-                                <FollowMeView 
-                                    exercise={currentExercise} 
-                                    nextExercise={nextExercise} 
-                                    timerStyle={timerStyle} 
-                                    status={status} 
-                                    nextBlock={nextBlock && block.autoAdvance ? nextBlock : undefined}
-                                    isRestNext={isRestNext}
-                                    transitionTime={isRestNext ? block.transitionTime : undefined}
-                                    showDescription={block.showExerciseDescriptions !== false} // PASS THE PROP
-                                    textSizeScale={textSizeScale}
-                                    repsSizeScale={repsSizeScale}
-                                    upcomingText={upcomingText}
-                                />
+                            <div className="flex flex-col gap-8 w-full h-full">
+                                <div className="flex-[2] min-h-0">
+                                    <FollowMeView 
+                                        exercise={currentExercise} 
+                                        nextExercise={nextExercise} 
+                                        timerStyle={timerStyle} 
+                                        status={status} 
+                                        nextBlock={nextBlock && block.autoAdvance ? nextBlock : undefined}
+                                        isRestNext={isRestNext}
+                                        transitionTime={isRestNext ? block.transitionTime : undefined}
+                                        showDescription={block.showExerciseDescriptions !== false} // PASS THE PROP
+                                        textSizeScale={textSizeScale}
+                                        repsSizeScale={repsSizeScale}
+                                        upcomingText={upcomingText}
+                                    />
+                                </div>
+                                
+                                {/* Upcoming Block (only in AutostartMode) */}
+                                {isAutostartMode && !isFreestanding && (
+                                    (() => {
+                                        const upcomingBlock = nextBlock;
+                                        if (!upcomingBlock) return null;
+                                        return (
+                                            <div className="flex-1 min-h-0 opacity-50 transition-opacity duration-500 w-full max-w-5xl mx-auto">
+                                                <div className="mb-4 flex items-center gap-4">
+                                                    <div className="h-px bg-gray-300 dark:bg-gray-700 flex-1"></div>
+                                                    <span className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest text-sm">
+                                                        Kommande: {upcomingBlock.title}
+                                                    </span>
+                                                    <div className="h-px bg-gray-300 dark:bg-gray-700 flex-1"></div>
+                                                </div>
+                                                <StandardListView 
+                                                    exercises={upcomingBlock.exercises} 
+                                                    timerStyle={getTimerStyle(TimerStatus.Idle, upcomingBlock.settings.mode, isHyroxRace, false, null)} 
+                                                    isHyrox={isHyroxRace} 
+                                                    showDescriptions={false} // Hide descriptions for upcoming
+                                                    textSizeScale={textSizeScale * 0.8} // Maybe slightly smaller?
+                                                    repsSizeScale={repsSizeScale * 0.8}
+                                                />
+                                            </div>
+                                        );
+                                    })()
+                                )}
                             </div>
                         </div>
                     </div>
