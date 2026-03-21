@@ -424,12 +424,9 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
       if (!prev || prev.id !== workout.id) {
         return JSON.parse(JSON.stringify(workout));
       }
-      return {
-        ...workout,
-        blocks: prev.blocks
-      };
+      return prev; // Behåll hela sessionWorkout om det är samma pass
     });
-  }, [workout]);
+  }, [workout.id]);
 
   useEffect(() => {
     if (isHyroxRace && selectedOrganization) {
