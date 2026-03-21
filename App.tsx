@@ -129,7 +129,7 @@ const App: React.FC = () => {
   // NEW: Ref to track when we entered the current page/timer to ignore old remote commands
   const pageEntryTimestampRef = useRef<number>(Date.now());
 
-  const navigateTo = useCallback((targetPage: Page) => {
+  const navigateTo = useCallback((targetPage: Page, options?: { activeWorkoutId?: string | null, activeBlockId?: string | null }) => {
     if (isStudioMode && selectedOrganization && selectedStudio) {
          // Update remote state to prevent "bounce back"
          // We use 'menu' for generic pages, or specific ones if we map them
@@ -148,8 +148,8 @@ const App: React.FC = () => {
 
          updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
              view,
-             activeWorkoutId: activeWorkout?.id || null,
-             activeBlockId: activeBlock?.id || null,
+             activeWorkoutId: options?.activeWorkoutId !== undefined ? options.activeWorkoutId : (activeWorkout?.id || null),
+             activeBlockId: options?.activeBlockId !== undefined ? options.activeBlockId : (activeBlock?.id || null),
              lastUpdate: Date.now(),
              controllerName: 'Touch Screen'
          });
@@ -578,16 +578,16 @@ const App: React.FC = () => {
     setActiveWorkout(null);
     setFocusedBlockId(null);
     setIsEditingNewDraft(true);
-    if (sessionRole === 'member') navigateTo(Page.SimpleWorkoutBuilder);
-    else navigateTo(Page.WorkoutBuilder);
+    if (sessionRole === 'member') navigateTo(Page.SimpleWorkoutBuilder, { activeWorkoutId: null });
+    else navigateTo(Page.WorkoutBuilder, { activeWorkoutId: null });
   };
 
   const handleEditWorkout = (workout: Workout, blockId?: string) => {
     setActiveWorkout(workout);
     setFocusedBlockId(blockId || null);
     setIsEditingNewDraft(false);
-    if (sessionRole === 'member') navigateTo(Page.SimpleWorkoutBuilder);
-    else navigateTo(Page.WorkoutBuilder);
+    if (sessionRole === 'member') navigateTo(Page.SimpleWorkoutBuilder, { activeWorkoutId: workout.id });
+    else navigateTo(Page.WorkoutBuilder, { activeWorkoutId: workout.id });
   };
 
   const handleAdjustWorkout = (workoutToAdjust: Workout) => {
@@ -600,7 +600,7 @@ const App: React.FC = () => {
     }
     setActiveWorkout(newDraft);
     setIsEditingNewDraft(true);
-    navigateTo(Page.SimpleWorkoutBuilder);
+    navigateTo(Page.SimpleWorkoutBuilder, { activeWorkoutId: newDraft.id });
   };
 
   const handleSaveAndNavigate = async (workout: Workout, startFirstBlock?: boolean) => {
@@ -617,6 +617,15 @@ const App: React.FC = () => {
         setActiveWorkout(savedWorkout);
         
         if (isStudioMode) {
+            if (selectedOrganization && selectedStudio) {
+                updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+                    view: 'preview',
+                    activeWorkoutId: savedWorkout.id,
+                    activeBlockId: null,
+                    lastUpdate: Date.now(),
+                    controllerName: 'Touch Screen'
+                });
+            }
             navigateReplace(Page.WorkoutDetail);
         } else {
             handleBack();
@@ -661,13 +670,12 @@ const App: React.FC = () => {
 
     if (isStudioMode && selectedOrganization && selectedStudio && isSavedWorkout) {
         setRemoteCommand(null);
-        updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-            activeWorkoutId: workoutContext.id,
-            view: 'timer',
-            activeBlockId: block.id,
-            lastUpdate: Date.now(),
-            controllerName: 'Touch Screen'
-        });
+        
+        // Update local state immediately to avoid race conditions with remote state listener
+        setActiveWorkout(workoutContext);
+        setActiveBlock(block);
+        const targetPage = block.settings.mode === TimerMode.NoTimer ? Page.RepsOnly : Page.Timer;
+        navigateTo(targetPage, { activeWorkoutId: workoutContext.id, activeBlockId: block.id });
         return;
     }
     setActiveWorkout(workoutContext);
@@ -699,14 +707,14 @@ const App: React.FC = () => {
     setIsAutoTransition(false); 
     setActiveWorkout(tempWorkout);
     setActiveBlock(block);
-    if (block.settings.mode === TimerMode.NoTimer) navigateTo(Page.RepsOnly);
-    else navigateTo(Page.Timer);
+    if (block.settings.mode === TimerMode.NoTimer) navigateTo(Page.RepsOnly, { activeWorkoutId: tempWorkout.id, activeBlockId: block.id });
+    else navigateTo(Page.Timer, { activeWorkoutId: tempWorkout.id, activeBlockId: block.id });
   };
 
   const handleSelectWorkout = (workout: Workout, action: 'view' | 'log' = 'view') => {
     if (isStudioMode) {
         setActiveWorkout(workout);
-        navigateTo(Page.WorkoutDetail);
+        navigateTo(Page.WorkoutDetail, { activeWorkoutId: workout.id });
         return;
     }
 
@@ -734,7 +742,7 @@ const App: React.FC = () => {
     if ((workout.id.startsWith('hyrox-full-race') || workout.id.startsWith('custom-race')) && workout.blocks.length > 0) {
       handleStartBlock(workout.blocks[0], workout);
     } else {
-      navigateTo(Page.WorkoutDetail);
+      navigateTo(Page.WorkoutDetail, { activeWorkoutId: workout.id });
     }
   };
 
@@ -746,7 +754,7 @@ const App: React.FC = () => {
     const newDraft = deepCopyAndPrepareAsNew(workoutToCopy);
     setActiveWorkout(newDraft);
     setIsEditingNewDraft(true);
-    navigateTo(Page.WorkoutBuilder);
+    navigateTo(Page.WorkoutBuilder, { activeWorkoutId: newDraft.id });
   };
 
   const handleSelectPasskategori = (passkategori: Passkategori) => {
@@ -786,7 +794,7 @@ const App: React.FC = () => {
     setActiveWorkout(newWorkout);
     setFocusedBlockId(null);
     setIsEditingNewDraft(true);
-    navigateTo(Page.WorkoutBuilder);
+    navigateTo(Page.WorkoutBuilder, { activeWorkoutId: newWorkout.id });
   }
   
   const handleWorkoutInterpretedFromNote = (workout: Workout) => {
@@ -797,7 +805,7 @@ const App: React.FC = () => {
     };
     setActiveWorkout(workoutWithOrg); 
     setIsEditingNewDraft(true);
-    navigateTo(Page.SimpleWorkoutBuilder);
+    navigateTo(Page.SimpleWorkoutBuilder, { activeWorkoutId: workoutWithOrg.id });
   };
   
   const handleReturnToGroupPrep = useCallback(() => {
@@ -1490,7 +1498,7 @@ const App: React.FC = () => {
                              {selectedOrganization && (
                                 <WorkoutDetailScreen 
                                     workout={mobileViewData} 
-                                    onStartBlock={(block) => handleStartBlock(block, mobileViewData)} 
+                                    onStartBlock={(block, workout) => handleStartBlock(block, workout)} 
                                     onUpdateBlockSettings={() => {}}
                                     onEditWorkout={() => {}} 
                                     onAdjustWorkout={handleAdjustWorkout}

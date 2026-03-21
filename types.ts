@@ -90,8 +90,8 @@ export interface TimerSettings {
   restTime: number; // seconds
   rounds: number;
   prepareTime: number; // seconds
-  specifiedLaps?: number;
-  specifiedIntervalsPerLap?: number;
+  specifiedLaps?: number | null;
+  specifiedIntervalsPerLap?: number | null;
   direction?: 'up' | 'down';
   sequence?: TimerSegment[]; // NYTT: Lista för Custom Mode
 }

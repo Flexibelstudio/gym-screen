@@ -540,8 +540,8 @@ const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRou
     // Also show for Custom mode
     if (mode !== TimerMode.Interval && mode !== TimerMode.Tabata && mode !== TimerMode.EMOM && mode !== TimerMode.Custom) return null;
 
-    const showInterval = currentInterval !== undefined && totalIntervalsInLap !== undefined && mode !== TimerMode.EMOM && mode !== TimerMode.Custom;
-    const label = mode === TimerMode.EMOM ? 'MINUT' : mode === TimerMode.Custom ? 'VARV' : 'VARV';
+    const showInterval = currentInterval !== undefined && totalIntervalsInLap !== undefined && mode !== TimerMode.EMOM && mode !== TimerMode.Custom && mode !== TimerMode.Tabata;
+    const label = mode === TimerMode.EMOM ? 'MINUT' : mode === TimerMode.Custom ? 'VARV' : mode === TimerMode.Tabata ? 'ROND' : (mode === TimerMode.Interval && currentInterval === undefined) ? 'INTERVALL' : 'VARV';
 
     return (
         <div className="flex flex-col items-end gap-1 animate-fade-in">
@@ -1396,8 +1396,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                         currentRound={currentRound} 
                         totalRounds={totalRounds} 
                         mode={block.settings.mode} 
-                        currentInterval={(completedWorkIntervals % (block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1)) + 1}
-                        totalIntervalsInLap={block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1}
+                        currentInterval={block?.settings.specifiedLaps != null ? (completedWorkIntervals % (block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1)) + 1 : undefined}
+                        totalIntervalsInLap={block?.settings.specifiedLaps != null ? (block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1) : undefined}
                     />
                 )}
             </motion.div>

@@ -238,12 +238,13 @@ const WorkoutBlockCard: React.FC<{
     const settingsText = useMemo(() => {
         const { mode, workTime, restTime, rounds } = block.settings;
         switch(mode) {
-            case TimerMode.Interval:
             case TimerMode.Tabata:
+                return `Tabata: ${rounds} ronder (${formatTime(workTime)} / ${formatTime(restTime)})`;
+            case TimerMode.Interval:
                 const totalIntervals = rounds;
                 const exercisesPerLap = block.exercises.length > 0 ? block.exercises.length : 1;
-                const laps = block.settings.specifiedLaps || Math.ceil(totalIntervals / exercisesPerLap);
-                const lapText = laps > 1 ? ` (${laps} varv)` : '';
+                const laps = block.settings.specifiedLaps != null ? block.settings.specifiedLaps : null;
+                const lapText = laps && laps > 1 ? ` (${laps} varv)` : '';
                 return `Intervall: ${totalIntervals}x (${formatTime(workTime)} / ${formatTime(restTime)})${lapText}`;
             case TimerMode.AMRAP:
             case TimerMode.TimeCap:

@@ -34,10 +34,13 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
       let iTotalMinutes = 10;
 
       if (mode === TimerMode.Interval) {
-          if (specifiedLaps !== undefined && specifiedIntervalsPerLap !== undefined) {
+          if (specifiedLaps != null && specifiedIntervalsPerLap != null) {
                iCountMode = 'laps';
                iVarv = specifiedLaps;
                iIntervallerPerVarv = specifiedIntervalsPerLap;
+          } else if (specifiedLaps === null) {
+               iCountMode = 'rounds';
+               iTotalOmgångar = rounds > 0 ? rounds : 1;
           } else {
               const numExercises = block.exercises.length > 0 ? block.exercises.length : 1;
               if (rounds > 0 && rounds % numExercises === 0) {
@@ -188,8 +191,8 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
             newSettings.specifiedIntervalsPerLap = intervallerPerVarv;
         } else {
             newSettings.rounds = totalOmgångar;
-            newSettings.specifiedLaps = undefined;
-            newSettings.specifiedIntervalsPerLap = undefined;
+            newSettings.specifiedLaps = null;
+            newSettings.specifiedIntervalsPerLap = null;
         }
         newSettings.workTime = workMinutes * 60 + workSeconds;
         newSettings.restTime = restMinutes * 60 + restSeconds;
@@ -199,8 +202,8 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
         newSettings.rounds = 8;
         newSettings.workTime = 20;
         newSettings.restTime = 10;
-        newSettings.specifiedLaps = undefined;
-        newSettings.specifiedIntervalsPerLap = undefined;
+        newSettings.specifiedLaps = null;
+        newSettings.specifiedIntervalsPerLap = null;
         break;
       case TimerMode.AMRAP:
       case TimerMode.TimeCap:
@@ -538,8 +541,8 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
         )}
 
         <div className="mt-8 flex gap-4">
-          <button onClick={handleSave} className="flex-1 bg-primary hover:brightness-95 text-white font-bold py-3 rounded-lg transition-colors shadow-sm">Spara</button>
-          <button onClick={() => { if (!hasUnsavedChanges || window.confirm("Avbryt och kasta ändringar?")) onClose(); }} className="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 rounded-lg transition-colors">Avbryt</button>
+          <button type="button" onClick={handleSave} className="flex-1 bg-primary hover:brightness-95 text-white font-bold py-3 rounded-lg transition-colors shadow-sm">Spara</button>
+          <button type="button" onClick={() => { if (!hasUnsavedChanges || window.confirm("Avbryt och kasta ändringar?")) onClose(); }} className="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 rounded-lg transition-colors">Avbryt</button>
         </div>
       </div>
     </div>,
