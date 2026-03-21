@@ -465,24 +465,13 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   };
 
   const handleUpdateBlock = (updatedBlock: WorkoutBlock) => {
-    let updatedWorkoutToSave: Workout | null = null;
     setSessionWorkout(prevWorkout => {
       if (!prevWorkout) return null as any;
-      const updatedWorkout = {
+      return {
         ...prevWorkout,
         blocks: prevWorkout.blocks.map(b => b.id === updatedBlock.id ? updatedBlock : b)
       };
-      updatedWorkoutToSave = updatedWorkout;
-      return updatedWorkout;
     });
-    
-    // Använd setTimeout för att säkerställa att vi skickar den senaste versionen
-    // och undviker att anropa sidoeffekter inuti Reacts state updater
-    setTimeout(() => {
-        if (updatedWorkoutToSave) {
-            onUpdateWorkout(updatedWorkoutToSave);
-        }
-    }, 0);
   };
 
   const handleUpdateSettings = (blockId: string, newSettings: Partial<TimerSettings> & { autoAdvance?: boolean; transitionTime?: number }) => {
