@@ -366,7 +366,7 @@ const ResultsLeaderboard: React.FC<{
 
 interface WorkoutDetailScreenProps {
   workout: Workout;
-  onStartBlock: (block: WorkoutBlock) => void;
+  onStartBlock: (block: WorkoutBlock, workout: Workout) => void;
   onUpdateBlockSettings: (blockId: string, newSettings: Partial<WorkoutBlock['settings']>) => void;
   onEditWorkout: (workout: Workout, blockId?: string) => void;
   onAdjustWorkout?: (workout: Workout) => void;
@@ -419,7 +419,15 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   }, [workout]);
 
   useEffect(() => {
-    setSessionWorkout(JSON.parse(JSON.stringify(workout)));
+    setSessionWorkout(prev => {
+      if (!prev || prev.id !== workout.id) {
+        return JSON.parse(JSON.stringify(workout));
+      }
+      return {
+        ...workout,
+        blocks: prev.blocks
+      };
+    });
   }, [workout]);
 
   useEffect(() => {
@@ -456,16 +464,24 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   };
 
   const handleUpdateBlock = (updatedBlock: WorkoutBlock) => {
+    let updatedWorkoutToSave: Workout | null = null;
     setSessionWorkout(prevWorkout => {
       if (!prevWorkout) return null as any;
       const updatedWorkout = {
         ...prevWorkout,
         blocks: prevWorkout.blocks.map(b => b.id === updatedBlock.id ? updatedBlock : b)
       };
-      // PERSIST THE CHANGE GLOBALLY
-      onUpdateWorkout(updatedWorkout);
+      updatedWorkoutToSave = updatedWorkout;
       return updatedWorkout;
     });
+    
+    // Använd setTimeout för att säkerställa att vi skickar den senaste versionen
+    // och undviker att anropa sidoeffekter inuti Reacts state updater
+    setTimeout(() => {
+        if (updatedWorkoutToSave) {
+            onUpdateWorkout(updatedWorkoutToSave);
+        }
+    }, 0);
   };
 
   const handleUpdateSettings = (blockId: string, newSettings: Partial<TimerSettings> & { autoAdvance?: boolean; transitionTime?: number }) => {
@@ -591,7 +607,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                     <div key={block.id} ref={el => { blockRefs.current[block.id] = el }}>
                         <WorkoutBlockCard 
                             block={block} 
-                            onStart={() => onStartBlock(block)} 
+                            onStart={() => onStartBlock(block, sessionWorkout)} 
                             onVisualize={() => setVisualizingBlock(block)}
                             onEditSettings={() => setEditingBlockId(block.id)}
                             onUpdateBlock={handleUpdateBlock}

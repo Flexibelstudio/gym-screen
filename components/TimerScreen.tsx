@@ -101,12 +101,9 @@ const getBlockTimeLabel = (block: WorkoutBlock): string => {
         case TimerMode.EMOM:
             return s.rounds ? `${s.rounds} MIN` : "";
         case TimerMode.Tabata:
-            return s.rounds ? `${s.rounds} INTERVALLER` : "";
+            return s.rounds ? `${s.rounds} RONDER` : "";
         case TimerMode.Interval:
-            if (s.specifiedLaps && s.specifiedIntervalsPerLap) {
-                return `${s.specifiedLaps} VARV x ${s.specifiedIntervalsPerLap}`;
-            }
-            return s.rounds ? `${s.rounds} INTERVALLER` : "";
+            return s.rounds ? `${s.rounds} RONDER` : "";
         case TimerMode.Custom:
              return s.rounds ? `${s.rounds} VARV` : "";
         default:
@@ -1253,11 +1250,12 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   // Autostart 2.0 Mode Detection
   const isAutostartMode = useMemo(() => {
       if (!activeWorkout) return false;
-      if (isTransitioning) {
-          return nextBlock?.autoAdvance === true && upcomingBlocks.length > 1;
-      }
-      return block.autoAdvance === true && upcomingBlocks.length > 0;
-  }, [activeWorkout, isTransitioning, nextBlock, block.autoAdvance, upcomingBlocks.length]);
+      return activeWorkout.blocks.length > 1 && activeWorkout.blocks.some(b => b.autoAdvance);
+  }, [activeWorkout]);
+
+  // Visa split-vyn (sida-vid-sida) om vi har kommande block, antingen i träning eller under transition
+  // Men INTE om vi är i AutostartMode (då stackar vi vertikalt istället)
+  const showSplitView = upcomingBlocks.length > 0 && block.autoAdvance && !isAutostartMode;
 
   const isRestNext = block.autoAdvance && (block.transitionTime || 0) > 0 && status !== TimerStatus.Resting;
   
@@ -1398,8 +1396,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                         currentRound={currentRound} 
                         totalRounds={totalRounds} 
                         mode={block.settings.mode} 
-                        currentInterval={currentIntervalInLap}
-                        totalIntervalsInLap={effectiveIntervalsPerLap}
+                        currentInterval={(completedWorkIntervals % (block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1)) + 1}
+                        totalIntervalsInLap={block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1}
                     />
                 )}
             </motion.div>
@@ -1546,7 +1544,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 ) : (
                     // STANDARD LIST LAYOUT (Side by side if next blocks exist)
                     <div className="flex gap-4 flex-grow items-stretch w-full min-h-0">
-                         <div className="flex flex-col gap-6 transition-all duration-500 h-full min-h-0 w-full mx-auto max-w-6xl">
+                         <div className={`flex flex-col gap-6 transition-all duration-500 h-full min-h-0 ${showSplitView ? 'w-2/3' : 'w-full mx-auto max-w-6xl'}`}>
                             {isTransitioning && !isAutostartMode ? (
                                 // Header för vila-läget (Döljs i AutostartMode)
                                 <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-center bg-white/80 dark:bg-black/20 p-8 rounded-[2.5rem] border border-gray-100 dark:border-white/5 shadow-lg gap-6">
@@ -1624,6 +1622,90 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                 )}
                             </div>
                         </div>
+
+                        {/* UPCOMING BLOCKS STACK (33% width) - DYNAMIC HEIGHT */}
+                        {showSplitView ? (
+                            <div className="w-1/3 h-full flex flex-col gap-4 pb-1">
+                                {isTransitioning ? (
+                                    // Under vila: Visa kommande block C och D
+                                    // Beräkna vikter för blocken
+                                    (() => {
+                                        const block1 = upcomingBlocks[1];
+                                        const block2 = upcomingBlocks[2];
+                                        const w1 = block1 ? getBlockWeight(block1) : 0;
+                                        const w2 = block2 ? getBlockWeight(block2) : 0;
+                                        
+                                        return (
+                                            <>
+                                                {block1 && (
+                                                    <NextBlockPreview 
+                                                        block={block1} 
+                                                        label="HÄRNÄST" 
+                                                        style={{ flexGrow: w1 }}
+                                                    />
+                                                )}
+                                                {block2 && (
+                                                    <NextBlockPreview 
+                                                        block={block2} 
+                                                        label="DÄREFTER" 
+                                                        style={{ flexGrow: w2 }} 
+                                                    />
+                                                )}
+                                            </>
+                                        );
+                                    })()
+                                ) : isRestNext ? (
+                                    // Under träning med vila efter: Visa vila och Block B
+                                    // Vila får fast vikt (typ 2), Block B får dynamisk
+                                    (() => {
+                                        const blockAfter = upcomingBlocks[0];
+                                        const restWeight = 2; // Reduced weight for rest card to make it smaller
+                                        const blockWeight = blockAfter ? getBlockWeight(blockAfter) : 0;
+                                        
+                                        return (
+                                            <>
+                                                <NextRestPreview 
+                                                    transitionTime={block.transitionTime || 0} 
+                                                    style={{ flexGrow: restWeight }}
+                                                />
+                                                {blockAfter && (
+                                                    <NextBlockPreview 
+                                                        block={blockAfter} 
+                                                        label="DÄREFTER" 
+                                                        style={{ flexGrow: blockWeight }}
+                                                    />
+                                                )}
+                                            </>
+                                        );
+                                    })()
+                                ) : (
+                                    // Under träning utan vila: Visa Block B och C
+                                    (() => {
+                                        const block1 = nextBlock!;
+                                        const block2 = upcomingBlocks[1];
+                                        const w1 = getBlockWeight(block1);
+                                        const w2 = block2 ? getBlockWeight(block2) : 0;
+                                        
+                                        return (
+                                            <>
+                                                <NextBlockPreview 
+                                                    block={block1} 
+                                                    label="HÄRNÄST" 
+                                                    style={{ flexGrow: w1 }} 
+                                                />
+                                                {block2 && (
+                                                    <NextBlockPreview 
+                                                        block={block2} 
+                                                        label="DÄREFTER" 
+                                                        style={{ flexGrow: w2 }} 
+                                                    />
+                                                )}
+                                            </>
+                                        );
+                                    })()
+                                )}
+                            </div>
+                        ) : null}
                     </div>
                 )}
               </div>
