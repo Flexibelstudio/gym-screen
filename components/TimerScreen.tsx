@@ -256,24 +256,6 @@ const SegmentedRoadmap: React.FC<{
     totalSequenceElapsed?: number;
 }> = ({ chain, currentBlockId, totalChainElapsed, totalChainTime, isCustomMode, sequence, currentSegmentIndex, totalSequenceDuration, totalSequenceElapsed }) => {
     
-    // CUSTOM MODE ROADMAP - CONTINUOUS
-    if (isCustomMode && sequence && totalSequenceDuration) {
-         const elapsed = totalSequenceElapsed || 0;
-         const percentage = Math.min(100, Math.max(0, (elapsed / totalSequenceDuration) * 100));
-
-         return (
-            <div className="w-full flex items-center h-4 mb-2 bg-white/20 dark:bg-black/30 rounded-full overflow-hidden border border-white/10 shadow-inner">
-                 <motion.div 
-                    className="h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)]"
-                    style={{ width: `${percentage}%` }}
-                    // Use standard animation for smooth progress
-                    animate={{ width: `${percentage}%` }}
-                    transition={{ duration: 0.5, ease: "linear" }}
-                />
-            </div>
-         );
-    }
-
     // STANDARD BLOCK CHAIN ROADMAP
     let accumulatedTime = 0;
     
@@ -537,44 +519,76 @@ interface BigIndicatorProps {
 }
 
 const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRounds, mode, currentInterval, totalIntervalsInLap }) => {
-    // Also show for Custom mode
     if (mode !== TimerMode.Interval && mode !== TimerMode.Tabata && mode !== TimerMode.EMOM && mode !== TimerMode.Custom) return null;
 
-    const showInterval = currentInterval !== undefined && totalIntervalsInLap !== undefined && mode !== TimerMode.EMOM && mode !== TimerMode.Custom && mode !== TimerMode.Tabata;
-    const label = mode === TimerMode.EMOM ? 'MINUT' : mode === TimerMode.Custom ? 'VARV' : mode === TimerMode.Tabata ? 'ROND' : (mode === TimerMode.Interval && currentInterval === undefined) ? 'INTERVALL' : 'VARV';
+    let primaryLabel = '';
+    let primaryCurrent = 0;
+    let primaryTotal = 0;
+
+    let secondaryLabel = '';
+    let secondaryCurrent = 0;
+    let secondaryTotal = 0;
+
+    if (mode === TimerMode.Custom) {
+        primaryLabel = 'INTERVALL';
+        primaryCurrent = currentInterval || 1;
+        primaryTotal = totalIntervalsInLap || 1;
+        secondaryLabel = 'VARV';
+        secondaryCurrent = currentRound;
+        secondaryTotal = totalRounds;
+    } else if (mode === TimerMode.Interval && currentInterval !== undefined && totalIntervalsInLap !== undefined) {
+        primaryLabel = 'INTERVALL';
+        primaryCurrent = currentInterval;
+        primaryTotal = totalIntervalsInLap;
+        secondaryLabel = 'VARV';
+        secondaryCurrent = currentRound;
+        secondaryTotal = totalRounds;
+    } else if (mode === TimerMode.Interval) {
+        primaryLabel = 'INTERVALL';
+        primaryCurrent = currentRound;
+        primaryTotal = totalRounds;
+    } else if (mode === TimerMode.Tabata) {
+        primaryLabel = 'INTERVALL';
+        primaryCurrent = currentRound;
+        primaryTotal = totalRounds;
+    } else if (mode === TimerMode.EMOM) {
+        primaryLabel = 'MINUT';
+        primaryCurrent = currentRound;
+        primaryTotal = totalRounds;
+    }
 
     return (
         <div className="flex flex-col items-end gap-1 animate-fade-in">
-            {showInterval && (
-                <div className="flex flex-col items-end">
-                    <span className="block text-white/80 font-black text-xs sm:text-sm uppercase tracking-[0.4em] mb-1 drop-shadow-md">INTERVALL</span>
-                    <div className="flex items-baseline justify-end gap-1">
-                        <motion.span 
-                            key={`interval-${currentInterval}`} 
-                            initial={{ opacity: 0, scale: 0.8 }} 
-                            animate={{ opacity: 1, scale: 1 }} 
-                            className="font-black text-6xl sm:text-7xl text-white drop-shadow-lg leading-none"
-                        >
-                            {currentInterval}
-                        </motion.span>
-                        <span className="text-2xl sm:text-3xl font-black text-white/80 drop-shadow-md">/ {totalIntervalsInLap}</span>
-                    </div>
+            <div className="flex flex-col items-end">
+                <span className="block text-white/80 font-black text-xs sm:text-sm uppercase tracking-[0.4em] mb-1 drop-shadow-md">{primaryLabel}</span>
+                <div className="flex items-baseline justify-end gap-1">
+                    <motion.span 
+                        key={`primary-${primaryCurrent}`} 
+                        initial={{ opacity: 0, scale: 0.8 }} 
+                        animate={{ opacity: 1, scale: 1 }} 
+                        className="font-black text-6xl sm:text-7xl text-white drop-shadow-lg leading-none"
+                    >
+                        {primaryCurrent}
+                    </motion.span>
+                    <span className="text-2xl sm:text-3xl font-black text-white/80 drop-shadow-md">/ {primaryTotal}</span>
                 </div>
-            )}
+            </div>
 
-            <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center justify-end gap-3 mt-2"
-            >
-                <span className="text-white/80 font-black text-[10px] sm:text-xs uppercase tracking-[0.3em] drop-shadow-md">
-                    {label}
-                </span>
-                <div className="flex items-baseline gap-1">
-                    <span className="text-2xl sm:text-3xl font-black text-white drop-shadow-lg">{currentRound}</span>
-                    <span className="text-sm sm:text-base font-bold text-white/80 drop-shadow-md">/ {totalRounds}</span>
-                </div>
-            </motion.div>
+            {secondaryLabel && (
+                <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center justify-end gap-3 mt-2"
+                >
+                    <span className="text-white/80 font-black text-[10px] sm:text-xs uppercase tracking-[0.3em] drop-shadow-md">
+                        {secondaryLabel}
+                    </span>
+                    <div className="flex items-baseline gap-1">
+                        <span className="text-2xl sm:text-3xl font-black text-white drop-shadow-lg">{secondaryCurrent}</span>
+                        <span className="text-sm sm:text-base font-bold text-white/80 drop-shadow-md">/ {secondaryTotal}</span>
+                    </div>
+                </motion.div>
+            )}
         </div>
     );
 };
@@ -1396,8 +1410,14 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                         currentRound={currentRound} 
                         totalRounds={totalRounds} 
                         mode={block.settings.mode} 
-                        currentInterval={block?.settings.specifiedLaps != null ? (completedWorkIntervals % (block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1)) + 1 : undefined}
-                        totalIntervalsInLap={block?.settings.specifiedLaps != null ? (block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1) : undefined}
+                        currentInterval={
+                            block.settings.mode === TimerMode.Custom ? (completedWorkIntervals % (block.settings.sequence?.length || 1)) + 1 :
+                            block?.settings.specifiedLaps != null ? (completedWorkIntervals % (block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1)) + 1 : undefined
+                        }
+                        totalIntervalsInLap={
+                            block.settings.mode === TimerMode.Custom ? block.settings.sequence?.length || 1 :
+                            block?.settings.specifiedLaps != null ? (block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1) : undefined
+                        }
                     />
                 )}
             </motion.div>
