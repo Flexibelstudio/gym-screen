@@ -695,22 +695,30 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const nextBlock = upcomingBlocks[0] || null;
 
   const workoutChain = useMemo(() => {
+      // Om vi inte har ett aktivt pass, visa bara det aktuella blocket
       if (!activeWorkout) return [block];
+
       const index = activeWorkout.blocks.findIndex(b => b.id === block.id);
+      
+      // Om blocket inte hittas i passet (vilket kan hända precis vid ett byte), 
+      // använd det aktuella blocket som bas för att undvika krasch.
       if (index === -1) return [block];
 
+      // Hitta början på kedjan (gå bakåt så länge föregående block har autoAdvance)
       let startIdx = index;
       while (startIdx > 0 && activeWorkout.blocks[startIdx - 1].autoAdvance) {
           startIdx--;
       }
 
+      // Hitta slutet på kedjan (gå framåt så länge nuvarande/nästa block har autoAdvance)
       let endIdx = index;
       while (endIdx < activeWorkout.blocks.length - 1 && activeWorkout.blocks[endIdx].autoAdvance) {
           endIdx++;
       }
 
+      // Returnera den exakta delen av passet som ska köras i en följd
       return activeWorkout.blocks.slice(startIdx, endIdx + 1);
-  }, [activeWorkout, block.id]);
+  }, [activeWorkout, block]); // <--- VIKTIGT: Här lyssnar vi på hela blocket, inte bara ID
 
   const chainInfo = useMemo(() => {
       let totalDuration = 0;
@@ -1366,22 +1374,21 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 </div>
             </div>
 
-           {/* TIDSLINJE (Roadmap) - Under tiden */}
-<div className="w-[80%] max-w-4xl mt-1 mb-1 z-20">
-    <SegmentedRoadmap 
-        key={block.id} // <--- Nyckeln läggs här för att tvinga omritning vid anpassning
-        chain={workoutChain} 
-        currentBlockId={block.id} 
-        totalChainElapsed={totalChainElapsed} 
-        totalChainTime={chainInfo.totalDuration}
-        // Custom Mode props
-        isCustomMode={block.settings.mode === TimerMode.Custom}
-        sequence={block.settings.sequence}
-        currentSegmentIndex={completedWorkIntervals}
-        totalSequenceDuration={totalSequenceDuration}
-        totalSequenceElapsed={totalTimeElapsed}
-    />
-</div>
+            {/* TIDSLINJE (Roadmap) - Under tiden */}
+            <div className="w-[80%] max-w-4xl mt-1 mb-1 z-20">
+                <SegmentedRoadmap 
+                    chain={workoutChain} 
+                    currentBlockId={block.id} 
+                    totalChainElapsed={totalChainElapsed} 
+                    totalChainTime={chainInfo.totalDuration}
+                    // Custom Mode props
+                    isCustomMode={block.settings.mode === TimerMode.Custom}
+                    sequence={block.settings.sequence}
+                    currentSegmentIndex={completedWorkIntervals}
+                    totalSequenceDuration={totalSequenceDuration}
+                    totalSequenceElapsed={totalTimeElapsed}
+                />
+            </div>
 
             {/* BLOCK RUBRIK (Stort) - Längst ner (Döljs i AutostartMode) */}
             {!isAutostartMode && (
