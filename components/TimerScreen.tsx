@@ -634,15 +634,16 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   // --- REMOTE STATUS SYNC ---
   useEffect(() => {
-    if (selectedOrganization && selectedStudio && activeWorkout) {
-        // We only sync status changes, not every second
+    if (selectedOrganization && selectedStudio) {
+        // SKICKA BARA STATUS. 
+        // Vi tar bort activeWorkoutId härifrån så att TimerScreen inte råkar skriva 
+        // över vår temporära "Live"-kopia med ett gammalt pass-ID.
         updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-            activeWorkoutId: activeWorkout.id, // Explicitly reinforce the current workout ID
             status: status,
             lastUpdate: Date.now()
         } as any);
     }
-  }, [status, selectedOrganization?.id, selectedStudio?.id, activeWorkout?.id]);
+  }, [status, selectedOrganization?.id, selectedStudio?.id]);
 
   // --- REMOTE CONTROL LISTENER ---
   const lastProcessedCommandTimestamp = useRef<number>(remoteCommand ? remoteCommand.timestamp : 0);
