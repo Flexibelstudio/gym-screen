@@ -110,6 +110,9 @@ const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void
                                         </div>
                                     </div>
                                 ))}
+                                {block.exercises.length === 0 && (
+                                    <p className="text-gray-400 italic pl-4">Inga övningar.</p>
+                                )}
                             </div>
                         </div>
                     ))}
@@ -183,6 +186,9 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
                             </div>
                         </div>
                     ))}
+                    {block.exercises.length === 0 && (
+                        <p className="text-center text-3xl text-gray-400 py-20 italic">Inga övningar i detta block.</p>
+                    )}
                 </div>
             </div>
             
@@ -367,7 +373,6 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   const { isStudioMode, role, userData, currentUser } = useAuth();
   const { setActiveWorkout } = useWorkout();
   
-  // sessionWorkout innehåller passet vi ser på skärmen (kan vara anpassat lokalt)
   const [sessionWorkout, setSessionWorkout] = useState<Workout>(() => JSON.parse(JSON.stringify(workout)));
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [coachTipsVisible, setCoachTipsVisible] = useState(true);
@@ -436,23 +441,19 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
     });
   };
 
-  // NY VERSION: Hanterar anpassningar HELT LOKALT utan att spara i Firebase
   const handleUpdateSettings = (blockId: string, newSettings: Partial<TimerSettings> & { autoAdvance?: boolean; transitionTime?: number }) => {
       setSessionWorkout(prevWorkout => {
           if (!prevWorkout) return null as any;
           
-          // Djup kopia för att tvinga fram en omritning av UI direkt
           const newWorkout = JSON.parse(JSON.stringify(prevWorkout)) as Workout;
           
           const blockIndex = newWorkout.blocks.findIndex(b => b.id === blockId);
           if (blockIndex !== -1) {
               const { autoAdvance, transitionTime, ...settingsUpdates } = newSettings;
               
-              // Uppdatera autoAdvance och transitionTime (ligger på blocknivå)
               if (autoAdvance !== undefined) newWorkout.blocks[blockIndex].autoAdvance = autoAdvance;
               if (transitionTime !== undefined) newWorkout.blocks[blockIndex].transitionTime = transitionTime;
               
-              // Uppdatera klockinställningar
               newWorkout.blocks[blockIndex].settings = { 
                   ...newWorkout.blocks[blockIndex].settings, 
                   ...settingsUpdates 
@@ -564,17 +565,16 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                         <WorkoutBlockCard 
                             block={block} 
                             onStart={async () => {
-                                // NY LOGIK: Vi startar med det passet vi ser på skärmen (sessionWorkout)
-                                // Vi skapar INTE längre temp-filer i Firebase för tillfälliga anpassningar.
                                 setActiveWorkout(sessionWorkout);
 
-                                // Uppdatera remote state för TV-skärmar med passet vi kör
                                 if (selectedOrganization && selectedStudio) {
                                     updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
                                         activeWorkoutId: sessionWorkout.id,
                                         activeBlockId: block.id,
                                         view: 'timer',
                                         status: 'preparing',
+                                        // Vi skickar med hela den anpassade pass-datan i fjärr-statusen
+                                        customWorkoutData: JSON.parse(JSON.stringify(sessionWorkout)),
                                         lastUpdate: Date.now()
                                     } as any);
                                 }
