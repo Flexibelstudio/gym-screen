@@ -930,7 +930,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     reset(); // Reset will stop timer and set status to Idle
   };
 
-  // --- REMOTE SYNC HANDLER ---
+// --- REMOTE SYNC HANDLER ---
   const handleRemoteAction = useCallback(async (action: 'start' | 'pause' | 'resume' | 'reset') => {
       // 1. Perform Local Action IMMEDIATELY
       if (action === 'start') {
@@ -950,11 +950,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       }
 
       // 2. Sync to Firebase (if in Studio Mode)
-      if (selectedOrganization && selectedStudio && activeWorkout) {
+      // VIKTIGT: Vi skickar BARA status och kommando. Vi skickar INTE activeWorkoutId 
+      // eftersom det raderar vår temporära "Live"-kopia innan den hunnit sparas!
+      if (selectedOrganization && selectedStudio) {
           const newState = {
-              activeWorkoutId: activeWorkout.id,
               view: 'timer',
-              activeBlockId: block.id,
               command: action,
               commandTimestamp: Date.now(),
               status: action === 'pause' ? TimerStatus.Paused : (action === 'start' || action === 'resume' ? TimerStatus.Running : TimerStatus.Idle),
@@ -962,10 +962,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               controllerName: 'Coach'
           };
 
-          // Don't await here to keep UI snappy, but fire it off
           updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, newState as any);
       }
-  }, [selectedOrganization, selectedStudio, activeWorkout, block.id, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset]);
+  }, [selectedOrganization, selectedStudio, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset]);
 
   useEffect(() => { return () => stopAllAudio(); }, [stopAllAudio]);
 
