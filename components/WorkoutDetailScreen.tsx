@@ -38,7 +38,6 @@ const formatReps = (reps: string | undefined): string => {
 
 // --- COMPONENTS ---
 
-// New: WorkoutPresentationModal (Shows ALL blocks)
 const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void }> = ({ workout, onClose }) => {
     return (
         <motion.div 
@@ -47,7 +46,6 @@ const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[10000] bg-white dark:bg-gray-950 flex flex-col overflow-hidden"
         >
-            {/* Header */}
             <div className="flex justify-between items-center p-8 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
                 <div className="flex items-center gap-6">
                     <h1 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">
@@ -65,7 +63,6 @@ const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void
                 </button>
             </div>
 
-            {/* Content - Giant List of All Blocks */}
             <div className="flex-grow overflow-y-auto p-8 md:p-12 space-y-16">
                 <div className="max-w-7xl mx-auto space-y-16">
                     {workout.blocks.map((block, bIndex) => (
@@ -113,16 +110,12 @@ const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void
                                         </div>
                                     </div>
                                 ))}
-                                {block.exercises.length === 0 && (
-                                    <p className="text-gray-400 italic pl-4">Inga övningar.</p>
-                                )}
                             </div>
                         </div>
                     ))}
                 </div>
             </div>
             
-            {/* Footer */}
             <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex justify-center flex-shrink-0">
                  <button onClick={onClose} className="bg-black dark:bg-white text-white dark:text-black font-black text-xl py-4 px-12 rounded-full shadow-xl hover:scale-105 transition-transform uppercase tracking-widest">
                      Stäng visningsläge
@@ -132,7 +125,6 @@ const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void
     );
 };
 
-// Existing Single Block Modal
 const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => void }> = ({ block, onClose }) => {
     return (
         <motion.div 
@@ -141,7 +133,6 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[10000] bg-white dark:bg-gray-950 flex flex-col overflow-hidden"
         >
-            {/* Header */}
             <div className="flex justify-between items-start p-8 md:p-12 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
                 <div className="max-w-4xl">
                     <div className="flex items-center gap-4 mb-4">
@@ -166,7 +157,6 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
                 </button>
             </div>
 
-            {/* Content - Giant List */}
             <div className="flex-grow overflow-y-auto p-8 md:p-12">
                 <div className="max-w-7xl mx-auto space-y-6">
                     {block.exercises.map((ex, index) => (
@@ -193,13 +183,9 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
                             </div>
                         </div>
                     ))}
-                    {block.exercises.length === 0 && (
-                        <p className="text-center text-3xl text-gray-400 py-20 italic">Inga övningar i detta block.</p>
-                    )}
                 </div>
             </div>
             
-            {/* Footer */}
             <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex justify-center">
                  <button onClick={onClose} className="bg-black dark:bg-white text-white dark:text-black font-black text-xl py-4 px-12 rounded-full shadow-xl hover:scale-105 transition-transform uppercase tracking-widest">
                      Stäng visningsläge
@@ -208,8 +194,6 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
         </motion.div>
     );
 };
-
-// --- COACH VIEW SUB-COMPONENTS ---
 
 const WorkoutBlockCard: React.FC<{
     block: WorkoutBlock;
@@ -236,7 +220,6 @@ const WorkoutBlockCard: React.FC<{
                 return `Tabata: ${rounds} ronder (${formatTime(workTime)} / ${formatTime(restTime)})`;
             case TimerMode.Interval:
                 const totalIntervals = rounds;
-                const exercisesPerLap = block.exercises.length > 0 ? block.exercises.length : 1;
                 const laps = block.settings.specifiedLaps != null ? block.settings.specifiedLaps : null;
                 const lapText = laps && laps > 1 ? ` (${laps} varv)` : '';
                 return `Intervall: ${totalIntervals}x (${formatTime(workTime)} / ${formatTime(restTime)})${lapText}`;
@@ -250,7 +233,7 @@ const WorkoutBlockCard: React.FC<{
             default:
                 return `${mode}: ${rounds}x (${workTime}s / ${restTime}s)`;
         }
-    }, [block.settings, block.exercises.length]);
+    }, [block.settings]);
   
     return (
       <div className="bg-white dark:bg-gray-800 rounded-[2.5rem] shadow-xl border border-gray-100 dark:border-gray-700 overflow-hidden transition-all">
@@ -277,18 +260,13 @@ const WorkoutBlockCard: React.FC<{
                     <button 
                         onClick={onVisualize}
                         className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-bold py-5 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95 border border-gray-200 dark:border-gray-600"
-                        title="Visa i helskärm"
                     >
                         <EyeIcon className="w-6 h-6" />
-                        <span className="hidden sm:inline">Visa</span>
                     </button>
                     <button 
                         onClick={onStart} 
                         className="bg-primary hover:brightness-95 text-white font-black py-5 px-10 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-primary/30 transform active:scale-95 group"
                     >
-                         <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 transition-transform group-hover:scale-110" viewBox="0 0 20 20" fill="currentColor">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                        </svg>
                         <span className="text-xl uppercase tracking-tight">Starta</span>
                     </button>
                 </div>
@@ -317,11 +295,9 @@ const WorkoutBlockCard: React.FC<{
             {exercisesVisible && (
                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="space-y-4 overflow-hidden">
                 {block.exercises.map((ex) => (
-                    <div key={ex.id} className="flex items-start gap-6 p-6 rounded-3xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800 transition-all hover:border-primary/20">
+                    <div key={ex.id} className="flex items-start gap-6 p-6 rounded-3xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800">
                         <div className="flex-grow min-w-0">
-                            <h4 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">
-                                {ex.name}
-                            </h4>
+                            <h4 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{ex.name}</h4>
                             {ex.description && <p className="text-lg text-gray-500 dark:text-gray-400 mt-2 leading-relaxed font-medium">{ex.description}</p>}
                         </div>
                         {ex.reps && (
@@ -390,6 +366,8 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   const { selectedOrganization, selectedStudio } = useStudio();
   const { isStudioMode, role, userData, currentUser } = useAuth();
   const { setActiveWorkout } = useWorkout();
+  
+  // sessionWorkout innehåller passet vi ser på skärmen (kan vara anpassat lokalt)
   const [sessionWorkout, setSessionWorkout] = useState<Workout>(() => JSON.parse(JSON.stringify(workout)));
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [coachTipsVisible, setCoachTipsVisible] = useState(true);
@@ -399,7 +377,6 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   const [visualizingFullWorkout, setVisualizingFullWorkout] = useState(false); 
   
   const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  
   const personalBestName = useMemo(() => localStorage.getItem('hyrox-participant-name'), []);
   const isHyroxRace = useMemo(() => workout.id.startsWith('hyrox-full-race') || workout.id.startsWith('custom-race'), [workout.id]);
 
@@ -459,21 +436,23 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
     });
   };
 
+  // NY VERSION: Hanterar anpassningar HELT LOKALT utan att spara i Firebase
   const handleUpdateSettings = (blockId: string, newSettings: Partial<TimerSettings> & { autoAdvance?: boolean; transitionTime?: number }) => {
       setSessionWorkout(prevWorkout => {
           if (!prevWorkout) return null as any;
           
-          // Djup kopia för att tvinga fram en omritning
+          // Djup kopia för att tvinga fram en omritning av UI direkt
           const newWorkout = JSON.parse(JSON.stringify(prevWorkout)) as Workout;
           
           const blockIndex = newWorkout.blocks.findIndex(b => b.id === blockId);
           if (blockIndex !== -1) {
               const { autoAdvance, transitionTime, ...settingsUpdates } = newSettings;
               
-              // autoAdvance och transitionTime ligger på blocknivå, inte i settings
+              // Uppdatera autoAdvance och transitionTime (ligger på blocknivå)
               if (autoAdvance !== undefined) newWorkout.blocks[blockIndex].autoAdvance = autoAdvance;
               if (transitionTime !== undefined) newWorkout.blocks[blockIndex].transitionTime = transitionTime;
               
+              // Uppdatera klockinställningar
               newWorkout.blocks[blockIndex].settings = { 
                   ...newWorkout.blocks[blockIndex].settings, 
                   ...settingsUpdates 
@@ -536,15 +515,9 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                         BENCHMARK
                     </span>
                 )}
-                {!isWorkoutLoggable && (
-                    <span className="bg-gray-5 dark:bg-gray-900/50 text-gray-400 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border border-gray-100 dark:border-gray-800">
-                        Endast visning
-                    </span>
-                )}
             </div>
           </div>
 
-          {/* Button for Studio Mode (Members/Coaches in-gym) */}
           {isStudioMode && onAdjustWorkout && (
             <button 
                 onClick={() => onAdjustWorkout(sessionWorkout)}
@@ -585,42 +558,28 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
       <div className={`grid grid-cols-1 ${showSidebar ? 'md:grid-cols-12' : ''} gap-10 items-start`}>
         
         <div className={`${showSidebar ? 'md:col-span-8' : 'w-full'} space-y-10`}>
-            {/* BLOCKS LIST */}
             <div className="space-y-8">
                 {sessionWorkout.blocks.map((block) => (
                     <div key={block.id} ref={el => { blockRefs.current[block.id] = el }}>
                         <WorkoutBlockCard 
                             block={block} 
                             onStart={async () => {
-                                let workoutToStart = sessionWorkout;
-                                const isFreestanding = workout.id.startsWith('freestanding-workout-') || workout.id.startsWith('fs-workout-');
-                                if (JSON.stringify(sessionWorkout) !== JSON.stringify(workout) || (isFreestanding && !workout.id.startsWith('fs-workout-temp-'))) {
-                                    const newIdPrefix = isFreestanding ? 'fs-workout-temp-' : 'temp-';
-                                    const tempWorkout = {
-                                        ...sessionWorkout,
-                                        id: `${newIdPrefix}${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                                        title: `${sessionWorkout.title} (Live)`,
-                                        isMemberDraft: true,
-                                        isPublished: false,
-                                        createdAt: Date.now() 
-                                    };
-                                    await onUpdateWorkout(tempWorkout);
-                                    workoutToStart = tempWorkout;
-                                    
-                                    setActiveWorkout(tempWorkout);
-                                    
-                                    // FORCE SYNC TO REMOTE STATE TO PREVENT OVERWRITE
-                                    if (selectedOrganization && selectedStudio) {
-                                        updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-                                            activeWorkoutId: tempWorkout.id,
-                                            activeBlockId: block.id,
-                                            view: 'timer',
-                                            status: 'idle',
-                                            lastUpdate: Date.now()
-                                        } as any);
-                                    }
+                                // NY LOGIK: Vi startar med det passet vi ser på skärmen (sessionWorkout)
+                                // Vi skapar INTE längre temp-filer i Firebase för tillfälliga anpassningar.
+                                setActiveWorkout(sessionWorkout);
+
+                                // Uppdatera remote state för TV-skärmar med passet vi kör
+                                if (selectedOrganization && selectedStudio) {
+                                    updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+                                        activeWorkoutId: sessionWorkout.id,
+                                        activeBlockId: block.id,
+                                        view: 'timer',
+                                        status: 'preparing',
+                                        lastUpdate: Date.now()
+                                    } as any);
                                 }
-                                onStartBlock(block, workoutToStart);
+                                
+                                onStartBlock(block, sessionWorkout);
                             }} 
                             onVisualize={() => setVisualizingBlock(block)}
                             onEditSettings={() => setEditingBlockId(block.id)}
@@ -650,14 +609,6 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                         <div className="space-y-2">
                             <button onClick={() => onEditWorkout(workout)} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 hover:bg-primary/10 hover:text-primary transition-all font-bold">
                                 <PencilIcon className="w-4 h-4" /> Redigera Pass
-                            </button>
-                            {onAdjustWorkout && (
-                                <button onClick={() => onAdjustWorkout(sessionWorkout)} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-all font-bold">
-                                    <PencilIcon className="w-5 h-5" /> Anpassa & Kör
-                                </button>
-                            )}
-                            <button onClick={() => onDuplicate(workout)} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-gray-50 dark:bg-gray-900 hover:bg-primary/10 hover:text-primary transition-all font-bold">
-                                <StarIcon className="w-5 h-5" /> Kopiera Pass
                             </button>
                             <button onClick={() => onTogglePublish(workout.id, !workout.isPublished)} className={`w-full flex items-center gap-3 p-4 rounded-2xl font-bold transition-all ${workout.isPublished ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
                                 {workout.isPublished ? 'Avpublicera' : 'Publicera'}

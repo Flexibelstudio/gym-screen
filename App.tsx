@@ -219,7 +219,7 @@ const App: React.FC = () => {
                           navigateReplace(Page.IdeaBoard);
                           setActiveWorkout(null);
                       }
-                  } else if (remote.activeWorkoutId) {
+                  } else if (remote.activeWorkoutId && remote.view !== 'idle') { // FIX: Ignorera om vyn ska vara startsidan
                       const workoutToLoad = workouts.find(w => w.id === remote.activeWorkoutId);
                       
                       const loadAndNavigate = (workout: Workout) => {
@@ -503,7 +503,7 @@ const App: React.FC = () => {
         // If back from Preview -> Go to Idle, Set Remote State to Idle
         else if (page === Page.WorkoutDetail) {
               updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-                  activeWorkoutId: null,
+                  activeWorkoutId: null, // VIKTIGT: Rensa pass-ID
                   view: 'idle',
                   activeBlockId: null,
                   lastUpdate: Date.now()
