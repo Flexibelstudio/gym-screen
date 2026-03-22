@@ -1366,21 +1366,22 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 </div>
             </div>
 
-            {/* TIDSLINJE (Roadmap) - Under tiden */}
-            <div className="w-[80%] max-w-4xl mt-1 mb-1 z-20">
-                <SegmentedRoadmap 
-                    chain={workoutChain} 
-                    currentBlockId={block.id} 
-                    totalChainElapsed={totalChainElapsed} 
-                    totalChainTime={chainInfo.totalDuration}
-                    // Custom Mode props
-                    isCustomMode={block.settings.mode === TimerMode.Custom}
-                    sequence={block.settings.sequence}
-                    currentSegmentIndex={completedWorkIntervals}
-                    totalSequenceDuration={totalSequenceDuration}
-                    totalSequenceElapsed={totalTimeElapsed}
-                />
-            </div>
+           {/* TIDSLINJE (Roadmap) - Under tiden */}
+<div className="w-[80%] max-w-4xl mt-1 mb-1 z-20">
+    <SegmentedRoadmap 
+        key={block.id} // <--- Nyckeln läggs här för att tvinga omritning vid anpassning
+        chain={workoutChain} 
+        currentBlockId={block.id} 
+        totalChainElapsed={totalChainElapsed} 
+        totalChainTime={chainInfo.totalDuration}
+        // Custom Mode props
+        isCustomMode={block.settings.mode === TimerMode.Custom}
+        sequence={block.settings.sequence}
+        currentSegmentIndex={completedWorkIntervals}
+        totalSequenceDuration={totalSequenceDuration}
+        totalSequenceElapsed={totalTimeElapsed}
+    />
+</div>
 
             {/* BLOCK RUBRIK (Stort) - Längst ner (Döljs i AutostartMode) */}
             {!isAutostartMode && (

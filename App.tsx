@@ -660,6 +660,11 @@ const App: React.FC = () => {
   };
   
   const handleStartBlock = (block: WorkoutBlock, workoutContext: Workout) => {
+    // VIKTIGT: Uppdatera lokalt state OMEDBART för att förhindra att 
+    // originalpasset hinner visas i lobbyn innan navigerigen sker.
+    setActiveWorkout(workoutContext);
+    setActiveBlock(block);
+
     const isSavedWorkout = workouts.some(w => w.id === workoutContext.id) || workoutContext.id.startsWith('temp-') || workoutContext.id.startsWith('fs-workout-temp-');
 
     // Update entry timestamp when starting a new block to ignore old remote commands
@@ -671,15 +676,13 @@ const App: React.FC = () => {
     if (isStudioMode && selectedOrganization && selectedStudio && isSavedWorkout) {
         setRemoteCommand(null);
         
-        // Update local state immediately to avoid race conditions with remote state listener
-        setActiveWorkout(workoutContext);
-        setActiveBlock(block);
+        // Här kör vi navigeringen med de ID:n som tillhör det NYA anpassade passet
         const targetPage = block.settings.mode === TimerMode.NoTimer ? Page.RepsOnly : Page.Timer;
         navigateTo(targetPage, { activeWorkoutId: workoutContext.id, activeBlockId: block.id });
         return;
     }
-    setActiveWorkout(workoutContext);
-    setActiveBlock(block);
+
+    // Fallback för icke-studio mode (redan täckt av raderna högst upp, men behålls för tydlighet)
     if (block.settings.mode === TimerMode.NoTimer) navigateTo(Page.RepsOnly);
     else navigateTo(Page.Timer);
   };
