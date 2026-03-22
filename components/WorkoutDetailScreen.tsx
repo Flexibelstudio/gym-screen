@@ -550,7 +550,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
           {/* Button for Studio Mode (Members/Coaches in-gym) */}
           {isStudioMode && onAdjustWorkout && (
             <button 
-                onClick={() => onAdjustWorkout(workout)}
+                onClick={() => onAdjustWorkout(sessionWorkout)}
                 className="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 px-8 rounded-2xl flex items-center justify-center gap-3 shadow-xl transition-all transform active:scale-95"
             >
                 <PencilIcon className="w-6 h-6" />
@@ -594,7 +594,12 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                     <div key={block.id} ref={el => { blockRefs.current[block.id] = el }}>
                         <WorkoutBlockCard 
                             block={block} 
-                            onStart={() => onStartBlock(block, sessionWorkout)} 
+                            onStart={async () => {
+                                if (JSON.stringify(sessionWorkout) !== JSON.stringify(workout)) {
+                                    await onUpdateWorkout(sessionWorkout);
+                                }
+                                onStartBlock(block, sessionWorkout);
+                            }} 
                             onVisualize={() => setVisualizingBlock(block)}
                             onEditSettings={() => setEditingBlockId(block.id)}
                             onUpdateBlock={handleUpdateBlock}
@@ -625,7 +630,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                                 <PencilIcon className="w-4 h-4" /> Redigera Pass
                             </button>
                             {onAdjustWorkout && (
-                                <button onClick={() => onAdjustWorkout(workout)} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-all font-bold">
+                                <button onClick={() => onAdjustWorkout(sessionWorkout)} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 transition-all font-bold">
                                     <PencilIcon className="w-5 h-5" /> Anpassa & Kör
                                 </button>
                             )}
