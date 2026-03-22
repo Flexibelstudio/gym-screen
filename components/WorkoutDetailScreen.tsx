@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, StudioConfig, WorkoutResult, WorkoutLog } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
@@ -8,6 +7,7 @@ import { useStudio } from '../context/StudioContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import { WorkoutQRDisplay } from './WorkoutQRDisplay';
 import { useAuth } from '../context/AuthContext';
+import { useWorkout } from '../context/WorkoutContext';
 
 // ... (Existing helpers remain unchanged: formatResultTime, getTagColor, formatReps)
 // Helper to format time for results (00:00)
@@ -401,6 +401,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
 }) => {
   const { selectedOrganization, selectedStudio } = useStudio();
   const { isStudioMode, role, userData, currentUser } = useAuth();
+  const { setActiveWorkout } = useWorkout();
   const [sessionWorkout, setSessionWorkout] = useState<Workout>(() => JSON.parse(JSON.stringify(workout)));
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
   const [coachTipsVisible, setCoachTipsVisible] = useState(true);
@@ -609,6 +610,8 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
 };
                                     await onUpdateWorkout(tempWorkout);
                                     workoutToStart = tempWorkout;
+                                    
+                                    setActiveWorkout(tempWorkout);
                                 }
                                 onStartBlock(block, workoutToStart);
                             }} 
