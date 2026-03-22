@@ -596,8 +596,8 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                             block={block} 
                             onStart={async () => {
                                 let workoutToStart = sessionWorkout;
-                                if (JSON.stringify(sessionWorkout) !== JSON.stringify(workout)) {
-                                    const isFreestanding = workout.id.startsWith('freestanding-workout-') || workout.id.startsWith('fs-workout-');
+                                const isFreestanding = workout.id.startsWith('freestanding-workout-') || workout.id.startsWith('fs-workout-');
+                                if (JSON.stringify(sessionWorkout) !== JSON.stringify(workout) || (isFreestanding && !workout.id.startsWith('fs-workout-temp-'))) {
                                     const newIdPrefix = isFreestanding ? 'fs-workout-temp-' : 'temp-';
                                     const tempWorkout = {
                                         ...sessionWorkout,

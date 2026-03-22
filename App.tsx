@@ -660,7 +660,7 @@ const App: React.FC = () => {
   };
   
   const handleStartBlock = (block: WorkoutBlock, workoutContext: Workout) => {
-    const isSavedWorkout = workouts.some(w => w.id === workoutContext.id) || workoutContext.id.startsWith('temp-');
+    const isSavedWorkout = workouts.some(w => w.id === workoutContext.id) || workoutContext.id.startsWith('temp-') || workoutContext.id.startsWith('fs-workout-temp-');
 
     // Update entry timestamp when starting a new block to ignore old remote commands
     pageEntryTimestampRef.current = Date.now();
@@ -863,7 +863,7 @@ const App: React.FC = () => {
             lastLocalNavigationRef.current = Date.now(); // Prevent bounce back from remote state
             
             // If in studio mode, update remote state to reflect the auto-advance
-            const isSavedWorkout = workouts.some(w => w.id === activeWorkout.id);
+            const isSavedWorkout = workouts.some(w => w.id === activeWorkout.id) || activeWorkout.id.startsWith('temp-') || activeWorkout.id.startsWith('fs-workout-temp-');
             if (isStudioMode && selectedOrganization && selectedStudio && isSavedWorkout) {
                 setRemoteCommand(null);
                 updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {

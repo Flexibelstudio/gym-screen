@@ -94,21 +94,10 @@ const getBlockTimeLabel = (block: WorkoutBlock): string => {
     const s = block.settings;
     if (!s) return "";
     
-    switch(s.mode) {
-        case TimerMode.AMRAP:
-        case TimerMode.TimeCap:
-            return s.workTime ? `${Math.floor(s.workTime / 60)} MIN` : "";
-        case TimerMode.EMOM:
-            return s.rounds ? `${s.rounds} MIN` : "";
-        case TimerMode.Tabata:
-            return s.rounds ? `${s.rounds} RONDER` : "";
-        case TimerMode.Interval:
-            return s.rounds ? `${s.rounds} RONDER` : "";
-        case TimerMode.Custom:
-             return s.rounds ? `${s.rounds} VARV` : "";
-        default:
-            return "";
-    }
+    if (s.mode === TimerMode.NoTimer) return "Ingen tid";
+    
+    const duration = calculateBlockDuration(s, block.exercises.length);
+    return formatSeconds(duration);
 };
 
 // --- Visualization Components ---
@@ -648,6 +637,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     if (selectedOrganization && selectedStudio && activeWorkout) {
         // We only sync status changes, not every second
         updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+            activeWorkoutId: activeWorkout.id, // Explicitly reinforce the current workout ID
             status: status,
             lastUpdate: Date.now()
         } as any);
