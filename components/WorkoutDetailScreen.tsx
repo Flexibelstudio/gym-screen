@@ -600,12 +600,13 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                                 if (JSON.stringify(sessionWorkout) !== JSON.stringify(workout) || (isFreestanding && !workout.id.startsWith('fs-workout-temp-'))) {
                                     const newIdPrefix = isFreestanding ? 'fs-workout-temp-' : 'temp-';
                                     const tempWorkout = {
-                                        ...sessionWorkout,
-                                        id: `${newIdPrefix}${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                                        title: `${sessionWorkout.title} (Live)`,
-                                        isMemberDraft: true,
-                                        isPublished: false
-                                    };
+    ...sessionWorkout,
+    id: `${newIdPrefix}${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+    title: `${sessionWorkout.title} (Live)`,
+    isMemberDraft: true,
+    isPublished: false,
+    createdAt: Date.now() // <--- DENNA RAD LÖSER BUGGEN!
+};
                                     await onUpdateWorkout(tempWorkout);
                                     workoutToStart = tempWorkout;
                                 }
