@@ -460,18 +460,29 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   };
 
   const handleUpdateSettings = (blockId: string, newSettings: Partial<TimerSettings> & { autoAdvance?: boolean; transitionTime?: number }) => {
-      const blockToUpdate = sessionWorkout.blocks.find(b => b.id === blockId);
-      if (blockToUpdate) {
-          const { autoAdvance, transitionTime, ...settingsUpdates } = newSettings;
+      setSessionWorkout(prevWorkout => {
+          if (!prevWorkout) return null as any;
           
-          const updatedBlock = {
-              ...blockToUpdate,
-              autoAdvance: autoAdvance !== undefined ? autoAdvance : blockToUpdate.autoAdvance,
-              transitionTime: transitionTime !== undefined ? transitionTime : blockToUpdate.transitionTime,
-              settings: { ...blockToUpdate.settings, ...settingsUpdates }
-          };
-          handleUpdateBlock(updatedBlock);
-      }
+          // Djup kopia för att tvinga fram en omritning
+          const newWorkout = JSON.parse(JSON.stringify(prevWorkout)) as Workout;
+          
+          const blockIndex = newWorkout.blocks.findIndex(b => b.id === blockId);
+          if (blockIndex !== -1) {
+              const { autoAdvance, transitionTime, ...settingsUpdates } = newSettings;
+              
+              // autoAdvance och transitionTime ligger på blocknivå, inte i settings
+              if (autoAdvance !== undefined) newWorkout.blocks[blockIndex].autoAdvance = autoAdvance;
+              if (transitionTime !== undefined) newWorkout.blocks[blockIndex].transitionTime = transitionTime;
+              
+              newWorkout.blocks[blockIndex].settings = { 
+                  ...newWorkout.blocks[blockIndex].settings, 
+                  ...settingsUpdates 
+              };
+          }
+          
+          return newWorkout;
+      });
+      
       setEditingBlockId(null);
   };
   
