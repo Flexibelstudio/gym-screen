@@ -634,15 +634,13 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   // --- REMOTE STATUS SYNC ---
   useEffect(() => {
-    if (selectedOrganization && selectedStudio && activeWorkout) {
-        // We only sync status changes, not every second
+    if (selectedOrganization && selectedStudio) {
         updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-            activeWorkoutId: activeWorkout.id, // Explicitly reinforce the current workout ID
             status: status,
             lastUpdate: Date.now()
         } as any);
     }
-  }, [status, selectedOrganization?.id, selectedStudio?.id, activeWorkout?.id]);
+  }, [status, selectedOrganization?.id, selectedStudio?.id]);
 
   // --- REMOTE CONTROL LISTENER ---
   const lastProcessedCommandTimestamp = useRef<number>(remoteCommand ? remoteCommand.timestamp : 0);
@@ -949,9 +947,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       }
 
       // 2. Sync to Firebase (if in Studio Mode)
-      if (selectedOrganization && selectedStudio && activeWorkout) {
+      if (selectedOrganization && selectedStudio) {
           const newState = {
-              activeWorkoutId: activeWorkout.id,
               view: 'timer',
               activeBlockId: block.id,
               command: action,
@@ -961,7 +958,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               controllerName: 'Coach'
           };
 
-          // Don't await here to keep UI snappy, but fire it off
           updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, newState as any);
       }
   }, [selectedOrganization, selectedStudio, activeWorkout, block.id, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset]);
