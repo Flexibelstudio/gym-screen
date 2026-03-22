@@ -2,14 +2,13 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, StudioConfig, WorkoutResult, WorkoutLog } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
 import { StarIcon, PencilIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, CloseIcon, ClockIcon, UsersIcon, ChartBarIcon, TrophyIcon, EyeIcon } from './icons';
-import { getWorkoutResults, getMemberLogs } from '../services/firebaseService';
+import { getWorkoutResults, getMemberLogs, updateStudioRemoteState } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import { WorkoutQRDisplay } from './WorkoutQRDisplay';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
 
-// ... (Existing helpers remain unchanged: formatResultTime, getTagColor, formatReps)
 // Helper to format time for results (00:00)
 const formatResultTime = (timeInSeconds: number) => {
     const minutes = Math.floor(timeInSeconds / 60);
@@ -210,8 +209,6 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
     );
 };
 
-// ... (Member components remain unchanged)
-
 // --- COACH VIEW SUB-COMPONENTS ---
 
 const WorkoutBlockCard: React.FC<{
@@ -223,10 +220,7 @@ const WorkoutBlockCard: React.FC<{
     isCoachView: boolean;
     organizationId: string;
 }> = ({ block, onStart, onVisualize, onEditSettings, onUpdateBlock, isCoachView, organizationId }) => {
-    // ... (WorkoutBlockCard logic unchanged)
-    // For brevity, keeping it as is but assuming it's the same
     
-    // ... Copy paste existing logic ...
     const [exercisesVisible, setExercisesVisible] = useState(true);
 
     const formatTime = (time: number) => {
@@ -345,23 +339,17 @@ const WorkoutBlockCard: React.FC<{
     );
 };
 
-// ... (ResultsLeaderboard remains unchanged)
-
 const ResultsLeaderboard: React.FC<{
     results: WorkoutResult[];
     isLoading: boolean;
     personalBestName: string | null;
 }> = ({ results, isLoading, personalBestName }) => {
-    // ... Same as before
     return (
         <div className="mt-8 bg-gray-50 dark:bg-gray-800 rounded-3xl p-6 border border-gray-200 dark:border-gray-700">
-           {/* ... implementation ... */}
-           {/* For simplicity assuming it exists as in the original file */}
            <p className="text-gray-500">Topplista...</p>
         </div>
     );
 };
-
 
 // --- MAIN COMPONENT ---
 
@@ -408,7 +396,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   const [results, setResults] = useState<WorkoutResult[]>([]);
   const [resultsLoading, setResultsLoading] = useState(false);
   const [visualizingBlock, setVisualizingBlock] = useState<WorkoutBlock | null>(null);
-  const [visualizingFullWorkout, setVisualizingFullWorkout] = useState(false); // NEW STATE
+  const [visualizingFullWorkout, setVisualizingFullWorkout] = useState(false); 
   
   const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
   
@@ -425,7 +413,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
       if (!prev || prev.id !== workout.id) {
         return JSON.parse(JSON.stringify(workout));
       }
-      return prev; // Behåll hela sessionWorkout om det är samma pass
+      return prev; 
     });
   }, [workout.id]);
 
@@ -446,7 +434,6 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
     }
   }, [workout.id, isHyroxRace, resultsLoading, selectedOrganization]);
 
-  // Effekt för att styra headerns synlighet vid presentation
   useEffect(() => {
       if (visualizingBlock || visualizingFullWorkout) {
           onHeaderVisibilityChange?.(false);
@@ -516,14 +503,12 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                     {sessionWorkout.title}
                 </h1>
                 
-                {/* --- EYE ICON FOR FULL WORKOUT PRESENTATION --- */}
                 {isCoachView && (
                     <button 
                         onClick={() => setVisualizingFullWorkout(true)}
                         className="p-3 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors text-gray-600 dark:text-gray-300 shadow-sm"
                         title="Visa hela passet"
                     >
-                        {/* Eye Icon SVG */}
                         <EyeIcon className="w-6 h-6" />
                     </button>
                 )}
@@ -601,17 +586,28 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                                 if (JSON.stringify(sessionWorkout) !== JSON.stringify(workout) || (isFreestanding && !workout.id.startsWith('fs-workout-temp-'))) {
                                     const newIdPrefix = isFreestanding ? 'fs-workout-temp-' : 'temp-';
                                     const tempWorkout = {
-    ...sessionWorkout,
-    id: `${newIdPrefix}${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-    title: `${sessionWorkout.title} (Live)`,
-    isMemberDraft: true,
-    isPublished: false,
-    createdAt: Date.now() // <--- DENNA RAD LÖSER BUGGEN!
-};
+                                        ...sessionWorkout,
+                                        id: `${newIdPrefix}${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                                        title: `${sessionWorkout.title} (Live)`,
+                                        isMemberDraft: true,
+                                        isPublished: false,
+                                        createdAt: Date.now() 
+                                    };
                                     await onUpdateWorkout(tempWorkout);
                                     workoutToStart = tempWorkout;
                                     
                                     setActiveWorkout(tempWorkout);
+                                    
+                                    // FORCE SYNC TO REMOTE STATE TO PREVENT OVERWRITE
+                                    if (selectedOrganization && selectedStudio) {
+                                        updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+                                            activeWorkoutId: tempWorkout.id,
+                                            activeBlockId: block.id,
+                                            view: 'timer',
+                                            status: 'idle',
+                                            lastUpdate: Date.now()
+                                        } as any);
+                                    }
                                 }
                                 onStartBlock(block, workoutToStart);
                             }} 
