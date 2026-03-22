@@ -223,7 +223,7 @@ const App: React.FC = () => {
                       const workoutToLoad = workouts.find(w => w.id === remote.activeWorkoutId);
                       
                       const loadAndNavigate = (workout: Workout) => {
-                          if (activeWorkout?.id !== workout.id) {
+                          if (activeWorkout !== workout) {
                               setActiveWorkout(workout);
                           }
     
@@ -234,7 +234,7 @@ const App: React.FC = () => {
                           } else if (remote.view === 'timer' && remote.activeBlockId) {
                               const blockToStart = workout.blocks.find(b => b.id === remote.activeBlockId);
                               if (blockToStart) {
-                                  if (activeBlock?.id !== blockToStart.id) {
+                                  if (activeBlock !== blockToStart) {
                                       setActiveBlock(blockToStart);
                                   }
                                   const targetPage = blockToStart.settings.mode === TimerMode.NoTimer ? Page.RepsOnly : Page.Timer;

@@ -744,6 +744,41 @@ export const getWorkoutsForOrganization = async (orgId: string): Promise<Workout
     }
 };
 
+export const subscribeToWorkoutsForOrganization = (orgId: string, onUpdate: (workouts: Workout[]) => void, onError: (error: Error) => void) => {
+    if (isOffline || !db || !orgId) {
+        onUpdate([]);
+        return () => {};
+    }
+    
+    const q = query(
+      collection(db, 'workouts'), 
+      or(
+        where("organizationId", "==", orgId),
+        where("organizationId", "==", ""),
+        where("organizationId", "==", null)
+      )
+    );
+
+    return onSnapshot(q, (snap) => {
+        const workouts = snap.docs.map(d => {
+            const data = d.data() as Workout;
+            if (!data.blocks) {
+                data.blocks = [];
+            } else {
+                data.blocks = data.blocks.map(block => ({
+                    ...block,
+                    exercises: block.exercises || []
+                }));
+            }
+            return data;
+        }).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+        onUpdate(workouts);
+    }, (error) => {
+        console.error("subscribeToWorkoutsForOrganization failed", error);
+        onError(error);
+    });
+};
+
 export const getWorkoutById = async (id: string): Promise<Workout | null> => {
     if (isOffline || !db || !id) return null;
     try {
