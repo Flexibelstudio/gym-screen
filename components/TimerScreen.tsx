@@ -947,10 +947,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       }
 
       // 2. Sync to Firebase (if in Studio Mode)
+      // 2. Sync to Firebase (if in Studio Mode)
       if (selectedOrganization && selectedStudio) {
           const newState = {
               view: 'timer',
-              activeBlockId: block.id,
               command: action,
               commandTimestamp: Date.now(),
               status: action === 'pause' ? TimerStatus.Paused : (action === 'start' || action === 'resume' ? TimerStatus.Running : TimerStatus.Idle),
