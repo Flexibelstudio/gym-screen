@@ -660,7 +660,7 @@ const App: React.FC = () => {
   };
   
   const handleStartBlock = (block: WorkoutBlock, workoutContext: Workout) => {
-    const isSavedWorkout = workouts.some(w => w.id === workoutContext.id);
+    const isSavedWorkout = workouts.some(w => w.id === workoutContext.id) || workoutContext.id.startsWith('temp-');
 
     // Update entry timestamp when starting a new block to ignore old remote commands
     pageEntryTimestampRef.current = Date.now();

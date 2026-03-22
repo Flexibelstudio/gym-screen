@@ -381,7 +381,7 @@ interface WorkoutDetailScreenProps {
   onDelete?: (workoutId: string) => void;
   followMeShowImage: boolean;
   setFollowMeShowImage: (show: boolean) => void;
-  onUpdateWorkout: (workout: Workout) => void;
+  onUpdateWorkout: (workout: Workout) => Promise<any> | void;
   onVisualize: (workout: Workout) => void;
   hasActiveCarousel?: boolean; 
   onLogWorkout?: (workoutId: string, orgId: string) => void;
@@ -595,10 +595,21 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                         <WorkoutBlockCard 
                             block={block} 
                             onStart={async () => {
+                                let workoutToStart = sessionWorkout;
                                 if (JSON.stringify(sessionWorkout) !== JSON.stringify(workout)) {
-                                    await onUpdateWorkout(sessionWorkout);
+                                    const isFreestanding = workout.id.startsWith('freestanding-workout-') || workout.id.startsWith('fs-workout-');
+                                    const newIdPrefix = isFreestanding ? 'fs-workout-temp-' : 'temp-';
+                                    const tempWorkout = {
+                                        ...sessionWorkout,
+                                        id: `${newIdPrefix}${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                                        title: `${sessionWorkout.title} (Live)`,
+                                        isMemberDraft: true,
+                                        isPublished: false
+                                    };
+                                    await onUpdateWorkout(tempWorkout);
+                                    workoutToStart = tempWorkout;
                                 }
-                                onStartBlock(block, sessionWorkout);
+                                onStartBlock(block, workoutToStart);
                             }} 
                             onVisualize={() => setVisualizingBlock(block)}
                             onEditSettings={() => setEditingBlockId(block.id)}
