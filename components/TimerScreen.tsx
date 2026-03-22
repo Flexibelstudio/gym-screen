@@ -1162,8 +1162,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   // Autostart 2.0 Mode Detection
   const isAutostartMode = useMemo(() => {
       if (!activeWorkout) return false;
-      return activeWorkout.blocks.length > 1 && activeWorkout.blocks.some(b => b.autoAdvance);
-  }, [activeWorkout]);
+      // FIX: Vi kollar nu om DET AKTUELLA blocket (block) har autostart påslaget,
+      // istället för att kolla om *något* block i hela passet har det.
+      return activeWorkout.blocks.length > 1 && block.autoAdvance;
+  }, [activeWorkout, block.autoAdvance]);
 
   const isRestNext = block.autoAdvance && (block.transitionTime || 0) > 0 && status !== TimerStatus.Resting;
   
