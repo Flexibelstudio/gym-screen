@@ -223,7 +223,7 @@ const App: React.FC = () => {
                       const workoutToLoad = workouts.find(w => w.id === remote.activeWorkoutId);
                       
                       const loadAndNavigate = (workout: Workout) => {
-                          if (activeWorkout !== workout) {
+                          if (activeWorkout?.id !== workout.id) { // FIX 1: Jämför på ID för att slippa oavsiktliga re-renders
                               setActiveWorkout(workout);
                           }
     
@@ -234,7 +234,7 @@ const App: React.FC = () => {
                           } else if (remote.view === 'timer' && remote.activeBlockId) {
                               const blockToStart = workout.blocks.find(b => b.id === remote.activeBlockId);
                               if (blockToStart) {
-                                  if (activeBlock !== blockToStart) {
+                                  if (activeBlock?.id !== blockToStart.id) { // FIX 2: Jämför på ID så vi inte skriver över vår live-timer med nätverkets kopia
                                       setActiveBlock(blockToStart);
                                   }
                                   const targetPage = blockToStart.settings.mode === TimerMode.NoTimer ? Page.RepsOnly : Page.Timer;
