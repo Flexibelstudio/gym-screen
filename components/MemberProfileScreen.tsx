@@ -613,7 +613,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             <p className="text-3xl sm:text-4xl font-black text-white leading-none tracking-tight relative z-10">{stats.totalWorkouts}</p>
                         </div>
 
-                        <div className="relative overflow-hidden bg-gradient-to-br from-primary to-teal-600 rounded-2xl p-3 sm:p-4 shadow-lg shadow-primary/20 text-center flex flex-col items-center justify-center min-h-[100px] group">
+                        <div className="relative overflow-hidden bg-primary bg-gradient-to-br from-white/20 via-transparent to-black/30 rounded-2xl p-3 sm:p-4 shadow-lg shadow-primary/20 text-center flex flex-col items-center justify-center min-h-[100px] group">
                             <div className="absolute -right-2 -bottom-2 text-white opacity-20 transform -rotate-12 transition-transform group-hover:scale-110">
                                 <ChartBarIcon className="w-16 h-16" />
                             </div>

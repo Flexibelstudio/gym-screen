@@ -63,7 +63,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
             <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10">
                 <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-gradient-to-tr from-primary to-teal-600 rounded-lg"></div>
+                        <div className="w-8 h-8 bg-primary bg-gradient-to-tr from-white/20 via-transparent to-black/30 rounded-lg"></div>
                         <span className="text-xl font-bold tracking-tight">SmartSkärm</span>
                     </div>
                     <div className="flex gap-4">

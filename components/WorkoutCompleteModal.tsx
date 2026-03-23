@@ -130,6 +130,12 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
       }
   };
 
+  const handleClose = (e: React.MouseEvent | React.TouchEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onClose();
+  };
+
   const hyroxResultContent = (
     <div 
         className="relative bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 sm:p-10 w-full max-w-md text-gray-900 dark:text-white text-center shadow-2xl border-4 border-primary/30 animate-zoom-fade-in z-[11001]"
@@ -179,7 +185,7 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
         )}
         
         <button 
-            onClick={onClose} 
+            onClick={handleClose} 
             className="mt-8 text-xs font-black uppercase tracking-widest text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
         >
           Stäng fönstret
@@ -191,13 +197,13 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
   if (isFinalBlock) {
       contentToRender = (
         <div 
-          className="relative bg-gradient-to-br from-primary to-teal-600 rounded-[3rem] p-10 w-full max-w-xl text-white text-center shadow-2xl border-4 border-white/20 animate-fade-in z-[11001]"
+          className="relative bg-primary bg-gradient-to-br from-white/20 via-transparent to-black/30 rounded-[3rem] p-10 w-full max-w-xl text-white text-center shadow-2xl border-4 border-white/20 animate-fade-in z-[11001]"
           onClick={e => e.stopPropagation()}
         >
           <div className="text-7xl mb-6 animate-bounce">🏆</div>
           <h2 id="workout-complete-title" className="text-6xl font-black tracking-wider uppercase drop-shadow-lg mb-4">{message.title}</h2>
           <p className="text-2xl text-white/95 font-semibold leading-relaxed">{message.subtitle}</p>
-          <button onClick={onClose} className="mt-10 bg-white text-primary hover:bg-gray-100 font-extrabold py-4 px-10 rounded-full text-xl shadow-lg transition-all transform hover:scale-105 uppercase tracking-widest">Klar</button>
+          <button onClick={handleClose} className="mt-10 bg-white text-primary hover:bg-gray-100 font-extrabold py-4 px-10 rounded-full text-xl shadow-lg transition-all transform hover:scale-105 uppercase tracking-widest">Klar</button>
         </div>
       );
   } else if (isWarmup) {
@@ -206,7 +212,7 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
           <div className="text-5xl mb-4">🔥</div>
           <h2 className="text-4xl font-black tracking-tight uppercase mb-2">Redo!</h2>
           <p className="text-xl text-orange-100 font-medium">Uppvärmningen klar. Nu kör vi!</p>
-          <button onClick={onClose} className="mt-8 w-full bg-white text-orange-700 hover:bg-blue-50 font-black py-4 rounded-2xl text-lg shadow-md transition-colors uppercase tracking-widest">Starta passet</button>
+          <button onClick={handleClose} className="mt-8 w-full bg-white text-orange-700 hover:bg-blue-50 font-black py-4 rounded-2xl text-lg shadow-md transition-colors uppercase tracking-widest">Starta passet</button>
         </div>
       );
   } else {
@@ -215,7 +221,7 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
           <div className="text-5xl mb-4">👍</div>
           <h2 className="text-4xl font-black tracking-tight uppercase mb-2">Snyggt!</h2>
           <p className="text-xl text-blue-100 font-medium">Blocket avklarat. Hämta andan!</p>
-          <button onClick={onClose} className="mt-8 w-full bg-white text-blue-700 hover:bg-blue-50 font-black py-4 rounded-2xl text-lg shadow-md transition-colors uppercase tracking-widest">Nästa Block</button>
+          <button onClick={handleClose} className="mt-8 w-full bg-white text-blue-700 hover:bg-blue-50 font-black py-4 rounded-2xl text-lg shadow-md transition-colors uppercase tracking-widest">Nästa Block</button>
         </div>
       );
   }
@@ -223,7 +229,11 @@ export const WorkoutCompleteModal: React.FC<WorkoutCompleteModalProps> = ({ isOp
   return (
     <div 
         className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4" 
-        onClick={onClose}
+        onClick={(e) => {
+            if (e.target === e.currentTarget) {
+                handleClose(e);
+            }
+        }}
         role="dialog"
         aria-modal="true"
         aria-labelledby="workout-complete-title"

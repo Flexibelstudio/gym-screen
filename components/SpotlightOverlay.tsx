@@ -51,7 +51,7 @@ export const SpotlightOverlay: React.FC = () => {
                         className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-md rounded-2xl shadow-2xl border-l-8 border-primary overflow-hidden flex items-center p-4 max-w-sm w-full"
                     >
                         <div className="flex-shrink-0 mr-4">
-                            <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-primary to-teal-400 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                            <div className="w-16 h-16 rounded-full bg-primary bg-gradient-to-tr from-white/20 via-transparent to-black/30 flex items-center justify-center text-white text-2xl font-bold shadow-lg">
                                 {currentCheckIn.firstName[0].toUpperCase()}
                             </div>
                         </div>

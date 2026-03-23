@@ -177,7 +177,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
           subTitle: 'Information & Guider',
           action: () => onSelectCustomPage(page),
           icon: <DocumentTextIcon className="w-8 h-8" />,
-          gradient: 'bg-gradient-to-br from-primary to-teal-800'
+          gradient: 'bg-primary bg-gradient-to-br from-white/20 via-transparent to-black/30'
       });
   });
 
