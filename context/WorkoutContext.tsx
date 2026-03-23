@@ -1,7 +1,7 @@
 import React, { createContext, useReducer, useContext, useEffect, useCallback, ReactNode } from 'react';
 import { workoutReducer, initialState, WorkoutAction, WorkoutState } from './workoutReducer';
 import { useStudio } from './StudioContext';
-import { getWorkoutsForOrganization, saveWorkout as firebaseSaveWorkout, deleteWorkout as firebaseDeleteWorkout } from '../services/firebaseService';
+import { subscribeToWorkoutsForOrganization, saveWorkout as firebaseSaveWorkout, deleteWorkout as firebaseDeleteWorkout } from '../services/firebaseService';
 import { Workout } from '../types';
 
 interface WorkoutContextType extends WorkoutState {
@@ -20,8 +20,9 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
     useEffect(() => {
         if (selectedOrganization) {
             dispatch({ type: 'LOAD_WORKOUTS_START' });
-            getWorkoutsForOrganization(selectedOrganization.id)
-                .then(async (workouts) => {
+            const unsubscribe = subscribeToWorkoutsForOrganization(
+                selectedOrganization.id,
+                async (workouts) => {
                     // --- CLEANUP LOGIC: Delete temporary drafts older than 24h ---
                     const now = Date.now();
                     const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
@@ -43,10 +44,12 @@ export const WorkoutProvider: React.FC<{ children: ReactNode }> = ({ children })
                     } else {
                         dispatch({ type: 'LOAD_WORKOUTS_SUCCESS', payload: workouts });
                     }
-                })
-                .catch(error => {
+                },
+                (error) => {
                     dispatch({ type: 'LOAD_WORKOUTS_ERROR', payload: error.message });
-                });
+                }
+            );
+            return () => unsubscribe();
         } else {
             dispatch({ type: 'LOAD_WORKOUTS_SUCCESS', payload: [] });
         }

@@ -15,6 +15,8 @@ interface SavedWorkoutsScreenProps {
 
 const SavedWorkoutsScreen: React.FC<SavedWorkoutsScreenProps> = ({ workouts, onSelectWorkout, onEditWorkout, onDeleteWorkout, onToggleFavorite, onCreateNewWorkout, isStudioMode }) => {
 
+    const displayWorkouts = workouts.filter(w => !w.id.startsWith('temp-') && !w.id.startsWith('fs-workout-temp-'));
+
     const getTimeLeft = (createdAt: number) => {
         const now = Date.now();
         const diff = (createdAt + 24 * 60 * 60 * 1000) - now;
@@ -43,9 +45,9 @@ const SavedWorkoutsScreen: React.FC<SavedWorkoutsScreenProps> = ({ workouts, onS
                 </div>
             </div>
 
-            {workouts.length > 0 ? (
+            {displayWorkouts.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {workouts.map(workout => (
+                    {displayWorkouts.map(workout => (
                         <div 
                             key={workout.id} 
                             className="group bg-white dark:bg-gray-800 rounded-3xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-xl hover:border-primary/30 dark:hover:border-primary/30 transition-all duration-300 flex flex-col h-full"

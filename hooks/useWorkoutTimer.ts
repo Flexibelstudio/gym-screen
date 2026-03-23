@@ -286,25 +286,39 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
   
   const settingsRounds = useMemo(() => {
       if (!block) return 0;
+      if (block.settings.mode === TimerMode.Tabata) return 8;
       if (block.settings.mode === TimerMode.Custom) {
           return flattenedSequence.length;
       }
       return block.settings.rounds || (totalExercises > 0 ? totalExercises : 1);
   }, [block, totalExercises, flattenedSequence.length]);
 
+  const isOldLapsMode = useMemo(() => {
+      if (block?.settings.mode !== TimerMode.Interval) return false;
+      if (block?.settings.specifiedLaps !== undefined) return false;
+      const numExercises = totalExercises > 0 ? totalExercises : 1;
+      return settingsRounds > 0 && settingsRounds % numExercises === 0;
+  }, [block, totalExercises, settingsRounds]);
+
   const effectiveIntervalsPerLap = useMemo(() => {
+      if (block?.settings.mode === TimerMode.Tabata) return 1;
       if (block?.settings.mode === TimerMode.Custom) return block.settings.sequence?.length || 1;
       if (block?.settings.specifiedIntervalsPerLap) return block.settings.specifiedIntervalsPerLap;
-      return totalExercises > 0 ? totalExercises : 1;
-  }, [block, totalExercises]);
+      if (block?.settings.specifiedLaps === null) return 1;
+      if (isOldLapsMode) return totalExercises > 0 ? totalExercises : 1;
+      return 1; // Old rounds mode or undefined
+  }, [block, totalExercises, isOldLapsMode]);
 
   const totalRounds = useMemo(() => {
       if (!block) return 0;
+      if (block.settings.mode === TimerMode.Tabata) return settingsRounds;
       if (block.settings.mode === TimerMode.Custom) return block.settings.rounds;
       if (block.settings.mode === TimerMode.EMOM) return settingsRounds;
       if (block.settings.specifiedLaps) return block.settings.specifiedLaps;
-      return totalExercises > 0 ? Math.ceil(settingsRounds / totalExercises) : settingsRounds;
-  }, [block, totalExercises, settingsRounds]);
+      if (block.settings.specifiedLaps === null) return settingsRounds;
+      if (isOldLapsMode) return totalExercises > 0 ? Math.ceil(settingsRounds / totalExercises) : settingsRounds;
+      return settingsRounds; // Old rounds mode or undefined
+  }, [block, totalExercises, settingsRounds, isOldLapsMode]);
 
   const currentRound = Math.floor(completedWorkIntervals / effectiveIntervalsPerLap) + 1;
   const isLastExerciseInRound = (completedWorkIntervals + 1) % effectiveIntervalsPerLap === 0;

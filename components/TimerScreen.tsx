@@ -26,7 +26,7 @@ interface TimerStyle {
 
 const getTimerStyle = (status: TimerStatus, mode: TimerMode, isHyrox: boolean, isTransitioning: boolean, currentSegment: TimerSegment | null): TimerStyle => {
   if (isTransitioning) {
-      return { bg: 'bg-gradient-to-br from-indigo-900 to-purple-900', text: 'text-white', pulseRgb: '168, 85, 247', border: 'border-purple-400', badge: 'bg-purple-600' };
+      return { bg: 'bg-teal-500', text: 'text-white', pulseRgb: '45, 212, 191', border: 'border-teal-200', badge: 'bg-teal-600' };
   }
   
   if (isHyrox) {
@@ -94,49 +94,13 @@ const getBlockTimeLabel = (block: WorkoutBlock): string => {
     const s = block.settings;
     if (!s) return "";
     
-    switch(s.mode) {
-        case TimerMode.AMRAP:
-        case TimerMode.TimeCap:
-            return s.workTime ? `${Math.floor(s.workTime / 60)} MIN` : "";
-        case TimerMode.EMOM:
-            return s.rounds ? `${s.rounds} MIN` : "";
-        case TimerMode.Tabata:
-            return s.rounds ? `${s.rounds} RONDER` : "";
-        case TimerMode.Interval:
-            return s.rounds ? `${s.rounds} RONDER` : "";
-        case TimerMode.Custom:
-             return s.rounds ? `${s.rounds} VARV` : "";
-        default:
-            return "";
-    }
+    if (s.mode === TimerMode.NoTimer) return "Ingen tid";
+    
+    const duration = calculateBlockDuration(s, block.exercises.length);
+    return formatSeconds(duration);
 };
 
 // --- Visualization Components ---
-
-const NextRestPreview: React.FC<{ transitionTime: number; style?: React.CSSProperties }> = ({ transitionTime, style }) => {
-    return (
-        <motion.div 
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className={`w-full flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[3rem] border-2 border-gray-100 dark:border-white/10 shadow-2xl p-6 justify-center text-center`}
-            style={style}
-        >
-            <div className="flex flex-col items-center gap-4 mb-4">
-                <div className="bg-primary/10 p-3 rounded-2xl border border-primary/20">
-                    <ClockIcon className="w-8 h-8 text-primary" />
-                </div>
-                <div>
-                    <span className="block text-xs font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.4em] mb-1">HÄRNÄST</span>
-                    <h4 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-none">VILA</h4>
-                </div>
-            </div>
-            
-            <div className="text-7xl sm:text-8xl font-mono font-black text-primary dark:text-primary tabular-nums drop-shadow-xl leading-none">
-                {formatSeconds(transitionTime)}
-            </div>
-        </motion.div>
-    );
-};
 
 const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock; isRestNext?: boolean }> = ({ transitionTime, block, isRestNext }) => {
     return (
@@ -172,77 +136,6 @@ const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock
     );
 };
 
-const NextBlockPreview: React.FC<{ block: WorkoutBlock; label?: string; style?: React.CSSProperties }> = ({ block, label = "HÄRNÄST", style }) => {
-    const timeLabel = getBlockTimeLabel(block);
-    const accentColor = getTagHexColor(block.tag);
-    const hasManyExercises = block.exercises.length > 5;
-    
-    return (
-        <motion.div 
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className={`w-full flex flex-col bg-white/95 dark:bg-black/40 backdrop-blur-2xl rounded-[3rem] border-2 border-gray-100 dark:border-white/10 overflow-hidden shadow-2xl min-h-0`}
-            style={style}
-        >
-            <div className="p-6 bg-gray-50/50 dark:bg-white/5 border-b border-gray-100 dark:border-white/5 flex-shrink-0">
-                <div className="flex items-center gap-4 mb-2">
-                    <div className="bg-primary/10 p-2 rounded-xl border border-primary/20">
-                        <ChevronRightIcon className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                        <span className="block text-[10px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.4em] mb-0.5">{label}</span>
-                        <h4 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tighter line-clamp-1 leading-none">{block.title}</h4>
-                    </div>
-                </div>
-                
-                <div className="flex items-center gap-3 text-gray-400 dark:text-white/40 text-[10px] font-black uppercase tracking-[0.2em] mb-1">
-                    <span className="bg-gray-200 dark:bg-white/10 px-2 py-0.5 rounded-lg">{block.settings.mode}</span>
-                    {timeLabel && (
-                        <>
-                            <span className="opacity-30">•</span>
-                            <span className="text-primary font-black">{timeLabel}</span>
-                        </>
-                    )}
-                </div>
-
-                {block.setupDescription && (
-                    <p className="text-sm font-bold text-gray-700 dark:text-gray-200 leading-tight border-t border-gray-200 dark:border-white/10 pt-2 mt-2 whitespace-normal line-clamp-2">
-                        {block.setupDescription}
-                    </p>
-                )}
-            </div>
-            <div className="flex-grow flex flex-col overflow-hidden p-4 gap-2">
-                {block.exercises.map((ex) => {
-                    const nameLen = ex.name.length;
-                    // Auto-scale text based on length and number of items (rough heuristic)
-                    let nameSize = 'text-2xl';
-                    if (hasManyExercises) nameSize = 'text-lg';
-                    else if (nameLen > 25) nameSize = 'text-xl';
-                    
-                    return (
-                        <div 
-                            key={ex.id} 
-                            className={`flex-1 min-h-0 flex flex-col justify-center gap-1 bg-gray-50/80 dark:bg-white/5 rounded-2xl px-4 py-2 border border-gray-100 dark:border-white/5 border-l-[8px] shadow-sm transition-transform active:scale-[0.98]`}
-                            style={{ borderLeftColor: accentColor }}
-                        >
-                            <div className="flex items-center gap-3">
-                                {ex.reps && (
-                                    <span className="text-sm font-black text-primary bg-primary/10 px-2 py-0.5 rounded-lg border border-primary/10 whitespace-nowrap shrink-0 font-mono">
-                                        {formatReps(ex.reps)}
-                                    </span>
-                                )}
-                                <p className={`font-black text-gray-900 dark:text-white leading-none tracking-tight whitespace-normal ${nameSize} line-clamp-2`}>
-                                    {ex.name}
-                                </p>
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
-        </motion.div>
-    );
-};
-
 const SegmentedRoadmap: React.FC<{ 
     chain: WorkoutBlock[]; 
     currentBlockId: string; 
@@ -256,24 +149,6 @@ const SegmentedRoadmap: React.FC<{
     totalSequenceElapsed?: number;
 }> = ({ chain, currentBlockId, totalChainElapsed, totalChainTime, isCustomMode, sequence, currentSegmentIndex, totalSequenceDuration, totalSequenceElapsed }) => {
     
-    // CUSTOM MODE ROADMAP - CONTINUOUS
-    if (isCustomMode && sequence && totalSequenceDuration) {
-         const elapsed = totalSequenceElapsed || 0;
-         const percentage = Math.min(100, Math.max(0, (elapsed / totalSequenceDuration) * 100));
-
-         return (
-            <div className="w-full flex items-center h-4 mb-2 bg-white/20 dark:bg-black/30 rounded-full overflow-hidden border border-white/10 shadow-inner">
-                 <motion.div 
-                    className="h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)]"
-                    style={{ width: `${percentage}%` }}
-                    // Use standard animation for smooth progress
-                    animate={{ width: `${percentage}%` }}
-                    transition={{ duration: 0.5, ease: "linear" }}
-                />
-            </div>
-         );
-    }
-
     // STANDARD BLOCK CHAIN ROADMAP
     let accumulatedTime = 0;
     
@@ -537,44 +412,76 @@ interface BigIndicatorProps {
 }
 
 const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRounds, mode, currentInterval, totalIntervalsInLap }) => {
-    // Also show for Custom mode
     if (mode !== TimerMode.Interval && mode !== TimerMode.Tabata && mode !== TimerMode.EMOM && mode !== TimerMode.Custom) return null;
 
-    const showInterval = currentInterval !== undefined && totalIntervalsInLap !== undefined && mode !== TimerMode.EMOM && mode !== TimerMode.Custom;
-    const label = mode === TimerMode.EMOM ? 'MINUT' : mode === TimerMode.Custom ? 'VARV' : 'VARV';
+    let primaryLabel = '';
+    let primaryCurrent = 0;
+    let primaryTotal = 0;
+
+    let secondaryLabel = '';
+    let secondaryCurrent = 0;
+    let secondaryTotal = 0;
+
+    if (mode === TimerMode.Custom) {
+        primaryLabel = 'INTERVALL';
+        primaryCurrent = currentInterval || 1;
+        primaryTotal = totalIntervalsInLap || 1;
+        secondaryLabel = 'VARV';
+        secondaryCurrent = currentRound;
+        secondaryTotal = totalRounds;
+    } else if (mode === TimerMode.Interval && currentInterval !== undefined && totalIntervalsInLap !== undefined) {
+        primaryLabel = 'INTERVALL';
+        primaryCurrent = currentInterval;
+        primaryTotal = totalIntervalsInLap;
+        secondaryLabel = 'VARV';
+        secondaryCurrent = currentRound;
+        secondaryTotal = totalRounds;
+    } else if (mode === TimerMode.Interval) {
+        primaryLabel = 'INTERVALL';
+        primaryCurrent = currentRound;
+        primaryTotal = totalRounds;
+    } else if (mode === TimerMode.Tabata) {
+        primaryLabel = 'INTERVALL';
+        primaryCurrent = currentRound;
+        primaryTotal = totalRounds;
+    } else if (mode === TimerMode.EMOM) {
+        primaryLabel = 'MINUT';
+        primaryCurrent = currentRound;
+        primaryTotal = totalRounds;
+    }
 
     return (
         <div className="flex flex-col items-end gap-1 animate-fade-in">
-            {showInterval && (
-                <div className="flex flex-col items-end">
-                    <span className="block text-white/80 font-black text-xs sm:text-sm uppercase tracking-[0.4em] mb-1 drop-shadow-md">INTERVALL</span>
-                    <div className="flex items-baseline justify-end gap-1">
-                        <motion.span 
-                            key={`interval-${currentInterval}`} 
-                            initial={{ opacity: 0, scale: 0.8 }} 
-                            animate={{ opacity: 1, scale: 1 }} 
-                            className="font-black text-6xl sm:text-7xl text-white drop-shadow-lg leading-none"
-                        >
-                            {currentInterval}
-                        </motion.span>
-                        <span className="text-2xl sm:text-3xl font-black text-white/80 drop-shadow-md">/ {totalIntervalsInLap}</span>
-                    </div>
+            <div className="flex flex-col items-end">
+                <span className="block text-white/80 font-black text-xs sm:text-sm uppercase tracking-[0.4em] mb-1 drop-shadow-md">{primaryLabel}</span>
+                <div className="flex items-baseline justify-end gap-1">
+                    <motion.span 
+                        key={`primary-${primaryCurrent}`} 
+                        initial={{ opacity: 0, scale: 0.8 }} 
+                        animate={{ opacity: 1, scale: 1 }} 
+                        className="font-black text-6xl sm:text-7xl text-white drop-shadow-lg leading-none"
+                    >
+                        {primaryCurrent}
+                    </motion.span>
+                    <span className="text-2xl sm:text-3xl font-black text-white/80 drop-shadow-md">/ {primaryTotal}</span>
                 </div>
-            )}
+            </div>
 
-            <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex items-center justify-end gap-3 mt-2"
-            >
-                <span className="text-white/80 font-black text-[10px] sm:text-xs uppercase tracking-[0.3em] drop-shadow-md">
-                    {label}
-                </span>
-                <div className="flex items-baseline gap-1">
-                    <span className="text-2xl sm:text-3xl font-black text-white drop-shadow-lg">{currentRound}</span>
-                    <span className="text-sm sm:text-base font-bold text-white/80 drop-shadow-md">/ {totalRounds}</span>
-                </div>
-            </motion.div>
+            {secondaryLabel && (
+                <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center justify-end gap-3 mt-2"
+                >
+                    <span className="text-white/80 font-black text-[10px] sm:text-xs uppercase tracking-[0.3em] drop-shadow-md">
+                        {secondaryLabel}
+                    </span>
+                    <div className="flex items-baseline gap-1">
+                        <span className="text-2xl sm:text-3xl font-black text-white drop-shadow-lg">{secondaryCurrent}</span>
+                        <span className="text-sm sm:text-base font-bold text-white/80 drop-shadow-md">/ {secondaryTotal}</span>
+                    </div>
+                </motion.div>
+            )}
         </div>
     );
 };
@@ -722,33 +629,18 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const hideTimeoutRef = React.useRef<number | null>(null);
   const wakeLockRef = useRef<any>(null);
   
-  // Show controls on mouse move
-  useEffect(() => {
-      const handleMouseMove = () => {
-          setControlsVisible(true);
-          if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-          hideTimeoutRef.current = window.setTimeout(() => setControlsVisible(false), 3000);
-      };
-      window.addEventListener('mousemove', handleMouseMove);
-      return () => {
-          window.removeEventListener('mousemove', handleMouseMove);
-          if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-      };
-  }, []);
-  
   // Get navigation position preference (default top)
   const navPos = studioConfig.navigationControlPosition || 'top';
 
   // --- REMOTE STATUS SYNC ---
   useEffect(() => {
-    if (selectedOrganization && selectedStudio && activeWorkout) {
-        // We only sync status changes, not every second
+    if (selectedOrganization && selectedStudio) {
         updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
             status: status,
             lastUpdate: Date.now()
         } as any);
     }
-  }, [status, selectedOrganization?.id, selectedStudio?.id, activeWorkout?.id]);
+  }, [status, selectedOrganization?.id, selectedStudio?.id]);
 
   // --- REMOTE CONTROL LISTENER ---
   const lastProcessedCommandTimestamp = useRef<number>(remoteCommand ? remoteCommand.timestamp : 0);
@@ -803,22 +695,30 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const nextBlock = upcomingBlocks[0] || null;
 
   const workoutChain = useMemo(() => {
+      // Om vi inte har ett aktivt pass, visa bara det aktuella blocket
       if (!activeWorkout) return [block];
+
       const index = activeWorkout.blocks.findIndex(b => b.id === block.id);
+      
+      // Om blocket inte hittas i passet (vilket kan hända precis vid ett byte), 
+      // använd det aktuella blocket som bas för att undvika krasch.
       if (index === -1) return [block];
 
+      // Hitta början på kedjan (gå bakåt så länge föregående block har autoAdvance)
       let startIdx = index;
       while (startIdx > 0 && activeWorkout.blocks[startIdx - 1].autoAdvance) {
           startIdx--;
       }
 
+      // Hitta slutet på kedjan (gå framåt så länge nuvarande/nästa block har autoAdvance)
       let endIdx = index;
       while (endIdx < activeWorkout.blocks.length - 1 && activeWorkout.blocks[endIdx].autoAdvance) {
           endIdx++;
       }
 
+      // Returnera den exakta delen av passet som ska köras i en följd
       return activeWorkout.blocks.slice(startIdx, endIdx + 1);
-  }, [activeWorkout, block.id]);
+  }, [activeWorkout, block]); // <--- VIKTIGT: Här lyssnar vi på hela blocket, inte bara ID
 
   const chainInfo = useMemo(() => {
       let totalDuration = 0;
@@ -1007,12 +907,13 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   const hasCalledFinishRef = useRef(false);
   useEffect(() => {
-    if (status === TimerStatus.Finished && !isHyroxRace && block.settings.mode !== TimerMode.Stopwatch && !block.autoAdvance) {
+    if (status === TimerStatus.Finished && !isHyroxRace && block.settings.mode !== TimerMode.Stopwatch) {
+        if (block.autoAdvance && nextBlock) return;
         if (hasCalledFinishRef.current) return;
         const timerId = setTimeout(() => { onFinish({ isNatural: true, time: totalTimeElapsed }); hasCalledFinishRef.current = true; }, 500);
         return () => clearTimeout(timerId);
     } else if (status !== TimerStatus.Finished) { hasCalledFinishRef.current = false; }
-  }, [status, isHyroxRace, block.settings.mode, block.autoAdvance, onFinish, totalTimeElapsed]);
+  }, [status, isHyroxRace, block.settings.mode, block.autoAdvance, nextBlock, onFinish, totalTimeElapsed]);
 
   const handleConfirmReset = () => {
     setShowResetConfirmation(false);
@@ -1054,11 +955,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       }
 
       // 2. Sync to Firebase (if in Studio Mode)
-      if (selectedOrganization && selectedStudio && activeWorkout) {
+      // 2. Sync to Firebase (if in Studio Mode)
+      if (selectedOrganization && selectedStudio) {
           const newState = {
-              activeWorkoutId: activeWorkout.id,
               view: 'timer',
-              activeBlockId: block.id,
               command: action,
               commandTimestamp: Date.now(),
               status: action === 'pause' ? TimerStatus.Paused : (action === 'start' || action === 'resume' ? TimerStatus.Running : TimerStatus.Idle),
@@ -1066,7 +966,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               controllerName: 'Coach'
           };
 
-          // Don't await here to keep UI snappy, but fire it off
           updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, newState as any);
       }
   }, [selectedOrganization, selectedStudio, activeWorkout, block.id, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset]);
@@ -1171,7 +1070,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       
       const raceResults = sortedFinishers.map(([participant, data], index) => {
           const group = startGroups.find(g => g.participants.includes(participant));
-          return { participant, time: data.time, groupId: group?.id || 'unknown' };
+          return { participant, time: (data as FinishData).time, groupId: group?.id || 'unknown' };
       });
 
       try {
@@ -1260,8 +1159,13 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   const currentIntervalInLap = (completedWorkIntervals % effectiveIntervalsPerLap) + 1;
   
-  // Visa split-vyn om vi har kommande block, antingen i träning eller under transition
-  const showSplitView = upcomingBlocks.length > 0 && block.autoAdvance;
+  // Autostart 2.0 Mode Detection
+  const isAutostartMode = useMemo(() => {
+      if (!activeWorkout) return false;
+      // FIX: Vi kollar nu om DET AKTUELLA blocket (block) har autostart påslaget,
+      // istället för att kolla om *något* block i hela passet har det.
+      return activeWorkout.blocks.length > 1 && block.autoAdvance;
+  }, [activeWorkout, block.autoAdvance]);
 
   const isRestNext = block.autoAdvance && (block.transitionTime || 0) > 0 && status !== TimerStatus.Resting;
   
@@ -1271,7 +1175,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     return 2 + block.exercises.length;
   };
 
-  const handleInteraction = () => { setControlsVisible(true); onHeaderVisibilityChange(true); /* Back button hidden while running */ restartHideTimer(); };
   const restartHideTimer = React.useCallback(() => {
     if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
     if (status === TimerStatus.Running || status === TimerStatus.Resting || status === TimerStatus.Preparing || isTransitioning) {
@@ -1279,15 +1182,33 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     }
   }, [status, isTransitioning, onHeaderVisibilityChange, setIsBackButtonHidden]);
 
+  const handleInteraction = React.useCallback(() => { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); restartHideTimer(); }, [onHeaderVisibilityChange, setIsBackButtonHidden, restartHideTimer]);
+
+  // Show controls on mouse move or touch
+  useEffect(() => {
+      window.addEventListener('mousemove', handleInteraction);
+      window.addEventListener('touchstart', handleInteraction);
+      return () => {
+          window.removeEventListener('mousemove', handleInteraction);
+          window.removeEventListener('touchstart', handleInteraction);
+      };
+  }, [handleInteraction]);
+
   useEffect(() => {
     if (controlsVisible) restartHideTimer();
     return () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); };
   }, [controlsVisible, restartHideTimer]);
 
   useEffect(() => {
-    if (status === TimerStatus.Running || status === TimerStatus.Preparing || status === TimerStatus.Resting || isTransitioning) restartHideTimer();
-    else { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); }
-  }, [status, restartHideTimer, onHeaderVisibilityChange, setIsBackButtonHidden, isTransitioning]);
+    if (status === TimerStatus.Running || status === TimerStatus.Preparing || status === TimerStatus.Resting || isTransitioning) {
+        restartHideTimer();
+    } else if (isLobbyMode) { 
+        setControlsVisible(true); 
+        onHeaderVisibilityChange(true); 
+        setIsBackButtonHidden(false); 
+        if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); 
+    }
+  }, [status, restartHideTimer, onHeaderVisibilityChange, setIsBackButtonHidden, isTransitioning, isLobbyMode]);
 
   const isActuallyPaused = status === TimerStatus.Paused || (isTransitioning && isTransitionPaused);
   const isActuallyFinishedOrIdle = (status === TimerStatus.Idle || status === TimerStatus.Finished) && !isTransitioning;
@@ -1385,8 +1306,16 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                         currentRound={currentRound} 
                         totalRounds={totalRounds} 
                         mode={block.settings.mode} 
-                        currentInterval={(completedWorkIntervals % (block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1)) + 1}
-                        totalIntervalsInLap={block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1}
+                        currentInterval={
+                            block.settings.mode === TimerMode.Custom ? (completedWorkIntervals % (block.settings.sequence?.length || 1)) + 1 :
+                            block?.settings.specifiedLaps != null ? (completedWorkIntervals % (block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1)) + 1 : 
+                            (block?.settings.mode === TimerMode.Interval && block?.settings.specifiedLaps === undefined && block?.settings.rounds && block.exercises.length > 0 && block.settings.rounds % block.exercises.length === 0) ? (completedWorkIntervals % block.exercises.length) + 1 : undefined
+                        }
+                        totalIntervalsInLap={
+                            block.settings.mode === TimerMode.Custom ? block.settings.sequence?.length || 1 :
+                            block?.settings.specifiedLaps != null ? (block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1) : 
+                            (block?.settings.mode === TimerMode.Interval && block?.settings.specifiedLaps === undefined && block?.settings.rounds && block.exercises.length > 0 && block.settings.rounds % block.exercises.length === 0) ? block.exercises.length : undefined
+                        }
                     />
                 )}
             </motion.div>
@@ -1399,7 +1328,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'} 
               ${showFullScreenColor 
                   ? `top-[12%] min-h-[50%] justify-center` 
-                  : `pt-6 pb-6 top-4 min-h-[25%] mx-4 sm:mx-6 rounded-[3rem] shadow-2xl ${timerStyle.bg}`
+                  : `${isAutostartMode ? (controlsVisible ? 'pt-4 pb-4 min-h-[25%]' : 'pt-4 pb-2 min-h-[20%]') : 'pt-6 pb-6 min-h-[25%]'} top-4 mx-4 sm:mx-6 rounded-[3rem] shadow-2xl ${timerStyle.bg}`
               }`}
           style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
       >
@@ -1415,15 +1344,27 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                  </div>
             )}
 
-            <div className={`mb-2 px-8 py-1.5 rounded-full bg-black/30 backdrop-blur-xl border border-white/20 shadow-lg z-20 transition-opacity ${isLobbyMode ? 'opacity-0' : 'opacity-100'}`}>
-                <span className={`font-black tracking-[0.3em] text-white uppercase drop-shadow-md text-base md:text-lg`}>{modeLabel}</span>
-            </div>
+            {isAutostartMode ? (
+                <div className={`absolute top-4 left-4 sm:top-6 sm:left-6 px-3 py-1 sm:px-4 sm:py-1.5 rounded-full bg-black/20 backdrop-blur-md border border-white/10 shadow-sm z-20 transition-opacity ${isLobbyMode ? 'opacity-0' : 'opacity-100'}`}>
+                    <span className={`font-bold tracking-widest text-white/90 uppercase drop-shadow-sm text-[10px] sm:text-xs`}>{modeLabel}</span>
+                </div>
+            ) : (
+                <div className={`mb-2 px-8 py-1.5 rounded-full bg-black/30 backdrop-blur-xl border border-white/20 shadow-lg z-20 transition-opacity ${isLobbyMode ? 'opacity-0' : 'opacity-100'}`}>
+                    <span className={`font-black tracking-[0.3em] text-white uppercase drop-shadow-md text-base md:text-lg`}>{modeLabel}</span>
+                </div>
+            )}
 
-            {/* STATUS (ARBETE/VILA) - Överst */}
+            {/* STATUS (ARBETE/VILA) ELLER BLOCK RUBRIK - Överst */}
             <div className="text-center z-20 w-full px-10 mb-1">
-                <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-4xl lg:text-5xl overflow-visible whitespace-nowrap leading-none ${isLobbyMode ? 'opacity-100' : ''}`}>
-                    {isLobbyMode ? "REDO" : statusLabel}
-                </h2>
+                {isAutostartMode ? (
+                    <h1 className={`font-black text-white/90 uppercase tracking-tighter text-xl sm:text-2xl md:text-3xl drop-shadow-lg overflow-visible whitespace-nowrap leading-none ${isTransitioning ? 'animate-pulse' : ''}`}>
+                        {isTransitioning ? "VILA - GÖR REDO" : block.title}
+                    </h1>
+                ) : (
+                    <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-4xl lg:text-5xl overflow-visible whitespace-nowrap leading-none ${isLobbyMode ? 'opacity-100' : ''}`}>
+                        {isLobbyMode ? "REDO" : statusLabel}
+                    </h2>
+                )}
             </div>
 
             {/* SIFFROR (Tiden) - Mitten */}
@@ -1451,15 +1392,17 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 />
             </div>
 
-            {/* BLOCK RUBRIK (Stort) - Längst ner */}
-            <div className="text-center z-20 w-full px-10 mt-2 mb-1">
-                <h1 className="font-black text-white/90 uppercase tracking-tighter text-xl sm:text-2xl md:text-3xl drop-shadow-lg overflow-visible whitespace-nowrap leading-none">
-                    {isTransitioning ? nextBlock?.title : block.title}
-                </h1>
-            </div>
+            {/* BLOCK RUBRIK (Stort) - Längst ner (Döljs i AutostartMode) */}
+            {!isAutostartMode && (
+                <div className="text-center z-20 w-full px-10 mt-2 mb-1">
+                    <h1 className="font-black text-white/90 uppercase tracking-tighter text-xl sm:text-2xl md:text-3xl drop-shadow-lg overflow-visible whitespace-nowrap leading-none">
+                        {isTransitioning ? nextBlock?.title : block.title}
+                    </h1>
+                </div>
+            )}
 
         {/* TIMER CONTROLS (Relative under title) */}
-        <div className="relative z-50 mt-2">
+        <div className="relative z-50">
             <TimerControls 
                 textSizeScale={textSizeScale} 
                 repsSizeScale={repsSizeScale} 
@@ -1471,8 +1414,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       </div>
 
       {/* CONTENT AREA (Under Clock) */}
-      <div className={`absolute bottom-4 left-0 flex flex-col items-center justify-start z-0 pt-2
-          ${showFullScreenColor ? 'top-[65%]' : 'top-[28%]'} 
+      <div className={`absolute bottom-4 left-0 flex flex-col items-center justify-start z-0 pt-2 transition-all duration-500
+          ${showFullScreenColor ? 'top-[65%]' : (isAutostartMode ? (controlsVisible ? 'top-[26%]' : 'top-[24%]') : 'top-[28%]')} 
           ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] px-6` : 'right-0 px-6'}`}>
           
           <div className="w-full max-w-[1500px] h-full flex flex-col">
@@ -1519,128 +1462,86 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 ) : (
                     // STANDARD LIST LAYOUT (Side by side if next blocks exist)
                     <div className="flex gap-4 flex-grow items-stretch w-full min-h-0">
-                         <div className={`flex flex-col gap-6 transition-all duration-500 h-full min-h-0 ${showSplitView ? 'w-2/3' : 'w-full mx-auto max-w-6xl'}`}>
-                            {isTransitioning ? (
-                                // Header för vila-läget
+                         <div className={`flex flex-col gap-6 transition-all duration-500 h-full min-h-0 w-full mx-auto max-w-6xl`}>
+                            {isTransitioning && !isAutostartMode ? (
+                                // Header för vila-läget (Döljs i AutostartMode)
                                 <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-center bg-white/80 dark:bg-black/20 p-8 rounded-[2.5rem] border border-gray-100 dark:border-white/5 shadow-lg gap-6">
-                                    <div>
+                                    <div className="flex-1">
                                         <span className="inline-block px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-black uppercase tracking-[0.2em] mb-3">Uppladdning</span>
                                         <h3 className="text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-none">{nextBlock?.title}</h3>
                                         <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Gör er redo för nästa del av passet</p>
+                                        {nextBlock?.showDescriptionInTimer && nextBlock?.setupDescription && (
+                                            <p className="text-gray-900 dark:text-white text-xl md:text-2xl font-bold leading-tight tracking-tight mt-4 border-t border-gray-200 dark:border-white/10 pt-4">
+                                                {nextBlock.setupDescription}
+                                            </p>
+                                        )}
                                     </div>
                                     <button 
                                         onClick={handleStartNextBlock}
-                                        className="bg-gray-900 dark:bg-white text-white dark:text-black font-black py-4 px-10 rounded-2xl shadow-2xl hover:scale-105 transition-all text-lg uppercase tracking-widest border-4 border-gray-700 dark:border-white/30"
+                                        className="bg-gray-900 dark:bg-white text-white dark:text-black font-black py-4 px-10 rounded-2xl shadow-2xl hover:scale-105 transition-all text-lg uppercase tracking-widest border-4 border-gray-700 dark:border-white/30 whitespace-nowrap"
                                     >
                                         Starta nu
                                     </button>
                                 </div>
                             ) : (
-                                block.showDescriptionInTimer && block.setupDescription && (
+                                ((!isTransitioning && block.showDescriptionInTimer && block.setupDescription) || 
+                                 (isTransitioning && nextBlock?.showDescriptionInTimer && nextBlock?.setupDescription)) && (
                                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0">
                                             <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
-                                            <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight">{block.setupDescription}</p>
+                                            <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight">
+                                                {isTransitioning ? nextBlock!.setupDescription : block.setupDescription}
+                                            </p>
                                     </motion.div>
                                 )
                             )}
 
                             <div className="w-full flex-grow min-h-0"> 
                                 {!isFreestanding && (
-                                    <StandardListView 
-                                        exercises={isTransitioning ? nextBlock!.exercises : block.exercises} 
-                                        timerStyle={timerStyle} 
-                                        isHyrox={isHyroxRace} 
-                                        showDescriptions={block.showExerciseDescriptions !== false} // PASS THE PROP
-                                        textSizeScale={textSizeScale}
-                                        repsSizeScale={repsSizeScale}
-                                    />
+                                    <div className="flex flex-col gap-8 w-full h-full">
+                                        {/* Current Block (or Next Block if transitioning) */}
+                                        <div className={`flex-1 min-h-0 ${isAutostartMode && !isTransitioning ? 'opacity-100' : ''}`}>
+                                            <StandardListView 
+                                                exercises={isTransitioning ? nextBlock!.exercises : block.exercises} 
+                                                timerStyle={timerStyle} 
+                                                isHyrox={isHyroxRace} 
+                                                showDescriptions={block.showExerciseDescriptions !== false} // PASS THE PROP
+                                                textSizeScale={textSizeScale}
+                                                repsSizeScale={repsSizeScale}
+                                            />
+                                        </div>
+                                        
+                                        {/* Upcoming Block (only in AutostartMode) */}
+                                        {isAutostartMode && (
+                                            (() => {
+                                                const upcomingBlock = isTransitioning ? upcomingBlocks[1] : nextBlock;
+                                                if (!upcomingBlock) return null;
+                                                return (
+                                                    <div className="flex-1 min-h-0 opacity-50 transition-opacity duration-500">
+                                                        <div className="mb-4 flex items-center gap-4">
+                                                            <div className="h-px bg-gray-300 dark:bg-gray-700 flex-1"></div>
+                                                            <span className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest text-sm">
+                                                                Kommande: {upcomingBlock.title}
+                                                            </span>
+                                                            <div className="h-px bg-gray-300 dark:bg-gray-700 flex-1"></div>
+                                                        </div>
+                                                        <StandardListView 
+                                                            exercises={upcomingBlock.exercises} 
+                                                            timerStyle={getTimerStyle(TimerStatus.Idle, upcomingBlock.settings.mode, isHyroxRace, false, null)} 
+                                                            isHyrox={isHyroxRace} 
+                                                            showDescriptions={false} // Hide descriptions for upcoming
+                                                            textSizeScale={textSizeScale * 0.8} // Maybe slightly smaller?
+                                                            repsSizeScale={repsSizeScale * 0.8}
+                                                        />
+                                                    </div>
+                                                );
+                                            })()
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         </div>
 
-                        {/* UPCOMING BLOCKS STACK (33% width) - DYNAMIC HEIGHT */}
-                        {showSplitView ? (
-                            <div className="w-1/3 h-full flex flex-col gap-4 pb-1">
-                                {isTransitioning ? (
-                                    // Under vila: Visa kommande block C och D
-                                    // Beräkna vikter för blocken
-                                    (() => {
-                                        const block1 = upcomingBlocks[1];
-                                        const block2 = upcomingBlocks[2];
-                                        const w1 = block1 ? getBlockWeight(block1) : 0;
-                                        const w2 = block2 ? getBlockWeight(block2) : 0;
-                                        
-                                        return (
-                                            <>
-                                                {block1 && (
-                                                    <NextBlockPreview 
-                                                        block={block1} 
-                                                        label="HÄRNÄST" 
-                                                        style={{ flexGrow: w1 }}
-                                                    />
-                                                )}
-                                                {block2 && (
-                                                    <NextBlockPreview 
-                                                        block={block2} 
-                                                        label="DÄREFTER" 
-                                                        style={{ flexGrow: w2 }} 
-                                                    />
-                                                )}
-                                            </>
-                                        );
-                                    })()
-                                ) : isRestNext ? (
-                                    // Under träning med vila efter: Visa vila och Block B
-                                    // Vila får fast vikt (typ 2), Block B får dynamisk
-                                    (() => {
-                                        const blockAfter = upcomingBlocks[0];
-                                        const restWeight = 2; // Reduced weight for rest card to make it smaller
-                                        const blockWeight = blockAfter ? getBlockWeight(blockAfter) : 0;
-                                        
-                                        return (
-                                            <>
-                                                <NextRestPreview 
-                                                    transitionTime={block.transitionTime || 0} 
-                                                    style={{ flexGrow: restWeight }}
-                                                />
-                                                {blockAfter && (
-                                                    <NextBlockPreview 
-                                                        block={blockAfter} 
-                                                        label="DÄREFTER" 
-                                                        style={{ flexGrow: blockWeight }}
-                                                    />
-                                                )}
-                                            </>
-                                        );
-                                    })()
-                                ) : (
-                                    // Under träning utan vila: Visa Block B och C
-                                    (() => {
-                                        const block1 = nextBlock!;
-                                        const block2 = upcomingBlocks[1];
-                                        const w1 = getBlockWeight(block1);
-                                        const w2 = block2 ? getBlockWeight(block2) : 0;
-                                        
-                                        return (
-                                            <>
-                                                <NextBlockPreview 
-                                                    block={block1} 
-                                                    label="HÄRNÄST" 
-                                                    style={{ flexGrow: w1 }} 
-                                                />
-                                                {block2 && (
-                                                    <NextBlockPreview 
-                                                        block={block2} 
-                                                        label="DÄREFTER" 
-                                                        style={{ flexGrow: w2 }} 
-                                                    />
-                                                )}
-                                            </>
-                                        );
-                                    })()
-                                )}
-                            </div>
-                        ) : null}
+                        {/* UPCOMING BLOCKS STACK REMOVED */}
                     </div>
                 )}
               </div>

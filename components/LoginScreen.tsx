@@ -2,17 +2,16 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { registerMemberWithCode } from '../services/firebaseService';
 import { resizeImage } from '../utils/imageUtils';
-import { CloseIcon } from './icons';
+import { CloseIcon, EyeIcon, EyeOffIcon } from './icons';
 import { motion } from 'framer-motion';
 import { UserTermsModal } from './UserTermsModal';
 import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 
 interface LoginScreenProps {
     onClose?: () => void;
-    onRegisterGym?: () => void; // TILLAGD PROP
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
     const { signIn, signInAsStudio, sendPasswordResetEmail } = useAuth();
     const [view, setView] = useState<'login' | 'reset' | 'register'>('login');
     
@@ -23,6 +22,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     // Login state
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
@@ -171,20 +171,30 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="E-postadress"
                             required
+                            autoComplete="username"
                             className="w-full bg-black text-white p-4 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                     </div>
-                    <div>
+                    <div className="relative">
                         <label htmlFor="password-input" className="sr-only">Lösenord</label>
                         <input
                             id="password-input"
-                            type="password"
+                            type={showPassword ? "text" : "password"}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="Lösenord"
                             required
-                            className="w-full bg-black text-white p-4 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                            autoComplete="current-password"
+                            className="w-full bg-black text-white p-4 pr-12 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                            aria-label={showPassword ? "Dölj lösenord" : "Visa lösenord"}
+                        >
+                            {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
+                        </button>
                     </div>
                     
                     <div className="text-right text-sm">
@@ -204,25 +214,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     </div>
                 </form>
                 
-                <div className="text-center text-sm space-y-4">
-                    <div>
-                        <span className="text-gray-400">Har du inget konto? </span>
-                        <button type="button" onClick={() => setView('register')} className="font-medium text-primary hover:text-white transition-colors">
-                            Skapa ett med inbjudningskod
-                        </button>
-                    </div>
-
-                    {/* --- NY SEKTION FÖR GYM-REGISTRERING --- */}
-                    <div className="pt-4 border-t border-gray-800">
-                        <p className="text-xs text-gray-500 mb-2 uppercase font-bold tracking-wider">Vill du ansluta ditt gym?</p>
-                        <button 
-                            type="button" 
-                            onClick={onRegisterGym}
-                            className="text-white bg-gray-800 hover:bg-gray-700 border border-gray-700 px-6 py-2 rounded-full text-sm font-bold transition-all active:scale-95"
-                        >
-                            Registrera din verksamhet här
-                        </button>
-                    </div>
+                <div className="text-center text-sm">
+                    <span className="text-gray-400">Har du inget konto? </span>
+                    <button type="button" onClick={() => setView('register')} className="font-medium text-primary hover:text-white transition-colors">
+                        Skapa ett med inbjudningskod
+                    </button>
                 </div>
             </div>
         </>
@@ -384,30 +380,38 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                    <div>
+                    <div className="relative">
                         <label htmlFor="reg-password" className="block text-xs font-bold text-gray-500 uppercase mb-1">Lösenord</label>
                         <input
                             id="reg-password"
-                            type="password"
+                            type={showPassword ? "text" : "password"}
                             value={regPassword}
                             onChange={(e) => setRegPassword(e.target.value)}
                             placeholder="Minst 6 tecken"
                             required
                             autoComplete="new-password"
-                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                            className="w-full bg-black text-white p-3 pr-10 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
+                        <button
+                            type="button"
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute right-3 top-[34px] text-gray-400 hover:text-white transition-colors"
+                            aria-label={showPassword ? "Dölj lösenord" : "Visa lösenord"}
+                        >
+                            {showPassword ? <EyeOffIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
+                        </button>
                     </div>
-                    <div>
+                    <div className="relative">
                         <label htmlFor="reg-confirm-password" className="block text-xs font-bold text-gray-500 uppercase mb-1">Bekräfta</label>
                         <input
                             id="reg-confirm-password"
-                            type="password"
+                            type={showPassword ? "text" : "password"}
                             value={regConfirmPassword}
                             onChange={(e) => setRegConfirmPassword(e.target.value)}
                             placeholder="Upprepa"
                             required
                             autoComplete="new-password"
-                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                            className="w-full bg-black text-white p-3 pr-10 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                     </div>
                 </div>
@@ -419,7 +423,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     <p className="text-[10px] text-gray-500 leading-relaxed">
                         Genom att skapa ett konto godkänner du våra{' '}
                         <button type="button" onClick={() => setShowTerms(true)} className="text-primary font-bold hover:underline">Användarvillkor</button>
-                        {' '}och bekräftar att du läst våra{' '}
+                        {' '}och bekräftar att du läst vara{' '}
                         <button type="button" onClick={() => setShowPrivacy(true)} className="text-primary font-bold hover:underline">Integritetspolicy</button>.
                     </p>
                 </div>

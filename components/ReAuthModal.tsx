@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
-import { CloseIcon, UserIcon } from './icons';
+import { CloseIcon, UserIcon, EyeIcon, EyeOffIcon } from './icons';
 
 interface ReAuthModalProps {
   onClose: () => void;
@@ -13,6 +13,7 @@ export const ReAuthModal: React.FC<ReAuthModalProps> = ({ onClose, onSuccess }) 
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,19 +64,31 @@ export const ReAuthModal: React.FC<ReAuthModalProps> = ({ onClose, onSuccess }) 
             Hej {userData?.firstName || 'vän'}! Ange ditt personliga lösenord för att få åtkomst till de administrativa inställningarna.
           </p>
 
-          <div className="w-full">
+          <div className="w-full relative">
             <label htmlFor="reauth-password-input" className="sr-only">Lösenord</label>
             <input
               id="reauth-password-input"
-              type="password"
+              type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="current-password"
               placeholder="Ditt lösenord"
-              className="w-full bg-gray-50 dark:bg-black text-gray-900 dark:text-white p-4 rounded-2xl border-2 border-gray-100 dark:border-gray-800 focus:border-primary focus:ring-4 focus:ring-primary/10 focus:outline-none transition-all font-bold text-center text-xl"
+              className="w-full bg-gray-50 dark:bg-black text-gray-900 dark:text-white p-4 pr-12 rounded-2xl border-2 border-gray-100 dark:border-gray-800 focus:border-primary focus:ring-4 focus:ring-primary/10 focus:outline-none transition-all font-bold text-center text-xl"
               autoFocus
               disabled={isAuthenticating}
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none p-1"
+              aria-label={showPassword ? "Dölj lösenord" : "Visa lösenord"}
+            >
+              {showPassword ? (
+                <EyeOffIcon className="w-6 h-6" />
+              ) : (
+                <EyeIcon className="w-6 h-6" />
+              )}
+            </button>
           </div>
 
           {error && (

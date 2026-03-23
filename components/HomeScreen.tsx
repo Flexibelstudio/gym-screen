@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Page, Workout, MenuItem, StudioConfig, Passkategori, CustomCategoryWithPrompt } from '../types';
 import { welcomeMessages } from '../data/welcomeMessages';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DumbbellIcon, SparklesIcon, StarIcon, PencilIcon, getIconComponent, CloseIcon, LightningIcon, LockIcon } from './icons';
+import { DumbbellIcon, SparklesIcon, StarIcon, PencilIcon, getIconComponent, CloseIcon, LightningIcon, LockIcon, EyeIcon, EyeOffIcon } from './icons';
 import { WeeklyPBList } from './WeeklyPBList'; 
 import { CommunityFeed } from './CommunityFeed';
 import { Modal } from './ui/Modal';
@@ -128,7 +128,7 @@ const AmbientBackground = () => (
     <div className="fixed inset-0 z-[-1] overflow-hidden bg-gray-50 dark:bg-gray-950">
         <div className="absolute top-0 -left-4 w-96 h-96 bg-primary/10 rounded-full mix-blend-multiply filter blur-[100px] opacity-50 animate-blob"></div>
         <div className="absolute bottom-0 right-0 w-96 h-96 bg-primary/5 rounded-full mix-blend-multiply filter blur-[100px] opacity-50 animate-blob animation-delay-2000"></div>
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 pointer-events-none"></div>
+        <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E\")" }}></div>
     </div>
 );
 
@@ -172,6 +172,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   
   // State för lösenordsmodal
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [pendingCategory, setPendingCategory] = useState<string | null>(null);
   const [passwordInput, setPasswordInput] = useState("");
   const [passwordError, setPasswordError] = useState(false);
@@ -262,7 +263,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     <>
         <AmbientBackground />
         
-        <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 flex flex-col h-full overflow-hidden">
+        <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar">
             
             {/* Header Section */}
             <div className="flex flex-shrink-0 justify-between items-start mb-6 w-full pt-4">
@@ -287,7 +288,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             </div>
 
             {/* Meny-grid */}
-            <div className={`flex-grow overflow-y-auto pr-2 custom-scrollbar min-h-0 ${!studioConfig.enableWorkoutLogging ? 'mb-12' : 'mb-8'}`}>
+            <div className={`flex-shrink-0 ${!studioConfig.enableWorkoutLogging ? 'mb-12' : 'mb-8'}`}>
                 <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 ${studioConfig.enableWorkoutLogging ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-4 sm:gap-6`}>
                     {menuItems.map((item, index) => (
                         <MenuCard
@@ -409,21 +410,31 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                                 setPasswordInput("");
                             }
                         }}>
-                            <input
-                                type="password"
-                                value={passwordInput}
-                                onChange={(e) => {
-                                    setPasswordInput(e.target.value);
-                                    setPasswordError(false);
-                                }}
-                                placeholder="Lösenord"
-                                className={`w-full text-center text-2xl tracking-widest p-4 rounded-xl border-2 bg-gray-50 dark:bg-black text-gray-900 dark:text-white focus:outline-none transition-colors ${
-                                    passwordError 
-                                        ? 'border-red-500 focus:border-red-500' 
-                                        : 'border-gray-200 dark:border-gray-800 focus:border-primary'
-                                }`}
-                                autoFocus
-                            />
+                            <div className="relative">
+                                <input
+                                    type={showPassword ? "text" : "password"}
+                                    value={passwordInput}
+                                    onChange={(e) => {
+                                        setPasswordInput(e.target.value);
+                                        setPasswordError(false);
+                                    }}
+                                    placeholder="Lösenord"
+                                    className={`w-full text-center text-2xl tracking-widest p-4 pr-12 rounded-xl border-2 bg-gray-50 dark:bg-black text-gray-900 dark:text-white focus:outline-none transition-colors ${
+                                        passwordError 
+                                            ? 'border-red-500 focus:border-red-500' 
+                                            : 'border-gray-200 dark:border-gray-800 focus:border-primary'
+                                    }`}
+                                    autoFocus
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors"
+                                    aria-label={showPassword ? "Dölj lösenord" : "Visa lösenord"}
+                                >
+                                    {showPassword ? <EyeOffIcon className="w-6 h-6" /> : <EyeIcon className="w-6 h-6" />}
+                                </button>
+                            </div>
                             
                             {passwordError && (
                                 <p className="text-red-500 text-center text-sm font-bold mt-3 animate-shake">

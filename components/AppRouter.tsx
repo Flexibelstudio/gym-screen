@@ -304,6 +304,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onClose={handleBack}
                 navigation={{ goBack: handleBack }}
                 route={{ params: mobileLogData }}
+                workouts={workouts}
             />;
 
         case Page.AdminAnalytics:
