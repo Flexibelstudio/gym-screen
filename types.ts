@@ -106,6 +106,8 @@ export interface Exercise {
   isFromAI?: boolean;
   loggingEnabled?: boolean;
   originalBankId?: string; // NYTT: Referens till Master ID för historik
+  groupId?: string; // For grouping exercises (supersets/circuits)
+  groupColor?: string; // Color class for the group
 }
 
 export interface WorkoutBlock {

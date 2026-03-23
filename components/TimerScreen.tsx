@@ -340,8 +340,9 @@ const StandardListView: React.FC<{
     isHyrox?: boolean,
     showDescriptions: boolean,
     textSizeScale?: number, // NEW PROP
-    repsSizeScale?: number  // NEW PROP
-}> = ({ exercises, timerStyle, forceFullHeight = true, isHyrox = false, showDescriptions, textSizeScale = 1, repsSizeScale = 1 }) => {
+    repsSizeScale?: number,  // NEW PROP
+    status: TimerStatus // NEW PROP
+}> = ({ exercises, timerStyle, forceFullHeight = true, isHyrox = false, showDescriptions, textSizeScale = 1, repsSizeScale = 1, status }) => {
     const count = exercises.length;
     const isLargeList = count > 12 || isHyrox; 
     
@@ -357,17 +358,33 @@ const StandardListView: React.FC<{
 
     // Padding logic (behåller standard-Tailwind för enkelhet, men kan skalas om man vill)
     const padding = isHyrox ? 'pl-16 pr-6 py-2' : isLargeList ? 'pl-8 pr-4 py-2' : count > 6 ? 'pl-8 pr-6 py-3' : 'px-10 py-4';
-    const gap = isLargeList ? 'gap-1' : count > 6 ? 'gap-2' : 'gap-4';
 
     return (
-        <div className={`w-full h-full flex flex-col ${gap} overflow-hidden pb-1`}>
-            {exercises.map((ex) => {
+        <div className={`w-full h-full flex flex-col overflow-hidden pb-1`}>
+            {exercises.map((ex, i) => {
+                const useGroupColor = status !== TimerStatus.Resting && ex.groupColor;
+                const nextEx = exercises[i + 1];
+                const isGroupedWithNext = nextEx && ex.groupId && ex.groupId === nextEx.groupId;
+                
+                let mbClass = '';
+                if (i < exercises.length - 1) {
+                    if (isGroupedWithNext) {
+                        mbClass = isLargeList ? 'mb-0' : 'mb-1'; // Reduced gap for grouped items
+                    } else {
+                        mbClass = isLargeList ? 'mb-1' : count > 6 ? 'mb-2' : 'mb-4';
+                    }
+                }
+                
                 return (
                     <div 
                         key={ex.id} 
-                        className={`flex-1 min-h-0 bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl flex flex-col justify-center border-l-[12px] shadow-sm transition-all relative group border-gray-100 dark:border-transparent ${padding}`}
+                        className={`flex-1 min-h-0 bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl flex flex-col justify-center border-l-[12px] shadow-sm transition-all relative group ${
+                            useGroupColor 
+                            ? ex.groupColor.replace('bg-', 'border-') 
+                            : 'border-gray-100 dark:border-transparent'
+                        } ${padding} ${mbClass}`}
                         style={{ 
-                            borderLeftColor: isHyrox ? '#6366f1' : `rgb(${timerStyle.pulseRgb})`
+                            borderLeftColor: useGroupColor ? undefined : (isHyrox ? '#6366f1' : `rgb(${timerStyle.pulseRgb})`)
                         }}
                     >
                         <div className="flex items-center w-full gap-6 md:gap-8">
@@ -1507,6 +1524,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                                 showDescriptions={block.showExerciseDescriptions !== false} // PASS THE PROP
                                                 textSizeScale={textSizeScale}
                                                 repsSizeScale={repsSizeScale}
+                                                status={status}
                                             />
                                         </div>
                                         
@@ -1531,6 +1549,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                                             showDescriptions={false} // Hide descriptions for upcoming
                                                             textSizeScale={textSizeScale * 0.8} // Maybe slightly smaller?
                                                             repsSizeScale={repsSizeScale * 0.8}
+                                                            status={TimerStatus.Idle}
                                                         />
                                                     </div>
                                                 );
