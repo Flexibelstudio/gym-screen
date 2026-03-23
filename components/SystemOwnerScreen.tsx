@@ -586,7 +586,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
             {/* Top Navigation */}
             <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between shadow-sm flex-shrink-0">
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                    <span className="bg-gradient-to-tr from-primary to-teal-600 w-8 h-8 rounded-lg"></span>
+                    <span className="bg-primary bg-gradient-to-tr from-white/20 via-transparent to-black/30 w-8 h-8 rounded-lg"></span>
                     <span className="hidden sm:inline">Systemadmin</span>
                 </h1>
                 

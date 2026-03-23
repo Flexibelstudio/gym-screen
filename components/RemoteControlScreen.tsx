@@ -178,7 +178,7 @@ const DashboardButton: React.FC<{
         onClick={onClick}
         className={`
             p-5 rounded-2xl shadow-lg flex flex-col items-start justify-between h-32 active:scale-95 transition-transform border border-white/10 relative overflow-hidden
-            bg-gradient-to-br from-primary to-teal-700 text-white
+            bg-primary bg-gradient-to-br from-white/20 via-transparent to-black/30 text-white
         `}
     >
         <div className="relative z-10 text-white">

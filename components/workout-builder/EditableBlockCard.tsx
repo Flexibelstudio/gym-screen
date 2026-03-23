@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { WorkoutBlock, Exercise, BankExercise, TimerMode } from '../../types';
 import { EditableField } from './EditableField';
-import { ToggleSwitch, ChevronUpIcon, ChevronDownIcon, ChartBarIcon, PencilIcon, TrashIcon, SparklesIcon, BuildingIcon, PlusIcon, LockClosedIcon } from '../icons';
+import { ToggleSwitch, ChevronUpIcon, ChevronDownIcon, ChartBarIcon, PencilIcon, TrashIcon, SparklesIcon, BuildingIcon, PlusIcon, LockClosedIcon, LinkIcon, UnlinkIcon } from '../icons';
 import { generateExerciseDescription } from '../../services/geminiService';
 import { parseSettingsFromTitle } from '../../hooks/useWorkoutTimer';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -20,9 +20,19 @@ interface ExerciseItemProps {
     onExerciseSavedToBank?: (exercise: BankExercise) => void;
     enableWorkoutLogging?: boolean;
     onShowToast: (message: string) => void;
+    onUpdateGroupColor?: (groupId: string, newColor: string) => void;
 }
 
-const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, organizationId, onExerciseSavedToBank, enableWorkoutLogging, onShowToast }) => {
+export const GROUP_COLORS = [
+    { bg: 'bg-blue-500', border: 'border-blue-500', lightBg: 'bg-blue-50 dark:bg-blue-900/20' },
+    { bg: 'bg-pink-500', border: 'border-pink-500', lightBg: 'bg-pink-50 dark:bg-pink-900/20' },
+    { bg: 'bg-lime-500', border: 'border-lime-500', lightBg: 'bg-lime-50 dark:bg-lime-900/20' },
+    { bg: 'bg-orange-500', border: 'border-orange-500', lightBg: 'bg-orange-50 dark:bg-orange-900/20' },
+    { bg: 'bg-purple-500', border: 'border-purple-500', lightBg: 'bg-purple-50 dark:bg-purple-900/20' },
+    { bg: 'bg-yellow-400', border: 'border-yellow-400', lightBg: 'bg-yellow-50 dark:bg-yellow-900/20' }
+];
+
+const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, organizationId, onExerciseSavedToBank, enableWorkoutLogging, onShowToast, onUpdateGroupColor }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -163,13 +173,17 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
     // Lock State Logic
     const isLogButtonLocked = !enableWorkoutLogging;
     
+    const groupColorObj = exercise.groupColor ? GROUP_COLORS.find(c => c.bg === exercise.groupColor) : null;
+    
     return (
         <div 
             ref={searchContainerRef} 
             className={`group p-3 rounded-lg flex items-start gap-3 transition-all border-l-4 relative ${
                 isSearchVisible ? 'z-[1000]' : 'z-0'
             } ${
-                isBanked
+                groupColorObj
+                ? `${groupColorObj.lightBg} ${groupColorObj.border}`
+                : isBanked
                 ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-400' 
                 : 'bg-gray-50 dark:bg-gray-800/50 border-gray-300 dark:border-gray-600'
             }`}
@@ -294,6 +308,18 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                                 <ChartBarIcon className={`w-3.5 h-3.5 ${exercise.loggingEnabled ? 'text-white' : 'text-current'}`} />
                             )}
                         </button>
+                        
+                        {exercise.groupId && exercise.groupColor && onUpdateGroupColor && (
+                            <button 
+                                onClick={() => {
+                                    const currentIndex = GROUP_COLORS.findIndex(c => c.bg === exercise.groupColor);
+                                    const nextIndex = (currentIndex + 1) % GROUP_COLORS.length;
+                                    onUpdateGroupColor(exercise.groupId!, GROUP_COLORS[nextIndex].bg);
+                                }}
+                                className={`w-6 h-6 rounded-full shadow-sm border-2 border-white dark:border-gray-800 ${exercise.groupColor} transform active:scale-95 transition-transform`}
+                                title="Byt färg på gruppen"
+                            />
+                        )}
 
                         <button onClick={() => onRemove(exercise.id)} className="text-red-500 hover:text-red-400 transition-colors text-sm font-medium p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg">
                             <TrashIcon className="w-5 h-5" />
@@ -401,6 +427,60 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
 
     const removeExercise = (exId: string) => {
         const updatedExercises = block.exercises.filter(ex => ex.id !== exId);
+        onUpdate({ ...block, exercises: updatedExercises });
+    };
+
+    const toggleGroup = (index: number) => {
+        const exercises = [...block.exercises];
+        const ex1 = exercises[index];
+        const ex2 = exercises[index + 1];
+
+        if (!ex1 || !ex2) return;
+
+        if (ex1.groupId && ex1.groupId === ex2.groupId) {
+            // Unlink: remove group from ex2 and all subsequent exercises in the same group
+            const currentGroupId = ex1.groupId;
+            for (let i = index + 1; i < exercises.length; i++) {
+                if (exercises[i].groupId === currentGroupId) {
+                    exercises[i] = { ...exercises[i], groupId: undefined, groupColor: undefined };
+                } else {
+                    break;
+                }
+            }
+        } else {
+            // Link
+            const newGroupId = ex1.groupId || ex2.groupId || `group-${Date.now()}`;
+            
+            // Find an unused color if creating a new group
+            let newGroupColor = ex1.groupColor || ex2.groupColor;
+            if (!newGroupColor) {
+                const usedColors = new Set(exercises.map(e => e.groupColor).filter(Boolean));
+                const availableColor = GROUP_COLORS.find(c => !usedColors.has(c.bg)) || GROUP_COLORS[0];
+                newGroupColor = availableColor.bg;
+            }
+
+            const oldGroup1 = ex1.groupId;
+            const oldGroup2 = ex2.groupId;
+
+            for (let i = 0; i < exercises.length; i++) {
+                if (i === index || i === index + 1 || 
+                    (oldGroup1 && exercises[i].groupId === oldGroup1) || 
+                    (oldGroup2 && exercises[i].groupId === oldGroup2)) {
+                    exercises[i] = { ...exercises[i], groupId: newGroupId, groupColor: newGroupColor };
+                }
+            }
+        }
+
+        onUpdate({ ...block, exercises });
+    };
+
+    const updateGroupColor = (groupId: string, newColor: string) => {
+        const updatedExercises = block.exercises.map(ex => {
+            if (ex.groupId === groupId) {
+                return { ...ex, groupColor: newColor };
+            }
+            return ex;
+        });
         onUpdate({ ...block, exercises: updatedExercises });
     };
 
@@ -524,8 +604,8 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                 <button onClick={onEditSettings} className="bg-primary text-white font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-xl shadow-lg shadow-primary/20 active:scale-95 transition-all">Anpassa klockan</button>
             </div>
 
-            <div className="space-y-4 pt-4">
-                <div className="flex justify-between items-center px-1">
+            <div className="flex flex-col pt-4">
+                <div className="flex justify-between items-center px-1 mb-4">
                     <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Övningar ({block.exercises.length})</h4>
                     <button 
                         onClick={handleToggleAllLogging}
@@ -535,25 +615,49 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                         Logga alla i blocket
                     </button>
                 </div>
-                {block.exercises.map((ex, i) => (
-                    <ExerciseItem 
-                        key={ex.id} 
-                        exercise={ex} 
-                        onUpdate={updateExercise} 
-                        onRemove={() => removeExercise(ex.id)}
-                        exerciseBank={exerciseBank}
-                        index={i}
-                        total={block.exercises.length}
-                        onMove={(direction) => onMoveExercise(i, direction)}
-                        organizationId={organizationId}
-                        onExerciseSavedToBank={onExerciseSavedToBank}
-                        enableWorkoutLogging={enableWorkoutLogging}
-                        onShowToast={onShowToast}
-                    />
-                ))}
+                {block.exercises.map((ex, i) => {
+                    const nextEx = block.exercises[i + 1];
+                    const isLinked = nextEx && ex.groupId && ex.groupId === nextEx.groupId;
+                    
+                    return (
+                        <React.Fragment key={ex.id}>
+                            <div className="relative z-0">
+                                <ExerciseItem 
+                                    exercise={ex} 
+                                    onUpdate={updateExercise} 
+                                    onRemove={() => removeExercise(ex.id)}
+                                    exerciseBank={exerciseBank}
+                                    index={i}
+                                    total={block.exercises.length}
+                                    onMove={(direction) => onMoveExercise(i, direction)}
+                                    organizationId={organizationId}
+                                    onExerciseSavedToBank={onExerciseSavedToBank}
+                                    enableWorkoutLogging={enableWorkoutLogging}
+                                    onShowToast={onShowToast}
+                                    onUpdateGroupColor={updateGroupColor}
+                                />
+                            </div>
+                            {i < block.exercises.length - 1 && (
+                                <div className={`flex justify-center relative z-10 ${isLinked ? '-my-3' : 'my-0'}`}>
+                                    <button
+                                        onClick={() => toggleGroup(i)}
+                                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
+                                            isLinked 
+                                            ? `bg-white dark:bg-gray-800 ${ex.groupColor?.replace('bg-', 'border-')} ${ex.groupColor?.replace('bg-', 'text-')} shadow-md` 
+                                            : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-300 hover:text-gray-500 hover:border-gray-300'
+                                        }`}
+                                        title={isLinked ? "Dela upp gruppen" : "Gruppera övningar (Superset)"}
+                                    >
+                                        {isLinked ? <UnlinkIcon className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
+                                    </button>
+                                </div>
+                            )}
+                        </React.Fragment>
+                    );
+                })}
                 <button 
                     onClick={() => onUpdate({ ...block, exercises: [...block.exercises, createNewExercise()] })} 
-                    className="w-full py-5 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-[2rem] text-gray-400 font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-5 mt-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-[2rem] text-gray-400 font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
                 >
                     <span className="text-xl">+</span> Lägg till övning
                 </button>
