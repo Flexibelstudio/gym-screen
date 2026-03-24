@@ -411,19 +411,53 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                                         Använd denna QR-kod eller inbjudningskod för att låta dina medlemmar skapa konto i appen och kopplas direkt till {organization.name}.
                                     </p>
                                     {organization.inviteCode ? (
-                                        <div className="flex flex-col sm:flex-row items-center gap-4">
-                                            <div className="bg-gray-5 dark:bg-gray-900/50 px-8 py-3 rounded-2xl border-2 border-primary/20 shadow-inner">
-                                                <span className="text-4xl font-black font-mono tracking-[0.15em] text-primary">{organization.inviteCode}</span>
+                                        <div className="flex flex-col gap-4">
+                                            <div className="flex flex-col sm:flex-row items-center gap-4">
+                                                <div className="w-24 text-xs font-black text-gray-400 uppercase tracking-widest text-left hidden sm:block">Medlemmar</div>
+                                                <div className="bg-gray-5 dark:bg-gray-900/50 px-6 py-2 rounded-2xl border-2 border-primary/20 shadow-inner">
+                                                    <span className="text-3xl font-black font-mono tracking-[0.15em] text-primary">{organization.inviteCode}</span>
+                                                </div>
+                                                <button 
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText(organization.inviteCode || '');
+                                                        setToast({ message: "Medlemskod kopierad!", visible: true });
+                                                    }}
+                                                    className="text-xs font-black text-primary hover:bg-primary/10 px-4 py-2 rounded-xl transition-all uppercase tracking-widest"
+                                                >
+                                                    <CopyIcon className="w-4 h-4 inline mr-2" /> Kopiera
+                                                </button>
                                             </div>
-                                            <button 
-                                                onClick={() => {
-                                                    navigator.clipboard.writeText(organization.inviteCode || '');
-                                                    setToast({ message: "Kod kopierad!", visible: true });
-                                                }}
-                                                className="text-sm font-black text-primary hover:bg-primary/10 px-5 py-3 rounded-xl transition-all uppercase tracking-widest"
-                                            >
-                                                <CopyIcon className="w-4 h-4 inline mr-2" /> Kopiera
-                                            </button>
+                                            {organization.coachCode ? (
+                                                <div className="flex flex-col sm:flex-row items-center gap-4">
+                                                    <div className="w-24 text-xs font-black text-gray-400 uppercase tracking-widest text-left hidden sm:block">Coacher</div>
+                                                    <div className="bg-purple-50 dark:bg-purple-900/20 px-6 py-2 rounded-2xl border-2 border-purple-500/20 shadow-inner">
+                                                        <span className="text-3xl font-black font-mono tracking-[0.15em] text-purple-600 dark:text-purple-400">{organization.coachCode}</span>
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(organization.coachCode || '');
+                                                            setToast({ message: "Coachkod kopierad!", visible: true });
+                                                        }}
+                                                        className="text-xs font-black text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 px-4 py-2 rounded-xl transition-all uppercase tracking-widest"
+                                                    >
+                                                        <CopyIcon className="w-4 h-4 inline mr-2" /> Kopiera
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col sm:flex-row items-center gap-4">
+                                                    <div className="w-24 text-xs font-black text-gray-400 uppercase tracking-widest text-left hidden sm:block">Coacher</div>
+                                                    <button 
+                                                        onClick={async () => {
+                                                            const newCoachCode = generateInviteCode();
+                                                            await props.onUpdateOrganization(organization.id, organization.name, organization.subdomain, organization.inviteCode, newCoachCode, organization.maxFreeCoaches || 5);
+                                                            setToast({ message: "Coachkod skapad!", visible: true });
+                                                        }}
+                                                        className="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold shadow-md hover:bg-purple-700 text-sm"
+                                                    >
+                                                        Generera coachkod
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     ) : (
                                         <div className="p-4 text-center bg-gray-5 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
