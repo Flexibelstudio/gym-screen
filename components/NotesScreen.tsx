@@ -1003,7 +1003,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 ctx.arc(obj.x + obj.width / 2, obj.y + obj.height / 2, obj.width / 2, 0, Math.PI * 2);
                 ctx.stroke();
             } else if (obj.type === 'text' && obj.text) {
-                ctx.font = '36px Caveat, cursive';
+                ctx.font = '36px Kalam, cursive';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(obj.text, obj.x + obj.width / 2, obj.y + obj.height / 2);
@@ -1424,7 +1424,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                                 value={obj.text || ''}
                                 onChange={(e) => updateSmartObject(obj.id, { text: e.target.value })}
                                 className="bg-transparent border-none outline-none text-center w-full h-full"
-                                style={{ color: obj.color, fontFamily: 'Caveat, cursive', fontSize: '36px', lineHeight: '1' }}
+                                style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: '36px', lineHeight: '1' }}
                                 placeholder="Skriv här..."
                             />
                         ) : (
@@ -1433,7 +1433,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                                 value={obj.text || ''}
                                 onChange={(e) => updateSmartObject(obj.id, { text: e.target.value })}
                                 className="bg-transparent border-none outline-none text-center w-full h-full relative z-10"
-                                style={{ color: obj.color, fontFamily: 'Caveat, cursive', fontSize: '28px', lineHeight: '1' }}
+                                style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: '28px', lineHeight: '1' }}
                                 placeholder=""
                             />
                         )}
