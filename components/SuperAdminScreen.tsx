@@ -62,7 +62,7 @@ interface SuperAdminScreenProps {
     onUpdateLogos: (organizationId: string, logos: { light: string; dark: string }) => Promise<void>;
     onUpdateFavicon: (organizationId: string, faviconUrl: string) => Promise<void>;
     onUpdatePrimaryColor: (organizationId: string, color: string) => Promise<void>;
-    onUpdateOrganization: (organizationId: string, name: string, subdomain: string, inviteCode?: string) => Promise<void>;
+    onUpdateOrganization: (organizationId: string, name: string, subdomain: string, inviteCode?: string, coachCode?: string, maxFreeCoaches?: number) => Promise<void>;
     onUpdateOrganizationCompanyDetails?: (organizationId: string, details: CompanyDetails) => Promise<void>;
     onUpdateCustomPages: (organizationId: string, pages: CustomPage[]) => Promise<void>;
     onSwitchToStudioView: (studio: Studio) => void;
@@ -232,9 +232,10 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     const handleEnablePaidFeatures = async () => {
         setIsSavingConfig(true);
         try {
-            if (!organization.inviteCode) {
-                const newCode = generateInviteCode();
-                await props.onUpdateOrganization(organization.id, organization.name, organization.subdomain, newCode);
+            if (!organization.inviteCode || !organization.coachCode) {
+                const newCode = organization.inviteCode || generateInviteCode();
+                const newCoachCode = organization.coachCode || generateInviteCode();
+                await props.onUpdateOrganization(organization.id, organization.name, organization.subdomain, newCode, newCoachCode, organization.maxFreeCoaches || 5);
             }
             const newConfig = { ...organization.globalConfig, enableWorkoutLogging: true };
             setConfig(newConfig); 
@@ -262,8 +263,9 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
 
     const handleGenerateNewInviteCode = async () => {
         const newCode = generateInviteCode();
-        await props.onUpdateOrganization(organization.id, organization.name, organization.subdomain, newCode);
-        setToast({ message: "Ny kod skapad!", visible: true });
+        const newCoachCode = generateInviteCode();
+        await props.onUpdateOrganization(organization.id, organization.name, organization.subdomain, newCode, newCoachCode, organization.maxFreeCoaches || 5);
+        setToast({ message: "Nya koder skapade!", visible: true });
 
         // LOG
         saveAdminActivity({

@@ -294,6 +294,8 @@ export interface Organization {
   benchmarkDefinitions?: BenchmarkDefinition[];
   companyDetails?: CompanyDetails;
   inviteCode?: string;
+  coachCode?: string;
+  maxFreeCoaches?: number;
   lastActiveAt?: number;
   discountType?: 'percentage' | 'fixed';
   discountValue?: number; 
@@ -353,6 +355,7 @@ export interface UserData {
   uid: string;
   email?: string;
   role: UserRole;
+  status?: 'active' | 'inactive' | 'pending_coach';
   adminRole?: 'superadmin' | 'admin';
   organizationId?: string;
   firstName?: string;
@@ -386,7 +389,7 @@ export interface MemberGoals {
 }
 
 export interface Member extends UserData {
-    status: 'active' | 'inactive';
+    status: 'active' | 'inactive' | 'pending_coach';
     createdAt: number;
     endDate?: string | null;
     isTrainingMember?: boolean;

@@ -37,6 +37,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
     const [regPassword, setRegPassword] = useState('');
     const [regConfirmPassword, setRegConfirmPassword] = useState('');
     const [inviteCode, setInviteCode] = useState('');
+    const [registerType, setRegisterType] = useState<'member' | 'coach'>('member');
     
     // Profile Fields
     const [firstName, setFirstName] = useState('');
@@ -271,10 +272,35 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
         <>
             <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold text-white">Skapa konto</h2>
-                <p className="text-gray-400 mt-1">Fyll i dina uppgifter och inbjudningskod.</p>
+                <p className="text-gray-400 mt-1">Välj kontotyp och fyll i dina uppgifter.</p>
             </div>
             <form onSubmit={handleRegister} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
                 
+                <div className="flex bg-gray-800 p-1 rounded-lg mb-6">
+                    <button
+                        type="button"
+                        onClick={() => setRegisterType('member')}
+                        className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                            registerType === 'member' 
+                                ? 'bg-primary text-black' 
+                                : 'text-gray-400 hover:text-white'
+                        }`}
+                    >
+                        Medlem
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setRegisterType('coach')}
+                        className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                            registerType === 'coach' 
+                                ? 'bg-primary text-black' 
+                                : 'text-gray-400 hover:text-white'
+                        }`}
+                    >
+                        Coach
+                    </button>
+                </div>
+
                 <div className="flex flex-col items-center mb-4">
                     <div 
                         className="w-24 h-24 rounded-full bg-gray-800 border-2 border-gray-700 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary transition-colors relative group"
@@ -354,7 +380,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                 </div>
 
                 <div>
-                    <label htmlFor="invite-code" className="block text-xs font-bold text-gray-500 uppercase mb-1">Inbjudningskod</label>
+                    <label htmlFor="invite-code" className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                        {registerType === 'member' ? 'Inbjudningskod' : 'Coachkod'}
+                    </label>
                     <input
                         id="invite-code"
                         type="text"

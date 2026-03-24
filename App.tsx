@@ -11,6 +11,7 @@ import { AppRouter } from './components/AppRouter';
 // --- PAYWALL ---
 import { PaywallScreen } from './components/PaywallScreen'; 
 import { WelcomePaywall } from './components/WelcomePaywall'; 
+import PendingCoachScreen from './components/PendingCoachScreen';
 
 // --- Services ---
 import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById } from './services/firebaseService';
@@ -86,6 +87,7 @@ const App: React.FC = () => {
   }, [role, userData?.subscriptionStatus]);
 
   const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription && !showWelcomePaywall;
+  const showPendingCoach = currentUser && !isStudioMode && userData?.status === 'pending_coach';
   const isGlobalLoading = authLoading || studioLoading || (currentUser && !userData && !isStudioMode);
   
   const isOrgMismatch = useMemo(() => {
@@ -1222,7 +1224,7 @@ const App: React.FC = () => {
        {isStudioMode && <SpotlightOverlay />} 
        {isStudioMode && <PBOverlay />}
 
-       {!isAnyModalOpen && !showPaywall && !showWelcomePaywall && (page === Page.Timer || !isFullScreenPage) && <Header 
+       {!isAnyModalOpen && !showPaywall && !showWelcomePaywall && !showPendingCoach && (page === Page.Timer || !isFullScreenPage) && <Header 
         page={page} 
         onBack={handleBack} 
         theme={theme}
@@ -1245,7 +1247,9 @@ const App: React.FC = () => {
           <main 
             className={`flex-1 min-h-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
           >
-            {showWelcomePaywall ? (
+            {showPendingCoach ? (
+                <PendingCoachScreen onLogout={signOut} />
+            ) : showWelcomePaywall ? (
                 <WelcomePaywall onLogout={signOut} userData={userData} />
             ) : showPaywall ? (
               <PaywallScreen onLogout={signOut} />
@@ -1459,7 +1463,7 @@ const App: React.FC = () => {
       </AnimatePresence>
 
       <AnimatePresence>
-          {mobileLogData && !showPaywall && (
+          {mobileLogData && !showPaywall && !showPendingCoach && (
               <>
                   <motion.div 
                       initial={{ opacity: 0 }}
@@ -1579,7 +1583,7 @@ const App: React.FC = () => {
        
        {showSupportChat && <SupportChat />}
 
-       {showScanButton && !showPaywall && !showWelcomePaywall && !mobileLogData && !mobileViewData && !isSearchWorkoutOpen && !isScannerOpen && (
+       {showScanButton && !showPaywall && !showWelcomePaywall && !showPendingCoach && !mobileLogData && !mobileViewData && !isSearchWorkoutOpen && !isScannerOpen && (
           <div className="fixed bottom-6 right-6 z-[50]">
               <ScanButton 
                 onScan={() => setIsScannerOpen(true)} 

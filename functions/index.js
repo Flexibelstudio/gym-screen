@@ -111,6 +111,16 @@ exports.flexUpdateUserRole = onCall(async (request) => {
     firestoreUpdate.adminRole = admin.firestore.FieldValue.delete();
   }
 
+  // TODO: STRIPE INTEGRATION
+  // Om newRole === 'coach' och targetUserData.role === 'member':
+  // 1. Avbryt användarens personliga Stripe-prenumeration (om de har en).
+  // 2. Öka organisationens "coach-count" i Stripe (om de är över maxFreeCoaches).
+  //
+  // Om newRole === 'member' och targetUserData.role === 'coach':
+  // 1. Minska organisationens "coach-count" i Stripe.
+  // 2. Användaren tappar sin coach-status och kommer att mötas av betalväggen 
+  //    nästa gång de loggar in, för att starta en egen prenumeration.
+
   await admin.firestore().collection("users").doc(targetUid).update(firestoreUpdate);
   return { success: true, message: `Rollen uppdaterad till ${newRole}` };
 });

@@ -250,6 +250,11 @@ export const updateUserRoleCloud = async (targetUid: string, newRole: UserRole) 
     }
 };
 
+export const approveCoach = async (uid: string) => {
+    if (isOffline || !db || !uid) return;
+    await updateDoc(doc(db, 'users', uid), { status: 'active' });
+};
+
 export const updateMemberEndDate = async (uid: string, date: string | null) => {
     if (isOffline || !db || !uid) return;
     await updateDoc(doc(db, 'users', uid), { endDate: date });
@@ -258,9 +263,24 @@ export const updateMemberEndDate = async (uid: string, date: string | null) => {
 export const registerMemberWithCode = async (email: string, pass: string, code: string, additionalData?: any) => {
     if (isOffline || !db || !auth) throw new Error("Systemet är i offline-läge.");
 
-    const q = query(collection(db, 'organizations'), where('inviteCode', '==', code.toUpperCase()));
-    const snap = await getDocs(q);
-    if (snap.empty) throw new Error("Ogiltig inbjudningskod.");
+    const upperCode = code.toUpperCase();
+    
+    // Check for member code first
+    let q = query(collection(db, 'organizations'), where('inviteCode', '==', upperCode));
+    let snap = await getDocs(q);
+    
+    let isCoach = false;
+    
+    // If not found, check for coach code
+    if (snap.empty) {
+        q = query(collection(db, 'organizations'), where('coachCode', '==', upperCode));
+        snap = await getDocs(q);
+        if (snap.empty) {
+            throw new Error("Ogiltig inbjudningskod.");
+        }
+        isCoach = true;
+    }
+    
     const organizationId = snap.docs[0].id;
 
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
@@ -269,14 +289,14 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
     const userData = {
         uid: user.uid,
         email: email,
-        role: 'member',
-        status: 'active',
+        role: isCoach ? 'coach' : 'member',
+        status: isCoach ? 'pending_coach' : 'active',
         organizationId: organizationId,
         firstName: additionalData?.firstName || '',
         lastName: additionalData?.lastName || '',
         age: additionalData?.age || null,
         gender: additionalData?.gender || 'prefer_not_to_say',
-        isTrainingMember: true,
+        isTrainingMember: !isCoach,
         createdAt: serverTimestamp(),
         termsAcceptedAt: Date.now() 
     };
@@ -601,10 +621,12 @@ export const createOrganization = async (name: string, subdomain: string): Promi
 };
 
 // ... (updateOrganization functions)
-export const updateOrganization = async (id: string, name: string, subdomain: string, inviteCode?: string) => {
+export const updateOrganization = async (id: string, name: string, subdomain: string, inviteCode?: string, coachCode?: string, maxFreeCoaches?: number) => {
     if(isOffline || !db || !id) return;
     const updateData: any = { name, subdomain };
     if (inviteCode) updateData.inviteCode = inviteCode.toUpperCase();
+    if (coachCode) updateData.coachCode = coachCode.toUpperCase();
+    if (maxFreeCoaches !== undefined) updateData.maxFreeCoaches = maxFreeCoaches;
     await updateDoc(doc(db, 'organizations', id), updateData);
     return getOrganizationById(id);
 };
