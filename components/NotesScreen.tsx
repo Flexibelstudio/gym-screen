@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { Note, Workout, StudioConfig, TimerMode, TimerStatus, WorkoutBlock, Exercise, TimerSettings, TimerSoundProfile } from '../types';
-import { interpretHandwriting, parseWorkoutFromImage } from '../services/geminiService';
+import { Note, Workout, StudioConfig, TimerMode, TimerStatus, WorkoutBlock, Exercise, TimerSettings, TimerSoundProfile, SmartObject, SmartObjectType } from '../types';
+import { interpretHandwriting, parseWorkoutFromImage, beautifyDrawing } from '../services/geminiService';
 import { deleteImageByUrl, resolveAndCreateExercises } from '../services/firebaseService';
 import { useWorkoutTimer, getAudioContext } from '../hooks/useWorkoutTimer';
 import { useStudio } from '../context/StudioContext';
@@ -600,10 +600,21 @@ const CompactTimer: React.FC<{
 export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, studioConfig, initialWorkoutToDraw, onBack, remoteCommand }) => {
     const { selectedOrganization, selectedStudio } = useStudio();
     const [savedNotes, setSavedNotes] = useState<Note[]>([]);
+    const [smartObjects, setSmartObjects] = useState<SmartObject[]>([]);
+    
+    const updateSmartObject = (id: string, updates: Partial<SmartObject>) => {
+        setSmartObjects(prev => prev.map(obj => obj.id === id ? { ...obj, ...updates } : obj));
+    };
+
+    const removeSmartObject = (id: string) => {
+        setSmartObjects(prev => prev.filter(obj => obj.id !== id));
+    };
+
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const [isSavingNote, setIsSavingNote] = useState(false);
     const [isInterpretingWorkout, setIsInterpretingWorkout] = useState(false);
+    const [isBeautifying, setIsBeautifying] = useState(false);
     const [isResolving, setIsResolving] = useState(false); // Ny state för att visa att vi matchar mot banken
     const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
     const [history, setHistory] = useState<ImageData[]>([]);
@@ -949,6 +960,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             }
         }
         setHistory([]);
+        setSmartObjects([]);
         setActiveNoteId(null);
         setLastDrawnBlock(null);
     };
@@ -967,12 +979,52 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         }
     };
 
+    const getCanvasDataUrlWithSmartObjects = (): string => {
+        const canvas = canvasRef.current;
+        if (!canvas) return '';
+        
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return canvas.toDataURL('image/png');
+
+        // Save current canvas state
+        const originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+        // Draw smart objects
+        smartObjects.forEach(obj => {
+            ctx.save();
+            ctx.strokeStyle = obj.color;
+            ctx.fillStyle = obj.color;
+            ctx.lineWidth = 4;
+            
+            if (obj.type === 'rect') {
+                ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
+            } else if (obj.type === 'circle') {
+                ctx.beginPath();
+                ctx.arc(obj.x + obj.width / 2, obj.y + obj.height / 2, obj.width / 2, 0, Math.PI * 2);
+                ctx.stroke();
+            } else if (obj.type === 'text' && obj.text) {
+                ctx.font = '36px Caveat, cursive';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(obj.text, obj.x + obj.width / 2, obj.y + obj.height / 2);
+            }
+            ctx.restore();
+        });
+
+        const dataUrl = canvas.toDataURL('image/png');
+
+        // Restore original canvas state
+        ctx.putImageData(originalImageData, 0, 0);
+
+        return dataUrl;
+    };
+
     const handleSaveNote = () => {
-        if (!canvasRef.current || history.length === 0) return;
+        if (!canvasRef.current || (history.length === 0 && smartObjects.length === 0)) return;
         setSaveState('saving');
         setIsSavingNote(true);
         try {
-            const dataUrl = canvasRef.current.toDataURL('image/png');
+            const dataUrl = getCanvasDataUrlWithSmartObjects();
             if (activeNoteId) {
                 const originalNote = savedNotes.find(n => n.id === activeNoteId);
                 const updatedNote: Note = {
@@ -1017,17 +1069,61 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     }, [remoteCommand]);
     
     const handleInterpretAsWorkout = async () => {
-        if (!canvasRef.current || history.length === 0) return;
+        if (!canvasRef.current || (history.length === 0 && smartObjects.length === 0)) return;
         setIsInterpretingWorkout(true);
         try {
-            const dataUrl = canvasRef.current.toDataURL('image/png');
+            const dataUrl = getCanvasDataUrlWithSmartObjects();
             const base64Image = dataUrl.split(',')[1];
-            const workout = await parseWorkoutFromImage(base64Image);
+            const workout = await parseWorkoutFromImage(base64Image, undefined, true);
             setInterpretedWorkout(workout);
         } catch(e) {
             alert(e instanceof Error ? e.message : 'Ett okänt fel inträffade.');
         } finally {
             setIsInterpretingWorkout(false);
+        }
+    };
+
+    const handleBeautifyDrawing = async () => {
+        if (!canvasRef.current || history.length === 0) return;
+        setIsBeautifying(true);
+        try {
+            const dataUrl = canvasRef.current.toDataURL('image/png');
+            const base64Image = dataUrl.split(',')[1];
+            
+            const objects = await beautifyDrawing(base64Image, canvasRef.current.width, canvasRef.current.height);
+            
+            if (objects && objects.length > 0) {
+                // Skapa SmartObjects från AI-svaret
+                const newSmartObjects: SmartObject[] = objects.map((obj, i) => ({
+                    id: `smart-${Date.now()}-${i}`,
+                    type: obj.type as SmartObjectType,
+                    x: obj.x,
+                    y: obj.y,
+                    width: obj.width,
+                    height: obj.height,
+                    text: obj.text || '',
+                    color: obj.color || '#FFFFFF'
+                }));
+                
+                // Rensa handritade streck (behåll historik för ångra om man vill, men enklast är att rensa)
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.fillStyle = '#030712';
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                }
+                setHistory([]);
+                
+                // Lägg till de nya objekten
+                setSmartObjects(prev => [...prev, ...newSmartObjects]);
+            } else {
+                alert('Kunde inte hitta några tydliga former eller text att snygga till.');
+            }
+        } catch(e) {
+            alert(e instanceof Error ? e.message : 'Ett okänt fel inträffade vid tolkning.');
+        } finally {
+            setIsBeautifying(false);
         }
     };
 
@@ -1288,10 +1384,74 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                     <div className={`absolute inset-0 z-10 transition-opacity duration-500 ${animationState === 'exiting' ? 'opacity-0' : 'opacity-100'}`} style={{ pointerEvents: animationState === 'exiting' ? 'none' : 'auto' }}><IntroAnimation onSkip={skipAnimation} /></div>
                 )}
                 <canvas ref={canvasRef} className="w-full h-full block" />
+                
+                {/* Render Smart Objects */}
+                {smartObjects.map(obj => (
+                    <motion.div
+                        key={obj.id}
+                        drag
+                        dragMomentum={false}
+                        onDragEnd={(e, info) => updateSmartObject(obj.id, { x: obj.x + info.offset.x, y: obj.y + info.offset.y })}
+                        initial={{ x: obj.x, y: obj.y }}
+                        animate={{ x: obj.x, y: obj.y }}
+                        style={{
+                            position: 'absolute',
+                            left: 0,
+                            top: 0,
+                            width: obj.width,
+                            height: obj.height,
+                            border: obj.type === 'rect' ? `4px solid ${obj.color}` : 'none',
+                            borderRadius: obj.type === 'circle' ? '50%' : '0',
+                            backgroundColor: obj.type === 'text' ? 'transparent' : 'rgba(255,255,255,0.05)',
+                            borderColor: obj.color,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            zIndex: 20,
+                            boxShadow: obj.type !== 'text' ? '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' : 'none',
+                            backdropFilter: obj.type !== 'text' ? 'blur(2px)' : 'none',
+                        }}
+                        className="active:cursor-grabbing cursor-grab group"
+                    >
+                        {/* Circle border hack since border-radius on div with border can sometimes look rigid, but it's fine for now */}
+                        {obj.type === 'circle' && (
+                            <div className="absolute inset-0 rounded-full border-4" style={{ borderColor: obj.color }}></div>
+                        )}
+                        
+                        {obj.type === 'text' ? (
+                            <input
+                                type="text"
+                                value={obj.text || ''}
+                                onChange={(e) => updateSmartObject(obj.id, { text: e.target.value })}
+                                className="bg-transparent border-none outline-none text-center w-full h-full"
+                                style={{ color: obj.color, fontFamily: 'Caveat, cursive', fontSize: '36px', lineHeight: '1' }}
+                                placeholder="Skriv här..."
+                            />
+                        ) : (
+                            <input
+                                type="text"
+                                value={obj.text || ''}
+                                onChange={(e) => updateSmartObject(obj.id, { text: e.target.value })}
+                                className="bg-transparent border-none outline-none text-center w-full h-full relative z-10"
+                                style={{ color: obj.color, fontFamily: 'Caveat, cursive', fontSize: '28px', lineHeight: '1' }}
+                                placeholder=""
+                            />
+                        )}
+                        
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); removeSmartObject(obj.id); }}
+                            className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-md"
+                            title="Ta bort"
+                        >
+                            ✕
+                        </button>
+                    </motion.div>
+                ))}
             </div>
             
             <div className={`absolute bottom-0 left-0 right-0 z-20 p-6 flex flex-col gap-4 items-center transition-all duration-500 ${!controlsVisible ? 'opacity-0 translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'} pointer-events-none`}>
-                <div className="flex justify-center gap-3 pointer-events-auto bg-black/20 backdrop-blur-sm p-2 rounded-full">
+                
+                <div className="flex justify-center gap-3 pointer-events-auto bg-black/20 backdrop-blur-sm p-2 rounded-full mb-2">
                     {effectiveColors.map(color => (
                         <button
                             key={color.hex}
@@ -1307,8 +1467,13 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 <div className="flex flex-wrap justify-center gap-4 pointer-events-auto">
                     <button onClick={handleUndo} disabled={history.length === 0 || animationState !== 'finished'} className="bg-gray-600/90 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg transition-colors backdrop-blur-sm shadow-lg">Ångra</button>
                     <button onClick={clearCanvas} disabled={animationState !== 'finished'} className="bg-gray-600/90 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg backdrop-blur-sm shadow-lg">Rensa</button>
-                    <button onClick={handleSaveNote} disabled={history.length === 0 || saveState !== 'idle' || animationState !== 'finished'} className="bg-primary/90 hover:brightness-95 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">{saveState === 'saving' ? 'Sparar...' : saveState === 'saved' ? '✔️ Sparad!' : '💾 Spara & Arkivera'}</button>
-                    <button onClick={handleInterpretAsWorkout} disabled={history.length === 0 || animationState !== 'finished'} className="bg-purple-600/90 hover:bg-purple-500 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">{isInterpretingWorkout ? 'Tolkar...' : '✍️ Skapa Pass'}</button>
+                    
+                    <button onClick={handleBeautifyDrawing} disabled={history.length === 0 || animationState !== 'finished'} className="bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">
+                        {isBeautifying ? 'Trollar...' : '🪄 Snygga till'}
+                    </button>
+
+                    <button onClick={handleSaveNote} disabled={(history.length === 0 && smartObjects.length === 0) || saveState !== 'idle' || animationState !== 'finished'} className="bg-primary/90 hover:brightness-95 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">{saveState === 'saving' ? 'Sparar...' : saveState === 'saved' ? '✔️ Sparad!' : '💾 Spara & Arkivera'}</button>
+                    <button onClick={handleInterpretAsWorkout} disabled={(history.length === 0 && smartObjects.length === 0) || animationState !== 'finished'} className="bg-purple-600/90 hover:bg-purple-500 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">{isInterpretingWorkout ? 'Tolkar...' : '✍️ Skapa Pass'}</button>
                     <button onClick={handleToggleTimer} disabled={animationState !== 'finished'} className="bg-blue-600/90 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">{timerBlock ? 'Stoppa Timer' : 'Timer'}</button>
                     {lastDrawnBlock && animationState === 'finished' && (
                         <button onClick={() => setBlockForCircuit(lastDrawnBlock)} className="bg-indigo-600/90 hover:bg-indigo-500 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">✏️ Justera</button>
@@ -1318,6 +1483,13 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
 
             {isInterpretingWorkout && (
                 <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md flex flex-col items-center justify-center z-50 p-8 text-center animate-fade-in"><BoilingCauldron className="w-48 h-48" /><p className="text-5xl text-white mt-4 font-logo">Kokar ihop ditt pass</p></div>
+            )}
+            
+            {isBeautifying && (
+                <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md flex flex-col items-center justify-center z-50 p-8 text-center animate-fade-in">
+                    <div className="w-16 h-16 border-4 border-emerald-500/20 border-t-emerald-500 rounded-full animate-spin mb-4"></div>
+                    <p className="text-5xl text-white mt-4 font-logo">Snyggar till...</p>
+                </div>
             )}
             
             {/* RESOLVING OVERLAY (När vi matchar mot banken) */}
@@ -1335,7 +1507,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             {isArchiveVisible && <NoteArchiveModal notes={savedNotes} onClose={() => setIsArchiveVisible(false)} onDelete={handleDeleteNoteAction} onUpdate={handleUpdateNoteAction} onLoad={handleLoadNote} />}
             {isInfoModalVisible && <IdeaBoardInfoModal onClose={() => setIsInfoModalVisible(false)} />}
             {isTimerSetupVisible && <IdeaBoardTimerSetupModal onStart={handleStartTimerSetup} onClose={() => setIsTimerSetupVisible(false)} block={lastDrawnBlock || { exercises: [] } as any} />}
-            {completionInfo && <WorkoutCompleteModal isOpen={!!completionInfo} onClose={() => setCompletionInfo(null)} workout={completionInfo.workout} isFinalBlock={completionInfo.isFinal} blockTag={completionInfo.blockTag} finishTime={completionInfo.finishTime} organizationId={selectedOrganization?.id || ''} />}
+            {completionInfo && <WorkoutCompleteModal isOpen={!!completionInfo} onClose={() => { setCompletionInfo(null); handleCloseTimer(); }} workout={completionInfo.workout} isFinalBlock={completionInfo.isFinal} blockTag={completionInfo.blockTag} finishTime={completionInfo.finishTime} organizationId={selectedOrganization?.id || ''} />}
         </div>
     );
 };

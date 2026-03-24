@@ -537,6 +537,19 @@ export interface HyroxRace {
     results: HyroxRaceResult[];
 }
 
+export type SmartObjectType = 'rect' | 'circle' | 'text';
+
+export interface SmartObject {
+    id: string;
+    type: SmartObjectType;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    text?: string;
+    color: string;
+}
+
 export interface Note {
     id: string;
     timestamp: number;

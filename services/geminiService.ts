@@ -287,7 +287,7 @@ export async function parseWorkoutFromText(text: string): Promise<Workout> {
     return transformWorkout(data, '', false);
 }
 
-export async function parseWorkoutFromImage(base64Image: string, additionalText?: string): Promise<Workout> {
+export async function parseWorkoutFromImage(base64Image: string, additionalText?: string, isDraft: boolean = false): Promise<Workout> {
     const ai = getAIClient();
     const response = await ai.models.generateContent({
         model: VISION_MODEL,
@@ -301,8 +301,62 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
             responseSchema: workoutSchema,
         }
     });
-    // Tolkad bild från coachen bör inte vara ett "medlemsutkast" som raderas
-    return transformWorkout(JSON.parse(response.text.trim()), '', false);
+    return transformWorkout(JSON.parse(response.text.trim()), '', isDraft);
+}
+
+export async function beautifyDrawing(base64Image: string, width: number, height: number): Promise<any[]> {
+    const ai = getAIClient();
+    const prompt = `Analysera denna handritade whiteboard-bild. Identifiera former (rutor, cirklar) och text. 
+    Returnera en JSON-array med objekt. Varje objekt måste ha:
+    - type: "rect", "circle" eller "text"
+    - x: X-koordinat i pixlar (bilden är ${width}x${height})
+    - y: Y-koordinat i pixlar
+    - width: Bredd i pixlar
+    - height: Höjd i pixlar
+    - text: Om det är text, eller text inuti en form. Annars tom sträng.
+    - color: Hex-färgkod som matchar ritningens färg (t.ex. "#FFFFFF", "#FACC15", "#3B82F6", "#4ADE80", "#EF4444"). Standard är "#FFFFFF".
+    
+    Returnera ENDAST JSON-arrayen.`;
+
+    const response = await ai.models.generateContent({
+        model: VISION_MODEL,
+        contents: [
+            { inlineData: { mimeType: 'image/png', data: base64Image } },
+            { text: prompt }
+        ],
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        type: { type: Type.STRING, enum: ["rect", "circle", "text"] },
+                        x: { type: Type.NUMBER },
+                        y: { type: Type.NUMBER },
+                        width: { type: Type.NUMBER },
+                        height: { type: Type.NUMBER },
+                        text: { type: Type.STRING },
+                        color: { type: Type.STRING }
+                    },
+                    required: ["type", "x", "y", "width", "height", "color"]
+                }
+            }
+        }
+    });
+
+    try {
+        let text = response.text?.trim() || "[]";
+        if (text.startsWith("```json")) {
+            text = text.replace(/^```json\n/, "").replace(/\n```$/, "");
+        } else if (text.startsWith("```")) {
+            text = text.replace(/^```\n/, "").replace(/\n```$/, "");
+        }
+        return JSON.parse(text);
+    } catch (e) {
+        console.error("Failed to parse beautified drawing:", e);
+        return [];
+    }
 }
 
 export async function parseWorkoutFromYoutube(url: string): Promise<Workout> {
@@ -356,7 +410,7 @@ export async function generateImage(prompt: string): Promise<string | null> {
         const response = await ai.models.generateContent({
             model: IMAGE_GEN_MODEL,
             contents: `A stylized 3D render of a workout achievement icon: ${prompt}. Clean, cinematic lighting, dark background.`,
-            config: { imageConfig: { aspectRatio: "1:1" } }
+            config: { imageConfig: { aspectRatio: "1:1" } } as any
         });
         const part = response.candidates[0].content.parts.find(p => p.inlineData);
         return part ? `data:image/png;base64,${part.inlineData.data}` : null;
@@ -368,7 +422,7 @@ export async function generateCarouselImage(prompt: string): Promise<string> {
     const response = await ai.models.generateContent({
         model: IMAGE_GEN_MODEL,
         contents: prompt,
-        config: { imageConfig: { aspectRatio: "16:9" } }
+        config: { imageConfig: { aspectRatio: "16:9" } } as any
     });
     const part = response.candidates[0].content.parts.find(p => p.inlineData);
     if (!part) throw new Error("Ingen bild genererades.");
