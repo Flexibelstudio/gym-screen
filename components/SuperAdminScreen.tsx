@@ -408,12 +408,12 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                                 <div className="flex-1 w-full text-center sm:text-left">
                                     <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2 tracking-tight uppercase">Bjud in team & medlemmar</h2>
                                     <p className="text-gray-500 dark:text-gray-400 text-sm mb-6 max-w-lg">
-                                        Använd dessa koder för att låta dina medlemmar och coacher skapa konto i appen och kopplas direkt till {organization.name}.
+                                        Använd QR-koden eller medlemskoden för att låta dina medlemmar skapa konto. Coacher använder coachkoden för att få rätt behörighet direkt.
                                     </p>
                                     {organization.inviteCode ? (
-                                        <div className="flex flex-col gap-4">
+                                        <div className="flex flex-col gap-6">
                                             <div className="flex flex-col sm:flex-row items-center gap-4">
-                                                <div className="w-24 text-xs font-black text-gray-400 uppercase tracking-widest text-left hidden sm:block">Medlemmar</div>
+                                                <div className="w-24 text-xs font-black text-gray-400 uppercase tracking-widest text-center sm:text-left">Medlemmar</div>
                                                 <div className="bg-gray-5 dark:bg-gray-900/50 px-6 py-2 rounded-2xl border-2 border-primary/20 shadow-inner">
                                                     <span className="text-3xl font-black font-mono tracking-[0.15em] text-primary">{organization.inviteCode}</span>
                                                 </div>
@@ -429,7 +429,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                                             </div>
                                             {organization.coachCode ? (
                                                 <div className="flex flex-col sm:flex-row items-center gap-4">
-                                                    <div className="w-24 text-xs font-black text-gray-400 uppercase tracking-widest text-left hidden sm:block">Coacher</div>
+                                                    <div className="w-24 text-xs font-black text-gray-400 uppercase tracking-widest text-center sm:text-left">Coacher</div>
                                                     <div className="bg-purple-50 dark:bg-purple-900/20 px-6 py-2 rounded-2xl border-2 border-purple-500/20 shadow-inner">
                                                         <span className="text-3xl font-black font-mono tracking-[0.15em] text-purple-600 dark:text-purple-400">{organization.coachCode}</span>
                                                     </div>
@@ -445,7 +445,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                                                 </div>
                                             ) : (
                                                 <div className="flex flex-col sm:flex-row items-center gap-4">
-                                                    <div className="w-24 text-xs font-black text-gray-400 uppercase tracking-widest text-left hidden sm:block">Coacher</div>
+                                                    <div className="w-24 text-xs font-black text-gray-400 uppercase tracking-widest text-center sm:text-left">Coacher</div>
                                                     <button 
                                                         onClick={async () => {
                                                             const newCoachCode = generateInviteCode();
