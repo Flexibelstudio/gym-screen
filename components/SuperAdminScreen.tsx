@@ -408,7 +408,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                                 <div className="flex-1 w-full text-center sm:text-left">
                                     <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2 tracking-tight uppercase">Bjud in team & medlemmar</h2>
                                     <p className="text-gray-500 dark:text-gray-400 text-sm mb-6 max-w-lg">
-                                        Använd denna QR-kod eller inbjudningskod för att låta dina medlemmar skapa konto i appen och kopplas direkt till {organization.name}.
+                                        Använd dessa koder för att låta dina medlemmar och coacher skapa konto i appen och kopplas direkt till {organization.name}.
                                     </p>
                                     {organization.inviteCode ? (
                                         <div className="flex flex-col gap-4">
@@ -461,7 +461,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                                         </div>
                                     ) : (
                                         <div className="p-4 text-center bg-gray-5 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-                                            <button onClick={handleGenerateNewInviteCode} className="bg-primary text-white px-6 py-2 rounded-lg font-bold shadow-md hover:brightness-110">Generera inbjudningskod nu</button>
+                                            <button onClick={handleGenerateNewInviteCode} className="bg-primary text-white px-6 py-2 rounded-lg font-bold shadow-md hover:brightness-110">Generera koder nu</button>
                                         </div>
                                     )}
                                 </div>

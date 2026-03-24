@@ -1020,9 +1020,9 @@ const App: React.FC = () => {
     }
   };
   
-  const handleUpdateOrganization = async (organizationId: string, name: string, subdomain: string, inviteCode?: string) => {
+  const handleUpdateOrganization = async (organizationId: string, name: string, subdomain: string, inviteCode?: string, coachCode?: string, maxFreeCoaches?: number) => {
     try {
-        const updatedOrg = await updateOrganization(organizationId, name, subdomain, inviteCode);
+        const updatedOrg = await updateOrganization(organizationId, name, subdomain, inviteCode, coachCode, maxFreeCoaches);
         setAllOrganizations(prev => prev.map(o => (o.id === organizationId ? updatedOrg : o)));
         if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
     } catch (error) {
