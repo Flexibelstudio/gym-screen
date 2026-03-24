@@ -9,7 +9,7 @@ import { ValueAdjuster, InformationCircleIcon, ChevronUpIcon, ChevronDownIcon, C
 import { Modal } from './ui/Modal';
 import { WorkoutCompleteModal } from './WorkoutCompleteModal';
 import { motion } from 'framer-motion';
-import rough from 'roughjs/bin/rough';
+import rough from 'roughjs';
 
 interface NotesScreenProps {
     onWorkoutInterpreted: (w: Workout) => void;
