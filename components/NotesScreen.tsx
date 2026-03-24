@@ -9,6 +9,7 @@ import { ValueAdjuster, InformationCircleIcon, ChevronUpIcon, ChevronDownIcon, C
 import { Modal } from './ui/Modal';
 import { WorkoutCompleteModal } from './WorkoutCompleteModal';
 import { motion } from 'framer-motion';
+import rough from 'roughjs/bin/rough';
 
 interface NotesScreenProps {
     onWorkoutInterpreted: (w: Workout) => void;
@@ -61,6 +62,37 @@ const BoilingCauldron: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 // New modal component for the archive
+const ResizeHandle: React.FC<{ onResize: (dx: number, dy: number) => void, isArrow?: boolean }> = ({ onResize, isArrow }) => {
+    return (
+        <motion.div
+            drag
+            dragMomentum={false}
+            onDrag={(e, info) => {
+                e.stopPropagation();
+                onResize(info.delta.x, info.delta.y);
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className={`w-6 h-6 bg-white border-2 border-gray-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-md ${isArrow ? 'cursor-move' : 'absolute -bottom-2 -right-2 cursor-se-resize'}`}
+        />
+    );
+};
+
+const ColorPicker: React.FC<{ currentColor: string, onColorSelect: (color: string) => void }> = ({ currentColor, onColorSelect }) => {
+    return (
+        <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white rounded-full shadow-lg p-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-30 pointer-events-auto">
+            {['#FFFFFF', '#FACC15', '#3B82F6', '#4ADE80', '#EF4444'].map(c => (
+                <button
+                    key={c}
+                    onClick={(e) => { e.stopPropagation(); onColorSelect(c); }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    className={`w-6 h-6 rounded-full border-2 ${currentColor === c ? 'border-gray-800' : 'border-gray-200'}`}
+                    style={{ backgroundColor: c }}
+                />
+            ))}
+        </div>
+    );
+};
+
 interface NoteArchiveModalProps {
     notes: Note[];
     onClose: () => void;
@@ -69,6 +101,48 @@ interface NoteArchiveModalProps {
     onLoad: (note: Note) => void;
 }
 
+const RoughShape: React.FC<{ type: string, width: number, height: number, color: string, arrowStartX?: number, arrowStartY?: number, arrowEndX?: number, arrowEndY?: number }> = ({ type, width, height, color, arrowStartX, arrowStartY, arrowEndX, arrowEndY }) => {
+    const svgRef = useRef<SVGSVGElement>(null);
+
+    useEffect(() => {
+        if (!svgRef.current) return;
+        const svg = svgRef.current;
+        while (svg.firstChild) {
+            svg.removeChild(svg.firstChild);
+        }
+        const rs = rough.svg(svg);
+        
+        let node;
+        if (type === 'rect') {
+            node = rs.rectangle(2, 2, width - 4, height - 4, { stroke: color, strokeWidth: 4, roughness: 1.5 });
+        } else if (type === 'circle') {
+            node = rs.ellipse(width / 2, height / 2, width - 4, height - 4, { stroke: color, strokeWidth: 4, roughness: 1.5 });
+        } else if (type === 'arrow') {
+            const startX = arrowStartX ?? 2;
+            const startY = arrowStartY ?? 2;
+            const endX = arrowEndX ?? (width - 2);
+            const endY = arrowEndY ?? (height - 2);
+            node = rs.line(startX, startY, endX, endY, { stroke: color, strokeWidth: 4, roughness: 1.5 });
+            svg.appendChild(node);
+            
+            const angle = Math.atan2(endY - startY, endX - startX);
+            const headlen = 15;
+            const head1 = rs.line(endX, endY, endX - headlen * Math.cos(angle - Math.PI / 6), endY - headlen * Math.sin(angle - Math.PI / 6), { stroke: color, strokeWidth: 4, roughness: 1.5 });
+            const head2 = rs.line(endX, endY, endX - headlen * Math.cos(angle + Math.PI / 6), endY - headlen * Math.sin(angle + Math.PI / 6), { stroke: color, strokeWidth: 4, roughness: 1.5 });
+            svg.appendChild(head1);
+            svg.appendChild(head2);
+            return;
+        }
+        
+        if (node) {
+            svg.appendChild(node);
+        }
+    }, [type, width, height, color, arrowStartX, arrowStartY, arrowEndX, arrowEndY]);
+
+    return (
+        <svg ref={svgRef} width={width} height={height} className="absolute inset-0 pointer-events-none" style={{ overflow: 'visible' }} />
+    );
+};
 const NoteArchiveModal: React.FC<NoteArchiveModalProps> = ({ notes, onClose, onDelete, onUpdate, onLoad }) => {
     const [interpretingId, setInterpretingId] = useState<string | null>(null);
 
@@ -989,6 +1063,8 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         // Save current canvas state
         const originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
+        const rc = rough.canvas(canvas);
+
         // Draw smart objects
         smartObjects.forEach(obj => {
             ctx.save();
@@ -997,16 +1073,32 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             ctx.lineWidth = 4;
             
             if (obj.type === 'rect') {
-                ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
+                rc.rectangle(obj.x, obj.y, obj.width, obj.height, { stroke: obj.color, strokeWidth: 4, roughness: 1.5 });
             } else if (obj.type === 'circle') {
-                ctx.beginPath();
-                ctx.arc(obj.x + obj.width / 2, obj.y + obj.height / 2, obj.width / 2, 0, Math.PI * 2);
-                ctx.stroke();
+                rc.ellipse(obj.x + obj.width / 2, obj.y + obj.height / 2, obj.width, obj.height, { stroke: obj.color, strokeWidth: 4, roughness: 1.5 });
+            } else if (obj.type === 'arrow') {
+                const startX = obj.x;
+                const startY = obj.y;
+                const endX = obj.endX ?? obj.x;
+                const endY = obj.endY ?? obj.y;
+                rc.line(startX, startY, endX, endY, { stroke: obj.color, strokeWidth: 4, roughness: 1.5 });
+                
+                // Draw arrow head
+                const angle = Math.atan2(endY - startY, endX - startX);
+                const headlen = 15;
+                rc.line(endX, endY, endX - headlen * Math.cos(angle - Math.PI / 6), endY - headlen * Math.sin(angle - Math.PI / 6), { stroke: obj.color, strokeWidth: 4, roughness: 1.5 });
+                rc.line(endX, endY, endX - headlen * Math.cos(angle + Math.PI / 6), endY - headlen * Math.sin(angle + Math.PI / 6), { stroke: obj.color, strokeWidth: 4, roughness: 1.5 });
             } else if (obj.type === 'text' && obj.text) {
                 ctx.font = '36px Kalam, cursive';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                ctx.fillText(obj.text, obj.x + obj.width / 2, obj.y + obj.height / 2);
+                const lines = obj.text.split('\n');
+                const lineHeight = 40;
+                const totalHeight = lines.length * lineHeight;
+                const startY = obj.y + obj.height / 2 - totalHeight / 2 + lineHeight / 2;
+                lines.forEach((line, index) => {
+                    ctx.fillText(line, obj.x + obj.width / 2, startY + index * lineHeight);
+                });
             }
             ctx.restore();
         });
@@ -1101,6 +1193,8 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                     y: obj.y,
                     width: obj.width,
                     height: obj.height,
+                    endX: obj.endX !== undefined ? obj.endX : (obj.type === 'arrow' ? obj.x + obj.width : undefined),
+                    endY: obj.endY !== undefined ? obj.endY : (obj.type === 'arrow' ? obj.y + obj.height : undefined),
                     text: obj.text || '',
                     color: obj.color || '#FFFFFF'
                 }));
@@ -1386,67 +1480,97 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 <canvas ref={canvasRef} className="w-full h-full block" />
                 
                 {/* Render Smart Objects */}
-                {smartObjects.map(obj => (
-                    <motion.div
-                        key={obj.id}
-                        drag
-                        dragMomentum={false}
-                        onDragEnd={(e, info) => updateSmartObject(obj.id, { x: obj.x + info.offset.x, y: obj.y + info.offset.y })}
-                        initial={{ x: obj.x, y: obj.y }}
-                        animate={{ x: obj.x, y: obj.y }}
-                        style={{
-                            position: 'absolute',
-                            left: 0,
-                            top: 0,
-                            width: obj.width,
-                            height: obj.height,
-                            border: obj.type === 'rect' ? `4px solid ${obj.color}` : 'none',
-                            borderRadius: obj.type === 'circle' ? '50%' : '0',
-                            backgroundColor: obj.type === 'text' ? 'transparent' : 'rgba(255,255,255,0.05)',
-                            borderColor: obj.color,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            zIndex: 20,
-                            boxShadow: obj.type !== 'text' ? '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)' : 'none',
-                            backdropFilter: obj.type !== 'text' ? 'blur(2px)' : 'none',
-                        }}
-                        className="active:cursor-grabbing cursor-grab group"
-                    >
-                        {/* Circle border hack since border-radius on div with border can sometimes look rigid, but it's fine for now */}
-                        {obj.type === 'circle' && (
-                            <div className="absolute inset-0 rounded-full border-4" style={{ borderColor: obj.color }}></div>
-                        )}
-                        
-                        {obj.type === 'text' ? (
-                            <input
-                                type="text"
-                                value={obj.text || ''}
-                                onChange={(e) => updateSmartObject(obj.id, { text: e.target.value })}
-                                className="bg-transparent border-none outline-none text-center w-full h-full"
-                                style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: '36px', lineHeight: '1' }}
-                                placeholder="Skriv här..."
-                            />
-                        ) : (
-                            <input
-                                type="text"
-                                value={obj.text || ''}
-                                onChange={(e) => updateSmartObject(obj.id, { text: e.target.value })}
-                                className="bg-transparent border-none outline-none text-center w-full h-full relative z-10"
-                                style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: '28px', lineHeight: '1' }}
-                                placeholder=""
-                            />
-                        )}
-                        
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); removeSmartObject(obj.id); }}
-                            className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-md"
-                            title="Ta bort"
+                {smartObjects.map(obj => {
+                    const isArrow = obj.type === 'arrow';
+                    const arrowX = isArrow ? Math.min(obj.x, obj.endX || obj.x) : obj.x;
+                    const arrowY = isArrow ? Math.min(obj.y, obj.endY || obj.y) : obj.y;
+                    const arrowWidth = isArrow ? Math.max(20, Math.abs((obj.endX || obj.x) - obj.x)) : obj.width;
+                    const arrowHeight = isArrow ? Math.max(20, Math.abs((obj.endY || obj.y) - obj.y)) : obj.height;
+                    
+                    const arrowStartX = isArrow ? (obj.x < (obj.endX || obj.x) ? 2 : arrowWidth - 2) : undefined;
+                    const arrowStartY = isArrow ? (obj.y < (obj.endY || obj.y) ? 2 : arrowHeight - 2) : undefined;
+                    const arrowEndX = isArrow ? (obj.x < (obj.endX || obj.x) ? arrowWidth - 2 : 2) : undefined;
+                    const arrowEndY = isArrow ? (obj.y < (obj.endY || obj.y) ? arrowHeight - 2 : 2) : undefined;
+
+                    return (
+                        <motion.div
+                            key={obj.id}
+                            drag
+                            dragMomentum={false}
+                            onDragEnd={(e, info) => updateSmartObject(obj.id, { 
+                                x: obj.x + info.offset.x, 
+                                y: obj.y + info.offset.y,
+                                ...(isArrow ? { endX: (obj.endX || obj.x) + info.offset.x, endY: (obj.endY || obj.y) + info.offset.y } : {})
+                            })}
+                            initial={{ x: arrowX, y: arrowY }}
+                            animate={{ x: arrowX, y: arrowY }}
+                            style={{
+                                position: 'absolute',
+                                left: 0,
+                                top: 0,
+                                width: arrowWidth,
+                                height: arrowHeight,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                zIndex: 20,
+                            }}
+                            className="active:cursor-grabbing cursor-grab group"
                         >
-                            ✕
-                        </button>
-                    </motion.div>
-                ))}
+                            <ColorPicker currentColor={obj.color} onColorSelect={(c) => updateSmartObject(obj.id, { color: c })} />
+                            
+                            {obj.type !== 'text' && (
+                                <RoughShape type={obj.type} width={arrowWidth} height={arrowHeight} color={obj.color} arrowStartX={arrowStartX} arrowStartY={arrowStartY} arrowEndX={arrowEndX} arrowEndY={arrowEndY} />
+                            )}
+                            
+                            {obj.type === 'text' ? (
+                                <textarea
+                                    value={obj.text || ''}
+                                    onChange={(e) => updateSmartObject(obj.id, { text: e.target.value })}
+                                    rows={Math.max(1, (obj.text || '').split('\n').length)}
+                                    className="bg-transparent border-none outline-none text-center w-full resize-none overflow-hidden"
+                                    style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: '36px', lineHeight: '1.2' }}
+                                    placeholder="Skriv här..."
+                                />
+                            ) : obj.type !== 'arrow' ? (
+                                <textarea
+                                    value={obj.text || ''}
+                                    onChange={(e) => updateSmartObject(obj.id, { text: e.target.value })}
+                                    rows={Math.max(1, (obj.text || '').split('\n').length)}
+                                    className="bg-transparent border-none outline-none text-center w-full relative z-10 resize-none overflow-hidden"
+                                    style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: '28px', lineHeight: '1.2' }}
+                                    placeholder=""
+                                />
+                            ) : null}
+                            
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); removeSmartObject(obj.id); }}
+                                className="absolute -top-3 -right-3 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 transition-opacity z-30 shadow-md"
+                                title="Ta bort"
+                            >
+                                ✕
+                            </button>
+
+                            {isArrow ? (
+                                <div style={{ position: 'absolute', left: arrowEndX, top: arrowEndY, transform: 'translate(-50%, -50%)', width: 24, height: 24 }}>
+                                    <ResizeHandle onResize={(dx, dy) => {
+                                        updateSmartObject(obj.id, {
+                                            endX: (obj.endX || obj.x) + dx,
+                                            endY: (obj.endY || obj.y) + dy
+                                        });
+                                    }} isArrow />
+                                </div>
+                            ) : (
+                                <ResizeHandle onResize={(dx, dy) => {
+                                    updateSmartObject(obj.id, { 
+                                        width: Math.max(50, obj.width + dx), 
+                                        height: Math.max(50, obj.height + dy) 
+                                    });
+                                }} />
+                            )}
+                        </motion.div>
+                    );
+                })}
             </div>
             
             <div className={`absolute bottom-0 left-0 right-0 z-20 p-6 flex flex-col gap-4 items-center transition-all duration-500 ${!controlsVisible ? 'opacity-0 translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'} pointer-events-none`}>

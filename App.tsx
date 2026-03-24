@@ -198,7 +198,7 @@ const App: React.FC = () => {
                           navigateReplace(Page.Home);
                           setActiveWorkout(null);
                       }
-                  } else if (remote.activeWorkoutId && remote.view !== 'idle') {
+                  } else if (remote.activeWorkoutId) {
                       // PRIORITY: If we have customWorkoutData in remote state, use that!
                       // This ensures that 5 second adjustments are visible on all screens.
                       const workoutToLoad = (remote as any).customWorkoutData || workouts.find(w => w.id === remote.activeWorkoutId);

@@ -306,14 +306,16 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
 
 export async function beautifyDrawing(base64Image: string, width: number, height: number): Promise<any[]> {
     const ai = getAIClient();
-    const prompt = `Analysera denna handritade whiteboard-bild. Identifiera former (rutor, cirklar) och text. 
+    const prompt = `Analysera denna handritade whiteboard-bild. Identifiera former (rutor, cirklar), text och pilar. 
     Returnera en JSON-array med objekt. Varje objekt måste ha:
-    - type: "rect", "circle" eller "text"
-    - x: X-koordinat i pixlar (bilden är ${width}x${height})
-    - y: Y-koordinat i pixlar
-    - width: Bredd i pixlar
-    - height: Höjd i pixlar
-    - text: Om det är text, eller text inuti en form. Annars tom sträng.
+    - type: "rect", "circle", "text" eller "arrow"
+    - x: X-koordinat i pixlar (bilden är ${width}x${height}). För pilar är detta startpunkten.
+    - y: Y-koordinat i pixlar. För pilar är detta startpunkten.
+    - width: Bredd i pixlar (används ej för pilar, sätt till 0)
+    - height: Höjd i pixlar (används ej för pilar, sätt till 0)
+    - endX: Endast för pilar, X-koordinat för slutpunkten (där spetsen är).
+    - endY: Endast för pilar, Y-koordinat för slutpunkten (där spetsen är).
+    - text: Om det är text, eller text inuti en form. Annars tom sträng. Använd \\n för radbrytningar om texten är på flera rader.
     - color: Hex-färgkod som matchar ritningens färg (t.ex. "#FFFFFF", "#FACC15", "#3B82F6", "#4ADE80", "#EF4444"). Standard är "#FFFFFF".
     
     Returnera ENDAST JSON-arrayen.`;
