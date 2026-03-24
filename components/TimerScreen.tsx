@@ -281,7 +281,7 @@ const FollowMeView: React.FC<{
                     style={{ borderColor: isResting ? undefined : `rgb(${timerStyle.pulseRgb})` }}
                 >
                     <div className="p-10 md:p-14 flex flex-col items-center text-center">
-                        <span className="block text-xl md:text-2xl font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 mb-4">
+                        <span className="block text-2xl md:text-3xl font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 mb-4">
                             {label}
                         </span>
                         <h3 
@@ -315,8 +315,8 @@ const FollowMeView: React.FC<{
                         exit={{ opacity: 0, y: 20 }}
                         className="mt-8 bg-white px-10 py-5 rounded-3xl shadow-2xl flex items-center gap-4"
                     >
-                        <span className="text-gray-500 font-bold uppercase tracking-widest text-xl">Nästa:</span>
-                        <span className="text-gray-900 font-black uppercase tracking-tight text-3xl md:text-4xl">
+                        <span className="text-gray-500 font-bold uppercase tracking-widest text-2xl md:text-3xl">Nästa:</span>
+                        <span className="text-gray-900 font-black uppercase tracking-tight text-5xl md:text-6xl">
                             {upcomingText}
                         </span>
                     </motion.div>

@@ -557,6 +557,8 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                     label="'Följ mig'-läge"
                     checked={!!block.followMe}
                     onChange={(isChecked) => handleFieldChange('followMe', isChecked)}
+                    disabled={block.settings.mode === TimerMode.Custom}
+                    description={block.settings.mode === TimerMode.Custom ? "Kan inte kombineras med Sekvenstimer" : undefined}
                 />
                 
                 {!isLastBlock && (
