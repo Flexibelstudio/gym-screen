@@ -67,7 +67,9 @@ const verifyAdminPrivileges = async (auth) => {
 };
 
 // --- FUNKTION: Uppdatera Roll ---
-exports.flexUpdateUserRole = onCall(async (request) => {
+exports.flexUpdateUserRole = onCall({
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID"]
+}, async (request) => {
   const caller = await verifyAdminPrivileges(request.auth);
   const { targetUid, newRole } = request.data;
 
@@ -122,11 +124,54 @@ exports.flexUpdateUserRole = onCall(async (request) => {
   //    nästa gång de loggar in, för att starta en egen prenumeration.
 
   await admin.firestore().collection("users").doc(targetUid).update(firestoreUpdate);
+  
+  // Uppdatera Stripe om rollen ändras till eller från coach
+  if ((newRole === 'coach' || targetUserData.role === 'coach') && targetUserData.organizationId) {
+    await updateStripeCoachCount(targetUserData.organizationId);
+  }
+
   return { success: true, message: `Rollen uppdaterad till ${newRole}` };
 });
 
+// --- FUNKTION: Godkänn Coach ---
+exports.flexApproveCoach = onCall({
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID"]
+}, async (request) => {
+  const caller = await verifyAdminPrivileges(request.auth);
+  const { targetUid } = request.data;
+
+  if (!targetUid) {
+    throw new HttpsError("invalid-argument", "Mål-UID krävs.");
+  }
+
+  const targetUserDoc = await admin.firestore().collection("users").doc(targetUid).get();
+  if (!targetUserDoc.exists) {
+    throw new HttpsError("not-found", "Användaren finns inte.");
+  }
+  const targetUserData = targetUserDoc.data();
+
+  if (caller.role === "organizationadmin") {
+    if (targetUserData.organizationId !== caller.organizationId) {
+      throw new HttpsError("permission-denied", "Du kan bara hantera din egen organisation.");
+    }
+  }
+
+  await admin.firestore().collection("users").doc(targetUid).update({
+    status: 'active',
+    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  if (targetUserData.role === 'coach' && targetUserData.organizationId) {
+    await updateStripeCoachCount(targetUserData.organizationId);
+  }
+
+  return { success: true, message: "Coach godkänd." };
+});
+
 // --- FUNKTION: Bjuda in användare ---
-exports.flexInviteUser = onCall(async (request) => {
+exports.flexInviteUser = onCall({
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID"]
+}, async (request) => {
   const caller = await verifyAdminPrivileges(request.auth);
   const { email, role: inRole, organizationId, password } = request.data;
   
@@ -151,12 +196,18 @@ exports.flexInviteUser = onCall(async (request) => {
   const newUserDoc = {
     email,
     role: finalRole,
+    status: 'active',
     organizationId,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   };
   if (inRole === "admin") newUserDoc.adminRole = "admin";
 
   await admin.firestore().collection("users").doc(userRecord.uid).set(newUserDoc);
+
+  if (finalRole === 'coach') {
+    await updateStripeCoachCount(organizationId);
+  }
+
   return { success: true, uid: userRecord.uid };
 });
 
@@ -332,6 +383,75 @@ function getStripe() {
   return stripeClient;
 }
 
+/**
+ * --- FUNKTION: Uppdatera antalet coacher i Stripe ---
+ */
+async function updateStripeCoachCount(organizationId) {
+  const db = admin.firestore();
+  const orgDoc = await db.collection("organizations").doc(organizationId).get();
+  if (!orgDoc.exists) return;
+
+  const orgData = orgDoc.data();
+  const ownerUid = orgData.ownerUid;
+  const maxFreeCoaches = orgData.maxFreeCoaches || 5;
+
+  if (!ownerUid) return;
+
+  const ownerDoc = await db.collection("users").doc(ownerUid).get();
+  if (!ownerDoc.exists) return;
+
+  const ownerData = ownerDoc.data();
+  const stripeSubscriptionId = ownerData.stripeSubscriptionId;
+
+  if (!stripeSubscriptionId) return; // Kanske på faktura eller gratisperiod
+
+  // Räkna aktiva coacher
+  const coachesSnapshot = await db.collection("users")
+    .where("organizationId", "==", organizationId)
+    .where("role", "==", "coach")
+    .where("status", "==", "active")
+    .get();
+
+  const activeCoaches = coachesSnapshot.size;
+  const extraCoaches = Math.max(0, activeCoaches - maxFreeCoaches);
+
+  const stripe = getStripe();
+  const coachFeePriceId = process.env.STRIPE_COACH_FEE_PRICE_ID;
+
+  if (!coachFeePriceId) {
+    console.error("STRIPE_COACH_FEE_PRICE_ID saknas i miljön.");
+    return;
+  }
+
+  try {
+    const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+    const coachItem = subscription.items.data.find(item => item.price.id === coachFeePriceId);
+
+    if (extraCoaches > 0) {
+      if (coachItem) {
+        if (coachItem.quantity !== extraCoaches) {
+          await stripe.subscriptionItems.update(coachItem.id, { quantity: extraCoaches });
+          console.log(`Uppdaterade coach-antal till ${extraCoaches} för org ${organizationId}`);
+        }
+      } else {
+        await stripe.subscriptionItems.create({
+          subscription: stripeSubscriptionId,
+          price: coachFeePriceId,
+          quantity: extraCoaches
+        });
+        console.log(`Lade till coach-avgift (${extraCoaches} st) för org ${organizationId}`);
+      }
+    } else {
+      if (coachItem) {
+        await stripe.subscriptionItems.del(coachItem.id);
+        console.log(`Tog bort coach-avgift för org ${organizationId}`);
+      }
+    }
+  } catch (error) {
+    console.error(`Kunde inte uppdatera Stripe-prenumeration för org ${organizationId}:`, error);
+  }
+}
+
 // 1. WEBHOOKS (LÅST TILL EXAKT STRUKTUR)
 app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) => {
   try {
@@ -386,7 +506,8 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
           const userUpdateData = {
             stripeCustomerId: session.customer,
             role: 'organizationadmin',
-            organizationId: orgId
+            organizationId: orgId,
+            stripeSubscriptionId: session.subscription
           };
 
           if (paymentType === 'system_fee') {
@@ -394,7 +515,6 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
             userUpdateData.systemFeeDate = admin.firestore.FieldValue.serverTimestamp();
           } else {
             userUpdateData.subscriptionStatus = 'active';
-            userUpdateData.stripeSubscriptionId = session.subscription;
           }
 
           await db.collection('users').doc(userId).update(userUpdateData);
@@ -452,7 +572,7 @@ app.post("/create-checkout-session", async (req, res) => {
 });
 
 exports.api = onRequest({
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_SYSTEM_FEE_PRICE_ID", "STRIPE_PRICE_ID", "STRIPE_WEBHOOK_SECRET"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_SYSTEM_FEE_PRICE_ID", "STRIPE_PRICE_ID", "STRIPE_WEBHOOK_SECRET", "STRIPE_COACH_FEE_PRICE_ID"]
 }, app);
 
 /**

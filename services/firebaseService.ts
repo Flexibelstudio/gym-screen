@@ -252,7 +252,13 @@ export const updateUserRoleCloud = async (targetUid: string, newRole: UserRole) 
 
 export const approveCoach = async (uid: string) => {
     if (isOffline || !db || !uid) return;
-    await updateDoc(doc(db, 'users', uid), { status: 'active' });
+    const approveCoachFn = httpsCallable(functions, 'flexApproveCoach');
+    try {
+        await approveCoachFn({ targetUid: uid });
+    } catch (err: any) {
+        console.error("Cloud function error:", err);
+        throw new Error(err.message || "Ett fel uppstod vid godkännande av coach.");
+    }
 };
 
 export const updateMemberEndDate = async (uid: string, date: string | null) => {
