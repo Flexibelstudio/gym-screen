@@ -75,7 +75,7 @@ export const PricingModal: React.FC<{
     hasStripeAccount?: boolean;
 }> = ({ isOpen, onClose, onConfirm, isProcessing, hasStripeAccount }) => {
     const [baseCost, setBaseCost] = useState(19);
-    const [customerPrice, setCustomerPrice] = useState(39);
+    const customerPrice = 39;
 
     useEffect(() => {
         if (isOpen) {
@@ -134,16 +134,9 @@ export const PricingModal: React.FC<{
                             <div className="text-gray-400 font-bold text-xl">+</div>
 
                             <div className="flex-1 w-full p-4 bg-white dark:bg-gray-700 rounded-xl border-2 border-primary/30 shadow-sm">
-                                <label htmlFor="customerPriceInput" className="block text-xs font-bold text-primary uppercase mb-1">Ditt påslag (Pris till kund)</label>
-                                <div className="flex items-baseline gap-2">
-                                    <input 
-                                        id="customerPriceInput"
-                                        type="number" 
-                                        value={customerPrice}
-                                        onChange={(e) => setCustomerPrice(Number(e.target.value))}
-                                        className="w-24 bg-transparent text-2xl font-mono font-bold text-gray-900 dark:text-white border-b-2 border-primary focus:outline-none"
-                                    />
-                                    <span className="text-sm text-gray-500 font-medium">kr/mån</span>
+                                <span className="block text-xs font-bold text-primary uppercase mb-1">Pris till kund</span>
+                                <div className="text-2xl font-mono font-bold text-gray-900 dark:text-white">
+                                    {customerPrice} <span className="text-sm font-medium text-gray-500">kr/mån</span>
                                 </div>
                             </div>
                         </div>

@@ -136,7 +136,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
     // Profit Calculator State
     const [showPricingModal, setShowPricingModal] = useState(false);
     const [baseCost, setBaseCost] = useState(19);
-    const [customerPrice, setCustomerPrice] = useState(49);
+    const customerPrice = 39;
 
     const globalConfig = organization.globalConfig;
 
@@ -475,15 +475,9 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                                 <span className="font-bold">{baseCost} kr / mån</span>
                             </div>
                             <div className="flex justify-between items-center p-3 rounded-lg border-2 border-primary/20 bg-white dark:bg-gray-800">
-                                <label htmlFor="price" className="font-bold text-primary">Ditt pris till kund</label>
+                                <span className="font-bold text-primary">Pris till kund</span>
                                 <div className="flex items-center gap-2">
-                                    <input 
-                                        id="price"
-                                        type="number" 
-                                        value={customerPrice} 
-                                        onChange={e => setCustomerPrice(Number(e.target.value))}
-                                        className="w-20 text-right font-bold bg-transparent border-b border-gray-300 focus:border-primary outline-none"
-                                    />
+                                    <span className="text-xl font-bold">{customerPrice}</span>
                                     <span>kr/mån</span>
                                 </div>
                             </div>

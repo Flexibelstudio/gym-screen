@@ -123,17 +123,9 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     const onboardingSkippedKey = `onboardingSkipped_${organization.id}`;
 
     useEffect(() => {
-        if (organization && isCompanyDetailsIncomplete(organization)) {
-            const hasSkipped = sessionStorage.getItem(onboardingSkippedKey);
-            if (hasSkipped) {
-                setShowOnboardingBanner(true);
-            } else {
-                setShowOnboardingModal(true);
-            }
-        } else {
-            setShowOnboardingModal(false);
-            setShowOnboardingBanner(false);
-        }
+        // We no longer force the onboarding modal since Stripe handles KYC
+        setShowOnboardingModal(false);
+        setShowOnboardingBanner(false);
     }, [organization, onboardingSkippedKey]);
     
     const handleUpdateCompanyDetails = async (details: CompanyDetails) => {
