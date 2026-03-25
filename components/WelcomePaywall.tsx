@@ -81,6 +81,10 @@ export const WelcomePaywall: React.FC<WelcomePaywallProps> = ({ onLogout, userDa
                         <div className="w-8 h-8 shrink-0 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">3</div>
                         <p className="text-gray-300">Bindningstid <strong>12 månader</strong>. Löper vidare med 12 månader åt gången om inte uppsägning sker senast <strong>3 månader</strong> innan periodens slut.</p>
                     </div>
+                    <div className="flex items-start gap-4">
+                        <div className="w-8 h-8 shrink-0 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">4</div>
+                        <p className="text-gray-300">Licensen inkluderar <strong>5 coacher</strong>. Därefter tillkommer en kostnad på <strong>19 kr / månad</strong> per extra coach.</p>
+                    </div>
                 </div>
 
                 <div className="mb-8 p-5 bg-gray-800/30 rounded-xl border border-gray-700 hover:border-primary/50 transition-colors">
@@ -97,7 +101,7 @@ export const WelcomePaywall: React.FC<WelcomePaywallProps> = ({ onLogout, userDa
                             </svg>
                         </div>
                         <span className="text-sm text-gray-300 group-hover:text-white leading-snug">
-                            Jag bekräftar beställningen av Smart Skärm och godkänner avtalsvillkoren om 12 månaders bindningstid och 995 kr/månad.
+                            Jag bekräftar beställningen av Smart Skärm och godkänner avtalsvillkoren om 12 månaders bindningstid, 995 kr/månad samt 19 kr/månad per extra coach.
                         </span>
                     </label>
                 </div>
