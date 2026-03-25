@@ -496,19 +496,15 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                         <button onClick={() => setShowPricingModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">Avbryt</button>
                         <button 
                             onClick={async () => {
-                                if (!organization.stripeConnectAccountId) {
+                                if (!organization.stripeConnectSetupComplete) {
                                     try {
                                         const apiUrl = import.meta.env.VITE_API_URL;
                                         const res = await fetch(`${apiUrl}/create-connect-account`, {
                                             method: 'POST',
                                             headers: { 'Content-Type': 'application/json' },
-                                            body: JSON.stringify({ organizationId: organization.id })
+                                            body: JSON.stringify({ organizationId: organization.id, returnUrl: window.location.origin })
                                         });
                                         const data = await res.json();
-                                        
-                                        const newOverrides = { ...overrides, enableWorkoutLogging: true };
-                                        setOverrides(newOverrides);
-                                        await onSave(organization.id, studio.id, newOverrides);
                                         
                                         if (data.url) {
                                             window.location.href = data.url;
@@ -527,7 +523,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                             }} 
                             className="flex-[2] py-3 bg-primary text-white font-bold rounded-lg shadow-lg hover:brightness-110"
                         >
-                            {!organization.stripeConnectAccountId ? 'Koppla Stripe & Aktivera' : 'Godkänn & Aktivera'}
+                            {!organization.stripeConnectSetupComplete ? 'Koppla Stripe & Aktivera' : 'Godkänn & Aktivera'}
                         </button>
                     </div>
                 </div>

@@ -129,7 +129,7 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
                                                     const res = await fetch(`${apiUrl}/create-connect-account`, {
                                                         method: 'POST',
                                                         headers: { 'Content-Type': 'application/json' },
-                                                        body: JSON.stringify({ organizationId: organization.id })
+                                                        body: JSON.stringify({ organizationId: organization.id, returnUrl: window.location.origin })
                                                     });
                                                     const data = await res.json();
                                                     if (data.url) window.location.href = data.url;
@@ -160,7 +160,7 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
                                                     const res = await fetch(`${apiUrl}/create-connect-account`, {
                                                         method: 'POST',
                                                         headers: { 'Content-Type': 'application/json' },
-                                                        body: JSON.stringify({ organizationId: organization.id })
+                                                        body: JSON.stringify({ organizationId: organization.id, returnUrl: window.location.origin })
                                                     });
                                                     const data = await res.json();
                                                     if (data.url) window.location.href = data.url;

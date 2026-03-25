@@ -303,6 +303,8 @@ export interface Organization {
   lastBilledMonth?: string; 
   lastBilledDate?: number;
   freeCoachAccounts?: number; // NYTT: Antal gratis coach-konton
+  stripeConnectAccountId?: string;
+  stripeConnectSetupComplete?: boolean;
 }
 
 export interface StartGroup {

@@ -224,36 +224,16 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     const handleEnablePaidFeatures = async () => {
         setIsSavingConfig(true);
         try {
-            if (!organization.stripeConnectAccountId) {
+            if (!organization.stripeConnectSetupComplete) {
                 // Skapa connect-konto och skicka vidare
                 const apiUrl = import.meta.env.VITE_API_URL;
                 const res = await fetch(`${apiUrl}/create-connect-account`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ organizationId: organization.id })
+                    body: JSON.stringify({ organizationId: organization.id, returnUrl: window.location.origin })
                 });
                 const data = await res.json();
                 
-                if (!organization.inviteCode || !organization.coachCode) {
-                    const newCode = organization.inviteCode || generateInviteCode();
-                    const newCoachCode = organization.coachCode || generateInviteCode();
-                    await props.onUpdateOrganization(organization.id, organization.name, organization.subdomain, newCode, newCoachCode, organization.maxFreeCoaches || 5);
-                }
-                const newConfig = { ...organization.globalConfig, enableWorkoutLogging: true };
-                setConfig(newConfig); 
-                await handleSaveConfig(newConfig); 
-
-                // LOG
-                saveAdminActivity({
-                    organizationId: organization.id,
-                    userId: userData?.uid || 'unknown',
-                    userName: userData?.firstName || 'Admin',
-                    type: 'SYSTEM',
-                    action: 'UPDATE',
-                    description: 'Aktiverade passloggning och medlemsfunktioner (startade Stripe Connect)',
-                    timestamp: Date.now()
-                });
-
                 if (data.url) {
                     window.location.href = data.url;
                     return; // Stop execution here since we are redirecting
@@ -569,7 +549,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                 </main>
             </div>
             {showOnboardingModal && (<CompanyDetailsOnboardingModal isOpen={showOnboardingModal} initialDetails={organization.companyDetails} onSave={handleUpdateCompanyDetails} onSkip={handleSkipOnboarding} />)}
-            <PricingModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} onConfirm={handleEnablePaidFeatures} isProcessing={isSavingConfig} hasStripeAccount={!!organization.stripeConnectAccountId} />
+            <PricingModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} onConfirm={handleEnablePaidFeatures} isProcessing={isSavingConfig} hasStripeAccount={!!organization.stripeConnectSetupComplete} />
         </div>
     );
 };

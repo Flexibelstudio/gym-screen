@@ -248,6 +248,27 @@ const App: React.FC = () => {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   useEffect(() => {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get('connect') === 'success' && userData?.organizationId) {
+          const checkStatus = async () => {
+              try {
+                  const apiUrl = import.meta.env.VITE_API_URL;
+                  await fetch(`${apiUrl}/check-connect-status`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ organizationId: userData.organizationId })
+                  });
+                  // Clean up URL
+                  window.history.replaceState({}, document.title, window.location.pathname);
+              } catch (e) {
+                  console.error("Failed to check connect status", e);
+              }
+          };
+          checkStatus();
+      }
+  }, [userData?.organizationId]);
+
+  useEffect(() => {
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
     window.addEventListener('online', handleOnline);

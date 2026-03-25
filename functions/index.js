@@ -603,7 +603,7 @@ app.post("/create-checkout-session", async (req, res) => {
 app.post("/create-connect-account", async (req, res) => {
   try {
     const stripe = getStripe();
-    const { organizationId } = req.body;
+    const { organizationId, returnUrl } = req.body;
     if (!organizationId) return res.status(400).json({ error: "organizationId saknas" });
 
     const db = admin.firestore();
@@ -634,7 +634,7 @@ app.post("/create-connect-account", async (req, res) => {
       });
     }
 
-    const domain = req.headers.origin || 'https://smartskarm.se';
+    const domain = returnUrl || req.headers.origin || 'https://smartskarm.se';
 
     // Skapa en onboarding-länk
     const accountLink = await stripe.accountLinks.create({
@@ -647,6 +647,39 @@ app.post("/create-connect-account", async (req, res) => {
     res.json({ url: accountLink.url });
   } catch (error) {
     console.error("Error creating connect account:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 3.5 CHECK STRIPE CONNECT STATUS
+app.post("/check-connect-status", async (req, res) => {
+  try {
+    const stripe = getStripe();
+    const { organizationId } = req.body;
+    if (!organizationId) return res.status(400).json({ error: "organizationId saknas" });
+
+    const db = admin.firestore();
+    const orgDoc = await db.collection("organizations").doc(organizationId).get();
+    if (!orgDoc.exists) return res.status(404).json({ error: "Organisationen hittades inte" });
+    
+    const orgData = orgDoc.data();
+    const accountId = orgData.stripeConnectAccountId;
+
+    if (!accountId) {
+      return res.json({ isComplete: false });
+    }
+
+    const account = await stripe.accounts.retrieve(accountId);
+    const isComplete = account.details_submitted && account.charges_enabled;
+
+    // Spara status i databasen
+    await db.collection("organizations").doc(organizationId).update({
+      stripeConnectSetupComplete: isComplete
+    });
+
+    res.json({ isComplete, account });
+  } catch (error) {
+    console.error("Error checking connect status:", error);
     res.status(500).json({ error: error.message });
   }
 });
