@@ -232,27 +232,62 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     const handleEnablePaidFeatures = async () => {
         setIsSavingConfig(true);
         try {
-            if (!organization.inviteCode || !organization.coachCode) {
-                const newCode = organization.inviteCode || generateInviteCode();
-                const newCoachCode = organization.coachCode || generateInviteCode();
-                await props.onUpdateOrganization(organization.id, organization.name, organization.subdomain, newCode, newCoachCode, organization.maxFreeCoaches || 5);
-            }
-            const newConfig = { ...organization.globalConfig, enableWorkoutLogging: true };
-            setConfig(newConfig); 
-            await handleSaveConfig(newConfig); 
-            setIsUpgradeModalOpen(false);
-            setToast({ message: "Funktioner aktiverade! 🎉", visible: true });
+            if (!organization.stripeConnectAccountId) {
+                // Skapa connect-konto och skicka vidare
+                const res = await fetch('https://api-mioe74iqdi7yxzjsz433lx-46889914413.europe-west2.run.app/create-connect-account', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ organizationId: organization.id })
+                });
+                const data = await res.json();
+                
+                if (!organization.inviteCode || !organization.coachCode) {
+                    const newCode = organization.inviteCode || generateInviteCode();
+                    const newCoachCode = organization.coachCode || generateInviteCode();
+                    await props.onUpdateOrganization(organization.id, organization.name, organization.subdomain, newCode, newCoachCode, organization.maxFreeCoaches || 5);
+                }
+                const newConfig = { ...organization.globalConfig, enableWorkoutLogging: true };
+                setConfig(newConfig); 
+                await handleSaveConfig(newConfig); 
 
-            // LOG
-            saveAdminActivity({
-                organizationId: organization.id,
-                userId: userData?.uid || 'unknown',
-                userName: userData?.firstName || 'Admin',
-                type: 'SYSTEM',
-                action: 'UPDATE',
-                description: 'Aktiverade passloggning och medlemsfunktioner',
-                timestamp: Date.now()
-            });
+                // LOG
+                saveAdminActivity({
+                    organizationId: organization.id,
+                    userId: userData?.uid || 'unknown',
+                    userName: userData?.firstName || 'Admin',
+                    type: 'SYSTEM',
+                    action: 'UPDATE',
+                    description: 'Aktiverade passloggning och medlemsfunktioner (startade Stripe Connect)',
+                    timestamp: Date.now()
+                });
+
+                if (data.url) {
+                    window.location.href = data.url;
+                    return; // Stop execution here since we are redirecting
+                }
+            } else {
+                if (!organization.inviteCode || !organization.coachCode) {
+                    const newCode = organization.inviteCode || generateInviteCode();
+                    const newCoachCode = organization.coachCode || generateInviteCode();
+                    await props.onUpdateOrganization(organization.id, organization.name, organization.subdomain, newCode, newCoachCode, organization.maxFreeCoaches || 5);
+                }
+                const newConfig = { ...organization.globalConfig, enableWorkoutLogging: true };
+                setConfig(newConfig); 
+                await handleSaveConfig(newConfig); 
+                setIsUpgradeModalOpen(false);
+                setToast({ message: "Funktioner aktiverade! 🎉", visible: true });
+
+                // LOG
+                saveAdminActivity({
+                    organizationId: organization.id,
+                    userId: userData?.uid || 'unknown',
+                    userName: userData?.firstName || 'Admin',
+                    type: 'SYSTEM',
+                    action: 'UPDATE',
+                    description: 'Aktiverade passloggning och medlemsfunktioner',
+                    timestamp: Date.now()
+                });
+            }
         } catch (error) {
             console.error("Failed to enable features:", error);
             setToast({ message: "Ett fel uppstod.", visible: true });
@@ -541,7 +576,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                 </main>
             </div>
             {showOnboardingModal && (<CompanyDetailsOnboardingModal isOpen={showOnboardingModal} initialDetails={organization.companyDetails} onSave={handleUpdateCompanyDetails} onSkip={handleSkipOnboarding} />)}
-            <PricingModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} onConfirm={handleEnablePaidFeatures} isProcessing={isSavingConfig} />
+            <PricingModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} onConfirm={handleEnablePaidFeatures} isProcessing={isSavingConfig} hasStripeAccount={!!organization.stripeConnectAccountId} />
         </div>
     );
 };

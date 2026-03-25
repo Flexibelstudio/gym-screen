@@ -502,17 +502,37 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                         <button onClick={() => setShowPricingModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">Avbryt</button>
                         <button 
                             onClick={async () => {
-                                const newOverrides = { ...overrides, enableWorkoutLogging: true };
-                                setOverrides(newOverrides);
-                                try {
-                                    await onSave(organization.id, studio.id, newOverrides);
-                                    setToast({ message: "Passloggning aktiverad!", visible: true });
-                                } catch(e) { console.error(e); }
-                                setShowPricingModal(false);
+                                if (!organization.stripeConnectAccountId) {
+                                    try {
+                                        const res = await fetch('https://api-mioe74iqdi7yxzjsz433lx-46889914413.europe-west2.run.app/create-connect-account', {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ organizationId: organization.id })
+                                        });
+                                        const data = await res.json();
+                                        
+                                        const newOverrides = { ...overrides, enableWorkoutLogging: true };
+                                        setOverrides(newOverrides);
+                                        await onSave(organization.id, studio.id, newOverrides);
+                                        
+                                        if (data.url) {
+                                            window.location.href = data.url;
+                                            return;
+                                        }
+                                    } catch(e) { console.error(e); }
+                                } else {
+                                    const newOverrides = { ...overrides, enableWorkoutLogging: true };
+                                    setOverrides(newOverrides);
+                                    try {
+                                        await onSave(organization.id, studio.id, newOverrides);
+                                        setToast({ message: "Passloggning aktiverad!", visible: true });
+                                    } catch(e) { console.error(e); }
+                                    setShowPricingModal(false);
+                                }
                             }} 
                             className="flex-[2] py-3 bg-primary text-white font-bold rounded-lg shadow-lg hover:brightness-110"
                         >
-                            Godkänn & Aktivera
+                            {!organization.stripeConnectAccountId ? 'Koppla Stripe & Aktivera' : 'Godkänn & Aktivera'}
                         </button>
                     </div>
                 </div>

@@ -72,9 +72,10 @@ export const PricingModal: React.FC<{
     onClose: () => void;
     onConfirm: () => void;
     isProcessing: boolean;
-}> = ({ isOpen, onClose, onConfirm, isProcessing }) => {
+    hasStripeAccount?: boolean;
+}> = ({ isOpen, onClose, onConfirm, isProcessing, hasStripeAccount }) => {
     const [baseCost, setBaseCost] = useState(19);
-    const [customerPrice, setCustomerPrice] = useState(49);
+    const [customerPrice, setCustomerPrice] = useState(39);
 
     useEffect(() => {
         if (isOpen) {
@@ -166,7 +167,7 @@ export const PricingModal: React.FC<{
                         Avbryt
                     </button>
                     <button onClick={onConfirm} disabled={isProcessing} className="flex-[2] py-3 px-4 rounded-xl font-bold text-white bg-primary hover:brightness-110 shadow-lg shadow-primary/30 transition-all transform active:scale-95 disabled:opacity-50">
-                        {isProcessing ? 'Aktiverar...' : 'Aktivera Passloggning'}
+                        {isProcessing ? 'Aktiverar...' : (!hasStripeAccount ? 'Koppla Stripe & Aktivera' : 'Aktivera Passloggning')}
                     </button>
                 </div>
             </div>
