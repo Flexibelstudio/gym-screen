@@ -40,6 +40,7 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
                 name: gymName,
                 createdAt: serverTimestamp(),
                 ownerUid: user.uid,
+                maxFreeCoaches: 5,
                 subdomain: gymName.toLowerCase().replace(/\s+/g, '-'),
                 globalConfig: {
                     primaryColor: '#6366f1',
