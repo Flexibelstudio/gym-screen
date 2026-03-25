@@ -223,6 +223,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     
     const handleEnablePaidFeatures = async () => {
         setIsSavingConfig(true);
+        let isRedirecting = false;
         try {
             if (!organization.stripeConnectSetupComplete) {
                 // Skapa connect-konto och skicka vidare
@@ -235,6 +236,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                 const data = await res.json();
                 
                 if (data.url) {
+                    isRedirecting = true;
                     window.location.href = data.url;
                     return; // Stop execution here since we are redirecting
                 }
@@ -265,7 +267,9 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             console.error("Failed to enable features:", error);
             setToast({ message: "Ett fel uppstod.", visible: true });
         } finally {
-            setIsSavingConfig(false);
+            if (!isRedirecting) {
+                setIsSavingConfig(false);
+            }
         }
     };
 

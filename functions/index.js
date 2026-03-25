@@ -461,6 +461,23 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
       return res.status(400).send(`Webhook Error: ${err.message}`);
     }
 
+    if (event.type === 'account.updated') {
+      const account = event.data.object;
+      const accountId = account.id;
+      const isComplete = account.details_submitted && account.charges_enabled;
+      
+      const db = admin.firestore();
+      const orgQuery = await db.collection('organizations').where('stripeConnectAccountId', '==', accountId).limit(1).get();
+      
+      if (!orgQuery.empty) {
+        const orgId = orgQuery.docs[0].id;
+        await db.collection('organizations').doc(orgId).update({
+          stripeConnectSetupComplete: isComplete
+        });
+        console.log(`Updated stripeConnectSetupComplete to ${isComplete} for org ${orgId} via webhook`);
+      }
+    }
+
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const userId = session.metadata.userId;
@@ -639,8 +656,8 @@ app.post("/create-connect-account", async (req, res) => {
     // Skapa en onboarding-länk
     const accountLink = await stripe.accountLinks.create({
       account: accountId,
-      refresh_url: `${domain}/admin/settings?connect=refresh`,
-      return_url: `${domain}/admin/settings?connect=success`,
+      refresh_url: `${domain}/?connect=refresh`,
+      return_url: `${domain}/?connect=success`,
       type: 'account_onboarding',
     });
 
