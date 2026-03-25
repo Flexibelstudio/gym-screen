@@ -5,6 +5,7 @@ import { SparklesIcon, DumbbellIcon, BuildingIcon, ClockIcon, UsersIcon, Chevron
 
 interface LandingPageProps {
     onLoginClick: () => void;
+    onRegisterGymClick?: () => void;
 }
 
 const FeatureCard: React.FC<{ title: string; desc: string; icon: React.ReactNode; delay: number }> = ({ title, desc, icon, delay }) => (
@@ -56,7 +57,7 @@ const MockScreen = () => (
     </div>
 );
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterGymClick }) => {
     return (
         <div className="min-h-screen bg-black text-white font-sans selection:bg-primary selection:text-white overflow-x-hidden">
             {/* Nav */}
@@ -70,7 +71,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
                         <button onClick={onLoginClick} className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">
                             Logga in
                         </button>
-                        <button onClick={onLoginClick} className="bg-white text-black px-5 py-2.5 rounded-full text-sm font-bold hover:bg-gray-200 transition-colors">
+                        <button onClick={onRegisterGymClick || onLoginClick} className="bg-white text-black px-5 py-2.5 rounded-full text-sm font-bold hover:bg-gray-200 transition-colors">
                             Kom igång
                         </button>
                     </div>
@@ -102,7 +103,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
                                 SmartSkärm är allt-i-ett-plattformen för gym och studios. Hantera infoskärmar, skapa AI-drivna träningspass och kör professionella timers – allt från en plats.
                             </p>
                             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                                <button onClick={onLoginClick} className="bg-primary hover:bg-teal-400 text-black text-lg px-8 py-4 rounded-full font-bold transition-all transform hover:scale-105 shadow-[0_0_20px_-5px_rgba(20,184,166,0.5)]">
+                                <button onClick={onRegisterGymClick || onLoginClick} className="bg-primary hover:bg-teal-400 text-black text-lg px-8 py-4 rounded-full font-bold transition-all transform hover:scale-105 shadow-[0_0_20px_-5px_rgba(20,184,166,0.5)]">
                                     Starta din studio
                                 </button>
                                 <button className="px-8 py-4 rounded-full font-bold border border-white/20 hover:bg-white/5 transition-colors">

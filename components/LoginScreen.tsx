@@ -9,9 +9,10 @@ import { PrivacyPolicyModal } from './PrivacyPolicyModal';
 
 interface LoginScreenProps {
     onClose?: () => void;
+    onRegisterGym?: () => void;
 }
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym }) => {
     const { signIn, signInAsStudio, sendPasswordResetEmail } = useAuth();
     const [view, setView] = useState<'login' | 'reset' | 'register'>('login');
     
@@ -215,11 +216,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose }) => {
                     </div>
                 </form>
                 
-                <div className="text-center text-sm">
-                    <span className="text-gray-400">Har du inget konto? </span>
-                    <button type="button" onClick={() => setView('register')} className="font-medium text-primary hover:text-white transition-colors">
-                        Skapa ett med inbjudningskod
-                    </button>
+                <div className="text-center text-sm flex flex-col gap-2 mt-4">
+                    <div>
+                        <span className="text-gray-400">Har du inget konto? </span>
+                        <button type="button" onClick={() => setView('register')} className="font-medium text-primary hover:text-white transition-colors">
+                            Skapa ett med inbjudningskod
+                        </button>
+                    </div>
+                    {onRegisterGym && (
+                        <div className="pt-4 border-t border-gray-800">
+                            <span className="text-gray-400">Driver du ett gym? </span>
+                            <button type="button" onClick={onRegisterGym} className="font-medium text-primary hover:text-white transition-colors">
+                                Registrera ditt gym här
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </>

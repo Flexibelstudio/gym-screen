@@ -1177,7 +1177,7 @@ const App: React.FC = () => {
       if (showLogin) {
           return <LoginScreen onClose={() => setShowLogin(false)} onRegisterGym={() => setShowRegisterGym(true)} />;
       }
-      return <LandingPage onLoginClick={() => setShowLogin(true)} />;
+      return <LandingPage onLoginClick={() => setShowLogin(true)} onRegisterGymClick={() => setShowRegisterGym(true)} />;
   }
 
   if (currentUser && !userData && !isStudioMode && !authLoading) {
