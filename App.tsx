@@ -1186,7 +1186,23 @@ const App: React.FC = () => {
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Slutför din profil...</h2>
             <p className="text-gray-500 mt-2">Hittade inget medlemskonto för {currentUser.email}.</p>
-            <button onClick={() => signOut()} className="mt-6 text-primary font-bold hover:underline">Logga ut och försök igen</button>
+            <div className="flex flex-col gap-4 mt-8">
+                <button onClick={() => signOut()} className="text-primary font-bold hover:underline">Logga ut och försök igen</button>
+                <button 
+                    onClick={async () => {
+                        try {
+                            await currentUser.delete();
+                            window.location.reload();
+                        } catch (e) {
+                            console.error('Kunde inte radera kontot:', e);
+                            signOut();
+                        }
+                    }} 
+                    className="text-red-500 text-sm hover:underline"
+                >
+                    Radera detta ofullständiga konto och börja om
+                </button>
+            </div>
         </div>
     );
   }
