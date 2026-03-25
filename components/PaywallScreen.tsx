@@ -16,7 +16,8 @@ export const PaywallScreen: React.FC<{ onLogout: () => void, userData?: any }> =
         setLoading(true);
         setErrorMsg("");
         try {
-            const response = await fetch('https://api-mioe74iqdi7yxzjsz433lx-46889914413.europe-west2.run.app/create-member-checkout', {
+            const apiUrl = import.meta.env.VITE_API_URL;
+            const response = await fetch(`${apiUrl}/create-member-checkout`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

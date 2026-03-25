@@ -226,7 +226,8 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
         try {
             if (!organization.stripeConnectAccountId) {
                 // Skapa connect-konto och skicka vidare
-                const res = await fetch('https://api-mioe74iqdi7yxzjsz433lx-46889914413.europe-west2.run.app/create-connect-account', {
+                const apiUrl = import.meta.env.VITE_API_URL;
+                const res = await fetch(`${apiUrl}/create-connect-account`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ organizationId: organization.id })

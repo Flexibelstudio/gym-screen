@@ -125,7 +125,8 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
                                          <button 
                                             onClick={async () => {
                                                 try {
-                                                    const res = await fetch('https://api-mioe74iqdi7yxzjsz433lx-46889914413.europe-west2.run.app/create-connect-account', {
+                                                    const apiUrl = import.meta.env.VITE_API_URL;
+                                                    const res = await fetch(`${apiUrl}/create-connect-account`, {
                                                         method: 'POST',
                                                         headers: { 'Content-Type': 'application/json' },
                                                         body: JSON.stringify({ organizationId: organization.id })
@@ -155,7 +156,8 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
                                          <button 
                                             onClick={async () => {
                                                 try {
-                                                    const res = await fetch('https://api-mioe74iqdi7yxzjsz433lx-46889914413.europe-west2.run.app/create-connect-account', {
+                                                    const apiUrl = import.meta.env.VITE_API_URL;
+                                                    const res = await fetch(`${apiUrl}/create-connect-account`, {
                                                         method: 'POST',
                                                         headers: { 'Content-Type': 'application/json' },
                                                         body: JSON.stringify({ organizationId: organization.id })
