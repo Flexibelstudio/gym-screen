@@ -1268,7 +1268,7 @@ const App: React.FC = () => {
             ) : showWelcomePaywall ? (
                 <WelcomePaywall onLogout={signOut} userData={userData} />
             ) : showPaywall ? (
-              <PaywallScreen onLogout={signOut} />
+              <PaywallScreen onLogout={signOut} userData={userData} />
             ) : (
               <AppRouter 
                 page={page}

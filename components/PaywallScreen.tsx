@@ -1,33 +1,46 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Organization } from '../../types';
+import { Organization } from '../types';
 
 // --- NY EXPORT: PAYWALL SCREEN (Dörrvakten) ---
-export const PaywallScreen: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
+export const PaywallScreen: React.FC<{ onLogout: () => void, userData?: any }> = ({ onLogout, userData }) => {
     const [loading, setLoading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState("");
 
     const handleSubscribe = async () => {
+        if (!userData?.uid || !userData?.organizationId) {
+            setErrorMsg("Kunde inte hitta användaruppgifter.");
+            return;
+        }
+        
         setLoading(true);
+        setErrorMsg("");
         try {
-            const response = await fetch('https://api-632314644342.us-central1.run.app/api/create-checkout-session', {
+            const response = await fetch('https://api-mioe74iqdi7yxzjsz433lx-46889914413.europe-west2.run.app/create-member-checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    paymentType: 'subscription' 
+                    userId: userData.uid,
+                    organizationId: userData.organizationId,
+                    email: userData.email
                 }),
             });
             const data = await response.json();
-            if (data.url) window.location.href = data.url;
+            if (data.url) {
+                window.location.href = data.url;
+            } else if (data.error) {
+                setErrorMsg(data.error);
+            }
         } catch (error) {
             console.error("Betalningsfel:", error);
-            alert("Kunde inte starta betalning.");
+            setErrorMsg("Kunde inte starta betalning.");
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
+        <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center w-full">
             <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -36,10 +49,16 @@ export const PaywallScreen: React.FC<{ onLogout: () => void }> = ({ onLogout }) 
                 <h2 className="text-3xl font-black text-white mb-4">Aktivera Medlemskap</h2>
                 <p className="text-gray-400 mb-8">Få full tillgång till alla träningspass och funktioner för endast 39 kr/mån.</p>
                 
+                {errorMsg && (
+                    <div className="bg-red-900/50 border border-red-500 text-red-200 p-3 rounded-lg mb-6 text-sm">
+                        {errorMsg}
+                    </div>
+                )}
+
                 <button
                     onClick={handleSubscribe}
                     disabled={loading}
-                    className="w-full bg-primary text-white font-black py-4 rounded-2xl text-lg mb-4 hover:brightness-110 transition-all active:scale-95"
+                    className="w-full bg-primary text-white font-black py-4 rounded-2xl text-lg mb-4 hover:brightness-110 transition-all active:scale-95 disabled:opacity-50"
                 >
                     {loading ? 'Laddar...' : 'STARTA PRENUMERATION'}
                 </button>

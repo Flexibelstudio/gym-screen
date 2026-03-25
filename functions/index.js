@@ -465,66 +465,87 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
       const session = event.data.object;
       const userId = session.metadata.userId;
       const paymentType = session.metadata.paymentType;
+      const organizationId = session.metadata.organizationId;
       
       if (userId) {
         const db = admin.firestore();
-        const orgQuery = await db.collection('organizations').where('ownerUid', '==', userId).limit(1).get();
 
-        if (!orgQuery.empty) {
-          const orgDoc = orgQuery.docs[0];
-          const orgId = orgDoc.id;
-          const currentOrgData = orgDoc.data();
-
-          // MATCHAR EXAKT DIN BEGÄRDA STRUKTUR (Rensar bort fält som createdAt, ownerUid etc)
-          const exactStructure = {
-            customPages: currentOrgData.customPages || [],
-            globalConfig: {
-              customCategories: (currentOrgData.globalConfig && currentOrgData.globalConfig.customCategories) || [
-                { id: "1", name: "Standard", prompt: "" }
-              ]
-            },
-            id: orgId,
-            inviteCode: currentOrgData.inviteCode || generateInviteCode(),
-            name: currentOrgData.name || "Näst bästa gymmet",
-            ownerUid: currentOrgData.ownerUid || userId,
-            maxFreeCoaches: currentOrgData.maxFreeCoaches || 5,
-            passwords: {
-              coach: (currentOrgData.passwords && currentOrgData.passwords.coach) || "1234"
-            },
-            status: "active",
-            studios: currentOrgData.studios || [],
-            subdomain: currentOrgData.subdomain || ""
-          };
-
-          // Vi använder .set(exactStructure) för att tvinga dokumentet att BARA ha dessa fält
-          await db.collection('organizations').doc(orgId).set(exactStructure, { merge: true });
-
-          const userUpdateData = {
+        if (paymentType === 'member_subscription') {
+          // Hantera medlemskap för slutkund (gymmedlem)
+          await db.collection('users').doc(userId).update({
             stripeCustomerId: session.customer,
-            role: 'organizationadmin',
-            organizationId: orgId,
-            stripeSubscriptionId: session.subscription
-          };
-
-          if (paymentType === 'system_fee') {
-            userUpdateData.systemFeePaid = true;
-            userUpdateData.systemFeeDate = admin.firestore.FieldValue.serverTimestamp();
-          } else {
-            userUpdateData.subscriptionStatus = 'active';
-          }
-
-          await db.collection('users').doc(userId).update(userUpdateData);
-
-          await admin.auth().setCustomUserClaims(userId, {
-            role: 'organizationadmin',
-            organizationId: orgId,
-            adminRole: 'admin'
+            role: 'member',
+            organizationId: organizationId,
+            stripeSubscriptionId: session.subscription,
+            subscriptionStatus: 'active'
           });
 
-          console.log(`Org ${orgId} återställd till exakt mall och kopplad till ${userId}`);
-          
-          // Lägg till "Extra Coach"-produkten i prenumerationen med kvantitet 0 direkt
-          await updateStripeCoachCount(orgId);
+          await admin.auth().setCustomUserClaims(userId, {
+            role: 'member',
+            organizationId: organizationId
+          });
+
+          console.log(`Användare ${userId} blev medlem i org ${organizationId}`);
+        } else {
+          // Hantera gymmets egen prenumeration
+          const orgQuery = await db.collection('organizations').where('ownerUid', '==', userId).limit(1).get();
+
+          if (!orgQuery.empty) {
+            const orgDoc = orgQuery.docs[0];
+            const orgId = orgDoc.id;
+            const currentOrgData = orgDoc.data();
+
+            // MATCHAR EXAKT DIN BEGÄRDA STRUKTUR (Rensar bort fält som createdAt, ownerUid etc)
+            const exactStructure = {
+              customPages: currentOrgData.customPages || [],
+              globalConfig: {
+                customCategories: (currentOrgData.globalConfig && currentOrgData.globalConfig.customCategories) || [
+                  { id: "1", name: "Standard", prompt: "" }
+                ]
+              },
+              id: orgId,
+              inviteCode: currentOrgData.inviteCode || generateInviteCode(),
+              name: currentOrgData.name || "Näst bästa gymmet",
+              ownerUid: currentOrgData.ownerUid || userId,
+              maxFreeCoaches: currentOrgData.maxFreeCoaches || 5,
+              passwords: {
+                coach: (currentOrgData.passwords && currentOrgData.passwords.coach) || "1234"
+              },
+              status: "active",
+              studios: currentOrgData.studios || [],
+              subdomain: currentOrgData.subdomain || ""
+            };
+
+            // Vi använder .set(exactStructure) för att tvinga dokumentet att BARA ha dessa fält
+            await db.collection('organizations').doc(orgId).set(exactStructure, { merge: true });
+
+            const userUpdateData = {
+              stripeCustomerId: session.customer,
+              role: 'organizationadmin',
+              organizationId: orgId,
+              stripeSubscriptionId: session.subscription
+            };
+
+            if (paymentType === 'system_fee') {
+              userUpdateData.systemFeePaid = true;
+              userUpdateData.systemFeeDate = admin.firestore.FieldValue.serverTimestamp();
+            } else {
+              userUpdateData.subscriptionStatus = 'active';
+            }
+
+            await db.collection('users').doc(userId).update(userUpdateData);
+
+            await admin.auth().setCustomUserClaims(userId, {
+              role: 'organizationadmin',
+              organizationId: orgId,
+              adminRole: 'admin'
+            });
+
+            console.log(`Org ${orgId} återställd till exakt mall och kopplad till ${userId}`);
+            
+            // Lägg till "Extra Coach"-produkten i prenumerationen med kvantitet 0 direkt
+            await updateStripeCoachCount(orgId);
+          }
         }
       }
     }
@@ -574,6 +595,129 @@ app.post("/create-checkout-session", async (req, res) => {
 
     res.json({ url: session.url });
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 3. CREATE STRIPE CONNECT ACCOUNT (ONBOARDING)
+app.post("/create-connect-account", async (req, res) => {
+  try {
+    const stripe = getStripe();
+    const { organizationId } = req.body;
+    if (!organizationId) return res.status(400).json({ error: "organizationId saknas" });
+
+    const db = admin.firestore();
+    const orgDoc = await db.collection("organizations").doc(organizationId).get();
+    if (!orgDoc.exists) return res.status(404).json({ error: "Organisationen hittades inte" });
+    
+    const orgData = orgDoc.data();
+    let accountId = orgData.stripeConnectAccountId;
+
+    // Skapa ett nytt Express-konto om det inte finns
+    if (!accountId) {
+      const account = await stripe.accounts.create({
+        type: 'express',
+        country: 'SE',
+        email: orgData.companyDetails?.billingContact?.email || undefined,
+        capabilities: {
+          card_payments: { requested: true },
+          transfers: { requested: true },
+        },
+        business_type: 'company',
+        company: {
+          name: orgData.companyDetails?.legalName || orgData.name,
+        }
+      });
+      accountId = account.id;
+      await db.collection("organizations").doc(organizationId).update({
+        stripeConnectAccountId: accountId
+      });
+    }
+
+    const domain = req.headers.origin || 'https://smartskarm.se';
+
+    // Skapa en onboarding-länk
+    const accountLink = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: `${domain}/admin/settings?connect=refresh`,
+      return_url: `${domain}/admin/settings?connect=success`,
+      type: 'account_onboarding',
+    });
+
+    res.json({ url: accountLink.url });
+  } catch (error) {
+    console.error("Error creating connect account:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// 4. CREATE MEMBER CHECKOUT SESSION (39 SEK/mån, 19 SEK till plattformen)
+app.post("/create-member-checkout", async (req, res) => {
+  try {
+    const stripe = getStripe();
+    const { userId, organizationId, email } = req.body;
+    if (!userId || !organizationId) return res.status(400).json({ error: "userId eller organizationId saknas" });
+
+    const db = admin.firestore();
+    const orgDoc = await db.collection("organizations").doc(organizationId).get();
+    if (!orgDoc.exists) return res.status(404).json({ error: "Organisationen hittades inte" });
+    
+    const orgData = orgDoc.data();
+    const connectedAccountId = orgData.stripeConnectAccountId;
+
+    if (!connectedAccountId) {
+      return res.status(400).json({ error: "Gymmet har inte kopplat ett Stripe-konto ännu." });
+    }
+
+    // Kontrollera om kontot är redo att ta emot betalningar
+    const account = await stripe.accounts.retrieve(connectedAccountId);
+    if (!account.charges_enabled) {
+      return res.status(400).json({ error: "Gymmets Stripe-konto är inte fullständigt aktiverat ännu." });
+    }
+
+    const customer = await stripe.customers.create({
+      email: email || `member_${userId}@example.com`,
+      metadata: { userId, organizationId }
+    });
+
+    const domain = req.headers.origin || 'https://smartskarm.se';
+
+    // 19 kr av 39 kr = 48.7179%
+    const applicationFeePercent = 48.7179;
+
+    const session = await stripe.checkout.sessions.create({
+      customer: customer.id,
+      payment_method_types: ['card'],
+      mode: 'subscription',
+      line_items: [{
+        price_data: {
+          currency: 'sek',
+          product_data: {
+            name: 'SmartSkärm Medlemskap',
+            description: `Medlemskap hos ${orgData.name || 'Gymmet'}`,
+          },
+          unit_amount: 3900, // 39.00 SEK
+          recurring: {
+            interval: 'month',
+          },
+        },
+        quantity: 1,
+      }],
+      subscription_data: {
+        transfer_data: {
+          destination: connectedAccountId,
+        },
+        application_fee_percent: applicationFeePercent,
+      },
+      success_url: `${domain}/?success=true&type=member`,
+      cancel_url: `${domain}/?canceled=true`,
+      client_reference_id: userId,
+      metadata: { userId, organizationId, paymentType: 'member_subscription' }
+    });
+
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error("Error creating member checkout:", error);
     res.status(500).json({ error: error.message });
   }
 });
