@@ -552,12 +552,20 @@ app.post("/create-checkout-session", async (req, res) => {
     let priceId = paymentType === 'system_fee' ? process.env.STRIPE_SYSTEM_FEE_PRICE_ID : process.env.STRIPE_PRICE_ID;
     const domain = req.headers.origin || 'https://smartskarm.se';
 
+    // Beräkna Unix-timestamp för den 1:a i nästa månad (UTC)
+    const now = new Date();
+    const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0));
+    const billingCycleAnchor = Math.floor(nextMonth.getTime() / 1000);
+
     const session = await stripe.checkout.sessions.create({
       customer: customer.id,
       payment_method_types: ['card'],
       mode: 'subscription',
       allow_promotion_codes: true,
       line_items: [{ price: priceId, quantity: 1 }],
+      subscription_data: {
+        billing_cycle_anchor: billingCycleAnchor
+      },
       success_url: `${domain}/?success=true&type=${paymentType || 'sub'}`,
       cancel_url: `${domain}/?canceled=true`,
       client_reference_id: userId,
