@@ -135,6 +135,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
 
     // Profit Calculator State
     const [showPricingModal, setShowPricingModal] = useState(false);
+    const [isConnectingStripe, setIsConnectingStripe] = useState(false);
     const [baseCost, setBaseCost] = useState(19);
     const customerPrice = 39;
 
@@ -497,6 +498,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                         <button 
                             onClick={async () => {
                                 if (!organization.stripeConnectSetupComplete) {
+                                    setIsConnectingStripe(true);
                                     try {
                                         const apiUrl = import.meta.env.VITE_API_URL;
                                         const res = await fetch(`${apiUrl}/create-connect-account`, {
@@ -510,20 +512,26 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                                             window.location.href = data.url;
                                             return;
                                         }
-                                    } catch(e) { console.error(e); }
+                                    } catch(e) { 
+                                        console.error(e); 
+                                        setIsConnectingStripe(false);
+                                    }
                                 } else {
+                                    setIsConnectingStripe(true);
                                     const newOverrides = { ...overrides, enableWorkoutLogging: true };
                                     setOverrides(newOverrides);
                                     try {
                                         await onSave(organization.id, studio.id, newOverrides);
                                         setToast({ message: "Passloggning aktiverad!", visible: true });
                                     } catch(e) { console.error(e); }
+                                    setIsConnectingStripe(false);
                                     setShowPricingModal(false);
                                 }
                             }} 
-                            className="flex-[2] py-3 bg-primary text-white font-bold rounded-lg shadow-lg hover:brightness-110"
+                            disabled={isConnectingStripe}
+                            className="flex-[2] py-3 bg-primary text-white font-bold rounded-lg shadow-lg hover:brightness-110 disabled:opacity-50"
                         >
-                            {!organization.stripeConnectSetupComplete ? 'Koppla Stripe & Aktivera' : 'Godkänn & Aktivera'}
+                            {isConnectingStripe ? 'Laddar...' : (!organization.stripeConnectSetupComplete ? 'Koppla Stripe & Aktivera' : 'Godkänn & Aktivera')}
                         </button>
                     </div>
                 </div>

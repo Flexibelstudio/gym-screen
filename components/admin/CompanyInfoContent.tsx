@@ -1,10 +1,11 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Organization } from '../../types';
 
 export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: () => void }> = ({ organization, onEdit }) => {
     const { companyDetails } = organization;
     const hasDetails = companyDetails && (companyDetails.legalName || companyDetails.orgNumber);
+    const [isConnectingStripe, setIsConnectingStripe] = useState(false);
 
     return (
          <div className="bg-slate-50 dark:bg-gray-800/50 p-6 rounded-xl border border-slate-200 dark:border-gray-700">
@@ -124,6 +125,7 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
                                          </div>
                                          <button 
                                             onClick={async () => {
+                                                setIsConnectingStripe(true);
                                                 try {
                                                     const apiUrl = import.meta.env.VITE_API_URL;
                                                     const res = await fetch(`${apiUrl}/create-connect-account`, {
@@ -135,11 +137,13 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
                                                     if (data.url) window.location.href = data.url;
                                                 } catch (e) {
                                                     console.error(e);
+                                                    setIsConnectingStripe(false);
                                                 }
                                             }}
-                                            className="text-sm bg-white dark:bg-gray-800 border border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 px-4 py-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/40 transition-colors"
+                                            disabled={isConnectingStripe}
+                                            className="text-sm bg-white dark:bg-gray-800 border border-green-300 dark:border-green-700 text-green-700 dark:text-green-400 px-4 py-2 rounded-lg hover:bg-green-50 dark:hover:bg-green-900/40 transition-colors disabled:opacity-50"
                                          >
-                                             Hantera konto
+                                             {isConnectingStripe ? 'Laddar...' : 'Hantera konto'}
                                          </button>
                                      </div>
                                  ) : (
@@ -155,6 +159,7 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
                                          </div>
                                          <button 
                                             onClick={async () => {
+                                                setIsConnectingStripe(true);
                                                 try {
                                                     const apiUrl = import.meta.env.VITE_API_URL;
                                                     const res = await fetch(`${apiUrl}/create-connect-account`, {
@@ -166,11 +171,13 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
                                                     if (data.url) window.location.href = data.url;
                                                 } catch (e) {
                                                     console.error(e);
+                                                    setIsConnectingStripe(false);
                                                 }
                                             }}
-                                            className="text-sm bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-sm"
+                                            disabled={isConnectingStripe}
+                                            className="text-sm bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90 transition-colors shadow-sm disabled:opacity-50"
                                          >
-                                             Koppla Stripe
+                                             {isConnectingStripe ? 'Laddar...' : 'Koppla Stripe'}
                                          </button>
                                      </div>
                                  )}
