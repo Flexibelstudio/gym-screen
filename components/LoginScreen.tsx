@@ -58,7 +58,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
         if (invite) {
             setInviteCode(invite.toUpperCase());
             setView('register');
-            // Rensa URL:en så den ser snygg ut efteråt
             window.history.replaceState({}, document.title, window.location.pathname);
         }
     }, []);
@@ -152,8 +151,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     const renderLoginView = () => (
         <>
             <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold text-white">Logga in</h2>
-                <p className="text-gray-400 mt-1">För administratörer och medlemmar</p>
+                <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Logga in</h2>
+                <p className="text-gray-400 mt-1 text-sm font-medium">För administratörer och medlemmar</p>
             </div>
             
             {error && (
@@ -174,7 +173,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                             placeholder="E-postadress"
                             required
                             autoComplete="username"
-                            className="w-full bg-black text-white p-4 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                            className="w-full bg-black text-white p-4 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                     </div>
                     <div className="relative">
@@ -187,20 +186,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                             placeholder="Lösenord"
                             required
                             autoComplete="current-password"
-                            className="w-full bg-black text-white p-4 pr-12 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                            className="w-full bg-black text-white p-4 pr-12 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                         <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
                             className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
-                            aria-label={showPassword ? "Dölj lösenord" : "Visa lösenord"}
                         >
                             {showPassword ? <EyeOffIcon className="w-5 h-5" /> : <EyeIcon className="w-5 h-5" />}
                         </button>
                     </div>
                     
                     <div className="text-right text-sm">
-                        <button type="button" onClick={() => setView('reset')} className="font-medium text-primary/80 hover:text-primary transition-colors">
+                        <button type="button" onClick={() => setView('reset')} className="font-medium text-gray-500 hover:text-primary transition-colors">
                             Glömt lösenord?
                         </button>
                     </div>
@@ -209,7 +207,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-primary hover:brightness-95 text-white font-bold py-4 rounded-lg transition-colors disabled:bg-gray-600"
+                            className="w-full bg-primary hover:brightness-110 text-white font-black py-4 rounded-xl transition-all disabled:bg-gray-600 shadow-lg shadow-primary/20 uppercase tracking-widest"
                         >
                             {loading ? 'Loggar in...' : 'Logga in'}
                         </button>
@@ -218,16 +216,22 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                 
                 <div className="text-center text-sm flex flex-col gap-2 mt-4">
                     <div>
-                        <span className="text-gray-400">Har du inget konto? </span>
-                        <button type="button" onClick={() => setView('register')} className="font-medium text-primary hover:text-white transition-colors">
-                            Skapa ett med inbjudningskod
+                        <span className="text-gray-500">Har du inget konto? </span>
+                        <button type="button" onClick={() => setView('register')} className="font-bold text-primary hover:text-white transition-colors underline decoration-dotted underline-offset-4">
+                            Använd inbjudningskod
                         </button>
                     </div>
+
+                    {/* HÄR ÄR DEN TYDLIGA PILLER-KNAPPEN FÖR ATT REGISTRERA GYM */}
                     {onRegisterGym && (
-                        <div className="pt-4 border-t border-gray-800">
-                            <span className="text-gray-400">Driver du ett gym? </span>
-                            <button type="button" onClick={onRegisterGym} className="font-medium text-primary hover:text-white transition-colors">
-                                Registrera ditt gym här
+                        <div className="mt-8 pt-6 border-t border-gray-800 flex flex-col items-center">
+                            <p className="text-gray-500 text-xs mb-4 font-bold uppercase tracking-widest">Driver du ett gym?</p>
+                            <button 
+                                type="button" 
+                                onClick={onRegisterGym} 
+                                className="bg-transparent hover:bg-white hover:text-black text-primary font-black py-3 px-10 rounded-full border-2 border-primary transition-all transform active:scale-95 uppercase tracking-widest text-xs shadow-lg shadow-primary/10"
+                            >
+                                Registrera ditt gym
                             </button>
                         </div>
                     )}
@@ -239,7 +243,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     const renderResetView = () => (
         <>
             <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold text-white">Återställ lösenord</h2>
+                <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Återställ lösenord</h2>
                 <p className="text-gray-400 mt-1">Ange din e-post så skickar vi en länk.</p>
             </div>
             <form onSubmit={handleResetPassword} className="space-y-6">
@@ -253,7 +257,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                         placeholder="E-postadress"
                         required
                         autoFocus
-                        className="w-full bg-black text-white p-4 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                        className="w-full bg-black text-white p-4 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                     />
                 </div>
                 
@@ -264,14 +268,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     <button
                         type="submit"
                         disabled={resetLoading}
-                        className="w-full bg-primary hover:brightness-95 text-white font-bold py-4 rounded-lg transition-colors disabled:bg-gray-600"
+                        className="w-full bg-primary hover:brightness-95 text-white font-bold py-4 rounded-xl transition-colors disabled:bg-gray-600 uppercase tracking-widest"
                     >
-                        {resetLoading ? 'Skickar...' : 'Skicka återställningslänk'}
+                        {resetLoading ? 'Skickar...' : 'Skicka länk'}
                     </button>
                 </div>
 
                 <div className="text-center text-sm">
-                    <button type="button" onClick={() => setView('login')} className="font-medium text-primary/80 hover:text-primary transition-colors">
+                    <button type="button" onClick={() => setView('login')} className="font-medium text-gray-500 hover:text-primary transition-colors">
                         &larr; Tillbaka till inloggning
                     </button>
                 </div>
@@ -282,33 +286,33 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     const renderRegisterView = () => (
         <>
             <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold text-white">Skapa konto</h2>
-                <p className="text-gray-400 mt-1">Välj kontotyp och fyll i dina uppgifter.</p>
+                <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Skapa konto</h2>
+                <p className="text-gray-400 mt-1">Gå med i ett befintligt gym</p>
             </div>
             <form onSubmit={handleRegister} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
                 
-                <div className="flex bg-gray-800 p-1 rounded-lg mb-6">
+                <div className="flex bg-gray-800 p-1 rounded-xl mb-6">
                     <button
                         type="button"
                         onClick={() => setRegisterType('member')}
-                        className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                        className={`flex-1 py-2 text-sm font-black rounded-lg transition-all ${
                             registerType === 'member' 
-                                ? 'bg-primary text-black' 
+                                ? 'bg-primary text-white shadow-md' 
                                 : 'text-gray-400 hover:text-white'
                         }`}
                     >
-                        Medlem
+                        MEDLEM
                     </button>
                     <button
                         type="button"
                         onClick={() => setRegisterType('coach')}
-                        className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                        className={`flex-1 py-2 text-sm font-black rounded-lg transition-all ${
                             registerType === 'coach' 
-                                ? 'bg-primary text-black' 
+                                ? 'bg-primary text-white shadow-md' 
                                 : 'text-gray-400 hover:text-white'
                         }`}
                     >
-                        Coach
+                        COACH
                     </button>
                 </div>
 
@@ -341,46 +345,46 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Förnamn</label>
+                        <label className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">Förnamn</label>
                         <input
                             type="text"
                             value={firstName}
                             onChange={(e) => setFirstName(e.target.value)}
                             placeholder="Anna"
                             required
-                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                            className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Efternamn</label>
+                        <label className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">Efternamn</label>
                         <input
                             type="text"
                             value={lastName}
                             onChange={(e) => setLastName(e.target.value)}
                             placeholder="Andersson"
                             required
-                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                            className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                     </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Ålder</label>
+                        <label className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">Ålder</label>
                         <input
                             type="number"
                             value={age}
                             onChange={(e) => setAge(e.target.value)}
                             placeholder="30"
-                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                            className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Kön</label>
+                        <label className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">Kön</label>
                         <select
                             value={gender}
                             onChange={(e) => setGender(e.target.value)}
-                            className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition appearance-none"
+                            className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition appearance-none"
                         >
                             <option value="prefer_not_to_say">Vill ej ange</option>
                             <option value="male">Man</option>
@@ -391,7 +395,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                 </div>
 
                 <div>
-                    <label htmlFor="invite-code" className="block text-xs font-bold text-gray-500 uppercase mb-1">
+                    <label htmlFor="invite-code" className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">
                         {registerType === 'member' ? 'Inbjudningskod' : 'Coachkod'}
                     </label>
                     <input
@@ -401,12 +405,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                         onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
                         placeholder="KOD (6 tecken)"
                         required
-                        className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition text-center font-mono tracking-widest text-lg uppercase"
+                        className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition text-center font-black tracking-widest text-lg uppercase"
                         maxLength={6}
                     />
                 </div>
                 <div>
-                    <label htmlFor="reg-email" className="block text-xs font-bold text-gray-500 uppercase mb-1">E-post</label>
+                    <label htmlFor="reg-email" className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">E-post</label>
                     <input
                         id="reg-email"
                         type="email"
@@ -415,12 +419,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                         placeholder="din@email.com"
                         required
                         autoComplete="username"
-                        className="w-full bg-black text-white p-3 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                        className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                     />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                     <div className="relative">
-                        <label htmlFor="reg-password" className="block text-xs font-bold text-gray-500 uppercase mb-1">Lösenord</label>
+                        <label htmlFor="reg-password" className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">Lösenord</label>
                         <input
                             id="reg-password"
                             type={showPassword ? "text" : "password"}
@@ -429,19 +433,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                             placeholder="Minst 6 tecken"
                             required
                             autoComplete="new-password"
-                            className="w-full bg-black text-white p-3 pr-10 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                            className="w-full bg-black text-white p-3 pr-10 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                         <button
                             type="button"
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-[34px] text-gray-400 hover:text-white transition-colors"
-                            aria-label={showPassword ? "Dölj lösenord" : "Visa lösenord"}
+                            className="absolute right-3 top-[32px] text-gray-400 hover:text-white transition-colors"
                         >
                             {showPassword ? <EyeOffIcon className="w-4 h-4" /> : <EyeIcon className="w-4 h-4" />}
                         </button>
                     </div>
                     <div className="relative">
-                        <label htmlFor="reg-confirm-password" className="block text-xs font-bold text-gray-500 uppercase mb-1">Bekräfta</label>
+                        <label htmlFor="reg-confirm-password" className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">Bekräfta</label>
                         <input
                             id="reg-confirm-password"
                             type={showPassword ? "text" : "password"}
@@ -450,14 +453,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                             placeholder="Upprepa"
                             required
                             autoComplete="new-password"
-                            className="w-full bg-black text-white p-3 pr-10 rounded-md border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                            className="w-full bg-black text-white p-3 pr-10 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
                         />
                     </div>
                 </div>
 
-                {regError && <p className="text-red-400 text-sm text-center">{regError}</p>}
+                {regError && <p className="text-red-400 text-sm text-center font-bold">{regError}</p>}
 
-                {/* TERMS AND PRIVACY NOTE */}
                 <div className="py-2 text-center">
                     <p className="text-[10px] text-gray-500 leading-relaxed">
                         Genom att skapa ett konto godkänner du våra{' '}
@@ -471,15 +473,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     <button
                         type="submit"
                         disabled={regLoading}
-                        className="w-full bg-primary hover:brightness-110 text-white font-black py-4 rounded-lg transition-colors disabled:bg-gray-600 shadow-lg shadow-primary/20"
+                        className="w-full bg-primary hover:brightness-110 text-white font-black py-4 rounded-xl transition-all disabled:bg-gray-600 shadow-lg shadow-primary/20 uppercase tracking-widest"
                     >
                         {regLoading ? 'Skapar konto...' : 'Gå med och logga in'}
                     </button>
                 </div>
 
                 <div className="text-center text-sm pb-2">
-                    <button type="button" onClick={() => setView('login')} className="font-medium text-primary/80 hover:text-primary transition-colors">
-                        &larr; Har du redan ett konto? Logga in
+                    <button type="button" onClick={() => setView('login')} className="font-bold text-gray-500 hover:text-primary transition-colors">
+                        &larr; Tillbaka till inloggning
                     </button>
                 </div>
             </form>
@@ -490,18 +492,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     );
 
     return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white p-4">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white p-4 font-sans">
             <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="w-full max-w-md relative"
             >
                 {onClose && (
-                    <button onClick={onClose} className="absolute -top-12 right-0 text-white hover:text-gray-300">
+                    <button onClick={onClose} className="absolute -top-12 right-0 text-white hover:text-gray-300 p-2">
                         <CloseIcon className="w-8 h-8" />
                     </button>
                 )}
-                <div className="bg-gray-900 border border-gray-700 rounded-lg p-8 max-h-[95vh] flex flex-col shadow-2xl">
+                <div className="bg-gray-900 border border-gray-800 rounded-[2.5rem] p-8 sm:p-10 max-h-[95vh] flex flex-col shadow-[0_50px_100px_-20px_rgba(0,0,0,0.5)]">
                     {view === 'login' && renderLoginView()}
                     {view === 'reset' && renderResetView()}
                     {view === 'register' && renderRegisterView()}
