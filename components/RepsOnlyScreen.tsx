@@ -2,7 +2,7 @@
 import React from 'react';
 import { WorkoutBlock, Exercise, Organization } from '../types';
 import { useWorkout } from '../context/WorkoutContext';
-import { PlayIcon } from './icons';
+import { PlayIcon, InformationCircleIcon } from './icons';
 
 interface RepsOnlyScreenProps {
     block: WorkoutBlock;
@@ -52,6 +52,18 @@ export const RepsOnlyScreen: React.FC<RepsOnlyScreenProps> = ({ block, onFinish,
                 </button>
             </div>
             
+            {/* Block Description */}
+            {block.showDescriptionInTimer && block.setupDescription && (
+                <div className="px-8 py-6 mb-4 bg-white/95 dark:bg-gray-900 border-2 border-blue-500/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0">
+                    <div className="bg-blue-500/10 p-3 rounded-2xl">
+                        <InformationCircleIcon className="w-8 h-8 text-blue-500 shrink-0" />
+                    </div>
+                    <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight">
+                        {block.setupDescription}
+                    </p>
+                </div>
+            )}
+
             {/* Exercises List */}
             <div className="w-full flex-1 flex flex-col overflow-hidden pb-1">
                 {block.exercises.map((ex, i) => {
@@ -99,7 +111,7 @@ export const RepsOnlyScreen: React.FC<RepsOnlyScreenProps> = ({ block, onFinish,
                                 </h4>
                             </div>
 
-                            {ex.description && count <= 8 && (
+                            {ex.description && block.showExerciseDescriptions !== false && count <= 8 && (
                                 <div className="mt-3 hidden sm:block pl-1">
                                     <p className="font-medium text-gray-600 dark:text-gray-300 leading-snug line-clamp-2" style={{ fontSize: `calc(${calculatedTitleSize} * 0.6)` }}>
                                         {ex.description}
