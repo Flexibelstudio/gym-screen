@@ -42,7 +42,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                iCountMode = 'rounds';
                iTotalOmgångar = rounds > 0 ? rounds : 1;
           } else {
-              const numExercises = block.exercises.length > 0 ? block.exercises.length : 1;
+              const numExercises = (block.exercises?.length || 0) > 0 ? (block.exercises?.length || 1) : 1;
               if (rounds > 0 && rounds % numExercises === 0) {
                   iCountMode = 'laps';
                   iIntervallerPerVarv = numExercises;
@@ -236,7 +236,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
     if (newMode === TimerMode.Interval) {
         setCountMode('laps');
         setVarv(3);
-        setIntervallerPerVarv(block.exercises.length > 0 ? block.exercises.length : 1);
+        setIntervallerPerVarv((block.exercises?.length || 0) > 0 ? (block.exercises?.length || 1) : 1);
     } else if (newMode === TimerMode.AMRAP || newMode === TimerMode.TimeCap || newMode === TimerMode.EMOM) {
         setTotalMinutes(10);
     } else if (newMode === TimerMode.Custom) {
@@ -504,8 +504,16 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
               Sekvens
             </button>
             <button
-              onClick={() => handleModeChange(TimerMode.NoTimer)}
-              className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${mode === TimerMode.NoTimer ? 'bg-primary text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-600'}`}
+              onClick={() => !block.followMe && handleModeChange(TimerMode.NoTimer)}
+              disabled={!!block.followMe}
+              title={block.followMe ? "Kan inte kombineras med Följ mig-läge" : undefined}
+              className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${
+                block.followMe 
+                  ? 'bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed' 
+                  : mode === TimerMode.NoTimer 
+                    ? 'bg-primary text-white' 
+                    : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-600'
+              }`}
             >
               Ingen Timer
             </button>
