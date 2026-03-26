@@ -1428,13 +1428,13 @@ const App: React.FC = () => {
             )}
           </main>
           
-          {isInfoBannerVisible && (
+          {isInfoBannerVisible && !isScreensaverActive && (
               // hidden md:block (osynlig på mobil), fast höjd h-[512px] på resten.
-              <div className={`hidden md:block flex-shrink-0 w-full h-[512px] ${isScreensaverActive ? 'fixed bottom-0 left-0 right-0 z-[1001]' : 'relative z-[40]'}`}>
+              <div className="hidden md:block flex-shrink-0 w-full h-[512px] relative z-[40]">
                   <InfoCarouselBanner 
                     messages={activeInfoMessages} 
                     className="relative !h-full" 
-                    forceDark={isScreensaverActive} 
+                    forceDark={false} 
                   />
               </div>
           )}
@@ -1648,10 +1648,21 @@ const App: React.FC = () => {
         />
        )}
         {isScreensaverActive && (
-            <Screensaver 
-                logoUrl={selectedOrganization?.logoUrlDark || selectedOrganization?.logoUrlLight}
-                bottomOffset={isInfoBannerVisible ? (window.innerWidth >= 768 ? 512 : 0) : 0}
-            />
+            <>
+                <Screensaver 
+                    logoUrl={selectedOrganization?.logoUrlDark || selectedOrganization?.logoUrlLight}
+                    bottomOffset={isInfoBannerVisible ? (window.innerWidth >= 768 ? 512 : 0) : 0}
+                />
+                {isInfoBannerVisible && (
+                    <div className="hidden md:block fixed bottom-0 left-0 right-0 h-[512px] z-[1001]">
+                        <InfoCarouselBanner 
+                            messages={activeInfoMessages} 
+                            className="relative !h-full" 
+                            forceDark={true} 
+                        />
+                    </div>
+                )}
+            </>
         )}
        {showTerms && <TermsOfServiceModal onAccept={acceptTerms} />}
        

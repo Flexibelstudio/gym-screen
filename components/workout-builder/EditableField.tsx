@@ -18,7 +18,7 @@ export const EditableField: React.FC<{
         <div className={wrapperClasses}>
             <label className="text-sm font-medium text-gray-500 dark:text-gray-400 hidden">{label}</label>
             <InputComponent
-                value={value}
+                value={value || ''}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={label}
                 className={`${commonClasses} ${textStyle}`}
