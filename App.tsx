@@ -222,8 +222,8 @@ const App: React.FC = () => {
                               if (blockToStart) {
                                   if (activeBlock?.id !== blockToStart.id || JSON.stringify(activeBlock) !== JSON.stringify(blockToStart)) {
                                       setActiveBlock(blockToStart);
+                                      setCompletionInfo(null);
                                   }
-                                  setCompletionInfo(null);
                                   const targetPage = blockToStart.settings.mode === TimerMode.NoTimer ? Page.RepsOnly : Page.Timer;
                                   if (page !== targetPage) {
                                       navigateReplace(targetPage);
@@ -297,6 +297,13 @@ const App: React.FC = () => {
   const [customPageToEdit, setCustomPageToEdit] = useState<CustomPage | null>(null);
   const [studioToEditConfig, setStudioToEditConfig] = useState<Studio | null>(null);
   const [completionInfo, setCompletionInfo] = useState<{ workout: Workout, isFinal: boolean, blockTag?: string, finishTime?: number } | null>(null);
+
+  // Clear completion modal if a remote command is received that should restart/resume the timer
+  useEffect(() => {
+      if (remoteCommand && ['start', 'resume', 'reset'].includes(remoteCommand.type)) {
+          setCompletionInfo(null);
+      }
+  }, [remoteCommand]);
   const [preferredAdminTab, setPreferredAdminTab] = useState<string>('dashboard');
   const [isAutoTransition, setIsAutoTransition] = useState(false);
   
