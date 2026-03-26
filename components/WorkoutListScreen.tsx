@@ -58,7 +58,8 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                         return (
                             <div
                                 key={workout.id}
-                                className="group relative bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.15)] hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.2)] hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col p-8"
+                                className="group relative bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-700 rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.15)] hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.2)] hover:-translate-y-1 active:scale-[0.98] transition-all duration-150 overflow-hidden flex flex-col p-8"
+                                style={{ touchAction: 'manipulation' }}
                             >
                                 {/* 
                                     STUDIO MODE OVERLAY 
@@ -116,7 +117,8 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                     <div className="mt-8 flex gap-3 relative z-30">
                                         <button
                                             onClick={() => onSelectWorkout(workout, 'view')}
-                                            className="flex-1 px-4 py-3 rounded-2xl border-2 border-gray-100 dark:border-gray-800 text-gray-600 dark:text-gray-300 font-black text-center text-[10px] uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                                            className="flex-1 px-4 py-3 rounded-2xl border-2 border-gray-100 dark:border-gray-800 text-gray-600 dark:text-gray-300 font-black text-center text-[10px] uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors active:scale-95"
+                                            style={{ touchAction: 'manipulation' }}
                                         >
                                             Visa pass
                                         </button>
@@ -124,6 +126,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                             <button
                                                 onClick={() => onSelectWorkout(workout, 'log')}
                                                 className="flex-[1.5] px-4 py-3 rounded-2xl bg-primary text-white font-black text-center text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20 hover:brightness-110 transition-all active:scale-95"
+                                                style={{ touchAction: 'manipulation' }}
                                             >
                                                 Logga pass
                                             </button>

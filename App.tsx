@@ -1442,7 +1442,7 @@ const App: React.FC = () => {
                       initial={{ y: '100%', opacity: 0 }}
                       animate={{ y: '0%', opacity: 1 }}
                       exit={{ y: '100%', opacity: 0 }}
-                      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                      transition={{ type: 'spring', damping: 25, stiffness: 400 }}
                       className="fixed inset-x-0 top-[5vh] bottom-[5vh] z-[10000] px-1 pointer-events-none"
                   >
                       <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] h-full max-w-2xl mx-auto shadow-2xl overflow-hidden flex flex-col pointer-events-auto">
@@ -1479,7 +1479,7 @@ const App: React.FC = () => {
                       initial={{ y: '100%', opacity: 0 }}
                       animate={{ y: '0%', opacity: 1 }}
                       exit={{ y: '100%', opacity: 0 }}
-                      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                      transition={{ type: 'spring', damping: 25, stiffness: 400 }}
                       className="fixed inset-x-0 top-[8vh] bottom-0 z-[10020] px-1 pointer-events-none"
                   >
                       <div className="bg-white dark:bg-gray-900 rounded-t-[2.5rem] h-full max-w-2xl mx-auto shadow-2xl overflow-hidden flex flex-col pointer-events-auto border-t border-gray-200 dark:border-gray-800">
@@ -1538,7 +1538,7 @@ const App: React.FC = () => {
                       initial={{ y: '100%', opacity: 0 }}
                       animate={{ y: '0%', opacity: 1 }}
                       exit={{ y: '100%', opacity: 0 }}
-                      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                      transition={{ type: 'spring', damping: 25, stiffness: 400 }}
                       className="fixed inset-x-0 top-[5vh] bottom-[5vh] z-[10040] px-1 pointer-events-none"
                   >
                       <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] h-full max-w-2xl mx-auto shadow-2xl overflow-hidden flex flex-col pointer-events-auto">
