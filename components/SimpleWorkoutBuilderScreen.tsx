@@ -559,10 +559,14 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
                 <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
                     {(() => {
                         const hasLinkedExercises = block.exercises?.some(e => e.groupId) || false;
-                        const followMeDisabled = hasLinkedExercises;
-                        const followMeDescription = hasLinkedExercises 
-                            ? "Kan inte kombineras med länkade övningar" 
-                            : undefined;
+                        const followMeDisabled = block.settings.mode === TimerMode.Custom || hasLinkedExercises || block.settings.mode === TimerMode.NoTimer;
+                        const followMeDescription = block.settings.mode === TimerMode.Custom 
+                            ? "Kan inte kombineras med Sekvenstimer" 
+                            : block.settings.mode === TimerMode.NoTimer
+                                ? "Kan inte kombineras med Ingen Timer"
+                                : hasLinkedExercises 
+                                    ? "Kan inte kombineras med länkade övningar" 
+                                    : undefined;
 
                         return (
                             <ToggleSwitch 
