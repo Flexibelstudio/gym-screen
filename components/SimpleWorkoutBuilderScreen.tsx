@@ -557,11 +557,23 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
                     />
                 </div>
                 <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
-                    <ToggleSwitch 
-                        label="'Följ mig'-läge" 
-                        checked={!!block.followMe} 
-                        onChange={v => handleFieldChange('followMe', v)} 
-                    />
+                    {(() => {
+                        const hasLinkedExercises = block.exercises?.some(e => e.groupId) || false;
+                        const followMeDisabled = hasLinkedExercises;
+                        const followMeDescription = hasLinkedExercises 
+                            ? "Kan inte kombineras med länkade övningar" 
+                            : undefined;
+
+                        return (
+                            <ToggleSwitch 
+                                label="'Följ mig'-läge" 
+                                checked={!!block.followMe} 
+                                onChange={v => handleFieldChange('followMe', v)} 
+                                disabled={followMeDisabled}
+                                description={followMeDescription}
+                            />
+                        );
+                    })()}
                 </div>
                 
                 {!isLastBlock && (

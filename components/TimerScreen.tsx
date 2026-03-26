@@ -362,7 +362,7 @@ const StandardListView: React.FC<{
     return (
         <div className={`w-full h-full flex flex-col overflow-hidden pb-1`}>
             {exercises.map((ex, i) => {
-                const useGroupColor = status !== TimerStatus.Resting && ex.groupColor;
+                const useGroupColor = !!ex.groupColor;
                 const nextEx = exercises[i + 1];
                 const isGroupedWithNext = nextEx && ex.groupId && ex.groupId === nextEx.groupId;
                 

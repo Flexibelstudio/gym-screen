@@ -447,6 +447,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                     break;
                 }
             }
+            onUpdate({ ...block, exercises });
         } else {
             // Link
             const newGroupId = ex1.groupId || ex2.groupId || `group-${Date.now()}`;
@@ -469,9 +470,10 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                     exercises[i] = { ...exercises[i], groupId: newGroupId, groupColor: newGroupColor };
                 }
             }
+            
+            // Disable followMe when linking exercises
+            onUpdate({ ...block, exercises, followMe: false });
         }
-
-        onUpdate({ ...block, exercises });
     };
 
     const updateGroupColor = (groupId: string, newColor: string) => {
@@ -553,13 +555,26 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                     checked={block.showExerciseDescriptions !== false} // Default true
                     onChange={(isChecked) => handleFieldChange('showExerciseDescriptions', isChecked)}
                 />
-                <ToggleSwitch
-                    label="'Följ mig'-läge"
-                    checked={!!block.followMe}
-                    onChange={(isChecked) => handleFieldChange('followMe', isChecked)}
-                    disabled={block.settings.mode === TimerMode.Custom}
-                    description={block.settings.mode === TimerMode.Custom ? "Kan inte kombineras med Sekvenstimer" : undefined}
-                />
+                
+                {(() => {
+                    const hasLinkedExercises = block.exercises?.some(e => e.groupId) || false;
+                    const followMeDisabled = block.settings.mode === TimerMode.Custom || hasLinkedExercises;
+                    const followMeDescription = block.settings.mode === TimerMode.Custom 
+                        ? "Kan inte kombineras med Sekvenstimer" 
+                        : hasLinkedExercises 
+                            ? "Kan inte kombineras med länkade övningar" 
+                            : undefined;
+
+                    return (
+                        <ToggleSwitch
+                            label="'Följ mig'-läge"
+                            checked={!!block.followMe}
+                            onChange={(isChecked) => handleFieldChange('followMe', isChecked)}
+                            disabled={followMeDisabled}
+                            description={followMeDescription}
+                        />
+                    );
+                })()}
                 
                 {!isLastBlock && (
                     <div className="flex flex-col gap-3 p-4 bg-purple-50/50 dark:bg-purple-900/10 rounded-2xl border border-purple-100 dark:border-purple-800/50">
