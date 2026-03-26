@@ -21,6 +21,7 @@ import {
   doc, 
   getDoc, 
   getDocs, 
+  getDocsFromServer,
   setDoc, 
   updateDoc, 
   deleteDoc, 
@@ -740,6 +741,36 @@ export const updateStudioConfig = async (orgId: string, studioId: string, overri
     const studios = org.studios.map(s => s.id === studioId ? { ...s, configOverrides: sanitizeData(overrides) } : s);
     await updateDoc(doc(db, 'organizations', orgId), { studios });
     return studios.find(s => s.id === studioId) as Studio;
+};
+
+export const getFreshCategoryWorkouts = async (orgId: string, category: string): Promise<Workout[]> => {
+    if (isOffline || !db || !orgId) return [];
+    try {
+        const q = query(
+          collection(db, 'workouts'), 
+          where("category", "==", category),
+          where("isPublished", "==", true),
+          where("isMemberDraft", "==", false)
+        );
+        const snap = await getDocsFromServer(q);
+        
+        return snap.docs
+            .map(d => {
+                const data = d.data() as Workout;
+                if (!data.blocks) data.blocks = [];
+                else {
+                    data.blocks = data.blocks.map(block => ({
+                        ...block,
+                        exercises: block.exercises || []
+                    }));
+                }
+                return data;
+            })
+            .filter(w => w.organizationId === orgId || w.organizationId === "" || w.organizationId === null);
+    } catch (error) {
+        console.error("Error fetching fresh category workouts:", error);
+        return [];
+    }
 };
 
 export const getWorkoutsForOrganization = async (orgId: string): Promise<Workout[]> => {
