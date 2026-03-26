@@ -26,83 +26,33 @@ const FeatureCard: React.FC<{ title: string; desc: string; icon: React.ReactNode
     </motion.div>
 );
 
-const FloatingScreens = () => (
-    <div className="relative h-[350px] md:h-[450px] w-full max-w-lg mx-auto">
+const SystemImages = () => (
+    <div className="relative h-[350px] md:h-[450px] w-full max-w-lg mx-auto flex items-center justify-center">
         {/* Startsidan (Back Left) */}
         <motion.div 
-            animate={{ y: [0, -15, 0] }} 
+            animate={{ y: [0, -10, 0] }} 
             transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute left-0 top-4 w-48 md:w-56 bg-gray-900 rounded-2xl border border-gray-700 shadow-2xl overflow-hidden opacity-80 transform -rotate-6 origin-bottom-right"
+            className="absolute left-0 top-4 w-48 md:w-56 rounded-2xl border border-gray-700 shadow-2xl overflow-hidden opacity-80 transform -rotate-6 origin-bottom-right bg-gray-900"
         >
-            <div className="p-4 border-b border-gray-800 bg-gray-800/50">
-                <div className="w-8 h-8 bg-primary/20 rounded-full mb-3"></div>
-                <div className="w-24 h-3 bg-gray-600 rounded-full mb-2"></div>
-                <div className="w-32 h-4 bg-gray-400 rounded-full"></div>
-            </div>
-            <div className="p-4 space-y-3">
-                <div className="w-full h-12 bg-gray-800 rounded-xl flex items-center px-3 gap-3">
-                    <div className="w-6 h-6 bg-gray-700 rounded-md"></div>
-                    <div className="w-20 h-2 bg-gray-600 rounded-full"></div>
-                </div>
-                <div className="w-full h-12 bg-gray-800 rounded-xl flex items-center px-3 gap-3">
-                    <div className="w-6 h-6 bg-gray-700 rounded-md"></div>
-                    <div className="w-16 h-2 bg-gray-600 rounded-full"></div>
-                </div>
-                <div className="w-full h-12 bg-gray-800 rounded-xl flex items-center px-3 gap-3">
-                    <div className="w-6 h-6 bg-gray-700 rounded-md"></div>
-                    <div className="w-24 h-2 bg-gray-600 rounded-full"></div>
-                </div>
-            </div>
+            <img src="/startskarm.png" alt="Startskärm" className="w-full h-auto object-cover" referrerPolicy="no-referrer" />
         </motion.div>
 
         {/* Fristående Timer (Back Right) */}
         <motion.div 
-            animate={{ y: [0, 15, 0] }} 
+            animate={{ y: [0, 10, 0] }} 
             transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-            className="absolute right-0 bottom-4 w-48 md:w-56 bg-gray-900 rounded-2xl border border-gray-700 shadow-2xl overflow-hidden opacity-80 transform rotate-6 origin-bottom-left"
+            className="absolute right-0 bottom-4 w-48 md:w-56 rounded-2xl border border-gray-700 shadow-2xl overflow-hidden opacity-80 transform rotate-6 origin-bottom-left bg-gray-900"
         >
-            <div className="p-6 text-center mt-4">
-                <div className="inline-block px-3 py-1 bg-blue-500/20 text-blue-400 text-xs font-bold rounded-full mb-4">TABATA</div>
-                <div className="text-4xl md:text-5xl font-mono font-black text-white mb-6 tracking-tighter">04:00</div>
-                <div className="w-16 h-16 mx-auto bg-blue-500 rounded-full flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.5)]">
-                    <div className="w-0 h-0 border-t-[6px] border-t-transparent border-l-[10px] border-l-white border-b-[6px] border-b-transparent ml-1"></div>
-                </div>
-            </div>
+            <img src="/timer.png" alt="Fristående Timer" className="w-full h-auto object-cover" referrerPolicy="no-referrer" />
         </motion.div>
 
         {/* Timer i pass (Center Front) */}
         <motion.div 
-            animate={{ y: [0, -10, 0] }} 
+            animate={{ y: [0, -8, 0] }} 
             transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-            className="absolute z-10 left-1/2 transform -translate-x-1/2 top-1/2 -translate-y-1/2 w-56 md:w-64 bg-gray-900 rounded-2xl border border-gray-500 shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden"
+            className="absolute z-10 left-1/2 transform -translate-x-1/2 top-1/2 -translate-y-1/2 w-56 md:w-64 rounded-2xl border border-gray-500 shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden bg-gray-900"
         >
-            <div className="bg-gray-800 p-5 text-center border-b border-gray-700">
-                <div className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Dagens WOD</div>
-                <div className="text-4xl font-mono font-black text-primary tracking-tighter">12:45</div>
-            </div>
-            <div className="p-4 space-y-2 bg-gray-900">
-                <div className="bg-primary/10 border border-primary/30 p-3 rounded-xl flex justify-between items-center">
-                    <div>
-                        <div className="text-white font-bold text-sm">1. Burpees</div>
-                        <div className="text-primary text-xs mt-1 font-mono">15 reps</div>
-                    </div>
-                    <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-                        <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                    </div>
-                </div>
-                <div className="bg-gray-800 p-3 rounded-xl opacity-60 flex justify-between items-center">
-                    <div>
-                        <div className="text-white font-bold text-sm">2. Box Jumps</div>
-                        <div className="text-gray-400 text-xs mt-1 font-mono">15 reps</div>
-                    </div>
-                </div>
-                <div className="bg-gray-800 p-3 rounded-xl opacity-40 flex justify-between items-center">
-                    <div>
-                        <div className="text-white font-bold text-sm">3. KB Swings</div>
-                        <div className="text-gray-400 text-xs mt-1 font-mono">20 reps</div>
-                    </div>
-                </div>
-            </div>
+            <img src="/pass.png" alt="Timer i pass" className="w-full h-auto object-cover" referrerPolicy="no-referrer" />
         </motion.div>
     </div>
 );
@@ -172,7 +122,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                         transition={{ duration: 0.8, delay: 0.2 }}
                         className="relative"
                     >
-                        <FloatingScreens />
+                        <SystemImages />
                     </motion.div>
                 </div>
             </section>
