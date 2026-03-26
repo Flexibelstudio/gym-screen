@@ -98,6 +98,7 @@ const App: React.FC = () => {
 
   // NEW: Ref to track if we have performed the initial cleanup of remote state
   const hasCleanedUpRef = useRef(false);
+  const [isReadyToListen, setIsReadyToListen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isStudioMode && currentUser) {
@@ -164,8 +165,11 @@ const App: React.FC = () => {
   useEffect(() => {
       const clearRemoteStateOnMount = async () => {
           if (isStudioMode && selectedOrganization && selectedStudio && !hasCleanedUpRef.current) {
-               await updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
                hasCleanedUpRef.current = true;
+               await updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
+               setIsReadyToListen(true);
+          } else if (!isStudioMode) {
+               setIsReadyToListen(true);
           }
       };
       
@@ -176,7 +180,7 @@ const App: React.FC = () => {
 
       // STUDIO RECEIVER LOGIC (TV Mode)
       useEffect(() => {
-          if (!isStudioMode || !selectedOrganization || !selectedStudio) return;
+          if (!isStudioMode || !selectedOrganization || !selectedStudio || !isReadyToListen) return;
     
           const remote = selectedStudio.remoteState;
           
@@ -241,7 +245,7 @@ const App: React.FC = () => {
                   }
               }
           }
-      }, [isStudioMode, selectedOrganization, selectedStudio, workouts, page, activeWorkout, activeBlock, navigateReplace, setActiveWorkout]);
+      }, [isStudioMode, selectedOrganization, selectedStudio, workouts, page, activeWorkout, activeBlock, navigateReplace, setActiveWorkout, isReadyToListen]);
 
 
   const [customBackHandler, setCustomBackHandler] = useState<(() => void) | null>(null);
