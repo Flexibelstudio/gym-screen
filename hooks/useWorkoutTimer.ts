@@ -267,7 +267,7 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
 
   const totalBlockDuration = useMemo(() => {
       if (!block) return 0;
-      return calculateBlockDuration(block.settings, block.exercises?.length || 0);
+      return calculateBlockDuration(block.settings, block.exercises.length);
   }, [block]);
 
   // CUSTOM TIMER: Flatten sequence to simplify logic

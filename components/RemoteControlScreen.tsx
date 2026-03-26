@@ -871,7 +871,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                         >
                                             <div>
                                                 <h4 className="font-bold text-white text-lg">{workout.title}</h4>
-                                                <p className="text-gray-400 text-xs mt-1">{workout.blocks?.length || 0} delar</p>
+                                                <p className="text-gray-400 text-xs mt-1">{workout.blocks.length} delar</p>
                                             </div>
                                             <ChevronRightIcon className="w-5 h-5 text-gray-500 group-hover:text-white" />
                                         </button>

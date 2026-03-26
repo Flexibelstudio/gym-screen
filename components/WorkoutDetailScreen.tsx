@@ -65,10 +65,8 @@ const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void
 
             <div className="flex-grow overflow-y-auto p-8 md:p-12 space-y-16">
                 <div className="max-w-7xl mx-auto space-y-16">
-                    {workout.blocks?.map((block, bIndex) => {
-                        if (!block) return null;
-                        return (
-                        <div key={block.id || `block-${bIndex}`} className="space-y-6">
+                    {workout.blocks.map((block, bIndex) => (
+                        <div key={block.id} className="space-y-6">
                             <div className="flex items-center gap-4 border-b-4 border-gray-100 dark:border-gray-800 pb-4">
                                 <span className={`inline-flex items-center px-4 py-2 rounded-xl text-lg font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
                                     {block.tag}
@@ -88,17 +86,15 @@ const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void
                             )}
 
                             <div className="grid gap-4">
-                                {block.exercises?.map((ex, index) => {
-                                    if (!ex) return null;
-                                    return (
-                                    <div key={ex.id || `ex-${index}`} className="flex items-start gap-8 p-6 rounded-[2rem] bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800">
+                                {block.exercises.map((ex, index) => (
+                                    <div key={ex.id} className="flex items-start gap-8 p-6 rounded-[2rem] bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800">
                                          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-xl font-black text-gray-500">
                                             {index + 1}
                                         </div>
                                         <div className="flex-grow">
                                             <div className="flex justify-between items-start gap-8">
                                                 <h3 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">
-                                                    {ex.name || 'Okänd övning'}
+                                                    {ex.name}
                                                 </h3>
                                                 {ex.reps && (
                                                     <div className="bg-primary/10 text-primary px-4 py-2 rounded-xl whitespace-nowrap">
@@ -113,13 +109,13 @@ const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void
                                             )}
                                         </div>
                                     </div>
-                                )})}
-                                {block.exercises?.length === 0 && (
+                                ))}
+                                {block.exercises.length === 0 && (
                                     <p className="text-gray-400 italic pl-4">Inga övningar.</p>
                                 )}
                             </div>
                         </div>
-                    )})}
+                    ))}
                 </div>
             </div>
             
@@ -166,17 +162,15 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
 
             <div className="flex-grow overflow-y-auto p-8 md:p-12">
                 <div className="max-w-7xl mx-auto space-y-6">
-                    {block.exercises?.map((ex, index) => {
-                        if (!ex) return null;
-                        return (
-                        <div key={ex.id || `ex-${index}`} className="flex items-start gap-8 p-8 rounded-[2rem] bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800">
+                    {block.exercises.map((ex, index) => (
+                        <div key={ex.id} className="flex items-start gap-8 p-8 rounded-[2rem] bg-gray-50 dark:bg-gray-900 border-2 border-gray-100 dark:border-gray-800">
                              <div className="flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-2xl md:text-3xl font-black text-gray-500">
                                 {index + 1}
                             </div>
                             <div className="flex-grow">
                                 <div className="flex justify-between items-start gap-8">
                                     <h3 className="text-2xl md:text-3xl font-black text-gray-900 dark:text-white leading-tight">
-                                        {ex.name || 'Okänd övning'}
+                                        {ex.name}
                                     </h3>
                                     {ex.reps && (
                                         <div className="bg-primary/10 text-primary px-6 py-3 rounded-2xl whitespace-nowrap">
@@ -191,8 +185,8 @@ const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => voi
                                 )}
                             </div>
                         </div>
-                    )})}
-                    {block.exercises?.length === 0 && (
+                    ))}
+                    {block.exercises.length === 0 && (
                         <p className="text-center text-3xl text-gray-400 py-20 italic">Inga övningar i detta block.</p>
                     )}
                 </div>
@@ -226,25 +220,24 @@ const WorkoutBlockCard: React.FC<{
     };
 
     const settingsText = useMemo(() => {
-        if (!block.settings) return 'Inga inställningar';
         const { mode, workTime, restTime, rounds } = block.settings;
         switch(mode) {
             case TimerMode.Tabata:
-                return `Tabata: ${rounds || 0} ronder (${formatTime(workTime || 0)} / ${formatTime(restTime || 0)})`;
+                return `Tabata: ${rounds} ronder (${formatTime(workTime)} / ${formatTime(restTime)})`;
             case TimerMode.Interval:
-                const totalIntervals = rounds || 0;
+                const totalIntervals = rounds;
                 const laps = block.settings.specifiedLaps != null ? block.settings.specifiedLaps : null;
                 const lapText = laps && laps > 1 ? ` (${laps} varv)` : '';
-                return `Intervall: ${totalIntervals}x (${formatTime(workTime || 0)} / ${formatTime(restTime || 0)})${lapText}`;
+                return `Intervall: ${totalIntervals}x (${formatTime(workTime)} / ${formatTime(restTime)})${lapText}`;
             case TimerMode.AMRAP:
             case TimerMode.TimeCap:
-                return `${mode}: ${formatTime(workTime || 0)} totalt`;
+                return `${mode}: ${formatTime(workTime)} totalt`;
             case TimerMode.EMOM:
-                return `EMOM: ${rounds || 0} min totalt`;
+                return `EMOM: ${rounds} min totalt`;
             case TimerMode.NoTimer:
                 return 'Egen takt';
             default:
-                return `${mode}: ${rounds || 0}x (${workTime || 0}s / ${restTime || 0}s)`;
+                return `${mode}: ${rounds}x (${workTime}s / ${restTime}s)`;
         }
     }, [block.settings]);
   
@@ -298,7 +291,7 @@ const WorkoutBlockCard: React.FC<{
 
         <div className="p-8 sm:p-10">
           <div className="flex justify-between items-center mb-6">
-            <h4 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">{block.exercises?.length || 0} övningar</h4>
+            <h4 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">{block.exercises.length} övningar</h4>
             <button onClick={() => setExercisesVisible(!exercisesVisible)} className="text-primary font-black uppercase tracking-widest text-[11px] hover:underline">
                 {exercisesVisible ? 'Dölj övningar' : 'Visa övningar'}
             </button>
@@ -307,12 +300,10 @@ const WorkoutBlockCard: React.FC<{
           <AnimatePresence initial={false}>
             {exercisesVisible && (
                 <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="space-y-4 overflow-hidden">
-                {block.exercises?.map((ex, index) => {
-                    if (!ex) return null;
-                    return (
-                    <div key={ex.id || `ex-${index}`} className="flex items-start gap-6 p-6 rounded-3xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800">
+                {block.exercises.map((ex) => (
+                    <div key={ex.id} className="flex items-start gap-6 p-6 rounded-3xl bg-gray-50 dark:bg-gray-900 border border-gray-100 dark:border-gray-800">
                         <div className="flex-grow min-w-0">
-                            <h4 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{ex.name || 'Okänd övning'}</h4>
+                            <h4 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">{ex.name}</h4>
                             {ex.description && <p className="text-lg text-gray-500 dark:text-gray-400 mt-2 leading-relaxed font-medium">{ex.description}</p>}
                         </div>
                         {ex.reps && (
@@ -321,7 +312,7 @@ const WorkoutBlockCard: React.FC<{
                             </div>
                         )}
                     </div>
-                )})}
+                ))}
                 </motion.div>
             )}
           </AnimatePresence>
@@ -396,18 +387,17 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
 
   const isWorkoutLoggable = useMemo(() => {
       if (workout.logType === 'quick') return true;
-      return workout.blocks?.some(b => b?.exercises?.some(e => e?.loggingEnabled === true)) || false;
+      return workout.blocks.some(b => b.exercises.some(e => e.loggingEnabled === true));
   }, [workout]);
 
   useEffect(() => {
     setSessionWorkout(prev => {
-      // Om passet är helt nytt, eller om innehållet faktiskt har ändrats från databasen
-      // (App.tsx ser till att workout-propen bara ändras när JSON.stringify skiljer sig)
-      // Vi vill dock inte skriva över om vi bara har lokala ändringar, men eftersom
-      // App.tsx skickar in en ny workout när databasen uppdateras, måste vi ta in den.
-      return JSON.parse(JSON.stringify(workout));
+      if (!prev || prev.id !== workout.id) {
+        return JSON.parse(JSON.stringify(workout));
+      }
+      return prev; 
     });
-  }, [workout]);
+  }, [workout.id]);
 
   useEffect(() => {
     if (isHyroxRace && selectedOrganization) {
@@ -570,10 +560,8 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
         
         <div className={`${showSidebar ? 'md:col-span-8' : 'w-full'} space-y-10`}>
             <div className="space-y-8">
-                {sessionWorkout.blocks?.map((block, index) => {
-                    if (!block) return null;
-                    return (
-                    <div key={block.id || `block-${index}`} ref={el => { blockRefs.current[block.id || `block-${index}`] = el }}>
+                {sessionWorkout.blocks.map((block) => (
+                    <div key={block.id} ref={el => { blockRefs.current[block.id] = el }}>
                         <WorkoutBlockCard 
                             block={block} 
                             onStart={async () => {
@@ -600,7 +588,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                             organizationId={selectedOrganization?.id || ''}
                         />
                     </div>
-                )})}
+                ))}
             </div>
 
             {isHyroxRace && (
