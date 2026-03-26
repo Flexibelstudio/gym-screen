@@ -1417,7 +1417,8 @@ const App: React.FC = () => {
           </main>
           
           {isInfoBannerVisible && (
-              <div className={`flex-shrink-0 w-full h-[320px] lg:h-[480px] xl:h-[512px] relative ${isScreensaverActive ? 'z-[1001]' : 'z-[40]'}`}>
+              // hidden md:block (osynlig på mobil), fast höjd h-[512px] på resten.
+              <div className={`hidden md:block flex-shrink-0 w-full h-[512px] relative ${isScreensaverActive ? 'z-[1001]' : 'z-[40]'}`}>
                   <InfoCarouselBanner 
                     messages={activeInfoMessages} 
                     className="relative !h-full" 
@@ -1637,7 +1638,7 @@ const App: React.FC = () => {
         {isScreensaverActive && (
             <Screensaver 
                 logoUrl={selectedOrganization?.logoUrlDark || selectedOrganization?.logoUrlLight}
-                bottomOffset={isInfoBannerVisible ? (window.innerWidth >= 1024 ? 512 : 0) : 0}
+                bottomOffset={isInfoBannerVisible ? (window.innerWidth >= 768 ? 512 : 0) : 0}
             />
         )}
        {showTerms && <TermsOfServiceModal onAccept={acceptTerms} />}
