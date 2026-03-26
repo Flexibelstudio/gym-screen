@@ -34,7 +34,7 @@ export const RepsOnlyScreen: React.FC<RepsOnlyScreenProps> = ({ block, onFinish,
     const padding = isLargeList ? 'pl-8 pr-4 py-2' : count > 6 ? 'pl-8 pr-6 py-3' : 'px-10 py-4';
 
     return (
-        <div className="w-full h-full flex flex-col bg-gray-50 dark:bg-black p-4 md:p-6 overflow-hidden relative">
+        <div className="fixed inset-0 w-full h-full flex flex-col bg-gray-50 dark:bg-black p-4 md:p-6 overflow-hidden z-50">
             {/* Top Header Box */}
             <div className="w-full flex-shrink-0 transition-colors duration-500 rounded-3xl p-6 md:p-8 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl bg-blue-600 border-blue-400 border-4 mb-4">
                 <h1 className="text-5xl md:text-7xl lg:text-8xl text-white uppercase tracking-widest font-black text-center leading-none drop-shadow-lg">
