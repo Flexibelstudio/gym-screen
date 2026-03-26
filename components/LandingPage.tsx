@@ -64,7 +64,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
             <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10">
                 <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-primary bg-gradient-to-tr from-white/20 via-transparent to-black/30 rounded-lg"></div>
+                        <img src="/favicon.png" alt="SmartSkärm Logo" className="w-8 h-8 rounded-lg" referrerPolicy="no-referrer" />
                         <span className="text-xl font-bold tracking-tight">SmartSkärm</span>
                     </div>
                     <div className="flex gap-4">
@@ -198,15 +198,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
             <footer className="border-t border-white/10 py-12 bg-black">
                 <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
                     <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 bg-primary rounded-md"></div>
+                        <img src="/favicon.png" alt="SmartSkärm Logo" className="w-6 h-6 rounded-md" referrerPolicy="no-referrer" />
                         <span className="font-bold text-lg">SmartSkärm</span>
                     </div>
                     <div className="text-gray-500 text-sm">
-                        © 2025 SmartSkärm AB. Alla rättigheter förbehållna.
-                    </div>
-                    <div className="flex gap-6">
-                        <a href="#" className="text-gray-400 hover:text-primary transition-colors">Support</a>
-                        <a href="#" className="text-gray-400 hover:text-primary transition-colors">Integritet</a>
+                        © 2026 SmartSkärm AB. Alla rättigheter förbehållna.
                     </div>
                 </div>
             </footer>
