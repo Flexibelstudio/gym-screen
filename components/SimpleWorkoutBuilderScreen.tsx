@@ -581,13 +581,15 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
                 </div>
                 
                 {!isLastBlock && (
-                     <div className="col-span-1 sm:col-span-2 p-4 rounded-2xl bg-purple-50/30 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800/50 flex flex-col gap-4">
+                     <div className={`col-span-1 sm:col-span-2 p-4 rounded-2xl bg-purple-50/30 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800/50 flex flex-col gap-4 ${block.settings.mode === TimerMode.NoTimer ? 'opacity-50' : ''}`}>
                         <ToggleSwitch 
                             label="Automatisk start av nästa block" 
-                            checked={!!block.autoAdvance} 
+                            checked={block.settings.mode === TimerMode.NoTimer ? false : !!block.autoAdvance} 
                             onChange={v => handleFieldChange('autoAdvance', v)} 
+                            disabled={block.settings.mode === TimerMode.NoTimer}
+                            description={block.settings.mode === TimerMode.NoTimer ? "Kan inte användas med Ingen Timer" : undefined}
                         />
-                        {block.autoAdvance && (
+                        {block.autoAdvance && block.settings.mode !== TimerMode.NoTimer && (
                             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4 pl-2 pt-2 border-t border-purple-100 dark:border-purple-800/50">
                                 <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Vila</span>
                                 <div className="flex items-center gap-2">

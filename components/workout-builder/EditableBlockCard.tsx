@@ -579,13 +579,15 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                 })()}
                 
                 {!isLastBlock && (
-                    <div className="flex flex-col gap-3 p-4 bg-purple-50/50 dark:bg-purple-900/10 rounded-2xl border border-purple-100 dark:border-purple-800/50">
+                    <div className={`flex flex-col gap-3 p-4 bg-purple-50/50 dark:bg-purple-900/10 rounded-2xl border border-purple-100 dark:border-purple-800/50 ${block.settings.mode === TimerMode.NoTimer ? 'opacity-50' : ''}`}>
                         <ToggleSwitch
                             label="Automatisk start av nästa block"
-                            checked={!!block.autoAdvance}
+                            checked={block.settings.mode === TimerMode.NoTimer ? false : !!block.autoAdvance}
                             onChange={(isChecked) => handleFieldChange('autoAdvance', isChecked)}
+                            disabled={block.settings.mode === TimerMode.NoTimer}
+                            description={block.settings.mode === TimerMode.NoTimer ? "Kan inte användas med Ingen Timer" : undefined}
                         />
-                        {block.autoAdvance && (
+                        {block.autoAdvance && block.settings.mode !== TimerMode.NoTimer && (
                             <motion.div 
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: 'auto' }}

@@ -2,6 +2,7 @@
 import React from 'react';
 import { WorkoutBlock, Exercise, Organization } from '../types';
 import { useWorkout } from '../context/WorkoutContext';
+import { PlayIcon } from './icons';
 
 interface RepsOnlyScreenProps {
     block: WorkoutBlock;
@@ -36,21 +37,23 @@ export const RepsOnlyScreen: React.FC<RepsOnlyScreenProps> = ({ block, onFinish,
         <div className="w-full h-full flex flex-col bg-black p-4 md:p-6 overflow-hidden relative">
             {/* Top Header Box */}
             <div className="w-full flex-shrink-0 transition-colors duration-500 rounded-3xl p-6 md:p-8 flex flex-col items-center justify-center relative overflow-hidden shadow-2xl bg-blue-600 border-blue-400 border-4 mb-4">
-                <div className="bg-blue-800/40 px-6 py-2 rounded-full backdrop-blur-sm border border-white/10 mb-4">
-                    <span className="text-white font-bold tracking-widest uppercase text-sm md:text-base">
-                        INGEN TIMER
-                    </span>
-                </div>
                 <h1 className="text-5xl md:text-7xl lg:text-8xl text-white uppercase tracking-widest font-black text-center leading-none drop-shadow-lg">
                     {block.title}
                 </h1>
-                <p className="text-xl md:text-2xl text-blue-100 mt-4 font-bold uppercase tracking-wider text-center">
+                <p className="text-xl md:text-2xl text-blue-100 mt-4 font-bold uppercase tracking-wider text-center mb-6">
                     Utför i din egen takt
                 </p>
+                <button 
+                    onClick={onFinish} 
+                    className="font-black text-xl py-4 px-12 rounded-2xl flex items-center justify-center gap-3 transition-all text-blue-600 shadow-xl bg-white hover:bg-blue-50 hover:scale-105 active:scale-95"
+                >
+                    <span>Klar med blocket</span>
+                    <PlayIcon className="w-6 h-6" />
+                </button>
             </div>
             
             {/* Exercises List */}
-            <div className="w-full flex-1 flex flex-col overflow-hidden pb-24">
+            <div className="w-full flex-1 flex flex-col overflow-hidden pb-1">
                 {block.exercises.map((ex, i) => {
                     const useGroupColor = !!ex.groupColor;
                     const nextEx = block.exercises[i + 1];
@@ -106,16 +109,6 @@ export const RepsOnlyScreen: React.FC<RepsOnlyScreenProps> = ({ block, onFinish,
                         </div>
                     );
                 })}
-            </div>
-
-            {/* Finish Button */}
-            <div className="absolute bottom-0 left-0 w-full p-6 bg-gradient-to-t from-black via-black/90 to-transparent pointer-events-none flex justify-center z-10">
-                <button 
-                    onClick={onFinish} 
-                    className="pointer-events-auto font-black text-xl py-4 px-12 rounded-2xl flex items-center justify-center gap-2 transition-all text-white shadow-xl shadow-blue-500/30 bg-blue-600 hover:brightness-110 hover:scale-105 active:scale-95 border-2 border-blue-400"
-                >
-                    Klar med blocket
-                </button>
             </div>
         </div>
     );

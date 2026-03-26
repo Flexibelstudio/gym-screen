@@ -233,7 +233,9 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
   
   const handleModeChange = (newMode: TimerMode) => {
     setMode(newMode);
-    if (newMode === TimerMode.Interval) {
+    if (newMode === TimerMode.NoTimer) {
+        setAutoAdvance(false);
+    } else if (newMode === TimerMode.Interval) {
         setCountMode('laps');
         setVarv(3);
         setIntervallerPerVarv((block.exercises?.length || 0) > 0 ? (block.exercises?.length || 1) : 1);
@@ -547,7 +549,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
 
         {/* --- AUTO ADVANCE SETTINGS --- */}
         {!isLastBlock && (
-            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
+            <div className={`mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4 ${mode === TimerMode.NoTimer ? 'opacity-50' : ''}`}>
                  <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-2xl border border-purple-100 dark:border-purple-800/50">
                      <div className="flex items-center gap-3">
                          <SparklesIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
@@ -555,12 +557,18 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                      </div>
                      <ToggleSwitch 
                         label="" 
-                        checked={autoAdvance} 
+                        checked={mode === TimerMode.NoTimer ? false : autoAdvance} 
                         onChange={setAutoAdvance} 
+                        disabled={mode === TimerMode.NoTimer}
                      />
                  </div>
+                 {mode === TimerMode.NoTimer && (
+                     <p className="text-xs text-red-500 font-medium px-2">
+                         Kan inte användas med "Ingen Timer"
+                     </p>
+                 )}
                  
-                 {autoAdvance && (
+                 {autoAdvance && mode !== TimerMode.NoTimer && (
                      <div className="animate-fade-in p-4 bg-white dark:bg-black/40 rounded-2xl border border-gray-200 dark:border-gray-700">
                          <ValueAdjuster 
                             label="Vila inför nästa del (sekunder)" 
