@@ -28,13 +28,13 @@ const FeatureCard: React.FC<{ title: string; desc: string; icon: React.ReactNode
 
 const SystemImages = () => (
     <div className="relative h-[350px] md:h-[450px] w-full max-w-lg mx-auto flex items-center justify-center">
-        {/* Startsidan (Back Left) */}
+        {/* Timer i pass (Back Left) */}
         <motion.div 
             animate={{ y: [0, -10, 0] }} 
             transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
             className="absolute left-0 top-4 w-48 md:w-56 rounded-2xl border border-gray-700 shadow-2xl overflow-hidden opacity-80 transform -rotate-6 origin-bottom-right bg-gray-900"
         >
-            <img src="/startskarm.png" alt="Startskärm" className="w-full h-auto object-cover" referrerPolicy="no-referrer" />
+            <img src="/pass.png" alt="Timer i pass" className="w-full h-auto object-cover" referrerPolicy="no-referrer" />
         </motion.div>
 
         {/* Fristående Timer (Back Right) */}
@@ -46,13 +46,13 @@ const SystemImages = () => (
             <img src="/timer.png" alt="Fristående Timer" className="w-full h-auto object-cover" referrerPolicy="no-referrer" />
         </motion.div>
 
-        {/* Timer i pass (Center Front) */}
+        {/* Startsidan (Center Front, moved left) */}
         <motion.div 
             animate={{ y: [0, -8, 0] }} 
             transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-            className="absolute z-10 left-1/2 transform -translate-x-1/2 top-1/2 -translate-y-1/2 w-56 md:w-64 rounded-2xl border border-gray-500 shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden bg-gray-900"
+            className="absolute z-10 left-[40%] transform -translate-x-1/2 top-1/2 -translate-y-1/2 w-56 md:w-64 rounded-2xl border border-gray-500 shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden bg-gray-900"
         >
-            <img src="/pass.png" alt="Timer i pass" className="w-full h-auto object-cover" referrerPolicy="no-referrer" />
+            <img src="/startskarm.png" alt="Startskärm" className="w-full h-auto object-cover" referrerPolicy="no-referrer" />
         </motion.div>
     </div>
 );
