@@ -1,206 +1,92 @@
 
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise } from '../types';
-import { ToggleSwitch, PencilIcon, ChartBarIcon, SparklesIcon, ChevronUpIcon, ChevronDownIcon, TrashIcon, BuildingIcon, PlusIcon, LockClosedIcon } from './icons';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, StudioConfig, UserRole, BankExercise, WorkoutLogType, Organization, BenchmarkDefinition } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
-import { getExerciseBank, getOrganizationExerciseBank, saveExerciseToBank } from '../services/firebaseService';
-import { interpretHandwriting, generateExerciseDescription } from '../services/geminiService';
+import { getExerciseBank, getOrganizationExerciseBank, deleteImageByUrl, saveAdminActivity, updateOrganizationBenchmarks, deleteExerciseFromBank } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
+import { useAuth } from '../context/AuthContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
-import { motion, AnimatePresence } from 'framer-motion';
+import { EditableField } from './workout-builder/EditableField';
+import { ExerciseBankPanel, ExercisePreviewModal } from './workout-builder/ExerciseBankPanel';
+import { AICoachSidebar } from './workout-builder/AICoachPanel';
+import { EditableBlockCard } from './workout-builder/EditableBlockCard';
+import { analyzeCurrentWorkout } from '../services/geminiService';
+import { ToggleSwitch, DumbbellIcon, SparklesIcon, TrophyIcon, CheckIcon } from './icons';
 import { Toast } from './ui/ToastNotification';
 
-// --- Helpers ---
-const parseExerciseLine = (line: string): { reps: string; name: string } => {
-    const trimmedLine = line.trim();
-    const match = trimmedLine.match(/^(\d+)\s+(.*)/);
-    if (match && match[2] && match[2].trim() !== '') {
-        return { reps: match[1], name: match[2].trim() };
-    }
-    return { reps: '', name: trimmedLine };
-};
-
-// --- Handwriting Modal ---
-interface HandwritingInputModalProps {
-    onClose: () => void;
-    onComplete: (text: string) => void;
-}
-
-const HandwritingInputModal: React.FC<HandwritingInputModalProps> = ({ onClose, onComplete }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [history, setHistory] = useState<ImageData[]>([]);
-    const historyRef = useRef(history);
-    historyRef.current = history;
-    const isDrawing = useRef(false);
-    const points = useRef<{x: number, y: number}[]>([]);
-
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        
-        const setupCanvas = () => {
-            const dpr = window.devicePixelRatio || 1;
-            const rect = canvas.getBoundingClientRect(); 
-            if(rect.width === 0 || rect.height === 0) return;
-            canvas.width = Math.round(rect.width * dpr);
-            canvas.height = Math.round(rect.height * dpr);
-            ctx.strokeStyle = '#FFFFFF';
-            ctx.lineWidth = 3 * dpr;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-        };
-
-        setupCanvas();
-
-        const getPointerPos = (e: PointerEvent) => {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
-        };
-
-        const startDrawing = (e: PointerEvent) => {
-            e.preventDefault();
-            isDrawing.current = true;
-            points.current = [getPointerPos(e)];
-        };
-
-        const draw = (e: PointerEvent) => {
-            if (!isDrawing.current) return;
-            e.preventDefault();
-            const pos = getPointerPos(e);
-            points.current.push(pos);
-            if (points.current.length < 3) return;
-            const p1 = points.current[points.current.length - 3];
-            const p2 = points.current[points.current.length - 2];
-            const p3 = points.current[points.current.length - 1];
-            const mid1 = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-            const mid2 = { x: (p2.y + p3.x) / 2, y: (p2.y + p3.y) / 2 };
-            ctx.beginPath(); ctx.moveTo(mid1.x, mid1.y); ctx.quadraticCurveTo(p2.x, p2.y, mid2.x, mid2.y); ctx.stroke();
-        };
-
-        const stopDrawing = () => {
-            if (!isDrawing.current) return;
-            isDrawing.current = false;
-            setHistory(prev => [...prev, ctx.getImageData(0, 0, canvas.width, canvas.height)]);
-            points.current = [];
-        };
-
-        canvas.addEventListener('pointerdown', startDrawing);
-        canvas.addEventListener('pointermove', draw);
-        canvas.addEventListener('pointerup', stopDrawing);
-        canvas.addEventListener('pointerleave', stopDrawing);
-        return () => {
-            canvas.removeEventListener('pointerdown', startDrawing);
-            canvas.removeEventListener('pointermove', draw);
-            canvas.removeEventListener('pointerup', stopDrawing);
-            canvas.removeEventListener('pointerleave', stopDrawing);
-        };
-    }, []);
-
-    const handleInterpret = async () => {
-        if (!canvasRef.current) return;
-        setIsLoading(true);
-        try {
-            const dataUrl = canvasRef.current.toDataURL('image/png');
-            const base64Image = dataUrl.split(',')[1];
-            const text = await interpretHandwriting(base64Image);
-            onComplete(text);
-        } catch(e) {
-            alert(e instanceof Error ? e.message : 'Ett okänt fel inträffade.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    
-    const handleUndo = () => {
-        const canvas = canvasRef.current;
-        const ctx = canvas?.getContext('2d');
-        if (!canvas || !ctx) return;
-
-        const newHistory = history.slice(0, -1);
-        setHistory(newHistory);
-        
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        if (newHistory.length > 0) {
-            ctx.putImageData(newHistory[newHistory.length - 1], 0, 0);
-        }
-    };
-    
-    const clearCanvas = () => {
-        const canvas = canvasRef.current;
-        if (canvas) {
-            const ctx = canvas.getContext('2d');
-            ctx?.clearRect(0, 0, canvas.width, canvas.height);
-        }
-        setHistory([]);
-    };
-    
-    return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
-            <div className="bg-gray-800 rounded-xl p-4 sm:p-6 w-full max-w-2xl text-white shadow-2xl border border-gray-700 flex flex-col" onClick={e => e.stopPropagation()}>
-                <h2 className="text-xl font-bold mb-4">Skriv med fingret</h2>
-                <div className="w-full aspect-[2/1] bg-gray-900 rounded-lg overflow-hidden" style={{ touchAction: 'none' }}>
-                    <canvas ref={canvasRef} className="w-full h-full" />
-                </div>
-                {isLoading && (
-                     <div className="absolute inset-0 bg-gray-800/70 flex flex-col items-center justify-center">
-                        <p className="text-lg font-semibold">Tolkar handstil...</p>
-                    </div>
-                )}
-                <div className="mt-4 grid grid-cols-4 gap-2 sm:gap-4">
-                    <button onClick={handleUndo} disabled={history.length === 0} className="bg-gray-600 hover:bg-gray-500 font-bold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Ångra</button>
-                    <button onClick={clearCanvas} className="bg-gray-600 hover:bg-gray-500 font-bold py-3 rounded-lg">Rensa</button>
-                    <button onClick={onClose} className="bg-gray-600 hover:bg-gray-500 font-bold py-3 rounded-lg">Avbryt</button>
-                    <button onClick={handleInterpret} className="bg-primary hover:brightness-95 font-bold py-3 rounded-lg">Tolka</button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-
-// --- Helper functions to create new items ---
 const createNewWorkout = (): Workout => ({
   id: `workout-${Date.now()}`,
-  title: '',
+  title: 'Nytt Träningspass',
   coachTips: '',
-  blocks: [createNewBlock(1)],
+  blocks: [],
   category: 'Ej kategoriserad',
   isPublished: false,
+  showDetailsToMember: true,
+  logType: 'detailed',
   createdAt: Date.now(),
-  organizationId: '',
+  organizationId: '' // Placeholder
 });
 
-const createNewBlock = (index: number): WorkoutBlock => ({
+const createNewBlock = (): WorkoutBlock => ({
   id: `block-${Date.now()}`,
-  title: `Block ${index}`,
+  title: 'Nytt Block',
   tag: 'Styrka',
   setupDescription: '',
-  showDescriptionInTimer: false,
   followMe: false,
   settings: {
-    mode: TimerMode.NoTimer,
-    workTime: 0,
-    restTime: 0,
-    rounds: 1,
+    mode: TimerMode.Interval,
+    workTime: 30,
+    restTime: 15,
+    rounds: 3,
     prepareTime: 10,
     direction: 'down'
   },
   exercises: [],
 });
 
-const createNewExercise = (): Exercise => ({
-  id: `ex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-  name: '',
-  reps: '',
-  description: '',
-  imageUrl: '',
-});
+// Helper to sanitize workout (remove deleted bank links)
+const sanitizeWorkoutWithBank = (currentWorkout: Workout, currentBank: BankExercise[]): Workout => {
+    const bankIds = new Set(currentBank.map(b => b.id));
+    let hasChanges = false;
+    
+    const newBlocks = currentWorkout.blocks.map(block => {
+        const newExercises = block.exercises.map(ex => {
+            if (ex.isFromBank && !bankIds.has(ex.id)) {
+                hasChanges = true;
+                // Downgrade to Ad-hoc: Generate new ID to break links to deleted bank items
+                return { 
+                    ...ex, 
+                    id: `ex-orphaned-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                    isFromBank: false, 
+                    loggingEnabled: false 
+                };
+            }
+            return ex;
+        });
+        
+        return { ...block, exercises: newExercises };
+    });
+
+    if (!hasChanges) return currentWorkout;
+    return { ...currentWorkout, blocks: newBlocks };
+};
+
+
+// Helper to check for unsaved changes
+const useUnsavedChanges = (isDirty: boolean) => {
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (isDirty) {
+        event.preventDefault();
+        event.returnValue = ''; // Required for Chrome
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [isDirty]);
+};
 
 const ConfirmationModal: React.FC<{
     onConfirm: () => void;
@@ -222,635 +108,553 @@ const ConfirmationModal: React.FC<{
     );
 };
 
-// --- Sub-components ---
-
-interface ExerciseItemProps {
-    exercise: Exercise;
-    onUpdate: (id: string, updatedValues: Partial<Exercise>) => void;
-    onRemove: (id: string) => void;
-    onOpenHandwriting: () => void;
-    exerciseBank: BankExercise[];
-    organizationId: string;
-    index: number;
-    total: number;
-    onMove: (direction: 'up' | 'down') => void;
-    enableWorkoutLogging?: boolean;
-    onShowToast: (message: string) => void;
+interface WorkoutBuilderScreenProps {
+  initialWorkout: Workout | null;
+  onSave: (workout: Workout) => void;
+  onCancel: () => void;
+  focusedBlockId?: string | null;
+  studioConfig: StudioConfig;
+  sessionRole: UserRole;
+  isNewDraft?: boolean;
+  organization?: Organization; // Needed for benchmarks
+  setCustomBackHandler?: (handler: (() => void) | null) => void;
 }
-const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, onOpenHandwriting, exerciseBank, index, total, onMove, enableWorkoutLogging, onShowToast }) => {
-    const [searchQuery, setSearchQuery] = useState('');
-    const [isSearchVisible, setIsSearchVisible] = useState(false);
-    const searchContainerRef = useRef<HTMLDivElement>(null);
-    const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
 
-    const handleGenerateDescription = async () => {
-        if (!exercise.name.trim()) {
-            alert("Skriv ett namn på övningen först för att kunna generera en beskrivning.");
-            return;
-        }
-        setIsGeneratingDesc(true);
+export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ initialWorkout, onSave, onCancel, focusedBlockId: initialFocusedBlockId, studioConfig, sessionRole, isNewDraft = false, organization, setCustomBackHandler }) => {
+  const { selectedOrganization } = useStudio();
+  const { userData } = useAuth();
+  const [workout, setWorkout] = useState<Workout>(() => initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
+  const [initialSnapshot, setInitialSnapshot] = useState<string>('');
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+  const [blockToDelete, setBlockToDelete] = useState<string | null>(null);
+  const [exerciseBank, setExerciseBank] = useState<BankExercise[]>([]);
+  const [isBankLoading, setIsBankLoading] = useState(true);
+  const [previewExercise, setPreviewExercise] = useState<BankExercise | null>(null);
+  const [activeSidebarTab, setActiveSidebarTab] = useState<'bank' | 'ai'>('bank');
+  
+  // Toast state
+  const [toast, setToast] = useState<{ message: string, visible: boolean }>({ message: '', visible: false });
+
+  // Benchmark logic
+  const org = organization || selectedOrganization;
+  const existingBenchmarks = org?.benchmarkDefinitions || [];
+  const [isBenchmark, setIsBenchmark] = useState(!!initialWorkout?.benchmarkId);
+  const [matchedBenchmark, setMatchedBenchmark] = useState<BenchmarkDefinition | null>(null);
+  const [newBenchmarkType, setNewBenchmarkType] = useState<'time' | 'reps' | 'weight'>('time');
+
+  const editorRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    const snapshot = JSON.stringify(initialWorkout || createNewWorkout());
+    setInitialSnapshot(snapshot);
+    setWorkout(JSON.parse(snapshot));
+    setIsBenchmark(!!(initialWorkout?.benchmarkId));
+  }, [initialWorkout]);
+  
+  // Smart Benchmark Matching & Sync
+  useEffect(() => {
+      if (!isBenchmark) {
+          setMatchedBenchmark(null);
+          return;
+      }
+
+      // Check if workout title matches an existing benchmark name
+      const match = existingBenchmarks.find(b => b.title.trim().toLowerCase() === workout.title.trim().toLowerCase());
+      if (match) {
+          setMatchedBenchmark(match);
+          // Synka dropdown med existerande typ
+          setNewBenchmarkType(match.type);
+      } else {
+          setMatchedBenchmark(null);
+      }
+  }, [workout.title, isBenchmark, existingBenchmarks]);
+
+  useEffect(() => {
+    const fetchBank = async () => {
+        if (!selectedOrganization) return;
+        setIsBankLoading(true);
         try {
-            const description = await generateExerciseDescription(exercise.name);
-            onUpdate(exercise.id, { description });
+            const bank = await getOrganizationExerciseBank(selectedOrganization.id);
+            setExerciseBank(bank);
+            
+            // CLEANUP: Using shared logic
+            setWorkout(prev => sanitizeWorkoutWithBank(prev, bank));
+
         } catch (error) {
-            alert("Kunde inte generera en beskrivning. Försök igen.");
-            console.error(error);
+            console.error("Failed to fetch exercise bank:", error);
         } finally {
-            setIsGeneratingDesc(false);
+            setIsBankLoading(false);
         }
     };
+    fetchBank();
+  }, [selectedOrganization]);
 
-    // Smartare sökning och sortering
-    const searchResults = useMemo(() => {
-        if (searchQuery.length < 2 || !isSearchVisible) return [];
-        
-        const query = searchQuery.toLowerCase();
-        return exerciseBank
-            .filter(ex => ex.name.toLowerCase().includes(query))
-            .sort((a, b) => {
-                const aName = a.name.toLowerCase();
-                const bName = b.name.toLowerCase();
-                
-                if (aName === query) return -1;
-                if (bName === query) return 1;
-                
-                const aStarts = aName.startsWith(query);
-                const bStarts = bName.startsWith(query);
-                if (aStarts && !bStarts) return -1;
-                if (!aStarts && bStarts) return 1;
-                
-                return aName.localeCompare(bName, 'sv');
-            })
-            .slice(0, 15);
-    }, [searchQuery, exerciseBank, isSearchVisible]);
+  const handleDeleteExerciseFromBank = useCallback(async (exercise: BankExercise) => {
+      try {
+          await deleteExerciseFromBank(exercise.id);
+          // 1. Update bank state instantly
+          const newBank = exerciseBank.filter(ex => ex.id !== exercise.id);
+          setExerciseBank(newBank);
+          
+          // 2. Run cleanup on current workout instantly
+          setWorkout(prev => sanitizeWorkoutWithBank(prev, newBank));
+          
+      } catch (error) {
+          console.error("Failed to delete exercise:", error);
+          alert("Kunde inte ta bort övningen.");
+      }
+  }, [exerciseBank]);
 
-    useEffect(() => {
-        const handleClickOutside = (event: MouseEvent) => {
-            if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
-                setIsSearchVisible(false);
+  const handleExerciseSavedToBank = useCallback((newExercise: BankExercise) => {
+      setExerciseBank(prev => {
+          // Check if already exists to avoid duplicates
+          if (prev.some(ex => ex.id === newExercise.id)) return prev;
+          return [...prev, newExercise].sort((a, b) => a.name.localeCompare(b.name, 'sv'));
+      });
+  }, []);
+
+  const isDirty = useMemo(() => {
+    if (isNewDraft && initialWorkout) {
+        return true;
+    }
+    return JSON.stringify(workout) !== initialSnapshot;
+  }, [workout, initialSnapshot, isNewDraft, initialWorkout]);
+
+  useUnsavedChanges(isDirty);
+  
+  const isSingleBlockMode = useMemo(() => !!initialFocusedBlockId, [initialFocusedBlockId]);
+  
+  const blocksToDisplay = useMemo(() => {
+    if (!workout) return [];
+    if (isSingleBlockMode) {
+      return workout.blocks.filter(b => b.id === initialFocusedBlockId);
+    }
+    return workout.blocks;
+  }, [workout, isSingleBlockMode, initialFocusedBlockId]);
+
+
+  const handleCancel = () => {
+    if (isDirty) {
+      if (window.confirm('Du har osparade ändringar. Är du säker på att du vill lämna?')) {
+        onCancel();
+      }
+    } else {
+      onCancel();
+    }
+  };
+
+  useEffect(() => {
+    if (setCustomBackHandler) {
+      setCustomBackHandler(() => handleCancel);
+    }
+    return () => {
+      if (setCustomBackHandler) {
+        setCustomBackHandler(null);
+      }
+    };
+  }, [setCustomBackHandler, isDirty, onCancel]);
+
+  const handleSave = async () => {
+    const finalWorkout = { ...workout };
+
+    if (isBenchmark) {
+        if (matchedBenchmark) {
+            // Koppla till befintligt
+            finalWorkout.benchmarkId = matchedBenchmark.id;
+            
+            // Uppdatera typen om användaren ändrat den i dropdownen
+            if (matchedBenchmark.type !== newBenchmarkType && org) {
+                const updatedDefinitions = existingBenchmarks.map(b => 
+                    b.id === matchedBenchmark.id 
+                    ? { ...b, type: newBenchmarkType } 
+                    : b
+                );
+                await updateOrganizationBenchmarks(org.id, updatedDefinitions);
             }
-        };
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
-    }, []);
 
-    const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const newName = e.target.value;
-        setSearchQuery(newName);
-        onUpdate(exercise.id, { name: newName, isFromBank: false, loggingEnabled: false });
-    };
-
-    const handleSelectExercise = (bankExercise: BankExercise) => {
-        onUpdate(exercise.id, {
-            name: bankExercise.name,
-            description: bankExercise.description,
-            imageUrl: bankExercise.imageUrl,
-            reps: exercise.reps,
-            isFromBank: true,
-            loggingEnabled: enableWorkoutLogging ? true : false
-        });
-        setIsSearchVisible(false);
-        setSearchQuery('');
-    };
-
-    const handleToggleLogging = () => {
-        if (!enableWorkoutLogging) {
-            onShowToast("Aktivera Passloggning i inställningarna för att använda detta.");
-            return;
+        } else if (org) {
+            // Skapa nytt benchmark
+            const newDefinition: BenchmarkDefinition = {
+                id: `bm_${Date.now()}`,
+                title: finalWorkout.title,
+                type: newBenchmarkType
+            };
+            
+            // Uppdatera organisationens lista
+            const updatedDefinitions = [...existingBenchmarks, newDefinition];
+            await updateOrganizationBenchmarks(org.id, updatedDefinitions);
+            
+            // Koppla workout till nya IDt
+            finalWorkout.benchmarkId = newDefinition.id;
         }
-        if (window.navigator.vibrate) window.navigator.vibrate(5);
-        onUpdate(exercise.id, { loggingEnabled: !exercise.loggingEnabled });
+    } else {
+        // Om användaren avmarkerat benchmark
+        finalWorkout.benchmarkId = undefined;
+    }
+
+    // LOG ACTIVITY
+    if (selectedOrganization && userData) {
+        saveAdminActivity({
+            organizationId: selectedOrganization.id,
+            userId: userData.uid,
+            userName: userData.firstName || 'Coach',
+            type: 'WORKOUT',
+            action: initialWorkout ? 'UPDATE' : 'CREATE',
+            description: `${initialWorkout ? 'Uppdaterade' : 'Skapade'} passet "${finalWorkout.title}"`,
+            timestamp: Date.now()
+        });
+    }
+    onSave(finalWorkout);
+  };
+  
+  const handleUpdateWorkoutDetail = (field: keyof Workout, value: any) => {
+    setWorkout(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleAddBlock = () => {
+    const newBlock = createNewBlock();
+    setWorkout(prev => ({ ...prev, blocks: [...prev.blocks, newBlock] }));
+    setTimeout(() => { // Scroll to new block after render
+        editorRefs.current[newBlock.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  };
+
+  const handleRemoveBlock = (blockId: string) => {
+    setBlockToDelete(blockId);
+  };
+  
+  const confirmRemoveBlock = () => {
+    if (!blockToDelete) return;
+
+    const block = workout.blocks.find(b => b.id === blockToDelete);
+    if (block) {
+        const urlsToDelete = block.exercises.map(ex => ex.imageUrl).filter(Boolean) as string[];
+        if (urlsToDelete.length > 0) {
+            Promise.all(urlsToDelete.map(url => deleteImageByUrl(url)));
+        }
+    }
+    
+    setWorkout(prev => ({ ...prev, blocks: prev.blocks.filter(b => b.id !== blockToDelete) }));
+    setBlockToDelete(null);
+  };
+
+  const handleUpdateBlock = (blockId: string, updatedBlock: WorkoutBlock) => {
+    setWorkout(prev => ({
+      ...prev,
+      blocks: prev.blocks.map(b => b.id === blockId ? updatedBlock : b)
+    }));
+  };
+  
+  const handleMoveBlock = (blockId: string, direction: 'up' | 'down') => {
+    setWorkout(prev => {
+        const newBlocks = [...prev.blocks];
+        const index = newBlocks.findIndex(b => b.id === blockId);
+        if (index === -1) return prev;
+        
+        if (direction === 'up' && index > 0) {
+            [newBlocks[index], newBlocks[index - 1]] = [newBlocks[index - 1], newBlocks[index]];
+        } else if (direction === 'down' && index < newBlocks.length - 1) {
+            [newBlocks[index], newBlocks[index + 1]] = [newBlocks[index + 1], newBlocks[index]];
+        }
+        
+        return { ...prev, blocks: newBlocks };
+    });
+  };
+
+  const handleMoveExercise = (blockId: string, exerciseIndex: number, direction: 'up' | 'down') => {
+    setWorkout(prev => {
+        const newBlocks = [...prev.blocks];
+        const blockIndex = newBlocks.findIndex(b => b.id === blockId);
+        if (blockIndex === -1) return prev;
+
+        const block = { ...newBlocks[blockIndex] };
+        const newExercises = [...block.exercises];
+
+        if (direction === 'up' && exerciseIndex > 0) {
+            [newExercises[exerciseIndex], newExercises[exerciseIndex - 1]] = [newExercises[exerciseIndex - 1], newExercises[exerciseIndex]];
+        } else if (direction === 'down' && exerciseIndex < newExercises.length - 1) {
+            [newExercises[exerciseIndex], newExercises[exerciseIndex + 1]] = [newExercises[exerciseIndex + 1], newExercises[exerciseIndex]];
+        }
+
+        block.exercises = newExercises;
+        newBlocks[blockIndex] = block;
+        return { ...prev, blocks: newBlocks };
+    });
+  };
+
+
+  const handleUpdateBlockSettings = (blockId: string, updates: Partial<TimerSettings> & { autoAdvance?: boolean; transitionTime?: number }) => {
+    setWorkout(prev => ({
+        ...prev,
+        blocks: prev.blocks.map(b => {
+            if (b.id !== blockId) return b;
+            
+            const { autoAdvance, transitionTime, ...settingsUpdates } = updates;
+            
+            return { 
+                ...b, 
+                autoAdvance: autoAdvance !== undefined ? autoAdvance : b.autoAdvance,
+                transitionTime: transitionTime !== undefined ? transitionTime : b.transitionTime,
+                settings: { ...b.settings, ...settingsUpdates } 
+            };
+        })
+    }));
+    setEditingBlockId(null);
+  };
+  
+  const handleAddExerciseFromBank = (bankExercise: BankExercise) => {
+    const targetBlock = isSingleBlockMode 
+        ? workout.blocks.find(b => b.id === initialFocusedBlockId)
+        : workout.blocks[workout.blocks.length - 1];
+
+    if (!targetBlock) {
+        alert("Skapa ett block först för att lägga till en övning.");
+        return;
+    }
+
+    const newExercise: Exercise = {
+        id: bankExercise.id,
+        name: bankExercise.name,
+        description: bankExercise.description || '',
+        imageUrl: bankExercise.imageUrl || '',
+        reps: '', 
+        isFromBank: true,
+        loggingEnabled: true // Default true för bankövningar
     };
+
+    setWorkout(prev => ({
+        ...prev,
+        blocks: prev.blocks.map(b => 
+            b.id === targetBlock.id
+            ? { ...b, exercises: [...b.exercises, newExercise] }
+            : b
+        )
+    }));
     
-    const inputBaseClasses = "appearance-none !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-semibold placeholder-gray-400 dark:placeholder-gray-500";
-    
-    const isBanked = !!exercise.isFromBank;
-    const isLogButtonLocked = !enableWorkoutLogging;
+    setTimeout(() => {
+        editorRefs.current[`exercise-${newExercise.id}`]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
+  };
 
-    return (
-        <div 
-            ref={searchContainerRef} 
-            className={`group p-3 rounded-2xl flex items-start gap-3 transition-all border-l-4 relative ${
-                isSearchVisible ? 'z-[1000]' : 'z-0'
-            } ${
-                isBanked
-                ? 'bg-blue-50/50 dark:bg-blue-900/10 border-blue-400' 
-                : 'bg-gray-100 dark:bg-gray-700/50 border-transparent'
-            }`}
-        >
-            <div className="flex flex-col gap-1 items-center justify-center self-center mr-1">
-                <button 
-                    disabled={index === 0} 
-                    onClick={() => onMove('up')} 
-                    className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 transition-colors"
-                >
-                    <ChevronUpIcon className="w-5 h-5" />
-                </button>
-                <button 
-                    disabled={index === total - 1} 
-                    onClick={() => onMove('down')} 
-                    className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 transition-colors"
-                >
-                    <ChevronDownIcon className="w-5 h-5" />
-                </button>
-            </div>
+  const handleAnalyzeWorkout = async () => {
+      try {
+          const analyzedWorkout = await analyzeCurrentWorkout(workout);
+          setWorkout(prev => ({
+              ...prev,
+              aiCoachSummary: analyzedWorkout.aiCoachSummary,
+              blocks: prev.blocks.map((block, index) => {
+                  const analyzedBlock = analyzedWorkout.blocks[index];
+                  if (!analyzedBlock) return block;
+                  return {
+                      ...block,
+                      aiCoachNotes: analyzedBlock.aiCoachNotes,
+                      aiMagicPenSuggestions: analyzedBlock.aiMagicPenSuggestions
+                  }
+              })
+          }));
+          setActiveSidebarTab('ai'); // Switch tab to show results
+      } catch (error) {
+          console.error("Failed to analyze workout:", error);
+          alert("Kunde inte analysera passet. Försök igen senare.");
+      }
+  };
 
-            <div className="flex-grow space-y-2">
-                <div className="flex items-center gap-2">
-                    <input
-                        type="text"
-                        value={exercise.reps || ''}
-                        onChange={e => onUpdate(exercise.id, { reps: e.target.value })}
-                        placeholder="Antal"
-                        className={`${inputBaseClasses} w-24`}
-                    />
-                    <div className="relative flex-grow">
-                        <input
-                            type="text"
-                            value={exercise.name}
-                            onChange={handleNameChange}
-                            onFocus={() => {
-                                setIsSearchVisible(true);
-                                setSearchQuery(exercise.name);
-                            }}
-                            placeholder="Sök eller skriv övning..."
-                            className={`${inputBaseClasses} w-full pr-8`}
-                        />
-                         {/* Visual Indicator inside input */}
-                         <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
-                            {isBanked ? (
-                                <BuildingIcon className="w-4 h-4 text-blue-500" />
-                            ) : (
-                                <span className="text-xs grayscale opacity-50">📝</span>
-                            )}
-                        </div>
-
-                        {isSearchVisible && searchResults.length > 0 && (
-                            <ul className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.3)] z-[2000] max-h-80 overflow-y-auto ring-1 ring-black/5 p-1 animate-fade-in">
-                                {searchResults.map(result => (
-                                    <li key={result.id}>
-                                        <button
-                                            onClick={() => handleSelectExercise(result)}
-                                            className="w-full text-left px-4 py-3 hover:bg-primary/10 text-gray-900 dark:text-white transition-colors font-bold rounded-xl border-b border-gray-50 dark:border-gray-700/50 last:border-0"
-                                        >
-                                            {result.name}
-                                        </button>
-                                    </li>
+  return (
+    <>
+      <Toast isVisible={toast.visible} message={toast.message} onClose={() => setToast({ ...toast, visible: false })} />
+      <div className="w-full max-w-[1800px] mx-auto">
+        <div className="flex flex-col xl:flex-row gap-6 items-start">
+          
+          {/* COLUMN 1: MAIN EDITOR (70%) */}
+          <div className="flex-grow min-w-0 w-full space-y-6">
+            {!isSingleBlockMode && (
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg space-y-6 border border-gray-200 dark:border-gray-700">
+                  <EditableField 
+                      label="Passets Titel"
+                      value={workout.title}
+                      onChange={val => handleUpdateWorkoutDetail('title', val)}
+                      isTitle
+                  />
+                  <EditableField 
+                      label="Tips från Coachen"
+                      value={workout.coachTips}
+                      onChange={val => handleUpdateWorkoutDetail('coachTips', val)}
+                      isTextarea
+                  />
+                  
+                  {sessionRole !== 'member' && (
+                    <div className="pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Passkategori</label>
+                            <div className="flex flex-wrap gap-2">
+                                {studioConfig.customCategories.map(cat => (
+                                    <button
+                                        key={cat.id}
+                                        onClick={() => handleUpdateWorkoutDetail('category', cat.name)}
+                                        className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-colors ${workout.category === cat.name ? 'bg-primary text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
+                                    >
+                                        {cat.name}
+                                    </button>
                                 ))}
-                            </ul>
-                        )}
-                    </div>
-                    
-                    <button 
-                        onClick={handleToggleLogging}
-                        className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all border font-black text-[10px] uppercase tracking-wider transform active:scale-95 ${
-                            exercise.loggingEnabled 
-                            ? 'bg-green-500 border-green-600 text-white shadow-lg' 
-                            : isBanked
-                                ? isLogButtonLocked
-                                    ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400 cursor-not-allowed opacity-70'
-                                    : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400 hover:border-gray-400'
-                                : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-300 cursor-not-allowed'
-                        }`}
-                        title={
-                            !isBanked 
-                            ? "Spara övningen i banken för att aktivera loggning" 
-                            : isLogButtonLocked 
-                                ? "Loggning inaktiverad i systemet"
-                                : exercise.loggingEnabled ? "Loggning aktiverad" : "Aktivera loggning"
-                        }
-                    >
-                        {isLogButtonLocked && isBanked ? (
-                            <LockClosedIcon className="w-3.5 h-3.5 text-current" />
-                        ) : (
-                            <ChartBarIcon className={`w-4 h-4 ${exercise.loggingEnabled ? 'text-white' : 'text-current'}`} />
-                        )}
-                        <span className="hidden sm:inline">{exercise.loggingEnabled ? 'Loggas' : 'Loggas ej'}</span>
-                    </button>
-
-                    <button onClick={onOpenHandwriting} className="text-gray-400 hover:text-primary p-2" title="Skriv för hand">
-                        <PencilIcon className="w-5 h-5" />
-                    </button>
-
-                    <button onClick={() => onRemove(exercise.id)} className="text-red-500 p-2" title="Ta bort">
-                        <TrashIcon className="w-5 h-5" />
-                    </button>
-                </div>
-                
-                <div className="relative">
-                    <textarea
-                        value={exercise.description || ''}
-                        onChange={e => onUpdate(exercise.id, { description: e.target.value })}
-                        placeholder="Instruktioner..."
-                        className={`${inputBaseClasses} w-full h-20 resize-none font-medium text-sm`}
-                        rows={2}
-                    />
-                    <button
-                        onClick={handleGenerateDescription}
-                        disabled={isGeneratingDesc}
-                        className="absolute top-2 right-2 text-gray-400 hover:text-purple-500 transition-colors"
-                        title="AI-beskrivning"
-                    >
-                        {isGeneratingDesc ? <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div> : <SparklesIcon className="w-5 h-5" />}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
-interface BlockCardProps {
-    block: WorkoutBlock;
-    index: number;
-    totalBlocks: number;
-    onUpdate: (updatedBlock: WorkoutBlock) => void;
-    onRemove: () => void;
-    onEditSettings: () => void;
-    onOpenHandwriting: (cb: (text: string) => void) => void;
-    exerciseBank: BankExercise[];
-    enableWorkoutLogging?: boolean;
-    onShowToast: (message: string) => void;
-}
-const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpdate, onRemove, onEditSettings, onOpenHandwriting, exerciseBank, enableWorkoutLogging, onShowToast }) => {
-    const handleFieldChange = (field: keyof WorkoutBlock, value: any) => {
-        const updated = { ...block, [field]: value };
-        if (field === 'title' && typeof value === 'string') {
-            const settings = parseSettingsFromTitle(value);
-            if (settings) updated.settings = { ...updated.settings, ...settings };
-        }
-        onUpdate(updated);
-    };
-
-    const moveEx = (idx: number, dir: 'up' | 'down') => {
-        const exs = [...block.exercises];
-        if (dir === 'up' && idx > 0) [exs[idx], exs[idx-1]] = [exs[idx-1], exs[idx]];
-        else if (dir === 'down' && idx < exs.length - 1) [exs[idx], exs[idx+1]] = [exs[idx+1], exs[idx]];
-        onUpdate({ ...block, exercises: exs });
-    };
-    
-    const handleToggleAllLogging = () => {
-        if (!enableWorkoutLogging) {
-            onShowToast("Aktivera Passloggning i inställningarna för att använda detta.");
-            return;
-        }
-
-        if (window.navigator.vibrate) window.navigator.vibrate(15);
-        const bankedExercises = block.exercises.filter(ex => !!ex.isFromBank);
-        
-        if (bankedExercises.length === 0) {
-            alert("Inga övningar i detta block är kopplade till banken. Koppla dem först för att aktivera loggning.");
-            return;
-        }
-
-        const allEnabled = bankedExercises.every(ex => ex.loggingEnabled);
-        const updatedExercises = block.exercises.map(ex => {
-            if (!!ex.isFromBank) {
-                return { ...ex, loggingEnabled: !allEnabled };
-            }
-            return ex;
-        });
-        onUpdate({ ...block, exercises: updatedExercises });
-    };
-
-    const inputBaseClasses = "appearance-none !bg-white dark:!bg-gray-900 !text-gray-900 dark:!text-white border border-gray-100 dark:border-gray-800 rounded-2xl p-4 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-black placeholder-gray-300 dark:placeholder-gray-600 shadow-inner";
-    const isLastBlock = index === totalBlocks;
-    const isLogButtonLocked = !enableWorkoutLogging;
-
-    return (
-        <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-6 sm:p-8 shadow-xl border border-gray-100 dark:border-gray-800 space-y-6">
-            <div className="flex justify-between items-start">
-                <div className="flex-grow max-w-2xl">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 block ml-1">Block {index}</label>
-                    <input 
-                        type="text" value={block.title} 
-                        onChange={e => handleFieldChange('title', e.target.value)} 
-                        placeholder="Blockets titel..." 
-                        className={`${inputBaseClasses} w-full text-2xl tracking-tight`} 
-                    />
-                </div>
-                {totalBlocks > 1 && (
-                    <button onClick={onRemove} className="text-red-500 p-3 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors">
-                        <TrashIcon className="w-6 h-6" />
-                    </button>
-                )}
-            </div>
-
-            <div>
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 block ml-1">Instruktioner</label>
-                <textarea 
-                    value={block.setupDescription || ''} 
-                    onChange={e => handleFieldChange('setupDescription', e.target.value)} 
-                    placeholder="T.ex. AMRAP 10 minuter, fokus på tempo..." 
-                    className={`${inputBaseClasses} w-full text-base font-bold h-24 resize-none`} 
-                    rows={2}
-                />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
-                    <ToggleSwitch 
-                        label="Visa beskrivning i timern" 
-                        checked={!!block.showDescriptionInTimer} 
-                        onChange={v => handleFieldChange('showDescriptionInTimer', v)} 
-                    />
-                </div>
-                <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
-                    {(() => {
-                        const hasLinkedExercises = block.exercises?.some(e => e.groupId) || false;
-                        const followMeDisabled = block.settings.mode === TimerMode.Custom || block.settings.mode === TimerMode.NoTimer || hasLinkedExercises;
-                        const followMeDescription = block.settings.mode === TimerMode.Custom 
-                            ? "Kan inte kombineras med Sekvenstimer" 
-                            : block.settings.mode === TimerMode.NoTimer
-                                ? "Kan inte kombineras med 'Ingen timer'"
-                                : hasLinkedExercises 
-                                    ? "Kan inte kombineras med länkade övningar" 
-                                    : undefined;
-
-                        return (
-                            <ToggleSwitch 
-                                label="'Följ mig'-läge" 
-                                checked={!!block.followMe} 
-                                onChange={v => handleFieldChange('followMe', v)} 
-                                disabled={followMeDisabled}
-                                description={followMeDescription}
-                            />
-                        );
-                    })()}
-                </div>
-                
-                {!isLastBlock && (
-                     <div className="col-span-1 sm:col-span-2 p-4 rounded-2xl bg-purple-50/30 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800/50 flex flex-col gap-4">
-                        <ToggleSwitch 
-                            label="Automatisk start av nästa block" 
-                            checked={!!block.autoAdvance} 
-                            onChange={v => handleFieldChange('autoAdvance', v)} 
-                        />
-                        {block.autoAdvance && (
-                            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4 pl-2 pt-2 border-t border-purple-100 dark:border-purple-800/50">
-                                <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Vila</span>
-                                <div className="flex items-center gap-2">
-                                    <button 
-                                        onClick={() => handleFieldChange('transitionTime', Math.max(0, (block.transitionTime || 0) - 5))}
-                                        className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300"
-                                    >
-                                        -
-                                    </button>
-                                    <div className="min-w-[40px] text-center font-mono font-black text-purple-600 dark:text-purple-400">
-                                        {block.transitionTime || 0}s
+                            </div>
+                        </div>
+                        
+                        <div className="space-y-4">
+                            <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400">Inställningar för medlemmar</h4>
+                            <div className="space-y-3">
+                                
+                                <div className="pt-2 border-t border-gray-200 dark:border-gray-700 mt-2">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <ToggleSwitch 
+                                            label="Detta är ett Benchmark" 
+                                            checked={isBenchmark} 
+                                            onChange={setIsBenchmark} 
+                                        />
+                                        <TrophyIcon className={`w-4 h-4 ${isBenchmark ? 'text-yellow-500' : 'text-gray-400'}`} />
                                     </div>
-                                    <button 
-                                        onClick={() => handleFieldChange('transitionTime', (block.transitionTime || 0) + 5)}
-                                        className="w-8 h-8 flex items-center justify-center bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300"
-                                    >
-                                        +
-                                    </button>
+                                    
+                                    {isBenchmark && (
+                                        <div className="ml-0 pl-4 border-l-2 border-primary/20 animate-fade-in mt-3">
+                                            <div className="flex flex-col gap-3">
+                                                {matchedBenchmark ? (
+                                                    <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 p-2 rounded-lg">
+                                                        <CheckIcon className="w-4 h-4" />
+                                                        <span>Kopplat till <strong>{matchedBenchmark.title}</strong></span>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-xs text-gray-500">Nytt benchmark skapas: <strong>{workout.title}</strong></p>
+                                                )}
+                                                
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-bold text-gray-400 uppercase">Mätvärde:</span>
+                                                    <select 
+                                                        value={newBenchmarkType}
+                                                        onChange={(e) => setNewBenchmarkType(e.target.value as any)}
+                                                        className="bg-gray-100 dark:bg-black border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-sm font-medium focus:ring-2 focus:ring-primary outline-none"
+                                                    >
+                                                        <option value="time">Tid</option>
+                                                        <option value="reps">Varv</option>
+                                                        <option value="weight">Vikt</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
-                            </motion.div>
-                        )}
-                    </div>
-                )}
-            </div>
-
-            <div className="bg-primary/5 dark:bg-primary/10 p-5 rounded-3xl flex justify-between items-center border border-primary/20">
-                <div>
-                    <p className="text-[10px] font-black text-primary/60 uppercase tracking-widest mb-1">Vald Timer</p>
-                    <p className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">{block.settings.mode}</p>
-                </div>
-                <button onClick={onEditSettings} className="bg-primary text-white font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-xl shadow-lg shadow-primary/20 active:scale-95 transition-all">Anpassa klockan</button>
-            </div>
-
-            <div className="space-y-4 pt-4">
-                <div className="flex justify-between items-center px-1">
-                    <h4 className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Övningar ({block.exercises.length})</h4>
-                    <button 
-                        onClick={handleToggleAllLogging}
-                        className={`text-[10px] font-black uppercase hover:underline flex items-center gap-1 ${isLogButtonLocked ? 'text-gray-400 cursor-not-allowed opacity-70' : 'text-primary'}`}
-                    >
-                         {isLogButtonLocked && <LockClosedIcon className="w-3 h-3" />}
-                        Logga alla i blocket
-                    </button>
-                </div>
-                {block.exercises.map((ex, i) => (
-                    <ExerciseItem 
-                        key={ex.id} exercise={ex} 
-                        onUpdate={(id, vals) => onUpdate({ ...block, exercises: block.exercises.map(e => e.id === id ? { ...e, ...vals } : e) })} 
-                        onRemove={id => onUpdate({ ...block, exercises: block.exercises.filter(e => e.id !== id) })} 
-                        onOpenHandwriting={() => onOpenHandwriting(t => { const p = parseExerciseLine(t); onUpdate({ ...block, exercises: block.exercises.map(e => e.id === ex.id ? { ...e, name: p.name, reps: p.reps } : e) }) })} 
-                        exerciseBank={exerciseBank} index={i} total={block.exercises.length} onMove={dir => moveEx(i, dir)} organizationId=""
-                        enableWorkoutLogging={enableWorkoutLogging}
-                        onShowToast={onShowToast}
-                    />
-                ))}
-                <button 
-                    onClick={() => onUpdate({ ...block, exercises: [...block.exercises, createNewExercise()] })} 
-                    className="w-full py-5 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-[2rem] text-gray-400 font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex items-center justify-center gap-2"
-                >
-                    <span className="text-xl">+</span> Lägg till övning
-                </button>
-            </div>
-        </div>
-    );
-};
-
-// --- Main Component ---
-export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | null; onSave: (w: Workout) => void; onCancel: () => void; setCustomBackHandler?: (handler: (() => void) | null) => void }> = ({ initialWorkout, onSave, onCancel, setCustomBackHandler }) => {
-    const { selectedOrganization, studioConfig } = useStudio();
-    const [workout, setWorkout] = useState<Workout>(() => initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
-    const [initialSnapshot, setInitialSnapshot] = useState<string>('');
-    const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
-    const [handwritingCb, setHandwritingCb] = useState<((t: string) => void) | null>(null);
-    const [exerciseBank, setExerciseBank] = useState<BankExercise[]>([]);
-    
-    useEffect(() => {
-        setInitialSnapshot(JSON.stringify(workout));
-    }, []);
-
-    const isDirty = useMemo(() => {
-        return JSON.stringify(workout) !== initialSnapshot;
-    }, [workout, initialSnapshot]);
-
-    const handleCancel = () => {
-        if (isDirty) {
-            if (window.confirm('Du har osparade ändringar. Är du säker på att du vill lämna?')) {
-                onCancel();
-            }
-        } else {
-            onCancel();
-        }
-    };
-
-    useEffect(() => {
-        if (setCustomBackHandler) {
-            setCustomBackHandler(() => handleCancel);
-        }
-        return () => {
-            if (setCustomBackHandler) {
-                setCustomBackHandler(null);
-            }
-        };
-    }, [setCustomBackHandler, isDirty, onCancel]);
-    
-    // Toast state
-    const [toast, setToast] = useState<{ message: string, visible: boolean }>({ message: '', visible: false });
-
-    useEffect(() => { 
-        if (selectedOrganization) {
-            getOrganizationExerciseBank(selectedOrganization.id).then(bank => {
-                setExerciseBank(bank);
-                // CLEANUP: If workout has exercises linked to deleted bank items, downgrade them AND change ID.
-                setWorkout(prev => {
-                    const bankIds = new Set(bank.map(b => b.id));
-                    let hasChanges = false;
-                    const newBlocks = prev.blocks.map(block => {
-                        const newExercises = block.exercises.map(ex => {
-                            if (ex.isFromBank && !bankIds.has(ex.id)) {
-                                hasChanges = true;
-                                return { 
-                                    ...ex, 
-                                    id: `ex-orphaned-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                                    isFromBank: false, 
-                                    loggingEnabled: false 
-                                };
-                            }
-                            return ex;
-                        });
-                        return { ...block, exercises: newExercises };
-                    });
-
-                    if (hasChanges) {
-                        return { ...prev, blocks: newBlocks };
-                    }
-                    return prev;
-                });
-            }); 
-        }
-    }, [selectedOrganization]);
-
-    const handleSave = () => {
-        if (!workout.title.trim()) { alert("Passet måste ha ett namn."); return; }
-        onSave({ ...workout, organizationId: selectedOrganization?.id || '' });
-    };
-    
-    const handleAddBlock = () => {
-        setWorkout(prev => ({ ...prev, blocks: [...prev.blocks, createNewBlock(prev.blocks.length + 1)] }));
-    };
-
-    const handleUpdateBlock = (updatedBlock: WorkoutBlock) => {
-        setWorkout(prev => ({
-            ...prev,
-            blocks: prev.blocks.map(b => b.id === updatedBlock.id ? updatedBlock : b)
-        }));
-    };
-
-    const handleRemoveBlock = (blockId: string) => {
-         setWorkout(prev => ({
-            ...prev,
-            blocks: prev.blocks.filter(b => b.id !== blockId)
-         }));
-    };
-
-    const handleUpdateBlockSettings = (blockId: string, updates: Partial<TimerSettings> & { autoAdvance?: boolean; transitionTime?: number }) => {
-        setWorkout(prev => ({
-            ...prev,
-            blocks: prev.blocks.map(b => {
-                if (b.id !== blockId) return b;
-                const { autoAdvance, transitionTime, ...settingsUpdates } = updates;
-                return {
-                    ...b,
-                    autoAdvance: autoAdvance !== undefined ? autoAdvance : b.autoAdvance,
-                    transitionTime: transitionTime !== undefined ? transitionTime : b.transitionTime,
-                    settings: { ...b.settings, ...settingsUpdates }
-                };
-            })
-        }));
-        setEditingBlockId(null);
-    };
-
-    const inputBaseClasses = "appearance-none !bg-white dark:!bg-gray-800 !text-gray-900 dark:!text-white border border-gray-200 dark:border-gray-700 rounded-[2rem] p-6 focus:ring-4 focus:ring-primary/20 focus:outline-none transition-all font-black placeholder-gray-300 dark:placeholder-gray-600 shadow-xl";
-
-    return (
-        <div className="w-full h-full flex flex-col animate-fade-in bg-gray-50 dark:bg-black">
-            <Toast isVisible={toast.visible} message={toast.message} onClose={() => setToast({ ...toast, visible: false })} />
-            <div className="flex-grow overflow-y-auto px-4 pb-40 pt-6 custom-scrollbar scroll-smooth">
-                <div className="max-w-2xl mx-auto space-y-10">
-                    
-                    {/* Header Card */}
-                    <div className="bg-primary/10 p-8 rounded-[3rem] border border-primary/20 shadow-sm relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-8 opacity-5">
-                            <SparklesIcon className="w-32 h-32" />
-                        </div>
-                        <div className="relative z-10 space-y-6">
-                            <div>
-                                <label className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-2 block ml-2">Passets Namn</label>
-                                <input 
-                                    type="text" value={workout.title} 
-                                    onChange={e => setWorkout({ ...workout, title: e.target.value })} 
-                                    placeholder="Mitt grymma pass..." 
-                                    className={`${inputBaseClasses} w-full text-4xl tracking-tight !bg-white dark:!bg-gray-900`} 
-                                />
-                            </div>
-                            <div>
-                                <label className="text-[10px] font-black text-primary uppercase tracking-[0.3em] mb-2 block ml-2">Tips till deltagare</label>
-                                <textarea 
-                                    value={workout.coachTips || ''} 
-                                    onChange={e => setWorkout({ ...workout, coachTips: e.target.value })} 
-                                    placeholder="T.ex. utrustning som behövs eller fokusområden..." 
-                                    className={`${inputBaseClasses} w-full text-lg h-32 resize-none !bg-white dark:!bg-gray-900`} 
-                                    rows={3}
-                                />
                             </div>
                         </div>
                     </div>
-
-                    <div className="space-y-10">
-                        {workout.blocks.map((block, i) => (
-                            <BlockCard 
-                                key={block.id} block={block} index={i+1} 
-                                totalBlocks={workout.blocks.length}
-                                onUpdate={handleUpdateBlock} 
-                                onRemove={() => handleRemoveBlock(block.id)} 
-                                onEditSettings={() => setEditingBlockId(block.id)} 
-                                onOpenHandwriting={(cb) => setHandwritingCb(() => cb)} 
-                                exerciseBank={exerciseBank} 
-                                enableWorkoutLogging={studioConfig.enableWorkoutLogging}
-                                onShowToast={(msg) => setToast({ message: msg, visible: true })}
-                            />
-                        ))}
+                  )}
+              </div>
+            )}
+            
+            <div className="space-y-6">
+              {blocksToDisplay.map((block, index) => {
+                  return (
+                    <div key={block.id} ref={el => { editorRefs.current[`block-${block.id}`] = el; }}>
+                        <EditableBlockCard 
+                          block={block}
+                          index={index}
+                          totalBlocks={workout.blocks.length}
+                          onUpdate={updatedBlock => handleUpdateBlock(block.id, updatedBlock)}
+                          onRemove={() => handleRemoveBlock(block.id)}
+                          onEditSettings={() => setEditingBlockId(block.id)}
+                          isDraggable={!isSingleBlockMode}
+                          workoutTitle={workout.title}
+                          workoutBlocksCount={workout.blocks.length}
+                          editorRefs={editorRefs}
+                          exerciseBank={exerciseBank}
+                          organizationId={selectedOrganization?.id || ''}
+                          onMoveExercise={(idx, direction) => handleMoveExercise(block.id, idx, direction)}
+                          onMoveBlock={(direction) => handleMoveBlock(block.id, direction)}
+                          onExerciseSavedToBank={handleExerciseSavedToBank}
+                          enableWorkoutLogging={studioConfig.enableWorkoutLogging}
+                          onShowToast={(msg) => setToast({ message: msg, visible: true })}
+                        />
                     </div>
+                  )
+              })}
+            </div>
 
+            {!isSingleBlockMode && (
+              <button onClick={handleAddBlock} className="w-full flex items-center justify-center gap-2 py-3 px-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
+                  <span>Lägg till Block</span>
+              </button>
+            )}
+          </div>
+
+          {!isSingleBlockMode && (
+            <div className="w-full xl:w-96 flex-shrink-0 flex flex-col gap-4 sticky top-8 h-[calc(100vh-4rem)]">
+                {/* Tab Switcher */}
+                <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                     <button 
-                        onClick={handleAddBlock} 
-                        className="w-full py-8 bg-white dark:bg-gray-900 text-gray-400 hover:text-primary hover:border-primary/50 font-black rounded-[3rem] border-4 border-dashed border-gray-200 dark:border-gray-800 uppercase tracking-[0.2em] text-sm shadow-sm transition-all transform active:scale-95"
+                        onClick={() => setActiveSidebarTab('bank')}
+                        className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${activeSidebarTab === 'bank' ? 'bg-white dark:bg-gray-700 shadow-sm text-primary' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
                     >
-                        + Lägg till block
+                        <DumbbellIcon className="w-4 h-4" />
+                        Övningsbank
+                    </button>
+                    <button 
+                        onClick={() => setActiveSidebarTab('ai')}
+                        className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${activeSidebarTab === 'ai' ? 'bg-white dark:bg-gray-700 shadow-sm text-purple-600 dark:text-purple-400' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                    >
+                        <SparklesIcon className="w-4 h-4" />
+                        AI-Coach
                     </button>
                 </div>
-            </div>
 
-            {/* Bottom Actions */}
-            <div className="fixed bottom-0 left-0 right-0 z-[200] bg-white/80 dark:bg-black/80 backdrop-blur-xl border-t border-gray-100 dark:border-gray-800 p-6">
-                <div className="max-w-2xl mx-auto flex gap-4">
-                    <button onClick={handleCancel} className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-500 py-5 rounded-[2rem] font-black uppercase tracking-widest text-xs shadow-lg active:scale-95 transition-all">Avbryt</button>
-                    <button onClick={handleSave} className="flex-[2] bg-primary text-white py-5 rounded-[2rem] font-black shadow-2xl shadow-primary/30 uppercase tracking-widest text-lg transform hover:-translate-y-1 active:scale-95 transition-all">Spara Pass 🚀</button>
+                <div className="flex-grow overflow-y-auto scrollbar-hide rounded-xl">
+                    {activeSidebarTab === 'bank' && studioConfig.enableExerciseBank && (
+                        <ExerciseBankPanel 
+                            bank={exerciseBank}
+                            onAddExercise={handleAddExerciseFromBank}
+                            onPreviewExercise={setPreviewExercise}
+                            onDeleteExercise={handleDeleteExerciseFromBank}
+                            isLoading={isBankLoading}
+                        />
+                    )}
+                    {activeSidebarTab === 'ai' && (
+                        <AICoachSidebar workout={workout} onAnalyze={handleAnalyzeWorkout} />
+                    )}
                 </div>
             </div>
-
-            {editingBlockId && (
-                <TimerSetupModal 
-                    isOpen={!!editingBlockId} onClose={() => setEditingBlockId(null)} 
-                    block={workout.blocks.find(b => b.id === editingBlockId)!} 
-                    onSave={s => handleUpdateBlockSettings(editingBlockId, s)} 
-                />
-            )}
-
-            {handwritingCb && (
-                <HandwritingInputModal 
-                    onClose={() => setHandwritingCb(null)} 
-                    onComplete={t => { handwritingCb(t); setHandwritingCb(null); }} 
-                />
-            )}
+          )}
         </div>
-    );
+        
+        <div className="mt-8 flex justify-end gap-4 pb-12 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <button onClick={handleCancel} className="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-white font-bold py-3 px-8 rounded-xl transition-colors">Avbryt</button>
+            <button onClick={handleSave} className="bg-primary hover:brightness-110 text-white font-bold py-3 px-8 rounded-xl transition-colors shadow-lg" disabled={!isDirty}>
+              Spara Pass
+            </button>
+        </div>
+      </div>
+      
+      {!!blockToDelete && (
+        <ConfirmationModal
+            onConfirm={confirmRemoveBlock}
+            onCancel={() => setBlockToDelete(null)}
+            title="Ta bort block"
+            message="Är du säker på att du vill ta bort detta block? Detta kan inte ångras."
+        />
+      )}
+      
+      {editingBlockId && (
+        <TimerSetupModal
+            isOpen={!!editingBlockId}
+            onClose={() => setEditingBlockId(null)}
+            block={workout.blocks.find(b => b.id === editingBlockId)!}
+            onSave={(newSettings) => handleUpdateBlockSettings(editingBlockId, newSettings)}
+            isLastBlock={workout.blocks[workout.blocks.length - 1]?.id === editingBlockId}
+        />
+      )}
+
+      {previewExercise && (
+        <ExercisePreviewModal
+            exercise={previewExercise}
+            onClose={() => setPreviewExercise(null)}
+            onAdd={handleAddExerciseFromBank}
+        />
+       )}
+    </>
+  );
 };

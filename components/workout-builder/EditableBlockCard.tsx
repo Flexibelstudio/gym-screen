@@ -558,14 +558,12 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                 
                 {(() => {
                     const hasLinkedExercises = block.exercises?.some(e => e.groupId) || false;
-                    const followMeDisabled = block.settings.mode === TimerMode.Custom || block.settings.mode === TimerMode.NoTimer || hasLinkedExercises;
+                    const followMeDisabled = block.settings.mode === TimerMode.Custom || hasLinkedExercises;
                     const followMeDescription = block.settings.mode === TimerMode.Custom 
                         ? "Kan inte kombineras med Sekvenstimer" 
-                        : block.settings.mode === TimerMode.NoTimer
-                            ? "Kan inte kombineras med 'Ingen timer'"
-                            : hasLinkedExercises 
-                                ? "Kan inte kombineras med länkade övningar" 
-                                : undefined;
+                        : hasLinkedExercises 
+                            ? "Kan inte kombineras med länkade övningar" 
+                            : undefined;
 
                     return (
                         <ToggleSwitch

@@ -504,16 +504,8 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
               Sekvens
             </button>
             <button
-              onClick={() => !block.followMe && handleModeChange(TimerMode.NoTimer)}
-              disabled={!!block.followMe}
-              title={block.followMe ? "Kan inte kombineras med Följ mig-läge" : undefined}
-              className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${
-                block.followMe 
-                  ? 'bg-gray-200 dark:bg-gray-800 text-gray-400 dark:text-gray-600 cursor-not-allowed' 
-                  : mode === TimerMode.NoTimer 
-                    ? 'bg-primary text-white' 
-                    : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-600'
-              }`}
+              onClick={() => handleModeChange(TimerMode.NoTimer)}
+              className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${mode === TimerMode.NoTimer ? 'bg-primary text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-600'}`}
             >
               Ingen Timer
             </button>
