@@ -238,6 +238,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onCancel={handleBack}
                 studioConfig={studioConfig}
                 sessionRole={role}
+                setCustomBackHandler={functions.setCustomBackHandler}
             />;
 
         case Page.SimpleWorkoutBuilder:
@@ -245,6 +246,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 initialWorkout={activeWorkout} 
                 onSave={onSaveWorkout} 
                 onCancel={handleBack}
+                setCustomBackHandler={functions.setCustomBackHandler}
             />;
 
         case Page.Coach:

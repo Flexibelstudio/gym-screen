@@ -117,9 +117,10 @@ interface WorkoutBuilderScreenProps {
   sessionRole: UserRole;
   isNewDraft?: boolean;
   organization?: Organization; // Needed for benchmarks
+  setCustomBackHandler?: (handler: (() => void) | null) => void;
 }
 
-export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ initialWorkout, onSave, onCancel, focusedBlockId: initialFocusedBlockId, studioConfig, sessionRole, isNewDraft = false, organization }) => {
+export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ initialWorkout, onSave, onCancel, focusedBlockId: initialFocusedBlockId, studioConfig, sessionRole, isNewDraft = false, organization, setCustomBackHandler }) => {
   const { selectedOrganization } = useStudio();
   const { userData } = useAuth();
   const [workout, setWorkout] = useState<Workout>(() => initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
@@ -241,6 +242,17 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
       onCancel();
     }
   };
+
+  useEffect(() => {
+    if (setCustomBackHandler) {
+      setCustomBackHandler(() => handleCancel);
+    }
+    return () => {
+      if (setCustomBackHandler) {
+        setCustomBackHandler(null);
+      }
+    };
+  }, [setCustomBackHandler, isDirty, onCancel]);
 
   const handleSave = async () => {
     const finalWorkout = { ...workout };
@@ -490,11 +502,6 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                         <div className="space-y-4">
                             <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400">Inställningar för medlemmar</h4>
                             <div className="space-y-3">
-                                <ToggleSwitch 
-                                    label="Visa övningsdetaljer" 
-                                    checked={workout.showDetailsToMember !== false} 
-                                    onChange={val => handleUpdateWorkoutDetail('showDetailsToMember', val)}
-                                />
                                 
                                 <div className="pt-2 border-t border-gray-200 dark:border-gray-700 mt-2">
                                     <div className="flex items-center gap-2 mb-2">
