@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma, RemoteSessionState } from './types';
+import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma, RemoteSessionState, TimerStatus } from './types';
 
 import { useStudio } from './context/StudioContext';
 import { useAuth } from './context/AuthContext';
@@ -247,6 +247,38 @@ const App: React.FC = () => {
           }
       }, [isStudioMode, selectedOrganization, selectedStudio, workouts, page, activeWorkout, activeBlock, navigateReplace, setActiveWorkout, isReadyToListen]);
 
+      // AUTO-CLEAR STALE SESSIONS (5 minutes)
+      useEffect(() => {
+          if (!isStudioMode || !selectedOrganization || !selectedStudio) return;
+
+          const checkStaleSession = () => {
+              const remote = selectedStudio.remoteState;
+              if (!remote) return;
+
+              // Don't clear if it's actively running, resting, or preparing
+              if (remote.status === TimerStatus.Running || 
+                  remote.status === TimerStatus.Preparing || 
+                  remote.status === TimerStatus.Resting) {
+                  return;
+              }
+
+              // Only clear if there's an active workout or we are not in idle view
+              if (remote.view === 'idle' && !remote.activeWorkoutId) return;
+
+              const lastActivity = remote.commandTimestamp || remote.lastUpdate || 0;
+              const timeSinceActivity = Date.now() - lastActivity;
+
+              if (timeSinceActivity > 5 * 60 * 1000) {
+                  console.log('Session stale for > 5 mins, auto-clearing...');
+                  updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
+              }
+          };
+
+          const intervalId = setInterval(checkStaleSession, 60000); // Check every minute
+          checkStaleSession(); // Check immediately on mount/update
+
+          return () => clearInterval(intervalId);
+      }, [isStudioMode, selectedOrganization, selectedStudio]);
 
   const [customBackHandler, setCustomBackHandler] = useState<(() => void) | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
