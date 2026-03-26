@@ -5,6 +5,7 @@ import { SparklesIcon, DumbbellIcon, BuildingIcon, ClockIcon, UsersIcon, Chevron
 
 interface LandingPageProps {
     onLoginClick: () => void;
+    onRegisterGymClick?: () => void;
 }
 
 const FeatureCard: React.FC<{ title: string; desc: string; icon: React.ReactNode; delay: number }> = ({ title, desc, icon, delay }) => (
@@ -25,52 +26,52 @@ const FeatureCard: React.FC<{ title: string; desc: string; icon: React.ReactNode
     </motion.div>
 );
 
-const MockScreen = () => (
-    <div className="relative mx-auto border-gray-800 bg-gray-900 border-[8px] rounded-t-xl h-[172px] max-w-[301px] md:h-[294px] md:max-w-[512px]">
-        <div className="rounded-lg overflow-hidden h-[156px] md:h-[278px] bg-gray-800 relative">
-            {/* Mock UI Content */}
-            <div className="absolute inset-0 bg-gradient-to-br from-gray-900 to-black p-4 flex flex-col items-center justify-center">
-                <div className="flex gap-2 mb-4">
-                    <div className="w-20 h-6 bg-gray-700 rounded-full animate-pulse"></div>
-                    <div className="w-12 h-6 bg-primary/20 rounded-full"></div>
-                </div>
-                <div className="text-5xl md:text-7xl font-black text-white tracking-tighter drop-shadow-2xl font-mono mb-2">
-                    12:45
-                </div>
-                <div className="w-full bg-gray-700/50 rounded-full h-2 mt-4 overflow-hidden">
-                    <div className="bg-primary h-full w-2/3"></div>
-                </div>
-                <div className="mt-4 flex gap-4">
-                    <div className="w-24 h-24 bg-gray-800 rounded-xl border border-gray-700 flex flex-col items-center justify-center p-2">
-                        <span className="text-2xl">💪</span>
-                        <div className="h-2 w-12 bg-gray-600 rounded mt-2"></div>
-                    </div>
-                    <div className="w-24 h-24 bg-gray-800 rounded-xl border border-primary/50 flex flex-col items-center justify-center p-2 relative overflow-hidden">
-                        <div className="absolute inset-0 bg-primary/10 animate-pulse"></div>
-                        <span className="text-2xl text-primary font-bold">WOD</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-32 h-3 bg-gray-800 rounded-b-xl"></div>
+const SystemImages = () => (
+    <div className="relative h-[350px] md:h-[450px] w-full max-w-lg mx-auto flex items-center justify-center">
+        {/* Startsidan (Back Left) */}
+        <motion.div 
+            animate={{ y: [0, -10, 0] }} 
+            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+            className="absolute left-0 top-4 w-48 md:w-56 rounded-2xl border border-gray-700 shadow-2xl overflow-hidden opacity-80 transform -rotate-6 origin-bottom-right bg-gray-900"
+        >
+            <img src="/startskarm.png" alt="Startskärm" className="w-full h-auto object-cover" referrerPolicy="no-referrer" />
+        </motion.div>
+
+        {/* Fristående Timer (Back Right) */}
+        <motion.div 
+            animate={{ y: [0, 10, 0] }} 
+            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+            className="absolute right-0 bottom-4 w-48 md:w-56 rounded-2xl border border-gray-700 shadow-2xl overflow-hidden opacity-80 transform rotate-6 origin-bottom-left bg-gray-900"
+        >
+            <img src="/timer.png" alt="Fristående Timer" className="w-full h-auto object-cover" referrerPolicy="no-referrer" />
+        </motion.div>
+
+        {/* Timer i pass (Center Front, moved left) */}
+        <motion.div 
+            animate={{ y: [0, -8, 0] }} 
+            transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+            className="absolute z-10 left-[30%] transform -translate-x-1/2 top-1/2 -translate-y-1/2 w-56 md:w-64 rounded-2xl border border-gray-500 shadow-[0_20px_50px_rgba(0,0,0,0.5)] overflow-hidden bg-gray-900"
+        >
+            <img src="/pass.png" alt="Timer i pass" className="w-full h-auto object-cover" referrerPolicy="no-referrer" />
+        </motion.div>
     </div>
 );
 
-export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
+export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterGymClick }) => {
     return (
         <div className="min-h-screen bg-black text-white font-sans selection:bg-primary selection:text-white overflow-x-hidden">
             {/* Nav */}
             <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10">
                 <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 bg-primary bg-gradient-to-tr from-white/20 via-transparent to-black/30 rounded-lg"></div>
+                        <img src="/favicon.png" alt="SmartSkärm Logo" className="w-8 h-8 rounded-lg" referrerPolicy="no-referrer" />
                         <span className="text-xl font-bold tracking-tight">SmartSkärm</span>
                     </div>
                     <div className="flex gap-4">
                         <button onClick={onLoginClick} className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">
                             Logga in
                         </button>
-                        <button onClick={onLoginClick} className="bg-white text-black px-5 py-2.5 rounded-full text-sm font-bold hover:bg-gray-200 transition-colors">
+                        <button onClick={onRegisterGymClick || onLoginClick} className="bg-white text-black px-5 py-2.5 rounded-full text-sm font-bold hover:bg-gray-200 transition-colors">
                             Kom igång
                         </button>
                     </div>
@@ -102,10 +103,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
                                 SmartSkärm är allt-i-ett-plattformen för gym och studios. Hantera infoskärmar, skapa AI-drivna träningspass och kör professionella timers – allt från en plats.
                             </p>
                             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                                <button onClick={onLoginClick} className="bg-primary hover:bg-teal-400 text-black text-lg px-8 py-4 rounded-full font-bold transition-all transform hover:scale-105 shadow-[0_0_20px_-5px_rgba(20,184,166,0.5)]">
+                                <button onClick={onRegisterGymClick || onLoginClick} className="bg-primary hover:bg-teal-400 text-black text-lg px-8 py-4 rounded-full font-bold transition-all transform hover:scale-105 shadow-[0_0_20px_-5px_rgba(20,184,166,0.5)]">
                                     Starta din studio
                                 </button>
-                                <button className="px-8 py-4 rounded-full font-bold border border-white/20 hover:bg-white/5 transition-colors">
+                                <button 
+                                    onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+                                    className="px-8 py-4 rounded-full font-bold border border-white/20 hover:bg-white/5 transition-colors"
+                                >
                                     Se funktioner
                                 </button>
                             </div>
@@ -118,32 +122,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
                         transition={{ duration: 0.8, delay: 0.2 }}
                         className="relative"
                     >
-                        <MockScreen />
-                        {/* Floating elements */}
-                        <motion.div 
-                            animate={{ y: [0, -10, 0] }}
-                            transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                            className="absolute -right-4 top-20 bg-gray-800 p-4 rounded-2xl border border-gray-700 shadow-xl"
-                        >
-                            <SparklesIcon className="w-8 h-8 text-purple-400 mb-2" />
-                            <p className="text-xs text-gray-400 font-bold">AI Coach</p>
-                            <p className="text-xs text-white">Analys klar</p>
-                        </motion.div>
-                        <motion.div 
-                            animate={{ y: [0, 10, 0] }}
-                            transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-                            className="absolute -left-8 bottom-20 bg-gray-800 p-4 rounded-2xl border border-gray-700 shadow-xl"
-                        >
-                            <ClockIcon className="w-8 h-8 text-green-400 mb-2" />
-                            <p className="text-xs text-gray-400 font-bold">HYROX Timer</p>
-                            <p className="text-xs text-white">Startgrupp 1: 00:00</p>
-                        </motion.div>
+                        <SystemImages />
                     </motion.div>
                 </div>
             </section>
 
             {/* Features Grid */}
-            <section className="py-24 bg-black relative">
+            <section id="features" className="py-24 bg-black relative">
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="text-center mb-16">
                         <h2 className="text-3xl md:text-5xl font-bold mb-4">Ett system. Oändliga möjligheter.</h2>
@@ -173,7 +158,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
                         />
                         <FeatureCard 
                             title="Övningsbank" 
-                            desc="Hundratals inbyggda övningar med möjlighet att ladda upp egna bilder eller generera dem med AI."
+                            desc="Hundratals inbyggda övningar med instruktioner. Lägg in egna och återanvänd dem."
                             icon={<DumbbellIcon className="w-8 h-8" />}
                             delay={0.4}
                         />
@@ -197,15 +182,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick }) => {
             <footer className="border-t border-white/10 py-12 bg-black">
                 <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
                     <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 bg-primary rounded-md"></div>
+                        <img src="/favicon.png" alt="SmartSkärm Logo" className="w-6 h-6 rounded-md" referrerPolicy="no-referrer" />
                         <span className="font-bold text-lg">SmartSkärm</span>
                     </div>
                     <div className="text-gray-500 text-sm">
-                        © 2025 SmartSkärm AB. Alla rättigheter förbehållna.
-                    </div>
-                    <div className="flex gap-6">
-                        <a href="#" className="text-gray-400 hover:text-primary transition-colors">Support</a>
-                        <a href="#" className="text-gray-400 hover:text-primary transition-colors">Integritet</a>
+                        © 2026 SmartSkärm AB. Alla rättigheter förbehållna.
                     </div>
                 </div>
             </footer>

@@ -62,7 +62,7 @@ interface SuperAdminScreenProps {
     onUpdateLogos: (organizationId: string, logos: { light: string; dark: string }) => Promise<void>;
     onUpdateFavicon: (organizationId: string, faviconUrl: string) => Promise<void>;
     onUpdatePrimaryColor: (organizationId: string, color: string) => Promise<void>;
-    onUpdateOrganization: (organizationId: string, name: string, subdomain: string, inviteCode?: string) => Promise<void>;
+    onUpdateOrganization: (organizationId: string, name: string, subdomain: string, inviteCode?: string, coachCode?: string, maxFreeCoaches?: number) => Promise<void>;
     onUpdateOrganizationCompanyDetails?: (organizationId: string, details: CompanyDetails) => Promise<void>;
     onUpdateCustomPages: (organizationId: string, pages: CustomPage[]) => Promise<void>;
     onSwitchToStudioView: (studio: Studio) => void;
@@ -123,17 +123,9 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     const onboardingSkippedKey = `onboardingSkipped_${organization.id}`;
 
     useEffect(() => {
-        if (organization && isCompanyDetailsIncomplete(organization)) {
-            const hasSkipped = sessionStorage.getItem(onboardingSkippedKey);
-            if (hasSkipped) {
-                setShowOnboardingBanner(true);
-            } else {
-                setShowOnboardingModal(true);
-            }
-        } else {
-            setShowOnboardingModal(false);
-            setShowOnboardingBanner(false);
-        }
+        // We no longer force the onboarding modal since Stripe handles KYC
+        setShowOnboardingModal(false);
+        setShowOnboardingBanner(false);
     }, [organization, onboardingSkippedKey]);
     
     const handleUpdateCompanyDetails = async (details: CompanyDetails) => {
@@ -231,39 +223,61 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     
     const handleEnablePaidFeatures = async () => {
         setIsSavingConfig(true);
+        let isRedirecting = false;
         try {
-            if (!organization.inviteCode) {
-                const newCode = generateInviteCode();
-                await props.onUpdateOrganization(organization.id, organization.name, organization.subdomain, newCode);
-            }
-            const newConfig = { ...organization.globalConfig, enableWorkoutLogging: true };
-            setConfig(newConfig); 
-            await handleSaveConfig(newConfig); 
-            setIsUpgradeModalOpen(false);
-            setToast({ message: "Funktioner aktiverade! 🎉", visible: true });
+            if (!organization.stripeConnectSetupComplete) {
+                // Skapa connect-konto och skicka vidare
+                const apiUrl = import.meta.env.VITE_API_URL;
+                const res = await fetch(`${apiUrl}/create-connect-account`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ organizationId: organization.id, returnUrl: window.location.origin })
+                });
+                const data = await res.json();
+                
+                if (data.url) {
+                    isRedirecting = true;
+                    window.location.href = data.url;
+                    return; // Stop execution here since we are redirecting
+                }
+            } else {
+                if (!organization.inviteCode || !organization.coachCode) {
+                    const newCode = organization.inviteCode || generateInviteCode();
+                    const newCoachCode = organization.coachCode || generateInviteCode();
+                    await props.onUpdateOrganization(organization.id, organization.name, organization.subdomain, newCode, newCoachCode, organization.maxFreeCoaches || 5);
+                }
+                const newConfig = { ...organization.globalConfig, enableWorkoutLogging: true };
+                setConfig(newConfig); 
+                await handleSaveConfig(newConfig); 
+                setIsUpgradeModalOpen(false);
+                setToast({ message: "Funktioner aktiverade! 🎉", visible: true });
 
-            // LOG
-            saveAdminActivity({
-                organizationId: organization.id,
-                userId: userData?.uid || 'unknown',
-                userName: userData?.firstName || 'Admin',
-                type: 'SYSTEM',
-                action: 'UPDATE',
-                description: 'Aktiverade passloggning och medlemsfunktioner',
-                timestamp: Date.now()
-            });
+                // LOG
+                saveAdminActivity({
+                    organizationId: organization.id,
+                    userId: userData?.uid || 'unknown',
+                    userName: userData?.firstName || 'Admin',
+                    type: 'SYSTEM',
+                    action: 'UPDATE',
+                    description: 'Aktiverade passloggning och medlemsfunktioner',
+                    timestamp: Date.now()
+                });
+            }
         } catch (error) {
             console.error("Failed to enable features:", error);
             setToast({ message: "Ett fel uppstod.", visible: true });
         } finally {
-            setIsSavingConfig(false);
+            if (!isRedirecting) {
+                setIsSavingConfig(false);
+            }
         }
     };
 
     const handleGenerateNewInviteCode = async () => {
         const newCode = generateInviteCode();
-        await props.onUpdateOrganization(organization.id, organization.name, organization.subdomain, newCode);
-        setToast({ message: "Ny kod skapad!", visible: true });
+        const newCoachCode = generateInviteCode();
+        await props.onUpdateOrganization(organization.id, organization.name, organization.subdomain, newCode, newCoachCode, organization.maxFreeCoaches || 5);
+        setToast({ message: "Nya koder skapade!", visible: true });
 
         // LOG
         saveAdminActivity({
@@ -406,26 +420,60 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                                 <div className="flex-1 w-full text-center sm:text-left">
                                     <h2 className="text-2xl font-black text-gray-900 dark:text-white mb-2 tracking-tight uppercase">Bjud in team & medlemmar</h2>
                                     <p className="text-gray-500 dark:text-gray-400 text-sm mb-6 max-w-lg">
-                                        Använd denna QR-kod eller inbjudningskod för att låta dina medlemmar skapa konto i appen och kopplas direkt till {organization.name}.
+                                        Använd QR-koden eller medlemskoden för att låta dina medlemmar skapa konto. Coacher använder coachkoden för att få rätt behörighet direkt.
                                     </p>
                                     {organization.inviteCode ? (
-                                        <div className="flex flex-col sm:flex-row items-center gap-4">
-                                            <div className="bg-gray-5 dark:bg-gray-900/50 px-8 py-3 rounded-2xl border-2 border-primary/20 shadow-inner">
-                                                <span className="text-4xl font-black font-mono tracking-[0.15em] text-primary">{organization.inviteCode}</span>
+                                        <div className="flex flex-col gap-6">
+                                            <div className="flex flex-col sm:flex-row items-center gap-4">
+                                                <div className="w-24 text-xs font-black text-gray-400 uppercase tracking-widest text-center sm:text-left">Medlemmar</div>
+                                                <div className="bg-gray-5 dark:bg-gray-900/50 px-6 py-2 rounded-2xl border-2 border-primary/20 shadow-inner">
+                                                    <span className="text-3xl font-black font-mono tracking-[0.15em] text-primary">{organization.inviteCode}</span>
+                                                </div>
+                                                <button 
+                                                    onClick={() => {
+                                                        navigator.clipboard.writeText(organization.inviteCode || '');
+                                                        setToast({ message: "Medlemskod kopierad!", visible: true });
+                                                    }}
+                                                    className="text-xs font-black text-primary hover:bg-primary/10 px-4 py-2 rounded-xl transition-all uppercase tracking-widest"
+                                                >
+                                                    <CopyIcon className="w-4 h-4 inline mr-2" /> Kopiera
+                                                </button>
                                             </div>
-                                            <button 
-                                                onClick={() => {
-                                                    navigator.clipboard.writeText(organization.inviteCode || '');
-                                                    setToast({ message: "Kod kopierad!", visible: true });
-                                                }}
-                                                className="text-sm font-black text-primary hover:bg-primary/10 px-5 py-3 rounded-xl transition-all uppercase tracking-widest"
-                                            >
-                                                <CopyIcon className="w-4 h-4 inline mr-2" /> Kopiera
-                                            </button>
+                                            {organization.coachCode ? (
+                                                <div className="flex flex-col sm:flex-row items-center gap-4">
+                                                    <div className="w-24 text-xs font-black text-gray-400 uppercase tracking-widest text-center sm:text-left">Coacher</div>
+                                                    <div className="bg-purple-50 dark:bg-purple-900/20 px-6 py-2 rounded-2xl border-2 border-purple-500/20 shadow-inner">
+                                                        <span className="text-3xl font-black font-mono tracking-[0.15em] text-purple-600 dark:text-purple-400">{organization.coachCode}</span>
+                                                    </div>
+                                                    <button 
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(organization.coachCode || '');
+                                                            setToast({ message: "Coachkod kopierad!", visible: true });
+                                                        }}
+                                                        className="text-xs font-black text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 px-4 py-2 rounded-xl transition-all uppercase tracking-widest"
+                                                    >
+                                                        <CopyIcon className="w-4 h-4 inline mr-2" /> Kopiera
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col sm:flex-row items-center gap-4">
+                                                    <div className="w-24 text-xs font-black text-gray-400 uppercase tracking-widest text-center sm:text-left">Coacher</div>
+                                                    <button 
+                                                        onClick={async () => {
+                                                            const newCoachCode = generateInviteCode();
+                                                            await props.onUpdateOrganization(organization.id, organization.name, organization.subdomain, organization.inviteCode, newCoachCode, organization.maxFreeCoaches || 5);
+                                                            setToast({ message: "Coachkod skapad!", visible: true });
+                                                        }}
+                                                        className="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold shadow-md hover:bg-purple-700 text-sm"
+                                                    >
+                                                        Generera coachkod
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
                                     ) : (
                                         <div className="p-4 text-center bg-gray-5 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-                                            <button onClick={handleGenerateNewInviteCode} className="bg-primary text-white px-6 py-2 rounded-lg font-bold shadow-md hover:brightness-110">Generera inbjudningskod nu</button>
+                                            <button onClick={handleGenerateNewInviteCode} className="bg-primary text-white px-6 py-2 rounded-lg font-bold shadow-md hover:brightness-110">Generera koder nu</button>
                                         </div>
                                     )}
                                 </div>
@@ -505,7 +553,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                 </main>
             </div>
             {showOnboardingModal && (<CompanyDetailsOnboardingModal isOpen={showOnboardingModal} initialDetails={organization.companyDetails} onSave={handleUpdateCompanyDetails} onSkip={handleSkipOnboarding} />)}
-            <PricingModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} onConfirm={handleEnablePaidFeatures} isProcessing={isSavingConfig} />
+            <PricingModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} onConfirm={handleEnablePaidFeatures} isProcessing={isSavingConfig} hasStripeAccount={!!organization.stripeConnectSetupComplete} />
         </div>
     );
 };

@@ -4,7 +4,7 @@ import { Member, UserRole } from '../types';
 import { UsersIcon, PencilIcon, ChartBarIcon, SearchIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon } from './icons';
 import { MemberDetailModal } from './MemberDetailModal';
 import { useStudio } from '../context/StudioContext';
-import { listenToMembers, updateMemberEndDate, updateUserRoleCloud } from '../services/firebaseService';
+import { listenToMembers, updateMemberEndDate, updateUserRoleCloud, approveCoach } from '../services/firebaseService';
 import QRCode from 'react-qr-code';
 import { Modal } from './ui/Modal';
 import { useAuth } from '../context/AuthContext';
@@ -19,11 +19,12 @@ const ITEMS_PER_PAGE = 25;
 
 const RoleSwitcher: React.FC<{ 
     currentRole: UserRole; 
+    status?: string;
     memberId: string; 
     isUpdating: boolean;
     onUpdate: (role: UserRole) => void;
     canEdit: boolean;
-}> = ({ currentRole, memberId, isUpdating, onUpdate, canEdit }) => {
+}> = ({ currentRole, status, memberId, isUpdating, onUpdate, canEdit }) => {
     
     const handleClick = (e: React.MouseEvent) => e.stopPropagation();
 
@@ -33,6 +34,7 @@ const RoleSwitcher: React.FC<{
     };
 
     const getStyle = (r: UserRole) => {
+        if (status === 'pending_coach') return "bg-yellow-100 text-yellow-700 border-yellow-200";
         switch (r) {
             case 'systemowner': return "bg-purple-100 text-purple-700 border-purple-200";
             case 'organizationadmin': return "bg-indigo-100 text-indigo-700 border-indigo-200";
@@ -42,6 +44,7 @@ const RoleSwitcher: React.FC<{
     };
 
     const getLabel = (r: UserRole) => {
+        if (status === 'pending_coach') return "Väntande Coach";
         switch (r) {
             case 'systemowner': return "Systemägare";
             case 'organizationadmin': return "Admin";
@@ -181,6 +184,19 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
       }
   };
 
+  const handleApproveCoach = async (e: React.MouseEvent, memberId: string) => {
+      e.stopPropagation();
+      setUpdatingMembers(prev => ({ ...prev, [memberId]: true }));
+      try {
+          await approveCoach(memberId);
+      } catch (e) {
+          console.error("Failed to approve coach", e);
+          alert(e instanceof Error ? e.message : "Kunde inte godkänna coachen.");
+      } finally {
+          setUpdatingMembers(prev => ({ ...prev, [memberId]: false }));
+      }
+  };
+
   const goToPage = (page: number) => {
       setCurrentPage(page);
       const scrollContainer = document.querySelector('main');
@@ -194,9 +210,11 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
   const canEditRoles = currentUserRole === 'organizationadmin' || currentUserRole === 'systemowner';
 
   const inviteCode = selectedOrganization?.inviteCode;
+  const coachCode = selectedOrganization?.coachCode;
   
   const baseUrl = window.location.origin;
   const qrUrl = inviteCode ? `${baseUrl}/?invite=${inviteCode}` : '';
+  const coachQrUrl = coachCode ? `${baseUrl}/?invite=${coachCode}` : '';
 
   if (isLoading) {
       return (
@@ -313,11 +331,21 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                             <div className="mt-1 flex items-center gap-2">
                                 <RoleSwitcher 
                                     currentRole={member.role}
+                                    status={member.status}
                                     memberId={member.id}
                                     isUpdating={!!updatingMembers[member.id]}
                                     onUpdate={(newRole) => handleQuickRoleUpdate(member.id, newRole)}
                                     canEdit={canEditRoles && member.id !== currentUser?.uid}
                                 />
+                                {member.status === 'pending_coach' && canEditRoles && (
+                                    <button
+                                        onClick={(e) => handleApproveCoach(e, member.id)}
+                                        disabled={!!updatingMembers[member.id]}
+                                        className="text-xs font-bold bg-primary text-black px-3 py-1 rounded-full hover:bg-primary/90 transition-colors disabled:opacity-50"
+                                    >
+                                        {updatingMembers[member.id] ? 'Godkänner...' : 'Godkänn Coach'}
+                                    </button>
+                                )}
                             </div>
                           </div>
                         </div>
@@ -469,29 +497,42 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                 </div>
                 
                 {inviteCode ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-2">
-                        <div className="bg-white dark:bg-white p-6 rounded-[2.5rem] shadow-xl border border-gray-100 flex flex-col items-center group transition-all hover:scale-[1.02]">
-                            <div className="p-2 border-2 border-gray-50 rounded-2xl">
-                                <QRCode value={qrUrl} size={180} fgColor="#000000" bgColor="#ffffff" level="M" />
-                            </div>
-                            <p className="mt-5 text-[10px] font-black uppercase tracking-[0.25em] text-gray-400 group-hover:text-primary transition-colors">Skanna för att öppna</p>
-                        </div>
-                        
+                    <div className="flex flex-col gap-6 py-2">
+                        {/* Member Code Section */}
                         <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 flex flex-col items-center justify-center">
-                            <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.25em] mb-4">Eller använd kod</span>
+                            <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.25em] mb-4">Medlemskod</span>
                             <div className="bg-white dark:bg-gray-900 px-8 py-5 rounded-2xl border-2 border-primary/20 shadow-inner">
                                 <span className="text-4xl font-black font-mono tracking-[0.15em] text-primary">{inviteCode}</span>
                             </div>
                             <button 
                                 onClick={() => {
                                     navigator.clipboard.writeText(inviteCode);
-                                    alert("Kod kopierad!");
+                                    alert("Medlemskod kopierad!");
                                 }}
                                 className="mt-4 text-[10px] font-black text-primary hover:underline uppercase tracking-widest"
                             >
-                                Kopiera kod
+                                Kopiera medlemskod
                             </button>
                         </div>
+
+                        {/* Coach Code Section */}
+                        {coachCode && (
+                            <div className="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-[2.5rem] border border-purple-100 dark:border-purple-800/50 flex flex-col items-center justify-center">
+                                <span className="text-[10px] font-black text-purple-400 dark:text-purple-500 uppercase tracking-[0.25em] mb-4">Coachkod</span>
+                                <div className="bg-white dark:bg-gray-900 px-8 py-5 rounded-2xl border-2 border-purple-500/20 shadow-inner">
+                                    <span className="text-4xl font-black font-mono tracking-[0.15em] text-purple-600 dark:text-purple-400">{coachCode}</span>
+                                </div>
+                                <button 
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(coachCode);
+                                        alert("Coachkod kopierad!");
+                                    }}
+                                    className="mt-4 text-[10px] font-black text-purple-600 dark:text-purple-400 hover:underline uppercase tracking-widest"
+                                >
+                                    Kopiera coachkod
+                                </button>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="p-8 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-dashed border-yellow-200 rounded-3xl">

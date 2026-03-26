@@ -294,6 +294,8 @@ export interface Organization {
   benchmarkDefinitions?: BenchmarkDefinition[];
   companyDetails?: CompanyDetails;
   inviteCode?: string;
+  coachCode?: string;
+  maxFreeCoaches?: number;
   lastActiveAt?: number;
   discountType?: 'percentage' | 'fixed';
   discountValue?: number; 
@@ -301,6 +303,8 @@ export interface Organization {
   lastBilledMonth?: string; 
   lastBilledDate?: number;
   freeCoachAccounts?: number; // NYTT: Antal gratis coach-konton
+  stripeConnectAccountId?: string;
+  stripeConnectSetupComplete?: boolean;
 }
 
 export interface StartGroup {
@@ -353,6 +357,7 @@ export interface UserData {
   uid: string;
   email?: string;
   role: UserRole;
+  status?: 'active' | 'inactive' | 'pending_coach';
   adminRole?: 'superadmin' | 'admin';
   organizationId?: string;
   firstName?: string;
@@ -386,7 +391,7 @@ export interface MemberGoals {
 }
 
 export interface Member extends UserData {
-    status: 'active' | 'inactive';
+    status: 'active' | 'inactive' | 'pending_coach';
     createdAt: number;
     endDate?: string | null;
     isTrainingMember?: boolean;
@@ -535,6 +540,21 @@ export interface HyroxRace {
     exercises: string[];
     startGroups: StartGroup[];
     results: HyroxRaceResult[];
+}
+
+export type SmartObjectType = 'rect' | 'circle' | 'text' | 'arrow';
+
+export interface SmartObject {
+    id: string;
+    type: SmartObjectType;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    endX?: number;
+    endY?: number;
+    text?: string;
+    color: string;
 }
 
 export interface Note {

@@ -96,7 +96,7 @@ const getBlockTimeLabel = (block: WorkoutBlock): string => {
     
     if (s.mode === TimerMode.NoTimer) return "Ingen tid";
     
-    const duration = calculateBlockDuration(s, block.exercises.length);
+    const duration = calculateBlockDuration(s, block.exercises?.length || 0);
     return formatSeconds(duration);
 };
 
@@ -281,7 +281,7 @@ const FollowMeView: React.FC<{
                     style={{ borderColor: isResting ? undefined : `rgb(${timerStyle.pulseRgb})` }}
                 >
                     <div className="p-10 md:p-14 flex flex-col items-center text-center">
-                        <span className="block text-xl md:text-2xl font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 mb-4">
+                        <span className="block text-2xl md:text-3xl font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 mb-4">
                             {label}
                         </span>
                         <h3 
@@ -315,8 +315,8 @@ const FollowMeView: React.FC<{
                         exit={{ opacity: 0, y: 20 }}
                         className="mt-8 bg-white px-10 py-5 rounded-3xl shadow-2xl flex items-center gap-4"
                     >
-                        <span className="text-gray-500 font-bold uppercase tracking-widest text-xl">Nästa:</span>
-                        <span className="text-gray-900 font-black uppercase tracking-tight text-3xl md:text-4xl">
+                        <span className="text-gray-500 font-bold uppercase tracking-widest text-2xl md:text-3xl">Nästa:</span>
+                        <span className="text-gray-900 font-black uppercase tracking-tight text-5xl md:text-6xl">
                             {upcomingText}
                         </span>
                     </motion.div>
@@ -362,7 +362,7 @@ const StandardListView: React.FC<{
     return (
         <div className={`w-full h-full flex flex-col overflow-hidden pb-1`}>
             {exercises.map((ex, i) => {
-                const useGroupColor = status !== TimerStatus.Resting && ex.groupColor;
+                const useGroupColor = !!ex.groupColor;
                 const nextEx = exercises[i + 1];
                 const isGroupedWithNext = nextEx && ex.groupId && ex.groupId === nextEx.groupId;
                 
@@ -779,7 +779,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   }, []);
 
   useEffect(() => {
-      if (status === TimerStatus.Finished && totalTimeElapsed > 0 && nextBlock && block.autoAdvance && !hasTriggeredFinish.current) {
+      if (status === TimerStatus.Finished && nextBlock && block.autoAdvance && !hasTriggeredFinish.current) {
           const waitTime = block.transitionTime || 0;
           if (waitTime === 0) {
               handleStartNextBlock();
@@ -788,7 +788,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               setTransitionTimeLeft(waitTime);
           }
       }
-  }, [status, totalTimeElapsed, nextBlock, block.autoAdvance, block.transitionTime, handleStartNextBlock]);
+  }, [status, nextBlock, block.autoAdvance, block.transitionTime, handleStartNextBlock]);
 
   useEffect(() => {
       if (isTransitioning && !isTransitionPaused) {
@@ -1093,7 +1093,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       try {
           const raceData: Omit<HyroxRace, 'id' | 'createdAt' | 'organizationId'> = {
               raceName: activeWorkout.title,
-              exercises: block.exercises.map(e => `${e.reps || ''} ${e.name}`.trim()),
+              exercises: block.exercises?.map(e => `${e.reps || ''} ${e.name}`.trim()) || [],
               startGroups: startGroups.map(g => ({ id: g.id, name: g.name, participants: g.participants.split('\n').map(p => p.trim()).filter(Boolean) })),
               results: raceResults
           };
@@ -1189,7 +1189,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   // --- VIKTAD HÖJDFÖRDELNING ---
   const getBlockWeight = (block: WorkoutBlock) => {
     // 2 poäng för header/titel, 1 poäng per övning
-    return 2 + block.exercises.length;
+    return 2 + (block.exercises?.length || 0);
   };
 
   const restartHideTimer = React.useCallback(() => {
@@ -1325,13 +1325,13 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                         mode={block.settings.mode} 
                         currentInterval={
                             block.settings.mode === TimerMode.Custom ? (completedWorkIntervals % (block.settings.sequence?.length || 1)) + 1 :
-                            block?.settings.specifiedLaps != null ? (completedWorkIntervals % (block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1)) + 1 : 
-                            (block?.settings.mode === TimerMode.Interval && block?.settings.specifiedLaps === undefined && block?.settings.rounds && block.exercises.length > 0 && block.settings.rounds % block.exercises.length === 0) ? (completedWorkIntervals % block.exercises.length) + 1 : undefined
+                            block?.settings.specifiedLaps != null ? (completedWorkIntervals % (block?.settings.specifiedIntervalsPerLap || block.exercises?.length || 1)) + 1 : 
+                            (block?.settings.mode === TimerMode.Interval && block?.settings.specifiedLaps === undefined && block?.settings.rounds && (block.exercises?.length || 0) > 0 && block.settings.rounds % (block.exercises?.length || 1) === 0) ? (completedWorkIntervals % (block.exercises?.length || 1)) + 1 : undefined
                         }
                         totalIntervalsInLap={
                             block.settings.mode === TimerMode.Custom ? block.settings.sequence?.length || 1 :
-                            block?.settings.specifiedLaps != null ? (block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1) : 
-                            (block?.settings.mode === TimerMode.Interval && block?.settings.specifiedLaps === undefined && block?.settings.rounds && block.exercises.length > 0 && block.settings.rounds % block.exercises.length === 0) ? block.exercises.length : undefined
+                            block?.settings.specifiedLaps != null ? (block?.settings.specifiedIntervalsPerLap || block.exercises?.length || 1) : 
+                            (block?.settings.mode === TimerMode.Interval && block?.settings.specifiedLaps === undefined && block?.settings.rounds && (block.exercises?.length || 0) > 0 && block.settings.rounds % (block.exercises?.length || 1) === 0) ? (block.exercises?.length || 1) : undefined
                         }
                     />
                 )}
@@ -1518,7 +1518,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                         {/* Current Block (or Next Block if transitioning) */}
                                         <div className={`flex-1 min-h-0 ${isAutostartMode && !isTransitioning ? 'opacity-100' : ''}`}>
                                             <StandardListView 
-                                                exercises={isTransitioning ? nextBlock!.exercises : block.exercises} 
+                                                exercises={isTransitioning ? (nextBlock?.exercises || []) : (block.exercises || [])} 
                                                 timerStyle={timerStyle} 
                                                 isHyrox={isHyroxRace} 
                                                 showDescriptions={block.showExerciseDescriptions !== false} // PASS THE PROP
@@ -1606,15 +1606,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[35%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
                 {isActuallyFinishedOrIdle ? (
                     <>
-                        <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-50 transition-colors text-xl backdrop-blur-md border-2 border-white/20 uppercase">TILLBAKA</button>
-                        <button onClick={() => handleRemoteAction('start')} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl active:scale-105 transition-transform text-xl border-4 border-white/50 uppercase">STARTA</button>
+                        <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-50 active:scale-95 transition-all text-xl backdrop-blur-md border-2 border-white/20 uppercase" style={{ touchAction: 'manipulation' }}>TILLBAKA</button>
+                        <button onClick={() => handleRemoteAction('start')} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl active:scale-95 transition-transform text-xl border-4 border-white/50 uppercase" style={{ touchAction: 'manipulation' }}>STARTA</button>
                     </>
                 ) : isActuallyPaused ? (
-                    <button onClick={() => handleRemoteAction('resume')} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase">FORTSÄTT</button>
+                    <button onClick={() => handleRemoteAction('resume')} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase active:scale-95 transition-transform" style={{ touchAction: 'manipulation' }}>FORTSÄTT</button>
                 ) : (
-                    <button onClick={() => handleRemoteAction('pause')} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl active:bg-gray-100 transition-transform active:scale-105 text-xl border-4 border-white/50 uppercase">PAUSA</button>
+                    <button onClick={() => handleRemoteAction('pause')} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl active:bg-gray-100 transition-transform active:scale-95 text-xl border-4 border-white/50 uppercase" style={{ touchAction: 'manipulation' }}>PAUSA</button>
                 )}
-                {isHyroxRace && status !== TimerStatus.Running && <button onClick={() => setShowBackToPrepConfirmation(true)} className="bg-gray-800/80 text-white font-bold py-4 px-8 rounded-full shadow-xl border-2 border-gray-600 hover:bg-gray-700 transition-colors text-lg uppercase">⚙️ Grupper</button>}
+                {isHyroxRace && status !== TimerStatus.Running && <button onClick={() => setShowBackToPrepConfirmation(true)} className="bg-gray-800/80 text-white font-bold py-4 px-8 rounded-full shadow-xl border-2 border-gray-600 hover:bg-gray-700 active:scale-95 transition-all text-lg uppercase" style={{ touchAction: 'manipulation' }}>⚙️ Grupper</button>}
           </div>
       )}
     </div>

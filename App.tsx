@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma, RemoteSessionState } from './types';
+import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma, RemoteSessionState, TimerStatus } from './types';
 
 import { useStudio } from './context/StudioContext';
 import { useAuth } from './context/AuthContext';
@@ -11,9 +11,10 @@ import { AppRouter } from './components/AppRouter';
 // --- PAYWALL ---
 import { PaywallScreen } from './components/PaywallScreen'; 
 import { WelcomePaywall } from './components/WelcomePaywall'; 
+import PendingCoachScreen from './components/PendingCoachScreen';
 
 // --- Services ---
-import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById } from './services/firebaseService';
+import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById, getFreshCategoryWorkouts } from './services/firebaseService';
 
 // --- Utils ---
 import { deepCopyAndPrepareAsNew } from './utils/workoutUtils';
@@ -62,7 +63,7 @@ const App: React.FC = () => {
   const { workouts, activeWorkout, setActiveWorkout, saveWorkout, deleteWorkout } = useWorkout();
   
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
-  const [showLogin, setShowLogin] = useState(true);
+  const [showLogin, setShowLogin] = useState(false);
   const [showRegisterGym, setShowRegisterGym] = useState(false); 
   
   const [history, setHistory] = useState<Page[]>(() => {
@@ -86,6 +87,7 @@ const App: React.FC = () => {
   }, [role, userData?.subscriptionStatus]);
 
   const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription && !showWelcomePaywall;
+  const showPendingCoach = currentUser && !isStudioMode && userData?.status === 'pending_coach';
   const isGlobalLoading = authLoading || studioLoading || (currentUser && !userData && !isStudioMode);
   
   const isOrgMismatch = useMemo(() => {
@@ -96,6 +98,7 @@ const App: React.FC = () => {
 
   // NEW: Ref to track if we have performed the initial cleanup of remote state
   const hasCleanedUpRef = useRef(false);
+  const [isReadyToListen, setIsReadyToListen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isStudioMode && currentUser) {
@@ -162,8 +165,11 @@ const App: React.FC = () => {
   useEffect(() => {
       const clearRemoteStateOnMount = async () => {
           if (isStudioMode && selectedOrganization && selectedStudio && !hasCleanedUpRef.current) {
-               await updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
                hasCleanedUpRef.current = true;
+               await updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
+               setIsReadyToListen(true);
+          } else if (!isStudioMode) {
+               setIsReadyToListen(true);
           }
       };
       
@@ -174,7 +180,7 @@ const App: React.FC = () => {
 
       // STUDIO RECEIVER LOGIC (TV Mode)
       useEffect(() => {
-          if (!isStudioMode || !selectedOrganization || !selectedStudio) return;
+          if (!isStudioMode || !selectedOrganization || !selectedStudio || !isReadyToListen) return;
     
           const remote = selectedStudio.remoteState;
           
@@ -198,7 +204,7 @@ const App: React.FC = () => {
                           navigateReplace(Page.Home);
                           setActiveWorkout(null);
                       }
-                  } else if (remote.activeWorkoutId && remote.view !== 'idle') {
+                  } else if (remote.activeWorkoutId) {
                       // PRIORITY: If we have customWorkoutData in remote state, use that!
                       // This ensures that 5 second adjustments are visible on all screens.
                       const workoutToLoad = (remote as any).customWorkoutData || workouts.find(w => w.id === remote.activeWorkoutId);
@@ -239,11 +245,64 @@ const App: React.FC = () => {
                   }
               }
           }
-      }, [isStudioMode, selectedOrganization, selectedStudio, workouts, page, activeWorkout, activeBlock, navigateReplace, setActiveWorkout]);
+      }, [isStudioMode, selectedOrganization, selectedStudio, workouts, page, activeWorkout, activeBlock, navigateReplace, setActiveWorkout, isReadyToListen]);
 
+      // AUTO-CLEAR STALE SESSIONS (5 minutes)
+      useEffect(() => {
+          if (!isStudioMode || !selectedOrganization || !selectedStudio) return;
+
+          const checkStaleSession = () => {
+              const remote = selectedStudio.remoteState;
+              if (!remote) return;
+
+              // Don't clear if it's actively running, resting, or preparing
+              if (remote.status === TimerStatus.Running || 
+                  remote.status === TimerStatus.Preparing || 
+                  remote.status === TimerStatus.Resting) {
+                  return;
+              }
+
+              // Only clear if there's an active workout or we are not in idle view
+              if (remote.view === 'idle' && !remote.activeWorkoutId) return;
+
+              const lastActivity = remote.commandTimestamp || remote.lastUpdate || 0;
+              const timeSinceActivity = Date.now() - lastActivity;
+
+              if (timeSinceActivity > 5 * 60 * 1000) {
+                  console.log('Session stale for > 5 mins, auto-clearing...');
+                  updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
+              }
+          };
+
+          const intervalId = setInterval(checkStaleSession, 60000); // Check every minute
+          checkStaleSession(); // Check immediately on mount/update
+
+          return () => clearInterval(intervalId);
+      }, [isStudioMode, selectedOrganization, selectedStudio]);
 
   const [customBackHandler, setCustomBackHandler] = useState<(() => void) | null>(null);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get('connect') === 'success' && userData?.organizationId) {
+          const checkStatus = async () => {
+              try {
+                  const apiUrl = import.meta.env.VITE_API_URL;
+                  await fetch(`${apiUrl}/check-connect-status`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ organizationId: userData.organizationId })
+                  });
+                  // Clean up URL
+                  window.history.replaceState({}, document.title, window.location.pathname);
+              } catch (e) {
+                  console.error("Failed to check connect status", e);
+              }
+          };
+          checkStatus();
+      }
+  }, [userData?.organizationId]);
 
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
@@ -397,7 +456,7 @@ const App: React.FC = () => {
     }).sort((a, b) => a.internalTitle.localeCompare(b.internalTitle));
   }, [selectedOrganization, selectedStudio]);
 
-  const isInfoBannerVisible = page === Page.Home && activeInfoMessages.length > 0;
+  const isInfoBannerVisible = (page === Page.Home || isScreensaverActive) && activeInfoMessages.length > 0;
 
   useEffect(() => {
     setSessionRole(role);
@@ -711,7 +770,7 @@ const App: React.FC = () => {
   };
 
   const handleSelectPasskategori = (passkategori: Passkategori) => {
-    const categoryWorkouts = workouts.filter(w => w.category === passkategori && w.isPublished && !w.isMemberDraft);
+    let categoryWorkouts = workouts.filter(w => w.category === passkategori && w.isPublished && !w.isMemberDraft);
     
     if (categoryWorkouts.length === 1 && !isPickingForLog) {
         if (isStudioMode) {
@@ -1018,9 +1077,9 @@ const App: React.FC = () => {
     }
   };
   
-  const handleUpdateOrganization = async (organizationId: string, name: string, subdomain: string, inviteCode?: string) => {
+  const handleUpdateOrganization = async (organizationId: string, name: string, subdomain: string, inviteCode?: string, coachCode?: string, maxFreeCoaches?: number) => {
     try {
-        const updatedOrg = await updateOrganization(organizationId, name, subdomain, inviteCode);
+        const updatedOrg = await updateOrganization(organizationId, name, subdomain, inviteCode, coachCode, maxFreeCoaches);
         setAllOrganizations(prev => prev.map(o => (o.id === organizationId ? updatedOrg : o)));
         if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
     } catch (error) {
@@ -1175,16 +1234,32 @@ const App: React.FC = () => {
       if (showLogin) {
           return <LoginScreen onClose={() => setShowLogin(false)} onRegisterGym={() => setShowRegisterGym(true)} />;
       }
-      return <LandingPage onLoginClick={() => setShowLogin(true)} />;
+      return <LandingPage onLoginClick={() => setShowLogin(true)} onRegisterGymClick={() => setShowRegisterGym(true)} />;
   }
 
   if (currentUser && !userData && !isStudioMode && !authLoading) {
     return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Slutför din profil...</h2>
-            <p className="text-gray-500 mt-2">Hittade inget medlemskonto för {currentUser.email}.</p>
-            <button onClick={() => signOut()} className="mt-6 text-primary font-bold hover:underline">Logga ut och försök igen</button>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Förbereder ditt konto...</h2>
+            <p className="text-gray-500 mt-2">Detta tar bara några sekunder.</p>
+            <div className="flex flex-col gap-4 mt-8">
+                <button onClick={() => signOut()} className="text-primary font-bold hover:underline">Logga ut och försök igen</button>
+                <button 
+                    onClick={async () => {
+                        try {
+                            await currentUser.delete();
+                            window.location.reload();
+                        } catch (e) {
+                            console.error('Kunde inte radera kontot:', e);
+                            signOut();
+                        }
+                    }} 
+                    className="text-red-500 text-sm hover:underline"
+                >
+                    Radera detta ofullständiga konto och börja om
+                </button>
+            </div>
         </div>
     );
   }
@@ -1222,7 +1297,7 @@ const App: React.FC = () => {
        {isStudioMode && <SpotlightOverlay />} 
        {isStudioMode && <PBOverlay />}
 
-       {!isAnyModalOpen && !showPaywall && !showWelcomePaywall && (page === Page.Timer || !isFullScreenPage) && <Header 
+       {!isAnyModalOpen && !showPaywall && !showWelcomePaywall && !showPendingCoach && (page === Page.Timer || !isFullScreenPage) && <Header 
         page={page} 
         onBack={handleBack} 
         theme={theme}
@@ -1245,10 +1320,12 @@ const App: React.FC = () => {
           <main 
             className={`flex-1 min-h-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
           >
-            {showWelcomePaywall ? (
+            {showPendingCoach ? (
+                <PendingCoachScreen onLogout={signOut} />
+            ) : showWelcomePaywall ? (
                 <WelcomePaywall onLogout={signOut} userData={userData} />
             ) : showPaywall ? (
-              <PaywallScreen onLogout={signOut} />
+              <PaywallScreen onLogout={signOut} userData={userData} />
             ) : (
               <AppRouter 
                 page={page}
@@ -1351,12 +1428,13 @@ const App: React.FC = () => {
             )}
           </main>
           
-          {isInfoBannerVisible && (
-              <div className={`flex-shrink-0 w-full h-[320px] lg:h-[480px] xl:h-[512px] relative ${isScreensaverActive ? 'z-[1001]' : 'z-[40]'}`}>
+          {isInfoBannerVisible && !isScreensaverActive && (
+              // hidden md:block (osynlig på mobil), fast höjd h-[512px] på resten.
+              <div className="hidden md:block flex-shrink-0 w-full h-[512px] relative z-[40]">
                   <InfoCarouselBanner 
                     messages={activeInfoMessages} 
                     className="relative !h-full" 
-                    forceDark={isScreensaverActive} 
+                    forceDark={false} 
                   />
               </div>
           )}
@@ -1376,7 +1454,7 @@ const App: React.FC = () => {
                       initial={{ y: '100%', opacity: 0 }}
                       animate={{ y: '0%', opacity: 1 }}
                       exit={{ y: '100%', opacity: 0 }}
-                      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                      transition={{ type: 'spring', damping: 25, stiffness: 400 }}
                       className="fixed inset-x-0 top-[5vh] bottom-[5vh] z-[10000] px-1 pointer-events-none"
                   >
                       <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] h-full max-w-2xl mx-auto shadow-2xl overflow-hidden flex flex-col pointer-events-auto">
@@ -1413,7 +1491,7 @@ const App: React.FC = () => {
                       initial={{ y: '100%', opacity: 0 }}
                       animate={{ y: '0%', opacity: 1 }}
                       exit={{ y: '100%', opacity: 0 }}
-                      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                      transition={{ type: 'spring', damping: 25, stiffness: 400 }}
                       className="fixed inset-x-0 top-[8vh] bottom-0 z-[10020] px-1 pointer-events-none"
                   >
                       <div className="bg-white dark:bg-gray-900 rounded-t-[2.5rem] h-full max-w-2xl mx-auto shadow-2xl overflow-hidden flex flex-col pointer-events-auto border-t border-gray-200 dark:border-gray-800">
@@ -1459,7 +1537,7 @@ const App: React.FC = () => {
       </AnimatePresence>
 
       <AnimatePresence>
-          {mobileLogData && !showPaywall && (
+          {mobileLogData && !showPaywall && !showPendingCoach && (
               <>
                   <motion.div 
                       initial={{ opacity: 0 }}
@@ -1472,7 +1550,7 @@ const App: React.FC = () => {
                       initial={{ y: '100%', opacity: 0 }}
                       animate={{ y: '0%', opacity: 1 }}
                       exit={{ y: '100%', opacity: 0 }}
-                      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                      transition={{ type: 'spring', damping: 25, stiffness: 400 }}
                       className="fixed inset-x-0 top-[5vh] bottom-[5vh] z-[10040] px-1 pointer-events-none"
                   >
                       <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] h-full max-w-2xl mx-auto shadow-2xl overflow-hidden flex flex-col pointer-events-auto">
@@ -1570,16 +1648,27 @@ const App: React.FC = () => {
         />
        )}
         {isScreensaverActive && (
-            <Screensaver 
-                logoUrl={selectedOrganization?.logoUrlDark || selectedOrganization?.logoUrlLight}
-                bottomOffset={isInfoBannerVisible ? (window.innerWidth >= 1024 ? 512 : 0) : 0}
-            />
+            <>
+                <Screensaver 
+                    logoUrl={selectedOrganization?.logoUrlDark || selectedOrganization?.logoUrlLight}
+                    bottomOffset={isInfoBannerVisible ? (window.innerWidth >= 768 ? 512 : 0) : 0}
+                />
+                {isInfoBannerVisible && (
+                    <div className="hidden md:block fixed bottom-0 left-0 right-0 h-[512px] z-[1001]">
+                        <InfoCarouselBanner 
+                            messages={activeInfoMessages} 
+                            className="relative !h-full" 
+                            forceDark={true} 
+                        />
+                    </div>
+                )}
+            </>
         )}
        {showTerms && <TermsOfServiceModal onAccept={acceptTerms} />}
        
        {showSupportChat && <SupportChat />}
 
-       {showScanButton && !showPaywall && !showWelcomePaywall && !mobileLogData && !mobileViewData && !isSearchWorkoutOpen && !isScannerOpen && (
+       {showScanButton && !showPaywall && !showWelcomePaywall && !showPendingCoach && !mobileLogData && !mobileViewData && !isSearchWorkoutOpen && !isScannerOpen && (
           <div className="fixed bottom-6 right-6 z-[50]">
               <ScanButton 
                 onScan={() => setIsScannerOpen(true)} 

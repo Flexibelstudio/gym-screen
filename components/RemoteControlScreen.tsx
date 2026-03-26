@@ -524,7 +524,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         
         // IMPORTANT: Only exit if the view explicitly changes to idle/menu OR if activeWorkoutId is explicitly cleared
         // We add a small delay check to avoid jumping due to transient state updates
-        if (remoteState && (remoteState.view === 'idle' || remoteState.view === 'menu' || remoteState.activeWorkoutId === null)) {
+        if (!remoteState || remoteState.view === 'idle' || remoteState.view === 'menu' || remoteState.activeWorkoutId === null) {
             // Guard: If we just updated settings, wait a bit before allowing an exit based on remote state
             // to ensure we are seeing the latest merged state
             const wasFreestanding = selectedWorkout?.id.startsWith('fs-workout-') || selectedWorkout?.id.startsWith('freestanding-workout-');
@@ -733,11 +733,45 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                 <div className="flex-grow overflow-y-auto p-4 custom-scrollbar">
                     {/* --- DASHBOARD VIEW --- */}
                     {view === 'dashboard' && (
-                        <div className="grid grid-cols-2 gap-4">
-                            {/* 1. Configured Categories (Mapped to match Studio View order) */}
-                            {studioConfig.customCategories.map(cat => (
-                                <DashboardButton 
-                                    key={cat.id}
+                        <div className="space-y-4">
+                            {/* Resume Active Workout Button */}
+                            {(() => {
+                                const studio = selectedOrganization?.studios.find(s => s.id === connectedStudioId);
+                                const remote = studio?.remoteState;
+                                if (remote?.activeWorkoutId) {
+                                    const workoutToLoad = (remote as any).customWorkoutData || workouts.find(w => w.id === remote.activeWorkoutId);
+                                    if (workoutToLoad) {
+                                        return (
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedWorkout(workoutToLoad);
+                                                    setActiveRunningBlockId(remote.activeBlockId);
+                                                    setView('controls');
+                                                }}
+                                                className="w-full p-6 bg-primary/20 border border-primary/50 rounded-3xl flex items-center justify-between hover:bg-primary/30 transition-colors group mb-6"
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center">
+                                                        <PlayIcon className="w-6 h-6 text-white" />
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <h3 className="font-bold text-lg text-white">Återuppta pågående pass</h3>
+                                                        <p className="text-sm text-primary">{workoutToLoad.title}</p>
+                                                    </div>
+                                                </div>
+                                                <ChevronRightIcon className="w-5 h-5 text-primary group-hover:translate-x-1 transition-transform" />
+                                            </button>
+                                        );
+                                    }
+                                }
+                                return null;
+                            })()}
+
+                            <div className="grid grid-cols-2 gap-4">
+                                {/* 1. Configured Categories (Mapped to match Studio View order) */}
+                                {studioConfig.customCategories.map(cat => (
+                                    <DashboardButton 
+                                        key={cat.id}
                                     onClick={() => { setSelectedCategory(cat.name); setView('list'); }}
                                     icon={<DumbbellIcon className="w-8 h-8" />}
                                     label={cat.name}
@@ -786,6 +820,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                 icon={<StarIcon className="w-8 h-8" />}
                                 label="Övriga Pass"
                             />
+                            </div>
                         </div>
                     )}
 
@@ -871,7 +906,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                         >
                                             <div>
                                                 <h4 className="font-bold text-white text-lg">{workout.title}</h4>
-                                                <p className="text-gray-400 text-xs mt-1">{workout.blocks.length} delar</p>
+                                                <p className="text-gray-400 text-xs mt-1">{workout.blocks?.length || 0} delar</p>
                                             </div>
                                             <ChevronRightIcon className="w-5 h-5 text-gray-500 group-hover:text-white" />
                                         </button>

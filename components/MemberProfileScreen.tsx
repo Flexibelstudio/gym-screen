@@ -528,6 +528,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             {/* --- BETALVÄGG OCH LOGIK START --- */}
             {!hasActiveSubscription && (
                 <PaywallScreen 
+                    userData={userData}
                     onLogout={() => {
                         if (functions && functions.handleLogout) {
                             functions.handleLogout();

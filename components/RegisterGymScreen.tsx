@@ -40,10 +40,11 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
                 name: gymName,
                 createdAt: serverTimestamp(),
                 ownerUid: user.uid,
+                maxFreeCoaches: 5,
                 subdomain: gymName.toLowerCase().replace(/\s+/g, '-'),
                 globalConfig: {
                     primaryColor: '#6366f1',
-                    enableWorkoutLogging: true,
+                    enableWorkoutLogging: false,
                     enableScreensaver: true
                 },
                 // Lägger till standardlösenord för att matcha er Organizations-typ

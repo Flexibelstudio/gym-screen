@@ -135,8 +135,9 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
 
     // Profit Calculator State
     const [showPricingModal, setShowPricingModal] = useState(false);
+    const [isConnectingStripe, setIsConnectingStripe] = useState(false);
     const [baseCost, setBaseCost] = useState(19);
-    const [customerPrice, setCustomerPrice] = useState(49);
+    const customerPrice = 39;
 
     const globalConfig = organization.globalConfig;
 
@@ -475,15 +476,9 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                                 <span className="font-bold">{baseCost} kr / mån</span>
                             </div>
                             <div className="flex justify-between items-center p-3 rounded-lg border-2 border-primary/20 bg-white dark:bg-gray-800">
-                                <label htmlFor="price" className="font-bold text-primary">Ditt pris till kund</label>
+                                <span className="font-bold text-primary">Pris till kund</span>
                                 <div className="flex items-center gap-2">
-                                    <input 
-                                        id="price"
-                                        type="number" 
-                                        value={customerPrice} 
-                                        onChange={e => setCustomerPrice(Number(e.target.value))}
-                                        className="w-20 text-right font-bold bg-transparent border-b border-gray-300 focus:border-primary outline-none"
-                                    />
+                                    <span className="text-xl font-bold">{customerPrice}</span>
                                     <span>kr/mån</span>
                                 </div>
                             </div>
@@ -502,17 +497,49 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                         <button onClick={() => setShowPricingModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">Avbryt</button>
                         <button 
                             onClick={async () => {
-                                const newOverrides = { ...overrides, enableWorkoutLogging: true };
-                                setOverrides(newOverrides);
-                                try {
-                                    await onSave(organization.id, studio.id, newOverrides);
-                                    setToast({ message: "Passloggning aktiverad!", visible: true });
-                                } catch(e) { console.error(e); }
-                                setShowPricingModal(false);
+                                if (!organization.stripeConnectSetupComplete) {
+                                    setIsConnectingStripe(true);
+                                    try {
+                                        const apiUrl = import.meta.env.VITE_API_URL;
+                                        const res = await fetch(`${apiUrl}/create-connect-account`, {
+                                            method: 'POST',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ organizationId: organization.id, returnUrl: window.location.origin })
+                                        });
+                                        const data = await res.json();
+                                        
+                                        if (data.url) {
+                                            window.location.href = data.url;
+                                            return;
+                                        }
+                                    } catch(e) { 
+                                        console.error(e); 
+                                        setIsConnectingStripe(false);
+                                    }
+                                } else {
+                                    setIsConnectingStripe(true);
+                                    const newOverrides = { ...overrides, enableWorkoutLogging: true };
+                                    setOverrides(newOverrides);
+                                    try {
+                                        await onSave(organization.id, studio.id, newOverrides);
+                                        setToast({ message: "Passloggning aktiverad!", visible: true });
+                                    } catch(e) { console.error(e); }
+                                    setIsConnectingStripe(false);
+                                    setShowPricingModal(false);
+                                }
                             }} 
-                            className="flex-[2] py-3 bg-primary text-white font-bold rounded-lg shadow-lg hover:brightness-110"
+                            disabled={isConnectingStripe}
+                            className="flex-[2] py-3 bg-primary text-white font-bold rounded-lg shadow-lg hover:brightness-110 disabled:opacity-50 flex items-center justify-center gap-2"
                         >
-                            Godkänn & Aktivera
+                            {isConnectingStripe ? (
+                                <>
+                                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Laddar...
+                                </>
+                            ) : (!organization.stripeConnectSetupComplete ? 'Koppla Stripe & Aktivera' : 'Godkänn & Aktivera')}
                         </button>
                     </div>
                 </div>

@@ -172,7 +172,6 @@ const createNewWorkout = (): Workout => ({
   blocks: [createNewBlock(1)],
   category: 'Ej kategoriserad',
   isPublished: false,
-  isMemberDraft: true,
   createdAt: Date.now(),
   organizationId: '',
 });
@@ -558,21 +557,39 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
                     />
                 </div>
                 <div className="p-4 rounded-2xl bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-800">
-                    <ToggleSwitch 
-                        label="'Följ mig'-läge" 
-                        checked={!!block.followMe} 
-                        onChange={v => handleFieldChange('followMe', v)} 
-                    />
+                    {(() => {
+                        const hasLinkedExercises = block.exercises?.some(e => e.groupId) || false;
+                        const followMeDisabled = block.settings.mode === TimerMode.Custom || hasLinkedExercises || block.settings.mode === TimerMode.NoTimer;
+                        const followMeDescription = block.settings.mode === TimerMode.Custom 
+                            ? "Kan inte kombineras med Sekvenstimer" 
+                            : block.settings.mode === TimerMode.NoTimer
+                                ? "Kan inte kombineras med Ingen Timer"
+                                : hasLinkedExercises 
+                                    ? "Kan inte kombineras med länkade övningar" 
+                                    : undefined;
+
+                        return (
+                            <ToggleSwitch 
+                                label="'Följ mig'-läge" 
+                                checked={!!block.followMe} 
+                                onChange={v => handleFieldChange('followMe', v)} 
+                                disabled={followMeDisabled}
+                                description={followMeDescription}
+                            />
+                        );
+                    })()}
                 </div>
                 
                 {!isLastBlock && (
-                     <div className="col-span-1 sm:col-span-2 p-4 rounded-2xl bg-purple-50/30 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800/50 flex flex-col gap-4">
+                     <div className={`col-span-1 sm:col-span-2 p-4 rounded-2xl bg-purple-50/30 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-800/50 flex flex-col gap-4 ${block.settings.mode === TimerMode.NoTimer ? 'opacity-50' : ''}`}>
                         <ToggleSwitch 
                             label="Automatisk start av nästa block" 
-                            checked={!!block.autoAdvance} 
+                            checked={block.settings.mode === TimerMode.NoTimer ? false : !!block.autoAdvance} 
                             onChange={v => handleFieldChange('autoAdvance', v)} 
+                            disabled={block.settings.mode === TimerMode.NoTimer}
+                            description={block.settings.mode === TimerMode.NoTimer ? "Kan inte användas med Ingen Timer" : undefined}
                         />
-                        {block.autoAdvance && (
+                        {block.autoAdvance && block.settings.mode !== TimerMode.NoTimer && (
                             <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4 pl-2 pt-2 border-t border-purple-100 dark:border-purple-800/50">
                                 <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Vila</span>
                                 <div className="flex items-center gap-2">
@@ -640,12 +657,42 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
 };
 
 // --- Main Component ---
-export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | null; onSave: (w: Workout) => void; onCancel: () => void }> = ({ initialWorkout, onSave, onCancel }) => {
+export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | null; onSave: (w: Workout) => void; onCancel: () => void; setCustomBackHandler?: (handler: (() => void) | null) => void }> = ({ initialWorkout, onSave, onCancel, setCustomBackHandler }) => {
     const { selectedOrganization, studioConfig } = useStudio();
     const [workout, setWorkout] = useState<Workout>(() => initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
+    const [initialSnapshot, setInitialSnapshot] = useState<string>('');
     const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
     const [handwritingCb, setHandwritingCb] = useState<((t: string) => void) | null>(null);
     const [exerciseBank, setExerciseBank] = useState<BankExercise[]>([]);
+    
+    useEffect(() => {
+        setInitialSnapshot(JSON.stringify(workout));
+    }, []);
+
+    const isDirty = useMemo(() => {
+        return JSON.stringify(workout) !== initialSnapshot;
+    }, [workout, initialSnapshot]);
+
+    const handleCancel = () => {
+        if (isDirty) {
+            if (window.confirm('Du har osparade ändringar. Är du säker på att du vill lämna?')) {
+                onCancel();
+            }
+        } else {
+            onCancel();
+        }
+    };
+
+    useEffect(() => {
+        if (setCustomBackHandler) {
+            setCustomBackHandler(() => handleCancel);
+        }
+        return () => {
+            if (setCustomBackHandler) {
+                setCustomBackHandler(null);
+            }
+        };
+    }, [setCustomBackHandler, isDirty, onCancel]);
     
     // Toast state
     const [toast, setToast] = useState<{ message: string, visible: boolean }>({ message: '', visible: false });
@@ -787,7 +834,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
             {/* Bottom Actions */}
             <div className="fixed bottom-0 left-0 right-0 z-[200] bg-white/80 dark:bg-black/80 backdrop-blur-xl border-t border-gray-100 dark:border-gray-800 p-6">
                 <div className="max-w-2xl mx-auto flex gap-4">
-                    <button onClick={onCancel} className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-500 py-5 rounded-[2rem] font-black uppercase tracking-widest text-xs shadow-lg active:scale-95 transition-all">Avbryt</button>
+                    <button onClick={handleCancel} className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-500 py-5 rounded-[2rem] font-black uppercase tracking-widest text-xs shadow-lg active:scale-95 transition-all">Avbryt</button>
                     <button onClick={handleSave} className="flex-[2] bg-primary text-white py-5 rounded-[2rem] font-black shadow-2xl shadow-primary/30 uppercase tracking-widest text-lg transform hover:-translate-y-1 active:scale-95 transition-all">Spara Pass 🚀</button>
                 </div>
             </div>

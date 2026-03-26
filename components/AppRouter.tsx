@@ -84,7 +84,7 @@ interface AppRouterProps {
         updateLogos: (organizationId: string, logos: { light: string; dark: string }) => Promise<void>;
         updateFavicon: (organizationId: string, faviconUrl: string) => Promise<void>;
         updatePrimaryColor: (organizationId: string, color: string) => Promise<void>;
-        updateOrganization: (organizationId: string, name: string, subdomain: string, inviteCode?: string) => Promise<void>;
+        updateOrganization: (organizationId: string, name: string, subdomain: string, inviteCode?: string, coachCode?: string, maxFreeCoaches?: number) => Promise<void>;
         updateCustomPages: (organizationId: string, customPages: CustomPage[]) => Promise<void>;
         updateInfoCarousel: (organizationId: string, infoCarousel: InfoCarousel) => Promise<void>;
         
@@ -175,7 +175,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
             }
             return <WorkoutDetailScreen 
                 workout={activeWorkout} 
-                onStartBlock={(block) => onStartBlock(block, activeWorkout)} 
+                onStartBlock={(block, workout) => onStartBlock(block, workout)} 
                 onUpdateBlockSettings={() => {}}
                 onEditWorkout={onEditWorkout} 
                 onAdjustWorkout={functions.handleAdjustWorkout}
@@ -238,6 +238,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onCancel={handleBack}
                 studioConfig={studioConfig}
                 sessionRole={role}
+                setCustomBackHandler={functions.setCustomBackHandler}
             />;
 
         case Page.SimpleWorkoutBuilder:
@@ -245,6 +246,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 initialWorkout={activeWorkout} 
                 onSave={onSaveWorkout} 
                 onCancel={handleBack}
+                setCustomBackHandler={functions.setCustomBackHandler}
             />;
 
         case Page.Coach:

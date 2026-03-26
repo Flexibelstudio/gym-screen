@@ -42,7 +42,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                iCountMode = 'rounds';
                iTotalOmgångar = rounds > 0 ? rounds : 1;
           } else {
-              const numExercises = block.exercises.length > 0 ? block.exercises.length : 1;
+              const numExercises = (block.exercises?.length || 0) > 0 ? (block.exercises?.length || 1) : 1;
               if (rounds > 0 && rounds % numExercises === 0) {
                   iCountMode = 'laps';
                   iIntervallerPerVarv = numExercises;
@@ -233,10 +233,12 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
   
   const handleModeChange = (newMode: TimerMode) => {
     setMode(newMode);
-    if (newMode === TimerMode.Interval) {
+    if (newMode === TimerMode.NoTimer) {
+        setAutoAdvance(false);
+    } else if (newMode === TimerMode.Interval) {
         setCountMode('laps');
         setVarv(3);
-        setIntervallerPerVarv(block.exercises.length > 0 ? block.exercises.length : 1);
+        setIntervallerPerVarv((block.exercises?.length || 0) > 0 ? (block.exercises?.length || 1) : 1);
     } else if (newMode === TimerMode.AMRAP || newMode === TimerMode.TimeCap || newMode === TimerMode.EMOM) {
         setTotalMinutes(10);
     } else if (newMode === TimerMode.Custom) {
@@ -458,46 +460,82 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
         
         <div className="mb-6">
           <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Timertyp</label>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <button
               onClick={() => handleModeChange(TimerMode.Interval)}
-              className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${mode === TimerMode.Interval ? 'bg-primary text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-600'}`}
+              className={`px-4 py-3 text-sm font-bold rounded-xl transition-all duration-200 border-2 ${
+                  mode === TimerMode.Interval 
+                  ? 'bg-orange-600 text-white border-orange-600 shadow-md shadow-orange-600/20 scale-105' 
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-orange-400 hover:text-orange-600 dark:hover:text-orange-400'
+              }`}
             >
               Interval
             </button>
             <button
               onClick={() => handleModeChange(TimerMode.Tabata)}
-              className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${mode === TimerMode.Tabata ? 'bg-primary text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-600'}`}
+              className={`px-4 py-3 text-sm font-bold rounded-xl transition-all duration-200 border-2 ${
+                  mode === TimerMode.Tabata 
+                  ? 'bg-red-600 text-white border-red-600 shadow-md shadow-red-600/20 scale-105' 
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-red-400 hover:text-red-600 dark:hover:text-red-400'
+              }`}
             >
               Tabata
             </button>
             <button
               onClick={() => handleModeChange(TimerMode.AMRAP)}
-              className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${mode === TimerMode.AMRAP ? 'bg-primary text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-600'}`}
+              className={`px-4 py-3 text-sm font-bold rounded-xl transition-all duration-200 border-2 ${
+                  mode === TimerMode.AMRAP 
+                  ? 'bg-pink-600 text-white border-pink-600 shadow-md shadow-pink-600/20 scale-105' 
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-pink-400 hover:text-pink-600 dark:hover:text-pink-400'
+              }`}
             >
               AMRAP
             </button>
             <button
               onClick={() => handleModeChange(TimerMode.EMOM)}
-              className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${mode === TimerMode.EMOM ? 'bg-primary text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-600'}`}
+              className={`px-4 py-3 text-sm font-bold rounded-xl transition-all duration-200 border-2 ${
+                  mode === TimerMode.EMOM 
+                  ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-600/20 scale-105' 
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-purple-400 hover:text-purple-600 dark:hover:text-purple-400'
+              }`}
             >
               EMOM
             </button>
             <button
               onClick={() => handleModeChange(TimerMode.TimeCap)}
-              className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${mode === TimerMode.TimeCap ? 'bg-primary text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-600'}`}
+              className={`px-4 py-3 text-sm font-bold rounded-xl transition-all duration-200 border-2 ${
+                  mode === TimerMode.TimeCap 
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20 scale-105' 
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400'
+              }`}
             >
               TimeCap
             </button>
             <button
-              onClick={() => handleModeChange(TimerMode.Custom)}
-              className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${mode === TimerMode.Custom ? 'bg-primary text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-600'}`}
+              onClick={() => !block.followMe && handleModeChange(TimerMode.Custom)}
+              disabled={!!block.followMe}
+              title={block.followMe ? "Kan inte kombineras med Följ mig-läge" : undefined}
+              className={`px-4 py-3 text-sm font-bold rounded-xl transition-all duration-200 border-2 ${
+                block.followMe 
+                  ? 'bg-gray-100 dark:bg-gray-900 text-gray-400 dark:text-gray-600 border-gray-200 dark:border-gray-800 cursor-not-allowed opacity-60' 
+                  : mode === TimerMode.Custom 
+                    ? 'bg-teal-500 text-white border-teal-500 shadow-md shadow-teal-500/20 scale-105' 
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-teal-400 hover:text-teal-500 dark:hover:text-teal-400'
+              }`}
             >
               Sekvens
             </button>
             <button
-              onClick={() => handleModeChange(TimerMode.NoTimer)}
-              className={`px-3 py-1.5 text-sm font-semibold rounded-full transition-colors ${mode === TimerMode.NoTimer ? 'bg-primary text-white' : 'bg-gray-300 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-400 dark:hover:bg-gray-600'}`}
+              onClick={() => !block.followMe && handleModeChange(TimerMode.NoTimer)}
+              disabled={!!block.followMe}
+              title={block.followMe ? "Kan inte kombineras med Följ mig-läge" : undefined}
+              className={`px-4 py-3 text-sm font-bold rounded-xl transition-all duration-200 border-2 sm:col-span-3 ${
+                block.followMe 
+                  ? 'bg-gray-100 dark:bg-gray-900 text-gray-400 dark:text-gray-600 border-gray-200 dark:border-gray-800 cursor-not-allowed opacity-60' 
+                  : mode === TimerMode.NoTimer 
+                    ? 'bg-slate-700 text-white border-slate-700 shadow-md shadow-slate-700/20 scale-105' 
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-slate-500 hover:text-slate-700 dark:hover:text-slate-400'
+              }`}
             >
               Ingen Timer
             </button>
@@ -511,7 +549,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
 
         {/* --- AUTO ADVANCE SETTINGS --- */}
         {!isLastBlock && (
-            <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4">
+            <div className={`mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-4 ${mode === TimerMode.NoTimer ? 'opacity-50' : ''}`}>
                  <div className="flex items-center justify-between p-4 bg-purple-50 dark:bg-purple-900/20 rounded-2xl border border-purple-100 dark:border-purple-800/50">
                      <div className="flex items-center gap-3">
                          <SparklesIcon className="w-5 h-5 text-purple-600 dark:text-purple-400" />
@@ -519,12 +557,18 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                      </div>
                      <ToggleSwitch 
                         label="" 
-                        checked={autoAdvance} 
+                        checked={mode === TimerMode.NoTimer ? false : autoAdvance} 
                         onChange={setAutoAdvance} 
+                        disabled={mode === TimerMode.NoTimer}
                      />
                  </div>
+                 {mode === TimerMode.NoTimer && (
+                     <p className="text-xs text-red-500 font-medium px-2">
+                         Kan inte användas med "Ingen Timer"
+                     </p>
+                 )}
                  
-                 {autoAdvance && (
+                 {autoAdvance && mode !== TimerMode.NoTimer && (
                      <div className="animate-fade-in p-4 bg-white dark:bg-black/40 rounded-2xl border border-gray-200 dark:border-gray-700">
                          <ValueAdjuster 
                             label="Vila inför nästa del (sekunder)" 

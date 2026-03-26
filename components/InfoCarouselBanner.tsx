@@ -31,11 +31,11 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
     useEffect(() => {
         if (messages.length <= 1) return;
 
+        // SÄKERHETSSPÄRR (Förhindrar krascher)
         const safeIndex = currentIndex >= messages.length ? 0 : currentIndex;
         const currentMessage = messages[safeIndex];
         if (!currentMessage) return;
 
-        // Ensure duration is a positive number
         const duration = (currentMessage.durationSeconds || 10) * 1000;
 
         const timer = setTimeout(() => {
@@ -43,8 +43,8 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
             setTimeout(() => {
                 setCurrentIndex((prevIndex) => (prevIndex + 1) % messages.length);
                 setIsFading(false);
-            }, 500); // Fade-out duration must match CSS transition
-        }, duration - 500); // Switch 500ms before end to allow for fade
+            }, 500); 
+        }, duration - 500); 
 
         return () => clearTimeout(timer);
     }, [currentIndex, messages]);
@@ -60,7 +60,6 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
     const layout = currentMessage.layout || 'text-only';
     const hasImage = layout !== 'text-only' && currentMessage.imageUrl;
 
-    // Determine background and text colors based on forceDark prop or system theme
     const bgClass = forceDark 
         ? 'bg-black/90' 
         : 'bg-white/90 dark:bg-black/90';
@@ -78,22 +77,27 @@ export const InfoCarouselBanner: React.FC<InfoCarouselBannerProps> = ({ messages
         : 'border-gray-200 dark:border-gray-700/50';
 
     return (
-        <div className={`w-full h-full ${bgClass} backdrop-blur-md ${textClass} z-[1001] border-t ${borderClass} flex items-center justify-center p-4 lg:p-8 ${className}`}>
+        // DOLD PÅ MOBIL (hidden md:flex), INGET "FIXED" (fyller sin behållare snyggt)
+        <div className={`hidden md:flex w-full h-full ${bgClass} backdrop-blur-md ${textClass} z-[1001] border-t ${borderClass} items-center justify-center p-8 ${className}`}>
              <div
-                key={safeIndex} // This key is crucial to re-trigger the animation
+                key={safeIndex} 
                 className={`w-full max-w-6xl mx-auto px-4 transition-opacity duration-500 ${isFading ? 'opacity-0' : 'opacity-100'} ${getAnimationClass(currentMessage.animation)}`}
             >
-                <div className={`flex items-center h-full gap-6 lg:gap-12 ${layout === 'image-right' ? 'flex-row-reverse justify-end' : 'justify-start'}`}>
+                {/* STORT AVSTÅND: gap-12 */}
+                <div className={`flex items-center h-full gap-12 ${layout === 'image-right' ? 'flex-row-reverse justify-end' : 'justify-start'}`}>
                     {hasImage && (
                         <img 
                             src={currentMessage.imageUrl} 
                             alt={currentMessage.headline} 
-                            className="w-48 h-48 md:w-64 md:h-64 lg:w-80 lg:h-80 xl:w-96 xl:h-96 object-cover rounded-2xl flex-shrink-0 shadow-xl"
+                            // MAFFIG BILD: w-96 h-96
+                            className="w-96 h-96 object-cover rounded-2xl flex-shrink-0 shadow-xl"
                         />
                     )}
                     <div className={`flex-grow min-w-0 ${layout === 'image-right' ? 'text-right' : 'text-left'}`}>
-                        <h4 className="font-bold text-2xl md:text-3xl lg:text-4xl text-primary line-clamp-2 mb-2 lg:mb-4 leading-tight">{currentMessage.headline}</h4>
-                        <p className={`text-base md:text-lg lg:text-xl ${secondaryTextClass} line-clamp-6 md:line-clamp-8 lg:line-clamp-12 whitespace-pre-wrap leading-relaxed`}>{currentMessage.body}</p>
+                        {/* STOR RUBRIK: text-4xl */}
+                        <h4 className="font-bold text-4xl text-primary line-clamp-2 mb-4 leading-tight">{currentMessage.headline}</h4>
+                        {/* STOR TEXT: text-xl */}
+                        <p className={`text-xl ${secondaryTextClass} line-clamp-12 whitespace-pre-wrap leading-relaxed`}>{currentMessage.body}</p>
                     </div>
                 </div>
             </div>

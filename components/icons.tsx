@@ -24,8 +24,11 @@ export const ToggleSwitch: React.FC<{
     label: string;
     checked: boolean;
     onChange: (checked: boolean) => void;
-}> = ({ label, checked, onChange }) => {
+    disabled?: boolean;
+    description?: string;
+}> = ({ label, checked, onChange, disabled, description }) => {
     const handleToggle = () => {
+        if (disabled) return;
         if (window.navigator.vibrate) {
             window.navigator.vibrate(10);
         }
@@ -33,16 +36,21 @@ export const ToggleSwitch: React.FC<{
     };
 
     return (
-        <div className="flex items-center justify-between cursor-pointer group" onClick={handleToggle}>
-            <span className="text-gray-900 dark:text-gray-100 font-medium mr-3 transition-colors group-hover:text-primary">{label}</span>
-            <div className={`w-12 h-7 flex items-center rounded-full p-1 transition-colors duration-300 ${checked ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-700'}`}>
-                <motion.div 
-                    layout
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                    className="bg-white w-5 h-5 rounded-full shadow-md"
-                    style={{ x: checked ? 20 : 0 }}
-                />
+        <div className={`flex flex-col ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer group'}`} onClick={handleToggle}>
+            <div className="flex items-center justify-between">
+                <span className={`font-medium mr-3 transition-colors ${disabled ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100 group-hover:text-primary'}`}>{label}</span>
+                <div className={`w-12 h-7 flex items-center rounded-full p-1 transition-colors duration-300 ${checked ? (disabled ? 'bg-primary/50' : 'bg-primary') : 'bg-gray-300 dark:bg-gray-700'}`}>
+                    <motion.div 
+                        layout
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        className="bg-white w-5 h-5 rounded-full shadow-md"
+                        style={{ x: checked ? 20 : 0 }}
+                    />
+                </div>
             </div>
+            {description && (
+                <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">{description}</span>
+            )}
         </div>
     );
 };
