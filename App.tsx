@@ -737,36 +737,16 @@ const App: React.FC = () => {
     navigateTo(Page.WorkoutBuilder);
   };
 
-  const handleSelectPasskategori = async (passkategori: Passkategori) => {
+  const handleSelectPasskategori = (passkategori: Passkategori) => {
     let categoryWorkouts = workouts.filter(w => w.category === passkategori && w.isPublished && !w.isMemberDraft);
     
     if (categoryWorkouts.length === 1 && !isPickingForLog) {
-        if (selectedOrganization) {
-            // Dubbelkolla mot databasen för att undvika stale state
-            const freshWorkouts = await getFreshCategoryWorkouts(selectedOrganization.id, passkategori);
-            
-            // Om det fortfarande bara finns 1 pass, öppna det direkt
-            if (freshWorkouts.length === 1) {
-                if (isStudioMode) {
-                    handleSelectWorkout(freshWorkouts[0]);
-                    return;
-                } else {
-                     handleSelectWorkout(freshWorkouts[0], 'view');
-                     return;
-                }
-            } else {
-                // Annars uppdaterar vi listan och går till listvyn (state kommer ikapp automatiskt via onSnapshot)
-                categoryWorkouts = freshWorkouts;
-            }
+        if (isStudioMode) {
+            handleSelectWorkout(categoryWorkouts[0]);
+            return;
         } else {
-            // Fallback om org saknas
-            if (isStudioMode) {
-                handleSelectWorkout(categoryWorkouts[0]);
-                return;
-            } else {
-                 handleSelectWorkout(categoryWorkouts[0], 'view');
-                 return;
-            }
+             handleSelectWorkout(categoryWorkouts[0], 'view');
+             return;
         }
     }
 

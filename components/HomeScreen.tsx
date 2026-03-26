@@ -77,7 +77,7 @@ const MenuCard: React.FC<{
             className={`
                 relative overflow-hidden rounded-[2.5rem] p-6 text-left flex flex-col justify-between aspect-square w-full
                 bg-primary bg-gradient-to-br from-white/20 via-transparent to-black/30 text-white
-                shadow-xl border-t border-l border-white/20 transition-all duration-300
+                shadow-xl border-t border-l border-white/20 transition-shadow duration-300
                 hover:shadow-primary/20 hover:-translate-y-1
             `}
         >
@@ -231,10 +231,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
   const handleItemClick = (index: number, action: () => void) => {
       setActiveIndex(index);
-      setTimeout(() => {
-          action();
-          setTimeout(() => setActiveIndex(null), 500);
-      }, 350);
+      // Trigger action immediately for best responsiveness
+      action();
+      setTimeout(() => setActiveIndex(null), 500);
   };
 
   const logoUrl = theme === 'dark' ? organizationLogoUrlDark || organizationLogoUrlLight : organizationLogoUrlLight || organizationLogoUrlDark;
