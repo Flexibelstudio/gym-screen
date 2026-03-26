@@ -212,15 +212,18 @@ const App: React.FC = () => {
                           }
     
                           if (remote.view === 'preview') {
+                              setActiveBlock(null);
+                              setCompletionInfo(null);
                               if (page !== Page.WorkoutDetail) {
                                   navigateReplace(Page.WorkoutDetail);
                               }
                           } else if (remote.view === 'timer' && remote.activeBlockId) {
-                              const blockToStart = workout.blocks.find(b => b.id === remote.activeBlockId);
+                              const blockToStart = workout.blocks?.find(b => b.id === remote.activeBlockId);
                               if (blockToStart) {
                                   if (activeBlock?.id !== blockToStart.id || JSON.stringify(activeBlock) !== JSON.stringify(blockToStart)) {
                                       setActiveBlock(blockToStart);
                                   }
+                                  setCompletionInfo(null);
                                   const targetPage = blockToStart.settings.mode === TimerMode.NoTimer ? Page.RepsOnly : Page.Timer;
                                   if (page !== targetPage) {
                                       navigateReplace(targetPage);
@@ -715,7 +718,7 @@ const App: React.FC = () => {
     }
 
     setActiveWorkout(workout);
-    if ((workout.id.startsWith('hyrox-full-race') || workout.id.startsWith('custom-race')) && workout.blocks.length > 0) {
+    if ((workout.id.startsWith('hyrox-full-race') || workout.id.startsWith('custom-race')) && workout.blocks?.length > 0) {
       handleStartBlock(workout.blocks[0], workout);
     } else {
       navigateTo(Page.WorkoutDetail);
@@ -723,7 +726,7 @@ const App: React.FC = () => {
   };
 
   const handleStartRace = (workout: Workout) => {
-    if (workout.blocks.length > 0) handleStartBlock(workout.blocks[0], workout);
+    if (workout.blocks?.length > 0) handleStartBlock(workout.blocks[0], workout);
   };
   
   const handleDuplicateWorkout = (workoutToCopy: Workout) => {
@@ -734,18 +737,6 @@ const App: React.FC = () => {
   };
 
   const handleSelectPasskategori = (passkategori: Passkategori) => {
-    const categoryWorkouts = workouts.filter(w => w.category === passkategori && w.isPublished && !w.isMemberDraft);
-    
-    if (categoryWorkouts.length === 1 && !isPickingForLog) {
-        if (isStudioMode) {
-            handleSelectWorkout(categoryWorkouts[0]);
-            return;
-        } else {
-             handleSelectWorkout(categoryWorkouts[0], 'view');
-             return;
-        }
-    }
-
     if (!isStudioMode) {
         if (isPickingForLog) {
              setIsPickingForLog(true);

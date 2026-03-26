@@ -42,7 +42,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                iCountMode = 'rounds';
                iTotalOmgångar = rounds > 0 ? rounds : 1;
           } else {
-              const numExercises = block.exercises.length > 0 ? block.exercises.length : 1;
+              const numExercises = (block.exercises?.length || 0) > 0 ? (block.exercises?.length || 1) : 1;
               if (rounds > 0 && rounds % numExercises === 0) {
                   iCountMode = 'laps';
                   iIntervallerPerVarv = numExercises;
@@ -236,7 +236,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
     if (newMode === TimerMode.Interval) {
         setCountMode('laps');
         setVarv(3);
-        setIntervallerPerVarv(block.exercises.length > 0 ? block.exercises.length : 1);
+        setIntervallerPerVarv((block.exercises?.length || 0) > 0 ? (block.exercises?.length || 1) : 1);
     } else if (newMode === TimerMode.AMRAP || newMode === TimerMode.TimeCap || newMode === TimerMode.EMOM) {
         setTotalMinutes(10);
     } else if (newMode === TimerMode.Custom) {

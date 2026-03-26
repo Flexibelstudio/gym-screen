@@ -96,7 +96,7 @@ const getBlockTimeLabel = (block: WorkoutBlock): string => {
     
     if (s.mode === TimerMode.NoTimer) return "Ingen tid";
     
-    const duration = calculateBlockDuration(s, block.exercises.length);
+    const duration = calculateBlockDuration(s, block.exercises?.length || 0);
     return formatSeconds(duration);
 };
 
@@ -1093,7 +1093,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       try {
           const raceData: Omit<HyroxRace, 'id' | 'createdAt' | 'organizationId'> = {
               raceName: activeWorkout.title,
-              exercises: block.exercises.map(e => `${e.reps || ''} ${e.name}`.trim()),
+              exercises: block.exercises?.map(e => `${e.reps || ''} ${e.name}`.trim()) || [],
               startGroups: startGroups.map(g => ({ id: g.id, name: g.name, participants: g.participants.split('\n').map(p => p.trim()).filter(Boolean) })),
               results: raceResults
           };
@@ -1189,7 +1189,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   // --- VIKTAD HÖJDFÖRDELNING ---
   const getBlockWeight = (block: WorkoutBlock) => {
     // 2 poäng för header/titel, 1 poäng per övning
-    return 2 + block.exercises.length;
+    return 2 + (block.exercises?.length || 0);
   };
 
   const restartHideTimer = React.useCallback(() => {
@@ -1325,13 +1325,13 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                         mode={block.settings.mode} 
                         currentInterval={
                             block.settings.mode === TimerMode.Custom ? (completedWorkIntervals % (block.settings.sequence?.length || 1)) + 1 :
-                            block?.settings.specifiedLaps != null ? (completedWorkIntervals % (block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1)) + 1 : 
-                            (block?.settings.mode === TimerMode.Interval && block?.settings.specifiedLaps === undefined && block?.settings.rounds && block.exercises.length > 0 && block.settings.rounds % block.exercises.length === 0) ? (completedWorkIntervals % block.exercises.length) + 1 : undefined
+                            block?.settings.specifiedLaps != null ? (completedWorkIntervals % (block?.settings.specifiedIntervalsPerLap || block.exercises?.length || 1)) + 1 : 
+                            (block?.settings.mode === TimerMode.Interval && block?.settings.specifiedLaps === undefined && block?.settings.rounds && (block.exercises?.length || 0) > 0 && block.settings.rounds % (block.exercises?.length || 1) === 0) ? (completedWorkIntervals % (block.exercises?.length || 1)) + 1 : undefined
                         }
                         totalIntervalsInLap={
                             block.settings.mode === TimerMode.Custom ? block.settings.sequence?.length || 1 :
-                            block?.settings.specifiedLaps != null ? (block?.settings.specifiedIntervalsPerLap || block.exercises.length || 1) : 
-                            (block?.settings.mode === TimerMode.Interval && block?.settings.specifiedLaps === undefined && block?.settings.rounds && block.exercises.length > 0 && block.settings.rounds % block.exercises.length === 0) ? block.exercises.length : undefined
+                            block?.settings.specifiedLaps != null ? (block?.settings.specifiedIntervalsPerLap || block.exercises?.length || 1) : 
+                            (block?.settings.mode === TimerMode.Interval && block?.settings.specifiedLaps === undefined && block?.settings.rounds && (block.exercises?.length || 0) > 0 && block.settings.rounds % (block.exercises?.length || 1) === 0) ? (block.exercises?.length || 1) : undefined
                         }
                     />
                 )}
@@ -1518,7 +1518,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                         {/* Current Block (or Next Block if transitioning) */}
                                         <div className={`flex-1 min-h-0 ${isAutostartMode && !isTransitioning ? 'opacity-100' : ''}`}>
                                             <StandardListView 
-                                                exercises={isTransitioning ? nextBlock!.exercises : block.exercises} 
+                                                exercises={isTransitioning ? (nextBlock?.exercises || []) : (block.exercises || [])} 
                                                 timerStyle={timerStyle} 
                                                 isHyrox={isHyroxRace} 
                                                 showDescriptions={block.showExerciseDescriptions !== false} // PASS THE PROP
