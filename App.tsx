@@ -456,7 +456,7 @@ const App: React.FC = () => {
     }).sort((a, b) => a.internalTitle.localeCompare(b.internalTitle));
   }, [selectedOrganization, selectedStudio]);
 
-  const isInfoBannerVisible = page === Page.Home && activeInfoMessages.length > 0;
+  const isInfoBannerVisible = (page === Page.Home || isScreensaverActive) && activeInfoMessages.length > 0;
 
   useEffect(() => {
     setSessionRole(role);
@@ -1430,7 +1430,7 @@ const App: React.FC = () => {
           
           {isInfoBannerVisible && (
               // hidden md:block (osynlig på mobil), fast höjd h-[512px] på resten.
-              <div className={`hidden md:block flex-shrink-0 w-full h-[512px] relative ${isScreensaverActive ? 'z-[1001]' : 'z-[40]'}`}>
+              <div className={`hidden md:block flex-shrink-0 w-full h-[512px] ${isScreensaverActive ? 'fixed bottom-0 left-0 right-0 z-[1001]' : 'relative z-[40]'}`}>
                   <InfoCarouselBanner 
                     messages={activeInfoMessages} 
                     className="relative !h-full" 
