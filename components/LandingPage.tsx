@@ -158,7 +158,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                         />
                         <FeatureCard 
                             title="Övningsbank" 
-                            desc="Hundratals inbyggda övningar med möjlighet att ladda upp egna bilder eller generera dem med AI."
+                            desc="Hundratals inbyggda övningar med instruktioner. Lägg in egna och återanvänd dem."
                             icon={<DumbbellIcon className="w-8 h-8" />}
                             delay={0.4}
                         />
