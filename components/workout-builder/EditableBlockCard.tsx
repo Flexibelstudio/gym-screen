@@ -110,7 +110,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             imageUrl: bankExercise.imageUrl,
             reps: exercise.reps, 
             isFromBank: true,
-            loggingEnabled: enableWorkoutLogging ? true : false // Enable ONLY if system allows
+            loggingEnabled: false // Default false
         });
         setIsSearchVisible(false);
         setSearchQuery('');
@@ -154,11 +154,11 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                 onExerciseSavedToBank(newBankExercise);
             }
 
-            // 4. Uppdatera UI för själva övningskortet (detta byter ID och orsakar re-render/unmount av denna komponent)
+            // 4. Uppdatera UI för själva övningskortet
             onUpdate(exercise.id, { 
                 id: newId, 
                 isFromBank: true, 
-                loggingEnabled: enableWorkoutLogging ? true : false
+                loggingEnabled: false
             });
 
         } catch (e) {

@@ -958,7 +958,8 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
                         ...ex,
                         imageUrl: bankEx?.imageUrl || ex.imageUrl, // Sync image
                         description: bankEx?.description || ex.description, // Optional: Sync desc
-                        loggingEnabled: true // Ensure logging is enabled for valid bank items
+                        // Keep the existing loggingEnabled state, or default to false if undefined
+                        loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
                     };
                 } else {
                     // INVALID LINK (Deleted from bank). Downgrade to Ad-hoc.
@@ -982,7 +983,7 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
                     description: ex.description || match.description, 
                     imageUrl: match.imageUrl || ex.imageUrl,
                     isFromBank: true,
-                    loggingEnabled: true
+                    loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
                 };
             }
 
@@ -1005,7 +1006,7 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
                     id: cached.id, 
                     originalBankId: cached.id,
                     isFromBank: true, 
-                    loggingEnabled: true
+                    loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
                 };
             }
 
@@ -1030,7 +1031,7 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
                 id: newId,
                 originalBankId: newId,
                 isFromBank: true,
-                loggingEnabled: true
+                loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
             };
         }));
 

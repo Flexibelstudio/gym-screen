@@ -465,7 +465,6 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   const isHyroxRace = useMemo(() => workout.id.startsWith('hyrox-full-race') || workout.id.startsWith('custom-race'), [workout.id]);
 
   const isWorkoutLoggable = useMemo(() => {
-      if (workout.logType === 'quick') return true;
       return workout.blocks?.some(b => b?.exercises?.some(e => e?.loggingEnabled === true)) || false;
   }, [workout]);
 

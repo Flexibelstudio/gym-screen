@@ -126,8 +126,6 @@ export interface WorkoutBlock {
   transitionTime?: number;   // NEW: Rest time between blocks in seconds
 }
 
-export type WorkoutLogType = 'detailed' | 'quick';
-
 export interface Workout {
   id: string;
   title: string;
@@ -139,7 +137,6 @@ export interface Workout {
   createdAt: number;
   organizationId: string; 
   showDetailsToMember?: boolean;
-  logType?: WorkoutLogType;
   isMemberDraft?: boolean;
   participants?: string[]; 
   startGroups?: StartGroup[]; 

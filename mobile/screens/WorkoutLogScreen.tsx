@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useWorkout } from '../../context/WorkoutContext'; 
 import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, ChartBarIcon, HistoryIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
-import { WorkoutLogType, ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition } from '../../types';
+import { ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
 import { useStudio } from '../../context/StudioContext';
@@ -45,7 +45,6 @@ interface LogData {
 interface WorkoutData {
   id: string;
   title: string;
-  logType?: WorkoutLogType;
   benchmarkId?: string;
   blocks: {
       id: string;
@@ -586,9 +585,9 @@ const cleanForFirestore = (obj: any): any => {
   return result;
 };
 
-export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigation, route }: any) => {
+export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigation, route, workouts: contextWorkouts = [] }: any) => {
   const { currentUser } = useAuth();
-  const { workouts: contextWorkouts, selectedOrganization } = useStudio();
+  const { selectedOrganization } = useStudio();
   const userId = currentUser?.uid || "offline_member_uid"; 
   const passedWId = workoutId || route?.params?.workoutId;
   const isManualMode = passedWId === 'MANUAL_ENTRY';
@@ -611,13 +610,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
-
-  const isQuickWorkoutMode = workout?.logType === 'quick';
   
   const uncheckedSetsCount = useMemo(() => {
-      if (isQuickWorkoutMode || isManualMode) return 0;
+      if (isManualMode) return 0;
       return exerciseResults.reduce((acc, ex) => acc + ex.setDetails.filter(s => !s.completed).length, 0);
-  }, [isQuickWorkoutMode, isManualMode, exerciseResults]);
+  }, [isManualMode, exerciseResults]);
 
   // --- BENCHMARK LOGIC ---
   const benchmarkDefinition = useMemo(() => {
@@ -648,7 +645,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
   const isFormValid = useMemo(() => {
       if (isSubmitting) return false;
-      if (isQuickWorkoutMode || isManualMode) {
+      if (isManualMode) {
           return customActivity.name.trim() !== '' && customActivity.duration.trim() !== '';
       }
 
@@ -659,7 +656,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
       const totalSets = exerciseResults.reduce((acc, ex) => acc + ex.setDetails.length, 0);
       return totalSets > 0 && uncheckedSetsCount === 0;
-  }, [isSubmitting, isQuickWorkoutMode, isManualMode, customActivity, exerciseResults, uncheckedSetsCount, benchmarkDefinition, sessionStats]);
+  }, [isSubmitting, isManualMode, customActivity, exerciseResults, uncheckedSetsCount, benchmarkDefinition, sessionStats]);
   
   // --- LOAD INITIAL DATA ---
   useEffect(() => {
@@ -678,11 +675,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
             
             if (foundWorkout) {
                 setWorkout(foundWorkout as unknown as WorkoutData);
-                
-                if (foundWorkout.logType === 'quick') {
-                    setCustomActivity(prev => ({ ...prev, name: foundWorkout!.title }));
-                    setViewMode('logging');
-                }
 
                 // Check for saved session in localStorage
                 const savedSessionRaw = localStorage.getItem(ACTIVE_LOG_STORAGE_KEY);
@@ -793,7 +785,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
     const sessionData = {
         workoutId: wId || 'manual',
-        workoutTitle: isQuickWorkoutMode ? customActivity.name : (workout?.title || 'Träningspass'),
+        workoutTitle: workout?.title || 'Träningspass',
         organizationId: oId,
         memberId: userId,
         exerciseResults,
@@ -804,7 +796,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
     };
 
     localStorage.setItem(ACTIVE_LOG_STORAGE_KEY, JSON.stringify(sessionData));
-  }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, userId, wId, oId, isManualMode, workout, isQuickWorkoutMode]);
+  }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, userId, wId, oId, isManualMode, workout]);
 
   const handleCancel = (isSuccess = false, diploma: WorkoutDiploma | null = null) => {
     if (isSuccess) {
@@ -837,7 +829,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       setSaveStatus('Registrerar passet...');
       
       try {
-          const isQuickOrManual = isManualMode || workout?.logType === 'quick';
+          const isQuickOrManual = isManualMode;
           
           const now = new Date();
           const selectedDate = new Date(logDate);
@@ -1057,7 +1049,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       <div className="bg-white dark:bg-gray-900 p-6 px-8 flex-shrink-0 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shadow-sm z-10">
         <div className="flex-1 min-w-0 pr-4">
             <h1 className="text-2xl font-black text-gray-900 dark:text-white leading-tight truncate">
-                {isManualMode || isQuickWorkoutMode ? 'Logga Aktivitet' : workout?.title}
+                {isManualMode ? 'Logga Aktivitet' : workout?.title}
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Registrera dina resultat</p>
         </div>
@@ -1091,14 +1083,14 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   />
               )}
               
-              {isManualMode || isQuickWorkoutMode ? (
+              {isManualMode ? (
                   <CustomActivityForm 
                       activityName={customActivity.name}
                       duration={customActivity.duration}
                       distance={customActivity.distance}
                       calories={customActivity.calories}
                       onUpdate={handleCustomActivityUpdate}
-                      isQuickMode={isQuickWorkoutMode}
+                      isQuickMode={false}
                   />
               ) : (
                   <>
@@ -1194,7 +1186,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               />
 
               <div className="mt-12 space-y-4 pb-12">
-                  {!isFormValid && !isQuickWorkoutMode && !isManualMode && uncheckedSetsCount > 0 && (
+                  {!isFormValid && !isManualMode && uncheckedSetsCount > 0 && (
                       <div className="text-center animate-fade-in">
                           <p className="text-orange-600 dark:text-orange-400 text-xs font-black uppercase tracking-widest mb-1 flex items-center justify-center gap-1">
                               <InformationCircleIcon className="w-3.5 h-3.5" /> {uncheckedSetsCount} set kvar att checka av
@@ -1222,7 +1214,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                       <span>Sparar...</span>
                                   </>
                               ) : (
-                                  <span>{isManualMode || isQuickWorkoutMode ? 'Spara Aktivitet' : 'Spara Pass'}</span>
+                                  <span>{isManualMode ? 'Spara Aktivitet' : 'Spara Pass'}</span>
                               )}
                           </button>
                           
