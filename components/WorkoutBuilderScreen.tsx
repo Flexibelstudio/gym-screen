@@ -375,23 +375,56 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
         return;
     }
 
-    // Handle reordering within the same block
-    if (activeData?.type === 'exercise' && overData?.type === 'exercise' && activeId !== overId) {
-        const blockId = workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === activeId))?.id;
+    // Handle reordering or moving exercises between blocks
+    if (activeData?.type === 'exercise' && activeId !== overId) {
+        const sourceBlockId = workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === activeId))?.id;
+        const targetBlockId = overData?.type === 'block' ? overData.blockId : workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === overId))?.id;
         
-        if (blockId) {
+        if (sourceBlockId && targetBlockId) {
             setWorkout(prev => {
-                const newBlocks = prev.blocks.map(block => {
-                    if (block.id === blockId) {
-                        const oldIndex = block.exercises.findIndex(e => `exercise-${e.id}` === activeId);
-                        const newIndex = block.exercises.findIndex(e => `exercise-${e.id}` === overId);
-                        return {
-                            ...block,
-                            exercises: arrayMove(block.exercises, oldIndex, newIndex)
-                        };
+                const newBlocks = [...prev.blocks];
+                const sourceBlockIndex = newBlocks.findIndex(b => b.id === sourceBlockId);
+                const targetBlockIndex = newBlocks.findIndex(b => b.id === targetBlockId);
+                
+                if (sourceBlockIndex === -1 || targetBlockIndex === -1) return prev;
+                
+                const sourceBlock = { ...newBlocks[sourceBlockIndex], exercises: [...newBlocks[sourceBlockIndex].exercises] };
+                const targetBlock = sourceBlockId === targetBlockId ? sourceBlock : { ...newBlocks[targetBlockIndex], exercises: [...newBlocks[targetBlockIndex].exercises] };
+                
+                const oldIndex = sourceBlock.exercises.findIndex(e => `exercise-${e.id}` === activeId);
+                const [draggedExercise] = sourceBlock.exercises.splice(oldIndex, 1);
+                
+                let insertIndex = targetBlock.exercises.length;
+                
+                if (overData?.type === 'exercise') {
+                    const overIndex = targetBlock.exercises.findIndex(e => `exercise-${e.id}` === overId);
+                    insertIndex = overIndex;
+                    
+                    const activeRect = active.rect.current.translated;
+                    const overRect = over.rect;
+                    
+                    if (activeRect && overRect) {
+                        const activeCenterY = activeRect.top + activeRect.height / 2;
+                        const overCenterY = overRect.top + overRect.height / 2;
+                        
+                        if (activeCenterY > overCenterY) {
+                            insertIndex = overIndex + 1;
+                        }
                     }
-                    return block;
-                });
+                }
+                
+                // If moving within the same block, adjust insertIndex because we removed the item at oldIndex
+                if (sourceBlockId === targetBlockId && oldIndex < insertIndex) {
+                    insertIndex -= 1;
+                }
+                
+                targetBlock.exercises.splice(insertIndex, 0, draggedExercise);
+                
+                newBlocks[sourceBlockIndex] = sourceBlock;
+                if (sourceBlockId !== targetBlockId) {
+                    newBlocks[targetBlockIndex] = targetBlock;
+                }
+                
                 return { ...prev, blocks: newBlocks };
             });
         }
