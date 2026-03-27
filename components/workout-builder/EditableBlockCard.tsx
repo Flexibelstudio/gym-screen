@@ -24,6 +24,7 @@ interface ExerciseItemProps {
     enableWorkoutLogging?: boolean;
     onShowToast: (message: string) => void;
     onUpdateGroupColor?: (groupId: string, newColor: string) => void;
+    blockId: string;
 }
 
 export const GROUP_COLORS = [
@@ -35,7 +36,7 @@ export const GROUP_COLORS = [
     { bg: 'bg-yellow-400', border: 'border-yellow-400', lightBg: 'bg-yellow-50 dark:bg-yellow-900/20' }
 ];
 
-const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, organizationId, onExerciseSavedToBank, enableWorkoutLogging, onShowToast, onUpdateGroupColor }) => {
+const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, organizationId, onExerciseSavedToBank, enableWorkoutLogging, onShowToast, onUpdateGroupColor, blockId }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -189,7 +190,8 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
         id: `exercise-${exercise.id}`,
         data: {
             type: 'exercise',
-            exercise
+            exercise,
+            blockId
         }
     });
 
@@ -689,6 +691,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                                             enableWorkoutLogging={enableWorkoutLogging}
                                             onShowToast={onShowToast}
                                             onUpdateGroupColor={updateGroupColor}
+                                            blockId={block.id}
                                         />
                                     </div>
                                     {i < block.exercises.length - 1 && (

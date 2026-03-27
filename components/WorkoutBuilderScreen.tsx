@@ -48,11 +48,52 @@ const customCollisionDetection: CollisionDetection = (args) => {
   const pointerCollisions = pointerWithin(args);
 
   if (pointerCollisions.length > 0) {
-    // If we are over something, find the closest center among the things we are over
-    // This ensures we pick the specific exercise rather than the whole block container
     const intersectingIds = pointerCollisions.map(c => c.id);
-    const intersectingContainers = args.droppableContainers.filter(c => intersectingIds.includes(c.id));
+    let intersectingContainers = args.droppableContainers.filter(c => intersectingIds.includes(c.id));
     
+    // If we are over both a block and an exercise, prefer the exercise
+    const hasExercise = intersectingContainers.some(c => c.id.toString().startsWith('exercise-'));
+    if (hasExercise) {
+      intersectingContainers = intersectingContainers.filter(c => c.id.toString().startsWith('exercise-'));
+      return closestCenter({
+        ...args,
+        droppableContainers: intersectingContainers
+      });
+    }
+
+    // If we are ONLY over a block (e.g., in the gap between exercises)
+    const blockContainer = intersectingContainers.find(c => c.id.toString().startsWith('block-'));
+    if (blockContainer) {
+      const blockId = blockContainer.data.current?.blockId;
+      if (blockId) {
+        // Find all exercises in this block
+        const exercisesInBlock = args.droppableContainers.filter(c => 
+          c.id.toString().startsWith('exercise-') && 
+          c.data.current?.blockId === blockId
+        );
+        
+        if (exercisesInBlock.length > 0) {
+          // Find the closest exercise in this block
+          const closestExercise = closestCenter({
+            ...args,
+            droppableContainers: exercisesInBlock
+          });
+          
+          if (closestExercise.length > 0) {
+            return closestExercise;
+          }
+        }
+      }
+      
+      // If no exercises in block, or closestCenter failed, return the block
+      return [
+        {
+          id: blockContainer.id,
+          data: blockContainer.data,
+        }
+      ] as any;
+    }
+
     return closestCenter({
       ...args,
       droppableContainers: intersectingContainers
