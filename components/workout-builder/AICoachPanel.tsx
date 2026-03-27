@@ -14,7 +14,7 @@ interface ChatMessage {
 }
 
 const DraggableSuggestedExercise: React.FC<{ exercise: { name: string; description: string } }> = ({ exercise }) => {
-    const { attributes, listeners, setNodeRef, isDragging, transform } = useDraggable({
+    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
         id: `ai-${exercise.name}`,
         data: {
             type: 'ai-suggestion',
@@ -27,14 +27,9 @@ const DraggableSuggestedExercise: React.FC<{ exercise: { name: string; descripti
         }
     });
 
-    const style = transform ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-    } : undefined;
-
     return (
         <div
             ref={setNodeRef}
-            style={style}
             {...listeners}
             {...attributes}
             className={`w-full text-left bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-2 flex items-center justify-between cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-50' : ''}`}
@@ -60,7 +55,9 @@ export const AICoachSidebar: React.FC<{
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (messagesEndRef.current) {
+            messagesEndRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
     };
 
     useEffect(() => {

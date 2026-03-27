@@ -21,7 +21,7 @@ const DraggableBankExercise: React.FC<{
 }> = ({ exercise, onPreview, onAdd, onDelete }) => {
     const isCustom = exercise.organizationId || exercise.id.startsWith('custom_');
     
-    const { attributes, listeners, setNodeRef, isDragging, transform } = useDraggable({
+    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
         id: `bank-${exercise.id}`,
         data: {
             type: 'bank-exercise',
@@ -36,14 +36,9 @@ const DraggableBankExercise: React.FC<{
         }
     });
 
-    const style = transform ? {
-        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
-    } : undefined;
-
     return (
         <div 
             ref={setNodeRef}
-            style={style}
             {...listeners}
             {...attributes}
             className={`bg-white dark:bg-gray-900/70 rounded-md p-2 flex items-center gap-3 relative group cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-50' : ''}`}
@@ -73,7 +68,11 @@ const DraggableBankExercise: React.FC<{
             
             {isCustom && onDelete && (
                 <button
-                    onClick={(e) => onDelete(e, exercise)}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(e, exercise);
+                    }}
                     className="p-2 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
                     title="Ta bort egen övning"
                 >
@@ -82,6 +81,7 @@ const DraggableBankExercise: React.FC<{
             )}
 
             <button 
+                onPointerDown={(e) => e.stopPropagation()}
                 onClick={(e) => {
                     e.stopPropagation();
                     onAdd(exercise);
