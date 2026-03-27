@@ -21,7 +21,7 @@ const DraggableBankExercise: React.FC<{
 }> = ({ exercise, onPreview, onAdd, onDelete }) => {
     const isCustom = exercise.organizationId || exercise.id.startsWith('custom_');
     
-    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    const { attributes, listeners, setNodeRef, isDragging, transform } = useDraggable({
         id: `bank-${exercise.id}`,
         data: {
             type: 'bank-exercise',
@@ -36,9 +36,14 @@ const DraggableBankExercise: React.FC<{
         }
     });
 
+    const style = transform ? {
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+    } : undefined;
+
     return (
         <div 
             ref={setNodeRef}
+            style={style}
             {...listeners}
             {...attributes}
             className={`bg-white dark:bg-gray-900/70 rounded-md p-2 flex items-center gap-3 relative group cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-50' : ''}`}
