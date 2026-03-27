@@ -26,6 +26,7 @@ import {
   DragEndEvent,
   defaultDropAnimationSideEffects
 } from '@dnd-kit/core';
+import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 
 const createNewWorkout = (): Workout => ({
@@ -148,7 +149,6 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   // Dnd-kit state
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeData, setActiveData] = useState<any>(null);
-  const [activeRect, setActiveRect] = useState<{ width: number; height: number } | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -165,12 +165,6 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
     const { active } = event;
     setActiveId(active.id as string);
     setActiveData(active.data.current);
-    if (active.rect.current.initial) {
-      setActiveRect({
-        width: active.rect.current.initial.width,
-        height: active.rect.current.initial.height,
-      });
-    }
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -262,7 +256,6 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
     const { active, over } = event;
     setActiveId(null);
     setActiveData(null);
-    setActiveRect(null);
 
     if (!over) return;
 
@@ -864,9 +857,9 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
         />
        )}
 
-      <DragOverlay zIndex={9999}>
+      <DragOverlay zIndex={9999} dropAnimation={null} modifiers={[snapCenterToCursor]}>
         {activeId && activeData?.type === 'exercise' ? (
-          <div style={{ width: activeRect?.width, height: activeRect?.height }} className="group p-3 rounded-lg flex items-start gap-3 transition-all border-l-4 relative z-[1000] bg-gray-50 dark:bg-gray-800/50 border-gray-300 dark:border-gray-600 box-border shadow-2xl opacity-90">
+          <div className="group p-3 rounded-lg flex items-start gap-3 transition-all border-l-4 relative z-[1000] bg-gray-50 dark:bg-gray-800/50 border-gray-300 dark:border-gray-600 shadow-2xl opacity-90 m-0 box-border">
             <div className="flex flex-col gap-1 items-center justify-center self-center mr-2 cursor-grabbing text-gray-600">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="9" cy="12" r="1" />
@@ -890,7 +883,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
             </div>
           </div>
         ) : activeId && activeData?.type === 'bank-exercise' ? (
-          <div style={{ width: activeRect?.width, height: activeRect?.height }} className="bg-white dark:bg-gray-900/70 rounded-md p-2 flex items-center gap-3 relative group cursor-grabbing opacity-90 shadow-2xl border border-primary/50 box-border">
+          <div className="bg-white dark:bg-gray-900/70 rounded-md p-2 flex items-center gap-3 relative group cursor-grabbing opacity-90 shadow-2xl border border-primary/50 m-0 box-border">
               <div className="flex-grow min-w-0 flex items-center gap-3">
                   <div className="flex-grow min-w-0">
                       <div className="flex items-center gap-2">
@@ -904,12 +897,9 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                       <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{activeData.exercise.description}</p>
                   </div>
               </div>
-              <button className="bg-primary/20 hover:bg-primary/40 text-primary font-bold w-10 h-10 flex items-center justify-center rounded-full transition-colors flex-shrink-0">
-                  <span className="text-2xl">+</span>
-              </button>
           </div>
         ) : activeId && activeData?.type === 'ai-suggestion' ? (
-          <div style={{ width: activeRect?.width, height: activeRect?.height }} className="text-left bg-gray-50 dark:bg-gray-700/50 border border-primary/50 rounded-lg p-2 flex items-center justify-between opacity-90 shadow-2xl box-border cursor-grabbing">
+          <div className="w-full text-left bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-2 flex items-center justify-between cursor-grabbing opacity-90 shadow-2xl m-0 box-border">
               <div>
                   <p className="text-sm font-bold text-gray-900 dark:text-white">{activeData.exercise.name}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{activeData.exercise.description}</p>
