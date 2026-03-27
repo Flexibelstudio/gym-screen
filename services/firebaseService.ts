@@ -468,6 +468,26 @@ export const getOrganizationLogs = async (orgId: string, limitCount: number = 10
     } catch (e) { return []; }
 };
 
+export const getMemberDataForAI = async (memberId: string): Promise<{ logs: WorkoutLog[], pbs: PersonalBest[] }> => {
+    if (isOffline || !db || !memberId) return { logs: [], pbs: [] };
+
+    try {
+        // Fetch last 15 workout logs
+        const logsQuery = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"), limit(15));
+        const logsSnap = await getDocs(logsQuery);
+        const logs = logsSnap.docs.map(d => d.data() as WorkoutLog);
+
+        // Fetch all personal bests
+        const pbsSnap = await getDocs(collection(db, 'users', memberId, 'personalBests'));
+        const pbs = pbsSnap.docs.map(d => d.data() as PersonalBest);
+
+        return { logs, pbs };
+    } catch (error) {
+        console.error("Error fetching member data for AI:", error);
+        return { logs: [], pbs: [] };
+    }
+};
+
 export const listenToPersonalBests = (userId: string, onUpdate: (pbs: PersonalBest[]) => void, onError?: (err: any) => void) => {
     if (isOffline || !db || !userId) {
         onUpdate([]);
@@ -938,7 +958,8 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
                         ...ex,
                         imageUrl: bankEx?.imageUrl || ex.imageUrl, // Sync image
                         description: bankEx?.description || ex.description, // Optional: Sync desc
-                        loggingEnabled: true // Ensure logging is enabled for valid bank items
+                        // Keep the existing loggingEnabled state, or default to false if undefined
+                        loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
                     };
                 } else {
                     // INVALID LINK (Deleted from bank). Downgrade to Ad-hoc.
@@ -962,7 +983,7 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
                     description: ex.description || match.description, 
                     imageUrl: match.imageUrl || ex.imageUrl,
                     isFromBank: true,
-                    loggingEnabled: true
+                    loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
                 };
             }
 
@@ -985,7 +1006,7 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
                     id: cached.id, 
                     originalBankId: cached.id,
                     isFromBank: true, 
-                    loggingEnabled: true
+                    loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
                 };
             }
 
@@ -1010,7 +1031,7 @@ export const resolveAndCreateExercises = async (orgId: string, workout: Workout,
                 id: newId,
                 originalBankId: newId,
                 isFromBank: true,
-                loggingEnabled: true
+                loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
             };
         }));
 

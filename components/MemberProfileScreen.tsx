@@ -301,7 +301,12 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // --- STRIPE PAYWALL LOGIC ---
-    const hasActiveSubscription = userData.subscriptionStatus === 'active' || userData.subscriptionStatus === 'trialing';
+    const hasActiveSubscription = 
+        userData.role === 'systemowner' || 
+        userData.role === 'organizationadmin' || 
+        userData.role === 'coach' || 
+        userData.subscriptionStatus === 'active' || 
+        userData.subscriptionStatus === 'trialing';
 
     useEffect(() => {
         if (profileEditTrigger > 0) setIsEditing(true);

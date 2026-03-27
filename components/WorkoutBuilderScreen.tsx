@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, StudioConfig, UserRole, BankExercise, WorkoutLogType, Organization, BenchmarkDefinition } from '../types';
+import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, StudioConfig, UserRole, BankExercise, Organization, BenchmarkDefinition } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
 import { getExerciseBank, getOrganizationExerciseBank, deleteImageByUrl, saveAdminActivity, updateOrganizationBenchmarks, deleteExerciseFromBank } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
@@ -22,7 +22,6 @@ const createNewWorkout = (): Workout => ({
   category: 'Ej kategoriserad',
   isPublished: false,
   showDetailsToMember: true,
-  logType: 'detailed',
   createdAt: Date.now(),
   organizationId: '' // Placeholder
 });
@@ -419,7 +418,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
         imageUrl: bankExercise.imageUrl || '',
         reps: '', 
         isFromBank: true,
-        loggingEnabled: true // Default true för bankövningar
+        loggingEnabled: false // Default false för bankövningar
     };
 
     setWorkout(prev => ({
@@ -614,7 +613,12 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                         />
                     )}
                     {activeSidebarTab === 'ai' && (
-                        <AICoachSidebar workout={workout} onAnalyze={handleAnalyzeWorkout} />
+                        <AICoachSidebar 
+                            workout={workout} 
+                            onAnalyze={handleAnalyzeWorkout} 
+                            onUpdateWorkout={setWorkout}
+                            availableExercises={exerciseBank.map(e => e.name)}
+                        />
                     )}
                 </div>
             </div>

@@ -36,9 +36,38 @@ const formatReps = (reps: string | undefined): string => {
     return reps.trim();
 };
 
+const formatTime = (time: number) => {
+    const minutes = Math.floor(time / 60);
+    const seconds = time % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+};
+
+const getSettingsText = (block: WorkoutBlock) => {
+    if (!block.settings) return 'Inga inställningar';
+    const { mode, workTime, restTime, rounds } = block.settings;
+    switch(mode) {
+        case TimerMode.Tabata:
+            return `Tabata: ${rounds || 0} ronder (${formatTime(workTime || 0)} / ${formatTime(restTime || 0)})`;
+        case TimerMode.Interval:
+            const totalIntervals = rounds || 0;
+            const laps = block.settings.specifiedLaps != null ? block.settings.specifiedLaps : null;
+            const lapText = laps && laps > 1 ? ` (${laps} varv)` : '';
+            return `Intervall: ${totalIntervals}x (${formatTime(workTime || 0)} / ${formatTime(restTime || 0)})${lapText}`;
+        case TimerMode.AMRAP:
+        case TimerMode.TimeCap:
+            return `${mode}: ${formatTime(workTime || 0)} totalt`;
+        case TimerMode.EMOM:
+            return `EMOM: ${rounds || 0} min totalt`;
+        case TimerMode.NoTimer:
+            return 'Egen takt';
+        default:
+            return `${mode}: ${rounds || 0}x (${workTime || 0}s / ${restTime || 0}s)`;
+    }
+};
+
 // --- COMPONENTS ---
 
-const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void }> = ({ workout, onClose }) => {
+export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void }> = ({ workout, onClose }) => {
     return (
         <motion.div 
             initial={{ opacity: 0 }}
@@ -76,9 +105,14 @@ const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void
                                 <h2 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
                                     {block.title}
                                 </h2>
-                                <span className="ml-auto text-xl font-mono font-bold text-gray-400">
-                                    {block.settings.mode}
-                                </span>
+                                <div className="ml-auto flex flex-col items-end">
+                                    <span className="text-xl font-mono font-bold text-gray-400">
+                                        {block.settings.mode}
+                                    </span>
+                                    <span className="text-sm font-bold text-gray-500 uppercase tracking-widest">
+                                        {getSettingsText(block)}
+                                    </span>
+                                </div>
                             </div>
 
                             {block.setupDescription && (
@@ -431,7 +465,6 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   const isHyroxRace = useMemo(() => workout.id.startsWith('hyrox-full-race') || workout.id.startsWith('custom-race'), [workout.id]);
 
   const isWorkoutLoggable = useMemo(() => {
-      if (workout.logType === 'quick') return true;
       return workout.blocks?.some(b => b?.exercises?.some(e => e?.loggingEnabled === true)) || false;
   }, [workout]);
 

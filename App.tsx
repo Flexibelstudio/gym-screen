@@ -44,7 +44,7 @@ import { WorkoutListScreen } from './components/WorkoutListScreen';
 import { WebQRScanner } from './components/WebQRScanner';
 import { RemoteControlScreen } from './components/RemoteControlScreen';
 import { motion, AnimatePresence } from 'framer-motion';
-import WorkoutDetailScreen from './components/WorkoutDetailScreen';
+import WorkoutDetailScreen, { WorkoutPresentationModal } from './components/WorkoutDetailScreen';
 import { CloseIcon, PencilIcon } from './components/icons';
 import { WorkoutDiplomaView } from './components/WorkoutDiplomaView';
 
@@ -70,6 +70,7 @@ const App: React.FC = () => {
       if (isStudioMode) return [Page.Home];
       if (role === 'systemowner') return [Page.SystemOwner];
       if (role === 'organizationadmin') return [Page.SuperAdmin];
+      if (role === 'coach') return [Page.Coach];
       return [Page.MemberProfile];
   });
 
@@ -109,6 +110,8 @@ const App: React.FC = () => {
         setHistory([Page.SystemOwner]);
       } else if (role === 'organizationadmin' && currentPage !== Page.SuperAdmin && isAtInitialPage) {
         setHistory([Page.SuperAdmin]);
+      } else if (role === 'coach' && currentPage !== Page.Coach && isAtInitialPage) {
+        setHistory([Page.Coach]);
       } else if (role === 'member' && currentPage !== Page.MemberProfile && isAtInitialPage) {
         setHistory([Page.MemberProfile]);
       }
@@ -1479,60 +1482,10 @@ const App: React.FC = () => {
 
       <AnimatePresence>
           {mobileViewData && (
-              <>
-                  <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10010]"
-                      onClick={() => setMobileViewData(null)}
-                  />
-                  <motion.div 
-                      initial={{ y: '100%', opacity: 0 }}
-                      animate={{ y: '0%', opacity: 1 }}
-                      exit={{ y: '100%', opacity: 0 }}
-                      transition={{ type: 'spring', damping: 25, stiffness: 400 }}
-                      className="fixed inset-x-0 top-[8vh] bottom-0 z-[10020] px-1 pointer-events-none"
-                  >
-                      <div className="bg-white dark:bg-gray-900 rounded-t-[2.5rem] h-full max-w-2xl mx-auto shadow-2xl overflow-hidden flex flex-col pointer-events-auto border-t border-gray-200 dark:border-gray-800">
-                          <div className="flex-shrink-0 p-4 flex justify-center items-center relative">
-                              <div className="w-12 h-1.5 bg-gray-200 dark:bg-gray-800 rounded-full"></div>
-                              <button 
-                                onClick={() => setMobileViewData(null)}
-                                className="absolute right-6 p-2 bg-gray-100 dark:bg-gray-800 rounded-full"
-                              >
-                                  <CloseIcon className="w-5 h-5 text-gray-400" />
-                              </button>
-                          </div>
-                          
-                          <div className="flex-grow overflow-y-auto pt-2">
-                             {selectedOrganization && (
-                                <WorkoutDetailScreen 
-                                    workout={mobileViewData} 
-                                    onStartBlock={(block, workout) => handleStartBlock(block, workout)} 
-                                    onUpdateBlockSettings={() => {}}
-                                    onEditWorkout={() => {}} 
-                                    onAdjustWorkout={handleAdjustWorkout}
-                                    isCoachView={false} 
-                                    onTogglePublish={() => {}}
-                                    onToggleFavorite={handleToggleFavoriteStatus}
-                                    onDuplicate={() => {}}
-                                    onShowImage={setPreviewImageUrl} 
-                                    isPresentationMode={false}
-                                    studioConfig={studioConfig}
-                                    followMeShowImage={followMeShowImage}
-                                    setFollowMeShowImage={setFollowMeShowImage}
-                                    onUpdateWorkout={handleSaveOnly}
-                                    onVisualize={() => {}}
-                                    onLogWorkout={handleLogWorkoutRequest}
-                                    onClose={() => setMobileViewData(null)}
-                                    onHeaderVisibilityChange={setIsTimerHeaderVisible}
-                                />
-                             )}
-                          </div>
-                      </div>
-                  </motion.div>
-              </>
+              <WorkoutPresentationModal
+                  workout={mobileViewData}
+                  onClose={() => setMobileViewData(null)}
+              />
           )}
       </AnimatePresence>
 

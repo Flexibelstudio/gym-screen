@@ -274,28 +274,28 @@ const QuickTimerSetup: React.FC<{ onStart: (settings: TimerSettings, title: stri
                      <div className="space-y-4">
                          <div>
                              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Arbetstid (sek)</label>
-                             <input type="number" value={workSec} onChange={e => setWorkSec(Number(e.target.value))} className="w-full bg-black/50 p-4 rounded-xl text-2xl font-mono font-bold text-center border border-gray-600 focus:border-primary outline-none" />
+                             <input type="text" inputMode="numeric" pattern="[0-9]*" value={workSec} onChange={e => setWorkSec(Number(e.target.value))} className="w-full bg-black/50 p-4 rounded-xl text-2xl font-mono font-bold text-center border border-gray-600 focus:border-primary outline-none" />
                          </div>
                          <div>
                              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Vilotid (sek)</label>
-                             <input type="number" value={restSec} onChange={e => setRestSec(Number(e.target.value))} className="w-full bg-black/50 p-4 rounded-xl text-2xl font-mono font-bold text-center border border-gray-600 focus:border-primary outline-none" />
+                             <input type="text" inputMode="numeric" pattern="[0-9]*" value={restSec} onChange={e => setRestSec(Number(e.target.value))} className="w-full bg-black/50 p-4 rounded-xl text-2xl font-mono font-bold text-center border border-gray-600 focus:border-primary outline-none" />
                          </div>
                          <div>
                              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Antal Intervaller</label>
-                             <input type="number" value={rounds} onChange={e => setRounds(Number(e.target.value))} className="w-full bg-black/50 p-4 rounded-xl text-2xl font-mono font-bold text-center border border-gray-600 focus:border-primary outline-none" />
+                             <input type="text" inputMode="numeric" pattern="[0-9]*" value={rounds} onChange={e => setRounds(Number(e.target.value))} className="w-full bg-black/50 p-4 rounded-xl text-2xl font-mono font-bold text-center border border-gray-600 focus:border-primary outline-none" />
                          </div>
                      </div>
                  )}
                  {(mode === TimerMode.AMRAP || mode === TimerMode.TimeCap) && (
                      <div>
                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Total tid (minuter)</label>
-                         <input type="number" value={minutes} onChange={e => setMinutes(Number(e.target.value))} className="w-full bg-black/50 p-6 rounded-xl text-4xl font-mono font-bold text-center border border-gray-600 focus:border-primary outline-none" />
+                         <input type="text" inputMode="numeric" pattern="[0-9]*" value={minutes} onChange={e => setMinutes(Number(e.target.value))} className="w-full bg-black/50 p-6 rounded-xl text-4xl font-mono font-bold text-center border border-gray-600 focus:border-primary outline-none" />
                      </div>
                  )}
                  {mode === TimerMode.EMOM && (
                      <div>
                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Antal minuter (ronder)</label>
-                         <input type="number" value={rounds} onChange={e => setRounds(Number(e.target.value))} className="w-full bg-black/50 p-6 rounded-xl text-4xl font-mono font-bold text-center border border-gray-600 focus:border-primary outline-none" />
+                         <input type="text" inputMode="numeric" pattern="[0-9]*" value={rounds} onChange={e => setRounds(Number(e.target.value))} className="w-full bg-black/50 p-6 rounded-xl text-4xl font-mono font-bold text-center border border-gray-600 focus:border-primary outline-none" />
                      </div>
                  )}
                  {mode === TimerMode.Tabata && (

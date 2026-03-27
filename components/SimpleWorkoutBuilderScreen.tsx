@@ -309,7 +309,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
             imageUrl: bankExercise.imageUrl,
             reps: exercise.reps,
             isFromBank: true,
-            loggingEnabled: enableWorkoutLogging ? true : false
+            loggingEnabled: false
         });
         setIsSearchVisible(false);
         setSearchQuery('');

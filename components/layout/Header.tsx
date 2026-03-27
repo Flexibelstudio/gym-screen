@@ -118,7 +118,7 @@ export const Header: React.FC<HeaderProps> = ({
           return (
              <button 
                 onClick={onBack} 
-                className={`fixed bottom-6 left-6 z-[100] bg-gray-900/90 dark:bg-white/90 text-white dark:text-black hover:bg-gray-800 dark:hover:bg-white transition-all py-4 px-8 rounded-full shadow-2xl backdrop-blur-md border border-white/20 active:scale-95 duration-300 ${visibilityClass}`}
+                className={`fixed bottom-6 left-6 z-[100] bg-gray-900/90 dark:bg-white/90 text-white dark:text-black hover:bg-gray-800 dark:hover:bg-white transition-all py-5 px-10 rounded-full shadow-2xl backdrop-blur-md border border-white/20 active:scale-95 active:duration-75 duration-300 ${visibilityClass}`}
             >
                 {buttonContent}
             </button>
@@ -126,7 +126,7 @@ export const Header: React.FC<HeaderProps> = ({
       }
       
       return (
-        <button onClick={onBack} className="text-primary hover:brightness-95 transition-colors text-lg font-semibold flex items-center gap-1">
+        <button onClick={onBack} className="text-primary hover:brightness-95 transition-colors text-lg font-semibold flex items-center gap-1 p-3 -ml-3 active:scale-95 active:duration-75">
             {buttonContent}
         </button>
       );

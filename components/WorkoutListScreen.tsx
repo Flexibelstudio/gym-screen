@@ -51,7 +51,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
                     {filteredWorkouts.map(workout => {
                         const blocks = workout.blocks || [];
-                        const isLoggable = workout.logType === 'quick' || blocks.some(b => 
+                        const isLoggable = blocks.some(b => 
                             (b.exercises || []).some(e => e.loggingEnabled === true)
                         );
                         
@@ -88,12 +88,6 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                                 <span className="inline-block px-3 py-1 rounded-lg bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 text-[10px] font-black uppercase tracking-widest border border-yellow-200 dark:border-yellow-800">
                                                     BENCHMARK
                                                 </span>
-                                            )}
-                                            {workout.logType === 'quick' && (
-                                                <div className="flex items-center gap-1 text-[10px] font-black text-purple-600 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-300 px-3 py-1 rounded-lg border border-purple-100 dark:border-purple-800">
-                                                    <ClockIcon className="w-3.5 h-3.5" />
-                                                    <span>SNABBLOGG</span>
-                                                </div>
                                             )}
                                             {!isLoggable && (
                                                 <div className="flex items-center gap-1 text-[10px] font-black text-gray-500 bg-gray-50 dark:bg-gray-800 dark:text-gray-400 px-3 py-1 rounded-lg border border-gray-100 dark:border-gray-700">
