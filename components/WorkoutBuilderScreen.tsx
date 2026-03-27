@@ -858,19 +858,22 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
 
       <DragOverlay zIndex={9999} dropAnimation={defaultDropAnimationSideEffects({ sideEffects: ['styles'] })}>
         {activeId && activeData?.type === 'exercise' ? (
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-2xl border-2 border-primary/50 opacity-90 scale-105 transform transition-transform w-full max-w-md">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                <DumbbellIcon className="w-4 h-4" />
-              </div>
-              <div>
-                <h4 className="font-bold text-gray-900 dark:text-white text-sm">{activeData.exercise.name}</h4>
-                <p className="text-xs text-gray-500">{activeData.exercise.reps || '0 reps'}</p>
-              </div>
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-2xl border-2 border-primary/50 opacity-90 flex items-center gap-4 w-full h-full box-border">
+            <div className="text-gray-400 p-1">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" /></svg>
+            </div>
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
+                <DumbbellIcon className="w-5 h-5" />
+            </div>
+            <div className="flex-grow min-w-0">
+                <h4 className="font-bold text-gray-900 dark:text-white text-base truncate">{activeData.exercise.name}</h4>
+                <div className="flex items-center gap-2 mt-1">
+                    <span className="text-sm text-gray-500 dark:text-gray-400 truncate">{activeData.exercise.description || 'Ingen beskrivning'}</span>
+                </div>
             </div>
           </div>
         ) : activeId && activeData?.type === 'bank-exercise' ? (
-          <div className="bg-white dark:bg-gray-900/70 rounded-md p-2 flex items-center gap-3 opacity-90 shadow-2xl border border-primary/50 w-[300px]">
+          <div className="bg-white dark:bg-gray-900/70 rounded-md p-2 flex items-center gap-3 opacity-90 shadow-2xl border border-primary/50 w-full h-full box-border">
               <div className="flex-grow min-w-0 flex items-center gap-3">
                   <div className="flex-grow min-w-0">
                       <div className="flex items-center gap-2">
@@ -884,7 +887,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
               </div>
           </div>
         ) : activeId && activeData?.type === 'ai-suggestion' ? (
-          <div className="w-[300px] text-left bg-white dark:bg-gray-800 border border-primary/50 rounded-lg p-3 flex items-center justify-between opacity-90 shadow-2xl">
+          <div className="w-full h-full text-left bg-gray-50 dark:bg-gray-700/50 border border-primary/50 rounded-lg p-2 flex items-center justify-between opacity-90 shadow-2xl box-border">
               <div>
                   <p className="text-sm font-bold text-gray-900 dark:text-white">{activeData.exercise.name}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{activeData.exercise.description}</p>
