@@ -109,32 +109,102 @@ export const AICoachSidebar: React.FC<{
 
     return (
         <div className="flex flex-col h-full space-y-6">
-            {/* Chat Input */}
-            <div className="flex-shrink-0 pb-4 border-b border-gray-200 dark:border-gray-700">
-                <form onSubmit={handleSendMessage} className="relative">
-                    <input
-                        type="text"
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        placeholder="Fråga AI:n eller be den ändra passet..."
-                        className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl pl-4 pr-12 py-3 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none shadow-sm"
-                        disabled={isChatting || isAnalyzing}
-                    />
-                    <button
-                        type="submit"
-                        disabled={!chatInput.trim() || isChatting || isAnalyzing}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-purple-600 text-white rounded-lg hover:bg-purple-500 disabled:opacity-50 disabled:hover:bg-purple-600 transition-colors"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                            <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
-                        </svg>
-                    </button>
-                </form>
-                <p className="text-[10px] text-gray-400 text-center mt-2">
-                    AI:n kan uppdatera passet åt dig. Granska alltid ändringarna.
-                </p>
+            {/* Chat Container (History + Input) */}
+            <div className="flex flex-col bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm flex-shrink-0">
+                {/* Chat History */}
+                <div className="max-h-80 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900/50 scrollbar-hide">
+                    {chatHistory.length === 0 && !isChatting ? (
+                        <div className="text-center py-6">
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                Ställ en fråga om passet, be om övningstips eller be mig byta ut övningar!
+                            </p>
+                        </div>
+                    ) : (
+                        <AnimatePresence initial={false}>
+                            {chatHistory.map((msg) => (
+                                <motion.div 
+                                    key={msg.id}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
+                                >
+                                    <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                                        msg.role === 'user' 
+                                            ? 'bg-purple-600 text-white rounded-tr-sm' 
+                                            : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-tl-sm shadow-sm'
+                                    }`}>
+                                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                        
+                                        {/* Suggested Exercises Buttons */}
+                                        {msg.suggestedExercises && msg.suggestedExercises.length > 0 && (
+                                            <div className="mt-3 space-y-2">
+                                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Förslag:</p>
+                                                {msg.suggestedExercises.map((ex, i) => (
+                                                    <button
+                                                        key={i}
+                                                        onClick={() => handleAddSuggestedExercise(ex.name)}
+                                                        className="w-full text-left bg-gray-50 dark:bg-gray-700/50 hover:bg-purple-50 dark:hover:bg-purple-900/20 border border-gray-200 dark:border-gray-600 rounded-lg p-2 transition-colors flex items-center justify-between group"
+                                                    >
+                                                        <div>
+                                                            <p className="text-sm font-bold text-gray-900 dark:text-white">{ex.name}</p>
+                                                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{ex.description}</p>
+                                                        </div>
+                                                        <div className="w-6 h-6 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm text-purple-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <PlusIcon className="w-4 h-4" />
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            ))}
+                            {isChatting && (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="flex items-start"
+                                >
+                                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl rounded-tl-sm px-4 py-4 flex gap-1.5 shadow-sm">
+                                        <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                                        <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                                        <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    )}
+                    <div ref={messagesEndRef} />
+                </div>
+
+                {/* Chat Input */}
+                <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                    <form onSubmit={handleSendMessage} className="relative">
+                        <input
+                            type="text"
+                            value={chatInput}
+                            onChange={(e) => setChatInput(e.target.value)}
+                            placeholder="Fråga AI:n eller be den ändra passet..."
+                            className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl pl-4 pr-12 py-3 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-shadow"
+                            disabled={isChatting || isAnalyzing}
+                        />
+                        <button
+                            type="submit"
+                            disabled={!chatInput.trim() || isChatting || isAnalyzing}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-purple-600 text-white rounded-lg hover:bg-purple-500 disabled:opacity-50 disabled:hover:bg-purple-600 transition-colors"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
+                            </svg>
+                        </button>
+                    </form>
+                    <p className="text-[10px] text-gray-400 text-center mt-2">
+                        AI:n kan uppdatera passet åt dig. Granska alltid ändringarna.
+                    </p>
+                </div>
             </div>
 
+            {/* Analyze Button */}
             <div className="flex-shrink-0 bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
                 <button 
                     onClick={handleAnalyzeClick} 
@@ -153,6 +223,7 @@ export const AICoachSidebar: React.FC<{
                 </p>
             </div>
 
+            {/* Scrollable area for Summary & Suggestions */}
             <div className="flex-grow overflow-y-auto space-y-6 pb-4 scrollbar-hide">
                 {/* AI Summary */}
                 {hasSummary && (
@@ -212,69 +283,9 @@ export const AICoachSidebar: React.FC<{
                     </div>
                 )}
                 
-                {!hasSummary && !hasSuggestions && !isAnalyzing && chatHistory.length === 0 && (
+                {!hasSummary && !hasSuggestions && !isAnalyzing && (
                     <div className="text-center p-8 bg-slate-100 dark:bg-gray-800 rounded-lg border border-slate-200 dark:border-gray-700 border-dashed">
-                        <p className="text-gray-500 dark:text-gray-400">Klicka på "Analysera passet" för att få feedback, eller ställ en fråga i chatten nedan.</p>
-                    </div>
-                )}
-
-                {/* Chat Interface */}
-                {(chatHistory.length > 0 || hasSummary) && (
-                    <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                        <AnimatePresence initial={false}>
-                            {chatHistory.map((msg) => (
-                                <motion.div 
-                                    key={msg.id}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
-                                >
-                                    <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                                        msg.role === 'user' 
-                                            ? 'bg-primary text-white rounded-tr-sm' 
-                                            : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-800 dark:text-gray-200 rounded-tl-sm'
-                                    }`}>
-                                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                                        
-                                        {/* Suggested Exercises Buttons */}
-                                        {msg.suggestedExercises && msg.suggestedExercises.length > 0 && (
-                                            <div className="mt-3 space-y-2">
-                                                <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Förslag:</p>
-                                                {msg.suggestedExercises.map((ex, i) => (
-                                                    <button
-                                                        key={i}
-                                                        onClick={() => handleAddSuggestedExercise(ex.name)}
-                                                        className="w-full text-left bg-gray-50 dark:bg-gray-700/50 hover:bg-purple-50 dark:hover:bg-purple-900/20 border border-gray-200 dark:border-gray-600 rounded-lg p-2 transition-colors flex items-center justify-between group"
-                                                    >
-                                                        <div>
-                                                            <p className="text-sm font-bold text-gray-900 dark:text-white">{ex.name}</p>
-                                                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{ex.description}</p>
-                                                        </div>
-                                                        <div className="w-6 h-6 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm text-purple-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <PlusIcon className="w-4 h-4" />
-                                                        </div>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                </motion.div>
-                            ))}
-                            {isChatting && (
-                                <motion.div 
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    className="flex items-start"
-                                >
-                                    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl rounded-tl-sm px-4 py-4 flex gap-1.5">
-                                        <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                                        <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                                        <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                        <div ref={messagesEndRef} />
+                        <p className="text-gray-500 dark:text-gray-400">Klicka på "Analysera passet" för att få feedback.</p>
                     </div>
                 )}
             </div>
