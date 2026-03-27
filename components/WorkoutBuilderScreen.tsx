@@ -43,7 +43,13 @@ const createNewWorkout = (): Workout => ({
   organizationId: '' // Placeholder
 });
 
+let lastPointerY = 0;
+
 const customCollisionDetection: CollisionDetection = (args) => {
+  if (args.pointerCoordinates) {
+    lastPointerY = args.pointerCoordinates.y;
+  }
+
   // First, check if the pointer is within any droppable containers
   const pointerCollisions = pointerWithin(args);
 
@@ -73,7 +79,27 @@ const customCollisionDetection: CollisionDetection = (args) => {
         );
         
         if (exercisesInBlock.length > 0) {
-          // Find the closest exercise in this block
+          if (args.pointerCoordinates) {
+            const pointerY = args.pointerCoordinates.y;
+            let closest = exercisesInBlock[0];
+            let minDistance = Infinity;
+            
+            for (const container of exercisesInBlock) {
+              const rect = container.rect.current;
+              if (rect) {
+                const centerY = rect.top + rect.height / 2;
+                const distance = Math.abs(centerY - pointerY);
+                if (distance < minDistance) {
+                  minDistance = distance;
+                  closest = container;
+                }
+              }
+            }
+            
+            return [{ id: closest.id, data: closest.data }] as any;
+          }
+
+          // Fallback if no pointer coordinates
           const closestExercise = closestCenter({
             ...args,
             droppableContainers: exercisesInBlock
@@ -349,15 +375,13 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                         if (overData.type === 'exercise') {
                             const overIndex = block.exercises.findIndex(e => `exercise-${e.id}` === overId);
                             
-                            let insertIndex = overIndex + 1;
-                            const activeRect = active.rect.current.translated;
+                            let insertIndex = overIndex;
                             const overRect = over.rect;
                             
-                            if (activeRect && overRect) {
-                                const activeCenterY = activeRect.top + activeRect.height / 2;
+                            if (overRect) {
                                 const overCenterY = overRect.top + overRect.height / 2;
-                                if (activeCenterY < overCenterY) {
-                                    insertIndex = overIndex;
+                                if (lastPointerY > overCenterY) {
+                                    insertIndex = overIndex + 1;
                                 }
                             }
                             
@@ -400,14 +424,12 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                     const overIndex = targetBlock.exercises.findIndex(e => `exercise-${e.id}` === overId);
                     insertIndex = overIndex;
                     
-                    const activeRect = active.rect.current.translated;
                     const overRect = over.rect;
                     
-                    if (activeRect && overRect) {
-                        const activeCenterY = activeRect.top + activeRect.height / 2;
+                    if (overRect) {
                         const overCenterY = overRect.top + overRect.height / 2;
                         
-                        if (activeCenterY > overCenterY) {
+                        if (lastPointerY > overCenterY) {
                             insertIndex = overIndex + 1;
                         }
                     }
