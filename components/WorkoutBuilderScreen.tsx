@@ -13,6 +13,20 @@ import { EditableBlockCard } from './workout-builder/EditableBlockCard';
 import { analyzeCurrentWorkout } from '../services/geminiService';
 import { ToggleSwitch, DumbbellIcon, SparklesIcon, TrophyIcon, CheckIcon } from './icons';
 import { Toast } from './ui/ToastNotification';
+import {
+  DndContext,
+  DragOverlay,
+  closestCorners,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragStartEvent,
+  DragOverEvent,
+  DragEndEvent,
+  defaultDropAnimationSideEffects
+} from '@dnd-kit/core';
+import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 
 const createNewWorkout = (): Workout => ({
   id: `workout-${Date.now()}`,
@@ -131,6 +145,182 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   const [previewExercise, setPreviewExercise] = useState<BankExercise | null>(null);
   const [activeSidebarTab, setActiveSidebarTab] = useState<'bank' | 'ai'>('bank');
   
+  // Dnd-kit state
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeData, setActiveData] = useState<any>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // Require 5px movement before dragging starts
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    setActiveId(active.id as string);
+    setActiveData(active.data.current);
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id;
+    const overId = over.id;
+
+    if (activeId === overId) return;
+
+    const activeData = active.data.current;
+    const overData = over.data.current;
+
+    // If dragging an exercise between blocks
+    if (activeData?.type === 'exercise' && overData?.type === 'exercise') {
+      const activeBlockId = workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === activeId))?.id;
+      const overBlockId = workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === overId))?.id;
+
+      if (activeBlockId && overBlockId && activeBlockId !== overBlockId) {
+        setWorkout(prev => {
+          const activeBlockIndex = prev.blocks.findIndex(b => b.id === activeBlockId);
+          const overBlockIndex = prev.blocks.findIndex(b => b.id === overBlockId);
+          
+          const activeBlock = prev.blocks[activeBlockIndex];
+          const overBlock = prev.blocks[overBlockIndex];
+
+          const activeExerciseIndex = activeBlock.exercises.findIndex(e => `exercise-${e.id}` === activeId);
+          const overExerciseIndex = overBlock.exercises.findIndex(e => `exercise-${e.id}` === overId);
+
+          const activeExercise = activeBlock.exercises[activeExerciseIndex];
+
+          const newBlocks = [...prev.blocks];
+          
+          // Remove from active block
+          newBlocks[activeBlockIndex] = {
+            ...activeBlock,
+            exercises: activeBlock.exercises.filter((_, i) => i !== activeExerciseIndex)
+          };
+
+          // Add to over block
+          const newOverExercises = [...overBlock.exercises];
+          newOverExercises.splice(overExerciseIndex, 0, activeExercise);
+          newBlocks[overBlockIndex] = {
+            ...overBlock,
+            exercises: newOverExercises
+          };
+
+          return { ...prev, blocks: newBlocks };
+        });
+      }
+    }
+
+    // If dragging an exercise over a block
+    if (activeData?.type === 'exercise' && overData?.type === 'block') {
+      const activeBlockId = workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === activeId))?.id;
+      const overBlockId = overData.blockId;
+
+      if (activeBlockId && overBlockId && activeBlockId !== overBlockId) {
+        setWorkout(prev => {
+            const activeBlockIndex = prev.blocks.findIndex(b => b.id === activeBlockId);
+            const overBlockIndex = prev.blocks.findIndex(b => b.id === overBlockId);
+            
+            const activeBlock = prev.blocks[activeBlockIndex];
+            const activeExerciseIndex = activeBlock.exercises.findIndex(e => `exercise-${e.id}` === activeId);
+            const activeExercise = activeBlock.exercises[activeExerciseIndex];
+
+            const newBlocks = [...prev.blocks];
+            
+            // Remove from active block
+            newBlocks[activeBlockIndex] = {
+              ...activeBlock,
+              exercises: activeBlock.exercises.filter((_, i) => i !== activeExerciseIndex)
+            };
+
+            // Add to over block at the end
+            newBlocks[overBlockIndex] = {
+              ...prev.blocks[overBlockIndex],
+              exercises: [...prev.blocks[overBlockIndex].exercises, activeExercise]
+            };
+
+            return { ...prev, blocks: newBlocks };
+        });
+      }
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+    setActiveData(null);
+
+    if (!over) return;
+
+    const activeId = active.id;
+    const overId = over.id;
+    const activeData = active.data.current;
+    const overData = over.data.current;
+
+    // Handle dropping new exercise from bank or AI chat
+    if ((activeData?.type === 'bank-exercise' || activeData?.type === 'ai-suggestion') && overData) {
+        const targetBlockId = overData.type === 'block' ? overData.blockId : workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === overId))?.id;
+        
+        if (targetBlockId) {
+            const newExercise: Exercise = {
+                id: `ex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                name: activeData.exercise.name,
+                description: activeData.exercise.description || '',
+                reps: '',
+                isFromBank: activeData.exercise.isFromBank,
+                loggingEnabled: activeData.exercise.loggingEnabled,
+                imageUrl: activeData.exercise.imageUrl
+            };
+
+            setWorkout(prev => {
+                const newBlocks = prev.blocks.map(block => {
+                    if (block.id === targetBlockId) {
+                        const newExercises = [...block.exercises];
+                        if (overData.type === 'exercise') {
+                            const overIndex = block.exercises.findIndex(e => `exercise-${e.id}` === overId);
+                            newExercises.splice(overIndex + 1, 0, newExercise);
+                        } else {
+                            newExercises.push(newExercise);
+                        }
+                        return { ...block, exercises: newExercises };
+                    }
+                    return block;
+                });
+                return { ...prev, blocks: newBlocks };
+            });
+        }
+        return;
+    }
+
+    // Handle reordering within the same block
+    if (activeData?.type === 'exercise' && overData?.type === 'exercise' && activeId !== overId) {
+        const blockId = workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === activeId))?.id;
+        
+        if (blockId) {
+            setWorkout(prev => {
+                const newBlocks = prev.blocks.map(block => {
+                    if (block.id === blockId) {
+                        const oldIndex = block.exercises.findIndex(e => `exercise-${e.id}` === activeId);
+                        const newIndex = block.exercises.findIndex(e => `exercise-${e.id}` === overId);
+                        return {
+                            ...block,
+                            exercises: arrayMove(block.exercises, oldIndex, newIndex)
+                        };
+                    }
+                    return block;
+                });
+                return { ...prev, blocks: newBlocks };
+            });
+        }
+    }
+  };
+
   // Toast state
   const [toast, setToast] = useState<{ message: string, visible: boolean }>({ message: '', visible: false });
 
@@ -459,7 +649,13 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   };
 
   return (
-    <>
+    <DndContext 
+      sensors={sensors}
+      collisionDetection={closestCorners}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+    >
       <Toast isVisible={toast.visible} message={toast.message} onClose={() => setToast({ ...toast, visible: false })} />
       <div className="w-full max-w-[1800px] mx-auto">
         <div className="flex flex-col xl:flex-row gap-6 items-start">
@@ -659,6 +855,32 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
             onAdd={handleAddExerciseFromBank}
         />
        )}
-    </>
+
+      <DragOverlay dropAnimation={defaultDropAnimationSideEffects({ sideEffects: ['styles'] })}>
+        {activeId && activeData?.type === 'exercise' ? (
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-2xl border-2 border-primary/50 opacity-90 scale-105 transform transition-transform">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                <DumbbellIcon className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="font-bold text-gray-900 dark:text-white text-sm">{activeData.exercise.name}</h4>
+                <p className="text-xs text-gray-500">{activeData.exercise.reps || '0 reps'}</p>
+              </div>
+            </div>
+          </div>
+        ) : null}
+        {activeId && (activeData?.type === 'bank-exercise' || activeData?.type === 'ai-suggestion') ? (
+          <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-xl border border-primary/30 opacity-90 scale-105">
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center text-primary">
+                <DumbbellIcon className="w-3 h-3" />
+              </div>
+              <span className="font-medium text-sm text-gray-900 dark:text-white">{activeData.exercise.name}</span>
+            </div>
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 };

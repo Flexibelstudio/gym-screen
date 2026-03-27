@@ -4,6 +4,7 @@ import { Workout } from '../../types';
 import { SparklesIcon } from '../icons';
 import { chatWithAICoach } from '../../services/geminiService';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useDraggable } from '@dnd-kit/core';
 
 interface ChatMessage {
     id: string;
@@ -11,6 +12,35 @@ interface ChatMessage {
     content: string;
     suggestedExercises?: { name: string; description: string }[];
 }
+
+const DraggableSuggestedExercise: React.FC<{ exercise: { name: string; description: string } }> = ({ exercise }) => {
+    const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+        id: `ai-${exercise.name}`,
+        data: {
+            type: 'ai-suggestion',
+            exercise: {
+                name: exercise.name,
+                description: exercise.description,
+                isFromBank: false,
+                loggingEnabled: false
+            }
+        }
+    });
+
+    return (
+        <div
+            ref={setNodeRef}
+            {...listeners}
+            {...attributes}
+            className={`w-full text-left bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-2 flex items-center justify-between cursor-grab active:cursor-grabbing ${isDragging ? 'opacity-50' : ''}`}
+        >
+            <div>
+                <p className="text-sm font-bold text-gray-900 dark:text-white">{exercise.name}</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{exercise.description}</p>
+            </div>
+        </div>
+    );
+};
 
 export const AICoachSidebar: React.FC<{
     workout: Workout;
@@ -135,15 +165,7 @@ export const AICoachSidebar: React.FC<{
                                             <div className="mt-3 space-y-2">
                                                 <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Förslag:</p>
                                                 {msg.suggestedExercises.map((ex, i) => (
-                                                    <div
-                                                        key={i}
-                                                        className="w-full text-left bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-2 flex items-center justify-between"
-                                                    >
-                                                        <div>
-                                                            <p className="text-sm font-bold text-gray-900 dark:text-white">{ex.name}</p>
-                                                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{ex.description}</p>
-                                                        </div>
-                                                    </div>
+                                                    <DraggableSuggestedExercise key={i} exercise={ex} />
                                                 ))}
                                             </div>
                                         )}
