@@ -468,6 +468,26 @@ export const getOrganizationLogs = async (orgId: string, limitCount: number = 10
     } catch (e) { return []; }
 };
 
+export const getMemberDataForAI = async (memberId: string): Promise<{ logs: WorkoutLog[], pbs: PersonalBest[] }> => {
+    if (isOffline || !db || !memberId) return { logs: [], pbs: [] };
+
+    try {
+        // Fetch last 15 workout logs
+        const logsQuery = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"), limit(15));
+        const logsSnap = await getDocs(logsQuery);
+        const logs = logsSnap.docs.map(d => d.data() as WorkoutLog);
+
+        // Fetch all personal bests
+        const pbsSnap = await getDocs(collection(db, 'users', memberId, 'personalBests'));
+        const pbs = pbsSnap.docs.map(d => d.data() as PersonalBest);
+
+        return { logs, pbs };
+    } catch (error) {
+        console.error("Error fetching member data for AI:", error);
+        return { logs: [], pbs: [] };
+    }
+};
+
 export const listenToPersonalBests = (userId: string, onUpdate: (pbs: PersonalBest[]) => void, onError?: (err: any) => void) => {
     if (isOffline || !db || !userId) {
         onUpdate([]);

@@ -5,6 +5,7 @@ import { useStudio } from '../context/StudioContext';
 import { ChatMessage } from '../types';
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { SparklesIcon, CloseIcon, PaperAirplaneIcon, QrCodeIcon, DumbbellIcon, PlusIcon, SearchIcon } from './icons';
+import { getMemberDataForAI } from '../services/firebaseService';
 
 // --- Sub-component: MemberChatModal ---
 const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
@@ -14,6 +15,7 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [loadingMessage, setLoadingMessage] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     // Determine user name
@@ -42,8 +44,37 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         setInput('');
         setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
         setIsLoading(true);
+        setLoadingMessage('Coachen analyserar din historik...');
 
         try {
+            // Fetch member data
+            let memberContext = '';
+            if (currentUser?.uid) {
+                const { logs, pbs } = await getMemberDataForAI(currentUser.uid);
+                
+                const recentLogs = logs.map(l => ({
+                    date: new Date(l.date).toLocaleDateString('sv-SE'),
+                    title: l.workoutTitle,
+                    exercises: l.exerciseResults?.map(e => `${e.exerciseName}: ${e.weight}kg x ${e.reps}`).join(', ') || 'Inga övningar loggade'
+                }));
+
+                const personalBests = pbs.map(pb => `${pb.exerciseName}: ${pb.weight}kg`);
+
+                memberContext = `
+                MEDLEMSDATA FÖR ${userName.toUpperCase()}:
+                
+                Senaste pass (max 15 st):
+                ${JSON.stringify(recentLogs, null, 2)}
+                
+                Personbästa (PR):
+                ${personalBests.length > 0 ? personalBests.join('\n') : 'Inga PR loggade ännu.'}
+                
+                Fysiska begränsningar/mål: ${userData?.goals || 'Inga specifika angivna.'}
+                `;
+            }
+
+            setLoadingMessage('Tänker...');
+
             let apiKey = '';
             if (typeof process !== 'undefined' && process.env?.API_KEY) apiKey = process.env.API_KEY;
             else apiKey = (import.meta as any).env.VITE_API_KEY;
@@ -51,7 +82,7 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             const ai = new GoogleGenAI({ apiKey });
             
             // Build the system instruction based on Admin settings
-            let systemPrompt = `Du är en hjälpsam och peppande PT och coach för medlemmar på gymmet "${gymName}".
+            let systemPrompt = `Du är en hjälpsam, peppande och energisk PT och coach för medlemmar på gymmet "${gymName}".
             
             Dina svar ska vara:
             1. Korta och koncisa (max 2-3 meningar per råd).
@@ -62,8 +93,21 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             - Använd ALDRIG stjärnor (**) runt namn på personer, gymmet eller platser. Skriv bara namnet som vanlig text.
             - Använd inte emojis i överflöd, max 1-2 per svar.
 
+            UPPDRAG: COACH ASSISTENT (Integrerad med medlemsdatabasen)
+            Du har tillgång till medlemmens träningshistorik, personbästa (PR) och profil.
+
+            Logik för personifiering:
+            - Söka först: Innan ett svar genereras, utgå från medlemmens historik och relevanta värden.
+            - Referera till fakta: Istället för att ge generella råd, ska du svara med konkreta siffror från deras historik (t.ex. "Ditt rekord är 22,5 kg").
+            - Proaktiv analys: Om en medlem frågar "Vad ska jag köra idag?", ska du analysera vad som kördes senast och föreslå nästa steg i progressionen.
+            - Felhantering: Om data saknas för en specifik övning, ska du INTE svara att du "inte har tillgång" eller "inte vet". Istället ska du instruera medlemmen att: "Jag hittar inget loggat rekord på det än – kör ett set nu och logga det, så har jag stenkoll till nästa gång!"
+
+            MÅL: Förvandla dig från en generell chattbot till en personlig coach som känner medlemmen bättre än de känner sig själva.
+
+            ${memberContext}
+
             Hantering av frågor:
-            - Om en användare frågar om träning: Ge ett konkret, direkt tips.
+            - Om en användare frågar om träning: Ge ett konkret, direkt tips baserat på deras data.
             - Om en användare verkar omotiverad: Ge en kort, kraftfull "push".
             - Om en medlem frågar om specifika skador: Ge ett generellt svar men rekommendera kort att prata med personalen på plats.
             - Språk: Svenska.
@@ -138,7 +182,7 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                             </div>
                         </div>
                     ))}
-                    {isLoading && <div className="text-gray-400 dark:text-gray-500 text-xs ml-4 animate-pulse">Tänker...</div>}
+                    {isLoading && <div className="text-gray-400 dark:text-gray-500 text-xs ml-4 animate-pulse">{loadingMessage || 'Tänker...'}</div>}
                     <div ref={messagesEndRef} />
                 </div>
 
