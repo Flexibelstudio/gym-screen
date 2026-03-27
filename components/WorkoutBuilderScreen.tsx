@@ -869,8 +869,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
               </div>
             </div>
           </div>
-        ) : null}
-        {activeId && activeData?.type === 'bank-exercise' ? (
+        ) : activeId && activeData?.type === 'bank-exercise' ? (
           <div className="bg-white dark:bg-gray-900/70 rounded-md p-2 flex items-center gap-3 opacity-90 shadow-2xl border border-primary/50 w-[300px]">
               <div className="flex-grow min-w-0 flex items-center gap-3">
                   <div className="flex-grow min-w-0">
@@ -884,9 +883,8 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                   <span className="text-2xl">+</span>
               </div>
           </div>
-        ) : null}
-        {activeId && activeData?.type === 'ai-suggestion' ? (
-          <div className="w-[300px] text-left bg-gray-50 dark:bg-gray-700/50 border border-primary/50 rounded-lg p-2 flex items-center justify-between opacity-90 shadow-2xl">
+        ) : activeId && activeData?.type === 'ai-suggestion' ? (
+          <div className="w-[300px] text-left bg-white dark:bg-gray-800 border border-primary/50 rounded-lg p-3 flex items-center justify-between opacity-90 shadow-2xl">
               <div>
                   <p className="text-sm font-bold text-gray-900 dark:text-white">{activeData.exercise.name}</p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{activeData.exercise.description}</p>
