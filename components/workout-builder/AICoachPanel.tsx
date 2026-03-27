@@ -137,9 +137,9 @@ export const AICoachSidebar: React.FC<{
     return (
         <div className="flex flex-col h-full space-y-6">
             {/* Chat Container (History + Input) */}
-            <div className="flex flex-col bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm flex-shrink-0">
+            <div className="flex flex-col bg-white dark:bg-gray-800 rounded-lg border border-purple-100 dark:border-purple-900/50 overflow-hidden shadow-sm flex-shrink-0">
                 {/* Chat History */}
-                <div className="max-h-80 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900/50 scrollbar-hide">
+                <div className="max-h-80 overflow-y-auto p-4 space-y-4 bg-purple-50/50 dark:bg-purple-900/10 scrollbar-hide">
                     {chatHistory.length === 0 && !isChatting ? (
                         <div className="text-center py-6">
                             <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -193,20 +193,20 @@ export const AICoachSidebar: React.FC<{
                 </div>
 
                 {/* Chat Input */}
-                <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                <div className="p-3 border-t border-purple-100 dark:border-purple-900/50 bg-white dark:bg-gray-800">
                     <form onSubmit={handleSendMessage} className="relative">
                         <input
                             type="text"
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
                             placeholder="Fråga AI:n eller be den ändra passet..."
-                            className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl pl-4 pr-12 py-3 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-shadow"
+                            className="w-full bg-purple-50/50 dark:bg-gray-900 border border-purple-200 dark:border-purple-800/50 rounded-xl pl-4 pr-12 py-3 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-shadow"
                             disabled={isChatting || isAnalyzing}
                         />
                         <button
                             type="submit"
                             disabled={!chatInput.trim() || isChatting || isAnalyzing}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-purple-600 text-white rounded-lg hover:bg-purple-500 disabled:opacity-50 disabled:hover:bg-purple-600 transition-colors"
+                            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-purple-600 text-white rounded-lg hover:bg-purple-500 disabled:opacity-50 disabled:hover:bg-purple-600 transition-colors shadow-sm"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
                                 <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
@@ -220,11 +220,11 @@ export const AICoachSidebar: React.FC<{
             </div>
 
             {/* Analyze Button */}
-            <div className="flex-shrink-0 bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+            <div className="flex-shrink-0 bg-white dark:bg-gray-800 p-4 rounded-lg border border-purple-100 dark:border-purple-900/50 shadow-sm">
                 <button 
                     onClick={handleAnalyzeClick} 
                     disabled={isAnalyzing}
-                    className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50 shadow-md"
+                    className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold py-3 rounded-lg transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-md hover:shadow-lg"
                 >
                     {isAnalyzing ? (
                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>

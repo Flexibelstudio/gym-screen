@@ -233,7 +233,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   const [exerciseBank, setExerciseBank] = useState<BankExercise[]>([]);
   const [isBankLoading, setIsBankLoading] = useState(true);
   const [previewExercise, setPreviewExercise] = useState<BankExercise | null>(null);
-  const [activeSidebarTab, setActiveSidebarTab] = useState<'bank' | 'ai'>('bank');
+  const [activeSidebarTab, setActiveSidebarTab] = useState<'bank' | 'ai'>('ai');
   
   // Dnd-kit state
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -923,7 +923,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                     </button>
                     <button 
                         onClick={() => setActiveSidebarTab('ai')}
-                        className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${activeSidebarTab === 'ai' ? 'bg-white dark:bg-gray-700 shadow-sm text-purple-600 dark:text-purple-400' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                        className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${activeSidebarTab === 'ai' ? 'bg-purple-100 dark:bg-purple-900/40 shadow-sm text-purple-700 dark:text-purple-300' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
                     >
                         <SparklesIcon className="w-4 h-4" />
                         AI-Coach
