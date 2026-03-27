@@ -856,9 +856,9 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
         />
        )}
 
-      <DragOverlay dropAnimation={defaultDropAnimationSideEffects({ sideEffects: ['styles'] })}>
+      <DragOverlay zIndex={9999} dropAnimation={defaultDropAnimationSideEffects({ sideEffects: ['styles'] })}>
         {activeId && activeData?.type === 'exercise' ? (
-          <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-2xl border-2 border-primary/50 opacity-90 scale-105 transform transition-transform">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded-xl shadow-2xl border-2 border-primary/50 opacity-90 scale-105 transform transition-transform w-full max-w-md">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                 <DumbbellIcon className="w-4 h-4" />
@@ -870,14 +870,27 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
             </div>
           </div>
         ) : null}
-        {activeId && (activeData?.type === 'bank-exercise' || activeData?.type === 'ai-suggestion') ? (
-          <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-xl border border-primary/30 opacity-90 scale-105">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded bg-primary/10 flex items-center justify-center text-primary">
-                <DumbbellIcon className="w-3 h-3" />
+        {activeId && activeData?.type === 'bank-exercise' ? (
+          <div className="bg-white dark:bg-gray-900/70 rounded-md p-2 flex items-center gap-3 opacity-90 shadow-2xl border border-primary/50 w-[300px]">
+              <div className="flex-grow min-w-0 flex items-center gap-3">
+                  <div className="flex-grow min-w-0">
+                      <div className="flex items-center gap-2">
+                          <p className="font-semibold text-gray-900 dark:text-white truncate">{activeData.exercise.name}</p>
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{activeData.exercise.description}</p>
+                  </div>
               </div>
-              <span className="font-medium text-sm text-gray-900 dark:text-white">{activeData.exercise.name}</span>
-            </div>
+              <div className="bg-primary/20 text-primary font-bold w-10 h-10 flex items-center justify-center rounded-full flex-shrink-0">
+                  <span className="text-2xl">+</span>
+              </div>
+          </div>
+        ) : null}
+        {activeId && activeData?.type === 'ai-suggestion' ? (
+          <div className="w-[300px] text-left bg-gray-50 dark:bg-gray-700/50 border border-primary/50 rounded-lg p-2 flex items-center justify-between opacity-90 shadow-2xl">
+              <div>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{activeData.exercise.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{activeData.exercise.description}</p>
+              </div>
           </div>
         ) : null}
       </DragOverlay>
