@@ -109,6 +109,32 @@ export const AICoachSidebar: React.FC<{
 
     return (
         <div className="flex flex-col h-full space-y-6">
+            {/* Chat Input */}
+            <div className="flex-shrink-0 pb-4 border-b border-gray-200 dark:border-gray-700">
+                <form onSubmit={handleSendMessage} className="relative">
+                    <input
+                        type="text"
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        placeholder="Fråga AI:n eller be den ändra passet..."
+                        className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl pl-4 pr-12 py-3 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none shadow-sm"
+                        disabled={isChatting || isAnalyzing}
+                    />
+                    <button
+                        type="submit"
+                        disabled={!chatInput.trim() || isChatting || isAnalyzing}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-purple-600 text-white rounded-lg hover:bg-purple-500 disabled:opacity-50 disabled:hover:bg-purple-600 transition-colors"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                            <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
+                        </svg>
+                    </button>
+                </form>
+                <p className="text-[10px] text-gray-400 text-center mt-2">
+                    AI:n kan uppdatera passet åt dig. Granska alltid ändringarna.
+                </p>
+            </div>
+
             <div className="flex-shrink-0 bg-white dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
                 <button 
                     onClick={handleAnalyzeClick} 
@@ -251,32 +277,6 @@ export const AICoachSidebar: React.FC<{
                         <div ref={messagesEndRef} />
                     </div>
                 )}
-            </div>
-
-            {/* Chat Input */}
-            <div className="flex-shrink-0 pt-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-                <form onSubmit={handleSendMessage} className="relative">
-                    <input
-                        type="text"
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        placeholder="Fråga AI:n eller be den ändra passet..."
-                        className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl pl-4 pr-12 py-3 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none shadow-sm"
-                        disabled={isChatting || isAnalyzing}
-                    />
-                    <button
-                        type="submit"
-                        disabled={!chatInput.trim() || isChatting || isAnalyzing}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-purple-600 text-white rounded-lg hover:bg-purple-500 disabled:opacity-50 disabled:hover:bg-purple-600 transition-colors"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
-                            <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />
-                        </svg>
-                    </button>
-                </form>
-                <p className="text-[10px] text-gray-400 text-center mt-2">
-                    AI:n kan uppdatera passet åt dig. Granska alltid ändringarna.
-                </p>
             </div>
         </div>
     );
