@@ -17,6 +17,7 @@ import {
   DndContext,
   DragOverlay,
   pointerWithin,
+  closestCenter,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -24,7 +25,8 @@ import {
   DragStartEvent,
   DragOverEvent,
   DragEndEvent,
-  defaultDropAnimationSideEffects
+  defaultDropAnimationSideEffects,
+  CollisionDetection
 } from '@dnd-kit/core';
 import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
@@ -40,6 +42,26 @@ const createNewWorkout = (): Workout => ({
   createdAt: Date.now(),
   organizationId: '' // Placeholder
 });
+
+const customCollisionDetection: CollisionDetection = (args) => {
+  // First, check if the pointer is within any droppable containers
+  const pointerCollisions = pointerWithin(args);
+
+  if (pointerCollisions.length > 0) {
+    // If we are over something, find the closest center among the things we are over
+    // This ensures we pick the specific exercise rather than the whole block container
+    const intersectingIds = pointerCollisions.map(c => c.id);
+    const intersectingContainers = args.droppableContainers.filter(c => intersectingIds.includes(c.id));
+    
+    return closestCenter({
+      ...args,
+      droppableContainers: intersectingContainers
+    });
+  }
+
+  // If the pointer is not over any droppable, return no collisions
+  return [];
+};
 
 const createNewBlock = (): WorkoutBlock => ({
   id: `block-${Date.now()}`,
@@ -665,7 +687,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   return (
     <DndContext 
       sensors={sensors}
-      collisionDetection={pointerWithin}
+      collisionDetection={customCollisionDetection}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
