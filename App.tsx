@@ -70,6 +70,7 @@ const App: React.FC = () => {
       if (isStudioMode) return [Page.Home];
       if (role === 'systemowner') return [Page.SystemOwner];
       if (role === 'organizationadmin') return [Page.SuperAdmin];
+      if (role === 'coach') return [Page.Coach];
       return [Page.MemberProfile];
   });
 
@@ -109,6 +110,8 @@ const App: React.FC = () => {
         setHistory([Page.SystemOwner]);
       } else if (role === 'organizationadmin' && currentPage !== Page.SuperAdmin && isAtInitialPage) {
         setHistory([Page.SuperAdmin]);
+      } else if (role === 'coach' && currentPage !== Page.Coach && isAtInitialPage) {
+        setHistory([Page.Coach]);
       } else if (role === 'member' && currentPage !== Page.MemberProfile && isAtInitialPage) {
         setHistory([Page.MemberProfile]);
       }
