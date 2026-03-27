@@ -281,6 +281,53 @@ export async function analyzeCurrentWorkout(currentWorkout: Workout): Promise<Wo
     return transformWorkout({ ...currentWorkout, ...data }, currentWorkout.organizationId);
 }
 
+export interface AICoachChatResponse {
+    replyText: string;
+    updatedWorkout?: Workout;
+    suggestedExercises?: { name: string; description: string }[];
+}
+
+export async function chatWithAICoach(
+    currentWorkout: Workout, 
+    chatHistory: { role: 'user' | 'assistant', content: string }[], 
+    userMessage: string, 
+    availableExercises: string[] = []
+): Promise<AICoachChatResponse> {
+    const aiCoachChatSchema = {
+        type: Type.OBJECT,
+        required: ['replyText'],
+        properties: {
+            replyText: { type: Type.STRING },
+            updatedWorkout: workoutSchema,
+            suggestedExercises: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    required: ['name', 'description'],
+                    properties: {
+                        name: { type: Type.STRING },
+                        description: { type: Type.STRING }
+                    }
+                }
+            }
+        }
+    };
+
+    const formattedHistory = chatHistory.map(msg => `${msg.role === 'user' ? 'Användare' : 'Coach'}: ${msg.content}`).join('\n');
+    
+    const data = await _callGeminiJSON<any>(
+        TEXT_MODEL, 
+        Prompts.AI_COACH_CHAT_PROMPT(JSON.stringify(currentWorkout), formattedHistory, userMessage, availableExercises), 
+        aiCoachChatSchema
+    );
+
+    return {
+        replyText: data.replyText,
+        updatedWorkout: data.updatedWorkout ? transformWorkout({ ...currentWorkout, ...data.updatedWorkout }, currentWorkout.organizationId) : undefined,
+        suggestedExercises: data.suggestedExercises
+    };
+}
+
 export async function parseWorkoutFromText(text: string): Promise<Workout> {
     const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.TEXT_INTERPRETER_PROMPT(text), workoutSchema);
     // Tolkad text från coachen bör inte vara ett "medlemsutkast" som raderas

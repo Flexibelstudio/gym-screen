@@ -613,7 +613,12 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                         />
                     )}
                     {activeSidebarTab === 'ai' && (
-                        <AICoachSidebar workout={workout} onAnalyze={handleAnalyzeWorkout} />
+                        <AICoachSidebar 
+                            workout={workout} 
+                            onAnalyze={handleAnalyzeWorkout} 
+                            onUpdateWorkout={setWorkout}
+                            availableExercises={exerciseBank.map(e => e.name)}
+                        />
                     )}
                 </div>
             </div>
