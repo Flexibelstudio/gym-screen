@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, StudioConfig, UserRole, BankExercise, Organization, BenchmarkDefinition } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
@@ -15,7 +16,7 @@ import { Toast } from './ui/ToastNotification';
 import {
   DndContext,
   DragOverlay,
-  closestCorners,
+  pointerWithin,
   KeyboardSensor,
   PointerSensor,
   useSensor,
@@ -83,6 +84,7 @@ const sanitizeWorkoutWithBank = (currentWorkout: Workout, currentBank: BankExerc
     if (!hasChanges) return currentWorkout;
     return { ...currentWorkout, blocks: newBlocks };
 };
+
 
 // Helper to check for unsaved changes
 const useUnsavedChanges = (isDirty: boolean) => {
@@ -169,51 +171,82 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
     const { active, over } = event;
     if (!over) return;
 
-    const activeId = active.id as string;
-    const overId = over.id as string;
+    const activeId = active.id;
+    const overId = over.id;
 
     if (activeId === overId) return;
 
     const activeData = active.data.current;
     const overData = over.data.current;
 
-    // Vi bryr oss bara om att flytta existerande övningar under DragOver
-    if (activeData?.type === 'exercise') {
-      const activeBlockIndex = workout.blocks.findIndex(b => b.exercises.some(e => `exercise-${e.id}` === activeId));
-      const overBlockIndex = workout.blocks.findIndex(b => b.exercises.some(e => `exercise-${e.id}` === overId));
-      const isOverBlockContainer = overData?.type === 'block';
-      
-      const targetBlockIndex = isOverBlockContainer ? workout.blocks.findIndex(b => b.id === overData.blockId) : overBlockIndex;
+    // If dragging an exercise between blocks
+    if (activeData?.type === 'exercise' && overData?.type === 'exercise') {
+      const activeBlockId = workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === activeId))?.id;
+      const overBlockId = workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === overId))?.id;
 
-      // Om övningen dras över en block-gräns till ett nytt block
-      if (activeBlockIndex !== -1 && targetBlockIndex !== -1 && activeBlockIndex !== targetBlockIndex) {
+      if (activeBlockId && overBlockId && activeBlockId !== overBlockId) {
         setWorkout(prev => {
-          const newBlocks = [...prev.blocks];
-          const activeBlock = { ...newBlocks[activeBlockIndex] };
-          const targetBlock = { ...newBlocks[targetBlockIndex] };
+          const activeBlockIndex = prev.blocks.findIndex(b => b.id === activeBlockId);
+          const overBlockIndex = prev.blocks.findIndex(b => b.id === overBlockId);
+          
+          const activeBlock = prev.blocks[activeBlockIndex];
+          const overBlock = prev.blocks[overBlockIndex];
 
           const activeExerciseIndex = activeBlock.exercises.findIndex(e => `exercise-${e.id}` === activeId);
+          const overExerciseIndex = overBlock.exercises.findIndex(e => `exercise-${e.id}` === overId);
+
           const activeExercise = activeBlock.exercises[activeExerciseIndex];
 
-          // Ta bort från nuvarande blocket
-          activeBlock.exercises = activeBlock.exercises.filter((_, i) => i !== activeExerciseIndex);
-
-          // Lägg till i det nya blocket
-          const targetExercises = [...targetBlock.exercises];
-          if (isOverBlockContainer) {
-             // Släppt på en tom yta i ett block -> lägg sist
-             targetExercises.push(activeExercise);
-          } else {
-             // Släppt på en specifik övning i det nya blocket
-             const insertIndex = targetBlock.exercises.findIndex(e => `exercise-${e.id}` === overId);
-             targetExercises.splice(insertIndex >= 0 ? insertIndex : targetExercises.length, 0, activeExercise);
-          }
+          const newBlocks = [...prev.blocks];
           
-          targetBlock.exercises = targetExercises;
-          newBlocks[activeBlockIndex] = activeBlock;
-          newBlocks[targetBlockIndex] = targetBlock;
+          // Remove from active block
+          newBlocks[activeBlockIndex] = {
+            ...activeBlock,
+            exercises: activeBlock.exercises.filter((_, i) => i !== activeExerciseIndex)
+          };
+
+          // Add to over block
+          const newOverExercises = [...overBlock.exercises];
+          newOverExercises.splice(overExerciseIndex, 0, activeExercise);
+          newBlocks[overBlockIndex] = {
+            ...overBlock,
+            exercises: newOverExercises
+          };
 
           return { ...prev, blocks: newBlocks };
+        });
+      }
+    }
+
+    // If dragging an exercise over a block
+    if (activeData?.type === 'exercise' && overData?.type === 'block') {
+      const activeBlockId = workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === activeId))?.id;
+      const overBlockId = overData.blockId;
+
+      if (activeBlockId && overBlockId && activeBlockId !== overBlockId) {
+        setWorkout(prev => {
+            const activeBlockIndex = prev.blocks.findIndex(b => b.id === activeBlockId);
+            const overBlockIndex = prev.blocks.findIndex(b => b.id === overBlockId);
+            
+            const activeBlock = prev.blocks[activeBlockIndex];
+            const activeExerciseIndex = activeBlock.exercises.findIndex(e => `exercise-${e.id}` === activeId);
+            const activeExercise = activeBlock.exercises[activeExerciseIndex];
+
+            const newBlocks = [...prev.blocks];
+            
+            // Remove from active block
+            newBlocks[activeBlockIndex] = {
+              ...activeBlock,
+              exercises: activeBlock.exercises.filter((_, i) => i !== activeExerciseIndex)
+            };
+
+            // Add to over block at the end
+            newBlocks[overBlockIndex] = {
+              ...prev.blocks[overBlockIndex],
+              exercises: [...prev.blocks[overBlockIndex].exercises, activeExercise]
+            };
+
+            return { ...prev, blocks: newBlocks };
         });
       }
     }
@@ -224,86 +257,81 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
     setActiveId(null);
     setActiveData(null);
 
-    // Om man släpper utanför (over är null), gör absolut ingenting
     if (!over) return;
 
-    const activeId = active.id as string;
-    const overId = over.id as string;
+    const activeId = active.id;
+    const overId = over.id;
     const activeData = active.data.current;
     const overData = over.data.current;
 
-    // 1. Hantera drop av NY övning (från Övningsbanken / AI) till ett block
+    // Handle dropping new exercise from bank or AI chat
     if ((activeData?.type === 'bank-exercise' || activeData?.type === 'ai-suggestion') && overData) {
-      let targetBlockId = null;
-      let insertIndex = -1;
+        const targetBlockId = overData.type === 'block' ? overData.blockId : workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === overId))?.id;
+        
+        if (targetBlockId) {
+            const newExercise: Exercise = {
+                id: `ex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                name: activeData.exercise.name,
+                description: activeData.exercise.description || '',
+                reps: '',
+                isFromBank: activeData.exercise.isFromBank,
+                loggingEnabled: activeData.exercise.loggingEnabled,
+                imageUrl: activeData.exercise.imageUrl
+            };
 
-      if (overData.type === 'block') {
-          targetBlockId = overData.blockId;
-      } else if (overData.type === 'exercise') {
-          const block = workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === overId));
-          if (block) {
-              targetBlockId = block.id;
-              insertIndex = block.exercises.findIndex(e => `exercise-${e.id}` === overId);
-          }
-      }
-
-      if (targetBlockId) {
-          const newExercise: Exercise = {
-              id: `ex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-              name: activeData.exercise.name,
-              description: activeData.exercise.description || '',
-              reps: '',
-              isFromBank: activeData.exercise.isFromBank !== undefined ? activeData.exercise.isFromBank : true,
-              loggingEnabled: activeData.exercise.loggingEnabled || false,
-              imageUrl: activeData.exercise.imageUrl
-          };
-
-          setWorkout(prev => {
-              const newBlocks = prev.blocks.map(block => {
-                  if (block.id === targetBlockId) {
-                      const newExercises = [...block.exercises];
-                      if (insertIndex !== -1) {
-                          // Sätt in den PRECIS där man släppte
-                          newExercises.splice(insertIndex, 0, newExercise);
-                      } else {
-                          // Om man släppte på blockytan generellt, lägg den sist
-                          newExercises.push(newExercise);
-                      }
-                      return { ...block, exercises: newExercises };
-                  }
-                  return block;
-              });
-              return { ...prev, blocks: newBlocks };
-          });
-      }
-      return;
+            setWorkout(prev => {
+                const newBlocks = prev.blocks.map(block => {
+                    if (block.id === targetBlockId) {
+                        const newExercises = [...block.exercises];
+                        if (overData.type === 'exercise') {
+                            const overIndex = block.exercises.findIndex(e => `exercise-${e.id}` === overId);
+                            
+                            let insertIndex = overIndex + 1;
+                            const activeRect = active.rect.current.translated;
+                            const overRect = over.rect;
+                            
+                            if (activeRect && overRect) {
+                                const activeCenterY = activeRect.top + activeRect.height / 2;
+                                const overCenterY = overRect.top + overRect.height / 2;
+                                if (activeCenterY < overCenterY) {
+                                    insertIndex = overIndex;
+                                }
+                            }
+                            
+                            newExercises.splice(insertIndex, 0, newExercise);
+                        } else {
+                            newExercises.push(newExercise);
+                        }
+                        return { ...block, exercises: newExercises };
+                    }
+                    return block;
+                });
+                return { ...prev, blocks: newBlocks };
+            });
+        }
+        return;
     }
 
-    // 2. Hantera intern sortering av en övning inom SAMMA block
-    if (activeData?.type === 'exercise' && activeId !== overId) {
-      const blockIndex = workout.blocks.findIndex(b => b.exercises.some(e => `exercise-${e.id}` === activeId));
-      
-      if (blockIndex !== -1) {
-          setWorkout(prev => {
-              const newBlocks = [...prev.blocks];
-              const block = { ...newBlocks[blockIndex] };
-              
-              const oldIndex = block.exercises.findIndex(e => `exercise-${e.id}` === activeId);
-              let newIndex = block.exercises.findIndex(e => `exercise-${e.id}` === overId);
-              
-              // Om man släpper den längst ner i blockets tomma yta
-              if (overData?.type === 'block' && overData.blockId === block.id) {
-                  newIndex = block.exercises.length - 1; 
-              }
-
-              if (oldIndex !== -1 && newIndex !== -1) {
-                  block.exercises = arrayMove(block.exercises, oldIndex, newIndex);
-                  newBlocks[blockIndex] = block;
-              }
-              
-              return { ...prev, blocks: newBlocks };
-          });
-      }
+    // Handle reordering within the same block
+    if (activeData?.type === 'exercise' && overData?.type === 'exercise' && activeId !== overId) {
+        const blockId = workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === activeId))?.id;
+        
+        if (blockId) {
+            setWorkout(prev => {
+                const newBlocks = prev.blocks.map(block => {
+                    if (block.id === blockId) {
+                        const oldIndex = block.exercises.findIndex(e => `exercise-${e.id}` === activeId);
+                        const newIndex = block.exercises.findIndex(e => `exercise-${e.id}` === overId);
+                        return {
+                            ...block,
+                            exercises: arrayMove(block.exercises, oldIndex, newIndex)
+                        };
+                    }
+                    return block;
+                });
+                return { ...prev, blocks: newBlocks };
+            });
+        }
     }
   };
 
@@ -637,7 +665,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   return (
     <DndContext 
       sensors={sensors}
-      collisionDetection={closestCorners}
+      collisionDetection={pointerWithin}
       onDragStart={handleDragStart}
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
