@@ -97,7 +97,9 @@ export const EditResultModal: React.FC<{
                         <div className="flex items-center gap-3 justify-center">
                             <div className="flex flex-col items-center">
                                 <input
-                                    type="number"
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
                                     value={minutes}
                                     onChange={(e) => setMinutes(Math.max(0, parseInt(e.target.value) || 0))}
                                     className="w-24 text-center bg-white dark:bg-black border-2 border-gray-200 dark:border-gray-700 rounded-2xl p-3 text-3xl font-mono font-black focus:ring-4 focus:ring-primary/20 focus:border-primary focus:outline-none transition-all"
@@ -107,7 +109,9 @@ export const EditResultModal: React.FC<{
                             <span className="text-3xl font-black pb-8 text-gray-300">:</span>
                             <div className="flex flex-col items-center">
                                 <input
-                                    type="number"
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
                                     value={seconds}
                                     onChange={(e) => setSeconds(Math.max(0, Math.min(59, parseInt(e.target.value) || 0)))}
                                     className="w-24 text-center bg-white dark:bg-black border-2 border-gray-200 dark:border-gray-700 rounded-2xl p-3 text-3xl font-mono font-black focus:ring-4 focus:ring-primary/20 focus:border-primary focus:outline-none transition-all"

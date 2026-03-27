@@ -100,7 +100,9 @@ const TimeInput: React.FC<{
         <div className={`flex items-center bg-gray-5 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 px-2 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all ${className}`}>
              <div className="flex-1 flex flex-col justify-center">
                 <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={min}
                     onChange={(e) => update(e.target.value, sec)}
                     placeholder={placeholder || "0"}
@@ -111,7 +113,9 @@ const TimeInput: React.FC<{
              <span className="text-gray-300 dark:text-gray-600 font-black text-2xl pb-4">:</span>
              <div className="flex-1 flex flex-col justify-center">
                 <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={sec}
                     onChange={(e) => update(min, e.target.value)}
                     placeholder="00"

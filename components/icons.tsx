@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 export const CloseIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
@@ -126,6 +126,15 @@ export const ValueAdjuster: React.FC<{
     step?: number;
     wrapAround?: boolean;
 }> = ({ label, value, onchange, max, step = 1, wrapAround = false }) => {
+    const [isFocused, setIsFocused] = useState(false);
+    const [inputValue, setInputValue] = useState(String(value).padStart(2, '0'));
+
+    useEffect(() => {
+        if (!isFocused) {
+            setInputValue(String(value).padStart(2, '0'));
+        }
+    }, [value, isFocused]);
+
     const handleDecrement = () => {
         let newVal = value - step;
         if (newVal < 0) {
@@ -144,6 +153,18 @@ export const ValueAdjuster: React.FC<{
         onchange(newVal);
     };
 
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setInputValue(e.target.value);
+        let val = parseInt(e.target.value, 10);
+        if (!isNaN(val)) {
+             if (max !== undefined && val > max) val = max;
+             if (val < 0) val = 0;
+             onchange(val);
+        } else if (e.target.value === '') {
+             onchange(0);
+        }
+    };
+
     return (
         <div className="flex flex-col items-center">
             <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1">{label}</span>
@@ -154,9 +175,16 @@ export const ValueAdjuster: React.FC<{
                 >
                     -
                 </button>
-                <div className="w-16 text-center font-mono text-3xl font-black text-gray-900 dark:text-white tabular-nums leading-none">
-                    {String(value).padStart(2, '0')}
-                </div>
+                <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    onFocus={() => setIsFocused(true)}
+                    onBlur={() => setIsFocused(false)}
+                    className="w-16 text-center font-mono text-3xl font-black text-gray-900 dark:text-white bg-transparent focus:outline-none tabular-nums leading-none"
+                />
                 <button 
                     onClick={handleIncrement}
                     className="w-10 h-10 flex items-center justify-center bg-gray-100 dark:bg-gray-800 rounded-lg text-xl font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-95 transition-all"
