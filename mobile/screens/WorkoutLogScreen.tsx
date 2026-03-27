@@ -663,8 +663,14 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
     if (!oId) { setLoading(false); return; }
     if (isManualMode) { setLoading(false); return; }
     if (!wId) { setLoading(false); return; }
+    if (workout?.id === wId) return; // Already initialized for this workout
 
     const init = async () => {
+        // Reset state for new workout
+        setAiInsights(null);
+        setViewMode('pre-game');
+        setDailyFeeling('neutral');
+        
         try {
             const orgWorkouts = await getWorkoutsForOrganization(oId);
             let foundWorkout = orgWorkouts.find(w => w.id === wId);
@@ -763,7 +769,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                         }
                     } catch (err) { 
                         console.log("AI Insight Error", err); 
-                        if (viewMode === 'pre-game') setViewMode('logging');
+                        setViewMode('logging');
                     }
                 }
             }
