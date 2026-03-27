@@ -38,7 +38,7 @@ const formatReps = (reps: string | undefined): string => {
 
 // --- COMPONENTS ---
 
-const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void }> = ({ workout, onClose }) => {
+export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void }> = ({ workout, onClose }) => {
     return (
         <motion.div 
             initial={{ opacity: 0 }}
