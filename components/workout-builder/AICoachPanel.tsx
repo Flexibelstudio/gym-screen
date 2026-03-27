@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Workout } from '../../types';
-import { SparklesIcon, PlusIcon } from '../icons';
+import { SparklesIcon } from '../icons';
 import { chatWithAICoach } from '../../services/geminiService';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -97,11 +97,6 @@ export const AICoachSidebar: React.FC<{
         }
     };
 
-    const handleAddSuggestedExercise = (exerciseName: string) => {
-        // Just pre-fill the chat input to ask the AI to add it
-        setChatInput(`Lägg till ${exerciseName} i passet.`);
-    };
-
     const hasSummary = !!workout.aiCoachSummary;
     const hasSuggestions = workout.blocks?.some(b => 
         (b.aiMagicPenSuggestions && b.aiMagicPenSuggestions.length > 0) || b.aiCoachNotes
@@ -140,19 +135,15 @@ export const AICoachSidebar: React.FC<{
                                             <div className="mt-3 space-y-2">
                                                 <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Förslag:</p>
                                                 {msg.suggestedExercises.map((ex, i) => (
-                                                    <button
+                                                    <div
                                                         key={i}
-                                                        onClick={() => handleAddSuggestedExercise(ex.name)}
-                                                        className="w-full text-left bg-gray-50 dark:bg-gray-700/50 hover:bg-purple-50 dark:hover:bg-purple-900/20 border border-gray-200 dark:border-gray-600 rounded-lg p-2 transition-colors flex items-center justify-between group"
+                                                        className="w-full text-left bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-2 flex items-center justify-between"
                                                     >
                                                         <div>
                                                             <p className="text-sm font-bold text-gray-900 dark:text-white">{ex.name}</p>
                                                             <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{ex.description}</p>
                                                         </div>
-                                                        <div className="w-6 h-6 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm text-purple-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                            <PlusIcon className="w-4 h-4" />
-                                                        </div>
-                                                    </button>
+                                                    </div>
                                                 ))}
                                             </div>
                                         )}
