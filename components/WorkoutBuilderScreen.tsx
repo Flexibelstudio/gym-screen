@@ -757,29 +757,6 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
     }, 100);
   };
 
-  const handleAnalyzeWorkout = async () => {
-      try {
-          const analyzedWorkout = await analyzeCurrentWorkout(workout);
-          setWorkout(prev => ({
-              ...prev,
-              aiCoachSummary: analyzedWorkout.aiCoachSummary,
-              blocks: prev.blocks.map((block, index) => {
-                  const analyzedBlock = analyzedWorkout.blocks[index];
-                  if (!analyzedBlock) return block;
-                  return {
-                      ...block,
-                      aiCoachNotes: analyzedBlock.aiCoachNotes,
-                      aiMagicPenSuggestions: analyzedBlock.aiMagicPenSuggestions
-                  }
-              })
-          }));
-          setActiveSidebarTab('ai'); // Switch tab to show results
-      } catch (error) {
-          console.error("Failed to analyze workout:", error);
-          alert("Kunde inte analysera passet. Försök igen senare.");
-      }
-  };
-
   return (
     <DndContext 
       sensors={sensors}
@@ -943,7 +920,6 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                     {activeSidebarTab === 'ai' && (
                         <AICoachSidebar 
                             workout={workout} 
-                            onAnalyze={handleAnalyzeWorkout} 
                             onUpdateWorkout={setWorkout}
                             availableExercises={exerciseBank.map(e => e.name)}
                         />
