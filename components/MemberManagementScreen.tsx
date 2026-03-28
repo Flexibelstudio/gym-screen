@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Member, UserRole } from '../types';
-import { UsersIcon, PencilIcon, ChartBarIcon, SearchIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon } from './icons';
+import { UsersIcon, PencilIcon, ChartBarIcon, SearchIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon, QrCodeIcon } from './icons';
 import { MemberDetailModal } from './MemberDetailModal';
 import { PrintablePoster } from './PrintablePoster';
 import { useStudio } from '../context/StudioContext';
@@ -253,12 +253,28 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
             Hantera alla användare, tilldela roller och se träningsmål.
           </p>
         </div>
-        <button 
-          onClick={() => setShowInviteModal(true)} 
-          className="bg-primary hover:brightness-110 text-white font-black py-4 px-8 rounded-2xl shadow-xl shadow-primary/20 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center gap-3 self-start md:self-auto"
-        >
-          <span className="uppercase tracking-widest text-sm">Anslut nya</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-3 self-start md:self-auto">
+          <button 
+            onClick={() => handlePrint('member')} 
+            className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold py-3 px-5 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 transition-all flex items-center gap-2"
+          >
+            <QrCodeIcon className="w-5 h-5 text-primary" />
+            <span className="uppercase tracking-widest text-xs">Poster (Medlem)</span>
+          </button>
+          <button 
+            onClick={() => handlePrint('coach')} 
+            className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold py-3 px-5 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 transition-all flex items-center gap-2"
+          >
+            <QrCodeIcon className="w-5 h-5 text-purple-600" />
+            <span className="uppercase tracking-widest text-xs">Poster (Coach)</span>
+          </button>
+          <button 
+            onClick={() => setShowInviteModal(true)} 
+            className="bg-primary hover:brightness-110 text-white font-black py-3 px-6 rounded-2xl shadow-xl shadow-primary/20 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center gap-3"
+          >
+            <span className="uppercase tracking-widest text-sm">Anslut nya</span>
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">

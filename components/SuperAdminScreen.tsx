@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { StudioConfig, Studio, Organization, CustomPage, UserData, UserRole, InfoCarousel, DisplayWindow, Workout, CompanyDetails } from '../types';
-import { HomeIcon, DocumentTextIcon, SpeakerphoneIcon, UsersIcon, DumbbellIcon, BriefcaseIcon, BuildingIcon, SettingsIcon, ChartBarIcon, CopyIcon, CloseIcon, SparklesIcon, HistoryIcon } from './icons';
+import { HomeIcon, DocumentTextIcon, SpeakerphoneIcon, UsersIcon, DumbbellIcon, BriefcaseIcon, BuildingIcon, SettingsIcon, ChartBarIcon, CopyIcon, CloseIcon, SparklesIcon, HistoryIcon, QrCodeIcon } from './icons';
 import { getAdminsForOrganization, getCoachesForOrganization, saveAdminActivity } from '../services/firebaseService';
 import { OvningsbankContent } from './OvningsbankContent';
+import { PrintablePoster } from './PrintablePoster';
 import { useStudio } from '../context/StudioContext';
 import { CompanyDetailsOnboardingModal } from './CompanyDetailsOnboardingModal';
 import { Toast } from './ui/ToastNotification';
@@ -89,6 +90,20 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     const [activeTab, setActiveTab] = useState<AdminTab>((initialTab as AdminTab) || 'dashboard');
     const [isSidebarCollapsed, setSidebarCollapsed] = useState(false); 
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [posterToPrint, setPosterToPrint] = useState<'member' | 'coach' | null>(null);
+
+    const handlePrint = (type: 'member' | 'coach') => {
+        setPosterToPrint(type);
+        setTimeout(() => {
+            window.print();
+        }, 100);
+    };
+
+    useEffect(() => {
+        const handleAfterPrint = () => setPosterToPrint(null);
+        window.addEventListener('afterprint', handleAfterPrint);
+        return () => window.removeEventListener('afterprint', handleAfterPrint);
+    }, []);
     
     useEffect(() => {
         if (initialTab) {
@@ -429,15 +444,23 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                                                 <div className="bg-gray-5 dark:bg-gray-900/50 px-6 py-2 rounded-2xl border-2 border-primary/20 shadow-inner">
                                                     <span className="text-3xl font-black font-mono tracking-[0.15em] text-primary">{organization.inviteCode}</span>
                                                 </div>
-                                                <button 
-                                                    onClick={() => {
-                                                        navigator.clipboard.writeText(organization.inviteCode || '');
-                                                        setToast({ message: "Medlemskod kopierad!", visible: true });
-                                                    }}
-                                                    className="text-xs font-black text-primary hover:bg-primary/10 px-4 py-2 rounded-xl transition-all uppercase tracking-widest"
-                                                >
-                                                    <CopyIcon className="w-4 h-4 inline mr-2" /> Kopiera
-                                                </button>
+                                                <div className="flex items-center gap-2">
+                                                    <button 
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(organization.inviteCode || '');
+                                                            setToast({ message: "Medlemskod kopierad!", visible: true });
+                                                        }}
+                                                        className="text-xs font-black text-primary hover:bg-primary/10 px-4 py-2 rounded-xl transition-all uppercase tracking-widest"
+                                                    >
+                                                        <CopyIcon className="w-4 h-4 inline mr-2" /> Kopiera
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => handlePrint('member')}
+                                                        className="text-xs font-black text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 px-4 py-2 rounded-xl transition-all uppercase tracking-widest"
+                                                    >
+                                                        <QrCodeIcon className="w-4 h-4 inline mr-2" /> Poster
+                                                    </button>
+                                                </div>
                                             </div>
                                             {organization.coachCode ? (
                                                 <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -445,15 +468,23 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                                                     <div className="bg-purple-50 dark:bg-purple-900/20 px-6 py-2 rounded-2xl border-2 border-purple-500/20 shadow-inner">
                                                         <span className="text-3xl font-black font-mono tracking-[0.15em] text-purple-600 dark:text-purple-400">{organization.coachCode}</span>
                                                     </div>
-                                                    <button 
-                                                        onClick={() => {
-                                                            navigator.clipboard.writeText(organization.coachCode || '');
-                                                            setToast({ message: "Coachkod kopierad!", visible: true });
-                                                        }}
-                                                        className="text-xs font-black text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 px-4 py-2 rounded-xl transition-all uppercase tracking-widest"
-                                                    >
-                                                        <CopyIcon className="w-4 h-4 inline mr-2" /> Kopiera
-                                                    </button>
+                                                    <div className="flex items-center gap-2">
+                                                        <button 
+                                                            onClick={() => {
+                                                                navigator.clipboard.writeText(organization.coachCode || '');
+                                                                setToast({ message: "Coachkod kopierad!", visible: true });
+                                                            }}
+                                                            className="text-xs font-black text-purple-600 dark:text-purple-400 hover:bg-purple-500/10 px-4 py-2 rounded-xl transition-all uppercase tracking-widest"
+                                                        >
+                                                            <CopyIcon className="w-4 h-4 inline mr-2" /> Kopiera
+                                                        </button>
+                                                        <button 
+                                                            onClick={() => handlePrint('coach')}
+                                                            className="text-xs font-black text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 px-4 py-2 rounded-xl transition-all uppercase tracking-widest"
+                                                        >
+                                                            <QrCodeIcon className="w-4 h-4 inline mr-2" /> Poster
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -554,6 +585,14 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             </div>
             {showOnboardingModal && (<CompanyDetailsOnboardingModal isOpen={showOnboardingModal} initialDetails={organization.companyDetails} onSave={handleUpdateCompanyDetails} onSkip={handleSkipOnboarding} />)}
             <PricingModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} onConfirm={handleEnablePaidFeatures} isProcessing={isSavingConfig} hasStripeAccount={!!organization.stripeConnectSetupComplete} />
+            {posterToPrint && (
+                <PrintablePoster
+                    title={posterToPrint === 'member' ? 'Skapa konto för att logga din träning och sätta mål' : 'Skapa coachkonto för att hantera medlemmar'}
+                    code={posterToPrint === 'member' ? (organization.inviteCode || '') : (organization.coachCode || '')}
+                    url={posterToPrint === 'member' ? `${window.location.origin}/?invite=${organization.inviteCode}` : `${window.location.origin}/?coach=${organization.coachCode}`}
+                    organizationName={organization.name}
+                />
+            )}
         </div>
     );
 };
