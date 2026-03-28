@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { QRCodeSVG } from 'qrcode.react';
 
 interface PrintablePosterProps {
@@ -9,9 +10,9 @@ interface PrintablePosterProps {
 }
 
 export const PrintablePoster: React.FC<PrintablePosterProps> = ({ title, code, url, organizationName }) => {
-  return (
+  const posterContent = (
     <div className="print-only w-full bg-white text-black flex flex-col items-center justify-start" style={{ height: '100vh', maxHeight: '100vh', overflow: 'hidden', boxSizing: 'border-box', pageBreakInside: 'avoid' }}>
-      <div className="max-w-3xl mx-auto flex flex-col items-center w-full px-8 pt-16 pb-4">
+      <div className="max-w-3xl mx-auto flex flex-col items-center w-full px-8 pt-12 pb-4">
         <h2 className="text-xl font-bold text-gray-500 mb-2 uppercase tracking-widest text-center">{organizationName}</h2>
         <h1 className="text-4xl sm:text-5xl font-black mb-8 leading-tight uppercase max-w-2xl text-center">{title}</h1>
         
@@ -35,4 +36,7 @@ export const PrintablePoster: React.FC<PrintablePosterProps> = ({ title, code, u
       </div>
     </div>
   );
+
+  // Render the poster directly into the body to avoid any layout interference from parent containers
+  return createPortal(posterContent, document.body);
 };
