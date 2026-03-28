@@ -178,102 +178,14 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
     );
 };
 
-const BlockPresentationModal: React.FC<{ block: WorkoutBlock; onClose: () => void }> = ({ block, onClose }) => {
-    return (
-        <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[10000] bg-white dark:bg-gray-950 flex flex-col overflow-hidden"
-        >
-            <div className="flex justify-between items-start p-8 md:p-12 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50">
-                <div className="max-w-4xl">
-                    <div className="flex items-center gap-4 mb-4">
-                         <span className={`inline-flex items-center px-4 py-2 rounded-xl text-lg font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
-                            {block.tag}
-                        </span>
-                    </div>
-                    <h1 className="text-3xl md:text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">
-                        {block.title}
-                    </h1>
-                    {block.setupDescription && (
-                        <p className="text-lg md:text-xl text-gray-500 dark:text-gray-400 mt-6 font-medium leading-relaxed max-w-5xl">
-                            {block.setupDescription}
-                        </p>
-                    )}
-                </div>
-                <button 
-                    onClick={onClose}
-                    className="p-4 bg-gray-200 dark:bg-gray-800 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors shadow-lg active:scale-95"
-                >
-                    <CloseIcon className="w-10 h-10 text-gray-900 dark:text-white" />
-                </button>
-            </div>
-
-            <div className="flex-grow overflow-y-auto p-8 md:p-12">
-                <div className="max-w-7xl mx-auto flex flex-col">
-                    {block.exercises?.map((ex, index) => {
-                        if (!ex) return null;
-                        const nextEx = block.exercises?.[index + 1];
-                        const prevEx = block.exercises?.[index - 1];
-                        const isGroupedWithNext = nextEx && ex.groupId && ex.groupId === nextEx.groupId;
-                        const isGroupedWithPrev = prevEx && ex.groupId && ex.groupId === prevEx.groupId;
-                        
-                        const roundedClass = isGroupedWithNext && !isGroupedWithPrev ? 'rounded-t-[2rem] rounded-b-md' :
-                                             isGroupedWithPrev && !isGroupedWithNext ? 'rounded-b-[2rem] rounded-t-md' :
-                                             isGroupedWithPrev && isGroupedWithNext ? 'rounded-md' : 'rounded-[2rem]';
-                                             
-                        const borderClass = ex.groupColor ? `border-2 border-r-gray-100 border-y-gray-100 dark:border-r-gray-800 dark:border-y-gray-800 border-l-[8px] ${ex.groupColor.replace('bg-', 'border-l-')}` : 'border-2 border-gray-100 dark:border-gray-800';
-                        const marginClass = isGroupedWithNext ? 'mb-1' : 'mb-6';
-
-                        return (
-                        <div key={ex.id || `ex-${index}`} className={`flex items-start gap-8 p-8 ${roundedClass} bg-gray-50 dark:bg-gray-900 ${borderClass} ${marginClass}`}>
-                             <div className="flex-shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-2xl md:text-3xl font-black text-gray-500">
-                                {index + 1}
-                            </div>
-                            <div className="flex-grow">
-                                <div className="flex justify-between items-start gap-8">
-                                    <h3 className="text-2xl md:text-3xl font-black text-gray-900 dark:text-white leading-tight">
-                                        {ex.name || 'Okänd övning'}
-                                    </h3>
-                                    {ex.reps && (
-                                        <div className="bg-primary/10 text-primary px-6 py-3 rounded-2xl whitespace-nowrap">
-                                            <span className="text-xl md:text-2xl font-mono font-black">{formatReps(ex.reps)}</span>
-                                        </div>
-                                    )}
-                                </div>
-                                {ex.description && (
-                                    <p className="text-2xl md:text-3xl text-gray-500 dark:text-gray-400 mt-4 leading-relaxed font-medium">
-                                        {ex.description}
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                    )})}
-                    {block.exercises?.length === 0 && (
-                        <p className="text-center text-3xl text-gray-400 py-20 italic">Inga övningar i detta block.</p>
-                    )}
-                </div>
-            </div>
-            
-            <div className="p-6 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex justify-center">
-                 <button onClick={onClose} className="bg-black dark:bg-white text-white dark:text-black font-black text-xl py-4 px-12 rounded-full shadow-xl hover:scale-105 transition-transform uppercase tracking-widest">
-                     Stäng visningsläge
-                 </button>
-            </div>
-        </motion.div>
-    );
-};
-
 const WorkoutBlockCard: React.FC<{
     block: WorkoutBlock;
     onStart: () => void;
-    onVisualize: () => void;
     onEditSettings: () => void;
     onUpdateBlock: (block: WorkoutBlock) => void;
     isCoachView: boolean;
     organizationId: string;
-}> = ({ block, onStart, onVisualize, onEditSettings, onUpdateBlock, isCoachView, organizationId }) => {
+}> = ({ block, onStart, onEditSettings, onUpdateBlock, isCoachView, organizationId }) => {
     
     const [exercisesVisible, setExercisesVisible] = useState(true);
 
@@ -328,12 +240,6 @@ const WorkoutBlockCard: React.FC<{
                 </div>
                 
                 <div className="flex-shrink-0 flex gap-3">
-                    <button 
-                        onClick={onVisualize}
-                        className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-bold py-5 px-6 rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-95 border border-gray-200 dark:border-gray-600"
-                    >
-                        <EyeIcon className="w-6 h-6" />
-                    </button>
                     <button 
                         onClick={onStart} 
                         className="bg-primary hover:brightness-95 text-white font-black py-5 px-10 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-primary/30 transform active:scale-95 group"
@@ -457,7 +363,6 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   const [coachTipsVisible, setCoachTipsVisible] = useState(true);
   const [results, setResults] = useState<WorkoutResult[]>([]);
   const [resultsLoading, setResultsLoading] = useState(false);
-  const [visualizingBlock, setVisualizingBlock] = useState<WorkoutBlock | null>(null);
   const [visualizingFullWorkout, setVisualizingFullWorkout] = useState(false); 
   
   const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -496,13 +401,13 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   }, [workout.id, isHyroxRace, resultsLoading, selectedOrganization]);
 
   useEffect(() => {
-      if (visualizingBlock || visualizingFullWorkout) {
+      if (visualizingFullWorkout) {
           onHeaderVisibilityChange?.(false);
       } else {
           onHeaderVisibilityChange?.(true);
       }
       return () => onHeaderVisibilityChange?.(true);
-  }, [visualizingBlock, visualizingFullWorkout, onHeaderVisibilityChange]);
+  }, [visualizingFullWorkout, onHeaderVisibilityChange]);
 
   const handleDelete = () => {
       if (onDelete && window.confirm(`Är du säker på att du vill ta bort passet "${workout.title}"?`)) {
@@ -662,7 +567,6 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                                 
                                 onStartBlock(block, sessionWorkout);
                             }} 
-                            onVisualize={() => setVisualizingBlock(block)}
                             onEditSettings={() => setEditingBlockId(block.id)}
                             onUpdateBlock={handleUpdateBlock}
                             isCoachView={isCoachView}
@@ -712,12 +616,6 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
       )}
       
       <AnimatePresence>
-          {visualizingBlock && (
-              <BlockPresentationModal 
-                  block={visualizingBlock} 
-                  onClose={() => setVisualizingBlock(null)} 
-              />
-          )}
           {visualizingFullWorkout && (
               <WorkoutPresentationModal
                   workout={sessionWorkout}
