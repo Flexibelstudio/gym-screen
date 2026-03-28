@@ -268,12 +268,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
             <QrCodeIcon className="w-5 h-5 text-purple-600" />
             <span className="uppercase tracking-widest text-xs">Poster (Coach)</span>
           </button>
-          <button 
-            onClick={() => setShowInviteModal(true)} 
-            className="bg-primary hover:brightness-110 text-white font-black py-3 px-6 rounded-2xl shadow-xl shadow-primary/20 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center gap-3"
-          >
-            <span className="uppercase tracking-widest text-sm">Anslut nya</span>
-          </button>
         </div>
       </div>
 
