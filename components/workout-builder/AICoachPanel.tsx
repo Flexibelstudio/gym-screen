@@ -118,11 +118,11 @@ export const AICoachSidebar: React.FC<{
     };
 
     return (
-        <div className="flex flex-col h-full space-y-6">
+        <div className="flex flex-col space-y-6">
             {/* Chat Container (History + Input) */}
-            <div className="flex flex-col bg-white dark:bg-gray-800 rounded-lg border border-purple-100 dark:border-purple-900/50 overflow-hidden shadow-sm flex-grow">
+            <div className="flex flex-col bg-white dark:bg-gray-800 rounded-lg border border-purple-100 dark:border-purple-900/50 overflow-hidden shadow-sm flex-shrink-0">
                 {/* Chat History */}
-                <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-purple-50/50 dark:bg-purple-900/10 scrollbar-hide">
+                <div className="max-h-[55vh] overflow-y-auto p-4 space-y-4 bg-purple-50/50 dark:bg-purple-900/10 scrollbar-hide">
                     {chatHistory.length === 0 && !isChatting ? (
                         <div className="text-center py-6">
                             <p className="text-sm text-gray-500 dark:text-gray-400">
