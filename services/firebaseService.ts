@@ -648,6 +648,12 @@ export const createOrganization = async (name: string, subdomain: string): Promi
 };
 
 // ... (updateOrganization functions)
+export const updateOrganizationName = async (id: string, name: string) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { name });
+    return getOrganizationById(id);
+};
+
 export const updateOrganization = async (id: string, name: string, subdomain: string, inviteCode?: string, coachCode?: string, maxFreeCoaches?: number) => {
     if(isOffline || !db || !id) return;
     const updateData: any = { name, subdomain };

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Organization, SmartScreenPricing, InvoiceDetails, SeasonalThemeSetting, ThemeDateRange } from '../types';
 import { OvningsbankContent } from './OvningsbankContent';
-import { getSmartScreenPricing, updateSmartScreenPricing, updateOrganizationDiscount, updateOrganizationFreeCoaches, updateOrganizationBilledStatus, undoLastBilling, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, restoreOrganization, deleteOrganizationPermanently } from '../services/firebaseService';
+import { getSmartScreenPricing, updateSmartScreenPricing, updateOrganizationDiscount, updateOrganizationFreeCoaches, updateOrganizationBilledStatus, undoLastBilling, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, restoreOrganization, deleteOrganizationPermanently, updateOrganizationName } from '../services/firebaseService';
 import { PencilIcon, HomeIcon, BuildingIcon, SparklesIcon, ToggleSwitch, ChevronDownIcon, CloseIcon } from './icons';
 import { calculateInvoiceDetails } from '../utils/billing';
 import { SystemDashboardContent } from './admin/SystemDashboardContent';
@@ -25,14 +25,18 @@ interface OrganizationCardProps {
     onUpdateFreeCoaches: (orgId: string, count: number) => Promise<void>;
     onMarkAsBilled: (orgId: string, month: string) => void;
     onUndoBilling: (orgId: string) => void;
+    onUpdateName: (orgId: string, name: string) => Promise<void>;
 }
 
-const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, pricing, onSelect, onArchive, onRestore, onDeletePermanent, onUpdateDiscount, onUpdateFreeCoaches, onMarkAsBilled, onUndoBilling }) => {
+const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, pricing, onSelect, onArchive, onRestore, onDeletePermanent, onUpdateDiscount, onUpdateFreeCoaches, onMarkAsBilled, onUndoBilling, onUpdateName }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>(org.discountType || 'percentage');
     const [discountValue, setDiscountValue] = useState(org.discountValue || org.discountPercentage || 0);
     const [freeCoaches, setFreeCoaches] = useState(org.freeCoachAccounts || 0);
     const [isSaving, setIsSaving] = useState(false);
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [editNameValue, setEditNameValue] = useState(org.name);
+    const [isSavingName, setIsSavingName] = useState(false);
 
     const isArchived = org.status === 'archived';
 
@@ -40,7 +44,8 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, pri
         setDiscountType(org.discountType || 'percentage');
         setDiscountValue(org.discountValue || org.discountPercentage || 0);
         setFreeCoaches(org.freeCoachAccounts || 0);
-    }, [org.discountType, org.discountValue, org.discountPercentage, org.freeCoachAccounts]);
+        setEditNameValue(org.name);
+    }, [org.discountType, org.discountValue, org.discountPercentage, org.freeCoachAccounts, org.name]);
 
     const billingDetails = useMemo(() => {
         if (!pricing) return { currentInvoice: null, nextInvoicePrognosis: null };
@@ -70,6 +75,22 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, pri
         }
     };
     
+    const handleSaveName = async () => {
+        if (!editNameValue.trim() || editNameValue === org.name) {
+            setIsEditingName(false);
+            return;
+        }
+        setIsSavingName(true);
+        try {
+            await onUpdateName(org.id, editNameValue.trim());
+            setIsEditingName(false);
+        } catch (error) {
+            alert("Kunde inte spara namnet.");
+        } finally {
+            setIsSavingName(false);
+        }
+    };
+    
     const formatKr = (amount: number) => {
         return `${amount.toFixed(2).replace('.', ',')} kr`;
     };
@@ -88,7 +109,33 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, pri
             <div className="flex justify-between items-start gap-4">
                 <div>
                     <div className="flex items-center gap-2">
-                        <p className="font-semibold text-gray-900 dark:text-white text-lg">{org.name}</p>
+                        {isEditingName ? (
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    value={editNameValue}
+                                    onChange={(e) => setEditNameValue(e.target.value)}
+                                    className="bg-white dark:bg-gray-900 text-black dark:text-white px-2 py-1 rounded-md border border-slate-300 dark:border-gray-600 focus:ring-1 focus:ring-primary text-lg font-semibold w-64"
+                                    disabled={isSavingName}
+                                    autoFocus
+                                />
+                                <button onClick={handleSaveName} disabled={isSavingName || !editNameValue.trim() || editNameValue === org.name} className="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-md disabled:opacity-50 text-sm font-semibold">
+                                    {isSavingName ? 'Sparar...' : 'Spara'}
+                                </button>
+                                <button onClick={() => { setIsEditingName(false); setEditNameValue(org.name); }} disabled={isSavingName} className="bg-gray-500 hover:bg-gray-400 text-white p-1.5 rounded-md disabled:opacity-50">
+                                    <CloseIcon className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ) : (
+                            <>
+                                <p className="font-semibold text-gray-900 dark:text-white text-lg">{org.name}</p>
+                                {!isArchived && (
+                                    <button onClick={() => setIsEditingName(true)} className="text-gray-400 hover:text-primary transition-colors">
+                                        <PencilIcon className="w-4 h-4" />
+                                    </button>
+                                )}
+                            </>
+                        )}
                         {isArchived && <span className="bg-gray-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">Arkiverad</span>}
                     </div>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Antal skärmar: {org.studios.length} st</p>
@@ -542,6 +589,13 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
         setLocalOrgs(prev => prev.map(o => o.id === orgId ? updatedOrg : o));
     }, []);
 
+    const handleUpdateName = useCallback(async (orgId: string, newName: string) => {
+        const updatedOrg = await updateOrganizationName(orgId, newName);
+        if (updatedOrg) {
+            setLocalOrgs(prev => prev.map(o => o.id === orgId ? updatedOrg : o));
+        }
+    }, []);
+
     const handleUpdateFreeCoaches = useCallback(async (orgId: string, count: number) => {
         const updatedOrg = await updateOrganizationFreeCoaches(orgId, count);
         setLocalOrgs(prev => prev.map(o => o.id === orgId ? updatedOrg : o));
@@ -694,6 +748,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                                                     onUpdateFreeCoaches={handleUpdateFreeCoaches}
                                                     onMarkAsBilled={handleMarkAsBilled}
                                                     onUndoBilling={handleUndoBilling}
+                                                    onUpdateName={handleUpdateName}
                                                 />
                                             )) : (
                                                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">Laddar prisinformation...</div>
@@ -718,6 +773,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                                                         onUpdateFreeCoaches={handleUpdateFreeCoaches}
                                                         onMarkAsBilled={handleMarkAsBilled}
                                                         onUndoBilling={handleUndoBilling}
+                                                        onUpdateName={handleUpdateName}
                                                     />
                                                 ))}
                                             </div>

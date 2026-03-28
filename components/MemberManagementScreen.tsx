@@ -1,14 +1,24 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Member, UserRole } from '../types';
-import { UsersIcon, PencilIcon, ChartBarIcon, SearchIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon, QrCodeIcon } from './icons';
+import { UsersIcon, PencilIcon, ChartBarIcon, SearchIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon, QrCodeIcon, CopyIcon } from './icons';
 import { MemberDetailModal } from './MemberDetailModal';
 import { PrintablePoster } from './PrintablePoster';
 import { useStudio } from '../context/StudioContext';
-import { listenToMembers, updateMemberEndDate, updateUserRoleCloud, approveCoach } from '../services/firebaseService';
+import { listenToMembers, updateMemberEndDate, updateUserRoleCloud, approveCoach, updateOrganization } from '../services/firebaseService';
 import QRCode from 'react-qr-code';
 import { Modal } from './ui/Modal';
 import { useAuth } from '../context/AuthContext';
+import { Toast } from './ui/ToastNotification';
+
+const generateInviteCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+};
 
 interface MemberManagementScreenProps {
     onSelectMember?: (memberId: string) => void;
@@ -97,6 +107,7 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [toast, setToast] = useState<{ message: string, visible: boolean }>({ message: '', visible: false });
 
   const [updatingMembers, setUpdatingMembers] = useState<Record<string, boolean>>({});
 
@@ -246,6 +257,7 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
 
   return (
     <div className="space-y-8 animate-fade-in pb-20">
+      <Toast isVisible={toast.visible} message={toast.message} onClose={() => setToast({ ...toast, visible: false })} />
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h3 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Team & Medlemmar</h3>
@@ -315,7 +327,7 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                     <button 
                         onClick={async () => {
                             const newCoachCode = generateInviteCode();
-                            await onUpdateOrganization(selectedOrganization.id, selectedOrganization.name, selectedOrganization.subdomain, selectedOrganization.inviteCode, newCoachCode, selectedOrganization.maxFreeCoaches || 5);
+                            await updateOrganization(selectedOrganization.id, selectedOrganization.name, selectedOrganization.subdomain, selectedOrganization.inviteCode, newCoachCode, selectedOrganization.maxFreeCoaches || 5);
                             setToast({ message: "Coachkod skapad!", visible: true });
                         }}
                         className="bg-purple-600 text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-purple-700 text-sm uppercase tracking-widest"
