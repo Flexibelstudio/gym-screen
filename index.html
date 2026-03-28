@@ -212,6 +212,22 @@
       .animation-delay-4000 {
         animation-delay: 4s;
       }
+
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        .print-only, .print-only * {
+          visibility: visible;
+        }
+        .print-only {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          height: 100%;
+        }
+      }
     </style>
             <script>
       tailwind.config = {
@@ -296,6 +312,7 @@
     "react-window": "https://esm.sh/react-window@1.8.10",
     "react-virtualized-auto-sizer": "https://esm.sh/react-virtualized-auto-sizer@1.0.24",
     "react-qr-code": "https://esm.sh/react-qr-code@^2.0.18",
+    "qrcode.react": "https://esm.sh/qrcode.react@^4.2.0",
     "react-native": "https://esm.sh/react-native@^0.83.1",
     "expo-camera": "https://esm.sh/expo-camera@^17.0.10",
     "@react-navigation/native": "https://esm.sh/@react-navigation/native@^7.1.26",
