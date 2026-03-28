@@ -253,23 +253,79 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
             Hantera alla användare, tilldela roller och se träningsmål.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-3 self-start md:self-auto">
-          <button 
-            onClick={() => handlePrint('member')} 
-            className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold py-3 px-5 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 transition-all flex items-center gap-2"
-          >
-            <QrCodeIcon className="w-5 h-5 text-primary" />
-            <span className="uppercase tracking-widest text-xs">Poster (Medlem)</span>
-          </button>
-          <button 
-            onClick={() => handlePrint('coach')} 
-            className="bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 font-bold py-3 px-5 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-700 transition-all flex items-center gap-2"
-          >
-            <QrCodeIcon className="w-5 h-5 text-purple-600" />
-            <span className="uppercase tracking-widest text-xs">Poster (Coach)</span>
-          </button>
-        </div>
       </div>
+
+      {selectedOrganization?.inviteCode && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Member Card */}
+            <div className="bg-[#1e232d] rounded-[2rem] p-8 flex flex-col items-center justify-center border border-slate-700/50 shadow-lg relative overflow-hidden">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Medlemskod</span>
+                <div className="border border-white/20 rounded-2xl px-8 py-4 mb-6 bg-[#141820]">
+                    <span className="text-4xl font-black font-mono tracking-[0.15em] text-[#39ff14]">{selectedOrganization.inviteCode}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                    <button 
+                        onClick={() => {
+                            navigator.clipboard.writeText(selectedOrganization.inviteCode || '');
+                            setToast({ message: "Medlemskod kopierad!", visible: true });
+                        }}
+                        className="text-[10px] font-black text-[#39ff14] hover:text-green-300 uppercase tracking-widest transition-colors flex items-center"
+                    >
+                        <CopyIcon className="w-3 h-3 mr-2" /> Kopiera kod
+                    </button>
+                    <span className="text-gray-600">|</span>
+                    <button 
+                        onClick={() => handlePrint('member')}
+                        className="text-[10px] font-black text-gray-400 hover:text-white uppercase tracking-widest transition-colors flex items-center"
+                    >
+                        <QrCodeIcon className="w-3 h-3 mr-2" /> Skriv ut poster
+                    </button>
+                </div>
+            </div>
+
+            {/* Coach Card */}
+            {selectedOrganization.coachCode ? (
+                <div className="bg-[#2a1b3d] rounded-[2rem] p-8 flex flex-col items-center justify-center border border-purple-900/50 shadow-lg relative overflow-hidden">
+                    <span className="text-[10px] font-black text-purple-300 uppercase tracking-[0.2em] mb-6">Coachkod</span>
+                    <div className="border border-purple-500/20 bg-[#1a1025] rounded-2xl px-8 py-4 mb-6">
+                        <span className="text-4xl font-black font-mono tracking-[0.15em] text-[#bb86fc]">{selectedOrganization.coachCode}</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <button 
+                            onClick={() => {
+                                navigator.clipboard.writeText(selectedOrganization.coachCode || '');
+                                setToast({ message: "Coachkod kopierad!", visible: true });
+                            }}
+                            className="text-[10px] font-black text-[#bb86fc] hover:text-purple-300 uppercase tracking-widest transition-colors flex items-center"
+                        >
+                            <CopyIcon className="w-3 h-3 mr-2" /> Kopiera kod
+                        </button>
+                        <span className="text-purple-900/50">|</span>
+                        <button 
+                            onClick={() => handlePrint('coach')}
+                            className="text-[10px] font-black text-gray-400 hover:text-white uppercase tracking-widest transition-colors flex items-center"
+                        >
+                            <QrCodeIcon className="w-3 h-3 mr-2" /> Skriv ut poster
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <div className="bg-[#2a1b3d] rounded-[2rem] p-8 flex flex-col items-center justify-center border border-purple-900/50 shadow-lg relative overflow-hidden">
+                    <span className="text-[10px] font-black text-purple-300 uppercase tracking-[0.2em] mb-6">Coachkod</span>
+                    <button 
+                        onClick={async () => {
+                            const newCoachCode = generateInviteCode();
+                            await onUpdateOrganization(selectedOrganization.id, selectedOrganization.name, selectedOrganization.subdomain, selectedOrganization.inviteCode, newCoachCode, selectedOrganization.maxFreeCoaches || 5);
+                            setToast({ message: "Coachkod skapad!", visible: true });
+                        }}
+                        className="bg-purple-600 text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-purple-700 text-sm uppercase tracking-widest"
+                    >
+                        Generera coachkod
+                    </button>
+                </div>
+            )}
+        </div>
+      )}
 
       <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
           <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full lg:w-auto overflow-x-auto scrollbar-hide">
