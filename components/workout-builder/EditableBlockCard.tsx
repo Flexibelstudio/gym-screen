@@ -7,6 +7,9 @@ import { generateExerciseDescription } from '../../services/geminiService';
 import { parseSettingsFromTitle } from '../../hooks/useWorkoutTimer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { saveExerciseToBank } from '../../services/firebaseService';
+import { useDroppable } from '@dnd-kit/core';
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface ExerciseItemProps {
     exercise: Exercise;
@@ -21,6 +24,7 @@ interface ExerciseItemProps {
     enableWorkoutLogging?: boolean;
     onShowToast: (message: string) => void;
     onUpdateGroupColor?: (groupId: string, newColor: string) => void;
+    blockId: string;
 }
 
 export const GROUP_COLORS = [
@@ -32,7 +36,7 @@ export const GROUP_COLORS = [
     { bg: 'bg-yellow-400', border: 'border-yellow-400', lightBg: 'bg-yellow-50 dark:bg-yellow-900/20' }
 ];
 
-const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, organizationId, onExerciseSavedToBank, enableWorkoutLogging, onShowToast, onUpdateGroupColor }) => {
+const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, organizationId, onExerciseSavedToBank, enableWorkoutLogging, onShowToast, onUpdateGroupColor, blockId }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -175,9 +179,32 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
     
     const groupColorObj = exercise.groupColor ? GROUP_COLORS.find(c => c.bg === exercise.groupColor) : null;
     
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({
+        id: `exercise-${exercise.id}`,
+        data: {
+            type: 'exercise',
+            exercise,
+            blockId
+        }
+    });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
     return (
         <div 
-            ref={searchContainerRef} 
+            ref={setNodeRef}
+            style={style}
             className={`group p-3 rounded-lg flex items-start gap-3 transition-all border-l-4 relative ${
                 isSearchVisible ? 'z-[1000]' : 'z-0'
             } ${
@@ -188,24 +215,22 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                 : 'bg-gray-50 dark:bg-gray-800/50 border-gray-300 dark:border-gray-600'
             }`}
         >
-            <div className="flex flex-col gap-1 items-center justify-center self-center mr-2">
-                <button 
-                    disabled={index === 0} 
-                    onClick={() => onMove('up')} 
-                    className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-                >
-                    <ChevronUpIcon className="w-5 h-5" />
-                </button>
-                <button 
-                    disabled={index === total - 1} 
-                    onClick={() => onMove('down')} 
-                    className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
-                >
-                    <ChevronDownIcon className="w-5 h-5" />
-                </button>
+            <div 
+                {...attributes} 
+                {...listeners} 
+                className="flex flex-col gap-1 items-center justify-center self-center mr-2 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+            >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="9" cy="12" r="1" />
+                    <circle cx="9" cy="5" r="1" />
+                    <circle cx="9" cy="19" r="1" />
+                    <circle cx="15" cy="12" r="1" />
+                    <circle cx="15" cy="5" r="1" />
+                    <circle cx="15" cy="19" r="1" />
+                </svg>
             </div>
 
-            <div className="flex-grow space-y-2">
+            <div ref={searchContainerRef} className="flex-grow space-y-2">
                 <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                     <input
                         type="text"
@@ -374,6 +399,14 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
     organizationId, onMoveExercise, onMoveBlock, onExerciseSavedToBank, enableWorkoutLogging, onShowToast 
 }) => {
     
+    const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+        id: `block-${block.id}`,
+        data: {
+            type: 'block',
+            blockId: block.id
+        }
+    });
+
     const handleFieldChange = (field: keyof WorkoutBlock, value: any) => {
         const updatedBlock = { ...block, [field]: value };
         if (field === 'title' && typeof value === 'string') {
@@ -636,46 +669,51 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
                         Logga alla i blocket
                     </button>
                 </div>
-                {block.exercises.map((ex, i) => {
-                    const nextEx = block.exercises[i + 1];
-                    const isLinked = nextEx && ex.groupId && ex.groupId === nextEx.groupId;
-                    
-                    return (
-                        <React.Fragment key={ex.id}>
-                            <div className="relative z-0">
-                                <ExerciseItem 
-                                    exercise={ex} 
-                                    onUpdate={updateExercise} 
-                                    onRemove={() => removeExercise(ex.id)}
-                                    exerciseBank={exerciseBank}
-                                    index={i}
-                                    total={block.exercises.length}
-                                    onMove={(direction) => onMoveExercise(i, direction)}
-                                    organizationId={organizationId}
-                                    onExerciseSavedToBank={onExerciseSavedToBank}
-                                    enableWorkoutLogging={enableWorkoutLogging}
-                                    onShowToast={onShowToast}
-                                    onUpdateGroupColor={updateGroupColor}
-                                />
-                            </div>
-                            {i < block.exercises.length - 1 && (
-                                <div className={`flex justify-center relative z-10 ${isLinked ? '-my-3' : 'my-0'}`}>
-                                    <button
-                                        onClick={() => toggleGroup(i)}
-                                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
-                                            isLinked 
-                                            ? `bg-white dark:bg-gray-800 ${ex.groupColor?.replace('bg-', 'border-')} ${ex.groupColor?.replace('bg-', 'text-')} shadow-md` 
-                                            : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-300 hover:text-gray-500 hover:border-gray-300'
-                                        }`}
-                                        title={isLinked ? "Dela upp gruppen" : "Gruppera övningar (Superset)"}
-                                    >
-                                        {isLinked ? <UnlinkIcon className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
-                                    </button>
-                                </div>
-                            )}
-                        </React.Fragment>
-                    );
-                })}
+                <div ref={setDroppableRef} className={`flex flex-col gap-2 min-h-[100px] rounded-xl transition-colors ${isOver ? 'bg-primary/5 border-2 border-dashed border-primary/30 p-2' : ''}`}>
+                    <SortableContext items={block.exercises.map(ex => `exercise-${ex.id}`)} strategy={verticalListSortingStrategy}>
+                        {block.exercises.map((ex, i) => {
+                            const nextEx = block.exercises[i + 1];
+                            const isLinked = nextEx && ex.groupId && ex.groupId === nextEx.groupId;
+                            
+                            return (
+                                <React.Fragment key={ex.id}>
+                                    <div className="relative z-0">
+                                        <ExerciseItem 
+                                            exercise={ex} 
+                                            onUpdate={updateExercise} 
+                                            onRemove={() => removeExercise(ex.id)}
+                                            exerciseBank={exerciseBank}
+                                            index={i}
+                                            total={block.exercises.length}
+                                            onMove={(direction) => onMoveExercise(i, direction)}
+                                            organizationId={organizationId}
+                                            onExerciseSavedToBank={onExerciseSavedToBank}
+                                            enableWorkoutLogging={enableWorkoutLogging}
+                                            onShowToast={onShowToast}
+                                            onUpdateGroupColor={updateGroupColor}
+                                            blockId={block.id}
+                                        />
+                                    </div>
+                                    {i < block.exercises.length - 1 && (
+                                        <div className={`flex justify-center relative z-10 ${isLinked ? '-my-3' : 'my-0'}`}>
+                                            <button
+                                                onClick={() => toggleGroup(i)}
+                                                className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all ${
+                                                    isLinked 
+                                                    ? `bg-white dark:bg-gray-800 ${ex.groupColor?.replace('bg-', 'border-')} ${ex.groupColor?.replace('bg-', 'text-')} shadow-md` 
+                                                    : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-300 hover:text-gray-500 hover:border-gray-300'
+                                                }`}
+                                                title={isLinked ? "Dela upp gruppen" : "Gruppera övningar (Superset)"}
+                                            >
+                                                {isLinked ? <UnlinkIcon className="w-4 h-4" /> : <LinkIcon className="w-4 h-4" />}
+                                            </button>
+                                        </div>
+                                    )}
+                                </React.Fragment>
+                            );
+                        })}
+                    </SortableContext>
+                </div>
                 <button 
                     onClick={() => onUpdate({ ...block, exercises: [...block.exercises, createNewExercise()] })} 
                     className="w-full py-5 mt-4 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-[2rem] text-gray-400 font-bold hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex items-center justify-center gap-2"

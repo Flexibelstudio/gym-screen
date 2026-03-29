@@ -495,55 +495,17 @@ const App: React.FC = () => {
         setRemoteCommand(null);
         lastLocalNavigationRef.current = Date.now();
 
-        if ((page === Page.Timer || page === Page.RepsOnly) && activeWorkout) {
-             const isFreestanding = activeWorkout.id.startsWith('freestanding-workout-') || 
-                                    activeWorkout.id.startsWith('fs-workout-');
-             
-             if (isFreestanding) {
-                 updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-                     activeWorkoutId: null,
-                     view: 'menu',
-                     activeBlockId: null,
-                     lastUpdate: Date.now(),
-                     controllerName: 'Touch Screen'
-                 });
-                 
-                 setActiveWorkout(null);
-                 setActiveBlock(null);
-                 navigateReplace(Page.FreestandingTimer);
-                 return;
-             } else {
-                 updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-                     activeWorkoutId: activeWorkout.id,
-                     view: 'preview',
-                     activeBlockId: null,
-                     lastUpdate: Date.now(),
-                     controllerName: 'Coach'
-                 });
-                 
-                 navigateReplace(Page.WorkoutDetail);
-                 return;
-             }
-        } 
-        else if (page === Page.WorkoutDetail) {
-              updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-                  activeWorkoutId: null,
-                  view: 'idle',
-                  activeBlockId: null,
-                  lastUpdate: Date.now()
-              });
-              setActiveWorkout(null);
-              setActiveBlock(null);
-              navigateReplace(Page.Home);
-              return;
-        }
-        else {
-              updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
-              setActiveWorkout(null);
-              setActiveBlock(null);
-              navigateReplace(Page.Home);
-              return;
-        }
+        updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+            activeWorkoutId: null,
+            view: 'idle',
+            activeBlockId: null,
+            lastUpdate: Date.now(),
+            controllerName: 'Touch Screen'
+        });
+        setActiveWorkout(null);
+        setActiveBlock(null);
+        navigateReplace(Page.Home);
+        return;
     }
 
     if (history.length <= 1) return;

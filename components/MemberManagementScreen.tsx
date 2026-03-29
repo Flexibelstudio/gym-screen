@@ -1,13 +1,24 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Member, UserRole } from '../types';
-import { UsersIcon, PencilIcon, ChartBarIcon, SearchIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon } from './icons';
+import { UsersIcon, PencilIcon, ChartBarIcon, SearchIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, CloseIcon, QrCodeIcon, CopyIcon } from './icons';
 import { MemberDetailModal } from './MemberDetailModal';
+import { PrintablePoster } from './PrintablePoster';
 import { useStudio } from '../context/StudioContext';
-import { listenToMembers, updateMemberEndDate, updateUserRoleCloud, approveCoach } from '../services/firebaseService';
+import { listenToMembers, updateMemberEndDate, updateUserRoleCloud, approveCoach, updateOrganization } from '../services/firebaseService';
 import QRCode from 'react-qr-code';
 import { Modal } from './ui/Modal';
 import { useAuth } from '../context/AuthContext';
+import { Toast } from './ui/ToastNotification';
+
+const generateInviteCode = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let code = '';
+    for (let i = 0; i < 6; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+};
 
 interface MemberManagementScreenProps {
     onSelectMember?: (memberId: string) => void;
@@ -96,11 +107,27 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [currentPage, setCurrentPage] = useState(1);
+  const [toast, setToast] = useState<{ message: string, visible: boolean }>({ message: '', visible: false });
 
   const [updatingMembers, setUpdatingMembers] = useState<Record<string, boolean>>({});
 
   const [editingDateMember, setEditingDateMember] = useState<Member | null>(null);
   const [newDateValue, setNewDateValue] = useState<string>('');
+  
+  const [posterToPrint, setPosterToPrint] = useState<'member' | 'coach' | null>(null);
+
+  useEffect(() => {
+    const handleAfterPrint = () => setPosterToPrint(null);
+    window.addEventListener('afterprint', handleAfterPrint);
+    return () => window.removeEventListener('afterprint', handleAfterPrint);
+  }, []);
+
+  const handlePrint = (type: 'member' | 'coach') => {
+    setPosterToPrint(type);
+    setTimeout(() => {
+      window.print();
+    }, 100);
+  };
 
   useEffect(() => {
     if (!selectedOrganization) return;
@@ -230,6 +257,7 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
 
   return (
     <div className="space-y-8 animate-fade-in pb-20">
+      <Toast isVisible={toast.visible} message={toast.message} onClose={() => setToast({ ...toast, visible: false })} />
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <h3 className="text-4xl font-black text-gray-900 dark:text-white tracking-tight uppercase">Team & Medlemmar</h3>
@@ -237,13 +265,79 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
             Hantera alla användare, tilldela roller och se träningsmål.
           </p>
         </div>
-        <button 
-          onClick={() => setShowInviteModal(true)} 
-          className="bg-primary hover:brightness-110 text-white font-black py-4 px-8 rounded-2xl shadow-xl shadow-primary/20 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center gap-3 self-start md:self-auto"
-        >
-          <span className="uppercase tracking-widest text-sm">Anslut nya</span>
-        </button>
       </div>
+
+      {selectedOrganization?.inviteCode && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Member Card */}
+            <div className="bg-[#1e232d] rounded-[2rem] p-8 flex flex-col items-center justify-center border border-slate-700/50 shadow-lg relative overflow-hidden">
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Medlemskod</span>
+                <div className="border border-white/20 rounded-2xl px-8 py-4 mb-6 bg-[#141820]">
+                    <span className="text-4xl font-black font-mono tracking-[0.15em] text-[#39ff14]">{selectedOrganization.inviteCode}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                    <button 
+                        onClick={() => {
+                            navigator.clipboard.writeText(selectedOrganization.inviteCode || '');
+                            setToast({ message: "Medlemskod kopierad!", visible: true });
+                        }}
+                        className="text-[10px] font-black text-[#39ff14] hover:text-green-300 uppercase tracking-widest transition-colors flex items-center"
+                    >
+                        <CopyIcon className="w-3 h-3 mr-2" /> Kopiera kod
+                    </button>
+                    <span className="text-gray-600">|</span>
+                    <button 
+                        onClick={() => handlePrint('member')}
+                        className="text-[10px] font-black text-gray-400 hover:text-white uppercase tracking-widest transition-colors flex items-center"
+                    >
+                        <QrCodeIcon className="w-3 h-3 mr-2" /> Skriv ut poster
+                    </button>
+                </div>
+            </div>
+
+            {/* Coach Card */}
+            {selectedOrganization.coachCode ? (
+                <div className="bg-[#2a1b3d] rounded-[2rem] p-8 flex flex-col items-center justify-center border border-purple-900/50 shadow-lg relative overflow-hidden">
+                    <span className="text-[10px] font-black text-purple-300 uppercase tracking-[0.2em] mb-6">Coachkod</span>
+                    <div className="border border-purple-500/20 bg-[#1a1025] rounded-2xl px-8 py-4 mb-6">
+                        <span className="text-4xl font-black font-mono tracking-[0.15em] text-[#bb86fc]">{selectedOrganization.coachCode}</span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                        <button 
+                            onClick={() => {
+                                navigator.clipboard.writeText(selectedOrganization.coachCode || '');
+                                setToast({ message: "Coachkod kopierad!", visible: true });
+                            }}
+                            className="text-[10px] font-black text-[#bb86fc] hover:text-purple-300 uppercase tracking-widest transition-colors flex items-center"
+                        >
+                            <CopyIcon className="w-3 h-3 mr-2" /> Kopiera kod
+                        </button>
+                        <span className="text-purple-900/50">|</span>
+                        <button 
+                            onClick={() => handlePrint('coach')}
+                            className="text-[10px] font-black text-gray-400 hover:text-white uppercase tracking-widest transition-colors flex items-center"
+                        >
+                            <QrCodeIcon className="w-3 h-3 mr-2" /> Skriv ut poster
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <div className="bg-[#2a1b3d] rounded-[2rem] p-8 flex flex-col items-center justify-center border border-purple-900/50 shadow-lg relative overflow-hidden">
+                    <span className="text-[10px] font-black text-purple-300 uppercase tracking-[0.2em] mb-6">Coachkod</span>
+                    <button 
+                        onClick={async () => {
+                            const newCoachCode = generateInviteCode();
+                            await updateOrganization(selectedOrganization.id, selectedOrganization.name, selectedOrganization.subdomain, selectedOrganization.inviteCode, newCoachCode, selectedOrganization.maxFreeCoaches || 5);
+                            setToast({ message: "Coachkod skapad!", visible: true });
+                        }}
+                        className="bg-purple-600 text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-purple-700 text-sm uppercase tracking-widest"
+                    >
+                        Generera coachkod
+                    </button>
+                </div>
+            )}
+        </div>
+      )}
 
       <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
           <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full lg:w-auto overflow-x-auto scrollbar-hide">
@@ -504,15 +598,24 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                             <div className="bg-white dark:bg-gray-900 px-8 py-5 rounded-2xl border-2 border-primary/20 shadow-inner">
                                 <span className="text-4xl font-black font-mono tracking-[0.15em] text-primary">{inviteCode}</span>
                             </div>
-                            <button 
-                                onClick={() => {
-                                    navigator.clipboard.writeText(inviteCode);
-                                    alert("Medlemskod kopierad!");
-                                }}
-                                className="mt-4 text-[10px] font-black text-primary hover:underline uppercase tracking-widest"
-                            >
-                                Kopiera medlemskod
-                            </button>
+                            <div className="flex items-center gap-4 mt-4">
+                                <button 
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(inviteCode);
+                                        alert("Medlemskod kopierad!");
+                                    }}
+                                    className="text-[10px] font-black text-primary hover:underline uppercase tracking-widest"
+                                >
+                                    Kopiera medlemskod
+                                </button>
+                                <span className="text-gray-300 dark:text-gray-600">|</span>
+                                <button 
+                                    onClick={() => handlePrint('member')}
+                                    className="text-[10px] font-black text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:underline uppercase tracking-widest"
+                                >
+                                    Skriv ut poster
+                                </button>
+                            </div>
                         </div>
 
                         {/* Coach Code Section */}
@@ -522,15 +625,24 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                                 <div className="bg-white dark:bg-gray-900 px-8 py-5 rounded-2xl border-2 border-purple-500/20 shadow-inner">
                                     <span className="text-4xl font-black font-mono tracking-[0.15em] text-purple-600 dark:text-purple-400">{coachCode}</span>
                                 </div>
-                                <button 
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(coachCode);
-                                        alert("Coachkod kopierad!");
-                                    }}
-                                    className="mt-4 text-[10px] font-black text-purple-600 dark:text-purple-400 hover:underline uppercase tracking-widest"
-                                >
-                                    Kopiera coachkod
-                                </button>
+                                <div className="flex items-center gap-4 mt-4">
+                                    <button 
+                                        onClick={() => {
+                                            navigator.clipboard.writeText(coachCode);
+                                            alert("Coachkod kopierad!");
+                                        }}
+                                        className="text-[10px] font-black text-purple-600 dark:text-purple-400 hover:underline uppercase tracking-widest"
+                                    >
+                                        Kopiera coachkod
+                                    </button>
+                                    <span className="text-purple-200 dark:text-purple-800/50">|</span>
+                                    <button 
+                                        onClick={() => handlePrint('coach')}
+                                        className="text-[10px] font-black text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:underline uppercase tracking-widest"
+                                    >
+                                        Skriv ut poster
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -547,15 +659,17 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                         När medlemmar scannar koden skapas deras konto och de kopplas direkt till ditt gym. Som admin kan du sedan uppgradera dem till <strong>Coacher</strong> eller <strong>Admins</strong> i listan.
                     </p>
                 </div>
-                
-                <button 
-                    onClick={() => window.print()}
-                    className="w-full bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-black py-5 px-8 rounded-[2rem] shadow-2xl hover:brightness-110 transition-all transform active:scale-95 uppercase tracking-widest text-xs"
-                >
-                    Skriv ut instruktions-poster
-                </button>
             </div>
         </Modal>
+      )}
+
+      {posterToPrint && selectedOrganization && (
+          <PrintablePoster 
+              title={posterToPrint === 'member' ? "Skapa konto för att logga din träning och sätta mål" : "Skapa ett Coachinlogg!"}
+              code={posterToPrint === 'member' ? (inviteCode || '') : (coachCode || '')}
+              url={`${baseUrl}/?invite=${posterToPrint === 'member' ? inviteCode : coachCode}`}
+              organizationName={selectedOrganization.name}
+          />
       )}
     </div>
   );

@@ -13,6 +13,23 @@ import { EditableBlockCard } from './workout-builder/EditableBlockCard';
 import { analyzeCurrentWorkout } from '../services/geminiService';
 import { ToggleSwitch, DumbbellIcon, SparklesIcon, TrophyIcon, CheckIcon } from './icons';
 import { Toast } from './ui/ToastNotification';
+import {
+  DndContext,
+  DragOverlay,
+  pointerWithin,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragStartEvent,
+  DragOverEvent,
+  DragEndEvent,
+  defaultDropAnimationSideEffects,
+  CollisionDetection
+} from '@dnd-kit/core';
+import { snapCenterToCursor } from '@dnd-kit/modifiers';
+import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 
 const createNewWorkout = (): Workout => ({
   id: `workout-${Date.now()}`,
@@ -25,6 +42,93 @@ const createNewWorkout = (): Workout => ({
   createdAt: Date.now(),
   organizationId: '' // Placeholder
 });
+
+let lastPointerY = 0;
+
+const customCollisionDetection: CollisionDetection = (args) => {
+  if (args.pointerCoordinates) {
+    lastPointerY = args.pointerCoordinates.y;
+  }
+
+  // First, check if the pointer is within any droppable containers
+  const pointerCollisions = pointerWithin(args);
+
+  if (pointerCollisions.length > 0) {
+    const intersectingIds = pointerCollisions.map(c => c.id);
+    let intersectingContainers = args.droppableContainers.filter(c => intersectingIds.includes(c.id));
+    
+    // If we are over both a block and an exercise, prefer the exercise
+    const hasExercise = intersectingContainers.some(c => c.id.toString().startsWith('exercise-'));
+    if (hasExercise) {
+      intersectingContainers = intersectingContainers.filter(c => c.id.toString().startsWith('exercise-'));
+      return closestCenter({
+        ...args,
+        droppableContainers: intersectingContainers
+      });
+    }
+
+    // If we are ONLY over a block (e.g., in the gap between exercises)
+    const blockContainer = intersectingContainers.find(c => c.id.toString().startsWith('block-'));
+    if (blockContainer) {
+      const blockId = blockContainer.data.current?.blockId;
+      if (blockId) {
+        // Find all exercises in this block
+        const exercisesInBlock = args.droppableContainers.filter(c => 
+          c.id.toString().startsWith('exercise-') && 
+          c.data.current?.blockId === blockId
+        );
+        
+        if (exercisesInBlock.length > 0) {
+          if (args.pointerCoordinates) {
+            const pointerY = args.pointerCoordinates.y;
+            let closest = exercisesInBlock[0];
+            let minDistance = Infinity;
+            
+            for (const container of exercisesInBlock) {
+              const rect = container.rect.current;
+              if (rect) {
+                const centerY = rect.top + rect.height / 2;
+                const distance = Math.abs(centerY - pointerY);
+                if (distance < minDistance) {
+                  minDistance = distance;
+                  closest = container;
+                }
+              }
+            }
+            
+            return [{ id: closest.id, data: closest.data }] as any;
+          }
+
+          // Fallback if no pointer coordinates
+          const closestExercise = closestCenter({
+            ...args,
+            droppableContainers: exercisesInBlock
+          });
+          
+          if (closestExercise.length > 0) {
+            return closestExercise;
+          }
+        }
+      }
+      
+      // If no exercises in block, or closestCenter failed, return the block
+      return [
+        {
+          id: blockContainer.id,
+          data: blockContainer.data,
+        }
+      ] as any;
+    }
+
+    return closestCenter({
+      ...args,
+      droppableContainers: intersectingContainers
+    });
+  }
+
+  // If the pointer is not over any droppable, return no collisions
+  return [];
+};
 
 const createNewBlock = (): WorkoutBlock => ({
   id: `block-${Date.now()}`,
@@ -129,8 +233,226 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   const [exerciseBank, setExerciseBank] = useState<BankExercise[]>([]);
   const [isBankLoading, setIsBankLoading] = useState(true);
   const [previewExercise, setPreviewExercise] = useState<BankExercise | null>(null);
-  const [activeSidebarTab, setActiveSidebarTab] = useState<'bank' | 'ai'>('bank');
+  const [activeSidebarTab, setActiveSidebarTab] = useState<'bank' | 'ai'>('ai');
   
+  // Dnd-kit state
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeData, setActiveData] = useState<any>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // Require 5px movement before dragging starts
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    setActiveId(active.id as string);
+    setActiveData(active.data.current);
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id;
+    const overId = over.id;
+
+    if (activeId === overId) return;
+
+    const activeData = active.data.current;
+    const overData = over.data.current;
+
+    // If dragging an exercise between blocks
+    if (activeData?.type === 'exercise' && overData?.type === 'exercise') {
+      const activeBlockId = workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === activeId))?.id;
+      const overBlockId = workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === overId))?.id;
+
+      if (activeBlockId && overBlockId && activeBlockId !== overBlockId) {
+        setWorkout(prev => {
+          const activeBlockIndex = prev.blocks.findIndex(b => b.id === activeBlockId);
+          const overBlockIndex = prev.blocks.findIndex(b => b.id === overBlockId);
+          
+          const activeBlock = prev.blocks[activeBlockIndex];
+          const overBlock = prev.blocks[overBlockIndex];
+
+          const activeExerciseIndex = activeBlock.exercises.findIndex(e => `exercise-${e.id}` === activeId);
+          const overExerciseIndex = overBlock.exercises.findIndex(e => `exercise-${e.id}` === overId);
+
+          const activeExercise = activeBlock.exercises[activeExerciseIndex];
+
+          const newBlocks = [...prev.blocks];
+          
+          // Remove from active block
+          newBlocks[activeBlockIndex] = {
+            ...activeBlock,
+            exercises: activeBlock.exercises.filter((_, i) => i !== activeExerciseIndex)
+          };
+
+          // Add to over block
+          const newOverExercises = [...overBlock.exercises];
+          newOverExercises.splice(overExerciseIndex, 0, activeExercise);
+          newBlocks[overBlockIndex] = {
+            ...overBlock,
+            exercises: newOverExercises
+          };
+
+          return { ...prev, blocks: newBlocks };
+        });
+      }
+    }
+
+    // If dragging an exercise over a block
+    if (activeData?.type === 'exercise' && overData?.type === 'block') {
+      const activeBlockId = workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === activeId))?.id;
+      const overBlockId = overData.blockId;
+
+      if (activeBlockId && overBlockId && activeBlockId !== overBlockId) {
+        setWorkout(prev => {
+            const activeBlockIndex = prev.blocks.findIndex(b => b.id === activeBlockId);
+            const overBlockIndex = prev.blocks.findIndex(b => b.id === overBlockId);
+            
+            const activeBlock = prev.blocks[activeBlockIndex];
+            const activeExerciseIndex = activeBlock.exercises.findIndex(e => `exercise-${e.id}` === activeId);
+            const activeExercise = activeBlock.exercises[activeExerciseIndex];
+
+            const newBlocks = [...prev.blocks];
+            
+            // Remove from active block
+            newBlocks[activeBlockIndex] = {
+              ...activeBlock,
+              exercises: activeBlock.exercises.filter((_, i) => i !== activeExerciseIndex)
+            };
+
+            // Add to over block at the end
+            newBlocks[overBlockIndex] = {
+              ...prev.blocks[overBlockIndex],
+              exercises: [...prev.blocks[overBlockIndex].exercises, activeExercise]
+            };
+
+            return { ...prev, blocks: newBlocks };
+        });
+      }
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+    setActiveData(null);
+
+    if (!over) return;
+
+    const activeId = active.id;
+    const overId = over.id;
+    const activeData = active.data.current;
+    const overData = over.data.current;
+
+    // Handle dropping new exercise from bank or AI chat
+    if ((activeData?.type === 'bank-exercise' || activeData?.type === 'ai-suggestion') && overData) {
+        const targetBlockId = overData.type === 'block' ? overData.blockId : workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === overId))?.id;
+        
+        if (targetBlockId) {
+            const newExercise: Exercise = {
+                id: `ex-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                name: activeData.exercise.name,
+                description: activeData.exercise.description || '',
+                reps: '',
+                isFromBank: activeData.exercise.isFromBank,
+                loggingEnabled: activeData.exercise.loggingEnabled,
+                imageUrl: activeData.exercise.imageUrl
+            };
+
+            setWorkout(prev => {
+                const newBlocks = prev.blocks.map(block => {
+                    if (block.id === targetBlockId) {
+                        const newExercises = [...block.exercises];
+                        if (overData.type === 'exercise') {
+                            const overIndex = block.exercises.findIndex(e => `exercise-${e.id}` === overId);
+                            
+                            let insertIndex = overIndex;
+                            const overRect = over.rect;
+                            
+                            if (overRect) {
+                                const overCenterY = overRect.top + overRect.height / 2;
+                                if (lastPointerY > overCenterY) {
+                                    insertIndex = overIndex + 1;
+                                }
+                            }
+                            
+                            newExercises.splice(insertIndex, 0, newExercise);
+                        } else {
+                            newExercises.push(newExercise);
+                        }
+                        return { ...block, exercises: newExercises };
+                    }
+                    return block;
+                });
+                return { ...prev, blocks: newBlocks };
+            });
+        }
+        return;
+    }
+
+    // Handle reordering or moving exercises between blocks
+    if (activeData?.type === 'exercise' && activeId !== overId) {
+        const sourceBlockId = workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === activeId))?.id;
+        const targetBlockId = overData?.type === 'block' ? overData.blockId : workout.blocks.find(b => b.exercises.some(e => `exercise-${e.id}` === overId))?.id;
+        
+        if (sourceBlockId && targetBlockId) {
+            setWorkout(prev => {
+                const newBlocks = [...prev.blocks];
+                const sourceBlockIndex = newBlocks.findIndex(b => b.id === sourceBlockId);
+                const targetBlockIndex = newBlocks.findIndex(b => b.id === targetBlockId);
+                
+                if (sourceBlockIndex === -1 || targetBlockIndex === -1) return prev;
+                
+                const sourceBlock = { ...newBlocks[sourceBlockIndex], exercises: [...newBlocks[sourceBlockIndex].exercises] };
+                const targetBlock = sourceBlockId === targetBlockId ? sourceBlock : { ...newBlocks[targetBlockIndex], exercises: [...newBlocks[targetBlockIndex].exercises] };
+                
+                const oldIndex = sourceBlock.exercises.findIndex(e => `exercise-${e.id}` === activeId);
+                const [draggedExercise] = sourceBlock.exercises.splice(oldIndex, 1);
+                
+                let insertIndex = targetBlock.exercises.length;
+                
+                if (overData?.type === 'exercise') {
+                    const overIndex = targetBlock.exercises.findIndex(e => `exercise-${e.id}` === overId);
+                    insertIndex = overIndex;
+                    
+                    const overRect = over.rect;
+                    
+                    if (overRect) {
+                        const overCenterY = overRect.top + overRect.height / 2;
+                        
+                        if (lastPointerY > overCenterY) {
+                            insertIndex = overIndex + 1;
+                        }
+                    }
+                }
+                
+                // If moving within the same block, adjust insertIndex because we removed the item at oldIndex
+                if (sourceBlockId === targetBlockId && oldIndex < insertIndex) {
+                    insertIndex -= 1;
+                }
+                
+                targetBlock.exercises.splice(insertIndex, 0, draggedExercise);
+                
+                newBlocks[sourceBlockIndex] = sourceBlock;
+                if (sourceBlockId !== targetBlockId) {
+                    newBlocks[targetBlockIndex] = targetBlock;
+                }
+                
+                return { ...prev, blocks: newBlocks };
+            });
+        }
+    }
+  };
+
   // Toast state
   const [toast, setToast] = useState<{ message: string, visible: boolean }>({ message: '', visible: false });
 
@@ -435,31 +757,14 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
     }, 100);
   };
 
-  const handleAnalyzeWorkout = async () => {
-      try {
-          const analyzedWorkout = await analyzeCurrentWorkout(workout);
-          setWorkout(prev => ({
-              ...prev,
-              aiCoachSummary: analyzedWorkout.aiCoachSummary,
-              blocks: prev.blocks.map((block, index) => {
-                  const analyzedBlock = analyzedWorkout.blocks[index];
-                  if (!analyzedBlock) return block;
-                  return {
-                      ...block,
-                      aiCoachNotes: analyzedBlock.aiCoachNotes,
-                      aiMagicPenSuggestions: analyzedBlock.aiMagicPenSuggestions
-                  }
-              })
-          }));
-          setActiveSidebarTab('ai'); // Switch tab to show results
-      } catch (error) {
-          console.error("Failed to analyze workout:", error);
-          alert("Kunde inte analysera passet. Försök igen senare.");
-      }
-  };
-
   return (
-    <>
+    <DndContext 
+      sensors={sensors}
+      collisionDetection={customCollisionDetection}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDragEnd={handleDragEnd}
+    >
       <Toast isVisible={toast.visible} message={toast.message} onClose={() => setToast({ ...toast, visible: false })} />
       <div className="w-full max-w-[1800px] mx-auto">
         <div className="flex flex-col xl:flex-row gap-6 items-start">
@@ -595,18 +900,17 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                     </button>
                     <button 
                         onClick={() => setActiveSidebarTab('ai')}
-                        className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${activeSidebarTab === 'ai' ? 'bg-white dark:bg-gray-700 shadow-sm text-purple-600 dark:text-purple-400' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                        className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-2 ${activeSidebarTab === 'ai' ? 'bg-purple-100 dark:bg-purple-900/40 shadow-sm text-purple-700 dark:text-purple-300' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
                     >
                         <SparklesIcon className="w-4 h-4" />
                         AI-Coach
                     </button>
                 </div>
 
-                <div className="flex-grow overflow-y-auto scrollbar-hide rounded-xl">
+                <div className="flex-grow overflow-hidden flex flex-col rounded-xl">
                     {activeSidebarTab === 'bank' && studioConfig.enableExerciseBank && (
                         <ExerciseBankPanel 
                             bank={exerciseBank}
-                            onAddExercise={handleAddExerciseFromBank}
                             onPreviewExercise={setPreviewExercise}
                             onDeleteExercise={handleDeleteExerciseFromBank}
                             isLoading={isBankLoading}
@@ -615,7 +919,6 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                     {activeSidebarTab === 'ai' && (
                         <AICoachSidebar 
                             workout={workout} 
-                            onAnalyze={handleAnalyzeWorkout} 
                             onUpdateWorkout={setWorkout}
                             availableExercises={exerciseBank.map(e => e.name)}
                         />
@@ -659,6 +962,57 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
             onAdd={handleAddExerciseFromBank}
         />
        )}
-    </>
+
+      <DragOverlay zIndex={9999} dropAnimation={null} modifiers={[snapCenterToCursor]}>
+        {activeId && activeData?.type === 'exercise' ? (
+          <div className="group p-3 rounded-lg flex items-start gap-3 transition-all border-l-4 relative z-[1000] bg-gray-50 dark:bg-gray-800/50 border-gray-300 dark:border-gray-600 shadow-2xl opacity-90 m-0 box-border">
+            <div className="flex flex-col gap-1 items-center justify-center self-center mr-2 cursor-grabbing text-gray-600">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="9" cy="12" r="1" />
+                    <circle cx="9" cy="5" r="1" />
+                    <circle cx="9" cy="19" r="1" />
+                    <circle cx="15" cy="12" r="1" />
+                    <circle cx="15" cy="5" r="1" />
+                    <circle cx="15" cy="19" r="1" />
+                </svg>
+            </div>
+            <div className="flex-grow space-y-2">
+                <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                    <input type="text" value={activeData.exercise.reps || ''} readOnly placeholder="Antal" className="appearance-none !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 font-semibold w-20 sm:w-24" />
+                    <div className="relative flex-grow min-w-[150px]">
+                        <input type="text" value={activeData.exercise.name} readOnly placeholder="Sök eller skriv övningsnamn" className="appearance-none w-full !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 font-semibold pr-8" />
+                    </div>
+                </div>
+                <div className="relative">
+                    <textarea value={activeData.exercise.description || ''} readOnly placeholder="Beskrivning eller instruktioner" className="w-full !bg-white dark:!bg-gray-700 !text-gray-900 dark:!text-white border border-gray-300 dark:border-gray-600 rounded-lg p-2 text-sm resize-none min-h-[60px]" />
+                </div>
+            </div>
+          </div>
+        ) : activeId && activeData?.type === 'bank-exercise' ? (
+          <div className="bg-white dark:bg-gray-900/70 rounded-md p-2 flex items-center gap-3 relative group cursor-grabbing opacity-90 shadow-2xl border border-primary/50 m-0 box-border">
+              <div className="flex-grow min-w-0 flex items-center gap-3">
+                  <div className="flex-grow min-w-0">
+                      <div className="flex items-center gap-2">
+                          <p className="font-semibold text-gray-900 dark:text-white truncate">{activeData.exercise.name}</p>
+                          {(activeData.exercise.organizationId || activeData.exercise.id?.startsWith('custom_')) && (
+                              <span className="text-[9px] font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded border border-blue-200 dark:border-blue-800 uppercase tracking-wide">
+                                  Egen
+                              </span>
+                          )}
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{activeData.exercise.description}</p>
+                  </div>
+              </div>
+          </div>
+        ) : activeId && activeData?.type === 'ai-suggestion' ? (
+          <div className="w-full text-left bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg p-2 flex items-center justify-between cursor-grabbing opacity-90 shadow-2xl m-0 box-border">
+              <div>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{activeData.exercise.name}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{activeData.exercise.description}</p>
+              </div>
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 };

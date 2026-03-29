@@ -1450,7 +1450,17 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             </div>
 
             <button 
-                onClick={onBack}
+                onPointerDown={(e) => {
+                    if (e.button === 0) {
+                        e.preventDefault();
+                        onBack();
+                    }
+                }}
+                onClick={(e) => {
+                    if (e.detail === 0) {
+                        onBack();
+                    }
+                }}
                 className={`absolute top-4 left-4 z-20 bg-gray-600/80 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition-all duration-500 backdrop-blur-sm shadow-md flex items-center gap-2 ${!controlsVisible ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`}
             >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
