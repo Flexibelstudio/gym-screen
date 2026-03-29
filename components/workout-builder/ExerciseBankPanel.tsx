@@ -7,7 +7,6 @@ import { useDraggable } from '@dnd-kit/core';
 
 interface ExerciseBankPanelProps {
     bank: BankExercise[];
-    onAddExercise: (exercise: BankExercise) => void;
     onPreviewExercise: (exercise: BankExercise) => void;
     onDeleteExercise?: (exercise: BankExercise) => Promise<void>; // New prop
     isLoading: boolean;
@@ -16,9 +15,8 @@ interface ExerciseBankPanelProps {
 const DraggableBankExercise: React.FC<{
     exercise: BankExercise;
     onPreview: (ex: BankExercise) => void;
-    onAdd: (ex: BankExercise) => void;
     onDelete?: (e: React.MouseEvent, ex: BankExercise) => void;
-}> = ({ exercise, onPreview, onAdd, onDelete }) => {
+}> = ({ exercise, onPreview, onDelete }) => {
     const isCustom = exercise.organizationId || exercise.id.startsWith('custom_');
     
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -79,24 +77,11 @@ const DraggableBankExercise: React.FC<{
                     <TrashIcon className="w-4 h-4" />
                 </button>
             )}
-
-            <button 
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                    e.stopPropagation();
-                    onAdd(exercise);
-                }} 
-                className="bg-primary/20 hover:bg-primary/40 text-primary font-bold w-10 h-10 flex items-center justify-center rounded-full transition-colors flex-shrink-0"
-                title={`Lägg till ${exercise.name}`}
-                aria-label={`Lägg till ${exercise.name} i passet`}
-            >
-                <span className="text-2xl">+</span>
-            </button>
         </div>
     );
 };
 
-export const ExerciseBankPanel: React.FC<ExerciseBankPanelProps> = ({ bank, onAddExercise, onPreviewExercise, onDeleteExercise, isLoading }) => {
+export const ExerciseBankPanel: React.FC<ExerciseBankPanelProps> = ({ bank, onPreviewExercise, onDeleteExercise, isLoading }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const { selectedOrganization } = useStudio();
     
@@ -123,7 +108,7 @@ export const ExerciseBankPanel: React.FC<ExerciseBankPanelProps> = ({ bank, onAd
     }, [bank, searchTerm]);
 
     return (
-        <div className="bg-slate-100 dark:bg-gray-800 rounded-lg p-4 border border-slate-200 dark:border-gray-700 flex flex-col max-h-[60vh]">
+        <div className="bg-slate-100 dark:bg-gray-800 rounded-lg p-4 border border-slate-200 dark:border-gray-700 flex flex-col h-full">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex-shrink-0">Övningsbank</h3>
             <div className="mb-4 flex-shrink-0">
                 <input
@@ -143,7 +128,6 @@ export const ExerciseBankPanel: React.FC<ExerciseBankPanelProps> = ({ bank, onAd
                             key={ex.id} 
                             exercise={ex} 
                             onPreview={onPreviewExercise} 
-                            onAdd={onAddExercise} 
                             onDelete={onDeleteExercise ? handleDeleteClick : undefined} 
                         />
                     ))

@@ -907,11 +907,10 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                     </button>
                 </div>
 
-                <div className="flex-grow overflow-y-auto scrollbar-hide rounded-xl">
+                <div className="flex-grow overflow-hidden flex flex-col rounded-xl">
                     {activeSidebarTab === 'bank' && studioConfig.enableExerciseBank && (
                         <ExerciseBankPanel 
                             bank={exerciseBank}
-                            onAddExercise={handleAddExerciseFromBank}
                             onPreviewExercise={setPreviewExercise}
                             onDeleteExercise={handleDeleteExerciseFromBank}
                             isLoading={isBankLoading}
