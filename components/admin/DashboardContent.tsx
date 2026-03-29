@@ -1,13 +1,14 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Organization, Workout, UserData, BenchmarkDefinition } from '../../types';
-import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, TrophyIcon } from '../icons';
-import { motion } from 'framer-motion';
+import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, TrophyIcon, EyeIcon } from '../icons';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
 import { deepCopyAndPrepareAsNew } from '../../utils/workoutUtils';
 import { ManageBenchmarksModal } from './AdminModals';
 import { updateOrganizationBenchmarks, resolveAndCreateExercises } from '../../services/firebaseService';
+import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
 
 // ... (Types and Interfaces remain same)
 
@@ -312,6 +313,7 @@ const ManageWorkoutsView: React.FC<{
     const [activeTab, setActiveTab] = useState<'official' | 'drafts'>('official');
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [previewWorkout, setPreviewWorkout] = useState<Workout | null>(null);
     const [sortConfig, setSortConfig] = useState<{ key: 'title' | 'category' | 'createdAt' | 'isPublished', direction: 'asc' | 'desc' | 'none' }>({
         key: 'createdAt',
         direction: 'none'
@@ -520,6 +522,13 @@ const ManageWorkoutsView: React.FC<{
                                                     </button>
                                                 )}
                                                 <button 
+                                                    onClick={() => setPreviewWorkout(workout)} 
+                                                    className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" 
+                                                    title="Förhandsgranska"
+                                                >
+                                                    <EyeIcon className="w-4 h-4" />
+                                                </button>
+                                                <button 
                                                     onClick={() => onEdit(workout)} 
                                                     className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" 
                                                     title="Redigera"
@@ -582,6 +591,15 @@ const ManageWorkoutsView: React.FC<{
                     </div>
                 )}
             </div>
+
+            <AnimatePresence>
+                {previewWorkout && (
+                    <WorkoutPresentationModal
+                        workout={previewWorkout}
+                        onClose={() => setPreviewWorkout(null)}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 };
