@@ -11,6 +11,7 @@ interface ChatMessage {
     role: 'user' | 'assistant';
     content: string;
     suggestedExercises?: { name: string; description: string }[];
+    previousWorkoutState?: Workout; // Store the state before AI modified it
 }
 
 const DraggableSuggestedExercise: React.FC<{ exercise: { name: string; description: string } }> = ({ exercise }) => {
@@ -52,6 +53,15 @@ export const AICoachSidebar: React.FC<{
     const [isChatting, setIsChatting] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
+    const handleUndo = (previousState: Workout) => {
+        onUpdateWorkout(previousState);
+        setChatHistory(prev => [...prev, {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: 'Jag har återställt passet till hur det såg ut innan min senaste ändring.'
+        }]);
+    };
+
     const scrollToBottom = () => {
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -83,6 +93,9 @@ export const AICoachSidebar: React.FC<{
             
             const response = await chatWithAICoach(workout, apiHistory, userText, availableExercises);
             
+            // Save the current state before applying AI changes if it modified the workout
+            const previousState = response.updatedWorkout ? JSON.parse(JSON.stringify(workout)) : undefined;
+
             if (response.updatedWorkout) {
                 onUpdateWorkout(response.updatedWorkout);
             }
@@ -91,7 +104,8 @@ export const AICoachSidebar: React.FC<{
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
                 content: response.replyText,
-                suggestedExercises: response.suggestedExercises
+                suggestedExercises: response.suggestedExercises,
+                previousWorkoutState: previousState
             }]);
 
         } catch (error) {
@@ -152,6 +166,21 @@ export const AICoachSidebar: React.FC<{
                                                 {msg.suggestedExercises.map((ex, i) => (
                                                     <DraggableSuggestedExercise key={i} exercise={ex} />
                                                 ))}
+                                            </div>
+                                        )}
+
+                                        {/* Undo Button */}
+                                        {msg.previousWorkoutState && (
+                                            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                                                <button
+                                                    onClick={() => handleUndo(msg.previousWorkoutState!)}
+                                                    className="text-xs font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 flex items-center gap-1 transition-colors"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                                        <path fillRule="evenodd" d="M7.793 2.232a.75.75 0 0 1-.025 1.06L3.622 7.25h10.003a5.375 5.375 0 0 1 0 10.75H10.75a.75.75 0 0 1 0-1.5h2.875a3.875 3.875 0 0 0 0-7.75H3.622l4.146 3.957a.75.75 0 0 1-1.036 1.085l-5.5-5.25a.75.75 0 0 1 0-1.085l5.5-5.25a.75.75 0 0 1 1.06.025Z" clipRule="evenodd" />
+                                                    </svg>
+                                                    Ångra ändringen
+                                                </button>
                                             </div>
                                         )}
                                     </div>
