@@ -70,7 +70,7 @@ const SetupProgressWidget: React.FC<{
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 mb-8">
             <div className="flex justify-between items-end mb-4">
                 <div>
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white">Kom igång med SmartSkärm</h3>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white">Kom igång med SmartStudio</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Din checklista för en komplett upplevelse.</p>
                 </div>
                 <span className="font-bold text-primary">{completedCount}/{totalSteps} klart</span>
@@ -211,7 +211,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({ organization, worko
                                     {recentWorkouts.map(w => (
                                         <li key={w.id} className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-xl transition-colors">
                                             <div className={`w-2 h-2 rounded-full ${w.isPublished ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                                            <div className="flex-grow min-0">
+                                            <div className="flex-grow min-w-0">
                                                 <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">{w.title}</p>
                                                 <p className="text-xs text-gray-500 truncate">{w.category || 'Okategoriserad'}</p>
                                             </div>
@@ -602,11 +602,12 @@ const PassProgramContent: React.FC<DashboardContentProps & {
     onDeleteWorkout: (id: string) => Promise<void>;
     onTogglePublish: (id: string, isPublished: boolean) => void;
     onDuplicateWorkout: (workout: Workout) => void;
+    setCustomBackHandler?: (handler: (() => void) | null) => void;
 }> = ({
     subView, setSubView, workoutToEdit, setWorkoutToEdit, isNewDraft, setIsNewDraft,
     aiGeneratorInitialTab, setAiGeneratorInitialTab, onReturnToHub,
     onSaveWorkout, workouts, workoutsLoading, onDeleteWorkout, onTogglePublish,
-    organization, autoExpandCategory, setAutoExpandCategory, onDuplicateWorkout
+    organization, autoExpandCategory, setAutoExpandCategory, onDuplicateWorkout, setCustomBackHandler
 }) => {
     
     const [showBenchmarkModal, setShowBenchmarkModal] = useState(false);
@@ -676,7 +677,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
                     onCreateNewWorkout={() => handleNavigate('create')}
                     initialMode={aiGeneratorInitialTab}
                     studioConfig={organization.globalConfig}
-                    setCustomBackHandler={() => {}}
+                    setCustomBackHandler={setCustomBackHandler}
                     workouts={workouts}
                     workoutsLoading={workoutsLoading}
                     initialExpandedCategory={autoExpandCategory}
@@ -696,6 +697,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
                     sessionRole="organizationadmin"
                     isNewDraft={isNewDraft}
                     organization={organization}
+                    setCustomBackHandler={setCustomBackHandler}
                 />
             </div>
         );

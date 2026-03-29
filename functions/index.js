@@ -346,9 +346,9 @@ const app = express();
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowedOrigins = [
-    'https://staging-smartskarm.netlify.app',
-    'https://smartskarm.netlify.app',
-    'https://smartskarm.se',
+    'https://staging-smartstudio.netlify.app',
+    'https://smartstudio.netlify.app',
+    'https://smartstudio.se',
     'http://localhost:5173'
   ];
   if (allowedOrigins.includes(origin) || !origin) {
@@ -588,7 +588,7 @@ app.post("/create-checkout-session", async (req, res) => {
     });
 
     let priceId = paymentType === 'system_fee' ? process.env.STRIPE_SYSTEM_FEE_PRICE_ID : process.env.STRIPE_PRICE_ID;
-    const domain = req.headers.origin || 'https://smartskarm.se';
+    const domain = req.headers.origin || 'https://smartstudio.se';
 
     // Beräkna Unix-timestamp för den 1:a i nästa månad (UTC)
     const now = new Date();
@@ -651,7 +651,7 @@ app.post("/create-connect-account", async (req, res) => {
       });
     }
 
-    const domain = returnUrl || req.headers.origin || 'https://smartskarm.se';
+    const domain = returnUrl || req.headers.origin || 'https://smartstudio.se';
 
     // Skapa en onboarding-länk
     const accountLink = await stripe.accountLinks.create({
@@ -730,7 +730,7 @@ app.post("/create-member-checkout", async (req, res) => {
       metadata: { userId, organizationId }
     });
 
-    const domain = req.headers.origin || 'https://smartskarm.se';
+    const domain = req.headers.origin || 'https://smartstudio.se';
 
     // 19 kr av 39 kr = 48.7179%
     const applicationFeePercent = 48.7179;
@@ -743,7 +743,7 @@ app.post("/create-member-checkout", async (req, res) => {
         price_data: {
           currency: 'sek',
           product_data: {
-            name: 'SmartSkärm Medlemskap',
+            name: 'SmartStudio Medlemskap',
             description: `Medlemskap hos ${orgData.name || 'Gymmet'}`,
           },
           unit_amount: 3900, // 39.00 SEK

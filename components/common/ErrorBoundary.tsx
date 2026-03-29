@@ -20,7 +20,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error("SmartSkärm Error:", error, errorInfo);
+    console.error("SmartStudio Error:", error, errorInfo);
   }
 
   render() {

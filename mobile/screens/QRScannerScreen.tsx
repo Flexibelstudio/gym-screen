@@ -76,7 +76,7 @@ export default function QRScannerScreen() {
       console.log("Scan error:", error);
       Alert.alert(
         "Kunde inte läsa koden",
-        "Det verkar inte vara en giltig SmartSkärm-kod.",
+        "Det verkar inte vara en giltig SmartStudio-kod.",
         [{ text: "Försök igen", onPress: () => setScanned(false) }]
       );
     }

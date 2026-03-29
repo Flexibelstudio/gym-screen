@@ -64,8 +64,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
             <nav className="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10">
                 <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                        <img src="/favicon.png" alt="SmartSkärm Logo" className="w-8 h-8 rounded-lg" referrerPolicy="no-referrer" />
-                        <span className="text-xl font-bold tracking-tight">SmartSkärm</span>
+                        <img src="/favicon.png" alt="SmartStudio Logo" className="w-8 h-8 rounded-lg" referrerPolicy="no-referrer" />
+                        <span className="text-xl font-bold tracking-tight">SmartStudio</span>
                     </div>
                     <div className="flex gap-4">
                         <button onClick={onLoginClick} className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">
@@ -100,7 +100,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                                 </span>
                             </h1>
                             <p className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-                                SmartSkärm är allt-i-ett-plattformen för gym och studios. Hantera infoskärmar, skapa AI-drivna träningspass och kör professionella timers – allt från en plats.
+                                SmartStudio är allt-i-ett-plattformen för gym och studios. Hantera infoskärmar, skapa AI-drivna träningspass och kör professionella timers – allt från en plats.
                             </p>
                             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                                 <button onClick={onRegisterGymClick || onLoginClick} className="bg-primary hover:bg-teal-400 text-black text-lg px-8 py-4 rounded-full font-bold transition-all transform hover:scale-105 shadow-[0_0_20px_-5px_rgba(20,184,166,0.5)]">
@@ -182,11 +182,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
             <footer className="border-t border-white/10 py-12 bg-black">
                 <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
                     <div className="flex items-center gap-2">
-                        <img src="/favicon.png" alt="SmartSkärm Logo" className="w-6 h-6 rounded-md" referrerPolicy="no-referrer" />
-                        <span className="font-bold text-lg">SmartSkärm</span>
+                        <img src="/favicon.png" alt="SmartStudio Logo" className="w-6 h-6 rounded-md" referrerPolicy="no-referrer" />
+                        <span className="font-bold text-lg">SmartStudio</span>
                     </div>
                     <div className="text-gray-500 text-sm">
-                        © 2026 SmartSkärm AB. Alla rättigheter förbehållna.
+                        © 2026 SmartStudio AB. Alla rättigheter förbehållna.
                     </div>
                 </div>
             </footer>

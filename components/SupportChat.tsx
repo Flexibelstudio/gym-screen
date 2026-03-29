@@ -121,7 +121,7 @@ Här är din kunskapsbas om hur systemet fungerar:
 * **Coach:** Kan skapa pass, starta timers, använda Idé-tavlan.
 * **Admin:** Kan dessutom hantera studios, logotyper, färger och prenumerationer.
 
-Om användaren frågar om något tekniskt fel, be dem ladda om sidan eller kontakta hej@smartskarm.se om problemet kvarstår.
+Om användaren frågar om något tekniskt fel, be dem ladda om sidan eller kontakta hej@smartstudio.se om problemet kvarstår.
             `;
 
             // VIKTIGT: Vi försöker hämta nyckeln från båda ställena för att stödja både
