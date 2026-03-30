@@ -1220,7 +1220,7 @@ const App: React.FC = () => {
                             signOut();
                         }
                     }} 
-                    className="text-red-500 text-sm hover:underline"
+                    className="text-gray-500 dark:text-gray-400 text-sm hover:underline transition-colors"
                 >
                     Radera detta ofullständiga konto och börja om
                 </button>
