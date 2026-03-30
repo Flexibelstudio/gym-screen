@@ -346,13 +346,17 @@ const app = express();
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowedOrigins = [
-    'https://staging-smartstudio.netlify.app',
-    'https://smartstudio.netlify.app',
     'https://smartstudio.se',
+    'https://staging-smartskarm.netlify.app',
+    'https://smartskarm.netlify.app',
+    'https://smartskarm.se',
     'http://localhost:5173'
   ];
   if (allowedOrigins.includes(origin) || !origin) {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  } else {
+    // Tillåt även andra domäner tillfälligt för att undvika CORS-problem
+    res.setHeader('Access-Control-Allow-Origin', origin);
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
