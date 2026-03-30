@@ -69,7 +69,7 @@ const verifyAdminPrivileges = async (auth) => {
 
 // --- FUNKTION: Uppdatera Roll ---
 exports.flexUpdateUserRole = onCall({
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, async (request) => {
   const caller = await verifyAdminPrivileges(request.auth);
   const { targetUid, newRole } = request.data;
@@ -131,7 +131,7 @@ exports.flexUpdateUserRole = onCall({
 
 // --- FUNKTION: Godkänn Coach ---
 exports.flexApproveCoach = onCall({
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, async (request) => {
   const caller = await verifyAdminPrivileges(request.auth);
   const { targetUid } = request.data;
@@ -162,7 +162,7 @@ exports.flexApproveCoach = onCall({
 
 // --- FUNKTION: Bjuda in användare ---
 exports.flexInviteUser = onCall({
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, async (request) => {
   const caller = await verifyAdminPrivileges(request.auth);
   const { email, role: inRole, organizationId, password } = request.data;
@@ -588,6 +588,8 @@ app.post("/create-checkout-session", async (req, res) => {
     });
 
     let priceId = paymentType === 'system_fee' ? process.env.STRIPE_SYSTEM_FEE_PRICE_ID : process.env.STRIPE_PRICE_ID;
+    const coachFeePriceId = process.env.STRIPE_COACH_FEE_PRICE_ID;
+    const screenFeePriceId = process.env.STRIPE_SCREEN_FEE_PRICE_ID;
     const domain = req.headers.origin || 'https://smartstudio.se';
 
     // Beräkna Unix-timestamp för den 1:a i nästa månad (UTC)
@@ -595,12 +597,24 @@ app.post("/create-checkout-session", async (req, res) => {
     const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0));
     const billingCycleAnchor = Math.floor(nextMonth.getTime() / 1000);
 
+    const lineItems = [{ price: priceId, quantity: 1 }];
+    
+    // Lägg till coach-avgift med kvantitet 0 från start
+    if (coachFeePriceId) {
+        lineItems.push({ price: coachFeePriceId, quantity: 0 });
+    }
+    
+    // Lägg till skärm-avgift med kvantitet 0 från start
+    if (screenFeePriceId) {
+        lineItems.push({ price: screenFeePriceId, quantity: 0 });
+    }
+
     const session = await stripe.checkout.sessions.create({
       customer: customer.id,
       payment_method_types: ['card'],
       mode: 'subscription',
       allow_promotion_codes: true,
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: lineItems,
       subscription_data: {
         billing_cycle_anchor: billingCycleAnchor
       },
@@ -773,7 +787,7 @@ app.post("/create-member-checkout", async (req, res) => {
 });
 
 exports.api = onRequest({
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_SYSTEM_FEE_PRICE_ID", "STRIPE_PRICE_ID", "STRIPE_WEBHOOK_SECRET", "STRIPE_COACH_FEE_PRICE_ID"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_SYSTEM_FEE_PRICE_ID", "STRIPE_PRICE_ID", "STRIPE_WEBHOOK_SECRET", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, app);
 
 /**
@@ -781,7 +795,7 @@ exports.api = onRequest({
  */
 exports.onUserCreated = onDocumentCreated({
   document: "users/{userId}",
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, async (event) => {
   const newUser = event.data.data();
   if (newUser.role === 'coach' && newUser.status === 'active' && newUser.organizationId) {
@@ -791,7 +805,7 @@ exports.onUserCreated = onDocumentCreated({
 });
 exports.onUserUpdated = onDocumentUpdated({
   document: "users/{userId}",
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, async (event) => {
   const beforeData = event.data.before.data();
   const afterData = event.data.after.data();
@@ -809,7 +823,7 @@ exports.onUserUpdated = onDocumentUpdated({
 });
 exports.onUserDeleted = onDocumentDeleted({
   document: "users/{userId}",
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, async (event) => {
   const deletedUser = event.data.data();
   if (deletedUser.role === 'coach' && deletedUser.organizationId) {
@@ -819,7 +833,7 @@ exports.onUserDeleted = onDocumentDeleted({
 });
 exports.onOrganizationUpdated = onDocumentUpdated({
   document: "organizations/{orgId}",
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, async (event) => {
   const beforeData = event.data.before.data();
   const afterData = event.data.after.data();
@@ -834,7 +848,7 @@ exports.onOrganizationUpdated = onDocumentUpdated({
   }
 });
 exports.flexUpdateOrganization = onCall({
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, async (request) => {
   const caller = await verifyAdminPrivileges(request.auth);
   const { organizationId, updateData } = request.data;
