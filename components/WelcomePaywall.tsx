@@ -88,7 +88,7 @@ export const WelcomePaywall: React.FC<WelcomePaywallProps> = ({ onLogout, userDa
                     </div>
                     <div className="flex items-start gap-4">
                         <div className="w-8 h-8 shrink-0 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-sm">5</div>
-                        <p className="text-gray-300">Extra skärmar kan läggas till för <strong>995 kr / månad</strong> per skärm.</p>
+                        <p className="text-gray-300">Extra skärmar kan läggas till för <strong>995 kr / månad</strong> per skärm (ingen bindningstid).</p>
                     </div>
                 </div>
 
@@ -106,7 +106,7 @@ export const WelcomePaywall: React.FC<WelcomePaywallProps> = ({ onLogout, userDa
                             </svg>
                         </div>
                         <span className="text-sm text-gray-300 group-hover:text-white leading-snug">
-                            Jag bekräftar beställningen av Smart Skärm och godkänner avtalsvillkoren om 12 månaders bindningstid, 995 kr/månad samt eventuella tilläggskostnader (19 kr/månad per extra coach, 995 kr/månad per extra skärm).
+                            Jag bekräftar beställningen av Smart Skärm och godkänner avtalsvillkoren om 12 månaders bindningstid, 995 kr/månad samt eventuella tilläggskostnader (19 kr/månad per extra coach, 995 kr/månad per extra skärm - löpande månadsvis utan bindningstid).
                         </span>
                     </label>
                 </div>
