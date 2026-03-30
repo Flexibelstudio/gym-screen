@@ -32,10 +32,15 @@ export const TermsOfServiceModal: React.FC<TermsOfServiceModalProps> = ({ onAcce
                     <div className="not-prose bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800/50 p-4 rounded-lg mb-6 text-yellow-800 dark:text-yellow-200">
                         <h3 className="text-lg font-bold text-yellow-900 dark:text-yellow-100 mb-2">Viktig Information om Prenumeration</h3>
                         <p className="text-sm">
-                            Genom att godkänna dessa villkor bekräftar du att din organisation startar en prenumeration för <strong>'Grundpaket (inkl. 1 skärm och 5 coacher)'</strong> till en kostnad av <strong>995 kr/månad</strong> (exkl. moms). Därefter tillkommer <strong>19 kr/månad</strong> per extra coach.
+                            Genom att godkänna dessa villkor bekräftar du att din organisation startar en prenumeration för <strong>'Grundpaket (inkl. 1 skärm och 5 coacher)'</strong> till en kostnad av <strong>995 kr/månad</strong> (exkl. moms).
                         </p>
+                        <ul className="text-sm list-disc pl-5 mt-2 space-y-1">
+                            <li><strong>Bindningstid:</strong> 12 månader. Löper vidare med 12 månader åt gången om inte uppsägning sker senast 3 månader innan periodens slut.</li>
+                            <li><strong>Extra coacher:</strong> 19 kr/månad per extra coach.</li>
+                            <li><strong>Extra skärmar:</strong> 995 kr/månad per extra skärm (löpande månadsvis utan bindningstid).</li>
+                        </ul>
                         <p className="text-sm mt-2">
-                            Denna kostnad börjar gälla från och med {new Date().toLocaleDateString('sv-SE')} och kommer att faktureras enligt gällande betalningsrutiner.
+                            Kostnaden börjar gälla från och med {new Date().toLocaleDateString('sv-SE')} och kommer att faktureras enligt gällande betalningsrutiner.
                         </p>
                     </div>
 
