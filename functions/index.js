@@ -636,8 +636,9 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
 
             console.log(`Org ${orgId} återställd till exakt mall och kopplad till ${userId}`);
             
-            // Lägg till "Extra Coach"-produkten i prenumerationen med kvantitet 0 direkt
+            // Lägg till "Extra Coach" och "Extra Skärm"-produkterna i prenumerationen med kvantitet 0 direkt
             await updateStripeCoachCount(orgId);
+            await updateStripeScreenCount(orgId);
           }
         }
       }
