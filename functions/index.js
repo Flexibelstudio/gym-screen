@@ -680,10 +680,10 @@ app.post("/create-checkout-session", async (req, res) => {
         lineItems.push({ price: coachFeePriceId, quantity: 0 });
     }
     
-    // Lägg till skärm-avgift med kvantitet 0 från start
-    if (screenFeePriceId) {
-        lineItems.push({ price: screenFeePriceId, quantity: 0 });
-    }
+    // OBS: Vi lägger INTE till skärm-avgiften (screenFeePriceId) med kvantitet 0 här längre.
+    // Stripe gillar inte alltid att man skickar in nya Price IDs med kvantitet 0 om de inte är 
+    // exakt rätt konfigurerade. Istället läggs denna rad till automatiskt av updateStripeScreenCount
+    // första gången kunden faktiskt lägger till en extra skärm.
 
     const session = await stripe.checkout.sessions.create({
       customer: customer.id,
