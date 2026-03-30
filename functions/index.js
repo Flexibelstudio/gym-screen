@@ -675,10 +675,9 @@ app.post("/create-checkout-session", async (req, res) => {
 
     const lineItems = [{ price: priceId, quantity: 1 }];
     
-    // Lägg till coach-avgift med kvantitet 0 från start
-    if (coachFeePriceId) {
-        lineItems.push({ price: coachFeePriceId, quantity: 0 });
-    }
+    // OBS: Vi lägger INTE till coach-avgiften (coachFeePriceId) med kvantitet 0 här.
+    // Stripe tillåter inte kvantitet 0 för standardpriser vid skapande av Checkout Session.
+    // Denna läggs till automatiskt av updateStripeCoachCount när kunden faktiskt lägger till extra coacher.
     
     // OBS: Vi lägger INTE till skärm-avgiften (screenFeePriceId) med kvantitet 0 här längre.
     // Stripe gillar inte alltid att man skickar in nya Price IDs med kvantitet 0 om de inte är 
