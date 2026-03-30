@@ -346,6 +346,8 @@ const app = express();
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowedOrigins = [
+    'https://staging-smartstudio.netlify.app',
+    'https://smartstudio.netlify.app',
     'https://smartstudio.se',
     'https://staging-smartskarm.netlify.app',
     'https://smartskarm.netlify.app',
@@ -700,6 +702,7 @@ app.post("/create-checkout-session", async (req, res) => {
 
     res.json({ url: session.url });
   } catch (error) {
+    console.error("Error creating checkout session:", error);
     res.status(500).json({ error: error.message });
   }
 });
