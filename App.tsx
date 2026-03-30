@@ -1220,7 +1220,7 @@ const App: React.FC = () => {
                             signOut();
                         }
                     }} 
-                    className="text-red-500 text-sm hover:underline"
+                    className="text-gray-500 dark:text-gray-400 text-sm hover:underline transition-colors"
                 >
                     Radera detta ofullständiga konto och börja om
                 </button>
@@ -1233,7 +1233,7 @@ const App: React.FC = () => {
     return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
             <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-gray-500 font-bold uppercase tracking-widest text-sm">Laddar SmartSkärm...</p>
+            <p className="text-gray-500 font-bold uppercase tracking-widest text-sm">Laddar SmartStudio...</p>
         </div>
     );
   }

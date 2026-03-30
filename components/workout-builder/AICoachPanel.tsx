@@ -11,6 +11,7 @@ interface ChatMessage {
     role: 'user' | 'assistant';
     content: string;
     suggestedExercises?: { name: string; description: string }[];
+    previousWorkoutState?: Workout; // Store the state before AI modified it
 }
 
 const DraggableSuggestedExercise: React.FC<{ exercise: { name: string; description: string } }> = ({ exercise }) => {
@@ -51,6 +52,23 @@ export const AICoachSidebar: React.FC<{
     const [chatInput, setChatInput] = useState('');
     const [isChatting, setIsChatting] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 150)}px`;
+        }
+    }, [chatInput]);
+
+    const handleUndo = (previousState: Workout) => {
+        onUpdateWorkout(previousState);
+        setChatHistory(prev => [...prev, {
+            id: Date.now().toString(),
+            role: 'assistant',
+            content: 'Jag har återställt passet till hur det såg ut innan min senaste ändring.'
+        }]);
+    };
 
     const scrollToBottom = () => {
         if (messagesEndRef.current) {
@@ -83,6 +101,9 @@ export const AICoachSidebar: React.FC<{
             
             const response = await chatWithAICoach(workout, apiHistory, userText, availableExercises);
             
+            // Save the current state before applying AI changes if it modified the workout
+            const previousState = response.updatedWorkout ? JSON.parse(JSON.stringify(workout)) : undefined;
+
             if (response.updatedWorkout) {
                 onUpdateWorkout(response.updatedWorkout);
             }
@@ -91,7 +112,8 @@ export const AICoachSidebar: React.FC<{
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
                 content: response.replyText,
-                suggestedExercises: response.suggestedExercises
+                suggestedExercises: response.suggestedExercises,
+                previousWorkoutState: previousState
             }]);
 
         } catch (error) {
@@ -110,7 +132,17 @@ export const AICoachSidebar: React.FC<{
         e?.preventDefault();
         const text = chatInput;
         setChatInput('');
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+        }
         await sendMessage(text);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSendMessage();
+        }
     };
 
     const handleQuickAction = (text: string) => {
@@ -152,6 +184,21 @@ export const AICoachSidebar: React.FC<{
                                                 {msg.suggestedExercises.map((ex, i) => (
                                                     <DraggableSuggestedExercise key={i} exercise={ex} />
                                                 ))}
+                                            </div>
+                                        )}
+
+                                        {/* Undo Button */}
+                                        {msg.previousWorkoutState && (
+                                            <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                                                <button
+                                                    onClick={() => handleUndo(msg.previousWorkoutState!)}
+                                                    className="text-xs font-medium text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 flex items-center gap-1 transition-colors"
+                                                >
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
+                                                        <path fillRule="evenodd" d="M7.793 2.232a.75.75 0 0 1-.025 1.06L3.622 7.25h10.003a5.375 5.375 0 0 1 0 10.75H10.75a.75.75 0 0 1 0-1.5h2.875a3.875 3.875 0 0 0 0-7.75H3.622l4.146 3.957a.75.75 0 0 1-1.036 1.085l-5.5-5.25a.75.75 0 0 1 0-1.085l5.5-5.25a.75.75 0 0 1 1.06.025Z" clipRule="evenodd" />
+                                                    </svg>
+                                                    Ångra ändringen
+                                                </button>
                                             </div>
                                         )}
                                     </div>
@@ -197,19 +244,21 @@ export const AICoachSidebar: React.FC<{
                         </button>
                     </div>
                     
-                    <form onSubmit={handleSendMessage} className="relative">
-                        <input
-                            type="text"
+                    <form onSubmit={handleSendMessage} className="relative flex items-end">
+                        <textarea
+                            ref={textareaRef}
                             value={chatInput}
                             onChange={(e) => setChatInput(e.target.value)}
+                            onKeyDown={handleKeyDown}
                             placeholder="Fråga AI:n eller be den ändra passet..."
-                            className="w-full bg-purple-50/50 dark:bg-gray-900 border border-purple-200 dark:border-purple-800/50 rounded-xl pl-4 pr-12 py-3 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-shadow"
+                            className="w-full bg-purple-50/50 dark:bg-gray-900 border border-purple-200 dark:border-purple-800/50 rounded-xl pl-4 pr-12 py-3 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition-shadow resize-none overflow-y-auto min-h-[46px]"
                             disabled={isChatting}
+                            rows={1}
                         />
                         <button
                             type="submit"
                             disabled={!chatInput.trim() || isChatting}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-purple-600 text-white rounded-lg hover:bg-purple-500 disabled:opacity-50 disabled:hover:bg-purple-600 transition-colors shadow-sm"
+                            className="absolute right-2 bottom-2 w-8 h-8 flex items-center justify-center bg-purple-600 text-white rounded-lg hover:bg-purple-500 disabled:opacity-50 disabled:hover:bg-purple-600 transition-colors shadow-sm"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
                                 <path d="M3.478 2.404a.75.75 0 0 0-.926.941l2.432 7.905H13.5a.75.75 0 0 1 0 1.5H4.984l-2.432 7.905a.75.75 0 0 0 .926.94 60.519 60.519 0 0 0 18.445-8.986.75.75 0 0 0 0-1.218A60.517 60.517 0 0 0 3.478 2.404Z" />

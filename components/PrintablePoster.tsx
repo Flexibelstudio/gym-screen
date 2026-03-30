@@ -26,7 +26,7 @@ export const PrintablePoster: React.FC<PrintablePosterProps> = ({ title, code, u
           <h3 className="text-2xl font-black uppercase tracking-widest border-b-2 border-gray-200 pb-3 mb-4">Så här gör du:</h3>
           <div className="flex items-start gap-5">
             <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center font-black text-xl flex-shrink-0 mt-1">1</div>
-            <p className="text-2xl font-medium leading-relaxed">Scanna QR-koden ovan med din mobilkamera, eller gå in på <span className="font-black">smartskarm.se</span> och ange koden <span className="font-black bg-gray-100 px-3 py-1 rounded-lg">{code}</span>.</p>
+            <p className="text-2xl font-medium leading-relaxed">Scanna QR-koden ovan med din mobilkamera, eller gå in på <span className="font-black">smartstudio.se</span> och ange koden <span className="font-black bg-gray-100 px-3 py-1 rounded-lg">{code}</span>.</p>
           </div>
           <div className="flex items-start gap-5">
             <div className="w-10 h-10 rounded-full bg-black text-white flex items-center justify-center font-black text-xl flex-shrink-0 mt-1">2</div>

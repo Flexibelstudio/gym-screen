@@ -4,12 +4,12 @@ import { Modal } from './ui/Modal';
 export const UserTermsModal: React.FC<{ isOpen: boolean; onClose: () => void }> = ({ isOpen, onClose }) => (
     <Modal isOpen={isOpen} onClose={onClose} title="Användarvillkor" size="lg">
         <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
-            <p className="font-bold text-gray-900 dark:text-white text-base">Välkommen till SmartSkärm!</p>
+            <p className="font-bold text-gray-900 dark:text-white text-base">Välkommen till SmartStudio!</p>
             <p>Genom att använda denna applikation och skapa ett konto godkänner du följande villkor:</p>
             
             <section className="space-y-2">
                 <h4 className="font-bold text-gray-900 dark:text-white uppercase text-xs tracking-wider">1. Träning på egen risk</h4>
-                <p>All träning sker på egen risk. SmartSkärm och din anslutna studio ansvarar inte för skador som uppstår i samband med utförandet av träningspass som visas eller loggas i appen.</p>
+                <p>All träning sker på egen risk. SmartStudio och din anslutna studio ansvarar inte för skador som uppstår i samband med utförandet av träningspass som visas eller loggas i appen.</p>
             </section>
 
             <section className="space-y-2">

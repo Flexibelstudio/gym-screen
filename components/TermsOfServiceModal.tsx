@@ -26,7 +26,7 @@ export const TermsOfServiceModal: React.FC<TermsOfServiceModalProps> = ({ onAcce
                 className="bg-white dark:bg-gray-800 rounded-xl w-full max-w-3xl text-gray-900 dark:text-white shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh]"
             >
                 <div className="flex-shrink-0 p-6 border-b border-gray-200 dark:border-gray-700">
-                     <h2 className="text-2xl font-bold">Användarvillkor för SmartSkärm Organisationer</h2>
+                     <h2 className="text-2xl font-bold">Användarvillkor för SmartStudio Organisationer</h2>
                 </div>
                 <div className="flex-grow overflow-y-auto p-6 prose prose-lg dark:prose-invert max-w-none">
                     <div className="not-prose bg-yellow-100 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800/50 p-4 rounded-lg mb-6 text-yellow-800 dark:text-yellow-200">
@@ -40,7 +40,7 @@ export const TermsOfServiceModal: React.FC<TermsOfServiceModalProps> = ({ onAcce
                     </div>
 
                     <p className="text-sm text-gray-500">Senast uppdaterad: 2024-10-26</p>
-                    <p>Välkommen som administratör för SmartSkärm! Genom att använda våra administrativa verktyg godkänner du ("Användaren", "du") följande villkor som reglerar din användning av tjänsten som tillhandahålls av oss ("Tjänsten", "vi").</p>
+                    <p>Välkommen som administratör för SmartStudio! Genom att använda våra administrativa verktyg godkänner du ("Användaren", "du") följande villkor som reglerar din användning av tjänsten som tillhandahålls av oss ("Tjänsten", "vi").</p>
                     
                     <h3>1. Användarens Ansvar</h3>
                     <p><strong>Kontosäkerhet:</strong> Du är ansvarig för att hålla dina inloggningsuppgifter hemliga. Dela inte ditt lösenord med någon annan.</p>
@@ -57,7 +57,7 @@ export const TermsOfServiceModal: React.FC<TermsOfServiceModalProps> = ({ onAcce
                     <p>Som administratör har du tillgång till viss data om din organisation. Denna data får endast användas i enlighet med er organisations integritetspolicy och för att administrera Tjänsten.</p>
 
                     <h3>4. Immateriella Rättigheter</h3>
-                    <p><strong>Tjänsten:</strong> Vi äger alla rättigheter till SmartSkärm-plattformen, dess kod, design och varumärke.</p>
+                    <p><strong>Tjänsten:</strong> Vi äger alla rättigheter till SmartStudio-plattformen, dess kod, design och varumärke.</p>
                     <p><strong>Ditt Innehåll:</strong> Din organisation behåller äganderätten till det innehåll (träningspass, bilder etc.) som ni skapar. Ni ger oss dock en licens att visa och distribuera detta innehåll via Tjänsten så länge ni är kunder hos oss.</p>
 
                     <h3>5. Ansvarsfriskrivning</h3>

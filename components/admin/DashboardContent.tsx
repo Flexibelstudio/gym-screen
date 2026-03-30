@@ -1,13 +1,14 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Organization, Workout, UserData, BenchmarkDefinition } from '../../types';
-import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, TrophyIcon } from '../icons';
-import { motion } from 'framer-motion';
+import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, TrophyIcon, EyeIcon } from '../icons';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AIGeneratorScreen } from '../AIGeneratorScreen';
 import { WorkoutBuilderScreen } from '../WorkoutBuilderScreen';
 import { deepCopyAndPrepareAsNew } from '../../utils/workoutUtils';
 import { ManageBenchmarksModal } from './AdminModals';
 import { updateOrganizationBenchmarks, resolveAndCreateExercises } from '../../services/firebaseService';
+import { WorkoutPresentationModal } from '../WorkoutDetailScreen';
 
 // ... (Types and Interfaces remain same)
 
@@ -70,7 +71,7 @@ const SetupProgressWidget: React.FC<{
         <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 mb-8">
             <div className="flex justify-between items-end mb-4">
                 <div>
-                    <h3 className="font-bold text-lg text-gray-900 dark:text-white">Kom igång med SmartSkärm</h3>
+                    <h3 className="font-bold text-lg text-gray-900 dark:text-white">Kom igång med SmartStudio</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Din checklista för en komplett upplevelse.</p>
                 </div>
                 <span className="font-bold text-primary">{completedCount}/{totalSteps} klart</span>
@@ -211,7 +212,7 @@ const DashboardContent: React.FC<DashboardContentProps> = ({ organization, worko
                                     {recentWorkouts.map(w => (
                                         <li key={w.id} className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded-xl transition-colors">
                                             <div className={`w-2 h-2 rounded-full ${w.isPublished ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                                            <div className="flex-grow min-0">
+                                            <div className="flex-grow min-w-0">
                                                 <p className="font-semibold text-gray-900 dark:text-white text-sm truncate">{w.title}</p>
                                                 <p className="text-xs text-gray-500 truncate">{w.category || 'Okategoriserad'}</p>
                                             </div>
@@ -312,6 +313,7 @@ const ManageWorkoutsView: React.FC<{
     const [activeTab, setActiveTab] = useState<'official' | 'drafts'>('official');
     const [searchTerm, setSearchTerm] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [previewWorkout, setPreviewWorkout] = useState<Workout | null>(null);
     const [sortConfig, setSortConfig] = useState<{ key: 'title' | 'category' | 'createdAt' | 'isPublished', direction: 'asc' | 'desc' | 'none' }>({
         key: 'createdAt',
         direction: 'none'
@@ -520,6 +522,13 @@ const ManageWorkoutsView: React.FC<{
                                                     </button>
                                                 )}
                                                 <button 
+                                                    onClick={() => setPreviewWorkout(workout)} 
+                                                    className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" 
+                                                    title="Förhandsgranska"
+                                                >
+                                                    <EyeIcon className="w-4 h-4" />
+                                                </button>
+                                                <button 
                                                     onClick={() => onEdit(workout)} 
                                                     className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" 
                                                     title="Redigera"
@@ -582,6 +591,15 @@ const ManageWorkoutsView: React.FC<{
                     </div>
                 )}
             </div>
+
+            <AnimatePresence>
+                {previewWorkout && (
+                    <WorkoutPresentationModal
+                        workout={previewWorkout}
+                        onClose={() => setPreviewWorkout(null)}
+                    />
+                )}
+            </AnimatePresence>
         </div>
     );
 };
@@ -602,11 +620,12 @@ const PassProgramContent: React.FC<DashboardContentProps & {
     onDeleteWorkout: (id: string) => Promise<void>;
     onTogglePublish: (id: string, isPublished: boolean) => void;
     onDuplicateWorkout: (workout: Workout) => void;
+    setCustomBackHandler?: (handler: (() => void) | null) => void;
 }> = ({
     subView, setSubView, workoutToEdit, setWorkoutToEdit, isNewDraft, setIsNewDraft,
     aiGeneratorInitialTab, setAiGeneratorInitialTab, onReturnToHub,
     onSaveWorkout, workouts, workoutsLoading, onDeleteWorkout, onTogglePublish,
-    organization, autoExpandCategory, setAutoExpandCategory, onDuplicateWorkout
+    organization, autoExpandCategory, setAutoExpandCategory, onDuplicateWorkout, setCustomBackHandler
 }) => {
     
     const [showBenchmarkModal, setShowBenchmarkModal] = useState(false);
@@ -676,7 +695,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
                     onCreateNewWorkout={() => handleNavigate('create')}
                     initialMode={aiGeneratorInitialTab}
                     studioConfig={organization.globalConfig}
-                    setCustomBackHandler={() => {}}
+                    setCustomBackHandler={setCustomBackHandler}
                     workouts={workouts}
                     workoutsLoading={workoutsLoading}
                     initialExpandedCategory={autoExpandCategory}
@@ -696,6 +715,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
                     sessionRole="organizationadmin"
                     isNewDraft={isNewDraft}
                     organization={organization}
+                    setCustomBackHandler={setCustomBackHandler}
                 />
             </div>
         );

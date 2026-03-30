@@ -19,6 +19,12 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!newStudioName.trim()) return;
+
+        if (organization.studios.length >= 1) {
+            const confirmAdd = window.confirm(`Observera: Eftersom 1 skärm ingår i din licens kommer tillägg av denna extra skärm att öka din månadskostnad med 995 kr/mån (löpande månadsvis utan bindningstid).\n\nVill du fortsätta och skapa skärmen "${newStudioName.trim()}"?`);
+            if (!confirmAdd) return;
+        }
+
         setIsCreating(true);
         try {
             await onCreateStudio(organization.id, newStudioName.trim());
@@ -28,6 +34,18 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
             alert("Kunde inte skapa skärm.");
         } finally {
             setIsCreating(false);
+        }
+    };
+
+    const handleDelete = (studioId: string, studioName: string) => {
+        let message = `Är du säker på att du vill ta bort skärmen "${studioName}"?`;
+        
+        if (organization.studios.length > 1) {
+             message += `\n\nEftersom du har fler än 1 skärm kommer borttagningen av denna skärm att minska din månadskostnad med 995 kr/mån från och med nästa faktura.`;
+        }
+        
+        if (window.confirm(message)) {
+            onDeleteStudio(organization.id, studioId);
         }
     };
 
@@ -67,7 +85,7 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
                                 <span className="text-lg">📱</span> Aktivera denna enhet
                             </button>
                             <button onClick={() => onEditStudioConfig(studio)} className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm">Inställningar</button>
-                            <button onClick={() => onDeleteStudio(organization.id, studio.id)} className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-semibold py-2 px-4 rounded-lg transition-colors text-sm border border-red-100 dark:border-red-900/30">Ta bort</button>
+                            <button onClick={() => handleDelete(studio.id, studio.name)} className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-semibold py-2 px-4 rounded-lg transition-colors text-sm border border-red-100 dark:border-red-900/30">Ta bort</button>
                         </div>
                     </div>
                 ))}

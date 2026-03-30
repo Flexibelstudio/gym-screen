@@ -295,9 +295,10 @@ export async function chatWithAICoach(
 ): Promise<AICoachChatResponse> {
     const aiCoachChatSchema = {
         type: Type.OBJECT,
-        required: ['replyText'],
+        required: ['replyText', 'didModifyWorkout'],
         properties: {
             replyText: { type: Type.STRING },
+            didModifyWorkout: { type: Type.BOOLEAN },
             updatedWorkout: workoutSchema,
             suggestedExercises: {
                 type: Type.ARRAY,
@@ -323,7 +324,7 @@ export async function chatWithAICoach(
 
     return {
         replyText: data.replyText,
-        updatedWorkout: data.updatedWorkout ? transformWorkout({ ...currentWorkout, ...data.updatedWorkout }, currentWorkout.organizationId) : undefined,
+        updatedWorkout: data.didModifyWorkout && data.updatedWorkout ? transformWorkout({ ...currentWorkout, ...data.updatedWorkout }, currentWorkout.organizationId) : undefined,
         suggestedExercises: data.suggestedExercises
     };
 }

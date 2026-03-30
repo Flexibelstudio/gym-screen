@@ -69,7 +69,7 @@ const verifyAdminPrivileges = async (auth) => {
 
 // --- FUNKTION: Uppdatera Roll ---
 exports.flexUpdateUserRole = onCall({
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, async (request) => {
   const caller = await verifyAdminPrivileges(request.auth);
   const { targetUid, newRole } = request.data;
@@ -131,7 +131,7 @@ exports.flexUpdateUserRole = onCall({
 
 // --- FUNKTION: Godkänn Coach ---
 exports.flexApproveCoach = onCall({
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, async (request) => {
   const caller = await verifyAdminPrivileges(request.auth);
   const { targetUid } = request.data;
@@ -162,7 +162,7 @@ exports.flexApproveCoach = onCall({
 
 // --- FUNKTION: Bjuda in användare ---
 exports.flexInviteUser = onCall({
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, async (request) => {
   const caller = await verifyAdminPrivileges(request.auth);
   const { email, role: inRole, organizationId, password } = request.data;
@@ -346,6 +346,9 @@ const app = express();
 app.use((req, res, next) => {
   const origin = req.headers.origin;
   const allowedOrigins = [
+    'https://staging-smartstudio.netlify.app',
+    'https://smartstudio.netlify.app',
+    'https://smartstudio.se',
     'https://staging-smartskarm.netlify.app',
     'https://smartskarm.netlify.app',
     'https://smartskarm.se',
@@ -353,6 +356,9 @@ app.use((req, res, next) => {
   ];
   if (allowedOrigins.includes(origin) || !origin) {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
+  } else {
+    // Tillåt även andra domäner tillfälligt för att undvika CORS-problem
+    res.setHeader('Access-Control-Allow-Origin', origin);
   }
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -443,6 +449,76 @@ async function updateStripeCoachCount(organizationId) {
     }
   } catch (error) {
     console.error(`Kunde inte uppdatera Stripe-prenumeration för org ${organizationId}:`, error);
+  }
+}
+
+/**
+ * Uppdaterar antalet extra skärmar i Stripe för en organisation.
+ * 1 skärm ingår, därefter kostar det extra.
+ */
+async function updateStripeScreenCount(organizationId) {
+  const db = admin.firestore();
+  
+  // Hämta organisationen
+  const orgDoc = await db.collection("organizations").doc(organizationId).get();
+  if (!orgDoc.exists) return;
+  const orgData = orgDoc.data();
+  
+  // Hämta ägaren för att få Stripe-prenumerationen
+  let ownerUid = orgData.ownerId;
+  if (!ownerUid) {
+    const adminsSnapshot = await db.collection("users")
+      .where("organizationId", "==", organizationId)
+      .where("role", "==", "organizationadmin")
+      .limit(1)
+      .get();
+      
+    if (!adminsSnapshot.empty) {
+      ownerUid = adminsSnapshot.docs[0].id;
+    } else {
+      return;
+    }
+  }
+
+  const ownerDoc = await db.collection("users").doc(ownerUid).get();
+  if (!ownerDoc.exists) return;
+
+  const ownerData = ownerDoc.data();
+  const stripeSubscriptionId = ownerData.stripeSubscriptionId;
+
+  if (!stripeSubscriptionId) return; // Kanske på faktura eller gratisperiod
+
+  // Räkna aktiva skärmar (studios)
+  const activeScreens = orgData.studios ? orgData.studios.length : 0;
+  const extraScreens = Math.max(0, activeScreens - 1); // 1 skärm ingår
+
+  const stripe = getStripe();
+  const screenFeePriceId = process.env.STRIPE_SCREEN_FEE_PRICE_ID;
+
+  if (!screenFeePriceId) {
+    console.error("STRIPE_SCREEN_FEE_PRICE_ID saknas i miljön.");
+    return;
+  }
+
+  try {
+    const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+    const screenItem = subscription.items.data.find(item => item.price.id === screenFeePriceId);
+
+    if (screenItem) {
+      if (screenItem.quantity !== extraScreens) {
+        await stripe.subscriptionItems.update(screenItem.id, { quantity: extraScreens });
+        console.log(`Uppdaterade skärm-antal till ${extraScreens} för org ${organizationId}`);
+      }
+    } else {
+      await stripe.subscriptionItems.create({
+        subscription: stripeSubscriptionId,
+        price: screenFeePriceId,
+        quantity: extraScreens
+      });
+      console.log(`Lade till skärm-avgift (${extraScreens} st) för org ${organizationId}`);
+    }
+  } catch (error) {
+    console.error(`Kunde inte uppdatera Stripe-prenumeration (skärmar) för org ${organizationId}:`, error);
   }
 }
 
@@ -560,8 +636,9 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
 
             console.log(`Org ${orgId} återställd till exakt mall och kopplad till ${userId}`);
             
-            // Lägg till "Extra Coach"-produkten i prenumerationen med kvantitet 0 direkt
+            // Lägg till "Extra Coach" och "Extra Skärm"-produkterna i prenumerationen med kvantitet 0 direkt
             await updateStripeCoachCount(orgId);
+            await updateStripeScreenCount(orgId);
           }
         }
       }
@@ -588,19 +665,32 @@ app.post("/create-checkout-session", async (req, res) => {
     });
 
     let priceId = paymentType === 'system_fee' ? process.env.STRIPE_SYSTEM_FEE_PRICE_ID : process.env.STRIPE_PRICE_ID;
-    const domain = req.headers.origin || 'https://smartskarm.se';
+    const coachFeePriceId = process.env.STRIPE_COACH_FEE_PRICE_ID;
+    const screenFeePriceId = process.env.STRIPE_SCREEN_FEE_PRICE_ID;
+    const domain = req.headers.origin || 'https://smartstudio.se';
 
     // Beräkna Unix-timestamp för den 1:a i nästa månad (UTC)
     const now = new Date();
     const nextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1, 0, 0, 0));
     const billingCycleAnchor = Math.floor(nextMonth.getTime() / 1000);
 
+    const lineItems = [{ price: priceId, quantity: 1 }];
+    
+    // OBS: Vi lägger INTE till coach-avgiften (coachFeePriceId) med kvantitet 0 här.
+    // Stripe tillåter inte kvantitet 0 för standardpriser vid skapande av Checkout Session.
+    // Denna läggs till automatiskt av updateStripeCoachCount när kunden faktiskt lägger till extra coacher.
+    
+    // OBS: Vi lägger INTE till skärm-avgiften (screenFeePriceId) med kvantitet 0 här längre.
+    // Stripe gillar inte alltid att man skickar in nya Price IDs med kvantitet 0 om de inte är 
+    // exakt rätt konfigurerade. Istället läggs denna rad till automatiskt av updateStripeScreenCount
+    // första gången kunden faktiskt lägger till en extra skärm.
+
     const session = await stripe.checkout.sessions.create({
       customer: customer.id,
       payment_method_types: ['card'],
       mode: 'subscription',
       allow_promotion_codes: true,
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: lineItems,
       subscription_data: {
         billing_cycle_anchor: billingCycleAnchor
       },
@@ -612,6 +702,7 @@ app.post("/create-checkout-session", async (req, res) => {
 
     res.json({ url: session.url });
   } catch (error) {
+    console.error("Error creating checkout session:", error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -651,7 +742,7 @@ app.post("/create-connect-account", async (req, res) => {
       });
     }
 
-    const domain = returnUrl || req.headers.origin || 'https://smartskarm.se';
+    const domain = returnUrl || req.headers.origin || 'https://smartstudio.se';
 
     // Skapa en onboarding-länk
     const accountLink = await stripe.accountLinks.create({
@@ -730,7 +821,7 @@ app.post("/create-member-checkout", async (req, res) => {
       metadata: { userId, organizationId }
     });
 
-    const domain = req.headers.origin || 'https://smartskarm.se';
+    const domain = req.headers.origin || 'https://smartstudio.se';
 
     // 19 kr av 39 kr = 48.7179%
     const applicationFeePercent = 48.7179;
@@ -743,7 +834,7 @@ app.post("/create-member-checkout", async (req, res) => {
         price_data: {
           currency: 'sek',
           product_data: {
-            name: 'SmartSkärm Medlemskap',
+            name: 'SmartStudio Medlemskap',
             description: `Medlemskap hos ${orgData.name || 'Gymmet'}`,
           },
           unit_amount: 3900, // 39.00 SEK
@@ -773,7 +864,7 @@ app.post("/create-member-checkout", async (req, res) => {
 });
 
 exports.api = onRequest({
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_SYSTEM_FEE_PRICE_ID", "STRIPE_PRICE_ID", "STRIPE_WEBHOOK_SECRET", "STRIPE_COACH_FEE_PRICE_ID"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_SYSTEM_FEE_PRICE_ID", "STRIPE_PRICE_ID", "STRIPE_WEBHOOK_SECRET", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, app);
 
 /**
@@ -781,7 +872,7 @@ exports.api = onRequest({
  */
 exports.onUserCreated = onDocumentCreated({
   document: "users/{userId}",
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, async (event) => {
   const newUser = event.data.data();
   if (newUser.role === 'coach' && newUser.status === 'active' && newUser.organizationId) {
@@ -791,7 +882,7 @@ exports.onUserCreated = onDocumentCreated({
 });
 exports.onUserUpdated = onDocumentUpdated({
   document: "users/{userId}",
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, async (event) => {
   const beforeData = event.data.before.data();
   const afterData = event.data.after.data();
@@ -809,7 +900,7 @@ exports.onUserUpdated = onDocumentUpdated({
 });
 exports.onUserDeleted = onDocumentDeleted({
   document: "users/{userId}",
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, async (event) => {
   const deletedUser = event.data.data();
   if (deletedUser.role === 'coach' && deletedUser.organizationId) {
@@ -819,7 +910,7 @@ exports.onUserDeleted = onDocumentDeleted({
 });
 exports.onOrganizationUpdated = onDocumentUpdated({
   document: "organizations/{orgId}",
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, async (event) => {
   const beforeData = event.data.before.data();
   const afterData = event.data.after.data();
@@ -832,9 +923,18 @@ exports.onOrganizationUpdated = onDocumentUpdated({
     console.log(`maxFreeCoaches ändrades från ${beforeMax} till ${afterMax} för org ${event.params.orgId}. Uppdaterar Stripe...`);
     await updateStripeCoachCount(event.params.orgId);
   }
+
+  // Kolla om antalet studios (skärmar) har ändrats
+  const beforeStudiosCount = beforeData.studios ? beforeData.studios.length : 0;
+  const afterStudiosCount = afterData.studios ? afterData.studios.length : 0;
+
+  if (beforeStudiosCount !== afterStudiosCount) {
+    console.log(`Antal skärmar ändrades från ${beforeStudiosCount} till ${afterStudiosCount} för org ${event.params.orgId}. Uppdaterar Stripe...`);
+    await updateStripeScreenCount(event.params.orgId);
+  }
 });
 exports.flexUpdateOrganization = onCall({
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, async (request) => {
   const caller = await verifyAdminPrivileges(request.auth);
   const { organizationId, updateData } = request.data;

@@ -80,8 +80,13 @@ ${availableExercises.join(', ')}
 
 INSTRUKTIONER:
 1. Svara på användarens meddelande i fältet 'replyText'. Var peppande, kortfattad och professionell.
-2. Om användaren ber dig att ÄNDRA passet (t.ex. "byt ut X mot Y", "lägg till Z", "gör om till AMRAP"), gör ändringarna och returnera det kompletta, uppdaterade passet i fältet 'updatedWorkout'.
-3. Om användaren bara ber om RÅD eller FÖRSLAG (t.ex. "vad kan jag köra för ben?", "ge mig 3 bra core-övningar"), returnera förslagen i fältet 'suggestedExercises'. Ändra INTE passet ('updatedWorkout') om användaren inte explicit bett dig göra det.
+2. Om användaren UTTRYCKLIGEN ber dig att ÄNDRA passet (t.ex. "byt ut X mot Y", "lägg till Z", "gör om till AMRAP"):
+   - Sätt 'didModifyWorkout' till true.
+   - Gör ändringarna och returnera det kompletta, uppdaterade passet i fältet 'updatedWorkout'.
+3. Om användaren BARA ställer en fråga eller ber om RÅD/FÖRSLAG (t.ex. "vad kan jag köra för ben?", "ge mig 3 bra core-övningar", "ser passet bra ut?"):
+   - Sätt 'didModifyWorkout' till false.
+   - Lämna 'updatedWorkout' tomt.
+   - Returnera eventuella förslag i fältet 'suggestedExercises'.
 4. Om du returnerar 'suggestedExercises', se till att de är relevanta och gärna hämtade från TILLGÄNGLIGA ÖVNINGAR om möjligt.
 `;
 
