@@ -446,6 +446,76 @@ async function updateStripeCoachCount(organizationId) {
   }
 }
 
+/**
+ * Uppdaterar antalet extra skärmar i Stripe för en organisation.
+ * 1 skärm ingår, därefter kostar det extra.
+ */
+async function updateStripeScreenCount(organizationId) {
+  const db = admin.firestore();
+  
+  // Hämta organisationen
+  const orgDoc = await db.collection("organizations").doc(organizationId).get();
+  if (!orgDoc.exists) return;
+  const orgData = orgDoc.data();
+  
+  // Hämta ägaren för att få Stripe-prenumerationen
+  let ownerUid = orgData.ownerId;
+  if (!ownerUid) {
+    const adminsSnapshot = await db.collection("users")
+      .where("organizationId", "==", organizationId)
+      .where("role", "==", "organizationadmin")
+      .limit(1)
+      .get();
+      
+    if (!adminsSnapshot.empty) {
+      ownerUid = adminsSnapshot.docs[0].id;
+    } else {
+      return;
+    }
+  }
+
+  const ownerDoc = await db.collection("users").doc(ownerUid).get();
+  if (!ownerDoc.exists) return;
+
+  const ownerData = ownerDoc.data();
+  const stripeSubscriptionId = ownerData.stripeSubscriptionId;
+
+  if (!stripeSubscriptionId) return; // Kanske på faktura eller gratisperiod
+
+  // Räkna aktiva skärmar (studios)
+  const activeScreens = orgData.studios ? orgData.studios.length : 0;
+  const extraScreens = Math.max(0, activeScreens - 1); // 1 skärm ingår
+
+  const stripe = getStripe();
+  const screenFeePriceId = process.env.STRIPE_SCREEN_FEE_PRICE_ID;
+
+  if (!screenFeePriceId) {
+    console.error("STRIPE_SCREEN_FEE_PRICE_ID saknas i miljön.");
+    return;
+  }
+
+  try {
+    const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+    const screenItem = subscription.items.data.find(item => item.price.id === screenFeePriceId);
+
+    if (screenItem) {
+      if (screenItem.quantity !== extraScreens) {
+        await stripe.subscriptionItems.update(screenItem.id, { quantity: extraScreens });
+        console.log(`Uppdaterade skärm-antal till ${extraScreens} för org ${organizationId}`);
+      }
+    } else {
+      await stripe.subscriptionItems.create({
+        subscription: stripeSubscriptionId,
+        price: screenFeePriceId,
+        quantity: extraScreens
+      });
+      console.log(`Lade till skärm-avgift (${extraScreens} st) för org ${organizationId}`);
+    }
+  } catch (error) {
+    console.error(`Kunde inte uppdatera Stripe-prenumeration (skärmar) för org ${organizationId}:`, error);
+  }
+}
+
 // 1. WEBHOOKS (LÅST TILL EXAKT STRUKTUR)
 app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) => {
   try {
@@ -845,6 +915,15 @@ exports.onOrganizationUpdated = onDocumentUpdated({
   if (beforeMax !== afterMax) {
     console.log(`maxFreeCoaches ändrades från ${beforeMax} till ${afterMax} för org ${event.params.orgId}. Uppdaterar Stripe...`);
     await updateStripeCoachCount(event.params.orgId);
+  }
+
+  // Kolla om antalet studios (skärmar) har ändrats
+  const beforeStudiosCount = beforeData.studios ? beforeData.studios.length : 0;
+  const afterStudiosCount = afterData.studios ? afterData.studios.length : 0;
+
+  if (beforeStudiosCount !== afterStudiosCount) {
+    console.log(`Antal skärmar ändrades från ${beforeStudiosCount} till ${afterStudiosCount} för org ${event.params.orgId}. Uppdaterar Stripe...`);
+    await updateStripeScreenCount(event.params.orgId);
   }
 });
 exports.flexUpdateOrganization = onCall({
