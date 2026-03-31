@@ -399,6 +399,23 @@ export const RefreshIcon: React.FC<{ className?: string }> = ({ className = "w-6
     </svg>
 );
 
+export const DicesIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <rect x="2" y="10" width="10" height="10" rx="2" strokeWidth={2} />
+        <rect x="12" y="4" width="10" height="10" rx="2" strokeWidth={2} />
+        <circle cx="7" cy="15" r="1" fill="currentColor" />
+        <circle cx="17" cy="9" r="1" fill="currentColor" />
+    </svg>
+);
+
+export const SlotMachineIcon: React.FC<{ className?: string }> = ({ className = "w-6 h-6" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <rect x="3" y="3" width="14" height="18" rx="2" strokeWidth={2} />
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 10h4v4h-4 M7 8h6 M7 12h6 M7 16h6" />
+        <circle cx="21" cy="10" r="2" fill="currentColor" />
+    </svg>
+);
+
 export const getIconComponent = (iconKey: string): React.FC<{ className?: string }> => {
     switch(iconKey) {
         case 'dumbbell': return DumbbellIcon;

@@ -47,11 +47,10 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
                     enableWorkoutLogging: false,
                     enableScreensaver: true
                 },
-                // Lägger till standardlösenord för att matcha er Organizations-typ
                 passwords: {
-                    admin: '1234',
                     coach: '1234'
-                }
+                },
+                systemFeePaid: false // Detta triggar WelcomePaywall i App.tsx
             });
 
             // 3. Skapa användarprofilen i Firestore
@@ -62,7 +61,6 @@ export const RegisterGymScreen: React.FC<RegisterGymScreenProps> = ({ onCancel }
                 lastName,
                 organizationId: orgId,
                 role: 'organizationadmin',
-                systemFeePaid: false, // Detta triggar WelcomePaywall i App.tsx
                 createdAt: serverTimestamp()
             });
 

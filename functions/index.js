@@ -386,29 +386,9 @@ async function updateStripeCoachCount(organizationId) {
   if (!orgDoc.exists) return;
 
   const orgData = orgDoc.data();
-  let ownerUid = orgData.ownerUid;
   const maxFreeCoaches = orgData.maxFreeCoaches || 5;
   
-  if (!ownerUid) {
-    // Fallback: Hitta en admin för denna organisation
-    const adminsSnapshot = await db.collection("users")
-      .where("organizationId", "==", organizationId)
-      .where("role", "==", "organizationadmin")
-      .limit(1)
-      .get();
-      
-    if (!adminsSnapshot.empty) {
-      ownerUid = adminsSnapshot.docs[0].id;
-    } else {
-      return;
-    }
-  }
-
-  const ownerDoc = await db.collection("users").doc(ownerUid).get();
-  if (!ownerDoc.exists) return;
-
-  const ownerData = ownerDoc.data();
-  const stripeSubscriptionId = ownerData.stripeSubscriptionId;
+  const stripeSubscriptionId = orgData.stripeSubscriptionId;
 
   if (!stripeSubscriptionId) return; // Kanske på faktura eller gratisperiod
 
@@ -464,27 +444,7 @@ async function updateStripeScreenCount(organizationId) {
   if (!orgDoc.exists) return;
   const orgData = orgDoc.data();
   
-  // Hämta ägaren för att få Stripe-prenumerationen
-  let ownerUid = orgData.ownerId;
-  if (!ownerUid) {
-    const adminsSnapshot = await db.collection("users")
-      .where("organizationId", "==", organizationId)
-      .where("role", "==", "organizationadmin")
-      .limit(1)
-      .get();
-      
-    if (!adminsSnapshot.empty) {
-      ownerUid = adminsSnapshot.docs[0].id;
-    } else {
-      return;
-    }
-  }
-
-  const ownerDoc = await db.collection("users").doc(ownerUid).get();
-  if (!ownerDoc.exists) return;
-
-  const ownerData = ownerDoc.data();
-  const stripeSubscriptionId = ownerData.stripeSubscriptionId;
+  const stripeSubscriptionId = orgData.stripeSubscriptionId;
 
   if (!stripeSubscriptionId) return; // Kanske på faktura eller gratisperiod
 
@@ -606,23 +566,25 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
               },
               status: "active",
               studios: currentOrgData.studios || [],
-              subdomain: currentOrgData.subdomain || ""
-            };
-
-            // Vi använder .set(exactStructure) för att tvinga dokumentet att BARA ha dessa fält
-            await db.collection('organizations').doc(orgId).set(exactStructure, { merge: true });
-
-            const userUpdateData = {
+              subdomain: currentOrgData.subdomain || "",
               stripeCustomerId: session.customer,
-              role: 'organizationadmin',
-              organizationId: orgId,
               stripeSubscriptionId: session.subscription
             };
 
             if (paymentType === 'system_fee') {
-              userUpdateData.systemFeePaid = true;
-              userUpdateData.systemFeeDate = admin.firestore.FieldValue.serverTimestamp();
-            } else {
+              exactStructure.systemFeePaid = true;
+              exactStructure.systemFeeDate = admin.firestore.FieldValue.serverTimestamp();
+            }
+
+            // Vi använder .set(exactStructure) för att tvinga dokumentet att BARA ha dessa fält + stripe fält
+            await db.collection('organizations').doc(orgId).set(exactStructure, { merge: true });
+
+            const userUpdateData = {
+              role: 'organizationadmin',
+              organizationId: orgId
+            };
+
+            if (paymentType !== 'system_fee') {
               userUpdateData.subscriptionStatus = 'active';
             }
 

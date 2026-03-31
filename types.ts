@@ -56,6 +56,7 @@ export enum Page {
   MobileLog,
   MyStrength, 
   RemoteControl, // NYTT: Fjärrkontrollssida
+  WorkoutGamesHub, // NYTT: Träningslekar
 }
 
 export enum TimerMode {
@@ -174,6 +175,7 @@ export interface StudioConfig {
   enableHyrox?: boolean;
   enableNotes?: boolean;
   enableWorkoutLogging?: boolean;
+  enableWorkoutGames?: boolean; // NYTT: Träningslekar
   checkInImageEnabled?: boolean;
   checkInImageUrl?: string;
   seasonalTheme?: ThemeOption;
@@ -278,7 +280,7 @@ export interface Organization {
   logoUrlDark?: string;
   faviconUrl?: string;
   primaryColor?: string;
-  passwords: {
+  passwords?: {
     coach: string;
   };
   globalConfig: StudioConfig;
@@ -302,6 +304,12 @@ export interface Organization {
   freeCoachAccounts?: number; // NYTT: Antal gratis coach-konton
   stripeConnectAccountId?: string;
   stripeConnectSetupComplete?: boolean;
+  
+  // Subscription / Payment fields
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  systemFeePaid?: boolean;
+  systemFeeDate?: number;
 }
 
 export interface StartGroup {
@@ -367,8 +375,6 @@ export interface UserData {
   
   // Subscription / Payment fields
   subscriptionStatus?: 'active' | 'inactive' | 'trialing' | 'past_due' | 'canceled';
-  stripeCustomerId?: string;
-  stripeSubscriptionId?: string;
 }
 
 export interface SmartGoalDetail {

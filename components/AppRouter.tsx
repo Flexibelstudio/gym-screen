@@ -26,6 +26,7 @@ import { TimerScreen } from './TimerScreen';
 import WorkoutDetailScreen from './WorkoutDetailScreen';
 import { WarmupScreen } from './WarmupScreen';
 import { WorkoutLogScreen } from '../mobile/screens/WorkoutLogScreen';
+import { WorkoutGamesHubScreen } from './games/WorkoutGamesHubScreen';
 
 interface AppRouterProps {
     page: Page;
@@ -121,6 +122,7 @@ interface AppRouterProps {
         handleMemberProfileRequest: () => void;
         handleEditProfileRequest: () => void;
         handleLogWorkoutRequest: (workoutId: string, orgId: string) => void;
+        checkUnsavedChanges: () => boolean;
     }
 }
 
@@ -295,6 +297,12 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
             if (!activeRaceId) return <div>Inget lopp valt</div>;
             return <HyroxRaceDetailScreen raceId={activeRaceId} onBack={handleBack} />;
 
+        case Page.WorkoutGamesHub:
+            return <WorkoutGamesHubScreen 
+                onBack={handleBack} 
+                setCustomBackHandler={functions.setCustomBackHandler}
+            />;
+
         case Page.MemberRegistry:
             return <MemberManagementScreen onSelectMember={() => {}} />;
 
@@ -331,6 +339,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onSave={functions.saveCustomPage} 
                 onCancel={handleBack} 
                 pageToEdit={activeCustomPage}
+                setCustomBackHandler={functions.setCustomBackHandler}
             />;
 
         case Page.SuperAdmin:
@@ -366,6 +375,8 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onBack={functions.handleGoToSystemOwner}
                 onGoToSystemOwner={functions.handleGoToSystemOwner}
                 initialTab={preferredAdminTab}
+                setCustomBackHandler={functions.setCustomBackHandler}
+                checkUnsavedChanges={functions.checkUnsavedChanges}
             />;
 
         case Page.SystemOwner:

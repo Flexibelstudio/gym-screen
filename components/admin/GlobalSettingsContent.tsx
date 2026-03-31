@@ -56,6 +56,15 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                         {/* ... Existing toggles ... */}
                         <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch 
+                                label="Träningslekar (Smart Play)" 
+                                checked={!!config.enableWorkoutGames} 
+                                onChange={(checked) => handleUpdateConfigField('enableWorkoutGames', checked)} 
+                            />
+                            <p className="text-xs text-gray-500 mt-2 pl-2">Aktiverar kortlekar, tärningar och andra träningsspel på skärmen.</p>
+                        </div>
+
+                        <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                            <ToggleSwitch 
                                 label="HYROX-modul" 
                                 checked={!!config.enableHyrox} 
                                 onChange={(checked) => handleUpdateConfigField('enableHyrox', checked)} 

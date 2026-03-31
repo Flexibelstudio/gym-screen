@@ -178,6 +178,38 @@ export const playShortBeep = () => {
     playTone(ctx, 880, 'triangle', ctx.currentTime, 0.1, 0.2);
 };
 
+export const playTada = () => {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    const now = ctx.currentTime;
+    
+    // C4, E4, G4, C5 (Arpeggio)
+    const freqs = [261.63, 329.63, 392.00, 523.25];
+    freqs.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + i * 0.1);
+        
+        gain.gain.setValueAtTime(0, now + i * 0.1);
+        gain.gain.linearRampToValueAtTime(0.3, now + i * 0.1 + 0.05);
+        
+        if (i === freqs.length - 1) {
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 1.0);
+            osc.start(now + i * 0.1);
+            osc.stop(now + i * 0.1 + 1.0);
+        } else {
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.2);
+            osc.start(now + i * 0.1);
+            osc.stop(now + i * 0.1 + 0.2);
+        }
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+    });
+};
+
 export const playBoxingBell = (strikes: number) => {
     // Legacy support wrapper - defaults to boxing sound
     playTimerSound('boxing', strikes);
@@ -267,7 +299,7 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
 
   const totalBlockDuration = useMemo(() => {
       if (!block) return 0;
-      return calculateBlockDuration(block.settings, block.exercises.length);
+      return calculateBlockDuration(block.settings, block.exercises?.length || 0);
   }, [block]);
 
   // CUSTOM TIMER: Flatten sequence to simplify logic

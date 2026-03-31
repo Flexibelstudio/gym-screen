@@ -78,8 +78,8 @@ const App: React.FC = () => {
 
   const showWelcomePaywall = useMemo(() => {
       if (!currentUser || role !== 'organizationadmin' || isStudioMode) return false;
-      return userData?.systemFeePaid === false;
-  }, [role, userData?.systemFeePaid, isStudioMode, currentUser]);
+      return selectedOrganization?.systemFeePaid === false;
+  }, [role, selectedOrganization?.systemFeePaid, isStudioMode, currentUser]);
 
   const hasActiveSubscription = useMemo(() => {
       if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
@@ -1178,7 +1178,7 @@ const App: React.FC = () => {
   const paddingClass = isFullScreenPage ? '' : 'p-4 sm:p-6 lg:p-8';
   
   const isAdminOrCoach = role === 'systemowner' || role === 'organizationadmin' || role === 'coach';
-  const isMemberFacingPage = [Page.Home, Page.WorkoutDetail, Page.SavedWorkouts, Page.MemberProfile, Page.WorkoutList].includes(page);
+  const isMemberFacingPage = [Page.Home, Page.WorkoutDetail, Page.SavedWorkouts, Page.MemberProfile, Page.WorkoutList, Page.WorkoutGamesHub].includes(page);
   const isAdminFacingPage = [Page.Coach, Page.SuperAdmin, Page.SystemOwner, Page.AdminAnalytics, Page.MemberRegistry].includes(page);
 
   const showSupportChat = !isStudioMode && isAdminOrCoach && isAdminFacingPage;
