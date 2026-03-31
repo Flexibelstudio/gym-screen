@@ -57,7 +57,14 @@ const getSuitSymbol = (suit: Suit) => {
 };
 
 const getSuitColor = (suit: Suit) => {
-    return suit === 'hearts' || suit === 'diamonds' ? 'text-red-600 dark:text-red-500' : 'text-black dark:text-white';
+    switch (suit) {
+        case 'hearts':
+        case 'diamonds':
+            return 'text-red-600 dark:text-red-500';
+        case 'clubs':
+        case 'spades':
+            return 'text-black dark:text-white';
+    }
 };
 
 export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
@@ -172,22 +179,18 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
 
     if (gameState === 'setup') {
         return (
-            <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-gray-950 p-6 sm:p-10 overflow-y-auto">
-                <div className="flex items-center justify-between mb-8">
-                    <div>
-                        <h2 className="text-3xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tight uppercase">
-                            Kortleken - Inställningar
-                        </h2>
-                    </div>
-                    <button
-                        onClick={onBack}
-                        className="px-6 py-3 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                    >
-                        Tillbaka
-                    </button>
+            <div className="w-full max-w-5xl mx-auto px-6 pb-12 animate-fade-in flex flex-col items-center justify-center min-h-[80vh]">
+                <div className="text-center mb-10 w-full">
+                    <h1 className="text-5xl font-black text-gray-900 dark:text-white mb-2 tracking-tight uppercase">
+                        Kortleken
+                    </h1>
+                    <div className="h-1.5 w-24 bg-primary mx-auto rounded-full mb-4"></div>
+                    <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">
+                        Inställningar
+                    </p>
                 </div>
 
-                <div className="max-w-3xl mx-auto w-full space-y-8 bg-white dark:bg-gray-900 p-8 rounded-[2rem] shadow-xl border border-gray-100 dark:border-gray-800">
+                <div className="max-w-3xl mx-auto w-full space-y-8 bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.15)] border border-gray-100 dark:border-gray-800">
                     
                     {/* Difficulty */}
                     <div>
@@ -274,8 +277,8 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
     }
 
     return (
-        <div className="flex-1 flex flex-col w-full h-full">
-            <div className="flex items-center justify-between mb-8 z-10">
+        <div className="w-full max-w-5xl mx-auto px-6 pb-12 animate-fade-in flex flex-col justify-center min-h-[80vh]">
+            <div className="flex items-center justify-between mb-12 z-10">
                 <div>
                     <h2 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tight uppercase">
                         Kortleken
@@ -302,34 +305,37 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
             </div>
 
             {goalType === 'time' && (
-                <div className="flex flex-col items-center justify-center mb-4 z-10">
-                    <div className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[7rem] sm:text-[9rem] md:text-[11rem] text-gray-900 dark:text-white">
-                        {formatTime(timeLeft)}
-                    </div>
-                    <div className="flex gap-4 mt-6">
-                        {!hasStartedTimer || !isTimerRunning ? (
-                            <button 
-                                onClick={() => {
-                                    setIsTimerRunning(true);
-                                    setHasStartedTimer(true);
-                                }}
-                                className="px-12 py-4 bg-green-500 hover:bg-green-600 text-white rounded-full font-black text-2xl uppercase tracking-widest shadow-lg transition-transform active:scale-95"
-                            >
-                                {hasStartedTimer ? 'Fortsätt' : 'Starta Timer'}
-                            </button>
-                        ) : (
-                            <button 
-                                onClick={() => setIsTimerRunning(false)}
-                                className="px-12 py-4 bg-yellow-500 hover:bg-yellow-600 text-white rounded-full font-black text-2xl uppercase tracking-widest shadow-lg transition-transform active:scale-95"
-                            >
-                                Pausa
-                            </button>
-                        )}
+                <div className="flex flex-col items-center justify-center mb-8 z-10">
+                    <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.15)] border border-gray-100 dark:border-gray-800 px-12 py-8 flex flex-col items-center justify-center relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10"></div>
+                        <div className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl select-none text-[6rem] sm:text-[8rem] md:text-[10rem] text-primary relative z-10">
+                            {formatTime(timeLeft)}
+                        </div>
+                        <div className="flex gap-4 mt-8 relative z-10">
+                            {!hasStartedTimer || !isTimerRunning ? (
+                                <button 
+                                    onClick={() => {
+                                        setIsTimerRunning(true);
+                                        setHasStartedTimer(true);
+                                    }}
+                                    className="px-10 py-4 bg-green-500 hover:bg-green-600 text-white rounded-2xl font-black text-xl uppercase tracking-widest shadow-lg transition-transform active:scale-95"
+                                >
+                                    {hasStartedTimer ? 'Fortsätt' : 'Starta Timer'}
+                                </button>
+                            ) : (
+                                <button 
+                                    onClick={() => setIsTimerRunning(false)}
+                                    className="px-10 py-4 bg-yellow-500 hover:bg-yellow-600 text-white rounded-2xl font-black text-xl uppercase tracking-widest shadow-lg transition-transform active:scale-95"
+                                >
+                                    Pausa
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             )}
 
-            <div className="flex-grow flex flex-col items-center justify-center z-10 mt-4">
+            <div className="flex flex-col items-center justify-center z-10 mt-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-24 w-full max-w-7xl mx-auto justify-items-center items-center">
                     
                     {/* Deck / Draw Button */}
@@ -376,7 +382,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                                         <div className="text-4xl mt-2">{getSuitSymbol(currentCard.suit)}</div>
                                     </div>
                                     
-                                    <div className={`absolute inset-0 flex items-center justify-center text-[10rem] opacity-10 dark:opacity-20 ${getSuitColor(currentCard.suit)}`}>
+                                    <div className={`absolute inset-0 flex items-center justify-center text-[10rem] ${getSuitColor(currentCard.suit)}`}>
                                         {getSuitSymbol(currentCard.suit)}
                                     </div>
                                     
