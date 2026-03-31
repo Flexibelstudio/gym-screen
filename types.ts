@@ -56,6 +56,7 @@ export enum Page {
   MobileLog,
   MyStrength, 
   RemoteControl, // NYTT: Fjärrkontrollssida
+  WorkoutGamesHub, // NYTT: Träningslekar
 }
 
 export enum TimerMode {
@@ -174,6 +175,7 @@ export interface StudioConfig {
   enableHyrox?: boolean;
   enableNotes?: boolean;
   enableWorkoutLogging?: boolean;
+  enableWorkoutGames?: boolean; // NYTT: Träningslekar
   checkInImageEnabled?: boolean;
   checkInImageUrl?: string;
   seasonalTheme?: ThemeOption;

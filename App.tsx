@@ -1174,11 +1174,11 @@ const App: React.FC = () => {
     navigateTo(Page.HyroxRaceDetail);
   };
 
-  const isFullScreenPage = page === Page.Timer || page === Page.RepsOnly || page === Page.IdeaBoard || page === Page.RemoteControl;
+  const isFullScreenPage = page === Page.Timer || page === Page.RepsOnly || page === Page.IdeaBoard || page === Page.RemoteControl || page === Page.WorkoutGamesHub;
   const paddingClass = isFullScreenPage ? '' : 'p-4 sm:p-6 lg:p-8';
   
   const isAdminOrCoach = role === 'systemowner' || role === 'organizationadmin' || role === 'coach';
-  const isMemberFacingPage = [Page.Home, Page.WorkoutDetail, Page.SavedWorkouts, Page.MemberProfile, Page.WorkoutList].includes(page);
+  const isMemberFacingPage = [Page.Home, Page.WorkoutDetail, Page.SavedWorkouts, Page.MemberProfile, Page.WorkoutList, Page.WorkoutGamesHub].includes(page);
   const isAdminFacingPage = [Page.Coach, Page.SuperAdmin, Page.SystemOwner, Page.AdminAnalytics, Page.MemberRegistry].includes(page);
 
   const showSupportChat = !isStudioMode && isAdminOrCoach && isAdminFacingPage;

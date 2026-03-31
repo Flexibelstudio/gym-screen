@@ -260,6 +260,7 @@ export const Header: React.FC<HeaderProps> = ({
       case Page.Hyrox: return "HYROX Träning";
       case Page.HyroxRaceList: return "Tidigare Lopp";
       case Page.HyroxRaceDetail: return "Resultat";
+      case Page.WorkoutGamesHub: return "Träningslekar";
       case Page.MemberRegistry: return "Medlemsregister";
       case Page.MobileLog: return "Logga Pass";
       case Page.AdminAnalytics: return "Statistik & Trender";
