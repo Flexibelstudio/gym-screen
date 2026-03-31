@@ -83,6 +83,14 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
     const [timeLeft, setTimeLeft] = useState<number>(0);
     const [isTimerRunning, setIsTimerRunning] = useState(false);
     const [hasStartedTimer, setHasStartedTimer] = useState(false);
+    const [showTimerControls, setShowTimerControls] = useState(false);
+
+    useEffect(() => {
+        if (showTimerControls) {
+            const timer = setTimeout(() => setShowTimerControls(false), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [showTimerControls]);
 
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -306,29 +314,24 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
 
             {goalType === 'time' && (
                 <div className="flex flex-col items-center justify-center mb-8 z-10">
-                    <div className="flex flex-col items-center justify-center relative group">
+                    <div 
+                        className="flex flex-col items-center justify-center relative group cursor-pointer"
+                        onClick={() => setShowTimerControls(true)}
+                    >
                         <div className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl select-none text-[6rem] sm:text-[8rem] md:text-[10rem] text-primary relative z-10">
                             {formatTime(timeLeft)}
                         </div>
-                        <div className={`flex gap-4 mt-8 relative z-10 transition-opacity duration-300 ${isTimerRunning ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>
-                            {!hasStartedTimer || !isTimerRunning ? (
-                                <button 
-                                    onClick={() => {
-                                        setIsTimerRunning(true);
-                                        setHasStartedTimer(true);
-                                    }}
-                                    className="px-10 py-4 bg-green-500 hover:bg-green-600 text-white rounded-2xl font-black text-xl uppercase tracking-widest shadow-lg transition-transform active:scale-95"
-                                >
-                                    {hasStartedTimer ? 'Fortsätt' : 'Starta Timer'}
-                                </button>
-                            ) : (
-                                <button 
-                                    onClick={() => setIsTimerRunning(false)}
-                                    className="px-10 py-4 bg-yellow-500 hover:bg-yellow-600 text-white rounded-2xl font-black text-xl uppercase tracking-widest shadow-lg transition-transform active:scale-95"
-                                >
-                                    Pausa
-                                </button>
-                            )}
+                        <div className={`flex gap-4 mt-8 relative z-10 transition-opacity duration-300 ${!hasStartedTimer ? 'opacity-0 pointer-events-none' : isTimerRunning ? (showTimerControls ? 'opacity-100' : 'opacity-0 group-hover:opacity-100') : 'opacity-100'}`}>
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsTimerRunning(!isTimerRunning);
+                                    setShowTimerControls(false);
+                                }}
+                                className={`px-10 py-4 text-white rounded-2xl font-black text-xl uppercase tracking-widest shadow-lg transition-transform active:scale-95 ${isTimerRunning ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-500 hover:bg-green-600'}`}
+                            >
+                                {isTimerRunning ? 'Pausa' : 'Fortsätt'}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -343,10 +346,11 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                             onClick={() => {
                                 if (isGoalReached) {
                                     handleFinishGame();
-                                } else if (goalType === 'time' && (!hasStartedTimer || !isTimerRunning)) {
-                                    setIsTimerRunning(true);
-                                    setHasStartedTimer(true);
                                 } else {
+                                    if (goalType === 'time' && (!hasStartedTimer || !isTimerRunning)) {
+                                        setIsTimerRunning(true);
+                                        setHasStartedTimer(true);
+                                    }
                                     drawCard();
                                 }
                             }}
@@ -358,7 +362,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                         >
                             <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-2xl">
                                 <span className="text-white font-black text-4xl uppercase tracking-widest drop-shadow-md text-center px-4">
-                                    {isGoalReached ? 'Klar!' : (goalType === 'time' && (!hasStartedTimer || !isTimerRunning) ? 'Starta timer' : 'Dra Kort')}
+                                    {isGoalReached ? 'Klar!' : 'Dra Kort'}
                                 </span>
                             </div>
                         </button>
