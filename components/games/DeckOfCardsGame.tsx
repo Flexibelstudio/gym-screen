@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useStudio } from '../../context/StudioContext';
 import { playTimerSound } from '../../hooks/useWorkoutTimer';
 import { WorkoutCompleteModal } from '../WorkoutCompleteModal';
+import { MOCK_EXERCISE_BANK } from '../../data/mockData';
 
 interface DeckOfCardsGameProps {
     onBack: () => void;
@@ -70,10 +71,18 @@ const getSuitColor = (suit: Suit) => {
 export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
     const { studioConfig } = useStudio();
     const [gameState, setGameState] = useState<'setup' | 'playing' | 'finished'>('setup');
-    const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
+    const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'custom'>('medium');
     const [goalType, setGoalType] = useState<'deck' | 'time' | 'rounds'>('deck');
     const [goalValue, setGoalValue] = useState<number>(10); // 10 minutes or 10 rounds
     
+    const [customExercises, setCustomExercises] = useState<Record<Suit, string>>({
+        hearts: '',
+        diamonds: '',
+        clubs: '',
+        spades: ''
+    });
+    const [focusedSuit, setFocusedSuit] = useState<Suit | null>(null);
+
     const [deck, setDeck] = useState<Card[]>([]);
     const [currentCard, setCurrentCard] = useState<Card | null>(null);
     const [drawnCards, setDrawnCards] = useState<Card[]>([]);
@@ -109,6 +118,9 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
     }, [isTimerRunning, timeLeft]);
 
     const getExerciseForSuit = (suit: Suit) => {
+        if (difficulty === 'custom') {
+            return customExercises[suit] || 'Valfri övning';
+        }
         if (difficulty === 'easy') {
             switch (suit) {
                 case 'hearts': return 'Jumping Jacks';
@@ -203,8 +215,8 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                     {/* Difficulty */}
                     <div>
                         <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 uppercase tracking-tight">Svårighetsgrad</h3>
-                        <div className="grid grid-cols-3 gap-4">
-                            {(['easy', 'medium', 'hard'] as const).map(level => (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {(['easy', 'medium', 'hard', 'custom'] as const).map(level => (
                                 <button
                                     key={level}
                                     onClick={() => setDifficulty(level)}
@@ -214,11 +226,58 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                                             : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'
                                     }`}
                                 >
-                                    {level === 'easy' ? 'Lätt' : level === 'medium' ? 'Medel' : 'Tuff'}
+                                    {level === 'easy' ? 'Lätt' : level === 'medium' ? 'Medel' : level === 'hard' ? 'Tuff' : 'Egen'}
                                 </button>
                             ))}
                         </div>
                     </div>
+
+                    {/* Custom Exercises Input */}
+                    {difficulty === 'custom' && (
+                        <div className="space-y-4 animate-fade-in">
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 uppercase tracking-tight">Dina övningar</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {(['hearts', 'diamonds', 'clubs', 'spades'] as Suit[]).map(suit => (
+                                    <div key={suit} className="relative flex items-center gap-4 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
+                                        <div className={`text-3xl w-10 text-center ${getSuitColor(suit)}`}>
+                                            {getSuitSymbol(suit)}
+                                        </div>
+                                        <div className="relative flex-1">
+                                            <input
+                                                type="text"
+                                                value={customExercises[suit]}
+                                                onChange={(e) => setCustomExercises(prev => ({ ...prev, [suit]: e.target.value }))}
+                                                onFocus={() => setFocusedSuit(suit)}
+                                                onBlur={() => setTimeout(() => setFocusedSuit(null), 200)}
+                                                placeholder={`Övning för ${suit === 'hearts' ? 'Hjärter' : suit === 'diamonds' ? 'Ruter' : suit === 'clubs' ? 'Klöver' : 'Spader'}`}
+                                                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all"
+                                            />
+                                            {focusedSuit === suit && customExercises[suit].length > 0 && (
+                                                <div className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl max-h-48 overflow-y-auto">
+                                                    {MOCK_EXERCISE_BANK
+                                                        .filter(ex => ex.name.toLowerCase().includes(customExercises[suit].toLowerCase()))
+                                                        .slice(0, 5)
+                                                        .map(ex => (
+                                                            <button
+                                                                key={ex.id}
+                                                                className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-white transition-colors border-b border-gray-100 dark:border-gray-700/50 last:border-0"
+                                                                onClick={() => {
+                                                                    setCustomExercises(prev => ({ ...prev, [suit]: ex.name }));
+                                                                    setFocusedSuit(null);
+                                                                }}
+                                                            >
+                                                                <span className="font-bold block">{ex.name}</span>
+                                                                <span className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{ex.description}</span>
+                                                            </button>
+                                                        ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Goal Type */}
                     <div>
