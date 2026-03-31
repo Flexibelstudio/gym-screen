@@ -56,7 +56,7 @@ const getSuitSymbol = (suit: Suit) => {
 };
 
 const getSuitColor = (suit: Suit) => {
-    return suit === 'hearts' || suit === 'diamonds' ? 'text-red-600 dark:text-red-500' : 'text-gray-900 dark:text-white';
+    return suit === 'hearts' || suit === 'diamonds' ? 'text-red-600 dark:text-red-500' : 'text-black dark:text-white';
 };
 
 export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
@@ -70,6 +70,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
     const [currentCard, setCurrentCard] = useState<Card | null>(null);
     const [drawnCards, setDrawnCards] = useState<Card[]>([]);
     const [isFlipping, setIsFlipping] = useState(false);
+    const [showKlarModal, setShowKlarModal] = useState(false);
     
     // Timer state
     const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -124,6 +125,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
         setDrawnCards([]);
         setHasStartedTimer(false);
         setIsTimerRunning(false);
+        setShowKlarModal(false);
         
         if (goalType === 'time') {
             setTimeLeft(goalValue * 60);
@@ -139,9 +141,18 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
     };
 
     const isGoalReached = 
-        (goalType === 'deck' && deck.length === 0) ||
+        (goalType === 'deck' && deck.length === 0 && drawnCards.length > 0) ||
         (goalType === 'rounds' && drawnCards.length >= goalValue) ||
         (goalType === 'time' && timeLeft === 0 && hasStartedTimer);
+
+    useEffect(() => {
+        if (isGoalReached && gameState === 'playing' && !showKlarModal) {
+            const timer = setTimeout(() => {
+                setShowKlarModal(true);
+            }, 1500);
+            return () => clearTimeout(timer);
+        }
+    }, [isGoalReached, gameState, showKlarModal]);
 
     const drawCard = () => {
         if (deck.length === 0 || isFlipping || isGoalReached) return;
@@ -171,7 +182,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
 
     if (gameState === 'setup') {
         return (
-            <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-950 p-6 sm:p-10">
+            <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-gray-950 p-6 sm:p-10 overflow-y-auto">
                 <div className="flex items-center justify-between mb-8">
                     <div>
                         <h2 className="text-3xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tight uppercase">
@@ -274,7 +285,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
 
     if (gameState === 'finished') {
         return (
-            <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-950 p-6 sm:p-10 items-center justify-center">
+            <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-gray-950 p-6 sm:p-10 items-center justify-center overflow-y-auto">
                 <motion.div 
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
@@ -308,7 +319,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
     }
 
     return (
-        <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-950 p-6 sm:p-10 relative overflow-hidden">
+        <div className="fixed inset-0 z-50 flex flex-col bg-gray-50 dark:bg-gray-950 p-6 sm:p-10 overflow-y-auto overflow-x-hidden">
             <div className="flex items-center justify-between mb-8 z-10">
                 <div>
                     <h2 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tight uppercase">
@@ -343,7 +354,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
 
             {goalType === 'time' && (
                 <div className="flex flex-col items-center justify-center mb-4 z-10">
-                    <div className="text-8xl md:text-[10rem] font-black font-mono text-gray-900 dark:text-white tracking-tighter drop-shadow-sm leading-none">
+                    <div className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[7rem] sm:text-[9rem] md:text-[11rem] text-gray-900 dark:text-white">
                         {formatTime(timeLeft)}
                     </div>
                     <div className="flex gap-4 mt-6">
@@ -370,39 +381,35 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
             )}
 
             <div className="flex-grow flex flex-col items-center justify-center z-10 mt-4">
-                <div className="flex flex-col md:flex-row items-center justify-center gap-12 md:gap-24 w-full max-w-6xl">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-24 w-full max-w-5xl mx-auto justify-items-center items-center">
                     
                     {/* Deck / Draw Button */}
-                    <div className="flex flex-col items-center">
-                        {isGoalReached ? (
-                            <button 
-                                onClick={handleFinishGame}
-                                className="relative w-72 h-[28rem] rounded-3xl shadow-2xl border-4 border-green-500 bg-green-500 hover:bg-green-600 transition-transform hover:-translate-y-2 active:scale-95 cursor-pointer flex items-center justify-center"
-                            >
-                                <span className="text-white font-black text-5xl uppercase tracking-widest drop-shadow-md">
-                                    Klar!
+                    <div className="flex flex-col items-center w-full">
+                        <button 
+                            onClick={() => {
+                                if (goalType === 'time' && (!hasStartedTimer || !isTimerRunning)) {
+                                    setIsTimerRunning(true);
+                                    setHasStartedTimer(true);
+                                } else {
+                                    drawCard();
+                                }
+                            }}
+                            disabled={deck.length === 0 || isFlipping || isGoalReached}
+                            className={`relative w-72 h-[28rem] rounded-3xl shadow-2xl border-4 border-white dark:border-gray-800 transition-transform ${deck.length === 0 || isGoalReached ? 'opacity-50 cursor-not-allowed' : 'hover:-translate-y-2 active:scale-95 cursor-pointer'}`}
+                            style={{
+                                background: 'repeating-linear-gradient(45deg, #ef4444, #ef4444 15px, #b91c1c 15px, #b91c1c 30px)'
+                            }}
+                        >
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-2xl">
+                                <span className="text-white font-black text-4xl uppercase tracking-widest drop-shadow-md text-center px-4">
+                                    {goalType === 'time' && (!hasStartedTimer || !isTimerRunning) ? 'Starta timer' : 'Dra Kort'}
                                 </span>
-                            </button>
-                        ) : (
-                            <button 
-                                onClick={drawCard}
-                                disabled={deck.length === 0 || isFlipping || (goalType === 'time' && (!hasStartedTimer || !isTimerRunning))}
-                                className={`relative w-72 h-[28rem] rounded-3xl shadow-2xl border-4 border-white dark:border-gray-800 transition-transform ${deck.length === 0 || (goalType === 'time' && (!hasStartedTimer || !isTimerRunning)) ? 'opacity-50 cursor-not-allowed' : 'hover:-translate-y-2 active:scale-95 cursor-pointer'}`}
-                                style={{
-                                    background: 'repeating-linear-gradient(45deg, #ef4444, #ef4444 15px, #b91c1c 15px, #b91c1c 30px)'
-                                }}
-                            >
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-2xl">
-                                    <span className="text-white font-black text-4xl uppercase tracking-widest drop-shadow-md text-center px-4">
-                                        {goalType === 'time' && (!hasStartedTimer || !isTimerRunning) ? 'Starta timer' : 'Dra Kort'}
-                                    </span>
-                                </div>
-                            </button>
-                        )}
+                            </div>
+                        </button>
                     </div>
 
                     {/* Current Card Display */}
-                    <div className="flex flex-col items-center min-w-[350px]">
+                    <div className="flex flex-col items-center w-full">
                         <AnimatePresence mode="wait">
                             {currentCard ? (
                                 <motion.div
@@ -418,7 +425,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                                         <div className="text-4xl mt-2">{getSuitSymbol(currentCard.suit)}</div>
                                     </div>
                                     
-                                    <div className={`absolute inset-0 flex items-center justify-center text-[10rem] opacity-10 ${getSuitColor(currentCard.suit)}`}>
+                                    <div className={`absolute inset-0 flex items-center justify-center text-[10rem] opacity-10 dark:opacity-20 ${getSuitColor(currentCard.suit)}`}>
                                         {getSuitSymbol(currentCard.suit)}
                                     </div>
                                     
@@ -437,7 +444,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                         </AnimatePresence>
                         
                         {/* Exercise Instruction */}
-                        <div className="h-32 mt-8 flex items-center justify-center">
+                        <div className="h-32 mt-8 flex items-center justify-center w-full">
                             <AnimatePresence mode="wait">
                                 {currentCard && (
                                     <motion.div 
@@ -445,10 +452,15 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                                         initial={{ opacity: 0, y: 20 }}
                                         animate={{ opacity: 1, y: 0 }}
                                         exit={{ opacity: 0, y: -20 }}
-                                        className="text-center"
+                                        className="text-center w-full"
                                     >
-                                        <div className="text-5xl md:text-7xl font-black text-gray-900 dark:text-white uppercase tracking-tighter drop-shadow-sm">
-                                            {currentCard.numericValue} <span className="text-primary">{getExerciseForSuit(currentCard.suit)}</span>
+                                        <div className="flex flex-col items-center justify-center">
+                                            <span className="text-6xl md:text-8xl font-black text-gray-900 dark:text-white uppercase tracking-tighter drop-shadow-sm leading-none">
+                                                {currentCard.numericValue}
+                                            </span>
+                                            <span className="text-3xl md:text-5xl font-black text-primary uppercase tracking-tight mt-2 text-center break-words max-w-full px-4">
+                                                {getExerciseForSuit(currentCard.suit)}
+                                            </span>
                                         </div>
                                     </motion.div>
                                 )}
@@ -471,6 +483,36 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                     ))}
                 </div>
             </div>
+            {/* Klar Modal */}
+            <AnimatePresence>
+                {showKlarModal && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+                    >
+                        <motion.div
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="bg-white dark:bg-gray-900 p-12 rounded-[3rem] shadow-2xl border-4 border-green-500 text-center max-w-lg w-full"
+                        >
+                            <h2 className="text-5xl md:text-7xl font-black text-gray-900 dark:text-white tracking-tight uppercase mb-8">
+                                Målet nått!
+                            </h2>
+                            <button
+                                onClick={() => {
+                                    setShowKlarModal(false);
+                                    handleFinishGame();
+                                }}
+                                className="w-full py-6 bg-green-500 hover:bg-green-600 text-white rounded-2xl font-black text-3xl uppercase tracking-widest shadow-lg transition-transform active:scale-95"
+                            >
+                                Klar!
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };
