@@ -246,21 +246,13 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
 
             {/* Controls & Result */}
             <div className="flex flex-col items-center w-full relative z-10 min-h-[250px]">
-                <button
-                    onClick={spin}
-                    disabled={isSpinning}
-                    className={`px-12 py-6 bg-primary text-white rounded-3xl font-black text-2xl uppercase tracking-widest shadow-xl transition-all ${isSpinning ? 'opacity-50 cursor-not-allowed scale-95' : 'hover:-translate-y-1 hover:shadow-2xl active:scale-95'}`}
-                >
-                    {isSpinning ? 'Snurrar...' : 'Snurra Hjulen'}
-                </button>
-
                 <AnimatePresence>
                     {showResult && (
                         <motion.div
                             initial={{ opacity: 0, y: 20, scale: 0.9 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: -20, scale: 0.9 }}
-                            className="absolute top-full mt-8 text-center bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700 w-full max-w-2xl"
+                            className="absolute top-0 mt-8 text-center bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700 w-full max-w-2xl"
                         >
                             <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mb-4">
                                 Din utmaning:

@@ -288,6 +288,19 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
                         height: 160px;
                     }
                 }
+                .die-tilt {
+                    width: 100%;
+                    height: 100%;
+                    transform-style: preserve-3d;
+                    transition: transform 0.3s ease;
+                    transform: scale(1) rotateX(-15deg) rotateY(15deg);
+                }
+                .die-scene:hover .die-tilt {
+                    transform: scale(1.05) rotateX(-15deg) rotateY(15deg);
+                }
+                .die-scene.is-rolling .die-tilt {
+                    transform: scale(1.1) rotateX(-15deg) rotateY(15deg);
+                }
                 .die-cube {
                     width: 100%;
                     height: 100%;
@@ -310,7 +323,7 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
                     background: white;
                 }
                 .die-face-primary {
-                    background: var(--color-primary, #ef4444);
+                    background: #22c55e;
                     border-color: rgba(0,0,0,0.2);
                 }
                 .dot {
@@ -374,20 +387,22 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
 
 const Die: React.FC<{ rotation: {x: number, y: number}, isRolling: boolean, color: 'white' | 'primary', onClick?: () => void }> = ({ rotation, isRolling, color, onClick }) => {
     return (
-        <div className="die-scene" onClick={onClick}>
-            <div 
-                className={`die-cube drop-shadow-2xl ${isRolling ? 'scale-110' : 'hover:scale-105'} transition-transform`}
-                style={{ 
-                    transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
-                    transitionDuration: isRolling ? '2s' : '0.3s'
-                }}
-            >
-                <div className={`die-face face-1 die-face-${color}`}><span className="dot"></span></div>
-                <div className={`die-face face-2 die-face-${color}`}><span className="dot"></span><span className="dot"></span></div>
-                <div className={`die-face face-3 die-face-${color}`}><span className="dot"></span><span className="dot"></span><span className="dot"></span></div>
-                <div className={`die-face face-4 die-face-${color}`}><span className="dot"></span><span className="dot"></span><span className="dot"></span><span className="dot"></span></div>
-                <div className={`die-face face-5 die-face-${color}`}><span className="dot"></span><span className="dot"></span><span className="dot"></span><span className="dot"></span><span className="dot"></span></div>
-                <div className={`die-face face-6 die-face-${color}`}><span className="dot"></span><span className="dot"></span><span className="dot"></span><span className="dot"></span><span className="dot"></span><span className="dot"></span></div>
+        <div className={`die-scene ${isRolling ? 'is-rolling' : ''}`} onClick={onClick}>
+            <div className="die-tilt">
+                <div 
+                    className="die-cube"
+                    style={{ 
+                        transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
+                        transitionDuration: isRolling ? '2s' : '0.3s'
+                    }}
+                >
+                    <div className={`die-face face-1 die-face-${color}`}><span className="dot"></span></div>
+                    <div className={`die-face face-2 die-face-${color}`}><span className="dot"></span><span className="dot"></span></div>
+                    <div className={`die-face face-3 die-face-${color}`}><span className="dot"></span><span className="dot"></span><span className="dot"></span></div>
+                    <div className={`die-face face-4 die-face-${color}`}><span className="dot"></span><span className="dot"></span><span className="dot"></span><span className="dot"></span></div>
+                    <div className={`die-face face-5 die-face-${color}`}><span className="dot"></span><span className="dot"></span><span className="dot"></span><span className="dot"></span><span className="dot"></span></div>
+                    <div className={`die-face face-6 die-face-${color}`}><span className="dot"></span><span className="dot"></span><span className="dot"></span><span className="dot"></span><span className="dot"></span><span className="dot"></span></div>
+                </div>
             </div>
         </div>
     );
