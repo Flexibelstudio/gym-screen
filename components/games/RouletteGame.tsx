@@ -525,7 +525,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
     const sliceAngle = 360 / activeSlices.length;
 
     return (
-        <div className="w-full max-w-5xl mx-auto px-6 pb-12 pt-12 md:pt-24 animate-fade-in flex flex-col items-center justify-start min-h-[80vh]">
+        <div className="w-full max-w-5xl mx-auto px-6 pb-12 pt-4 md:pt-8 animate-fade-in flex flex-col items-center justify-start min-h-[80vh]">
             <div className="flex items-center justify-between mb-6 z-10 w-full">
                 <div>
                     <h2 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tight uppercase">
@@ -575,7 +575,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                 </div>
             )}
 
-            <div className="relative flex flex-col items-center justify-center w-full max-w-4xl mx-auto mt-8 md:mt-16">
+            <div className="relative flex flex-col items-center justify-start w-full max-w-4xl mx-auto mt-16 md:mt-24">
                 {/* Pointer */}
                 <div className="absolute -top-8 z-20 w-16 h-24 flex flex-col items-center pointer-events-none">
                     <div className="w-10 h-10 bg-gray-900 dark:bg-white rounded-full shadow-lg z-10"></div>
