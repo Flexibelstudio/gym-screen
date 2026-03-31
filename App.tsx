@@ -78,8 +78,8 @@ const App: React.FC = () => {
 
   const showWelcomePaywall = useMemo(() => {
       if (!currentUser || role !== 'organizationadmin' || isStudioMode) return false;
-      return userData?.systemFeePaid === false;
-  }, [role, userData?.systemFeePaid, isStudioMode, currentUser]);
+      return selectedOrganization?.systemFeePaid === false;
+  }, [role, selectedOrganization?.systemFeePaid, isStudioMode, currentUser]);
 
   const hasActiveSubscription = useMemo(() => {
       if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
