@@ -4,6 +4,7 @@ import { useStudio } from '../../context/StudioContext';
 import { playTimerSound } from '../../hooks/useWorkoutTimer';
 import { WorkoutCompleteModal } from '../WorkoutCompleteModal';
 import { MOCK_EXERCISE_BANK } from '../../data/mockData';
+import { JokerEvent, getRandomJoker } from '../../data/jokers';
 
 interface DeckOfCardsGameProps {
     onBack: () => void;
@@ -75,6 +76,11 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
     const [goalType, setGoalType] = useState<'deck' | 'time' | 'rounds'>('deck');
     const [goalValue, setGoalValue] = useState<number>(10); // 10 minutes or 10 rounds
     
+    const [jokerCount, setJokerCount] = useState<number>(2);
+    const [jokerType, setJokerType] = useState<'reward' | 'challenge' | 'mixed'>('mixed');
+    const [activeJokerEvent, setActiveJokerEvent] = useState<JokerEvent | null>(null);
+    const [jokerTimeLeft, setJokerTimeLeft] = useState<number | null>(null);
+
     const [customExercises, setCustomExercises] = useState<Record<Suit, string>>({
         hearts: '',
         diamonds: '',
@@ -117,6 +123,22 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
         return () => clearInterval(interval);
     }, [isTimerRunning, timeLeft]);
 
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (jokerTimeLeft !== null && jokerTimeLeft > 0) {
+            interval = setInterval(() => {
+                setJokerTimeLeft(prev => {
+                    if (prev && prev <= 1) {
+                        playTimerSound(studioConfig?.soundProfile || 'airhorn', 1);
+                        return 0;
+                    }
+                    return prev ? prev - 1 : 0;
+                });
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [jokerTimeLeft, studioConfig?.soundProfile]);
+
     const getExerciseForSuit = (suit: Suit) => {
         if (difficulty === 'custom') {
             return customExercises[suit] || 'Valfri övning';
@@ -147,11 +169,17 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
     };
 
     const startGame = () => {
-        setDeck(shuffleDeck(createDeck()));
+        const newDeck = createDeck();
+        for (let i = 0; i < jokerCount; i++) {
+            newDeck.push({ suit: 'JOKER' as any, value: 'JOKER' as any, numericValue: 0 });
+        }
+        setDeck(shuffleDeck(newDeck));
         setCurrentCard(null);
         setDrawnCards([]);
         setHasStartedTimer(false);
         setIsTimerRunning(false);
+        setActiveJokerEvent(null);
+        setJokerTimeLeft(null);
         
         if (goalType === 'time') {
             setTimeLeft(goalValue * 60);
@@ -183,6 +211,19 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
             setDrawnCards(prev => [card, ...prev]);
             setDeck(newDeck);
             setIsFlipping(false);
+            
+            if (card.suit === 'JOKER' as any) {
+                const event = getRandomJoker(jokerType);
+                setActiveJokerEvent(event);
+                if (event.duration) {
+                    setJokerTimeLeft(event.duration);
+                } else {
+                    setJokerTimeLeft(null);
+                }
+            } else {
+                setActiveJokerEvent(null);
+                setJokerTimeLeft(null);
+            }
         }, 300); // Wait for flip animation
     };
 
@@ -278,6 +319,30 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                             </div>
                         </div>
                     )}
+
+                    {/* Jokers */}
+                    <div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 uppercase tracking-tight">Jokrar</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase">Antal Jokrar i leken: {jokerCount}</label>
+                                <input 
+                                    type="range" 
+                                    min="0" max="4" 
+                                    value={jokerCount} 
+                                    onChange={(e) => setJokerCount(parseInt(e.target.value))}
+                                    className="w-full accent-primary"
+                                />
+                            </div>
+                            {jokerCount > 0 && (
+                                <div className="grid grid-cols-3 gap-2">
+                                    <button onClick={() => setJokerType('reward')} className={`py-2 rounded-lg font-bold text-sm uppercase border-2 ${jokerType === 'reward' ? 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'}`}>Belöning</button>
+                                    <button onClick={() => setJokerType('challenge')} className={`py-2 rounded-lg font-bold text-sm uppercase border-2 ${jokerType === 'challenge' ? 'border-red-500 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'}`}>Utmaning</button>
+                                    <button onClick={() => setJokerType('mixed')} className={`py-2 rounded-lg font-bold text-sm uppercase border-2 ${jokerType === 'mixed' ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'}`}>Blandat</button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
 
                     {/* Goal Type */}
                     <div>
@@ -437,21 +502,40 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                                     animate={{ rotateY: 0, scale: 1, opacity: 1 }}
                                     exit={{ rotateY: -90, scale: 0.8, opacity: 0 }}
                                     transition={{ duration: 0.3 }}
-                                    className="w-72 h-[28rem] bg-white rounded-3xl shadow-2xl border border-gray-200 flex flex-col justify-between p-8 relative overflow-hidden"
+                                    className={`w-72 h-[28rem] rounded-3xl shadow-2xl border flex flex-col justify-between p-8 relative overflow-hidden ${currentCard.suit === 'JOKER' as any ? 'bg-gradient-to-br from-gray-900 to-gray-800 border-purple-500 text-white' : 'bg-white border-gray-200'}`}
                                 >
-                                    <div className={`text-6xl font-black ${getSuitColor(currentCard.suit)}`}>
-                                        {currentCard.value}
-                                        <div className="text-4xl mt-2">{getSuitSymbol(currentCard.suit)}</div>
-                                    </div>
-                                    
-                                    <div className={`absolute inset-0 flex items-center justify-center text-[10rem] ${getSuitColor(currentCard.suit)}`}>
-                                        {getSuitSymbol(currentCard.suit)}
-                                    </div>
-                                    
-                                    <div className={`text-6xl font-black self-end rotate-180 ${getSuitColor(currentCard.suit)}`}>
-                                        {currentCard.value}
-                                        <div className="text-4xl mt-2">{getSuitSymbol(currentCard.suit)}</div>
-                                    </div>
+                                    {currentCard.suit === 'JOKER' as any ? (
+                                        <div className="flex flex-col items-center justify-center h-full text-center w-full">
+                                            <span className="text-6xl mb-4 animate-bounce">🃏</span>
+                                            <h3 className={`text-3xl font-black uppercase mb-4 ${activeJokerEvent?.type === 'reward' ? 'text-green-400' : 'text-red-400'}`}>
+                                                {activeJokerEvent?.title}
+                                            </h3>
+                                            <p className="text-lg text-gray-300 font-medium mb-8">
+                                                {activeJokerEvent?.description}
+                                            </p>
+                                            {jokerTimeLeft !== null && (
+                                                <div className={`text-5xl font-mono font-black tabular-nums ${jokerTimeLeft === 0 ? 'text-red-400 animate-pulse' : 'text-white'}`}>
+                                                    {formatTime(jokerTimeLeft)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className={`text-6xl font-black ${getSuitColor(currentCard.suit)}`}>
+                                                {currentCard.value}
+                                                <div className="text-4xl mt-2">{getSuitSymbol(currentCard.suit)}</div>
+                                            </div>
+                                            
+                                            <div className={`absolute inset-0 flex items-center justify-center text-[10rem] ${getSuitColor(currentCard.suit)}`}>
+                                                {getSuitSymbol(currentCard.suit)}
+                                            </div>
+                                            
+                                            <div className={`text-6xl font-black self-end rotate-180 ${getSuitColor(currentCard.suit)}`}>
+                                                {currentCard.value}
+                                                <div className="text-4xl mt-2">{getSuitSymbol(currentCard.suit)}</div>
+                                            </div>
+                                        </>
+                                    )}
                                 </motion.div>
                             ) : (
                                 <div className="w-72 h-[28rem] border-4 border-dashed border-gray-300 dark:border-gray-700 rounded-3xl flex items-center justify-center">
@@ -474,12 +558,20 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                                         className="text-center w-full"
                                     >
                                         <div className="flex flex-col items-center justify-center">
-                                            <span className="text-6xl md:text-8xl font-black text-gray-900 dark:text-white uppercase tracking-tighter drop-shadow-sm leading-none">
-                                                {currentCard.numericValue}
-                                            </span>
-                                            <span className="text-3xl md:text-5xl font-black text-primary uppercase tracking-tight mt-2 text-center break-words max-w-full px-4">
-                                                {getExerciseForSuit(currentCard.suit)}
-                                            </span>
+                                            {currentCard.suit === 'JOKER' as any ? (
+                                                <span className="text-4xl md:text-6xl font-black text-purple-500 uppercase tracking-tight mt-2 text-center break-words max-w-full px-4">
+                                                    JOKER!
+                                                </span>
+                                            ) : (
+                                                <>
+                                                    <span className="text-6xl md:text-8xl font-black text-gray-900 dark:text-white uppercase tracking-tighter drop-shadow-sm leading-none">
+                                                        {currentCard.numericValue}
+                                                    </span>
+                                                    <span className="text-3xl md:text-5xl font-black text-primary uppercase tracking-tight mt-2 text-center break-words max-w-full px-4">
+                                                        {getExerciseForSuit(currentCard.suit)}
+                                                    </span>
+                                                </>
+                                            )}
                                         </div>
                                     </motion.div>
                                 )}

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useStudio } from '../../context/StudioContext';
 import { playTimerSound } from '../../hooks/useWorkoutTimer';
 import { MOCK_EXERCISE_BANK } from '../../data/mockData';
+import { JokerEvent, getRandomJoker } from '../../data/jokers';
 
 interface RouletteGameProps {
     onBack: () => void;
@@ -84,6 +85,11 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
     const [goalType, setGoalType] = useState<'free' | 'time' | 'spins'>('free');
     const [goalValue, setGoalValue] = useState<number>(10); // 10 minutes or 10 spins
     const [spinsCount, setSpinsCount] = useState<number>(0);
+
+    const [jokerCount, setJokerCount] = useState<number>(2);
+    const [jokerType, setJokerType] = useState<'reward' | 'challenge' | 'mixed'>('mixed');
+    const [activeJokerEvent, setActiveJokerEvent] = useState<JokerEvent | null>(null);
+    const [jokerTimeLeft, setJokerTimeLeft] = useState<number | null>(null);
     
     // Timer state
     const [timeLeft, setTimeLeft] = useState<number>(0);
@@ -120,6 +126,22 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
         return () => clearInterval(interval);
     }, [isTimerRunning, timeLeft]);
 
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (jokerTimeLeft !== null && jokerTimeLeft > 0) {
+            interval = setInterval(() => {
+                setJokerTimeLeft(prev => {
+                    if (prev && prev <= 1) {
+                        playTimerSound(studioConfig?.soundProfile || 'airhorn', 1);
+                        return 0;
+                    }
+                    return prev ? prev - 1 : 0;
+                });
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [jokerTimeLeft, studioConfig?.soundProfile]);
+
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60);
         const s = seconds % 60;
@@ -140,11 +162,24 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
     };
 
     const getActiveSlices = () => {
+        let baseSlices: string[] = [];
         if (selectedWheel === 'custom') {
-            return customSlices.filter(s => s.trim() !== '');
+            baseSlices = customSlices.filter(s => s.trim() !== '');
+        } else {
+            const wheel = PRESET_WHEELS.find(w => w.id === selectedWheel);
+            baseSlices = wheel ? wheel.slices[difficulty] : [];
         }
-        const wheel = PRESET_WHEELS.find(w => w.id === selectedWheel);
-        return wheel ? wheel.slices[difficulty] : [];
+
+        if (baseSlices.length === 0) return [];
+
+        const slices = [...baseSlices];
+        if (jokerCount > 0) {
+            const step = Math.max(1, Math.floor(slices.length / jokerCount));
+            for (let i = 0; i < jokerCount; i++) {
+                slices.splice(i * step + i, 0, 'JOKER 🃏');
+            }
+        }
+        return slices;
     };
 
     const handleSpin = () => {
@@ -188,8 +223,23 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
         
         setTimeout(() => {
             setIsSpinning(false);
-            setResult(slices[winningIndex]);
+            const winningSlice = slices[winningIndex];
+            setResult(winningSlice);
             setResultIndex(winningIndex);
+            
+            if (winningSlice === 'JOKER 🃏') {
+                const event = getRandomJoker(jokerType);
+                setActiveJokerEvent(event);
+                if (event.duration) {
+                    setJokerTimeLeft(event.duration);
+                } else {
+                    setJokerTimeLeft(null);
+                }
+            } else {
+                setActiveJokerEvent(null);
+                setJokerTimeLeft(null);
+            }
+
             setShowResult(true);
             setSpinsCount(prev => prev + 1);
             playTimerSound(studioConfig?.soundProfile || 'airhorn', 3);
@@ -205,8 +255,11 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
         setGameState('playing');
         setRotation(0);
         setResult(null);
+        setResultIndex(null);
         setShowResult(false);
         setSpinsCount(0);
+        setActiveJokerEvent(null);
+        setJokerTimeLeft(null);
         
         if (goalType === 'time') {
             setTimeLeft(goalValue * 60);
@@ -368,6 +421,30 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                             </div>
                         </div>
                     )}
+
+                    {/* Jokers */}
+                    <div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 uppercase tracking-tight">Jokrar</h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase">Antal Jokrar i hjulet: {jokerCount}</label>
+                                <input 
+                                    type="range" 
+                                    min="0" max="4" 
+                                    value={jokerCount} 
+                                    onChange={(e) => setJokerCount(parseInt(e.target.value))}
+                                    className="w-full accent-primary"
+                                />
+                            </div>
+                            {jokerCount > 0 && (
+                                <div className="grid grid-cols-3 gap-2">
+                                    <button onClick={() => setJokerType('reward')} className={`py-2 rounded-lg font-bold text-sm uppercase border-2 ${jokerType === 'reward' ? 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'}`}>Belöning</button>
+                                    <button onClick={() => setJokerType('challenge')} className={`py-2 rounded-lg font-bold text-sm uppercase border-2 ${jokerType === 'challenge' ? 'border-red-500 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'}`}>Utmaning</button>
+                                    <button onClick={() => setJokerType('mixed')} className={`py-2 rounded-lg font-bold text-sm uppercase border-2 ${jokerType === 'mixed' ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'}`}>Blandat</button>
+                                </div>
+                            )}
+                        </div>
+                    </div>
 
                     {/* Goal Type */}
                     <div>
@@ -536,7 +613,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                                     <g key={index}>
                                         <path 
                                             d={pathData} 
-                                            fill={COLORS[index % COLORS.length]} 
+                                            fill={slice === 'JOKER 🃏' ? '#1f2937' : COLORS[index % COLORS.length]} 
                                             stroke="rgba(255,255,255,0.2)"
                                             strokeWidth="0.5"
                                         />
@@ -584,12 +661,30 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                                 exit={{ opacity: 0, y: -20, scale: 0.9 }}
                                 className="px-8 py-8 rounded-3xl shadow-2xl text-center w-full max-w-3xl mx-auto mb-6"
                                 style={{ 
-                                    backgroundColor: resultIndex !== null ? COLORS[resultIndex % COLORS.length] : undefined,
+                                    backgroundColor: result === 'JOKER 🃏' ? '#1f2937' : (resultIndex !== null ? COLORS[resultIndex % COLORS.length] : undefined),
                                     color: '#ffffff'
                                 }}
                             >
-                                <p className="font-bold uppercase tracking-wider text-sm mb-2 opacity-90">Din utmaning</p>
-                                <p className="text-4xl md:text-5xl lg:text-6xl font-black drop-shadow-md">{result}</p>
+                                {result === 'JOKER 🃏' ? (
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-5xl mb-2 animate-bounce">🃏</span>
+                                        <p className={`font-bold uppercase tracking-wider text-sm mb-2 ${activeJokerEvent?.type === 'reward' ? 'text-green-400' : 'text-red-400'}`}>
+                                            {activeJokerEvent?.type === 'reward' ? 'Belöning!' : 'Utmaning!'}
+                                        </p>
+                                        <p className="text-3xl md:text-4xl font-black drop-shadow-md mb-2">{activeJokerEvent?.title}</p>
+                                        <p className="text-lg opacity-90 mb-4">{activeJokerEvent?.description}</p>
+                                        {jokerTimeLeft !== null && (
+                                            <div className={`text-5xl font-mono font-black tabular-nums ${jokerTimeLeft === 0 ? 'text-red-400 animate-pulse' : 'text-white'}`}>
+                                                {formatTime(jokerTimeLeft)}
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <>
+                                        <p className="font-bold uppercase tracking-wider text-sm mb-2 opacity-90">Din utmaning</p>
+                                        <p className="text-4xl md:text-5xl lg:text-6xl font-black drop-shadow-md">{result}</p>
+                                    </>
+                                )}
                             </motion.div>
                         )}
                     </AnimatePresence>
