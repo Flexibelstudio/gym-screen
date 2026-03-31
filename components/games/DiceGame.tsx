@@ -66,28 +66,42 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
         // Face 4: 0, 90
         // Face 5: -90, 0
         // Face 6: 90, 0
-        const getTargetRotation = (value: number) => {
-            const extraSpinsX = (Math.floor(Math.random() * 3) + 2) * 360; // 2-4 extra spins
-            const extraSpinsY = (Math.floor(Math.random() * 3) + 2) * 360;
-            
-            let targetX = extraSpinsX;
-            let targetY = extraSpinsY;
+        const getTargetRotation = (value: number, currentRot: {x: number, y: number}) => {
+            let baseX = 0;
+            let baseY = 0;
 
             switch(value) {
                 case 1: break;
-                case 2: targetY -= 90; break;
-                case 3: targetY -= 180; break;
-                case 4: targetY += 90; break;
-                case 5: targetX -= 90; break;
-                case 6: targetX += 90; break;
+                case 2: baseY = -90; break;
+                case 3: baseY = -180; break;
+                case 4: baseY = 90; break;
+                case 5: baseX = -90; break;
+                case 6: baseX = 90; break;
             }
+
+            const spinsX = Math.floor(Math.random() * 3) + 2; // 2-4 extra spins
+            const spinsY = Math.floor(Math.random() * 3) + 2;
+            
+            let targetX = baseX;
+            // Ensure we spin forward by at least the random number of spins
+            while (targetX <= currentRot.x) {
+                targetX += 360;
+            }
+            targetX += spinsX * 360;
+
+            let targetY = baseY;
+            while (targetY <= currentRot.y) {
+                targetY += 360;
+            }
+            targetY += spinsY * 360;
+
             return { x: targetX, y: targetY };
         };
 
         const newRotations = [
-            getTargetRotation(newValues[0]),
-            getTargetRotation(newValues[1]),
-            getTargetRotation(newValues[2])
+            getTargetRotation(newValues[0], rotations[0]),
+            getTargetRotation(newValues[1], rotations[1]),
+            getTargetRotation(newValues[2], rotations[2])
         ];
 
         setRotations(newRotations);
@@ -227,31 +241,23 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
             </div>
 
             {/* 3D Dice Container */}
-            <div className="flex flex-wrap justify-center gap-8 md:gap-16 mb-16 perspective-1000">
-                <Die rotation={rotations[0]} isRolling={isRolling} color="white" />
+            <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16 mb-16">
+                <Die rotation={rotations[0]} isRolling={isRolling} color="white" onClick={rollDice} />
                 <div className="flex items-center justify-center text-4xl font-black text-gray-400">×</div>
-                <Die rotation={rotations[1]} isRolling={isRolling} color="white" />
+                <Die rotation={rotations[1]} isRolling={isRolling} color="white" onClick={rollDice} />
                 <div className="flex items-center justify-center text-4xl font-black text-gray-400">=</div>
-                <Die rotation={rotations[2]} isRolling={isRolling} color="primary" />
+                <Die rotation={rotations[2]} isRolling={isRolling} color="primary" onClick={rollDice} />
             </div>
 
             {/* Controls & Result */}
             <div className="flex flex-col items-center w-full min-h-[200px]">
-                <button
-                    onClick={rollDice}
-                    disabled={isRolling}
-                    className={`px-12 py-6 bg-primary text-white rounded-3xl font-black text-2xl uppercase tracking-widest shadow-xl transition-all ${isRolling ? 'opacity-50 cursor-not-allowed scale-95' : 'hover:-translate-y-1 hover:shadow-2xl active:scale-95'}`}
-                >
-                    {isRolling ? 'Rullar...' : 'Slå Tärningarna'}
-                </button>
-
                 <AnimatePresence>
                     {showResult && (
                         <motion.div
                             initial={{ opacity: 0, y: 20, scale: 0.9 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: -20, scale: 0.9 }}
-                            className="mt-12 text-center"
+                            className="mt-4 text-center"
                         >
                             <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mb-2">
                                 Din utmaning:
@@ -269,18 +275,17 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
 
             {/* CSS for 3D Dice */}
             <style dangerouslySetInnerHTML={{__html: `
-                .perspective-1000 {
-                    perspective: 1000px;
-                }
                 .die-scene {
-                    width: 100px;
-                    height: 100px;
+                    width: 120px;
+                    height: 120px;
+                    perspective: 1000px;
                     position: relative;
+                    cursor: pointer;
                 }
                 @media (min-width: 768px) {
                     .die-scene {
-                        width: 120px;
-                        height: 120px;
+                        width: 160px;
+                        height: 160px;
                     }
                 }
                 .die-cube {
@@ -299,6 +304,7 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
                     display: grid;
                     padding: 20%;
                     box-shadow: inset 0 0 15px rgba(0,0,0,0.1);
+                    backface-visibility: hidden;
                 }
                 .die-face-white {
                     background: white;
@@ -309,8 +315,8 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
                 }
                 .dot {
                     display: block;
-                    width: 16px;
-                    height: 16px;
+                    width: 20px;
+                    height: 20px;
                     border-radius: 50%;
                     background: #1f2937;
                     box-shadow: inset 0 3px 0 rgba(0,0,0,0.2);
@@ -321,21 +327,21 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
                 }
                 
                 /* Face positioning */
-                .face-1 { transform: rotateY(0deg) translateZ(50px); }
-                .face-2 { transform: rotateY(90deg) translateZ(50px); }
-                .face-3 { transform: rotateY(180deg) translateZ(50px); }
-                .face-4 { transform: rotateY(-90deg) translateZ(50px); }
-                .face-5 { transform: rotateX(90deg) translateZ(50px); }
-                .face-6 { transform: rotateX(-90deg) translateZ(50px); }
+                .face-1 { transform: rotateY(0deg) translateZ(60px); }
+                .face-2 { transform: rotateY(90deg) translateZ(60px); }
+                .face-3 { transform: rotateY(180deg) translateZ(60px); }
+                .face-4 { transform: rotateY(-90deg) translateZ(60px); }
+                .face-5 { transform: rotateX(90deg) translateZ(60px); }
+                .face-6 { transform: rotateX(-90deg) translateZ(60px); }
                 
                 @media (min-width: 768px) {
-                    .face-1 { transform: rotateY(0deg) translateZ(60px); }
-                    .face-2 { transform: rotateY(90deg) translateZ(60px); }
-                    .face-3 { transform: rotateY(180deg) translateZ(60px); }
-                    .face-4 { transform: rotateY(-90deg) translateZ(60px); }
-                    .face-5 { transform: rotateX(90deg) translateZ(60px); }
-                    .face-6 { transform: rotateX(-90deg) translateZ(60px); }
-                    .dot { width: 20px; height: 20px; }
+                    .face-1 { transform: rotateY(0deg) translateZ(80px); }
+                    .face-2 { transform: rotateY(90deg) translateZ(80px); }
+                    .face-3 { transform: rotateY(180deg) translateZ(80px); }
+                    .face-4 { transform: rotateY(-90deg) translateZ(80px); }
+                    .face-5 { transform: rotateX(90deg) translateZ(80px); }
+                    .face-6 { transform: rotateX(-90deg) translateZ(80px); }
+                    .dot { width: 24px; height: 24px; }
                 }
 
                 /* Dot layouts */
@@ -366,14 +372,14 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
     );
 };
 
-const Die: React.FC<{ rotation: {x: number, y: number}, isRolling: boolean, color: 'white' | 'primary' }> = ({ rotation, isRolling, color }) => {
+const Die: React.FC<{ rotation: {x: number, y: number}, isRolling: boolean, color: 'white' | 'primary', onClick?: () => void }> = ({ rotation, isRolling, color, onClick }) => {
     return (
-        <div className="die-scene">
+        <div className="die-scene" onClick={onClick}>
             <div 
-                className="die-cube drop-shadow-2xl"
+                className={`die-cube drop-shadow-2xl ${isRolling ? 'scale-110' : 'hover:scale-105'} transition-transform`}
                 style={{ 
                     transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`,
-                    transitionDuration: isRolling ? '2s' : '0s'
+                    transitionDuration: isRolling ? '2s' : '0.3s'
                 }}
             >
                 <div className={`die-face face-1 die-face-${color}`}><span className="dot"></span></div>

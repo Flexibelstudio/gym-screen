@@ -188,7 +188,7 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
             </div>
 
             {/* Slot Machine Container */}
-            <div className="w-full max-w-4xl bg-gray-900 rounded-[3rem] p-4 md:p-8 shadow-2xl border-8 border-gray-800 relative mt-8 mb-12">
+            <div className="w-full max-w-4xl bg-gray-900 rounded-[3rem] p-4 md:p-8 shadow-2xl border-8 border-gray-800 relative mt-8 mb-12 z-10 mr-10 ml-2 md:mx-0">
                 {/* Top decoration */}
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-32 h-8 bg-red-500 rounded-full shadow-[0_0_20px_rgba(239,68,68,0.5)]"></div>
                 
@@ -221,20 +221,31 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
                     </div>
                 </div>
 
-                {/* Lever (Visual only for larger screens, button below handles action) */}
-                <div className="hidden md:block absolute -right-16 top-1/2 -translate-y-1/2 w-12 h-48">
-                    <div className="w-4 h-full bg-gray-400 mx-auto rounded-full shadow-inner relative">
+                {/* Lever */}
+                <div className="absolute -right-8 md:-right-16 top-1/2 -translate-y-1/2 w-8 md:w-12 h-32 md:h-48 z-0">
+                    <div className="w-3 md:w-4 h-full bg-gray-400 mx-auto rounded-full shadow-inner relative">
                         <motion.div 
-                            className="absolute -top-6 -left-4 w-12 h-12 bg-red-500 rounded-full shadow-lg"
-                            animate={{ y: isSpinning ? 180 : 0 }}
+                            className="absolute -top-4 md:-top-6 -left-3 md:-left-4 w-10 h-10 md:w-12 md:h-12 bg-red-500 rounded-full shadow-lg cursor-grab active:cursor-grabbing"
+                            drag="y"
+                            dragConstraints={{ top: 0, bottom: 120 }}
+                            dragElastic={0.1}
+                            onDragEnd={(e, info) => {
+                                if (info.offset.y > 50 && !isSpinning) {
+                                    spin();
+                                }
+                            }}
+                            animate={{ y: isSpinning ? 120 : 0 }}
                             transition={{ duration: 0.5, type: "spring" }}
+                            onClick={() => {
+                                if (!isSpinning) spin();
+                            }}
                         />
                     </div>
                 </div>
             </div>
 
             {/* Controls & Result */}
-            <div className="flex flex-col items-center w-full min-h-[200px]">
+            <div className="flex flex-col items-center w-full relative z-10 min-h-[250px]">
                 <button
                     onClick={spin}
                     disabled={isSpinning}
@@ -249,7 +260,7 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
                             initial={{ opacity: 0, y: 20, scale: 0.9 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: -20, scale: 0.9 }}
-                            className="mt-12 text-center bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700 w-full max-w-2xl"
+                            className="absolute top-full mt-8 text-center bg-white dark:bg-gray-800 p-8 rounded-3xl shadow-xl border border-gray-100 dark:border-gray-700 w-full max-w-2xl"
                         >
                             <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mb-4">
                                 Din utmaning:
