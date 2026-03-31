@@ -295,8 +295,8 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
         <div className="fixed inset-0 bg-gray-50 dark:bg-black z-50 flex flex-col overflow-hidden animate-fade-in">
             {/* TOP SECTION (Timer Box) */}
             <div 
-                className={`relative w-full rounded-b-[3rem] sm:rounded-b-[4rem] shadow-2xl overflow-hidden transition-colors duration-500 flex flex-col items-center justify-center min-h-[45vh] sm:min-h-[50vh] bg-orange-600 ${!isGoalReached ? 'cursor-pointer' : ''}`} 
-                onClick={() => { if (!isGoalReached) setIsTimerRunning(!isTimerRunning); }}
+                className={`relative w-full rounded-b-[2rem] sm:rounded-b-[3rem] shadow-xl overflow-hidden transition-colors duration-500 flex flex-col items-center justify-center pt-12 pb-8 bg-orange-600 ${!isGoalReached && goalType === 'time' ? 'cursor-pointer' : ''}`} 
+                onClick={() => { if (!isGoalReached && goalType === 'time') setIsTimerRunning(!isTimerRunning); }}
             >
                 {/* Top left label */}
                 <div className="absolute top-4 left-4 sm:top-6 sm:left-6 px-3 py-1 sm:px-4 sm:py-1.5 rounded-full bg-black/20 backdrop-blur-md border border-white/10 shadow-sm z-20">
@@ -311,22 +311,24 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                 </div>
 
                 {/* Status Label */}
-                <div className="text-center z-20 w-full px-10 mb-1 mt-8">
-                    <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl w-full text-center text-3xl sm:text-4xl lg:text-5xl ${!isTimerRunning && hasStartedTimer && !isGoalReached ? 'animate-pulse' : ''}`}>
-                        {isGoalReached ? 'KLAR' : (!isTimerRunning && hasStartedTimer ? 'PAUSAD' : 'KORTLEKEN')}
+                <div className="text-center z-20 w-full px-10 mb-1 mt-4">
+                    <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl w-full text-center text-2xl sm:text-3xl lg:text-4xl ${!isTimerRunning && hasStartedTimer && !isGoalReached && goalType === 'time' ? 'animate-pulse' : ''}`}>
+                        {isGoalReached ? 'KLAR' : (!isTimerRunning && hasStartedTimer && goalType === 'time' ? 'PAUSAD' : 'KORTLEKEN')}
                     </h2>
                 </div>
 
                 {/* Timer */}
-                <div className={`z-20 relative flex flex-col items-center w-full text-white transition-opacity duration-300 ${!isTimerRunning && hasStartedTimer && !isGoalReached ? 'opacity-50' : 'opacity-100'}`}>
-                    <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[7rem] sm:text-[9rem] md:text-[11rem]">
-                        {formatTime(goalType === 'time' ? timeLeft : timeElapsed)}
-                    </span>
-                </div>
+                {goalType === 'time' && (
+                    <div className={`z-20 relative flex flex-col items-center w-full text-white transition-opacity duration-300 ${!isTimerRunning && hasStartedTimer && !isGoalReached ? 'opacity-50' : 'opacity-100'}`}>
+                        <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[6rem] sm:text-[8rem] md:text-[10rem]">
+                            {formatTime(timeLeft)}
+                        </span>
+                    </div>
+                )}
 
                 {/* Bottom text */}
-                <div className="text-center z-20 w-full px-10 mt-2 mb-4">
-                    <h1 className="font-black text-white/90 uppercase tracking-tighter text-xl sm:text-2xl md:text-3xl drop-shadow-lg">
+                <div className="text-center z-20 w-full px-10 mt-2 mb-2">
+                    <h1 className={`font-black text-white/90 uppercase tracking-tighter drop-shadow-lg ${goalType === 'time' ? 'text-xl sm:text-2xl md:text-3xl' : 'text-4xl sm:text-5xl md:text-6xl mt-4'}`}>
                         {deck.length} KORT KVAR
                     </h1>
                 </div>
@@ -334,7 +336,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                 {/* Close button */}
                 <button 
                     onClick={(e) => { e.stopPropagation(); resetGame(); }}
-                    className="absolute bottom-6 right-6 px-4 py-2 bg-black/20 hover:bg-black/30 text-white rounded-xl backdrop-blur-md border border-white/10 font-bold text-sm transition-colors z-30"
+                    className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 px-4 py-2 bg-black/20 hover:bg-black/30 text-white rounded-xl backdrop-blur-md border border-white/10 font-bold text-sm transition-colors z-30"
                 >
                     Avsluta
                 </button>
@@ -434,6 +436,20 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                                 </motion.div>
                             )}
                         </AnimatePresence>
+                    </div>
+
+                    {/* Legend / Settings (Bottom) */}
+                    <div className="w-full max-w-4xl mx-auto mt-auto pt-8 pb-4 border-t border-gray-200 dark:border-gray-800 z-10">
+                        <div className="flex flex-wrap justify-center gap-6 md:gap-12">
+                            {SUITS.map(suit => (
+                                <div key={suit} className="flex items-center gap-3">
+                                    <span className={`text-3xl ${getSuitColor(suit)}`}>{getSuitSymbol(suit)}</span>
+                                    <span className="text-xl font-bold text-gray-700 dark:text-gray-300 uppercase tracking-tight">
+                                        = {getExerciseForSuit(suit)}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
                 </div>
