@@ -165,7 +165,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
         playTimerSound(studioConfig?.soundProfile || 'airhorn', 1);
 
         // Calculate random rotation
-        const spins = 5 + Math.floor(Math.random() * 5); // 5 to 10 full spins
+        const spins = 8 + Math.floor(Math.random() * 6); // 8 to 13 full spins
         const randomDegree = Math.floor(Math.random() * 360);
         const totalRotation = rotation + (spins * 360) + randomDegree;
         
@@ -190,7 +190,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
             setShowResult(true);
             setSpinsCount(prev => prev + 1);
             playTimerSound(studioConfig?.soundProfile || 'airhorn', 3);
-        }, 5000); // 5 seconds spin duration
+        }, 8000); // 8 seconds spin duration
     };
 
     const startGame = () => {
@@ -435,7 +435,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
 
     return (
         <div className="w-full max-w-5xl mx-auto px-6 pb-12 animate-fade-in flex flex-col items-center justify-center min-h-[80vh]">
-            <div className="flex items-center justify-between mb-12 z-10 w-full">
+            <div className="flex items-center justify-between mb-6 z-10 w-full">
                 <div>
                     <h2 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tight uppercase">
                         Svett-hjulet
@@ -460,7 +460,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
             </div>
 
             {goalType === 'time' && (
-                <div className="flex flex-col items-center justify-center mb-8 z-10">
+                <div className="flex flex-col items-center justify-center mb-4 z-10">
                     <div 
                         className="flex flex-col items-center justify-center relative group cursor-pointer"
                         onClick={() => setShowTimerControls(true)}
@@ -484,21 +484,21 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                 </div>
             )}
 
-            <div className="relative flex flex-col items-center justify-center w-full max-w-2xl mx-auto">
+            <div className="relative flex flex-col items-center justify-center w-full max-w-4xl mx-auto">
                 {/* Pointer */}
-                <div className="absolute -top-6 z-20 w-12 h-16 flex flex-col items-center">
-                    <div className="w-8 h-8 bg-gray-900 dark:bg-white rounded-full shadow-lg z-10"></div>
-                    <div className="w-0 h-0 border-l-[16px] border-l-transparent border-r-[16px] border-r-transparent border-t-[24px] border-t-gray-900 dark:border-t-white -mt-2 drop-shadow-lg"></div>
+                <div className="absolute -top-8 z-20 w-16 h-24 flex flex-col items-center">
+                    <div className="w-10 h-10 bg-gray-900 dark:bg-white rounded-full shadow-lg z-10"></div>
+                    <div className="w-0 h-0 border-l-[20px] border-l-transparent border-r-[20px] border-r-transparent border-t-[32px] border-t-gray-900 dark:border-t-white -mt-2 drop-shadow-lg"></div>
                 </div>
 
                 {/* Wheel Container */}
-                <div className="relative w-full aspect-square max-w-[500px] p-4">
+                <div className="relative w-full aspect-square max-w-[800px] p-4">
                     <div className="absolute inset-0 rounded-full bg-white dark:bg-gray-800 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.2)] border-8 border-white dark:border-gray-800"></div>
                     
                     <motion.div 
                         className="relative w-full h-full rounded-full overflow-hidden"
                         animate={{ rotate: rotation }}
-                        transition={{ duration: 5, ease: [0.2, 0.8, 0.2, 1] }} // Custom ease-out for realistic spin
+                        transition={{ duration: 8, ease: [0.2, 0.8, 0.2, 1] }} // Custom ease-out for realistic spin
                     >
                         {/* SVG Wheel */}
                         <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
@@ -545,7 +545,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                                         className="absolute top-1/2 left-1/2 w-1/2 h-8 -mt-4 origin-left flex items-center pl-8 pr-4"
                                         style={{ transform: `rotate(${angle - 90}deg)` }}
                                     >
-                                        <span className="text-white font-bold text-sm md:text-base truncate drop-shadow-md w-full text-right pr-2">
+                                        <span className="text-white font-bold text-base md:text-xl truncate drop-shadow-md w-full text-right pr-2">
                                             {slice}
                                         </span>
                                     </div>
@@ -554,12 +554,12 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                         </div>
                         
                         {/* Center dot */}
-                        <div className="absolute top-1/2 left-1/2 w-12 h-12 -mt-6 -ml-6 bg-white dark:bg-gray-900 rounded-full shadow-inner border-4 border-gray-100 dark:border-gray-800 z-10"></div>
+                        <div className="absolute top-1/2 left-1/2 w-16 h-16 -mt-8 -ml-8 bg-white dark:bg-gray-900 rounded-full shadow-inner border-4 border-gray-100 dark:border-gray-800 z-10"></div>
                     </motion.div>
                 </div>
 
                 {/* Controls */}
-                <div className="mt-12 flex flex-col items-center w-full">
+                <div className="mt-8 flex flex-col items-center w-full">
                     <button
                         onClick={() => {
                             if (isGoalReached) {
