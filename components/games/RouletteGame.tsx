@@ -525,7 +525,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
     const sliceAngle = 360 / activeSlices.length;
 
     return (
-        <div className="w-full max-w-5xl mx-auto px-6 pb-12 pt-4 md:pt-8 animate-fade-in flex flex-col items-center justify-center min-h-[80vh]">
+        <div className="w-full max-w-5xl mx-auto px-6 pb-12 pt-12 md:pt-24 animate-fade-in flex flex-col items-center justify-start min-h-[80vh]">
             <div className="flex items-center justify-between mb-6 z-10 w-full">
                 <div>
                     <h2 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tight uppercase">
@@ -657,9 +657,9 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                 </div>
 
                 {/* Controls & Result */}
-                <div className="mt-12 md:mt-16 flex flex-col items-center w-full min-h-[200px]">
+                <div className="mt-12 md:mt-16 flex flex-col items-center w-full min-h-[250px]">
                     {!isSpinning && !isGoalReached && !showResult && (
-                        <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest animate-pulse">
+                        <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest animate-pulse mt-12">
                             Klicka på hjulet för att snurra!
                         </p>
                     )}
@@ -670,7 +670,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                                 initial={{ opacity: 0, y: 20, scale: 0.9 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: -20, scale: 0.9 }}
-                                className="px-8 py-8 rounded-3xl shadow-2xl text-center w-full max-w-3xl mx-auto mb-6 mt-12"
+                                className="px-8 py-12 rounded-3xl shadow-2xl text-center w-full max-w-3xl mx-auto mb-6 mt-8"
                                 style={{ 
                                     backgroundColor: result === 'JOKER 🃏' ? '#1f2937' : (resultIndex !== null ? COLORS[resultIndex % COLORS.length] : undefined),
                                     color: '#ffffff'
@@ -678,22 +678,22 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                             >
                                 {result === 'JOKER 🃏' ? (
                                     <div className="flex flex-col items-center">
-                                        <span className="text-5xl mb-2 animate-bounce">🃏</span>
-                                        <p className={`font-bold uppercase tracking-wider text-sm mb-2 ${activeJokerEvent?.type === 'reward' ? 'text-green-400' : 'text-red-400'}`}>
+                                        <span className="text-6xl mb-4 animate-bounce">🃏</span>
+                                        <p className={`font-bold uppercase tracking-wider text-lg mb-2 ${activeJokerEvent?.type === 'reward' ? 'text-green-400' : 'text-red-400'}`}>
                                             {activeJokerEvent?.type === 'reward' ? 'Belöning!' : 'Utmaning!'}
                                         </p>
-                                        <p className="text-3xl md:text-4xl font-black drop-shadow-md mb-2">{activeJokerEvent?.title}</p>
-                                        <p className="text-lg opacity-90 mb-4">{activeJokerEvent?.description}</p>
+                                        <p className="text-4xl md:text-5xl lg:text-6xl font-black drop-shadow-md mb-4">{activeJokerEvent?.title}</p>
+                                        <p className="text-xl opacity-90 mb-6">{activeJokerEvent?.description}</p>
                                         {jokerTimeLeft !== null && (
-                                            <div className={`text-5xl font-mono font-black tabular-nums ${jokerTimeLeft === 0 ? 'text-red-400 animate-pulse' : 'text-white'}`}>
+                                            <div className={`text-6xl font-mono font-black tabular-nums ${jokerTimeLeft === 0 ? 'text-red-400 animate-pulse' : 'text-white'}`}>
                                                 {formatTime(jokerTimeLeft)}
                                             </div>
                                         )}
                                     </div>
                                 ) : (
                                     <>
-                                        <p className="font-bold uppercase tracking-wider text-sm mb-2 opacity-90">Din utmaning</p>
-                                        <p className="text-4xl md:text-5xl lg:text-6xl font-black drop-shadow-md">{result}</p>
+                                        <p className="font-bold uppercase tracking-wider text-lg mb-4 opacity-90">Din utmaning</p>
+                                        <p className="text-5xl md:text-6xl lg:text-7xl font-black drop-shadow-md">{result}</p>
                                     </>
                                 )}
                             </motion.div>
