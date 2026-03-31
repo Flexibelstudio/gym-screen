@@ -81,10 +81,62 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
     const [customSlices, setCustomSlices] = useState<string[]>(['', '', '', '', '', '']);
     const [focusedSliceIndex, setFocusedSliceIndex] = useState<number | null>(null);
 
+    const [goalType, setGoalType] = useState<'free' | 'time' | 'spins'>('free');
+    const [goalValue, setGoalValue] = useState<number>(10); // 10 minutes or 10 spins
+    const [spinsCount, setSpinsCount] = useState<number>(0);
+    
+    // Timer state
+    const [timeLeft, setTimeLeft] = useState<number>(0);
+    const [isTimerRunning, setIsTimerRunning] = useState(false);
+    const [hasStartedTimer, setHasStartedTimer] = useState(false);
+    const [showTimerControls, setShowTimerControls] = useState(false);
+
     const [isSpinning, setIsSpinning] = useState(false);
     const [rotation, setRotation] = useState(0);
     const [result, setResult] = useState<string | null>(null);
     const [showResult, setShowResult] = useState(false);
+
+    useEffect(() => {
+        if (showTimerControls) {
+            const timer = setTimeout(() => setShowTimerControls(false), 3000);
+            return () => clearTimeout(timer);
+        }
+    }, [showTimerControls]);
+
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (isTimerRunning && timeLeft > 0) {
+            interval = setInterval(() => {
+                setTimeLeft(prev => {
+                    if (prev <= 1) {
+                        setIsTimerRunning(false);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [isTimerRunning, timeLeft]);
+
+    const formatTime = (seconds: number) => {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+
+    const isGoalReached = (() => {
+        if (goalType === 'spins') return spinsCount >= goalValue;
+        if (goalType === 'time') return hasStartedTimer && timeLeft === 0;
+        return false;
+    })();
+
+    const handleFinishGame = () => {
+        setGameState('setup');
+        setSpinsCount(0);
+        setIsTimerRunning(false);
+        setHasStartedTimer(false);
+    };
 
     const getActiveSlices = () => {
         if (selectedWheel === 'custom') {
@@ -95,10 +147,15 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
     };
 
     const handleSpin = () => {
-        if (isSpinning) return;
+        if (isSpinning || isGoalReached) return;
         
         const slices = getActiveSlices();
         if (slices.length === 0) return;
+
+        if (goalType === 'time' && (!hasStartedTimer || !isTimerRunning)) {
+            setIsTimerRunning(true);
+            setHasStartedTimer(true);
+        }
 
         setIsSpinning(true);
         setShowResult(false);
@@ -131,6 +188,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
             setIsSpinning(false);
             setResult(slices[winningIndex]);
             setShowResult(true);
+            setSpinsCount(prev => prev + 1);
             playTimerSound(studioConfig?.soundProfile || 'airhorn', 3);
         }, 5000); // 5 seconds spin duration
     };
@@ -145,6 +203,13 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
         setRotation(0);
         setResult(null);
         setShowResult(false);
+        setSpinsCount(0);
+        
+        if (goalType === 'time') {
+            setTimeLeft(goalValue * 60);
+            setIsTimerRunning(false);
+            setHasStartedTimer(false);
+        }
     };
 
     const updateCustomSlice = (index: number, value: string) => {
@@ -301,6 +366,59 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                         </div>
                     )}
 
+                    {/* Goal Type */}
+                    <div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 uppercase tracking-tight">Mål</h3>
+                        <div className="grid grid-cols-3 gap-4">
+                            <button
+                                onClick={() => setGoalType('free')}
+                                className={`py-4 rounded-xl font-bold uppercase tracking-wider transition-all border-2 ${
+                                    goalType === 'free' 
+                                        ? 'border-primary bg-primary/10 text-primary' 
+                                        : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'
+                                }`}
+                            >
+                                Fritt
+                            </button>
+                            <button
+                                onClick={() => setGoalType('time')}
+                                className={`py-4 rounded-xl font-bold uppercase tracking-wider transition-all border-2 ${
+                                    goalType === 'time' 
+                                        ? 'border-primary bg-primary/10 text-primary' 
+                                        : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'
+                                }`}
+                            >
+                                På tid
+                            </button>
+                            <button
+                                onClick={() => setGoalType('spins')}
+                                className={`py-4 rounded-xl font-bold uppercase tracking-wider transition-all border-2 ${
+                                    goalType === 'spins' 
+                                        ? 'border-primary bg-primary/10 text-primary' 
+                                        : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'
+                                }`}
+                            >
+                                Antal snurr
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Goal Value Input */}
+                    {goalType !== 'free' && (
+                        <div className="animate-fade-in">
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 uppercase tracking-tight">
+                                {goalType === 'time' ? 'Tid (minuter)' : 'Antal snurr'}
+                            </h3>
+                            <input
+                                type="number"
+                                min="1"
+                                value={goalValue}
+                                onChange={(e) => setGoalValue(parseInt(e.target.value) || 1)}
+                                className="w-full p-4 text-2xl font-bold text-center rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:border-primary focus:ring-0 outline-none"
+                            />
+                        </div>
+                    )}
+
                     <button
                         onClick={startGame}
                         className="w-full py-5 bg-primary hover:bg-primary/90 text-white rounded-2xl font-black text-xl uppercase tracking-widest shadow-lg transition-transform active:scale-95 mt-8"
@@ -322,9 +440,16 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                     <h2 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tight uppercase">
                         Svett-hjulet
                     </h2>
-                    <p className="text-xl text-gray-500 dark:text-gray-400 font-medium mt-2">
-                        {selectedWheel === 'custom' ? 'Eget Hjul' : PRESET_WHEELS.find(w => w.id === selectedWheel)?.name}
-                    </p>
+                    <div className="flex items-center gap-4 mt-2">
+                        <p className="text-xl text-gray-500 dark:text-gray-400 font-medium">
+                            {selectedWheel === 'custom' ? 'Eget Hjul' : PRESET_WHEELS.find(w => w.id === selectedWheel)?.name}
+                        </p>
+                        {goalType === 'spins' && (
+                            <div className="px-4 py-1.5 bg-primary/10 text-primary rounded-lg font-bold text-xl">
+                                {spinsCount} / {goalValue}
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <button
                     onClick={() => setGameState('setup')}
@@ -333,6 +458,31 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                     Inställningar
                 </button>
             </div>
+
+            {goalType === 'time' && (
+                <div className="flex flex-col items-center justify-center mb-8 z-10">
+                    <div 
+                        className="flex flex-col items-center justify-center relative group cursor-pointer"
+                        onClick={() => setShowTimerControls(true)}
+                    >
+                        <div className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl select-none text-[6rem] sm:text-[8rem] md:text-[10rem] text-primary relative z-10">
+                            {formatTime(timeLeft)}
+                        </div>
+                        <div className={`flex gap-4 mt-8 relative z-10 transition-opacity duration-300 ${!hasStartedTimer ? 'opacity-0 pointer-events-none' : isTimerRunning ? (showTimerControls ? 'opacity-100' : 'opacity-0 group-hover:opacity-100') : 'opacity-100'}`}>
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsTimerRunning(!isTimerRunning);
+                                    setShowTimerControls(false);
+                                }}
+                                className={`px-10 py-4 text-white rounded-2xl font-black text-xl uppercase tracking-widest shadow-lg transition-transform active:scale-95 ${isTimerRunning ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-500 hover:bg-green-600'}`}
+                            >
+                                {isTimerRunning ? 'Pausa' : 'Fortsätt'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="relative flex flex-col items-center justify-center w-full max-w-2xl mx-auto">
                 {/* Pointer */}
@@ -411,15 +561,23 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                 {/* Controls */}
                 <div className="mt-12 flex flex-col items-center w-full">
                     <button
-                        onClick={handleSpin}
+                        onClick={() => {
+                            if (isGoalReached) {
+                                handleFinishGame();
+                            } else {
+                                handleSpin();
+                            }
+                        }}
                         disabled={isSpinning}
                         className={`px-12 py-5 rounded-2xl font-black text-2xl uppercase tracking-widest shadow-xl transition-all ${
                             isSpinning 
                                 ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed scale-95' 
-                                : 'bg-primary hover:bg-primary/90 text-white hover:-translate-y-1 active:scale-95'
+                                : isGoalReached
+                                    ? 'bg-green-500 hover:bg-green-600 text-white hover:-translate-y-1 active:scale-95'
+                                    : 'bg-primary hover:bg-primary/90 text-white hover:-translate-y-1 active:scale-95'
                         }`}
                     >
-                        {isSpinning ? 'Snurrar...' : 'Snurra Hjulet!'}
+                        {isSpinning ? 'Snurrar...' : isGoalReached ? 'Klar!' : 'Snurra Hjulet!'}
                     </button>
 
                     <AnimatePresence>
