@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import confetti from 'canvas-confetti';
 import { useStudio } from '../../context/StudioContext';
-import { playTimerSound } from '../../hooks/useWorkoutTimer';
+import { playTimerSound, playTada } from '../../hooks/useWorkoutTimer';
 import { MOCK_EXERCISE_BANK } from '../../data/mockData';
 import { JokerEvent, getRandomJoker } from '../../data/jokers';
 
@@ -235,14 +236,24 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                 } else {
                     setJokerTimeLeft(null);
                 }
+                
+                // Celebrate Joker
+                playTada();
+                confetti({
+                    particleCount: 150,
+                    spread: 70,
+                    origin: { y: 0.6 },
+                    colors: ['#a855f7', '#ec4899', '#eab308'],
+                    zIndex: 100
+                });
             } else {
                 setActiveJokerEvent(null);
                 setJokerTimeLeft(null);
+                playTimerSound(studioConfig?.soundProfile || 'airhorn', 3);
             }
 
             setShowResult(true);
             setSpinsCount(prev => prev + 1);
-            playTimerSound(studioConfig?.soundProfile || 'airhorn', 3);
         }, 8000); // 8 seconds spin duration
     };
 
@@ -514,7 +525,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
     const sliceAngle = 360 / activeSlices.length;
 
     return (
-        <div className="w-full max-w-5xl mx-auto px-6 pb-12 pt-4 md:pt-8 animate-fade-in flex flex-col items-center justify-start min-h-screen">
+        <div className="w-full max-w-5xl mx-auto px-6 pb-12 pt-4 md:pt-8 animate-fade-in flex flex-col items-center justify-center min-h-[80vh]">
             <div className="flex items-center justify-between mb-6 z-10 w-full">
                 <div>
                     <h2 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tight uppercase">
@@ -564,7 +575,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                 </div>
             )}
 
-            <div className="relative flex flex-col items-center justify-center w-full max-w-4xl mx-auto">
+            <div className="relative flex flex-col items-center justify-center w-full max-w-4xl mx-auto mt-8 md:mt-16">
                 {/* Pointer */}
                 <div className="absolute -top-8 z-20 w-16 h-24 flex flex-col items-center pointer-events-none">
                     <div className="w-10 h-10 bg-gray-900 dark:bg-white rounded-full shadow-lg z-10"></div>
@@ -646,7 +657,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                 </div>
 
                 {/* Controls & Result */}
-                <div className="mt-8 flex flex-col items-center w-full min-h-[200px]">
+                <div className="mt-12 md:mt-16 flex flex-col items-center w-full min-h-[200px]">
                     {!isSpinning && !isGoalReached && !showResult && (
                         <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest animate-pulse">
                             Klicka på hjulet för att snurra!
@@ -659,7 +670,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                                 initial={{ opacity: 0, y: 20, scale: 0.9 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: -20, scale: 0.9 }}
-                                className="px-8 py-8 rounded-3xl shadow-2xl text-center w-full max-w-3xl mx-auto mb-6"
+                                className="px-8 py-8 rounded-3xl shadow-2xl text-center w-full max-w-3xl mx-auto mb-6 mt-12"
                                 style={{ 
                                     backgroundColor: result === 'JOKER 🃏' ? '#1f2937' : (resultIndex !== null ? COLORS[resultIndex % COLORS.length] : undefined),
                                     color: '#ffffff'

@@ -1,608 +1,577 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useStudio } from '../../context/StudioContext';
-import { playTimerSound } from '../../hooks/useWorkoutTimer';
-import { WorkoutCompleteModal } from '../WorkoutCompleteModal';
-import { MOCK_EXERCISE_BANK } from '../../data/mockData';
-import { JokerEvent, getRandomJoker } from '../../data/jokers';
 
-interface DeckOfCardsGameProps {
-    onBack: () => void;
-}
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { WorkoutBlock, TimerStatus, Exercise, TimerSettings, TimerMode, TimerSoundProfile, TimerSegment } from '../types';
 
-type Suit = 'hearts' | 'diamonds' | 'clubs' | 'spades';
-type CardValue = '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K' | 'A';
+// --- Audio Generation ---
+let audioContext: AudioContext | null = null;
 
-interface Card {
-    suit: Suit;
-    value: CardValue;
-    numericValue: number;
-}
-
-const SUITS: Suit[] = ['hearts', 'diamonds', 'clubs', 'spades'];
-const VALUES: CardValue[] = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
-
-const getNumericValue = (val: CardValue): number => {
-    if (val === 'J') return 11;
-    if (val === 'Q') return 12;
-    if (val === 'K') return 13;
-    if (val === 'A') return 14;
-    return parseInt(val);
-};
-
-const createDeck = (): Card[] => {
-    const deck: Card[] = [];
-    for (const suit of SUITS) {
-        for (const value of VALUES) {
-            deck.push({ suit, value, numericValue: getNumericValue(value) });
-        }
+export const getAudioContext = (): AudioContext | null => {
+  if (typeof window === 'undefined') return null;
+  if (!audioContext) {
+    try {
+        audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    } catch(e) {
+        console.error("Web Audio API is not supported in this browser.");
     }
-    return deck;
+  }
+  return audioContext;
 };
 
-const shuffleDeck = (deck: Card[]): Card[] => {
-    const newDeck = [...deck];
-    for (let i = newDeck.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [newDeck[i], newDeck[j]] = [newDeck[j], newDeck[i]];
-    }
-    return newDeck;
+/* --- SOUND SYNTHESIS FUNCTIONS --- */
+
+const playTone = (ctx: AudioContext, freq: number, type: OscillatorType, startTime: number, duration: number, vol: number = 0.5) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, startTime);
+    gain.gain.setValueAtTime(vol, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(startTime);
+    osc.stop(startTime + duration);
 };
 
-const getSuitSymbol = (suit: Suit) => {
-    switch (suit) {
-        case 'hearts': return '♥';
-        case 'diamonds': return '♦';
-        case 'clubs': return '♣';
-        case 'spades': return '♠';
-    }
+// Exporting playTone as playBeep for compatibility
+export const playBeep = playTone;
+
+// 1. BOXING BELL (Original)
+const playBellStrike = (ctx: AudioContext, startTime: number) => {
+  const duration = 1.5;
+  const frequencies = [800, 1100, 1600, 2400]; 
+  
+  frequencies.forEach((freq, i) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = i % 2 === 0 ? 'sine' : 'triangle';
+    osc.frequency.setValueAtTime(freq, startTime);
+    gain.gain.setValueAtTime(0, startTime);
+    gain.gain.linearRampToValueAtTime(i === 0 ? 0.5 : 0.2, startTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(startTime);
+    osc.stop(startTime + duration);
+  });
 };
 
-const getSuitColor = (suit: Suit) => {
-    switch (suit) {
-        case 'hearts':
-        case 'diamonds':
-            return 'text-red-600';
-        case 'clubs':
-        case 'spades':
-            return 'text-black';
-    }
-};
-
-export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
-    const { studioConfig } = useStudio();
-    const [gameState, setGameState] = useState<'setup' | 'playing' | 'finished'>('setup');
-    const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'custom'>('medium');
-    const [goalType, setGoalType] = useState<'deck' | 'time' | 'rounds'>('deck');
-    const [goalValue, setGoalValue] = useState<number>(10); // 10 minutes or 10 rounds
+// 2. AIR HORN (Aggressive, Sawtooth, Detuned)
+const playAirHorn = (ctx: AudioContext, startTime: number) => {
+    const duration = 0.6;
+    const baseFreq = 320; // Mid-low range
     
-    const [jokerCount, setJokerCount] = useState<number>(2);
-    const [jokerType, setJokerType] = useState<'reward' | 'challenge' | 'mixed'>('mixed');
-    const [activeJokerEvent, setActiveJokerEvent] = useState<JokerEvent | null>(null);
-    const [jokerTimeLeft, setJokerTimeLeft] = useState<number | null>(null);
+    // Two oscillators slightly detuned to create the rough "horn" texture
+    [0, 10].forEach(detune => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const filter = ctx.createBiquadFilter();
 
-    const [customExercises, setCustomExercises] = useState<Record<Suit, string>>({
-        hearts: '',
-        diamonds: '',
-        clubs: '',
-        spades: ''
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(baseFreq, startTime);
+        osc.detune.setValueAtTime(detune, startTime); // Detune for roughness
+
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(2000, startTime);
+
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(0.4, startTime + 0.05);
+        gain.gain.linearRampToValueAtTime(0.4, startTime + duration - 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        
+        osc.start(startTime);
+        osc.stop(startTime + duration);
     });
-    const [focusedSuit, setFocusedSuit] = useState<Suit | null>(null);
+};
 
-    const [deck, setDeck] = useState<Card[]>([]);
-    const [currentCard, setCurrentCard] = useState<Card | null>(null);
-    const [drawnCards, setDrawnCards] = useState<Card[]>([]);
-    const [isFlipping, setIsFlipping] = useState(false);
+// 3. DIGITAL BEEP (UPDATED: Classic High Pitch Timer Sound)
+const playDigitalBeep = (ctx: AudioContext, startTime: number) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
     
-    // Timer state
-    const [timeLeft, setTimeLeft] = useState<number>(0);
-    const [isTimerRunning, setIsTimerRunning] = useState(false);
-    const [hasStartedTimer, setHasStartedTimer] = useState(false);
-    const [showTimerControls, setShowTimerControls] = useState(false);
+    // Använder Sine men med hög frekvens för att efterlikna klassiska stoppur/timers
+    // Tar bort "pitch drop" (frequency ramp) för att göra det mer distinkt och mindre "lekfullt"
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1500, startTime); 
 
-    useEffect(() => {
-        if (showTimerControls) {
-            const timer = setTimeout(() => setShowTimerControls(false), 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [showTimerControls]);
+    gain.gain.setValueAtTime(0, startTime);
+    gain.gain.linearRampToValueAtTime(0.5, startTime + 0.01); // Snabb attack
+    gain.gain.setValueAtTime(0.5, startTime + 0.08); // Håll tonen kort
+    gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.15); // Snabb release
 
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (isTimerRunning && timeLeft > 0) {
-            interval = setInterval(() => {
-                setTimeLeft(prev => {
-                    if (prev <= 1) {
-                        setIsTimerRunning(false);
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
-        }
-        return () => clearInterval(interval);
-    }, [isTimerRunning, timeLeft]);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(startTime);
+    osc.stop(startTime + 0.15);
+};
 
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (jokerTimeLeft !== null && jokerTimeLeft > 0) {
-            interval = setInterval(() => {
-                setJokerTimeLeft(prev => {
-                    if (prev && prev <= 1) {
-                        playTimerSound(studioConfig?.soundProfile || 'airhorn', 1);
-                        return 0;
-                    }
-                    return prev ? prev - 1 : 0;
-                });
-            }, 1000);
-        }
-        return () => clearInterval(interval);
-    }, [jokerTimeLeft, studioConfig?.soundProfile]);
+// 4. GONG (Meditative, Low frequency, Inharmonic)
+const playGong = (ctx: AudioContext, startTime: number) => {
+    const duration = 3.5;
+    const fundamental = 180;
+    // Inharmonic partials
+    const ratios = [1, 1.41, 1.68, 2.15]; 
+    
+    ratios.forEach((ratio, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        
+        osc.type = i === 0 ? 'sine' : 'triangle';
+        osc.frequency.setValueAtTime(fundamental * ratio, startTime);
+        
+        const vol = 0.4 / (i + 1);
+        gain.gain.setValueAtTime(0, startTime);
+        gain.gain.linearRampToValueAtTime(vol, startTime + 0.02); // Soft attack
+        gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration / (i === 0 ? 1 : 1.5)); // Higher partials decay faster
 
-    const getExerciseForSuit = (suit: Suit) => {
-        if (difficulty === 'custom') {
-            return customExercises[suit] || 'Valfri övning';
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+    });
+};
+
+/* --- PUBLIC SOUND PLAYER --- */
+
+export const playTimerSound = (type: TimerSoundProfile = 'airhorn', count: number = 1) => {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+
+    const now = ctx.currentTime;
+    
+    for (let i = 0; i < count; i++) {
+        // Gap between multiple sounds (e.g., 2 bells)
+        // Air horn needs more space, digital beeps are faster
+        let gap = 0.4;
+        if (type === 'digital') gap = 0.25;
+        if (type === 'airhorn') gap = 0.7; 
+        if (type === 'gong') gap = 1.0; 
+
+        const startTime = now + (i * gap);
+
+        switch (type) {
+            case 'digital':
+                playDigitalBeep(ctx, startTime);
+                break;
+            case 'boxing':
+                playBellStrike(ctx, startTime);
+                break;
+            case 'gong':
+                playGong(ctx, startTime);
+                break;
+            case 'airhorn':
+            default:
+                playAirHorn(ctx, startTime);
+                break;
         }
-        if (difficulty === 'easy') {
-            switch (suit) {
-                case 'hearts': return 'Jumping Jacks';
-                case 'diamonds': return 'Knäböj';
-                case 'clubs': return 'Sit-ups';
-                case 'spades': return 'Utfall';
-            }
-        } else if (difficulty === 'hard') {
-            switch (suit) {
-                case 'hearts': return 'Burpees';
-                case 'diamonds': return 'Upphopp';
-                case 'clubs': return 'V-ups';
-                case 'spades': return 'Hoppande Utfall';
-            }
+    }
+};
+
+export const playShortBeep = () => {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    playTone(ctx, 880, 'triangle', ctx.currentTime, 0.1, 0.2);
+};
+
+export const playTada = () => {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume();
+    const now = ctx.currentTime;
+    
+    // C4, E4, G4, C5 (Arpeggio)
+    const freqs = [261.63, 329.63, 392.00, 523.25];
+    freqs.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + i * 0.1);
+        
+        gain.gain.setValueAtTime(0, now + i * 0.1);
+        gain.gain.linearRampToValueAtTime(0.3, now + i * 0.1 + 0.05);
+        
+        if (i === freqs.length - 1) {
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 1.0);
+            osc.start(now + i * 0.1);
+            osc.stop(now + i * 0.1 + 1.0);
         } else {
-            // Medium
-            switch (suit) {
-                case 'hearts': return 'Burpees';
-                case 'diamonds': return 'Armhävningar';
-                case 'clubs': return 'Sit-ups';
-                case 'spades': return 'Knäböj';
+            gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.2);
+            osc.start(now + i * 0.1);
+            osc.stop(now + i * 0.1 + 0.2);
+        }
+        
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+    });
+};
+
+export const playBoxingBell = (strikes: number) => {
+    // Legacy support wrapper - defaults to boxing sound
+    playTimerSound('boxing', strikes);
+};
+
+/* --- TIMER LOGIC --- */
+
+export const parseSettingsFromTitle = (title: string): Partial<TimerSettings> | null => {
+    const lowerTitle = title.toLowerCase().trim();
+    const amrapMatch = lowerTitle.match(/(?:(\d+)\s*min\s*)?(amrap|time cap)(?:\s*(\d+))?/);
+    if (amrapMatch) {
+        const minutesStr = amrapMatch[1] || amrapMatch[3];
+        if (minutesStr) {
+            const minutes = parseInt(minutesStr, 10);
+            if (!isNaN(minutes)) {
+                return {
+                    mode: amrapMatch[2].trim() === 'amrap' ? TimerMode.AMRAP : TimerMode.TimeCap,
+                    workTime: minutes * 60,
+                    restTime: 0,
+                    rounds: 1,
+                };
             }
         }
-    };
-
-    const startGame = () => {
-        const newDeck = createDeck();
-        for (let i = 0; i < jokerCount; i++) {
-            newDeck.push({ suit: 'JOKER' as any, value: 'JOKER' as any, numericValue: 0 });
+    }
+    const emomMatch = lowerTitle.match(/emom\s*(\d+)/);
+    if (emomMatch) {
+        const minutes = parseInt(emomMatch[1], 10);
+        if (!isNaN(minutes)) {
+            return {
+                mode: TimerMode.EMOM,
+                workTime: 60,
+                restTime: 0,
+                rounds: minutes,
+            };
         }
-        setDeck(shuffleDeck(newDeck));
-        setCurrentCard(null);
-        setDrawnCards([]);
-        setHasStartedTimer(false);
-        setIsTimerRunning(false);
-        setActiveJokerEvent(null);
-        setJokerTimeLeft(null);
-        
-        if (goalType === 'time') {
-            setTimeLeft(goalValue * 60);
+    }
+    if (lowerTitle.includes('tabata')) {
+        return { mode: TimerMode.Tabata, workTime: 20, restTime: 10, rounds: 8 };
+    }
+    const intervalMatch = lowerTitle.match(/(\d+)\s*\/\s*(\d+)/);
+    if (intervalMatch) {
+        const work = parseInt(intervalMatch[1], 10);
+        const rest = parseInt(intervalMatch[2], 10);
+        if (!isNaN(work) && !isNaN(rest)) {
+            if (work === 20 && rest === 10) return { mode: TimerMode.Tabata, workTime: 20, restTime: 10, rounds: 8 };
+            return { mode: TimerMode.Interval, workTime: work, restTime: rest };
+        }
+    }
+    return null;
+};
+
+export const calculateBlockDuration = (settings: TimerSettings, exercisesCount: number): number => {
+    if (!settings) return 0;
+    
+    const rounds = settings.rounds || (exercisesCount > 0 ? exercisesCount : 1);
+    const workTime = settings.workTime || 0;
+    const restTime = settings.restTime || 0;
+
+    switch(settings.mode) {
+        case TimerMode.Custom:
+            if (!settings.sequence || settings.sequence.length === 0) return 0;
+            const sequenceDuration = settings.sequence.reduce((acc, seg) => acc + (seg.duration || 0), 0);
+            return sequenceDuration * (settings.rounds || 1);
+        case TimerMode.Interval:
+        case TimerMode.Tabata:
+            const totalWork = rounds * workTime;
+            const totalRest = rounds > 1 ? (rounds - 1) * restTime : 0;
+            return totalWork + totalRest;
+        case TimerMode.AMRAP:
+        case TimerMode.TimeCap:
+        case TimerMode.Stopwatch:
+            return workTime;
+        case TimerMode.EMOM:
+            return rounds * 60;
+        default:
+            return 0;
+    }
+}
+
+export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerSoundProfile = 'airhorn') => {
+  const [status, setStatus] = useState<TimerStatus>(TimerStatus.Idle);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [currentPhaseDuration, setCurrentPhaseDuration] = useState(0);
+  const [completedWorkIntervals, setCompletedWorkIntervals] = useState(0);
+  const [totalTimeElapsed, setTotalTimeElapsed] = useState(0);
+  const intervalRef = useRef<number | null>(null);
+
+  const totalBlockDuration = useMemo(() => {
+      if (!block) return 0;
+      return calculateBlockDuration(block.settings, block.exercises?.length || 0);
+  }, [block]);
+
+  // CUSTOM TIMER: Flatten sequence to simplify logic
+  const flattenedSequence = useMemo<TimerSegment[]>(() => {
+      if (block?.settings.mode !== TimerMode.Custom || !block.settings.sequence) return [];
+      const seq = block.settings.sequence;
+      const rounds = block.settings.rounds || 1;
+      const flat: TimerSegment[] = [];
+      for (let i = 0; i < rounds; i++) {
+          flat.push(...seq);
+      }
+      return flat;
+  }, [block]);
+
+  const totalExercises = block?.exercises.length ?? 0;
+  
+  const settingsRounds = useMemo(() => {
+      if (!block) return 0;
+      if (block.settings.mode === TimerMode.Tabata) return 8;
+      if (block.settings.mode === TimerMode.Custom) {
+          return flattenedSequence.length;
+      }
+      return block.settings.rounds || (totalExercises > 0 ? totalExercises : 1);
+  }, [block, totalExercises, flattenedSequence.length]);
+
+  const isOldLapsMode = useMemo(() => {
+      if (block?.settings.mode !== TimerMode.Interval) return false;
+      if (block?.settings.specifiedLaps !== undefined) return false;
+      const numExercises = totalExercises > 0 ? totalExercises : 1;
+      return settingsRounds > 0 && settingsRounds % numExercises === 0;
+  }, [block, totalExercises, settingsRounds]);
+
+  const effectiveIntervalsPerLap = useMemo(() => {
+      if (block?.settings.mode === TimerMode.Tabata) return 1;
+      if (block?.settings.mode === TimerMode.Custom) return block.settings.sequence?.length || 1;
+      if (block?.settings.specifiedIntervalsPerLap) return block.settings.specifiedIntervalsPerLap;
+      if (block?.settings.specifiedLaps === null) return 1;
+      if (isOldLapsMode) return totalExercises > 0 ? totalExercises : 1;
+      return 1; // Old rounds mode or undefined
+  }, [block, totalExercises, isOldLapsMode]);
+
+  const totalRounds = useMemo(() => {
+      if (!block) return 0;
+      if (block.settings.mode === TimerMode.Tabata) return settingsRounds;
+      if (block.settings.mode === TimerMode.Custom) return block.settings.rounds;
+      if (block.settings.mode === TimerMode.EMOM) return settingsRounds;
+      if (block.settings.specifiedLaps) return block.settings.specifiedLaps;
+      if (block.settings.specifiedLaps === null) return settingsRounds;
+      if (isOldLapsMode) return totalExercises > 0 ? Math.ceil(settingsRounds / totalExercises) : settingsRounds;
+      return settingsRounds; // Old rounds mode or undefined
+  }, [block, totalExercises, settingsRounds, isOldLapsMode]);
+
+  const currentRound = Math.floor(completedWorkIntervals / effectiveIntervalsPerLap) + 1;
+  const isLastExerciseInRound = (completedWorkIntervals + 1) % effectiveIntervalsPerLap === 0;
+
+  const currentExerciseIndex = totalExercises > 0 ? completedWorkIntervals % totalExercises : 0;
+  const currentExercise = block && totalExercises > 0 ? block.exercises[currentExerciseIndex] : null;
+  const nextExercise = block && totalExercises > 0 ? block.exercises[(completedWorkIntervals + 1) % totalExercises] : null;
+  
+  // Custom: Current segment derived from completed count
+  const currentSegment = block?.settings.mode === TimerMode.Custom && flattenedSequence.length > 0 
+      ? flattenedSequence[completedWorkIntervals] || null 
+      : null;
+      
+  const nextSegment = block?.settings.mode === TimerMode.Custom && flattenedSequence.length > completedWorkIntervals + 1
+      ? flattenedSequence[completedWorkIntervals + 1] || null
+      : null;
+
+  const stopTimer = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
+  
+  const startNextInterval = useCallback(() => {
+    if (!block) return;
+    const { workTime, restTime, mode } = block.settings;
+
+    if (mode === TimerMode.Custom) {
+        if (!currentSegment) {
+             setStatus(TimerStatus.Finished);
+             return;
         }
         
-        setGameState('playing');
-    };
-
-    const handleFinishGame = () => {
-        setGameState('finished');
-        setIsTimerRunning(false);
-        playTimerSound(studioConfig?.soundProfile || 'airhorn', 3);
-    };
-
-    const isGoalReached = 
-        (goalType === 'deck' && deck.length === 0 && drawnCards.length > 0) ||
-        (goalType === 'rounds' && drawnCards.length >= goalValue) ||
-        (goalType === 'time' && timeLeft === 0 && hasStartedTimer);
-
-    const drawCard = () => {
-        if (deck.length === 0 || isFlipping || isGoalReached) return;
+        // Map segment type to Status
+        if (currentSegment.type === 'work') setStatus(TimerStatus.Running);
+        else setStatus(TimerStatus.Resting);
         
-        setIsFlipping(true);
-        const newDeck = [...deck];
-        const card = newDeck.pop()!;
-        
-        setTimeout(() => {
-            setCurrentCard(card);
-            setDrawnCards(prev => [card, ...prev]);
-            setDeck(newDeck);
-            setIsFlipping(false);
-            
-            if (card.suit === 'JOKER' as any) {
-                const event = getRandomJoker(jokerType);
-                setActiveJokerEvent(event);
-                if (event.duration) {
-                    setJokerTimeLeft(event.duration);
-                } else {
-                    setJokerTimeLeft(null);
-                }
-            } else {
-                setActiveJokerEvent(null);
-                setJokerTimeLeft(null);
-            }
-        }, 300); // Wait for flip animation
-    };
-
-    const resetGame = () => {
-        setIsTimerRunning(false);
-        setGameState('setup');
-    };
-
-    const formatTime = (seconds: number) => {
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
-        return `${m}:${s.toString().padStart(2, '0')}`;
-    };
-
-    if (gameState === 'setup') {
-        return (
-            <div className="w-full max-w-5xl mx-auto px-6 pb-12 animate-fade-in flex flex-col items-center justify-center min-h-[80vh]">
-                <div className="text-center mb-10 w-full">
-                    <h1 className="text-5xl font-black text-gray-900 dark:text-white mb-2 tracking-tight uppercase">
-                        Kortleken
-                    </h1>
-                    <div className="h-1.5 w-24 bg-primary mx-auto rounded-full mb-4"></div>
-                    <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">
-                        Inställningar
-                    </p>
-                </div>
-
-                <div className="max-w-3xl mx-auto w-full space-y-8 bg-white dark:bg-gray-900 p-8 rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.15)] border border-gray-100 dark:border-gray-800">
-                    
-                    {/* Difficulty */}
-                    <div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 uppercase tracking-tight">Svårighetsgrad</h3>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            {(['easy', 'medium', 'hard', 'custom'] as const).map(level => (
-                                <button
-                                    key={level}
-                                    onClick={() => setDifficulty(level)}
-                                    className={`py-4 rounded-xl font-bold uppercase tracking-wider transition-all border-2 ${
-                                        difficulty === level 
-                                            ? 'border-primary bg-primary/10 text-primary' 
-                                            : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'
-                                    }`}
-                                >
-                                    {level === 'easy' ? 'Lätt' : level === 'medium' ? 'Medel' : level === 'hard' ? 'Tuff' : 'Egen'}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Custom Exercises Input */}
-                    {difficulty === 'custom' && (
-                        <div className="space-y-4 animate-fade-in">
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 uppercase tracking-tight">Dina övningar</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                {(['hearts', 'diamonds', 'clubs', 'spades'] as Suit[]).map(suit => (
-                                    <div key={suit} className="relative flex items-center gap-4 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl border border-gray-100 dark:border-gray-800">
-                                        <div className={`text-3xl w-10 text-center ${getSuitColor(suit)}`}>
-                                            {getSuitSymbol(suit)}
-                                        </div>
-                                        <div className="relative flex-1">
-                                            <input
-                                                type="text"
-                                                value={customExercises[suit]}
-                                                onChange={(e) => setCustomExercises(prev => ({ ...prev, [suit]: e.target.value }))}
-                                                onFocus={() => setFocusedSuit(suit)}
-                                                onBlur={() => setTimeout(() => setFocusedSuit(null), 200)}
-                                                placeholder={`Övning för ${suit === 'hearts' ? 'Hjärter' : suit === 'diamonds' ? 'Ruter' : suit === 'clubs' ? 'Klöver' : 'Spader'}`}
-                                                className="w-full px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all"
-                                            />
-                                            {focusedSuit === suit && customExercises[suit].length > 0 && (
-                                                <div className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl max-h-48 overflow-y-auto">
-                                                    {MOCK_EXERCISE_BANK
-                                                        .filter(ex => ex.name.toLowerCase().includes(customExercises[suit].toLowerCase()))
-                                                        .slice(0, 5)
-                                                        .map(ex => (
-                                                            <button
-                                                                key={ex.id}
-                                                                className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-900 dark:text-white transition-colors border-b border-gray-100 dark:border-gray-700/50 last:border-0"
-                                                                onClick={() => {
-                                                                    setCustomExercises(prev => ({ ...prev, [suit]: ex.name }));
-                                                                    setFocusedSuit(null);
-                                                                }}
-                                                            >
-                                                                <span className="font-bold block">{ex.name}</span>
-                                                                <span className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{ex.description}</span>
-                                                            </button>
-                                                        ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Jokers */}
-                    <div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 uppercase tracking-tight">Jokrar</h3>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-bold text-gray-500 dark:text-gray-400 mb-2 uppercase">Antal Jokrar i leken: {jokerCount}</label>
-                                <input 
-                                    type="range" 
-                                    min="0" max="4" 
-                                    value={jokerCount} 
-                                    onChange={(e) => setJokerCount(parseInt(e.target.value))}
-                                    className="w-full accent-primary"
-                                />
-                            </div>
-                            {jokerCount > 0 && (
-                                <div className="grid grid-cols-3 gap-2">
-                                    <button onClick={() => setJokerType('reward')} className={`py-2 rounded-lg font-bold text-sm uppercase border-2 ${jokerType === 'reward' ? 'border-green-500 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400' : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'}`}>Belöning</button>
-                                    <button onClick={() => setJokerType('challenge')} className={`py-2 rounded-lg font-bold text-sm uppercase border-2 ${jokerType === 'challenge' ? 'border-red-500 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400' : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'}`}>Utmaning</button>
-                                    <button onClick={() => setJokerType('mixed')} className={`py-2 rounded-lg font-bold text-sm uppercase border-2 ${jokerType === 'mixed' ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400' : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'}`}>Blandat</button>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Goal Type */}
-                    <div>
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 uppercase tracking-tight">Mål</h3>
-                        <div className="grid grid-cols-3 gap-4">
-                            <button
-                                onClick={() => setGoalType('deck')}
-                                className={`py-4 rounded-xl font-bold uppercase tracking-wider transition-all border-2 ${
-                                    goalType === 'deck' 
-                                        ? 'border-primary bg-primary/10 text-primary' 
-                                        : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'
-                                }`}
-                            >
-                                Hela leken
-                            </button>
-                            <button
-                                onClick={() => setGoalType('time')}
-                                className={`py-4 rounded-xl font-bold uppercase tracking-wider transition-all border-2 ${
-                                    goalType === 'time' 
-                                        ? 'border-primary bg-primary/10 text-primary' 
-                                        : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'
-                                }`}
-                            >
-                                På tid
-                            </button>
-                            <button
-                                onClick={() => setGoalType('rounds')}
-                                className={`py-4 rounded-xl font-bold uppercase tracking-wider transition-all border-2 ${
-                                    goalType === 'rounds' 
-                                        ? 'border-primary bg-primary/10 text-primary' 
-                                        : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'
-                                }`}
-                            >
-                                Antal kort
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Goal Value Input */}
-                    {goalType !== 'deck' && (
-                        <div className="animate-fade-in">
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 uppercase tracking-tight">
-                                {goalType === 'time' ? 'Tid (minuter)' : 'Antal kort'}
-                            </h3>
-                            <input
-                                type="number"
-                                min="1"
-                                value={goalValue}
-                                onChange={(e) => setGoalValue(parseInt(e.target.value) || 1)}
-                                className="w-full p-4 text-2xl font-bold text-center rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white focus:border-primary focus:ring-0 outline-none"
-                            />
-                        </div>
-                    )}
-
-                    <button
-                        onClick={startGame}
-                        className="w-full py-5 bg-primary text-white rounded-xl font-black text-xl uppercase tracking-widest shadow-lg hover:bg-primary/90 transition-all active:scale-95 mt-8"
-                    >
-                        Starta Spelet
-                    </button>
-                </div>
-            </div>
-        );
+        const duration = currentSegment.duration || 0;
+        setCurrentTime(duration);
+        setCurrentPhaseDuration(duration);
+        return;
     }
 
-    return (
-        <div className="w-full max-w-5xl mx-auto px-6 pb-12 animate-fade-in flex flex-col justify-center min-h-[80vh]">
-            <div className="flex items-center justify-between mb-12 z-10">
-                <div>
-                    <h2 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tight uppercase">
-                        Kortleken
-                    </h2>
-                    <div className="flex items-center gap-4 mt-2">
-                        <p className="text-xl text-gray-500 dark:text-gray-400 font-medium">
-                            {deck.length} kort kvar
-                        </p>
-                        {goalType === 'rounds' && (
-                            <div className="px-4 py-1.5 bg-primary/10 text-primary rounded-lg font-bold text-xl">
-                                {drawnCards.length} / {goalValue}
-                            </div>
-                        )}
-                    </div>
-                </div>
-                <div className="flex gap-4">
-                    <button
-                        onClick={resetGame}
-                        className="px-6 py-3 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-lg"
-                    >
-                        Börja om
-                    </button>
-                </div>
-            </div>
+    if (status === TimerStatus.Preparing) {
+        setStatus(TimerStatus.Running);
+        setCurrentTime(workTime);
+        setCurrentPhaseDuration(workTime);
+    } else if (status === TimerStatus.Running) {
+      if (restTime > 0) {
+        setStatus(TimerStatus.Resting);
+        setCurrentTime(restTime);
+        setCurrentPhaseDuration(restTime);
+      } else {
+        setStatus(TimerStatus.Running);
+        setCurrentTime(workTime);
+        setCurrentPhaseDuration(workTime);
+      }
+    } else if (status === TimerStatus.Resting) {
+      setStatus(TimerStatus.Running);
+      setCurrentTime(workTime);
+      setCurrentPhaseDuration(workTime);
+    }
+  }, [block, status, currentSegment]);
 
-            {goalType === 'time' && (
-                <div className="flex flex-col items-center justify-center mb-8 z-10">
-                    <div 
-                        className="flex flex-col items-center justify-center relative group cursor-pointer"
-                        onClick={() => setShowTimerControls(true)}
-                    >
-                        <div className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl select-none text-[6rem] sm:text-[8rem] md:text-[10rem] text-primary relative z-10">
-                            {formatTime(timeLeft)}
-                        </div>
-                        <div className={`flex gap-4 mt-8 relative z-10 transition-opacity duration-300 ${!hasStartedTimer ? 'opacity-0 pointer-events-none' : isTimerRunning ? (showTimerControls ? 'opacity-100' : 'opacity-0 group-hover:opacity-100') : 'opacity-100'}`}>
-                            <button 
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setIsTimerRunning(!isTimerRunning);
-                                    setShowTimerControls(false);
-                                }}
-                                className={`px-10 py-4 text-white rounded-2xl font-black text-xl uppercase tracking-widest shadow-lg transition-transform active:scale-95 ${isTimerRunning ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-500 hover:bg-green-600'}`}
-                            >
-                                {isTimerRunning ? 'Pausa' : 'Fortsätt'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+  useEffect(() => {
+    if (status === TimerStatus.Running || status === TimerStatus.Resting || status === TimerStatus.Preparing) {
+      intervalRef.current = window.setInterval(() => {
+        if (status === TimerStatus.Running || status === TimerStatus.Resting) {
+            setTotalTimeElapsed(prev => {
+                const next = prev + 1;
+                return next > totalBlockDuration ? totalBlockDuration : next;
+            });
+        }
 
-            <div className="flex flex-col items-center justify-center z-10 mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-24 w-full max-w-7xl mx-auto justify-items-center items-center">
-                    
-                    {/* Deck / Draw Button */}
-                    <div className="flex flex-col items-center w-full">
-                        <button 
-                            onClick={() => {
-                                if (isGoalReached) {
-                                    handleFinishGame();
-                                } else {
-                                    if (goalType === 'time' && (!hasStartedTimer || !isTimerRunning)) {
-                                        setIsTimerRunning(true);
-                                        setHasStartedTimer(true);
-                                    }
-                                    drawCard();
-                                }
-                            }}
-                            disabled={!isGoalReached && (deck.length === 0 || isFlipping)}
-                            className={`relative w-72 h-[28rem] rounded-3xl shadow-2xl border-4 border-white dark:border-gray-800 transition-transform ${(!isGoalReached && deck.length === 0) ? 'opacity-50 cursor-not-allowed' : 'hover:-translate-y-2 active:scale-95 cursor-pointer'}`}
-                            style={{
-                                background: isGoalReached ? '#10b981' : 'repeating-linear-gradient(45deg, #ef4444, #ef4444 15px, #b91c1c 15px, #b91c1c 30px)'
-                            }}
-                        >
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-2xl">
-                                <span className="text-white font-black text-4xl uppercase tracking-widest drop-shadow-md text-center px-4">
-                                    {isGoalReached ? 'Klar!' : 'Dra Kort'}
-                                </span>
-                            </div>
-                        </button>
-                    </div>
+        setCurrentTime(prevTime => {
+          const newTime = prevTime - 1;
+          if ((status === TimerStatus.Preparing || status === TimerStatus.Resting) && newTime <= 3 && newTime >= 1) {
+            playShortBeep();
+          }
+          return Math.max(0, newTime);
+        });
+      }, 1000);
+    } else {
+      stopTimer();
+    }
+    return () => stopTimer();
+  }, [status, stopTimer, totalBlockDuration]);
 
-                    {/* Current Card Display */}
-                    <div className="flex flex-col items-center w-full">
-                        <AnimatePresence mode="wait">
-                            {currentCard ? (
-                                <motion.div
-                                    key={`${currentCard.suit}-${currentCard.value}`}
-                                    initial={{ rotateY: 90, scale: 0.8, opacity: 0 }}
-                                    animate={{ rotateY: 0, scale: 1, opacity: 1 }}
-                                    exit={{ rotateY: -90, scale: 0.8, opacity: 0 }}
-                                    transition={{ duration: 0.3 }}
-                                    className={`w-72 h-[28rem] rounded-3xl shadow-2xl border flex flex-col justify-between p-8 relative overflow-hidden ${currentCard.suit === 'JOKER' as any ? 'bg-gradient-to-br from-gray-900 to-gray-800 border-purple-500 text-white' : 'bg-white border-gray-200'}`}
-                                >
-                                    {currentCard.suit === 'JOKER' as any ? (
-                                        <div className="flex flex-col items-center justify-center h-full text-center w-full">
-                                            <span className="text-6xl mb-4 animate-bounce">🃏</span>
-                                            <h3 className={`text-3xl font-black uppercase mb-4 ${activeJokerEvent?.type === 'reward' ? 'text-green-400' : 'text-red-400'}`}>
-                                                {activeJokerEvent?.title}
-                                            </h3>
-                                            <p className="text-lg text-gray-300 font-medium mb-8">
-                                                {activeJokerEvent?.description}
-                                            </p>
-                                            {jokerTimeLeft !== null && (
-                                                <div className={`text-5xl font-mono font-black tabular-nums ${jokerTimeLeft === 0 ? 'text-red-400 animate-pulse' : 'text-white'}`}>
-                                                    {formatTime(jokerTimeLeft)}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <div className={`text-6xl font-black ${getSuitColor(currentCard.suit)}`}>
-                                                {currentCard.value}
-                                                <div className="text-4xl mt-2">{getSuitSymbol(currentCard.suit)}</div>
-                                            </div>
-                                            
-                                            <div className={`absolute inset-0 flex items-center justify-center text-[10rem] ${getSuitColor(currentCard.suit)}`}>
-                                                {getSuitSymbol(currentCard.suit)}
-                                            </div>
-                                            
-                                            <div className={`text-6xl font-black self-end rotate-180 ${getSuitColor(currentCard.suit)}`}>
-                                                {currentCard.value}
-                                                <div className="text-4xl mt-2">{getSuitSymbol(currentCard.suit)}</div>
-                                            </div>
-                                        </>
-                                    )}
-                                </motion.div>
-                            ) : (
-                                <div className="w-72 h-[28rem] border-4 border-dashed border-gray-300 dark:border-gray-700 rounded-3xl flex items-center justify-center">
-                                    <span className="text-gray-400 dark:text-gray-600 font-bold text-2xl uppercase tracking-widest text-center px-4">
-                                        Inget kort draget
-                                    </span>
-                                </div>
-                            )}
-                        </AnimatePresence>
-                        
-                        {/* Exercise Instruction */}
-                        <div className="h-32 mt-8 flex items-center justify-center w-full">
-                            <AnimatePresence mode="wait">
-                                {currentCard && (
-                                    <motion.div 
-                                        key={`instruction-${currentCard.suit}-${currentCard.value}`}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        exit={{ opacity: 0, y: -20 }}
-                                        className="text-center w-full"
-                                    >
-                                        <div className="flex flex-col items-center justify-center">
-                                            {currentCard.suit === 'JOKER' as any ? (
-                                                <span className="text-4xl md:text-6xl font-black text-purple-500 uppercase tracking-tight mt-2 text-center break-words max-w-full px-4">
-                                                    JOKER!
-                                                </span>
-                                            ) : (
-                                                <>
-                                                    <span className="text-6xl md:text-8xl font-black text-gray-900 dark:text-white uppercase tracking-tighter drop-shadow-sm leading-none">
-                                                        {currentCard.numericValue}
-                                                    </span>
-                                                    <span className="text-3xl md:text-5xl font-black text-primary uppercase tracking-tight mt-2 text-center break-words max-w-full px-4">
-                                                        {getExerciseForSuit(currentCard.suit)}
-                                                    </span>
-                                                </>
-                                            )}
-                                        </div>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            {/* Legend / Settings (Bottom) */}
-            <div className="mt-auto pt-8 border-t border-gray-200 dark:border-gray-800 z-10">
-                <div className="flex flex-wrap justify-center gap-8 md:gap-16">
-                    {SUITS.map(suit => (
-                        <div key={suit} className="flex items-center gap-4">
-                            <span className={`text-4xl ${getSuitColor(suit)}`}>{getSuitSymbol(suit)}</span>
-                            <span className="text-2xl font-bold text-gray-700 dark:text-gray-300 uppercase tracking-tight">
-                                = {getExerciseForSuit(suit)}
-                            </span>
-                        </div>
-                    ))}
-                </div>
-            </div>
+  useEffect(() => {
+    if (currentTime > 0) return;
+    if (status === TimerStatus.Idle || status === TimerStatus.Finished || status === TimerStatus.Paused) return;
 
-            {gameState === 'finished' && (
-                <WorkoutCompleteModal
-                    isOpen={true}
-                    onClose={resetGame}
-                    workout={{ id: 'game', title: 'Kortleken' } as any}
-                    isFinalBlock={true}
-                />
-            )}
-        </div>
-    );
+    if (block) {
+      const { mode } = block.settings;
+      
+      // Slut på hela blocket (AMRAP / TimeCap)
+      if ((mode === TimerMode.AMRAP || mode === TimerMode.TimeCap) && status === TimerStatus.Running) {
+        playTimerSound(soundProfile, 3); // Trippelslag
+        setStatus(TimerStatus.Finished);
+        setTotalTimeElapsed(totalBlockDuration);
+        return;
+      }
+
+      // CUSTOM Logic
+      if (mode === TimerMode.Custom) {
+           if (status === TimerStatus.Preparing) {
+               playTimerSound(soundProfile, 1);
+               // Force start next segment immediately
+               const firstSeg = flattenedSequence[0];
+               if (firstSeg) {
+                   setCompletedWorkIntervals(0);
+                   setStatus(firstSeg.type === 'work' ? TimerStatus.Running : TimerStatus.Resting);
+                   setCurrentTime(firstSeg.duration);
+                   setCurrentPhaseDuration(firstSeg.duration);
+               } else {
+                   setStatus(TimerStatus.Finished);
+               }
+               return;
+           }
+
+           // Check if we are finished with current step
+           const nextIndex = completedWorkIntervals + 1;
+           if (nextIndex >= flattenedSequence.length) {
+               playTimerSound(soundProfile, 3);
+               setStatus(TimerStatus.Finished);
+               setTotalTimeElapsed(totalBlockDuration);
+               return;
+           }
+           
+           // Transition to next segment
+           const nextSeg = flattenedSequence[nextIndex];
+           setCompletedWorkIntervals(nextIndex);
+           
+           // ATOMIC UPDATE: Set time and status here to prevent '0' flicker causing loop
+           if (nextSeg.type === 'work') playTimerSound(soundProfile, 2);
+           else playTimerSound(soundProfile, 1);
+           
+           setStatus(nextSeg.type === 'work' ? TimerStatus.Running : TimerStatus.Resting);
+           setCurrentTime(nextSeg.duration);
+           setCurrentPhaseDuration(nextSeg.duration);
+           
+           return; 
+      }
+
+      // STANDARD Interval Logic
+      if (status === TimerStatus.Running) {
+        const newCompletedCount = completedWorkIntervals + 1;
+        
+        // Är vi helt klara med alla varv/intervaller?
+        if (newCompletedCount >= settingsRounds) {
+          setCompletedWorkIntervals(newCompletedCount);
+          playTimerSound(soundProfile, 3); // Trippelslag
+          setStatus(TimerStatus.Finished);
+          setTotalTimeElapsed(totalBlockDuration);
+          return;
+        }
+        
+        setCompletedWorkIntervals(newCompletedCount);
+        playTimerSound(soundProfile, 2); // Dubbelslag
+      } else if (status === TimerStatus.Resting || status === TimerStatus.Preparing) {
+        playTimerSound(soundProfile, 1); // Enkelslag för start
+      }
+    }
+    
+    startNextInterval();
+  }, [currentTime, status, block, completedWorkIntervals, totalBlockDuration, settingsRounds, startNextInterval, soundProfile, flattenedSequence]);
+
+  const start = useCallback((options?: { skipPrep?: boolean }) => {
+    if (!block) return;
+    getAudioContext();
+    setTotalTimeElapsed(0);
+    setCompletedWorkIntervals(0);
+    
+    if (options?.skipPrep) {
+        if (block.settings.mode === TimerMode.Custom && block.settings.sequence && block.settings.sequence.length > 0) {
+             const firstSeg = block.settings.sequence[0];
+             setStatus(firstSeg.type === 'work' ? TimerStatus.Running : TimerStatus.Resting);
+             setCurrentTime(firstSeg.duration);
+             setCurrentPhaseDuration(firstSeg.duration);
+        } else {
+             setStatus(TimerStatus.Running);
+             const workTime = block.settings.workTime || 60;
+             setCurrentTime(workTime);
+             setCurrentPhaseDuration(workTime);
+        }
+        playTimerSound(soundProfile, 1);
+    } else {
+        setStatus(TimerStatus.Preparing);
+        const prepTime = block.settings.prepareTime || 10;
+        setCurrentTime(prepTime);
+        setCurrentPhaseDuration(prepTime);
+    }
+  }, [block, soundProfile]);
+
+  const pause = () => { if (status !== TimerStatus.Idle && status !== TimerStatus.Finished) setStatus(TimerStatus.Paused); };
+  const resume = () => { if (status === TimerStatus.Paused) {
+      if (block?.settings.mode === TimerMode.Custom && currentSegment) {
+          setStatus(currentSegment.type === 'work' ? TimerStatus.Running : TimerStatus.Resting);
+      } else {
+          // Fallback logic for resuming standard timers 
+          setStatus(TimerStatus.Running); 
+      }
+  }};
+  
+  const reset = useCallback(() => {
+    stopTimer();
+    setStatus(TimerStatus.Idle);
+    setCurrentTime(0);
+    setCurrentPhaseDuration(0);
+    setCompletedWorkIntervals(0);
+    setTotalTimeElapsed(0);
+  }, [stopTimer]);
+
+  return { 
+    status, currentTime, currentPhaseDuration, currentRound, currentExercise, nextExercise,
+    currentExerciseIndex, start, pause, resume, reset,
+    totalRounds, totalExercises, totalBlockDuration, totalTimeElapsed,
+    completedWorkIntervals, totalWorkIntervals: settingsRounds, effectiveIntervalsPerLap,
+    isLastExerciseInRound,
+    currentSegment, // Export current segment for UI
+    nextSegment
+  };
 };
