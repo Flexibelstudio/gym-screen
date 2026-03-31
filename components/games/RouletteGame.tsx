@@ -94,6 +94,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
     const [isSpinning, setIsSpinning] = useState(false);
     const [rotation, setRotation] = useState(0);
     const [result, setResult] = useState<string | null>(null);
+    const [resultIndex, setResultIndex] = useState<number | null>(null);
     const [showResult, setShowResult] = useState(false);
 
     useEffect(() => {
@@ -160,6 +161,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
         setIsSpinning(true);
         setShowResult(false);
         setResult(null);
+        setResultIndex(null);
 
         // Play a sound when starting
         playTimerSound(studioConfig?.soundProfile || 'airhorn', 1);
@@ -187,6 +189,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
         setTimeout(() => {
             setIsSpinning(false);
             setResult(slices[winningIndex]);
+            setResultIndex(winningIndex);
             setShowResult(true);
             setSpinsCount(prev => prev + 1);
             playTimerSound(studioConfig?.soundProfile || 'airhorn', 3);
@@ -434,7 +437,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
     const sliceAngle = 360 / activeSlices.length;
 
     return (
-        <div className="w-full max-w-5xl mx-auto px-6 pb-12 animate-fade-in flex flex-col items-center justify-center min-h-[80vh]">
+        <div className="w-full max-w-5xl mx-auto px-6 pb-12 pt-4 md:pt-8 animate-fade-in flex flex-col items-center justify-start min-h-screen">
             <div className="flex items-center justify-between mb-6 z-10 w-full">
                 <div>
                     <h2 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tight uppercase">
@@ -486,13 +489,20 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
 
             <div className="relative flex flex-col items-center justify-center w-full max-w-4xl mx-auto">
                 {/* Pointer */}
-                <div className="absolute -top-8 z-20 w-16 h-24 flex flex-col items-center">
+                <div className="absolute -top-8 z-20 w-16 h-24 flex flex-col items-center pointer-events-none">
                     <div className="w-10 h-10 bg-gray-900 dark:bg-white rounded-full shadow-lg z-10"></div>
                     <div className="w-0 h-0 border-l-[20px] border-l-transparent border-r-[20px] border-r-transparent border-t-[32px] border-t-gray-900 dark:border-t-white -mt-2 drop-shadow-lg"></div>
                 </div>
 
                 {/* Wheel Container */}
-                <div className="relative w-full aspect-square max-w-[800px] p-4">
+                <div 
+                    className={`relative w-full aspect-square max-w-[800px] p-4 ${!isSpinning && !isGoalReached ? 'cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform' : ''}`}
+                    onClick={() => {
+                        if (!isSpinning && !isGoalReached) {
+                            handleSpin();
+                        }
+                    }}
+                >
                     <div className="absolute inset-0 rounded-full bg-white dark:bg-gray-800 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.2)] border-8 border-white dark:border-gray-800"></div>
                     
                     <motion.div 
@@ -558,27 +568,13 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                     </motion.div>
                 </div>
 
-                {/* Controls */}
-                <div className="mt-8 flex flex-col items-center w-full">
-                    <button
-                        onClick={() => {
-                            if (isGoalReached) {
-                                handleFinishGame();
-                            } else {
-                                handleSpin();
-                            }
-                        }}
-                        disabled={isSpinning}
-                        className={`px-12 py-5 rounded-2xl font-black text-2xl uppercase tracking-widest shadow-xl transition-all ${
-                            isSpinning 
-                                ? 'bg-gray-300 dark:bg-gray-700 text-gray-500 cursor-not-allowed scale-95' 
-                                : isGoalReached
-                                    ? 'bg-green-500 hover:bg-green-600 text-white hover:-translate-y-1 active:scale-95'
-                                    : 'bg-primary hover:bg-primary/90 text-white hover:-translate-y-1 active:scale-95'
-                        }`}
-                    >
-                        {isSpinning ? 'Snurrar...' : isGoalReached ? 'Klar!' : 'Snurra Hjulet!'}
-                    </button>
+                {/* Controls & Result */}
+                <div className="mt-8 flex flex-col items-center w-full min-h-[200px]">
+                    {!isSpinning && !isGoalReached && !showResult && (
+                        <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest animate-pulse">
+                            Klicka på hjulet för att snurra!
+                        </p>
+                    )}
 
                     <AnimatePresence>
                         {showResult && result && (
@@ -586,13 +582,28 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                                 initial={{ opacity: 0, y: 20, scale: 0.9 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: -20, scale: 0.9 }}
-                                className="mt-8 bg-white dark:bg-gray-800 px-8 py-6 rounded-3xl shadow-2xl border-2 border-primary/20 text-center w-full"
+                                className="px-8 py-8 rounded-3xl shadow-2xl text-center w-full max-w-3xl mx-auto mb-6"
+                                style={{ 
+                                    backgroundColor: resultIndex !== null ? COLORS[resultIndex % COLORS.length] : undefined,
+                                    color: '#ffffff'
+                                }}
                             >
-                                <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider text-sm mb-2">Din utmaning</p>
-                                <p className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white">{result}</p>
+                                <p className="font-bold uppercase tracking-wider text-sm mb-2 opacity-90">Din utmaning</p>
+                                <p className="text-4xl md:text-5xl lg:text-6xl font-black drop-shadow-md">{result}</p>
                             </motion.div>
                         )}
                     </AnimatePresence>
+
+                    {isGoalReached && !isSpinning && (
+                        <motion.button
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            onClick={handleFinishGame}
+                            className="px-12 py-5 rounded-2xl font-black text-2xl uppercase tracking-widest shadow-xl transition-all bg-green-500 hover:bg-green-600 text-white hover:-translate-y-1 active:scale-95"
+                        >
+                            Klar!
+                        </motion.button>
+                    )}
                 </div>
             </div>
         </div>
