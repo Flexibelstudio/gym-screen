@@ -298,7 +298,10 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
             return <HyroxRaceDetailScreen raceId={activeRaceId} onBack={handleBack} />;
 
         case Page.WorkoutGamesHub:
-            return <WorkoutGamesHubScreen onBack={handleBack} />;
+            return <WorkoutGamesHubScreen 
+                onBack={handleBack} 
+                setCustomBackHandler={functions.setCustomBackHandler}
+            />;
 
         case Page.MemberRegistry:
             return <MemberManagementScreen onSelectMember={() => {}} />;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Page } from '../../types';
 import { motion } from 'framer-motion';
 import { SparklesIcon, DumbbellIcon } from '../icons';
@@ -6,41 +6,46 @@ import { DeckOfCardsGame } from './DeckOfCardsGame';
 
 interface WorkoutGamesHubScreenProps {
     onBack: () => void;
+    setCustomBackHandler?: (handler: (() => void) | null) => void;
 }
 
-export const WorkoutGamesHubScreen: React.FC<WorkoutGamesHubScreenProps> = ({ onBack }) => {
+export const WorkoutGamesHubScreen: React.FC<WorkoutGamesHubScreenProps> = ({ onBack, setCustomBackHandler }) => {
     const [activeGame, setActiveGame] = useState<'hub' | 'deckOfCards'>('hub');
+
+    useEffect(() => {
+        if (activeGame === 'deckOfCards' && setCustomBackHandler) {
+            setCustomBackHandler(() => () => setActiveGame('hub'));
+        } else if (setCustomBackHandler) {
+            setCustomBackHandler(null);
+        }
+        return () => {
+            if (setCustomBackHandler) setCustomBackHandler(null);
+        };
+    }, [activeGame, setCustomBackHandler]);
 
     if (activeGame === 'deckOfCards') {
         return <DeckOfCardsGame onBack={() => setActiveGame('hub')} />;
     }
 
     return (
-        <div className="flex flex-col h-full bg-gray-50 dark:bg-gray-950 p-6 sm:p-10">
-            <div className="flex items-center justify-between mb-8">
-                <div>
-                    <h2 className="text-3xl md:text-5xl font-black text-gray-900 dark:text-white tracking-tight uppercase">
-                        Träningslekar
-                    </h2>
-                    <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">
-                        Smart Play - Gör träningen till en lek
-                    </p>
-                </div>
-                <button
-                    onClick={onBack}
-                    className="px-6 py-3 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                >
-                    Tillbaka
-                </button>
+        <div className="w-full max-w-5xl mx-auto px-6 pb-12 animate-fade-in">
+            <div className="text-center mb-10">
+                <h1 className="text-5xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
+                    Träningslekar
+                </h1>
+                <div className="h-1.5 w-24 bg-primary mx-auto rounded-full mb-4"></div>
+                <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">
+                    Smart Play - Gör träningen till en lek
+                </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {/* Deck of Cards Game Card */}
                 <motion.button
                     whileHover={{ scale: 1.02, y: -5 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setActiveGame('deckOfCards')}
-                    className="bg-white dark:bg-gray-900 rounded-[2rem] p-8 shadow-xl border border-gray-100 dark:border-gray-800 text-left flex flex-col h-full relative overflow-hidden group"
+                    className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-8 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.15)] hover:shadow-[0_30px_60px_-15px_rgba(0,0,0,0.2)] border border-gray-100 dark:border-gray-800 text-left flex flex-col h-full relative overflow-hidden group"
                 >
                     <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 rounded-full blur-3xl -mr-10 -mt-10 transition-all group-hover:bg-red-500/20"></div>
                     
@@ -61,7 +66,7 @@ export const WorkoutGamesHubScreen: React.FC<WorkoutGamesHubScreenProps> = ({ on
                 </motion.button>
 
                 {/* Coming Soon: Roulette */}
-                <div className="bg-gray-100 dark:bg-gray-800/50 rounded-[2rem] p-8 border border-gray-200 dark:border-gray-700 text-left flex flex-col h-full relative overflow-hidden opacity-70">
+                <div className="bg-gray-100 dark:bg-gray-800/50 rounded-[2.5rem] p-8 border border-gray-200 dark:border-gray-700 text-left flex flex-col h-full relative overflow-hidden opacity-70">
                     <div className="w-16 h-16 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-2xl flex items-center justify-center mb-6 shadow-sm">
                         <span className="text-3xl">🎡</span>
                     </div>
@@ -77,7 +82,7 @@ export const WorkoutGamesHubScreen: React.FC<WorkoutGamesHubScreenProps> = ({ on
                 </div>
 
                 {/* Coming Soon: Dice */}
-                <div className="bg-gray-100 dark:bg-gray-800/50 rounded-[2rem] p-8 border border-gray-200 dark:border-gray-700 text-left flex flex-col h-full relative overflow-hidden opacity-70">
+                <div className="bg-gray-100 dark:bg-gray-800/50 rounded-[2.5rem] p-8 border border-gray-200 dark:border-gray-700 text-left flex flex-col h-full relative overflow-hidden opacity-70">
                     <div className="w-16 h-16 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-2xl flex items-center justify-center mb-6 shadow-sm">
                         <span className="text-3xl">🎲</span>
                     </div>
