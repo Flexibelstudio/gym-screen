@@ -19,6 +19,7 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@google/genai": "0.14.0",
+    "canvas-confetti": "^1.9.4",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "firebase": "9.23.0",
@@ -35,6 +36,7 @@
     "zod": "3.23.8"
   },
   "devDependencies": {
+    "@types/canvas-confetti": "^1.9.0",
     "@types/express": "^5.0.6",
     "@types/node": "^20.19.35",
     "@vitejs/plugin-react": "^5.0.0",
