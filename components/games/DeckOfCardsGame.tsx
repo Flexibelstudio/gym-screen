@@ -60,10 +60,10 @@ const getSuitColor = (suit: Suit) => {
     switch (suit) {
         case 'hearts':
         case 'diamonds':
-            return 'text-red-600 dark:text-red-500';
+            return 'text-red-600';
         case 'clubs':
         case 'spades':
-            return 'text-black dark:text-white';
+            return 'text-black';
     }
 };
 
@@ -111,7 +111,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
         } else if (difficulty === 'hard') {
             switch (suit) {
                 case 'hearts': return 'Burpees';
-                case 'diamonds': return 'Pistol Squats';
+                case 'diamonds': return 'Upphopp';
                 case 'clubs': return 'V-ups';
                 case 'spades': return 'Hoppande Utfall';
             }
@@ -306,12 +306,12 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
 
             {goalType === 'time' && (
                 <div className="flex flex-col items-center justify-center mb-8 z-10">
-                    <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.15)] border border-gray-100 dark:border-gray-800 px-12 py-8 flex flex-col items-center justify-center relative overflow-hidden">
+                    <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.15)] border border-gray-100 dark:border-gray-800 px-12 py-8 flex flex-col items-center justify-center relative overflow-hidden group">
                         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10"></div>
                         <div className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl select-none text-[6rem] sm:text-[8rem] md:text-[10rem] text-primary relative z-10">
                             {formatTime(timeLeft)}
                         </div>
-                        <div className="flex gap-4 mt-8 relative z-10">
+                        <div className={`flex gap-4 mt-8 relative z-10 transition-opacity duration-300 ${isTimerRunning ? 'opacity-0 group-hover:opacity-100' : 'opacity-100'}`}>
                             {!hasStartedTimer || !isTimerRunning ? (
                                 <button 
                                     onClick={() => {
@@ -375,7 +375,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                                     animate={{ rotateY: 0, scale: 1, opacity: 1 }}
                                     exit={{ rotateY: -90, scale: 0.8, opacity: 0 }}
                                     transition={{ duration: 0.3 }}
-                                    className="w-72 h-[28rem] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col justify-between p-8 relative overflow-hidden"
+                                    className="w-72 h-[28rem] bg-white rounded-3xl shadow-2xl border border-gray-200 flex flex-col justify-between p-8 relative overflow-hidden"
                                 >
                                     <div className={`text-6xl font-black ${getSuitColor(currentCard.suit)}`}>
                                         {currentCard.value}

@@ -127,7 +127,7 @@ export const MOCK_EXERCISE_BANK: BankExercise[] = [
     { id: 'bank_bw_9', name: 'Dips (på bänk/låda)', description: 'Tricepsövning där du sänker och höjer kroppen med hjälp av armarna, med händerna på en bänk.', tags: ['triceps', 'axlar', 'bröst', 'kroppsvikt'] },
     { id: 'bank_bw_10', name: 'Pull-ups / Chins', description: 'Dra kroppsvikten uppåt tills hakan är över en stång. Tränar rygg och biceps.', tags: ['rygg', 'biceps', 'kroppsvikt'] },
     { id: 'bank_bw_11', name: 'Höga Knän (High Knees)', description: 'Löpning på stället med fokus på att lyfta knäna högt för att öka pulsen.', tags: ['kondition', 'uppvärmning', 'kroppsvikt'] },
-    { id: 'bank_bw_12', name: 'Pistol Squats (Enbensknäböj)', description: 'Avancerad knäböj på ett ben, kräver styrka, balans och rörlighet.', tags: ['ben', 'säte', 'balans', 'kroppsvikt'] },
+    { id: 'bank_bw_12', name: 'Upphopp (Jump Squats)', description: 'Explosiv knäböj med ett hopp på vägen upp. Tränar benstyrka och spänst.', tags: ['ben', 'säte', 'explosivt', 'kroppsvikt'] },
     { id: 'bank_bw_13', name: 'Benlyft (Leg Raises)', description: 'Magövning där du från liggande lyfter raka ben mot taket.', tags: ['mage', 'bål', 'kroppsvikt'] },
     { id: 'bank_bw_14', name: 'Hollow Rocks', description: 'Bålövning där du gungar fram och tillbaka med spänd, båtformad kropp.', tags: ['bål', 'mage', 'kroppsvikt'] },
     { id: 'bank_bw_15', name: 'Superman', description: 'Ryggövning där du från magliggande lyfter armar och ben från golvet.', tags: ['rygg', 'ländrygg', 'kroppsvikt'] },
@@ -236,7 +236,6 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
             coach: '1234',
         },
         globalConfig: {
-            enableWarmup: true,
             enableScreensaver: true,
             screensaverTimeoutMinutes: 15,
             enableExerciseBank: true,
@@ -244,7 +243,6 @@ export const MOCK_ORGANIZATIONS: Organization[] = [
             enableHyrox: true,
             enableNotes: true,
             enableWorkoutLogging: true,
-            enableBreathingGuide: true,
             checkInImageEnabled: true,
             checkInImageUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTYgMjU2Ij48cGF0aCBmaWxsPSIjRkZGRkZGIiBkPSJNMjA4IDMySDQ4YTggOCAwIDAgMC04IDh2NTZhOCA4IDAgMCAwIDggOGg0YTY4IDY4IDAgMCAxIDY4IDY4djRhOCA4IDAgMCAwIDggOGg1NmE4IDggMCAwIDAgOC04di04YTQwIDQwIDAgMCAwLTI4Ljc5LTM4LjEybDYuNDUtMS44NWE4IDggMCAwIDAgNS4xMy05LjI5VjQwYTggOCAwIDAgMC04LThabS04IDY0di4xNmwtOS4zNCAyLjY3YTU2IDU2IDAgMCAxLTIuNjYtMjMuNzlWNDBoNTZ2NDhhOCA4IDAgMCAxLTggOFpNNTIgNDBoNDB2NDhBNDAgNDAgMCAwIDAgODAgMTI0LjQzVjE2OEg1MlpNNjggNzZhOCA4IDAgMSAxLTggOGE4IDggMCAwIDEgOC04Wm0xMTIgOGE4IDggMCAxIDEtOCA4YTggOCAwIDAgMSA4LThabS00MCA3MmgtNDhhOCA4IDAgMCAwLTggOHY0OGE4IDggMCAwIDAgOCA4aDQ4YTggOCAwIDAgMCA4LTh2LTQ4YTggOCAwIDAgMC04LThabS04IDQ4aC0zMnYtMzJoMzJaTTk2IDEyMGE4IDggMCAxIDEtOCA4YTggOCAwIDAgMSA4LThabTQ4IDU2YTggOCAwIDEgMS04IDhhOCA4IDAgMCAxIDgtOFoiLz48L3N2Zz4=',
             seasonalTheme: 'none'
