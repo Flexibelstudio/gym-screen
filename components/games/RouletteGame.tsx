@@ -26,9 +26,9 @@ const PRESET_WHEELS: WheelConfig[] = [
         name: 'Ben & Rumpa',
         emoji: '🦵',
         slices: {
-            easy: ['10 Knäböj', '10 Utfall', '15 Höftlyft', '10 Vadpress', '10 Sek Jägarvila', '10 Sido-utfall'],
-            medium: ['15 Knäböj', '20 Utfall', '20 Höftlyft', '15 Upphopp', '30 Sek Jägarvila', '15 Sido-utfall'],
-            hard: ['20 Upphopp', '30 Utfallshopp', '20 Enbens-höftlyft', '20 Pistol Squats', '60 Sek Jägarvila', '20 Skridskohopp']
+            easy: ['10 Knäböj', '10 Utfall', '15 Höftlyft', '10 Vadpress', '10 Sek Jägarvila', '10 Sido-utfall', '10 Step-ups', '15 Glute bridges'],
+            medium: ['15 Knäböj', '20 Utfall', '20 Höftlyft', '15 Upphopp', '30 Sek Jägarvila', '15 Sido-utfall', '20 Skaters', '15 Box jumps'],
+            hard: ['20 Upphopp', '30 Utfallshopp', '20 Enbens-höftlyft', '60 Sek Jägarvila', '20 Skridskohopp', '15 Jumping lunges', '20 Sido-utfall med hopp']
         }
     },
     {
@@ -36,9 +36,9 @@ const PRESET_WHEELS: WheelConfig[] = [
         name: 'Överkropp',
         emoji: '💪',
         slices: {
-            easy: ['5 Armhävningar på knä', '10 Dips mot stol', '15 Sek Planka', '10 Rygglyft', '10 Armcirklar', '5 Smala armhävningar på knä'],
-            medium: ['10 Armhävningar', '15 Dips', '30 Sek Planka', '15 Rygglyft', '10 Burpees', '10 Smala armhävningar'],
-            hard: ['20 Armhävningar', '20 Dips', '60 Sek Planka', '20 Rygglyft', '15 Burpees', '15 Smala armhävningar']
+            easy: ['5 Armhävningar på knä', '10 Dips mot stol', '15 Sek Planka', '10 Rygglyft', '10 Armcirklar', '5 Smala armhävningar på knä', '15 Sek Sidoplanka'],
+            medium: ['10 Armhävningar', '15 Dips', '30 Sek Planka', '15 Rygglyft', '10 Burpees', '10 Smala armhävningar', '20 Mountain climbers', '10 Walkouts'],
+            hard: ['20 Armhävningar', '20 Dips', '60 Sek Planka', '20 Rygglyft', '15 Burpees', '15 Smala armhävningar', '20 Commandos', '15 Burpees med upphopp']
         }
     },
     {
@@ -46,9 +46,9 @@ const PRESET_WHEELS: WheelConfig[] = [
         name: 'Kondition',
         emoji: '🫀',
         slices: {
-            easy: ['20 Jumping Jacks', '15 Höga knän', '10 Burpees (utan armhävning)', '20 Snabba fötter', '15 Skridskohopp', '10 Mountain Climbers'],
-            medium: ['40 Jumping Jacks', '30 Höga knän', '15 Burpees', '40 Snabba fötter', '30 Skridskohopp', '30 Mountain Climbers'],
-            hard: ['60 Jumping Jacks', '50 Höga knän', '25 Burpees', '60 Snabba fötter', '50 Skridskohopp', '50 Mountain Climbers']
+            easy: ['20 Jumping Jacks', '15 Höga knän', '10 Burpees (utan armhävning)', '20 Snabba fötter', '15 Skridskohopp', '10 Mountain Climbers', '20 Sek Höga knän', '15 Step-ups'],
+            medium: ['40 Jumping Jacks', '30 Höga knän', '15 Burpees', '40 Snabba fötter', '30 Skridskohopp', '30 Mountain Climbers', '20 Tuck jumps', '15 Thrusters'],
+            hard: ['60 Jumping Jacks', '50 Höga knän', '25 Burpees', '60 Snabba fötter', '50 Skridskohopp', '50 Mountain Climbers', '20 Burpee broad jumps', '30 Tuck jumps']
         }
     },
     {
@@ -56,9 +56,9 @@ const PRESET_WHEELS: WheelConfig[] = [
         name: 'Bål & Mage',
         emoji: '🍫',
         slices: {
-            easy: ['10 Sit-ups', '15 Sek Planka', '10 Cykelcrunches', '10 Båten', '10 Ryska twist', '10 Benlyft'],
-            medium: ['20 Sit-ups', '45 Sek Planka', '20 Cykelcrunches', '30 Sek Båten', '20 Ryska twist', '15 Benlyft'],
-            hard: ['40 Sit-ups', '90 Sek Planka', '40 Cykelcrunches', '60 Sek Båten', '40 Ryska twist', '25 Benlyft']
+            easy: ['10 Sit-ups', '15 Sek Planka', '10 Cykelcrunches', '10 Båten', '10 Ryska twist', '10 Benlyft', '15 Sek Sidoplanka', '15 Crunches'],
+            medium: ['20 Sit-ups', '45 Sek Planka', '20 Cykelcrunches', '30 Sek Båten', '20 Ryska twist', '15 Benlyft', '45 Sek Sidoplanka', '30 Crunches'],
+            hard: ['40 Sit-ups', '90 Sek Planka', '40 Cykelcrunches', '60 Sek Båten', '40 Ryska twist', '25 Benlyft', '30 Hollow rocks', '40 Crunches']
         }
     }
 ];

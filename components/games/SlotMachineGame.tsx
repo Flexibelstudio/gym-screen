@@ -11,9 +11,21 @@ interface SlotMachineGameProps {
 type DifficultyLevel = 'easy' | 'medium' | 'hard' | 'custom';
 
 const PRESET_EXERCISES = {
-    easy: ['Knäböj', 'Armhävningar mot vägg', 'Situps', 'Höga knän', 'Plankan', 'Utfall'],
-    medium: ['Knäböj med hopp', 'Armhävningar', 'Fällkniven', 'Burpees', 'Mountain climbers', 'Utfallshopp'],
-    hard: ['Pistol squats', 'Handstand pushups', 'V-ups', 'Navy seal burpees', 'Spiderman pushups', 'Jumping lunges']
+    easy: [
+        'Knäböj', 'Armhävningar mot vägg', 'Situps', 'Höga knän', 'Plankan', 
+        'Utfall', 'Jumping jacks', 'Rygglyft', 'Båten', 'Sido-utfall', 
+        'Tåhävningar', 'Höftlyft', 'Step-ups', 'Bear crawl'
+    ],
+    medium: [
+        'Knäböj med hopp', 'Armhävningar', 'Fällkniven', 'Burpees', 'Mountain climbers', 
+        'Utfallshopp', 'Dips', 'Russian twists', 'Skaters', 'Tuck jumps', 
+        'Walkouts', 'Jägarvila', 'Thrusters (kroppsvikt)', 'Hollow hold'
+    ],
+    hard: [
+        'Jumping lunges', 'Enbens-höftlyft', 'Broad jumps', 'Burpee broad jumps', 
+        'Commandos (hög till låg planka)', 'Sido-utfall med hopp', 'Hollow rocks', 
+        'Burpees med höga knän', 'Upphopp', 'Smala armhävningar'
+    ]
 };
 
 const AMOUNTS = [
@@ -279,13 +291,36 @@ const Reel: React.FC<{
     color: string
 }> = ({ items, isSpinning, result, delay, title, color }) => {
     
-    // Create a long list for the spinning effect
-    // We duplicate items to create a long strip, ending with the result
-    const spinItems = [
-        ...items, ...items, ...items, ...items, ...items, 
-        result || items[0]
-    ];
-    
+    const [localItems, setLocalItems] = useState<string[]>([result || items[0]]);
+    const [offset, setOffset] = useState(0);
+    const [isAnimating, setIsAnimating] = useState(false);
+
+    useEffect(() => {
+        if (isSpinning) {
+            // Create a random list of 40 items + the final result
+            const newList = Array.from({ length: 40 }, () => items[Math.floor(Math.random() * items.length)]);
+            newList.push(result);
+            
+            setLocalItems(newList);
+            setOffset(0);
+            setIsAnimating(false); // Disable transition for the reset
+
+            // Force reflow and start animation
+            const timer = setTimeout(() => {
+                setIsAnimating(true);
+                // 64px is the height of each item (h-16)
+                setOffset(-(newList.length - 1) * 64);
+            }, 50); // Small delay to ensure DOM is updated before animating
+
+            return () => clearTimeout(timer);
+        } else {
+            // Snap to single item when spinning is done
+            setLocalItems([result || items[0]]);
+            setOffset(0);
+            setIsAnimating(false);
+        }
+    }, [isSpinning, result, items]);
+
     return (
         <div className="flex flex-col items-center w-full">
             <h4 className="text-gray-400 font-bold uppercase tracking-widest text-sm mb-3">{title}</h4>
@@ -298,30 +333,25 @@ const Reel: React.FC<{
                 <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-16 bg-white/10 dark:bg-white/5 z-10 pointer-events-none border-y border-white/20"></div>
 
                 <div className="relative w-full h-full flex justify-center items-center">
-                    <motion.div 
+                    <div 
                         className="absolute w-full flex flex-col"
-                        initial={{ y: 0 }}
-                        animate={{ 
-                            // 64px is the height of each item (h-16)
-                            y: isSpinning ? -(spinItems.length - 1) * 64 : 0 
+                        style={{ 
+                            top: '50%', 
+                            marginTop: '-32px', // Center the first item (32px is half of 64px)
+                            transform: `translateY(${offset}px)`,
+                            transitionProperty: 'transform',
+                            transitionDuration: isAnimating ? `${2.5 + delay}s` : '0s',
+                            transitionTimingFunction: 'cubic-bezier(0.15, 0.85, 0.35, 1)',
+                            transitionDelay: isAnimating ? `${delay * 0.2}s` : '0s',
+                            willChange: 'transform'
                         }}
-                        transition={{ 
-                            duration: isSpinning ? 2.5 + delay : 0, 
-                            ease: [0.15, 0.85, 0.35, 1], // Custom easeOut for slot machine feel
-                            delay: isSpinning ? delay * 0.2 : 0
-                        }}
-                        style={{ top: '50%', marginTop: '-32px' }} // Center the first item (32px is half of 64px)
                     >
-                        {isSpinning ? spinItems.map((item, idx) => (
+                        {localItems.map((item, idx) => (
                             <div key={idx} className={`h-16 flex items-center justify-center px-2 text-center font-black text-sm md:text-lg ${color} rounded-lg mx-2 my-0`}>
                                 {item}
                             </div>
-                        )) : (
-                            <div className={`h-16 flex items-center justify-center px-2 text-center font-black text-sm md:text-lg ${color} rounded-lg mx-2 my-0`}>
-                                {result || items[0]}
-                            </div>
-                        )}
-                    </motion.div>
+                        ))}
+                    </div>
                 </div>
             </div>
         </div>

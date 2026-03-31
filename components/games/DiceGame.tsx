@@ -12,9 +12,21 @@ interface DiceGameProps {
 type DifficultyLevel = 'easy' | 'medium' | 'hard' | 'custom';
 
 const PRESET_EXERCISES = {
-    easy: ['Knäböj', 'Armhävningar mot vägg', 'Situps', 'Höga knän', 'Plankan', 'Utfall'],
-    medium: ['Knäböj med hopp', 'Armhävningar', 'Fällkniven', 'Burpees', 'Mountain climbers', 'Utfallshopp'],
-    hard: ['Pistol squats', 'Handstand pushups', 'V-ups', 'Navy seal burpees', 'Spiderman pushups', 'Jumping lunges']
+    easy: [
+        'Knäböj', 'Armhävningar mot vägg', 'Situps', 'Höga knän', 'Plankan', 
+        'Utfall', 'Jumping jacks', 'Rygglyft', 'Båten', 'Sido-utfall', 
+        'Tåhävningar', 'Höftlyft', 'Step-ups', 'Bear crawl'
+    ],
+    medium: [
+        'Knäböj med hopp', 'Armhävningar', 'Fällkniven', 'Burpees', 'Mountain climbers', 
+        'Utfallshopp', 'Dips', 'Russian twists', 'Skaters', 'Tuck jumps', 
+        'Walkouts', 'Jägarvila', 'Thrusters (kroppsvikt)', 'Hollow hold'
+    ],
+    hard: [
+        'Jumping lunges', 'Enbens-höftlyft', 'Broad jumps', 'Burpee broad jumps', 
+        'Commandos (hög till låg planka)', 'Sido-utfall med hopp', 'Hollow rocks', 
+        'Burpees med höga knän', 'Upphopp', 'Smala armhävningar'
+    ]
 };
 
 export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
