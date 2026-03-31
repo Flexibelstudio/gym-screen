@@ -81,40 +81,24 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
     
     // Timer state
     const [timeLeft, setTimeLeft] = useState<number>(0);
-    const [timeElapsed, setTimeElapsed] = useState<number>(0);
     const [isTimerRunning, setIsTimerRunning] = useState(false);
     const [hasStartedTimer, setHasStartedTimer] = useState(false);
 
-    const isGoalReached = 
-        (goalType === 'deck' && deck.length === 0 && drawnCards.length > 0) ||
-        (goalType === 'rounds' && drawnCards.length >= goalValue) ||
-        (goalType === 'time' && timeLeft === 0 && hasStartedTimer);
-
-    useEffect(() => {
-        if (isGoalReached && isTimerRunning) {
-            setIsTimerRunning(false);
-        }
-    }, [isGoalReached, isTimerRunning]);
-
     useEffect(() => {
         let interval: NodeJS.Timeout;
-        if (isTimerRunning) {
+        if (isTimerRunning && timeLeft > 0) {
             interval = setInterval(() => {
-                if (goalType === 'time') {
-                    setTimeLeft(prev => {
-                        if (prev <= 1) {
-                            setIsTimerRunning(false);
-                            return 0;
-                        }
-                        return prev - 1;
-                    });
-                } else {
-                    setTimeElapsed(prev => prev + 1);
-                }
+                setTimeLeft(prev => {
+                    if (prev <= 1) {
+                        setIsTimerRunning(false);
+                        return 0;
+                    }
+                    return prev - 1;
+                });
             }, 1000);
         }
         return () => clearInterval(interval);
-    }, [isTimerRunning, goalType]);
+    }, [isTimerRunning, timeLeft]);
 
     const getExerciseForSuit = (suit: Suit) => {
         if (difficulty === 'easy') {
@@ -146,9 +130,8 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
         setDeck(shuffleDeck(createDeck()));
         setCurrentCard(null);
         setDrawnCards([]);
-        setHasStartedTimer(true);
-        setIsTimerRunning(true);
-        setTimeElapsed(0);
+        setHasStartedTimer(false);
+        setIsTimerRunning(false);
         
         if (goalType === 'time') {
             setTimeLeft(goalValue * 60);
@@ -162,6 +145,11 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
         setIsTimerRunning(false);
         playTimerSound(studioConfig?.soundProfile || 'airhorn', 3);
     };
+
+    const isGoalReached = 
+        (goalType === 'deck' && deck.length === 0 && drawnCards.length > 0) ||
+        (goalType === 'rounds' && drawnCards.length >= goalValue) ||
+        (goalType === 'time' && timeLeft === 0 && hasStartedTimer);
 
     const drawCard = () => {
         if (deck.length === 0 || isFlipping || isGoalReached) return;
@@ -180,9 +168,6 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
 
     const resetGame = () => {
         setIsTimerRunning(false);
-        setHasStartedTimer(false);
-        setTimeLeft(0);
-        setTimeElapsed(0);
         setGameState('setup');
     };
 
@@ -292,166 +277,167 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
     }
 
     return (
-        <div className="fixed inset-0 bg-gray-50 dark:bg-black z-50 flex flex-col overflow-hidden animate-fade-in">
-            {/* TOP SECTION (Timer Box) */}
-            <div 
-                className={`relative w-full rounded-b-[2rem] sm:rounded-b-[3rem] shadow-xl overflow-hidden transition-colors duration-500 flex flex-col items-center justify-center pt-12 pb-8 bg-orange-600 ${!isGoalReached && goalType === 'time' ? 'cursor-pointer' : ''}`} 
-                onClick={() => { if (!isGoalReached && goalType === 'time') setIsTimerRunning(!isTimerRunning); }}
-            >
-                {/* Top left label */}
-                <div className="absolute top-4 left-4 sm:top-6 sm:left-6 px-3 py-1 sm:px-4 sm:py-1.5 rounded-full bg-black/20 backdrop-blur-md border border-white/10 shadow-sm z-20">
-                    <span className="font-bold tracking-widest text-white/90 uppercase drop-shadow-sm text-[10px] sm:text-xs">TRÄNINGSLEK</span>
-                </div>
-                
-                {/* Top right label */}
-                <div className="absolute top-4 right-4 sm:top-6 sm:right-6 px-3 py-1 sm:px-4 sm:py-1.5 rounded-full bg-black/20 backdrop-blur-md border border-white/10 shadow-sm z-20">
-                    <span className="font-bold tracking-widest text-white/90 uppercase drop-shadow-sm text-[10px] sm:text-xs">
-                        KORT {drawnCards.length}{goalType !== 'time' ? `/${goalType === 'deck' ? 52 : goalValue}` : ''}
-                    </span>
-                </div>
-
-                {/* Status Label */}
-                <div className="text-center z-20 w-full px-10 mb-1 mt-4">
-                    <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl w-full text-center text-2xl sm:text-3xl lg:text-4xl ${!isTimerRunning && hasStartedTimer && !isGoalReached && goalType === 'time' ? 'animate-pulse' : ''}`}>
-                        {isGoalReached ? 'KLAR' : (!isTimerRunning && hasStartedTimer && goalType === 'time' ? 'PAUSAD' : 'KORTLEKEN')}
+        <div className="w-full max-w-5xl mx-auto px-6 pb-12 animate-fade-in flex flex-col justify-center min-h-[80vh]">
+            <div className="flex items-center justify-between mb-12 z-10">
+                <div>
+                    <h2 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tight uppercase">
+                        Kortleken
                     </h2>
-                </div>
-
-                {/* Timer */}
-                {goalType === 'time' && (
-                    <div className={`z-20 relative flex flex-col items-center w-full text-white transition-opacity duration-300 ${!isTimerRunning && hasStartedTimer && !isGoalReached ? 'opacity-50' : 'opacity-100'}`}>
-                        <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[6rem] sm:text-[8rem] md:text-[10rem]">
-                            {formatTime(timeLeft)}
-                        </span>
+                    <div className="flex items-center gap-4 mt-2">
+                        <p className="text-xl text-gray-500 dark:text-gray-400 font-medium">
+                            {deck.length} kort kvar
+                        </p>
+                        {goalType === 'rounds' && (
+                            <div className="px-4 py-1.5 bg-primary/10 text-primary rounded-lg font-bold text-xl">
+                                {drawnCards.length} / {goalValue}
+                            </div>
+                        )}
                     </div>
-                )}
-
-                {/* Bottom text */}
-                <div className="text-center z-20 w-full px-10 mt-2 mb-2">
-                    <h1 className={`font-black text-white/90 uppercase tracking-tighter drop-shadow-lg ${goalType === 'time' ? 'text-xl sm:text-2xl md:text-3xl' : 'text-4xl sm:text-5xl md:text-6xl mt-4'}`}>
-                        {deck.length} KORT KVAR
-                    </h1>
                 </div>
-                
-                {/* Close button */}
-                <button 
-                    onClick={(e) => { e.stopPropagation(); resetGame(); }}
-                    className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 px-4 py-2 bg-black/20 hover:bg-black/30 text-white rounded-xl backdrop-blur-md border border-white/10 font-bold text-sm transition-colors z-30"
-                >
-                    Avsluta
-                </button>
+                <div className="flex gap-4">
+                    <button
+                        onClick={resetGame}
+                        className="px-6 py-3 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 font-bold hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-lg"
+                    >
+                        Börja om
+                    </button>
+                </div>
             </div>
 
-            {/* BOTTOM SECTION (Game Area) */}
-            <div className="flex-1 w-full bg-gray-50 dark:bg-black flex flex-col items-center justify-start p-4 sm:p-8 overflow-y-auto relative z-0">
-                <div className="w-full max-w-5xl mx-auto flex flex-col items-center h-full">
+            {goalType === 'time' && (
+                <div className="flex flex-col items-center justify-center mb-8 z-10">
+                    <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] shadow-[0_20px_50px_-20px_rgba(0,0,0,0.15)] border border-gray-100 dark:border-gray-800 px-12 py-8 flex flex-col items-center justify-center relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10"></div>
+                        <div className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl select-none text-[6rem] sm:text-[8rem] md:text-[10rem] text-primary relative z-10">
+                            {formatTime(timeLeft)}
+                        </div>
+                        <div className="flex gap-4 mt-8 relative z-10">
+                            {!hasStartedTimer || !isTimerRunning ? (
+                                <button 
+                                    onClick={() => {
+                                        setIsTimerRunning(true);
+                                        setHasStartedTimer(true);
+                                    }}
+                                    className="px-10 py-4 bg-green-500 hover:bg-green-600 text-white rounded-2xl font-black text-xl uppercase tracking-widest shadow-lg transition-transform active:scale-95"
+                                >
+                                    {hasStartedTimer ? 'Fortsätt' : 'Starta Timer'}
+                                </button>
+                            ) : (
+                                <button 
+                                    onClick={() => setIsTimerRunning(false)}
+                                    className="px-10 py-4 bg-yellow-500 hover:bg-yellow-600 text-white rounded-2xl font-black text-xl uppercase tracking-widest shadow-lg transition-transform active:scale-95"
+                                >
+                                    Pausa
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="flex flex-col items-center justify-center z-10 mt-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-24 w-full max-w-7xl mx-auto justify-items-center items-center">
                     
-                    {/* Deck and Card Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-16 w-full justify-items-center items-center mt-4">
-                        
-                        {/* Deck / Draw Button */}
-                        <div className="flex flex-col items-center w-full">
-                            <button 
-                                onClick={() => {
-                                    if (isGoalReached) {
-                                        handleFinishGame();
-                                    } else {
-                                        drawCard();
-                                        if (!hasStartedTimer) {
-                                            setIsTimerRunning(true);
-                                            setHasStartedTimer(true);
-                                        }
-                                    }
-                                }}
-                                disabled={!isGoalReached && (deck.length === 0 || isFlipping)}
-                                className={`relative w-48 h-72 sm:w-64 sm:h-96 rounded-2xl sm:rounded-3xl shadow-2xl border-4 border-white dark:border-gray-800 transition-transform ${(!isGoalReached && deck.length === 0) ? 'opacity-50 cursor-not-allowed' : 'hover:-translate-y-2 active:scale-95 cursor-pointer'}`}
-                                style={{
-                                    background: isGoalReached ? '#10b981' : 'repeating-linear-gradient(45deg, #ef4444, #ef4444 15px, #b91c1c 15px, #b91c1c 30px)'
-                                }}
-                            >
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-xl sm:rounded-2xl">
-                                    <span className="text-white font-black text-2xl sm:text-3xl uppercase tracking-widest drop-shadow-md text-center px-4">
-                                        {isGoalReached ? 'Klar!' : 'Dra Kort'}
+                    {/* Deck / Draw Button */}
+                    <div className="flex flex-col items-center w-full">
+                        <button 
+                            onClick={() => {
+                                if (isGoalReached) {
+                                    handleFinishGame();
+                                } else if (goalType === 'time' && (!hasStartedTimer || !isTimerRunning)) {
+                                    setIsTimerRunning(true);
+                                    setHasStartedTimer(true);
+                                } else {
+                                    drawCard();
+                                }
+                            }}
+                            disabled={!isGoalReached && (deck.length === 0 || isFlipping)}
+                            className={`relative w-72 h-[28rem] rounded-3xl shadow-2xl border-4 border-white dark:border-gray-800 transition-transform ${(!isGoalReached && deck.length === 0) ? 'opacity-50 cursor-not-allowed' : 'hover:-translate-y-2 active:scale-95 cursor-pointer'}`}
+                            style={{
+                                background: isGoalReached ? '#10b981' : 'repeating-linear-gradient(45deg, #ef4444, #ef4444 15px, #b91c1c 15px, #b91c1c 30px)'
+                            }}
+                        >
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-2xl">
+                                <span className="text-white font-black text-4xl uppercase tracking-widest drop-shadow-md text-center px-4">
+                                    {isGoalReached ? 'Klar!' : (goalType === 'time' && (!hasStartedTimer || !isTimerRunning) ? 'Starta timer' : 'Dra Kort')}
+                                </span>
+                            </div>
+                        </button>
+                    </div>
+
+                    {/* Current Card Display */}
+                    <div className="flex flex-col items-center w-full">
+                        <AnimatePresence mode="wait">
+                            {currentCard ? (
+                                <motion.div
+                                    key={`${currentCard.suit}-${currentCard.value}`}
+                                    initial={{ rotateY: 90, scale: 0.8, opacity: 0 }}
+                                    animate={{ rotateY: 0, scale: 1, opacity: 1 }}
+                                    exit={{ rotateY: -90, scale: 0.8, opacity: 0 }}
+                                    transition={{ duration: 0.3 }}
+                                    className="w-72 h-[28rem] bg-white dark:bg-gray-800 rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col justify-between p-8 relative overflow-hidden"
+                                >
+                                    <div className={`text-6xl font-black ${getSuitColor(currentCard.suit)}`}>
+                                        {currentCard.value}
+                                        <div className="text-4xl mt-2">{getSuitSymbol(currentCard.suit)}</div>
+                                    </div>
+                                    
+                                    <div className={`absolute inset-0 flex items-center justify-center text-[10rem] ${getSuitColor(currentCard.suit)}`}>
+                                        {getSuitSymbol(currentCard.suit)}
+                                    </div>
+                                    
+                                    <div className={`text-6xl font-black self-end rotate-180 ${getSuitColor(currentCard.suit)}`}>
+                                        {currentCard.value}
+                                        <div className="text-4xl mt-2">{getSuitSymbol(currentCard.suit)}</div>
+                                    </div>
+                                </motion.div>
+                            ) : (
+                                <div className="w-72 h-[28rem] border-4 border-dashed border-gray-300 dark:border-gray-700 rounded-3xl flex items-center justify-center">
+                                    <span className="text-gray-400 dark:text-gray-600 font-bold text-2xl uppercase tracking-widest text-center px-4">
+                                        Inget kort draget
                                     </span>
                                 </div>
-                            </button>
-                        </div>
-
-                        {/* Current Card Display */}
-                        <div className="flex flex-col items-center w-full">
+                            )}
+                        </AnimatePresence>
+                        
+                        {/* Exercise Instruction */}
+                        <div className="h-32 mt-8 flex items-center justify-center w-full">
                             <AnimatePresence mode="wait">
-                                {currentCard ? (
-                                    <motion.div
-                                        key={`${currentCard.suit}-${currentCard.value}`}
-                                        initial={{ rotateY: 90, scale: 0.8, opacity: 0 }}
-                                        animate={{ rotateY: 0, scale: 1, opacity: 1 }}
-                                        exit={{ rotateY: -90, scale: 0.8, opacity: 0 }}
-                                        transition={{ duration: 0.3 }}
-                                        className="w-48 h-72 sm:w-64 sm:h-96 bg-white dark:bg-gray-800 rounded-2xl sm:rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col justify-between p-4 sm:p-6 relative overflow-hidden"
+                                {currentCard && (
+                                    <motion.div 
+                                        key={`instruction-${currentCard.suit}-${currentCard.value}`}
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: -20 }}
+                                        className="text-center w-full"
                                     >
-                                        <div className={`text-4xl sm:text-5xl font-black ${getSuitColor(currentCard.suit)}`}>
-                                            {currentCard.value}
-                                            <div className="text-2xl sm:text-3xl mt-1">{getSuitSymbol(currentCard.suit)}</div>
-                                        </div>
-                                        
-                                        <div className={`absolute inset-0 flex items-center justify-center text-[6rem] sm:text-[8rem] ${getSuitColor(currentCard.suit)}`}>
-                                            {getSuitSymbol(currentCard.suit)}
-                                        </div>
-                                        
-                                        <div className={`text-4xl sm:text-5xl font-black self-end rotate-180 ${getSuitColor(currentCard.suit)}`}>
-                                            {currentCard.value}
-                                            <div className="text-2xl sm:text-3xl mt-1">{getSuitSymbol(currentCard.suit)}</div>
+                                        <div className="flex flex-col items-center justify-center">
+                                            <span className="text-6xl md:text-8xl font-black text-gray-900 dark:text-white uppercase tracking-tighter drop-shadow-sm leading-none">
+                                                {currentCard.numericValue}
+                                            </span>
+                                            <span className="text-3xl md:text-5xl font-black text-primary uppercase tracking-tight mt-2 text-center break-words max-w-full px-4">
+                                                {getExerciseForSuit(currentCard.suit)}
+                                            </span>
                                         </div>
                                     </motion.div>
-                                ) : (
-                                    <div className="w-48 h-72 sm:w-64 sm:h-96 border-4 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl sm:rounded-3xl flex items-center justify-center">
-                                        <span className="text-gray-400 dark:text-gray-600 font-bold text-xl sm:text-2xl uppercase tracking-widest text-center px-4">
-                                            Inget kort
-                                        </span>
-                                    </div>
                                 )}
                             </AnimatePresence>
                         </div>
                     </div>
-
-                    {/* Exercise Instruction */}
-                    <div className="mt-8 flex items-center justify-center w-full min-h-[8rem]">
-                        <AnimatePresence mode="wait">
-                            {currentCard && (
-                                <motion.div 
-                                    key={`instruction-${currentCard.suit}-${currentCard.value}`}
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -20 }}
-                                    className="text-center w-full"
-                                >
-                                    <div className="flex flex-col items-center justify-center">
-                                        <span className="text-5xl sm:text-7xl font-black text-gray-900 dark:text-white uppercase tracking-tighter drop-shadow-sm leading-none">
-                                            {currentCard.numericValue}
-                                        </span>
-                                        <span className="text-2xl sm:text-4xl font-black text-orange-600 uppercase tracking-tight mt-2 text-center break-words max-w-full px-4">
-                                            {getExerciseForSuit(currentCard.suit)}
-                                        </span>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </div>
-
-                    {/* Legend / Settings (Bottom) */}
-                    <div className="w-full max-w-4xl mx-auto mt-auto pt-8 pb-4 border-t border-gray-200 dark:border-gray-800 z-10">
-                        <div className="flex flex-wrap justify-center gap-6 md:gap-12">
-                            {SUITS.map(suit => (
-                                <div key={suit} className="flex items-center gap-3">
-                                    <span className={`text-3xl ${getSuitColor(suit)}`}>{getSuitSymbol(suit)}</span>
-                                    <span className="text-xl font-bold text-gray-700 dark:text-gray-300 uppercase tracking-tight">
-                                        = {getExerciseForSuit(suit)}
-                                    </span>
-                                </div>
-                            ))}
+                </div>
+            </div>
+            
+            {/* Legend / Settings (Bottom) */}
+            <div className="mt-auto pt-8 border-t border-gray-200 dark:border-gray-800 z-10">
+                <div className="flex flex-wrap justify-center gap-8 md:gap-16">
+                    {SUITS.map(suit => (
+                        <div key={suit} className="flex items-center gap-4">
+                            <span className={`text-4xl ${getSuitColor(suit)}`}>{getSuitSymbol(suit)}</span>
+                            <span className="text-2xl font-bold text-gray-700 dark:text-gray-300 uppercase tracking-tight">
+                                = {getExerciseForSuit(suit)}
+                            </span>
                         </div>
-                    </div>
-
+                    ))}
                 </div>
             </div>
 
