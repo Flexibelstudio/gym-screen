@@ -34,7 +34,8 @@ const PRESET_EXERCISES = {
 };
 
 export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
-    const { studioConfig } = useStudio();
+    const { selectedOrganization } = useStudio();
+    const faviconUrl = selectedOrganization?.faviconUrl;
     const [gameState, setGameState] = useState<'setup' | 'playing'>('setup');
     const [difficulty, setDifficulty] = useState<DifficultyLevel>('medium');
     const [customExercises, setCustomExercises] = useState<string[]>(Array(6).fill(''));
@@ -423,7 +424,8 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
 };
 
 const Die: React.FC<{ rotation: {x: number, y: number}, isRolling: boolean, color: 'white' | 'primary', onClick?: () => void }> = ({ rotation, isRolling, color, onClick }) => {
-    const { studioConfig } = useStudio();
+    const { selectedOrganization } = useStudio();
+    const faviconUrl = selectedOrganization?.faviconUrl;
     
     return (
         <div className={`die-scene ${isRolling ? 'is-rolling' : ''}`} onClick={onClick}>
@@ -436,8 +438,8 @@ const Die: React.FC<{ rotation: {x: number, y: number}, isRolling: boolean, colo
                     }}
                 >
                     <div className={`die-face face-1 die-face-${color}`}>
-                        {studioConfig?.faviconUrl ? (
-                            <img src={studioConfig.faviconUrl} alt="1" className="w-10 h-10 md:w-12 md:h-12 object-contain" />
+                        {faviconUrl ? (
+                            <img src={faviconUrl} alt="1" className="w-10 h-10 md:w-12 md:h-12 object-contain" />
                         ) : (
                             <span className="dot"></span>
                         )}

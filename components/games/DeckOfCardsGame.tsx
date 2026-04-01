@@ -71,7 +71,9 @@ const getSuitColor = (suit: Suit) => {
 };
 
 export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
-    const { studioConfig } = useStudio();
+    const { selectedOrganization } = useStudio();
+    const logoUrl = selectedOrganization?.logoUrlLight || selectedOrganization?.logoUrlDark;
+    const faviconUrl = selectedOrganization?.faviconUrl;
     const [gameState, setGameState] = useState<'setup' | 'playing' | 'finished'>('setup');
     const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'custom'>('medium');
     const [goalType, setGoalType] = useState<'deck' | 'time' | 'rounds'>('deck');
@@ -495,11 +497,11 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                                 background: isGoalReached ? '#10b981' : '#ef4444'
                             }}
                         >
-                            {(!isGoalReached && (studioConfig?.faviconUrl || studioConfig?.logoUrl)) ? (
+                            {(!isGoalReached && (faviconUrl || logoUrl)) ? (
                                 <div 
                                     className="absolute inset-0 opacity-20"
                                     style={{
-                                        backgroundImage: `url('${studioConfig.faviconUrl || studioConfig.logoUrl}')`,
+                                        backgroundImage: `url('${faviconUrl || logoUrl}')`,
                                         backgroundSize: '40px 40px',
                                         backgroundRepeat: 'repeat',
                                         backgroundPosition: 'center',

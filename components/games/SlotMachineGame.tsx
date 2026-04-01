@@ -45,7 +45,9 @@ const BONUSES = [
 ];
 
 export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
-    const { studioConfig } = useStudio();
+    const { selectedOrganization } = useStudio();
+    const logoUrl = selectedOrganization?.logoUrlLight || selectedOrganization?.logoUrlDark;
+    const faviconUrl = selectedOrganization?.faviconUrl;
     const [gameState, setGameState] = useState<'setup' | 'playing'>('setup');
     const [difficulty, setDifficulty] = useState<DifficultyLevel>('medium');
     const [customExercises, setCustomExercises] = useState<string[]>(Array(6).fill(''));
@@ -210,10 +212,10 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
             <div className="w-full max-w-4xl bg-gray-900 rounded-[3rem] p-4 md:p-8 shadow-2xl border-8 border-gray-800 relative mt-8 mb-12 z-10 mr-10 ml-2 md:mx-0">
                 {/* Top decoration */}
                 <div className="absolute -top-6 left-1/2 -translate-x-1/2 min-w-32 px-6 h-12 bg-gray-800 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.1)] border-4 border-gray-700 flex items-center justify-center overflow-hidden z-20">
-                    {studioConfig?.logoUrl ? (
-                        <img src={studioConfig.logoUrl} alt="Logo" className="h-8 object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
-                    ) : studioConfig?.faviconUrl ? (
-                        <img src={studioConfig.faviconUrl} alt="Logo" className="h-8 w-8 object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                    {logoUrl ? (
+                        <img src={logoUrl} alt="Logo" className="h-8 object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                    ) : faviconUrl ? (
+                        <img src={faviconUrl} alt="Logo" className="h-8 w-8 object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
                     ) : (
                         <div className="w-full h-full bg-red-500 rounded-full shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]"></div>
                     )}
