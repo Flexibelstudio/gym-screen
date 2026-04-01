@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { useStudio } from '../../context/StudioContext';
+import { sounds } from '../../utils/sounds';
 import { playTimerSound, playTada } from '../../hooks/useWorkoutTimer';
 import { MOCK_EXERCISE_BANK } from '../../data/mockData';
 import { JokerEvent, getRandomJoker } from '../../data/jokers';
@@ -189,6 +190,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
     const handleSpin = () => {
         if (isSpinning || isGoalReached) return;
         
+        sounds.mechanicalSpin(3000);
         const slices = getActiveSlices();
         if (slices.length === 0) return;
 
@@ -230,6 +232,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
             const winningSlice = slices[winningIndex];
             setResult(winningSlice);
             setResultIndex(winningIndex);
+            sounds.success();
             
             if (winningSlice === 'JOKER 🃏') {
                 const event = getRandomJoker(jokerType);

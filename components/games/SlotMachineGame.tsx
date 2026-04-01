@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStudio } from '../../context/StudioContext';
 import { ChevronLeftIcon, SettingsIcon, SlotMachineIcon } from '../icons';
+import { sounds } from '../../utils/sounds';
 import confetti from 'canvas-confetti';
 
 interface SlotMachineGameProps {
@@ -77,6 +78,7 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
 
     const spin = () => {
         if (isSpinning) return;
+        sounds.mechanicalSpin(2500);
         setIsSpinning(true);
         setShowResult(false);
 
@@ -93,6 +95,7 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
         setTimeout(() => {
             setIsSpinning(false);
             setShowResult(true);
+            sounds.success();
 
             // Confetti if they get a tough combo (just random fun)
             if (Math.random() > 0.8) {
@@ -328,6 +331,7 @@ const Reel: React.FC<{
                 clearInterval(interval);
                 setDisplayItem(result);
                 setIsTicking(false);
+                sounds.clunk();
             }, stopTime);
         } else {
             setDisplayItem(result || items[0]);

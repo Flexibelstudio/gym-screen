@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useStudio } from '../../context/StudioContext';
 import { BankExercise } from '../../types';
 import { ChevronLeftIcon, DicesIcon, SettingsIcon } from '../icons';
+import { sounds } from '../../utils/sounds';
 import confetti from 'canvas-confetti';
 
 interface DiceGameProps {
@@ -79,6 +80,7 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
 
     const rollDice = () => {
         if (isRolling) return;
+        sounds.diceRoll();
         setIsRolling(true);
         setShowResult(false);
 
@@ -140,6 +142,7 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
             setDiceValues(newValues);
             setIsRolling(false);
             setShowResult(true);
+            sounds.success();
 
             // Jackpot effect (e.g. 6 * 6)
             if (newValues[0] === 6 && newValues[1] === 6) {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { useStudio } from '../../context/StudioContext';
+import { sounds } from '../../utils/sounds';
 import { playTimerSound, playTada } from '../../hooks/useWorkoutTimer';
 import { WorkoutCompleteModal } from '../WorkoutCompleteModal';
 import { MOCK_EXERCISE_BANK } from '../../data/mockData';
@@ -194,6 +195,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
     const handleFinishGame = () => {
         setGameState('finished');
         setIsTimerRunning(false);
+        sounds.success();
         playTimerSound(studioConfig?.soundProfile || 'airhorn', 3);
     };
 
@@ -205,6 +207,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
     const drawCard = () => {
         if (deck.length === 0 || isFlipping || isGoalReached) return;
         
+        sounds.cardFlip();
         setIsFlipping(true);
         const newDeck = [...deck];
         const card = newDeck.pop()!;
