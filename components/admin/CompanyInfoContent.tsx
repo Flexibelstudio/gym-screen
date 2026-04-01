@@ -111,6 +111,42 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
                              </div>
 
                              <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
+                                 <h5 className="font-bold text-gray-900 dark:text-white mb-2">SmartStudio Licens</h5>
+                                 <div className="flex items-center justify-between bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">
+                                     <div className="flex items-center gap-3">
+                                         <div className="w-8 h-8 bg-purple-100 dark:bg-purple-800 rounded-full flex items-center justify-center text-purple-600 dark:text-purple-400">
+                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                         </div>
+                                         <div>
+                                             <p className="font-bold text-purple-800 dark:text-purple-300">Aktiv Prenumeration</p>
+                                             <p className="text-xs text-purple-600 dark:text-purple-400">Systemavgift & licenser</p>
+                                         </div>
+                                     </div>
+                                     <button 
+                                        onClick={async () => {
+                                            if (!organization.stripeCustomerId) return;
+                                            try {
+                                                const apiUrl = import.meta.env.VITE_API_URL;
+                                                const res = await fetch(`${apiUrl}/create-portal-session`, {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ customerId: organization.stripeCustomerId })
+                                                });
+                                                const data = await res.json();
+                                                if (data.url) window.location.href = data.url;
+                                            } catch (e) {
+                                                console.error(e);
+                                            }
+                                        }}
+                                        disabled={!organization.stripeCustomerId}
+                                        className="text-sm bg-white dark:bg-gray-800 border border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-400 px-4 py-2 rounded-lg hover:bg-purple-50 dark:hover:bg-purple-900/40 transition-colors disabled:opacity-50"
+                                     >
+                                         Hantera prenumeration & kvitton
+                                     </button>
+                                 </div>
+                             </div>
+
+                             <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
                                  <h5 className="font-bold text-gray-900 dark:text-white mb-2">Stripe-konto för utbetalningar</h5>
                                  {organization.stripeConnectAccountId ? (
                                      <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">

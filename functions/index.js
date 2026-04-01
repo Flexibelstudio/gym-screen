@@ -851,6 +851,28 @@ app.post("/create-member-checkout", async (req, res) => {
   }
 });
 
+app.post('/create-portal-session', async (req, res) => {
+  try {
+    const { customerId } = req.body;
+    if (!customerId) {
+      return res.status(400).json({ error: "Missing customerId" });
+    }
+
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    const domain = req.headers.origin || 'https://ais-dev-mioe74iqdi7yxzjsz433lx-46889914413.europe-west2.run.app';
+
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: domain,
+    });
+
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error("Error creating portal session:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 exports.api = onRequest({
   secrets: ["STRIPE_SECRET_KEY", "STRIPE_SYSTEM_FEE_PRICE_ID", "STRIPE_PRICE_ID", "STRIPE_WEBHOOK_SECRET", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, app);

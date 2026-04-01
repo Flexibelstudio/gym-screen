@@ -215,6 +215,32 @@ export const Header: React.FC<HeaderProps> = ({
                                 </button>
                             )}
                             
+                            {userData?.stripeCustomerId && (
+                                <button 
+                                    onClick={async () => {
+                                        setIsDropdownOpen(false);
+                                        try {
+                                            const apiUrl = import.meta.env.VITE_API_URL;
+                                            const res = await fetch(`${apiUrl}/create-portal-session`, {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ customerId: userData.stripeCustomerId })
+                                            });
+                                            const data = await res.json();
+                                            if (data.url) window.location.href = data.url;
+                                        } catch (e) {
+                                            console.error("Error opening portal:", e);
+                                        }
+                                    }} 
+                                    className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                    </svg>
+                                    Hantera prenumeration
+                                </button>
+                            )}
+                            
                             {(role === 'coach' || role === 'organizationadmin' || role === 'systemowner') && onCoachAccessRequest && (
                                 <button 
                                     onClick={() => { setIsDropdownOpen(false); onCoachAccessRequest(); }} 
