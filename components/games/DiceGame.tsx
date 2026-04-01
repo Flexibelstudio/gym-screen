@@ -441,7 +441,7 @@ const Die: React.FC<{ rotation: {x: number, y: number}, isRolling: boolean, colo
                 >
                     <div className={`die-face face-1 die-face-${color}`}>
                         {imageToUse ? (
-                            <img src={imageToUse} alt="1" className="w-10 h-10 md:w-12 md:h-12 object-contain" />
+                            <img src={imageToUse} alt="1" className="w-10 h-10 md:w-12 md:h-12 object-contain" style={{ filter: 'brightness(0)' }} />
                         ) : (
                             <span className="dot"></span>
                         )}
