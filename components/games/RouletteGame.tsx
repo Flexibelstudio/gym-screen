@@ -75,7 +75,7 @@ const COLORS = [
 ];
 
 export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
-    const { selectedOrganization } = useStudio();
+    const { selectedOrganization, studioConfig } = useStudio();
     const faviconUrl = selectedOrganization?.faviconUrl;
     const [gameState, setGameState] = useState<'setup' | 'playing'>('setup');
     const [selectedWheel, setSelectedWheel] = useState<WheelType>('legs');

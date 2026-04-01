@@ -71,7 +71,7 @@ const getSuitColor = (suit: Suit, isCard: boolean = false) => {
 };
 
 export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
-    const { selectedOrganization } = useStudio();
+    const { selectedOrganization, studioConfig } = useStudio();
     const logoUrl = selectedOrganization?.logoUrlLight || selectedOrganization?.logoUrlDark;
     const faviconUrl = selectedOrganization?.faviconUrl;
     const [gameState, setGameState] = useState<'setup' | 'playing' | 'finished'>('setup');
