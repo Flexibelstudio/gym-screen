@@ -79,9 +79,11 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
             SPICES[Math.floor(Math.random() * SPICES.length)]
         ];
 
-        // The Reels component handles the animation duration (e.g., 3s)
+        // Set results immediately so the Reels know what to spin towards
+        setResults(newResults);
+
+        // The Reels component handles the animation duration (e.g., ~3s)
         setTimeout(() => {
-            setResults(newResults);
             setIsSpinning(false);
             setShowResult(true);
 
@@ -94,7 +96,7 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
                     colors: ['#ef4444', '#3b82f6', '#10b981']
                 });
             }
-        }, 3000);
+        }, 3200);
     };
 
     if (gameState === 'setup') {
@@ -296,29 +298,31 @@ const Reel: React.FC<{
     const [isAnimating, setIsAnimating] = useState(false);
 
     useEffect(() => {
+        let timer: NodeJS.Timeout;
         if (isSpinning) {
-            // Create a random list of 40 items + the final result
-            const newList = Array.from({ length: 40 }, () => items[Math.floor(Math.random() * items.length)]);
+            // Create a random list of 25 items + the final result (reduced from 40 for TV performance)
+            const newList = Array.from({ length: 25 }, () => items[Math.floor(Math.random() * items.length)]);
             newList.push(result);
             
             setLocalItems(newList);
             setOffset(0);
             setIsAnimating(false); // Disable transition for the reset
 
-            // Force reflow and start animation
-            const timer = setTimeout(() => {
+            // Force reflow and start animation with a slightly longer delay 
+            // to ensure TV browsers have painted the new DOM nodes
+            timer = setTimeout(() => {
                 setIsAnimating(true);
                 // 64px is the height of each item (h-16)
                 setOffset(-(newList.length - 1) * 64);
-            }, 50); // Small delay to ensure DOM is updated before animating
+            }, 100); 
 
-            return () => clearTimeout(timer);
         } else {
             // Snap to single item when spinning is done
             setLocalItems([result || items[0]]);
             setOffset(0);
             setIsAnimating(false);
         }
+        return () => clearTimeout(timer);
     }, [isSpinning, result, items]);
 
     return (
@@ -338,16 +342,20 @@ const Reel: React.FC<{
                         style={{ 
                             top: '50%', 
                             marginTop: '-32px', // Center the first item (32px is half of 64px)
-                            transform: `translateY(${offset}px)`,
+                            transform: `translate3d(0, ${offset}px, 0)`,
                             transitionProperty: 'transform',
                             transitionDuration: isAnimating ? `${2.5 + delay}s` : '0s',
                             transitionTimingFunction: 'cubic-bezier(0.15, 0.85, 0.35, 1)',
                             transitionDelay: isAnimating ? `${delay * 0.2}s` : '0s',
-                            willChange: 'transform'
+                            willChange: 'transform',
+                            WebkitBackfaceVisibility: 'hidden',
+                            backfaceVisibility: 'hidden',
+                            WebkitPerspective: 1000,
+                            perspective: 1000
                         }}
                     >
                         {localItems.map((item, idx) => (
-                            <div key={idx} className={`h-16 flex items-center justify-center px-2 text-center font-black text-sm md:text-lg ${color} rounded-lg mx-2 my-0`}>
+                            <div key={idx} className={`h-16 shrink-0 flex items-center justify-center px-2 text-center font-black text-sm md:text-lg ${color} rounded-lg mx-2 my-0`}>
                                 {item}
                             </div>
                         ))}
