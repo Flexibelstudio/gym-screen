@@ -91,7 +91,7 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({
                                 onImageChange={setLogoLight} 
                                 organizationId={organization.id} 
                             />
-                            <p className="text-xs text-gray-500 mt-2">Ladda upp en mörk logotyp (helst PNG med transparent bakgrund) som syns bra mot vita bakgrunder.</p>
+                            <p className="text-xs text-gray-500 mt-2">Ladda upp en mörk logotyp som syns bra mot vita bakgrunder. <strong className="text-gray-700 dark:text-gray-300">Bilden måste ha en genomskinlig bakgrund (oftast en .PNG eller .SVG).</strong></p>
                         </div>
                          <div>
                             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Logotyp (Mörkt tema)</label>
@@ -100,7 +100,7 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({
                                 onImageChange={setLogoDark} 
                                 organizationId={organization.id} 
                             />
-                            <p className="text-xs text-gray-500 mt-2">Ladda upp en ljus logotyp (helst PNG med transparent bakgrund) som syns bra mot mörka bakgrunder.</p>
+                            <p className="text-xs text-gray-500 mt-2">Ladda upp en ljus logotyp som syns bra mot mörka bakgrunder. <strong className="text-gray-700 dark:text-gray-300">Bilden måste ha en genomskinlig bakgrund (oftast en .PNG eller .SVG).</strong></p>
                         </div>
                     </div>
                 </section>
@@ -117,7 +117,7 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({
                                     onImageChange={setFavicon} 
                                     organizationId={organization.id} 
                                 />
-                                <p className="text-xs text-gray-500 mt-2">Denna ikon visas när medlemmar sparar appen på sin hemskärm och som ikon i webbläsarfliken. Använd en kvadratisk bild utan transparens för bästa resultat.</p>
+                                <p className="text-xs text-gray-500 mt-2">Denna ikon visas när medlemmar sparar appen på sin hemskärm, som ikon i webbläsarfliken och i spelen. <strong className="text-gray-700 dark:text-gray-300">Bilden måste ha en genomskinlig bakgrund (oftast en .PNG eller .SVG)</strong> för att fungera optimalt mot olika bakgrunder.</p>
                             </div>
                             <div className="pt-8">
                                 <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm flex items-center gap-4">
