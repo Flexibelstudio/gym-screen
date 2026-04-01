@@ -392,15 +392,23 @@ async function updateStripeCoachCount(organizationId) {
 
   if (!stripeSubscriptionId) return; // Kanske på faktura eller gratisperiod
 
-  // Räkna aktiva coacher
-  const coachesSnapshot = await db.collection("users")
+  // Räkna aktiva coacher och admins
+  const usersSnapshot = await db.collection("users")
     .where("organizationId", "==", organizationId)
-    .where("role", "==", "coach")
-    .where("status", "==", "active")
+    .where("role", "in", ["coach", "organizationadmin"])
     .get();
 
-  const activeCoaches = coachesSnapshot.size;
-  const extraCoaches = Math.max(0, activeCoaches - maxFreeCoaches);
+  let activeCount = 0;
+  usersSnapshot.forEach(doc => {
+    const data = doc.data();
+    if (data.role === 'coach' && data.status === 'active') {
+      activeCount++;
+    } else if (data.role === 'organizationadmin') {
+      activeCount++;
+    }
+  });
+
+  const extraCoaches = Math.max(0, activeCount - maxFreeCoaches);
 
   const stripe = getStripe();
   const coachFeePriceId = process.env.STRIPE_COACH_FEE_PRICE_ID;
@@ -855,8 +863,9 @@ exports.onUserCreated = onDocumentCreated({
   secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, async (event) => {
   const newUser = event.data.data();
-  if (newUser.role === 'coach' && newUser.status === 'active' && newUser.organizationId) {
-    console.log(`Ny aktiv coach ${event.params.userId} skapades i org ${newUser.organizationId}. Uppdaterar Stripe...`);
+  const isCountable = (newUser.role === 'coach' && newUser.status === 'active') || newUser.role === 'organizationadmin';
+  if (isCountable && newUser.organizationId) {
+    console.log(`Ny användare (coach/admin) ${event.params.userId} skapades i org ${newUser.organizationId}. Uppdaterar Stripe...`);
     await updateStripeCoachCount(newUser.organizationId);
   }
 });
@@ -867,13 +876,13 @@ exports.onUserUpdated = onDocumentUpdated({
   const beforeData = event.data.before.data();
   const afterData = event.data.after.data();
 
-  const wasActiveCoach = beforeData.role === 'coach' && beforeData.status === 'active';
-  const isActiveCoach = afterData.role === 'coach' && afterData.status === 'active';
+  const wasCountable = (beforeData.role === 'coach' && beforeData.status === 'active') || beforeData.role === 'organizationadmin';
+  const isCountable = (afterData.role === 'coach' && afterData.status === 'active') || afterData.role === 'organizationadmin';
 
-  if (wasActiveCoach !== isActiveCoach) {
+  if (wasCountable !== isCountable) {
     const orgId = afterData.organizationId || beforeData.organizationId;
     if (orgId) {
-      console.log(`Coach-status ändrades för ${event.params.userId} i org ${orgId}. Uppdaterar Stripe...`);
+      console.log(`Status/roll ändrades för ${event.params.userId} i org ${orgId}. Uppdaterar Stripe...`);
       await updateStripeCoachCount(orgId);
     }
   }
@@ -883,8 +892,9 @@ exports.onUserDeleted = onDocumentDeleted({
   secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, async (event) => {
   const deletedUser = event.data.data();
-  if (deletedUser.role === 'coach' && deletedUser.organizationId) {
-    console.log(`Coach ${event.params.userId} togs bort från org ${deletedUser.organizationId}. Uppdaterar Stripe...`);
+  const wasCountable = (deletedUser.role === 'coach' && deletedUser.status === 'active') || deletedUser.role === 'organizationadmin';
+  if (wasCountable && deletedUser.organizationId) {
+    console.log(`Användare (coach/admin) ${event.params.userId} togs bort från org ${deletedUser.organizationId}. Uppdaterar Stripe...`);
     await updateStripeCoachCount(deletedUser.organizationId);
   }
 });
