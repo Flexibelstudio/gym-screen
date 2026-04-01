@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStudio } from '../../context/StudioContext';
 import { ChevronLeftIcon, SettingsIcon, SlotMachineIcon } from '../icons';
+import { sounds } from '../../utils/sounds';
 import confetti from 'canvas-confetti';
 
 interface SlotMachineGameProps {
@@ -14,17 +15,21 @@ const PRESET_EXERCISES = {
     easy: [
         'Knäböj', 'Armhävningar mot vägg', 'Situps', 'Höga knän', 'Plankan', 
         'Utfall', 'Jumping jacks', 'Rygglyft', 'Båten', 'Sido-utfall', 
-        'Tåhävningar', 'Höftlyft', 'Step-ups', 'Bear crawl'
+        'Tåhävningar', 'Höftlyft', 'Step-ups', 'Bear crawl', 'Armhävningar på knä',
+        'Sido-planka', 'Musslan', 'Gående utfall', 'Kuta på stället', 'Liggande benlyft'
     ],
     medium: [
         'Knäböj med hopp', 'Armhävningar', 'Fällkniven', 'Burpees', 'Mountain climbers', 
         'Utfallshopp', 'Dips', 'Russian twists', 'Skaters', 'Tuck jumps', 
-        'Walkouts', 'Jägarvila', 'Thrusters (kroppsvikt)', 'Hollow hold'
+        'Walkouts', 'Jägarvila', 'Thrusters (kroppsvikt)', 'Hollow hold', 'Cykelcrunches',
+        'Plankhopp', 'Smala armhävningar på knä', 'Sido-planka med höftlyft', 'Grodhopp', 'Skridskohopp'
     ],
     hard: [
         'Jumping lunges', 'Enbens-höftlyft', 'Broad jumps', 'Burpee broad jumps', 
         'Commandos (hög till låg planka)', 'Sido-utfall med hopp', 'Hollow rocks', 
-        'Burpees med höga knän', 'Upphopp', 'Smala armhävningar'
+        'Burpees med höga knän', 'Upphopp', 'Smala armhävningar', 'Diamantarmhävningar',
+        'Sprawls', 'Planka med axelklapp', 'Utfallshopp med knälyft', 'Burpees med upphopp',
+        'Fällkniven med raka ben', '180-graders knäböjshopp', 'Sido-planka med benlyft', 'Bear crawl med armhävning', 'Höga knän i max-tempo'
     ]
 };
 
@@ -33,14 +38,17 @@ const AMOUNTS = [
     '30 sek', '45 sek', '60 sek', '90 sek'
 ];
 
-const SPICES = [
-    'Gör det blundande', 'Dubbla tempot', 'Håll en vikt', 
-    'På ett ben', 'Långsamt ner', 'Utan paus', 
-    'Med ett leende', 'Kör baklänges'
+const BONUSES = [
+    'x2', 'x3', '- 5', '+ 5', '- 10', '+ 10',
+    '+ 5 Burpees', '+ 10 Upphopp', '+ 30s Plankan', 
+    '+ 15s Jägarvila', '+ 10 Höga knän', '+ 10 Rygglyft', 
+    '+ 10 Situps', '+ 5 Armhävningar'
 ];
 
 export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
-    const { studioConfig } = useStudio();
+    const { selectedOrganization } = useStudio();
+    const logoUrl = selectedOrganization?.logoUrlLight || selectedOrganization?.logoUrlDark;
+    const faviconUrl = selectedOrganization?.faviconUrl;
     const [gameState, setGameState] = useState<'setup' | 'playing'>('setup');
     const [difficulty, setDifficulty] = useState<DifficultyLevel>('medium');
     const [customExercises, setCustomExercises] = useState<string[]>(Array(6).fill(''));
@@ -64,26 +72,30 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
         setResults([
             activeExercises[0],
             AMOUNTS[0],
-            SPICES[0]
+            BONUSES[0]
         ]);
     };
 
     const spin = () => {
         if (isSpinning) return;
+        sounds.mechanicalSpin(2500);
         setIsSpinning(true);
         setShowResult(false);
 
         const newResults: [string, string, string] = [
             activeExercises[Math.floor(Math.random() * activeExercises.length)],
             AMOUNTS[Math.floor(Math.random() * AMOUNTS.length)],
-            SPICES[Math.floor(Math.random() * SPICES.length)]
+            BONUSES[Math.floor(Math.random() * BONUSES.length)]
         ];
 
-        // The Reels component handles the animation duration (e.g., 3s)
+        // Set results immediately so the Reels know what to spin towards
+        setResults(newResults);
+
+        // The Reels component handles the animation duration
         setTimeout(() => {
-            setResults(newResults);
             setIsSpinning(false);
             setShowResult(true);
+            sounds.success();
 
             // Confetti if they get a tough combo (just random fun)
             if (Math.random() > 0.8) {
@@ -94,7 +106,7 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
                     colors: ['#ef4444', '#3b82f6', '#10b981']
                 });
             }
-        }, 3000);
+        }, 2600);
     };
 
     if (gameState === 'setup') {
@@ -200,9 +212,17 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
             </div>
 
             {/* Slot Machine Container */}
-            <div className="w-full max-w-4xl bg-gray-900 rounded-[3rem] p-4 md:p-8 shadow-2xl border-8 border-gray-800 relative mt-8 mb-12 z-10 mr-10 ml-2 md:mx-0">
+            <div className="w-full max-w-4xl bg-gray-900 rounded-[3rem] p-4 md:p-8 shadow-2xl border-8 border-gray-800 relative mt-16 md:mt-20 mb-12 z-10 mr-10 ml-2 md:mx-0">
                 {/* Top decoration */}
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-32 h-8 bg-red-500 rounded-full shadow-[0_0_20px_rgba(239,68,68,0.5)]"></div>
+                <div className="absolute -top-10 left-1/2 -translate-x-1/2 min-w-48 px-8 h-20 bg-gray-800 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.1)] border-4 border-gray-700 flex items-center justify-center overflow-hidden z-20">
+                    {logoUrl ? (
+                        <img src={logoUrl} alt="Logo" className="h-14 object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                    ) : faviconUrl ? (
+                        <img src={faviconUrl} alt="Logo" className="h-14 w-14 object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                    ) : (
+                        <div className="w-full h-full bg-red-500 rounded-full shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]"></div>
+                    )}
+                </div>
                 
                 <div className="bg-gray-800 rounded-[2rem] p-4 md:p-6 shadow-inner">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
@@ -223,11 +243,11 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
                             color="bg-green-50 text-green-900 dark:bg-green-900/30 dark:text-green-100"
                         />
                         <Reel 
-                            items={SPICES} 
+                            items={BONUSES} 
                             isSpinning={isSpinning} 
                             result={results[2]} 
                             delay={1} 
-                            title="Krydda" 
+                            title="Bonus" 
                             color="bg-purple-50 text-purple-900 dark:bg-purple-900/30 dark:text-purple-100"
                         />
                     </div>
@@ -291,35 +311,38 @@ const Reel: React.FC<{
     color: string
 }> = ({ items, isSpinning, result, delay, title, color }) => {
     
-    const [localItems, setLocalItems] = useState<string[]>([result || items[0]]);
-    const [offset, setOffset] = useState(0);
-    const [isAnimating, setIsAnimating] = useState(false);
+    const [displayItem, setDisplayItem] = useState(result || items[0]);
+    const [isTicking, setIsTicking] = useState(false);
 
     useEffect(() => {
+        let interval: NodeJS.Timeout;
+        let timeout: NodeJS.Timeout;
+
         if (isSpinning) {
-            // Create a random list of 40 items + the final result
-            const newList = Array.from({ length: 40 }, () => items[Math.floor(Math.random() * items.length)]);
-            newList.push(result);
-            
-            setLocalItems(newList);
-            setOffset(0);
-            setIsAnimating(false); // Disable transition for the reset
+            setIsTicking(true);
+            // Fast text update to simulate a digital slot machine
+            interval = setInterval(() => {
+                setDisplayItem(items[Math.floor(Math.random() * items.length)]);
+            }, 80);
 
-            // Force reflow and start animation
-            const timer = setTimeout(() => {
-                setIsAnimating(true);
-                // 64px is the height of each item (h-16)
-                setOffset(-(newList.length - 1) * 64);
-            }, 50); // Small delay to ensure DOM is updated before animating
-
-            return () => clearTimeout(timer);
+            // Stop this specific reel based on its delay
+            const stopTime = 1500 + (delay * 1000);
+            timeout = setTimeout(() => {
+                clearInterval(interval);
+                setDisplayItem(result);
+                setIsTicking(false);
+                sounds.clunk();
+            }, stopTime);
         } else {
-            // Snap to single item when spinning is done
-            setLocalItems([result || items[0]]);
-            setOffset(0);
-            setIsAnimating(false);
+            setDisplayItem(result || items[0]);
+            setIsTicking(false);
         }
-    }, [isSpinning, result, items]);
+
+        return () => {
+            clearInterval(interval);
+            clearTimeout(timeout);
+        };
+    }, [isSpinning, result, items, delay]);
 
     return (
         <div className="flex flex-col items-center w-full">
@@ -333,24 +356,8 @@ const Reel: React.FC<{
                 <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-16 bg-white/10 dark:bg-white/5 z-10 pointer-events-none border-y border-white/20"></div>
 
                 <div className="relative w-full h-full flex justify-center items-center">
-                    <div 
-                        className="absolute w-full flex flex-col"
-                        style={{ 
-                            top: '50%', 
-                            marginTop: '-32px', // Center the first item (32px is half of 64px)
-                            transform: `translateY(${offset}px)`,
-                            transitionProperty: 'transform',
-                            transitionDuration: isAnimating ? `${2.5 + delay}s` : '0s',
-                            transitionTimingFunction: 'cubic-bezier(0.15, 0.85, 0.35, 1)',
-                            transitionDelay: isAnimating ? `${delay * 0.2}s` : '0s',
-                            willChange: 'transform'
-                        }}
-                    >
-                        {localItems.map((item, idx) => (
-                            <div key={idx} className={`h-16 flex items-center justify-center px-2 text-center font-black text-sm md:text-lg ${color} rounded-lg mx-2 my-0`}>
-                                {item}
-                            </div>
-                        ))}
+                    <div className={`h-16 flex items-center justify-center px-2 text-center font-black text-sm md:text-lg ${color} rounded-lg mx-2 my-0 ${isTicking ? 'opacity-50 scale-95' : 'opacity-100 scale-100'} transition-all duration-75`}>
+                        {displayItem}
                     </div>
                 </div>
             </div>

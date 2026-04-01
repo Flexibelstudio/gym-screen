@@ -621,10 +621,19 @@ app.post("/create-checkout-session", async (req, res) => {
     const { userId, organizationId, paymentType, email } = req.body;
     if (!userId) return res.status(400).json({ error: "userId saknas" });
 
-    const customer = await stripe.customers.create({
-      email: email || `test_${userId}@example.com`,
-      metadata: { userId }
-    });
+    const searchEmail = email || `test_${userId}@example.com`;
+    let customerId;
+
+    const existingCustomers = await stripe.customers.list({ email: searchEmail, limit: 1 });
+    if (existingCustomers.data.length > 0) {
+      customerId = existingCustomers.data[0].id;
+    } else {
+      const customer = await stripe.customers.create({
+        email: searchEmail,
+        metadata: { userId }
+      });
+      customerId = customer.id;
+    }
 
     let priceId = paymentType === 'system_fee' ? process.env.STRIPE_SYSTEM_FEE_PRICE_ID : process.env.STRIPE_PRICE_ID;
     const coachFeePriceId = process.env.STRIPE_COACH_FEE_PRICE_ID;
@@ -648,7 +657,7 @@ app.post("/create-checkout-session", async (req, res) => {
     // första gången kunden faktiskt lägger till en extra skärm.
 
     const session = await stripe.checkout.sessions.create({
-      customer: customer.id,
+      customer: customerId,
       payment_method_types: ['card'],
       mode: 'subscription',
       allow_promotion_codes: true,
@@ -778,10 +787,19 @@ app.post("/create-member-checkout", async (req, res) => {
       return res.status(400).json({ error: "Gymmets Stripe-konto är inte fullständigt aktiverat ännu." });
     }
 
-    const customer = await stripe.customers.create({
-      email: email || `member_${userId}@example.com`,
-      metadata: { userId, organizationId }
-    });
+    const searchEmail = email || `member_${userId}@example.com`;
+    let customerId;
+
+    const existingCustomers = await stripe.customers.list({ email: searchEmail, limit: 1 });
+    if (existingCustomers.data.length > 0) {
+      customerId = existingCustomers.data[0].id;
+    } else {
+      const customer = await stripe.customers.create({
+        email: searchEmail,
+        metadata: { userId, organizationId }
+      });
+      customerId = customer.id;
+    }
 
     const domain = req.headers.origin || 'https://smartstudio.se';
 
@@ -789,7 +807,7 @@ app.post("/create-member-checkout", async (req, res) => {
     const applicationFeePercent = 48.7179;
 
     const session = await stripe.checkout.sessions.create({
-      customer: customer.id,
+      customer: customerId,
       payment_method_types: ['card'],
       mode: 'subscription',
       line_items: [{

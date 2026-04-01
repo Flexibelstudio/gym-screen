@@ -5,7 +5,7 @@ import { interpretHandwriting, parseWorkoutFromImage, beautifyDrawing } from '..
 import { deleteImageByUrl, resolveAndCreateExercises } from '../services/firebaseService';
 import { useWorkoutTimer, getAudioContext } from '../hooks/useWorkoutTimer';
 import { useStudio } from '../context/StudioContext';
-import { ValueAdjuster, InformationCircleIcon, ChevronUpIcon, ChevronDownIcon, CloseIcon } from './icons';
+import { ValueAdjuster, InformationCircleIcon, ChevronUpIcon, ChevronDownIcon, CloseIcon, PlusIcon, TrashIcon } from './icons';
 import { Modal } from './ui/Modal';
 import { WorkoutCompleteModal } from './WorkoutCompleteModal';
 import { motion } from 'framer-motion';
@@ -389,6 +389,38 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
     const [restMinutes, setRestMinutes] = useState(0);
     const [restSeconds, setRestSeconds] = useState(15);
     const [direction, setDirection] = useState<'up' | 'down'>('down');
+    const [sequence, setSequence] = useState<any[]>([
+        { type: 'work', duration: 30, title: 'Arbete' },
+        { type: 'rest', duration: 15, title: 'Vila' }
+    ]);
+
+    const addSegment = () => {
+        setSequence(prev => [...prev, { type: 'work', duration: 30, title: 'Arbete' }]);
+    };
+
+    const removeSegment = (index: number) => {
+        setSequence(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const updateSegment = (index: number, updates: any) => {
+        setSequence(prev => {
+            const next = [...prev];
+            next[index] = { ...next[index], ...updates };
+            return next;
+        });
+    };
+
+    const moveSegment = (index: number, direction: 'up' | 'down') => {
+        setSequence(prev => {
+            const next = [...prev];
+            if (direction === 'up' && index > 0) {
+                [next[index], next[index - 1]] = [next[index - 1], next[index]];
+            } else if (direction === 'down' && index < next.length - 1) {
+                [next[index], next[index + 1]] = [next[index + 1], next[index]];
+            }
+            return next;
+        });
+    };
 
     useEffect(() => {
         switch(mode) {
@@ -399,6 +431,15 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
                 setWorkSeconds(20);
                 setRestSeconds(10);
                 setTotalOmgångar(8);
+                break;
+            case TimerMode.Custom:
+                if (sequence.length === 0) {
+                    setSequence([
+                        { type: 'work', duration: 30, title: 'Arbete' },
+                        { type: 'rest', duration: 15, title: 'Vila' }
+                    ]);
+                }
+                setVarv(3);
                 break;
             default: break;
         }
@@ -439,6 +480,15 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
                 settings = { ...settings, workTime: 60, restTime: 0, rounds: totalMinutes };
                 title = `EMOM ${totalMinutes} min`;
                 exercises = [{ id: 'ex-emom', name: 'Intervall', reps: '', description: '' }];
+                break;
+            case TimerMode.Custom:
+                settings.rounds = varv;
+                settings.sequence = sequence;
+                const seqTotal = sequence.reduce((acc, s) => acc + (s.duration || 0), 0);
+                settings.workTime = seqTotal;
+                settings.restTime = 0;
+                title = 'Sekvens';
+                exercises = [{ id: 'ex-custom', name: 'Sekvens', reps: '', description: '' }];
                 break;
             case TimerMode.Stopwatch:
                 settings = { ...settings, workTime: 3600, restTime: 0, rounds: 1 };
@@ -499,6 +549,80 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
                  return <div className={animationClass}><ValueAdjuster label="TID (MINUTER)" value={totalMinutes} onchange={setTotalMinutes} /></div>;
             case TimerMode.EMOM:
                  return <div className={animationClass}><ValueAdjuster label="TOTAL TID (MINUTER)" value={totalMinutes} onchange={setTotalMinutes} /></div>;
+            case TimerMode.Custom:
+                 return (
+                     <div className={`w-full ${animationClass}`}>
+                        <div className="flex justify-center mb-6">
+                             <ValueAdjuster label="ANTAL VARV (LOOP)" value={varv} onchange={setVarv} />
+                        </div>
+
+                        <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar p-1">
+                            {sequence.map((seg, i) => {
+                                const minutes = Math.floor(seg.duration / 60);
+                                const seconds = seg.duration % 60;
+                                return (
+                                    <div key={i} className={`flex flex-col gap-3 p-4 rounded-2xl border-2 transition-all shadow-sm ${seg.type === 'work' ? 'bg-orange-900/10 border-orange-900/30' : 'bg-teal-900/10 border-teal-900/30'}`}>
+                                        
+                                        {/* Row 1: Controls & Step Info */}
+                                        <div className="flex justify-between items-center w-full">
+                                            <div className="flex gap-2">
+                                                <button onClick={() => moveSegment(i, 'up')} disabled={i === 0} className="p-1.5 text-gray-400 hover:text-gray-200 disabled:opacity-20 hover:bg-white/10 rounded transition-colors"><ChevronUpIcon className="w-5 h-5" /></button>
+                                                <button onClick={() => moveSegment(i, 'down')} disabled={i === sequence.length - 1} className="p-1.5 text-gray-400 hover:text-gray-200 disabled:opacity-20 hover:bg-white/10 rounded transition-colors"><ChevronDownIcon className="w-5 h-5" /></button>
+                                            </div>
+                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Steg {i + 1}</span>
+                                            <button onClick={() => removeSegment(i)} className="text-red-400 hover:text-red-500 hover:bg-red-900/20 p-1.5 rounded-lg transition-colors" title="Ta bort steg">
+                                                <TrashIcon className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                        
+                                        {/* Row 2: Time Adjusters */}
+                                        <div className="flex justify-center items-center gap-4 py-1">
+                                            <ValueAdjuster 
+                                                label="MIN" 
+                                                value={minutes} 
+                                                onchange={(val) => updateSegment(i, { duration: val * 60 + seconds })} 
+                                            />
+                                            <ValueAdjuster 
+                                                label="SEK" 
+                                                value={seconds} 
+                                                onchange={(val) => updateSegment(i, { duration: minutes * 60 + val })}
+                                                max={59}
+                                                step={5}
+                                                wrapAround={true}
+                                            />
+                                        </div>
+
+                                        {/* Row 3: Type & Title */}
+                                        <div className="flex items-center gap-3">
+                                            <button 
+                                                onClick={() => updateSegment(i, { type: seg.type === 'work' ? 'rest' : 'work' })}
+                                                className={`flex-shrink-0 text-[10px] font-black uppercase px-3 py-2.5 rounded-xl w-24 text-center transition-all shadow-sm active:scale-95 ${seg.type === 'work' ? 'bg-orange-500 text-white' : 'bg-teal-500 text-white'}`}
+                                            >
+                                                {seg.type === 'work' ? 'Arbete' : 'Vila'}
+                                            </button>
+                                            <div className="flex-grow">
+                                                <input 
+                                                    type="text" 
+                                                    value={seg.title || ''} 
+                                                    onChange={e => updateSegment(i, { title: e.target.value })}
+                                                    className="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-sm font-bold focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm placeholder-gray-400 text-white"
+                                                    placeholder={seg.type === 'work' ? 'Titel (t.ex. Intervall)' : 'Titel (t.ex. Vila)'}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        
+                        <button 
+                            onClick={addSegment} 
+                            className="w-full mt-6 flex items-center justify-center gap-2 py-4 border-2 border-dashed border-gray-600 rounded-2xl text-gray-400 hover:text-primary hover:border-primary/50 hover:bg-gray-800 transition-all text-sm font-black uppercase tracking-widest"
+                        >
+                            <PlusIcon className="w-5 h-5" /> Lägg till steg
+                        </button>
+                     </div>
+                 );
             case TimerMode.Stopwatch:
                 return (
                      <div className={`text-center text-gray-300 p-4 ${animationClass}`}>
@@ -515,7 +639,7 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
             <div className="space-y-6">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {Object.values(TimerMode).filter(m => m !== TimerMode.NoTimer).map(m => (
-                        <button key={m} onClick={() => setMode(m)} className={`px-4 py-3 text-base font-semibold rounded-lg transition-colors ${ mode === m ? 'bg-primary text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600' }`}>{m}</button>
+                        <button key={m} onClick={() => setMode(m)} className={`px-4 py-3 text-base font-semibold rounded-lg transition-colors ${ mode === m ? 'bg-primary text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600' }`}>{m === TimerMode.Custom ? 'Sekvens' : m}</button>
                     ))}
                 </div>
                 
@@ -587,8 +711,9 @@ const CompactTimer: React.FC<{
     }, [timer.status, onFinish]);
 
     const timerColor = getTimerHexColor(timer.status, block.settings.mode);
-    const statusText = timer.status === TimerStatus.Resting ? 'Vila' : 
-                      timer.status === TimerStatus.Preparing ? 'Gör dig redo' : 'Arbete';
+    const statusText = timer.status === TimerStatus.Preparing ? 'Gör dig redo' : 
+                       (block.settings.mode === TimerMode.Custom && timer.currentSegment?.title) ? timer.currentSegment.title :
+                       timer.status === TimerStatus.Resting ? 'Vila' : 'Arbete';
 
     const progressPercentage = timer.totalBlockDuration > 0 
         ? Math.min(100, Math.max(0, (timer.totalTimeElapsed / timer.totalBlockDuration) * 100))
@@ -625,7 +750,7 @@ const CompactTimer: React.FC<{
                 </div>
             </div>
 
-            {(block.settings.mode === TimerMode.Interval || block.settings.mode === TimerMode.Tabata) && (
+            {(block.settings.mode === TimerMode.Interval || block.settings.mode === TimerMode.Tabata || block.settings.mode === TimerMode.Custom) && (
                 <div className="flex items-center gap-4 mt-2">
                     <div className="bg-black/20 backdrop-blur-md rounded-xl py-2 px-6 flex flex-col items-center justify-center border border-white/10 shadow-lg">
                         <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">VARV</span>
@@ -637,7 +762,7 @@ const CompactTimer: React.FC<{
                     
                     <div className="bg-black/20 backdrop-blur-md rounded-xl px-5 py-2 flex items-center border border-white/10 h-full shadow-lg">
                         <div className="flex flex-col items-center">
-                             <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">INTERVALL</span>
+                             <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">{block.settings.mode === TimerMode.Custom ? 'SEGMENT' : 'INTERVALL'}</span>
                              <span className="text-xl font-bold text-white leading-none mt-0.5">{currentIntervalInLap} / {timer.effectiveIntervalsPerLap}</span>
                         </div>
                     </div>

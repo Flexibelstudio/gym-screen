@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { useStudio } from '../../context/StudioContext';
+import { sounds } from '../../utils/sounds';
 import { playTimerSound, playTada } from '../../hooks/useWorkoutTimer';
 import { WorkoutCompleteModal } from '../WorkoutCompleteModal';
 import { MOCK_EXERCISE_BANK } from '../../data/mockData';
@@ -59,19 +60,21 @@ const getSuitSymbol = (suit: Suit) => {
     }
 };
 
-const getSuitColor = (suit: Suit) => {
+const getSuitColor = (suit: Suit, isCard: boolean = false) => {
     switch (suit) {
         case 'hearts':
         case 'diamonds':
             return 'text-red-600';
         case 'clubs':
         case 'spades':
-            return 'text-black';
+            return isCard ? 'text-black' : 'text-black dark:text-white';
     }
 };
 
 export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
-    const { studioConfig } = useStudio();
+    const { selectedOrganization, studioConfig } = useStudio();
+    const logoUrl = selectedOrganization?.logoUrlLight || selectedOrganization?.logoUrlDark;
+    const faviconUrl = selectedOrganization?.faviconUrl;
     const [gameState, setGameState] = useState<'setup' | 'playing' | 'finished'>('setup');
     const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard' | 'custom'>('medium');
     const [goalType, setGoalType] = useState<'deck' | 'time' | 'rounds'>('deck');
@@ -192,7 +195,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
     const handleFinishGame = () => {
         setGameState('finished');
         setIsTimerRunning(false);
-        playTimerSound(studioConfig?.soundProfile || 'airhorn', 3);
+        sounds.success();
     };
 
     const isGoalReached = 
@@ -203,6 +206,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
     const drawCard = () => {
         if (deck.length === 0 || isFlipping || isGoalReached) return;
         
+        sounds.cardFlip();
         setIsFlipping(true);
         const newDeck = [...deck];
         const card = newDeck.pop()!;
@@ -420,7 +424,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
     }
 
     return (
-        <div className="w-full max-w-5xl mx-auto px-6 pb-12 pt-12 md:pt-24 animate-fade-in flex flex-col justify-start min-h-[80vh]">
+        <div className="w-full max-w-5xl mx-auto px-6 pb-12 pt-4 md:pt-8 animate-fade-in flex flex-col justify-start min-h-[80vh]">
             <div className="flex items-center justify-between mb-12 z-10">
                 <div>
                     <h2 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tight uppercase">
@@ -472,7 +476,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                 </div>
             )}
 
-            <div className="flex flex-col items-center justify-center z-10 mt-12 md:mt-20">
+            <div className="flex flex-col items-center justify-start z-10 mt-16 md:mt-24">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-24 w-full max-w-7xl mx-auto justify-items-center items-center">
                     
                     {/* Deck / Draw Button */}
@@ -490,11 +494,31 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                                 }
                             }}
                             disabled={!isGoalReached && (deck.length === 0 || isFlipping)}
-                            className={`relative w-72 h-[28rem] rounded-3xl shadow-2xl border-4 border-white dark:border-gray-800 transition-transform ${(!isGoalReached && deck.length === 0) ? 'opacity-50 cursor-not-allowed' : 'hover:-translate-y-2 active:scale-95 cursor-pointer'}`}
+                            className={`relative w-72 h-[28rem] rounded-3xl shadow-2xl border-4 border-white dark:border-gray-800 transition-transform overflow-hidden ${(!isGoalReached && deck.length === 0) ? 'opacity-50 cursor-not-allowed' : 'hover:-translate-y-2 active:scale-95 cursor-pointer'}`}
                             style={{
-                                background: isGoalReached ? '#10b981' : 'repeating-linear-gradient(45deg, #ef4444, #ef4444 15px, #b91c1c 15px, #b91c1c 30px)'
+                                background: isGoalReached ? '#10b981' : '#ef4444'
                             }}
                         >
+                            {(!isGoalReached && (faviconUrl || logoUrl)) ? (
+                                <div 
+                                    className="absolute inset-0 opacity-20"
+                                    style={{
+                                        backgroundImage: `url('${faviconUrl || logoUrl}')`,
+                                        backgroundSize: '40px 40px',
+                                        backgroundRepeat: 'repeat',
+                                        backgroundPosition: 'center',
+                                        transform: 'rotate(-15deg) scale(1.5)',
+                                        filter: 'brightness(0) invert(1)'
+                                    }}
+                                />
+                            ) : (!isGoalReached && (
+                                <div 
+                                    className="absolute inset-0"
+                                    style={{
+                                        background: 'repeating-linear-gradient(45deg, transparent, transparent 15px, rgba(0,0,0,0.1) 15px, rgba(0,0,0,0.1) 30px)'
+                                    }}
+                                />
+                            ))}
                             <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-2xl">
                                 <span className="text-white font-black text-4xl uppercase tracking-widest drop-shadow-md text-center px-4">
                                     {isGoalReached ? 'Klar!' : 'Dra Kort'}
@@ -532,16 +556,16 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                                         </div>
                                     ) : (
                                         <>
-                                            <div className={`text-6xl font-black ${getSuitColor(currentCard.suit)}`}>
+                                            <div className={`text-6xl font-black ${getSuitColor(currentCard.suit, true)}`}>
                                                 {currentCard.value}
                                                 <div className="text-4xl mt-2">{getSuitSymbol(currentCard.suit)}</div>
                                             </div>
                                             
-                                            <div className={`absolute inset-0 flex items-center justify-center text-[10rem] ${getSuitColor(currentCard.suit)}`}>
+                                            <div className={`absolute inset-0 flex items-center justify-center text-[10rem] ${getSuitColor(currentCard.suit, true)}`}>
                                                 {getSuitSymbol(currentCard.suit)}
                                             </div>
                                             
-                                            <div className={`text-6xl font-black self-end rotate-180 ${getSuitColor(currentCard.suit)}`}>
+                                            <div className={`text-6xl font-black self-end rotate-180 ${getSuitColor(currentCard.suit, true)}`}>
                                                 {currentCard.value}
                                                 <div className="text-4xl mt-2">{getSuitSymbol(currentCard.suit)}</div>
                                             </div>

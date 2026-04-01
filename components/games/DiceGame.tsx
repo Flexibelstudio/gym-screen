@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useStudio } from '../../context/StudioContext';
 import { BankExercise } from '../../types';
 import { ChevronLeftIcon, DicesIcon, SettingsIcon } from '../icons';
+import { sounds } from '../../utils/sounds';
 import confetti from 'canvas-confetti';
 
 interface DiceGameProps {
@@ -15,29 +16,47 @@ const PRESET_EXERCISES = {
     easy: [
         'Knäböj', 'Armhävningar mot vägg', 'Situps', 'Höga knän', 'Plankan', 
         'Utfall', 'Jumping jacks', 'Rygglyft', 'Båten', 'Sido-utfall', 
-        'Tåhävningar', 'Höftlyft', 'Step-ups', 'Bear crawl'
+        'Tåhävningar', 'Höftlyft', 'Step-ups', 'Bear crawl', 'Armhävningar på knä',
+        'Sido-planka', 'Musslan', 'Gående utfall', 'Kuta på stället', 'Liggande benlyft'
     ],
     medium: [
         'Knäböj med hopp', 'Armhävningar', 'Fällkniven', 'Burpees', 'Mountain climbers', 
         'Utfallshopp', 'Dips', 'Russian twists', 'Skaters', 'Tuck jumps', 
-        'Walkouts', 'Jägarvila', 'Thrusters (kroppsvikt)', 'Hollow hold'
+        'Walkouts', 'Jägarvila', 'Thrusters (kroppsvikt)', 'Hollow hold', 'Cykelcrunches',
+        'Plankhopp', 'Smala armhävningar på knä', 'Sido-planka med höftlyft', 'Grodhopp', 'Skridskohopp'
     ],
     hard: [
         'Jumping lunges', 'Enbens-höftlyft', 'Broad jumps', 'Burpee broad jumps', 
         'Commandos (hög till låg planka)', 'Sido-utfall med hopp', 'Hollow rocks', 
-        'Burpees med höga knän', 'Upphopp', 'Smala armhävningar'
+        'Burpees med höga knän', 'Upphopp', 'Smala armhävningar', 'Diamantarmhävningar',
+        'Sprawls', 'Planka med axelklapp', 'Utfallshopp med knälyft', 'Burpees med upphopp',
+        'Fällkniven med raka ben', '180-graders knäböjshopp', 'Sido-planka med benlyft', 'Bear crawl med armhävning', 'Höga knän i max-tempo'
     ]
 };
 
 export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
-    const { studioConfig } = useStudio();
+    const { selectedOrganization } = useStudio();
+    const faviconUrl = selectedOrganization?.faviconUrl;
     const [gameState, setGameState] = useState<'setup' | 'playing'>('setup');
     const [difficulty, setDifficulty] = useState<DifficultyLevel>('medium');
     const [customExercises, setCustomExercises] = useState<string[]>(Array(6).fill(''));
+    const [selectedPresetExercises, setSelectedPresetExercises] = useState<string[]>([]);
     
     const [isRolling, setIsRolling] = useState(false);
     const [diceValues, setDiceValues] = useState<[number, number, number]>([1, 1, 1]); // [num1, num2, exercise]
     const [showResult, setShowResult] = useState(false);
+
+    // Initialize preset exercises
+    useEffect(() => {
+        if (difficulty !== 'custom') {
+            randomizePresetExercises(difficulty);
+        }
+    }, [difficulty]);
+
+    const randomizePresetExercises = (level: 'easy' | 'medium' | 'hard') => {
+        const shuffled = [...PRESET_EXERCISES[level]].sort(() => 0.5 - Math.random());
+        setSelectedPresetExercises(shuffled.slice(0, 6));
+    };
 
     // 3D Rotation states
     const [rotations, setRotations] = useState([
@@ -48,7 +67,7 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
 
     const activeExercises = difficulty === 'custom' 
         ? customExercises 
-        : PRESET_EXERCISES[difficulty];
+        : selectedPresetExercises;
 
     const handleStart = () => {
         if (difficulty === 'custom' && customExercises.some(ex => !ex.trim())) {
@@ -61,6 +80,7 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
 
     const rollDice = () => {
         if (isRolling) return;
+        sounds.diceRoll();
         setIsRolling(true);
         setShowResult(false);
 
@@ -122,6 +142,7 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
             setDiceValues(newValues);
             setIsRolling(false);
             setShowResult(true);
+            sounds.success();
 
             // Jackpot effect (e.g. 6 * 6)
             if (newValues[0] === 6 && newValues[1] === 6) {
@@ -193,9 +214,17 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
                         </div>
                     ) : (
                         <div className="mb-8 p-6 bg-gray-50 dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800">
-                            <h4 className="font-bold text-gray-900 dark:text-white uppercase text-sm mb-4">Övningar i denna nivå:</h4>
+                            <div className="flex justify-between items-center mb-4">
+                                <h4 className="font-bold text-gray-900 dark:text-white uppercase text-sm">6 slumpade övningar:</h4>
+                                <button 
+                                    onClick={() => randomizePresetExercises(difficulty as 'easy'|'medium'|'hard')}
+                                    className="text-xs font-bold text-primary hover:text-primary/80 uppercase tracking-wider"
+                                >
+                                    Slumpa nya
+                                </button>
+                            </div>
                             <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {PRESET_EXERCISES[difficulty].map((ex, idx) => (
+                                {selectedPresetExercises.map((ex, idx) => (
                                     <li key={idx} className="flex items-center gap-3 text-gray-600 dark:text-gray-300">
                                         <span className="w-6 h-6 rounded-full bg-primary/20 text-primary flex items-center justify-center text-xs font-bold">
                                             {idx + 1}
@@ -398,6 +427,11 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
 };
 
 const Die: React.FC<{ rotation: {x: number, y: number}, isRolling: boolean, color: 'white' | 'primary', onClick?: () => void }> = ({ rotation, isRolling, color, onClick }) => {
+    const { selectedOrganization } = useStudio();
+    const faviconUrl = selectedOrganization?.faviconUrl;
+    const logoUrl = selectedOrganization?.logoUrlLight || selectedOrganization?.logoUrlDark;
+    const imageToUse = faviconUrl || logoUrl;
+    
     return (
         <div className={`die-scene ${isRolling ? 'is-rolling' : ''}`} onClick={onClick}>
             <div className="die-tilt">
@@ -408,7 +442,13 @@ const Die: React.FC<{ rotation: {x: number, y: number}, isRolling: boolean, colo
                         transitionDuration: isRolling ? '2s' : '0.3s'
                     }}
                 >
-                    <div className={`die-face face-1 die-face-${color}`}><span className="dot"></span></div>
+                    <div className={`die-face face-1 die-face-${color}`}>
+                        {imageToUse ? (
+                            <img src={imageToUse} alt="1" className="w-10 h-10 md:w-12 md:h-12 object-contain" style={{ filter: 'brightness(0)' }} />
+                        ) : (
+                            <span className="dot"></span>
+                        )}
+                    </div>
                     <div className={`die-face face-2 die-face-${color}`}><span className="dot"></span><span className="dot"></span></div>
                     <div className={`die-face face-3 die-face-${color}`}><span className="dot"></span><span className="dot"></span><span className="dot"></span></div>
                     <div className={`die-face face-4 die-face-${color}`}><span className="dot"></span><span className="dot"></span><span className="dot"></span><span className="dot"></span></div>
