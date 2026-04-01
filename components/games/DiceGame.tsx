@@ -15,17 +15,21 @@ const PRESET_EXERCISES = {
     easy: [
         'Knäböj', 'Armhävningar mot vägg', 'Situps', 'Höga knän', 'Plankan', 
         'Utfall', 'Jumping jacks', 'Rygglyft', 'Båten', 'Sido-utfall', 
-        'Tåhävningar', 'Höftlyft', 'Step-ups', 'Bear crawl'
+        'Tåhävningar', 'Höftlyft', 'Step-ups', 'Bear crawl', 'Armhävningar på knä',
+        'Sido-planka', 'Musslan', 'Gående utfall', 'Kuta på stället', 'Liggande benlyft'
     ],
     medium: [
         'Knäböj med hopp', 'Armhävningar', 'Fällkniven', 'Burpees', 'Mountain climbers', 
         'Utfallshopp', 'Dips', 'Russian twists', 'Skaters', 'Tuck jumps', 
-        'Walkouts', 'Jägarvila', 'Thrusters (kroppsvikt)', 'Hollow hold'
+        'Walkouts', 'Jägarvila', 'Thrusters (kroppsvikt)', 'Hollow hold', 'Cykelcrunches',
+        'Plankhopp', 'Smala armhävningar på knä', 'Sido-planka med höftlyft', 'Grodhopp', 'Skridskohopp'
     ],
     hard: [
         'Jumping lunges', 'Enbens-höftlyft', 'Broad jumps', 'Burpee broad jumps', 
         'Commandos (hög till låg planka)', 'Sido-utfall med hopp', 'Hollow rocks', 
-        'Burpees med höga knän', 'Upphopp', 'Smala armhävningar'
+        'Burpees med höga knän', 'Upphopp', 'Smala armhävningar', 'Diamantarmhävningar',
+        'Sprawls', 'Planka med axelklapp', 'Utfallshopp med knälyft', 'Burpees med upphopp',
+        'Fällkniven med raka ben', '180-graders knäböjshopp', 'Sido-planka med benlyft', 'Bear crawl med armhävning', 'Höga knän i max-tempo'
     ]
 };
 
