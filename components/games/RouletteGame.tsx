@@ -77,6 +77,8 @@ const COLORS = [
 export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
     const { selectedOrganization, studioConfig } = useStudio();
     const faviconUrl = selectedOrganization?.faviconUrl;
+    const logoUrl = selectedOrganization?.logoUrlLight || selectedOrganization?.logoUrlDark;
+    const imageToUse = faviconUrl || logoUrl;
     const [gameState, setGameState] = useState<'setup' | 'playing'>('setup');
     const [selectedWheel, setSelectedWheel] = useState<WheelType>('legs');
     const [difficulty, setDifficulty] = useState<Difficulty>('medium');
@@ -654,8 +656,8 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                         
                         {/* Center dot / Favicon */}
                         <div className="absolute top-1/2 left-1/2 w-16 h-16 -mt-8 -ml-8 bg-white dark:bg-gray-900 rounded-full shadow-md border-4 border-gray-100 dark:border-gray-800 z-10 flex items-center justify-center overflow-hidden">
-                            {faviconUrl ? (
-                                <img src={faviconUrl} alt="Logo" className="w-10 h-10 object-contain" />
+                            {imageToUse ? (
+                                <img src={imageToUse} alt="Logo" className="w-10 h-10 object-contain" />
                             ) : (
                                 <div className="w-4 h-4 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
                             )}

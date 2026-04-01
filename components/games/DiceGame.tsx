@@ -426,6 +426,8 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
 const Die: React.FC<{ rotation: {x: number, y: number}, isRolling: boolean, color: 'white' | 'primary', onClick?: () => void }> = ({ rotation, isRolling, color, onClick }) => {
     const { selectedOrganization } = useStudio();
     const faviconUrl = selectedOrganization?.faviconUrl;
+    const logoUrl = selectedOrganization?.logoUrlLight || selectedOrganization?.logoUrlDark;
+    const imageToUse = faviconUrl || logoUrl;
     
     return (
         <div className={`die-scene ${isRolling ? 'is-rolling' : ''}`} onClick={onClick}>
@@ -438,8 +440,8 @@ const Die: React.FC<{ rotation: {x: number, y: number}, isRolling: boolean, colo
                     }}
                 >
                     <div className={`die-face face-1 die-face-${color}`}>
-                        {faviconUrl ? (
-                            <img src={faviconUrl} alt="1" className="w-10 h-10 md:w-12 md:h-12 object-contain" />
+                        {imageToUse ? (
+                            <img src={imageToUse} alt="1" className="w-10 h-10 md:w-12 md:h-12 object-contain" />
                         ) : (
                             <span className="dot"></span>
                         )}

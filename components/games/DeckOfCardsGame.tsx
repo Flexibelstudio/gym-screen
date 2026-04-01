@@ -505,7 +505,8 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                                         backgroundSize: '40px 40px',
                                         backgroundRepeat: 'repeat',
                                         backgroundPosition: 'center',
-                                        transform: 'rotate(-15deg) scale(1.5)'
+                                        transform: 'rotate(-15deg) scale(1.5)',
+                                        filter: 'brightness(0) invert(1)'
                                     }}
                                 />
                             ) : (!isGoalReached && (
