@@ -82,7 +82,7 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
         // Set results immediately so the Reels know what to spin towards
         setResults(newResults);
 
-        // The Reels component handles the animation duration (e.g., ~3s)
+        // The Reels component handles the animation duration
         setTimeout(() => {
             setIsSpinning(false);
             setShowResult(true);
@@ -96,7 +96,7 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
                     colors: ['#ef4444', '#3b82f6', '#10b981']
                 });
             }
-        }, 3200);
+        }, 2600);
     };
 
     if (gameState === 'setup') {
@@ -293,22 +293,37 @@ const Reel: React.FC<{
     color: string
 }> = ({ items, isSpinning, result, delay, title, color }) => {
     
-    // We only generate the spin list ONCE when spinning starts, 
-    // to avoid React re-rendering the list during the spin.
-    const [spinList, setSpinList] = useState<string[]>([result || items[0]]);
+    const [displayItem, setDisplayItem] = useState(result || items[0]);
+    const [isTicking, setIsTicking] = useState(false);
 
     useEffect(() => {
+        let interval: NodeJS.Timeout;
+        let timeout: NodeJS.Timeout;
+
         if (isSpinning) {
-            // Create a fixed-size list of 15 random items (keeps DOM light for TVs)
-            const newList = Array.from({ length: 15 }, () => items[Math.floor(Math.random() * items.length)]);
-            // Ensure the last item is the actual result
-            newList[newList.length - 1] = result;
-            setSpinList(newList);
+            setIsTicking(true);
+            // Fast text update to simulate a digital slot machine
+            interval = setInterval(() => {
+                setDisplayItem(items[Math.floor(Math.random() * items.length)]);
+            }, 80);
+
+            // Stop this specific reel based on its delay
+            const stopTime = 1500 + (delay * 1000);
+            timeout = setTimeout(() => {
+                clearInterval(interval);
+                setDisplayItem(result);
+                setIsTicking(false);
+            }, stopTime);
         } else {
-            // When not spinning, just show the result
-            setSpinList([result || items[0]]);
+            setDisplayItem(result || items[0]);
+            setIsTicking(false);
         }
-    }, [isSpinning, result, items]);
+
+        return () => {
+            clearInterval(interval);
+            clearTimeout(timeout);
+        };
+    }, [isSpinning, result, items, delay]);
 
     return (
         <div className="flex flex-col items-center w-full">
@@ -322,26 +337,9 @@ const Reel: React.FC<{
                 <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-16 bg-white/10 dark:bg-white/5 z-10 pointer-events-none border-y border-white/20"></div>
 
                 <div className="relative w-full h-full flex justify-center items-center">
-                    <motion.div 
-                        className="absolute w-full flex flex-col"
-                        initial={false}
-                        animate={{ 
-                            // 64px is the height of each item (h-16)
-                            y: isSpinning ? -((spinList.length - 1) * 64) : 0 
-                        }}
-                        transition={{ 
-                            duration: isSpinning ? 2.5 + delay : 0, 
-                            ease: [0.15, 0.85, 0.35, 1], // Custom easeOut for slot machine feel
-                            delay: isSpinning ? delay * 0.2 : 0
-                        }}
-                        style={{ top: '50%', marginTop: '-32px' }} // Center the first item (32px is half of 64px)
-                    >
-                        {spinList.map((item, idx) => (
-                            <div key={idx} className={`h-16 shrink-0 flex items-center justify-center px-2 text-center font-black text-sm md:text-lg ${color} rounded-lg mx-2 my-0`}>
-                                {item}
-                            </div>
-                        ))}
-                    </motion.div>
+                    <div className={`h-16 flex items-center justify-center px-2 text-center font-black text-sm md:text-lg ${color} rounded-lg mx-2 my-0 ${isTicking ? 'opacity-50 scale-95' : 'opacity-100 scale-100'} transition-all duration-75`}>
+                        {displayItem}
+                    </div>
                 </div>
             </div>
         </div>
