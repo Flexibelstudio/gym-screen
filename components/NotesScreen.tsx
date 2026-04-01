@@ -394,6 +394,34 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
         { type: 'rest', duration: 15, title: 'Vila' }
     ]);
 
+    const addSegment = () => {
+        setSequence(prev => [...prev, { type: 'work', duration: 30, title: 'Arbete' }]);
+    };
+
+    const removeSegment = (index: number) => {
+        setSequence(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const updateSegment = (index: number, updates: any) => {
+        setSequence(prev => {
+            const next = [...prev];
+            next[index] = { ...next[index], ...updates };
+            return next;
+        });
+    };
+
+    const moveSegment = (index: number, direction: 'up' | 'down') => {
+        setSequence(prev => {
+            const next = [...prev];
+            if (direction === 'up' && index > 0) {
+                [next[index], next[index - 1]] = [next[index - 1], next[index]];
+            } else if (direction === 'down' && index < next.length - 1) {
+                [next[index], next[index + 1]] = [next[index + 1], next[index]];
+            }
+            return next;
+        });
+    };
+
     useEffect(() => {
         switch(mode) {
             case TimerMode.Interval: setMode(TimerMode.Interval); break;
@@ -403,6 +431,15 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
                 setWorkSeconds(20);
                 setRestSeconds(10);
                 setTotalOmgångar(8);
+                break;
+            case TimerMode.Custom:
+                if (sequence.length === 0) {
+                    setSequence([
+                        { type: 'work', duration: 30, title: 'Arbete' },
+                        { type: 'rest', duration: 15, title: 'Vila' }
+                    ]);
+                }
+                setVarv(3);
                 break;
             default: break;
         }
@@ -524,60 +561,67 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
                                 const minutes = Math.floor(seg.duration / 60);
                                 const seconds = seg.duration % 60;
                                 return (
-                                    <div key={i} className="flex flex-col gap-2 p-3 bg-gray-700 rounded-xl border border-gray-600 relative group">
-                                        <div className="flex justify-between items-center">
-                                            <input 
-                                                type="text" 
-                                                value={seg.title || ''} 
-                                                onChange={(e) => {
-                                                    const newSeq = [...sequence];
-                                                    newSeq[i].title = e.target.value;
-                                                    setSequence(newSeq);
-                                                }}
-                                                placeholder="Namn (t.ex. Arbete)"
-                                                className="bg-gray-800 border border-gray-600 rounded-md px-2 py-1 text-sm font-medium w-1/2 text-white"
-                                            />
-                                            <select 
-                                                value={seg.type}
-                                                onChange={(e) => {
-                                                    const newSeq = [...sequence];
-                                                    newSeq[i].type = e.target.value as 'work' | 'rest' | 'prepare';
-                                                    setSequence(newSeq);
-                                                }}
-                                                className="bg-gray-800 border border-gray-600 rounded-md px-2 py-1 text-sm font-medium text-white"
-                                            >
-                                                <option value="work">Arbete</option>
-                                                <option value="rest">Vila</option>
-                                                <option value="prepare">Förberedelse</option>
-                                            </select>
-                                            <button onClick={() => {
-                                                const newSeq = [...sequence];
-                                                newSeq.splice(i, 1);
-                                                setSequence(newSeq);
-                                            }} className="text-red-400 hover:text-red-300 p-1 bg-red-900/20 rounded-md opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <TrashIcon className="w-4 h-4" />
+                                    <div key={i} className={`flex flex-col gap-3 p-4 rounded-2xl border-2 transition-all shadow-sm ${seg.type === 'work' ? 'bg-orange-900/10 border-orange-900/30' : 'bg-teal-900/10 border-teal-900/30'}`}>
+                                        
+                                        {/* Row 1: Controls & Step Info */}
+                                        <div className="flex justify-between items-center w-full">
+                                            <div className="flex gap-2">
+                                                <button onClick={() => moveSegment(i, 'up')} disabled={i === 0} className="p-1.5 text-gray-400 hover:text-gray-200 disabled:opacity-20 hover:bg-white/10 rounded transition-colors"><ChevronUpIcon className="w-5 h-5" /></button>
+                                                <button onClick={() => moveSegment(i, 'down')} disabled={i === sequence.length - 1} className="p-1.5 text-gray-400 hover:text-gray-200 disabled:opacity-20 hover:bg-white/10 rounded transition-colors"><ChevronDownIcon className="w-5 h-5" /></button>
+                                            </div>
+                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Steg {i + 1}</span>
+                                            <button onClick={() => removeSegment(i)} className="text-red-400 hover:text-red-500 hover:bg-red-900/20 p-1.5 rounded-lg transition-colors" title="Ta bort steg">
+                                                <TrashIcon className="w-5 h-5" />
                                             </button>
                                         </div>
-                                        <div className="flex gap-2">
-                                            <ValueAdjuster label="MIN" value={minutes} onchange={(v) => {
-                                                const newSeq = [...sequence];
-                                                newSeq[i].duration = v * 60 + seconds;
-                                                setSequence(newSeq);
-                                            }} />
-                                            <ValueAdjuster label="SEK" value={seconds} onchange={(v) => {
-                                                const newSeq = [...sequence];
-                                                newSeq[i].duration = minutes * 60 + v;
-                                                setSequence(newSeq);
-                                            }} max={59} step={5} wrapAround />
+                                        
+                                        {/* Row 2: Time Adjusters */}
+                                        <div className="flex justify-center items-center gap-4 py-1">
+                                            <ValueAdjuster 
+                                                label="MIN" 
+                                                value={minutes} 
+                                                onchange={(val) => updateSegment(i, { duration: val * 60 + seconds })} 
+                                            />
+                                            <ValueAdjuster 
+                                                label="SEK" 
+                                                value={seconds} 
+                                                onchange={(val) => updateSegment(i, { duration: minutes * 60 + val })}
+                                                max={59}
+                                                step={5}
+                                                wrapAround={true}
+                                            />
+                                        </div>
+
+                                        {/* Row 3: Type & Title */}
+                                        <div className="flex items-center gap-3">
+                                            <button 
+                                                onClick={() => updateSegment(i, { type: seg.type === 'work' ? 'rest' : 'work' })}
+                                                className={`flex-shrink-0 text-[10px] font-black uppercase px-3 py-2.5 rounded-xl w-24 text-center transition-all shadow-sm active:scale-95 ${seg.type === 'work' ? 'bg-orange-500 text-white' : 'bg-teal-500 text-white'}`}
+                                            >
+                                                {seg.type === 'work' ? 'Arbete' : 'Vila'}
+                                            </button>
+                                            <div className="flex-grow">
+                                                <input 
+                                                    type="text" 
+                                                    value={seg.title || ''} 
+                                                    onChange={e => updateSegment(i, { title: e.target.value })}
+                                                    className="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-sm font-bold focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm placeholder-gray-400 text-white"
+                                                    placeholder={seg.type === 'work' ? 'Titel (t.ex. Intervall)' : 'Titel (t.ex. Vila)'}
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                 );
                             })}
-                            <button onClick={() => setSequence([...sequence, { type: 'work', duration: 30, title: 'Nytt segment' }])} className="w-full py-3 border-2 border-dashed border-gray-600 text-gray-400 font-bold rounded-xl hover:bg-gray-700 transition-colors flex items-center justify-center gap-2">
-                                <PlusIcon className="w-5 h-5" /> Lägg till segment
-                            </button>
                         </div>
-                    </div>
+                        
+                        <button 
+                            onClick={addSegment} 
+                            className="w-full mt-6 flex items-center justify-center gap-2 py-4 border-2 border-dashed border-gray-600 rounded-2xl text-gray-400 hover:text-primary hover:border-primary/50 hover:bg-gray-800 transition-all text-sm font-black uppercase tracking-widest"
+                        >
+                            <PlusIcon className="w-5 h-5" /> Lägg till steg
+                        </button>
+                     </div>
                  );
             case TimerMode.Stopwatch:
                 return (
