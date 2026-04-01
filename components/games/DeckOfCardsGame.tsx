@@ -59,14 +59,14 @@ const getSuitSymbol = (suit: Suit) => {
     }
 };
 
-const getSuitColor = (suit: Suit) => {
+const getSuitColor = (suit: Suit, isCard: boolean = false) => {
     switch (suit) {
         case 'hearts':
         case 'diamonds':
             return 'text-red-600';
         case 'clubs':
         case 'spades':
-            return 'text-black dark:text-white';
+            return isCard ? 'text-black' : 'text-black dark:text-white';
     }
 };
 
@@ -553,16 +553,16 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                                         </div>
                                     ) : (
                                         <>
-                                            <div className={`text-6xl font-black ${getSuitColor(currentCard.suit)}`}>
+                                            <div className={`text-6xl font-black ${getSuitColor(currentCard.suit, true)}`}>
                                                 {currentCard.value}
                                                 <div className="text-4xl mt-2">{getSuitSymbol(currentCard.suit)}</div>
                                             </div>
                                             
-                                            <div className={`absolute inset-0 flex items-center justify-center text-[10rem] ${getSuitColor(currentCard.suit)}`}>
+                                            <div className={`absolute inset-0 flex items-center justify-center text-[10rem] ${getSuitColor(currentCard.suit, true)}`}>
                                                 {getSuitSymbol(currentCard.suit)}
                                             </div>
                                             
-                                            <div className={`text-6xl font-black self-end rotate-180 ${getSuitColor(currentCard.suit)}`}>
+                                            <div className={`text-6xl font-black self-end rotate-180 ${getSuitColor(currentCard.suit, true)}`}>
                                                 {currentCard.value}
                                                 <div className="text-4xl mt-2">{getSuitSymbol(currentCard.suit)}</div>
                                             </div>
