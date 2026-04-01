@@ -293,36 +293,21 @@ const Reel: React.FC<{
     color: string
 }> = ({ items, isSpinning, result, delay, title, color }) => {
     
-    const [localItems, setLocalItems] = useState<string[]>([result || items[0]]);
-    const [offset, setOffset] = useState(0);
-    const [isAnimating, setIsAnimating] = useState(false);
+    // We only generate the spin list ONCE when spinning starts, 
+    // to avoid React re-rendering the list during the spin.
+    const [spinList, setSpinList] = useState<string[]>([result || items[0]]);
 
     useEffect(() => {
-        let timer: NodeJS.Timeout;
         if (isSpinning) {
-            // Create a random list of 25 items + the final result (reduced from 40 for TV performance)
-            const newList = Array.from({ length: 25 }, () => items[Math.floor(Math.random() * items.length)]);
-            newList.push(result);
-            
-            setLocalItems(newList);
-            setOffset(0);
-            setIsAnimating(false); // Disable transition for the reset
-
-            // Force reflow and start animation with a slightly longer delay 
-            // to ensure TV browsers have painted the new DOM nodes
-            timer = setTimeout(() => {
-                setIsAnimating(true);
-                // 64px is the height of each item (h-16)
-                setOffset(-(newList.length - 1) * 64);
-            }, 100); 
-
+            // Create a fixed-size list of 15 random items (keeps DOM light for TVs)
+            const newList = Array.from({ length: 15 }, () => items[Math.floor(Math.random() * items.length)]);
+            // Ensure the last item is the actual result
+            newList[newList.length - 1] = result;
+            setSpinList(newList);
         } else {
-            // Snap to single item when spinning is done
-            setLocalItems([result || items[0]]);
-            setOffset(0);
-            setIsAnimating(false);
+            // When not spinning, just show the result
+            setSpinList([result || items[0]]);
         }
-        return () => clearTimeout(timer);
     }, [isSpinning, result, items]);
 
     return (
@@ -337,29 +322,26 @@ const Reel: React.FC<{
                 <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-16 bg-white/10 dark:bg-white/5 z-10 pointer-events-none border-y border-white/20"></div>
 
                 <div className="relative w-full h-full flex justify-center items-center">
-                    <div 
+                    <motion.div 
                         className="absolute w-full flex flex-col"
-                        style={{ 
-                            top: '50%', 
-                            marginTop: '-32px', // Center the first item (32px is half of 64px)
-                            transform: `translate3d(0, ${offset}px, 0)`,
-                            transitionProperty: 'transform',
-                            transitionDuration: isAnimating ? `${2.5 + delay}s` : '0s',
-                            transitionTimingFunction: 'cubic-bezier(0.15, 0.85, 0.35, 1)',
-                            transitionDelay: isAnimating ? `${delay * 0.2}s` : '0s',
-                            willChange: 'transform',
-                            WebkitBackfaceVisibility: 'hidden',
-                            backfaceVisibility: 'hidden',
-                            WebkitPerspective: 1000,
-                            perspective: 1000
+                        initial={false}
+                        animate={{ 
+                            // 64px is the height of each item (h-16)
+                            y: isSpinning ? -((spinList.length - 1) * 64) : 0 
                         }}
+                        transition={{ 
+                            duration: isSpinning ? 2.5 + delay : 0, 
+                            ease: [0.15, 0.85, 0.35, 1], // Custom easeOut for slot machine feel
+                            delay: isSpinning ? delay * 0.2 : 0
+                        }}
+                        style={{ top: '50%', marginTop: '-32px' }} // Center the first item (32px is half of 64px)
                     >
-                        {localItems.map((item, idx) => (
+                        {spinList.map((item, idx) => (
                             <div key={idx} className={`h-16 shrink-0 flex items-center justify-center px-2 text-center font-black text-sm md:text-lg ${color} rounded-lg mx-2 my-0`}>
                                 {item}
                             </div>
                         ))}
-                    </div>
+                    </motion.div>
                 </div>
             </div>
         </div>
