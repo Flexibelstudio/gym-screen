@@ -262,7 +262,7 @@ export const Header: React.FC<HeaderProps> = ({
       case Page.HyroxRaceDetail: return "Resultat";
       case Page.WorkoutGamesHub: return "Träningslekar";
       case Page.MemberRegistry: return "Medlemsregister";
-      case Page.MobileLog: return "Logga Pass";
+      case Page.MobileLog: return "Logga Pass (BETA)";
       case Page.AdminAnalytics: return "Statistik & Trender";
       case Page.Coach: return "Coach";
       default: return "";
