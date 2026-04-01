@@ -209,9 +209,9 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
             </div>
 
             {/* Slot Machine Container */}
-            <div className="w-full max-w-4xl bg-gray-900 rounded-[3rem] p-4 md:p-8 shadow-2xl border-8 border-gray-800 relative mt-8 mb-12 z-10 mr-10 ml-2 md:mx-0">
+            <div className="w-full max-w-4xl bg-gray-900 rounded-[3rem] p-4 md:p-8 shadow-2xl border-8 border-gray-800 relative mt-16 md:mt-20 mb-12 z-10 mr-10 ml-2 md:mx-0">
                 {/* Top decoration */}
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 min-w-48 px-8 h-20 bg-gray-800 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.1)] border-4 border-gray-700 flex items-center justify-center overflow-hidden z-20">
+                <div className="absolute -top-10 left-1/2 -translate-x-1/2 min-w-48 px-8 h-20 bg-gray-800 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.1)] border-4 border-gray-700 flex items-center justify-center overflow-hidden z-20">
                     {logoUrl ? (
                         <img src={logoUrl} alt="Logo" className="h-14 object-contain drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
                     ) : faviconUrl ? (
