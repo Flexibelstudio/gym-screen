@@ -795,7 +795,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                             />
 
                             {/* 4. Idea Board (if enabled) */}
-                            {/* {studioConfig.enableNotes && (
+                            {studioConfig.enableNotes && (
                                 <DashboardButton 
                                     onClick={() => {
                                         setView('ideaboard');
@@ -812,7 +812,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                     icon={<PencilIcon className="w-8 h-8" />}
                                     label="Idétavlan"
                                 />
-                            )} */}
+                            )}
 
                              {/* 5. Other Workouts */}
                             <DashboardButton 

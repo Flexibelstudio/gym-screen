@@ -5,7 +5,7 @@ import { interpretHandwriting, parseWorkoutFromImage, beautifyDrawing } from '..
 import { deleteImageByUrl, resolveAndCreateExercises } from '../services/firebaseService';
 import { useWorkoutTimer, getAudioContext } from '../hooks/useWorkoutTimer';
 import { useStudio } from '../context/StudioContext';
-import { ValueAdjuster, InformationCircleIcon, ChevronUpIcon, ChevronDownIcon, CloseIcon } from './icons';
+import { ValueAdjuster, InformationCircleIcon, ChevronUpIcon, ChevronDownIcon, CloseIcon, PlusIcon, TrashIcon } from './icons';
 import { Modal } from './ui/Modal';
 import { WorkoutCompleteModal } from './WorkoutCompleteModal';
 import { motion } from 'framer-motion';
@@ -389,6 +389,10 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
     const [restMinutes, setRestMinutes] = useState(0);
     const [restSeconds, setRestSeconds] = useState(15);
     const [direction, setDirection] = useState<'up' | 'down'>('down');
+    const [sequence, setSequence] = useState<any[]>([
+        { type: 'work', duration: 30, title: 'Arbete' },
+        { type: 'rest', duration: 15, title: 'Vila' }
+    ]);
 
     useEffect(() => {
         switch(mode) {
@@ -439,6 +443,15 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
                 settings = { ...settings, workTime: 60, restTime: 0, rounds: totalMinutes };
                 title = `EMOM ${totalMinutes} min`;
                 exercises = [{ id: 'ex-emom', name: 'Intervall', reps: '', description: '' }];
+                break;
+            case TimerMode.Custom:
+                settings.rounds = varv;
+                settings.sequence = sequence;
+                const seqTotal = sequence.reduce((acc, s) => acc + (s.duration || 0), 0);
+                settings.workTime = seqTotal;
+                settings.restTime = 0;
+                title = 'Sekvens';
+                exercises = [{ id: 'ex-custom', name: 'Sekvens', reps: '', description: '' }];
                 break;
             case TimerMode.Stopwatch:
                 settings = { ...settings, workTime: 3600, restTime: 0, rounds: 1 };
@@ -499,6 +512,73 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
                  return <div className={animationClass}><ValueAdjuster label="TID (MINUTER)" value={totalMinutes} onchange={setTotalMinutes} /></div>;
             case TimerMode.EMOM:
                  return <div className={animationClass}><ValueAdjuster label="TOTAL TID (MINUTER)" value={totalMinutes} onchange={setTotalMinutes} /></div>;
+            case TimerMode.Custom:
+                 return (
+                     <div className={`w-full ${animationClass}`}>
+                        <div className="flex justify-center mb-6">
+                             <ValueAdjuster label="ANTAL VARV (LOOP)" value={varv} onchange={setVarv} />
+                        </div>
+
+                        <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar p-1">
+                            {sequence.map((seg, i) => {
+                                const minutes = Math.floor(seg.duration / 60);
+                                const seconds = seg.duration % 60;
+                                return (
+                                    <div key={i} className="flex flex-col gap-2 p-3 bg-gray-700 rounded-xl border border-gray-600 relative group">
+                                        <div className="flex justify-between items-center">
+                                            <input 
+                                                type="text" 
+                                                value={seg.title || ''} 
+                                                onChange={(e) => {
+                                                    const newSeq = [...sequence];
+                                                    newSeq[i].title = e.target.value;
+                                                    setSequence(newSeq);
+                                                }}
+                                                placeholder="Namn (t.ex. Arbete)"
+                                                className="bg-gray-800 border border-gray-600 rounded-md px-2 py-1 text-sm font-medium w-1/2 text-white"
+                                            />
+                                            <select 
+                                                value={seg.type}
+                                                onChange={(e) => {
+                                                    const newSeq = [...sequence];
+                                                    newSeq[i].type = e.target.value as 'work' | 'rest' | 'prepare';
+                                                    setSequence(newSeq);
+                                                }}
+                                                className="bg-gray-800 border border-gray-600 rounded-md px-2 py-1 text-sm font-medium text-white"
+                                            >
+                                                <option value="work">Arbete</option>
+                                                <option value="rest">Vila</option>
+                                                <option value="prepare">Förberedelse</option>
+                                            </select>
+                                            <button onClick={() => {
+                                                const newSeq = [...sequence];
+                                                newSeq.splice(i, 1);
+                                                setSequence(newSeq);
+                                            }} className="text-red-400 hover:text-red-300 p-1 bg-red-900/20 rounded-md opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <TrashIcon className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <ValueAdjuster label="MIN" value={minutes} onchange={(v) => {
+                                                const newSeq = [...sequence];
+                                                newSeq[i].duration = v * 60 + seconds;
+                                                setSequence(newSeq);
+                                            }} />
+                                            <ValueAdjuster label="SEK" value={seconds} onchange={(v) => {
+                                                const newSeq = [...sequence];
+                                                newSeq[i].duration = minutes * 60 + v;
+                                                setSequence(newSeq);
+                                            }} max={59} step={5} wrapAround />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            <button onClick={() => setSequence([...sequence, { type: 'work', duration: 30, title: 'Nytt segment' }])} className="w-full py-3 border-2 border-dashed border-gray-600 text-gray-400 font-bold rounded-xl hover:bg-gray-700 transition-colors flex items-center justify-center gap-2">
+                                <PlusIcon className="w-5 h-5" /> Lägg till segment
+                            </button>
+                        </div>
+                    </div>
+                 );
             case TimerMode.Stopwatch:
                 return (
                      <div className={`text-center text-gray-300 p-4 ${animationClass}`}>
@@ -515,7 +595,7 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
             <div className="space-y-6">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                     {Object.values(TimerMode).filter(m => m !== TimerMode.NoTimer).map(m => (
-                        <button key={m} onClick={() => setMode(m)} className={`px-4 py-3 text-base font-semibold rounded-lg transition-colors ${ mode === m ? 'bg-primary text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600' }`}>{m}</button>
+                        <button key={m} onClick={() => setMode(m)} className={`px-4 py-3 text-base font-semibold rounded-lg transition-colors ${ mode === m ? 'bg-primary text-white' : 'bg-gray-700 text-gray-300 hover:bg-gray-600' }`}>{m === TimerMode.Custom ? 'Sekvens' : m}</button>
                     ))}
                 </div>
                 
@@ -587,8 +667,9 @@ const CompactTimer: React.FC<{
     }, [timer.status, onFinish]);
 
     const timerColor = getTimerHexColor(timer.status, block.settings.mode);
-    const statusText = timer.status === TimerStatus.Resting ? 'Vila' : 
-                      timer.status === TimerStatus.Preparing ? 'Gör dig redo' : 'Arbete';
+    const statusText = timer.status === TimerStatus.Preparing ? 'Gör dig redo' : 
+                       (block.settings.mode === TimerMode.Custom && timer.currentSegment?.title) ? timer.currentSegment.title :
+                       timer.status === TimerStatus.Resting ? 'Vila' : 'Arbete';
 
     const progressPercentage = timer.totalBlockDuration > 0 
         ? Math.min(100, Math.max(0, (timer.totalTimeElapsed / timer.totalBlockDuration) * 100))
@@ -625,7 +706,7 @@ const CompactTimer: React.FC<{
                 </div>
             </div>
 
-            {(block.settings.mode === TimerMode.Interval || block.settings.mode === TimerMode.Tabata) && (
+            {(block.settings.mode === TimerMode.Interval || block.settings.mode === TimerMode.Tabata || block.settings.mode === TimerMode.Custom) && (
                 <div className="flex items-center gap-4 mt-2">
                     <div className="bg-black/20 backdrop-blur-md rounded-xl py-2 px-6 flex flex-col items-center justify-center border border-white/10 shadow-lg">
                         <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">VARV</span>
@@ -637,7 +718,7 @@ const CompactTimer: React.FC<{
                     
                     <div className="bg-black/20 backdrop-blur-md rounded-xl px-5 py-2 flex items-center border border-white/10 h-full shadow-lg">
                         <div className="flex flex-col items-center">
-                             <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">INTERVALL</span>
+                             <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">{block.settings.mode === TimerMode.Custom ? 'SEGMENT' : 'INTERVALL'}</span>
                              <span className="text-xl font-bold text-white leading-none mt-0.5">{currentIntervalInLap} / {timer.effectiveIntervalsPerLap}</span>
                         </div>
                     </div>
