@@ -37,10 +37,10 @@ const AMOUNTS = [
     '30 sek', '45 sek', '60 sek', '90 sek'
 ];
 
-const SPICES = [
-    'Gör det blundande', 'Dubbla tempot', 'Håll en vikt', 
-    'På ett ben', 'Långsamt ner', 'Utan paus', 
-    'Med ett leende', 'Kör baklänges'
+const BONUSES = [
+    '+ 5 Burpees', '+ 10 Upphopp', '+ 30s Plankan', 
+    '+ 15s Jägarvila', '15 sek Vila', '30 sek Vila', 
+    '+ 10 Situps', '+ 5 Armhävningar'
 ];
 
 export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
@@ -68,7 +68,7 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
         setResults([
             activeExercises[0],
             AMOUNTS[0],
-            SPICES[0]
+            BONUSES[0]
         ]);
     };
 
@@ -80,7 +80,7 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
         const newResults: [string, string, string] = [
             activeExercises[Math.floor(Math.random() * activeExercises.length)],
             AMOUNTS[Math.floor(Math.random() * AMOUNTS.length)],
-            SPICES[Math.floor(Math.random() * SPICES.length)]
+            BONUSES[Math.floor(Math.random() * BONUSES.length)]
         ];
 
         // Set results immediately so the Reels know what to spin towards
@@ -229,11 +229,11 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
                             color="bg-green-50 text-green-900 dark:bg-green-900/30 dark:text-green-100"
                         />
                         <Reel 
-                            items={SPICES} 
+                            items={BONUSES} 
                             isSpinning={isSpinning} 
                             result={results[2]} 
                             delay={1} 
-                            title="Krydda" 
+                            title="Bonus" 
                             color="bg-purple-50 text-purple-900 dark:bg-purple-900/30 dark:text-purple-100"
                         />
                     </div>

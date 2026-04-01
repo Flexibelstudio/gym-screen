@@ -66,7 +66,7 @@ const getSuitColor = (suit: Suit) => {
             return 'text-red-600';
         case 'clubs':
         case 'spades':
-            return 'text-black';
+            return 'text-black dark:text-white';
     }
 };
 
@@ -420,7 +420,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
     }
 
     return (
-        <div className="w-full max-w-5xl mx-auto px-6 pb-12 pt-12 md:pt-24 animate-fade-in flex flex-col justify-start min-h-[80vh]">
+        <div className="w-full max-w-5xl mx-auto px-6 pb-12 pt-4 md:pt-8 animate-fade-in flex flex-col justify-start min-h-[80vh]">
             <div className="flex items-center justify-between mb-12 z-10">
                 <div>
                     <h2 className="text-4xl md:text-6xl font-black text-gray-900 dark:text-white tracking-tight uppercase">
@@ -472,7 +472,7 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                 </div>
             )}
 
-            <div className="flex flex-col items-center justify-center z-10 mt-12 md:mt-20">
+            <div className="flex flex-col items-center justify-start z-10 mt-16 md:mt-24">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-24 w-full max-w-7xl mx-auto justify-items-center items-center">
                     
                     {/* Deck / Draw Button */}
