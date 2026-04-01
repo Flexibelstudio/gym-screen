@@ -38,8 +38,9 @@ const AMOUNTS = [
 ];
 
 const BONUSES = [
+    'x2', 'x3', '- 5', '+ 5', '- 10', '+ 10',
     '+ 5 Burpees', '+ 10 Upphopp', '+ 30s Plankan', 
-    '+ 15s Jägarvila', '15 sek Vila', '30 sek Vila', 
+    '+ 15s Jägarvila', '+ 10 Höga knän', '+ 10 Rygglyft', 
     '+ 10 Situps', '+ 5 Armhävningar'
 ];
 
