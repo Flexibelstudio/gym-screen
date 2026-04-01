@@ -196,7 +196,6 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
         setGameState('finished');
         setIsTimerRunning(false);
         sounds.success();
-        playTimerSound(studioConfig?.soundProfile || 'airhorn', 3);
     };
 
     const isGoalReached = 

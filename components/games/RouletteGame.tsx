@@ -204,9 +204,6 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
         setResult(null);
         setResultIndex(null);
 
-        // Play a sound when starting
-        playTimerSound(studioConfig?.soundProfile || 'airhorn', 1);
-
         // Calculate random rotation
         const spins = 8 + Math.floor(Math.random() * 6); // 8 to 13 full spins
         const randomDegree = Math.floor(Math.random() * 360);
@@ -255,7 +252,6 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
             } else {
                 setActiveJokerEvent(null);
                 setJokerTimeLeft(null);
-                playTimerSound(studioConfig?.soundProfile || 'airhorn', 3);
             }
 
             setShowResult(true);
