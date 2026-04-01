@@ -490,11 +490,30 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                                 }
                             }}
                             disabled={!isGoalReached && (deck.length === 0 || isFlipping)}
-                            className={`relative w-72 h-[28rem] rounded-3xl shadow-2xl border-4 border-white dark:border-gray-800 transition-transform ${(!isGoalReached && deck.length === 0) ? 'opacity-50 cursor-not-allowed' : 'hover:-translate-y-2 active:scale-95 cursor-pointer'}`}
+                            className={`relative w-72 h-[28rem] rounded-3xl shadow-2xl border-4 border-white dark:border-gray-800 transition-transform overflow-hidden ${(!isGoalReached && deck.length === 0) ? 'opacity-50 cursor-not-allowed' : 'hover:-translate-y-2 active:scale-95 cursor-pointer'}`}
                             style={{
-                                background: isGoalReached ? '#10b981' : 'repeating-linear-gradient(45deg, #ef4444, #ef4444 15px, #b91c1c 15px, #b91c1c 30px)'
+                                background: isGoalReached ? '#10b981' : '#ef4444'
                             }}
                         >
+                            {(!isGoalReached && (studioConfig?.faviconUrl || studioConfig?.logoUrl)) ? (
+                                <div 
+                                    className="absolute inset-0 opacity-20"
+                                    style={{
+                                        backgroundImage: `url('${studioConfig.faviconUrl || studioConfig.logoUrl}')`,
+                                        backgroundSize: '40px 40px',
+                                        backgroundRepeat: 'repeat',
+                                        backgroundPosition: 'center',
+                                        transform: 'rotate(-15deg) scale(1.5)'
+                                    }}
+                                />
+                            ) : (!isGoalReached && (
+                                <div 
+                                    className="absolute inset-0"
+                                    style={{
+                                        background: 'repeating-linear-gradient(45deg, transparent, transparent 15px, rgba(0,0,0,0.1) 15px, rgba(0,0,0,0.1) 30px)'
+                                    }}
+                                />
+                            ))}
                             <div className="absolute inset-0 flex items-center justify-center bg-black/20 rounded-2xl">
                                 <span className="text-white font-black text-4xl uppercase tracking-widest drop-shadow-md text-center px-4">
                                     {isGoalReached ? 'Klar!' : 'Dra Kort'}

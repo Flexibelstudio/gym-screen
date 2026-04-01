@@ -423,6 +423,8 @@ export const DiceGame: React.FC<DiceGameProps> = ({ onBack }) => {
 };
 
 const Die: React.FC<{ rotation: {x: number, y: number}, isRolling: boolean, color: 'white' | 'primary', onClick?: () => void }> = ({ rotation, isRolling, color, onClick }) => {
+    const { studioConfig } = useStudio();
+    
     return (
         <div className={`die-scene ${isRolling ? 'is-rolling' : ''}`} onClick={onClick}>
             <div className="die-tilt">
@@ -433,7 +435,13 @@ const Die: React.FC<{ rotation: {x: number, y: number}, isRolling: boolean, colo
                         transitionDuration: isRolling ? '2s' : '0.3s'
                     }}
                 >
-                    <div className={`die-face face-1 die-face-${color}`}><span className="dot"></span></div>
+                    <div className={`die-face face-1 die-face-${color}`}>
+                        {studioConfig?.faviconUrl ? (
+                            <img src={studioConfig.faviconUrl} alt="1" className="w-10 h-10 md:w-12 md:h-12 object-contain" />
+                        ) : (
+                            <span className="dot"></span>
+                        )}
+                    </div>
                     <div className={`die-face face-2 die-face-${color}`}><span className="dot"></span><span className="dot"></span></div>
                     <div className={`die-face face-3 die-face-${color}`}><span className="dot"></span><span className="dot"></span><span className="dot"></span></div>
                     <div className={`die-face face-4 die-face-${color}`}><span className="dot"></span><span className="dot"></span><span className="dot"></span><span className="dot"></span></div>
