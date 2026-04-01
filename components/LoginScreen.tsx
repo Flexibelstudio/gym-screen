@@ -316,6 +316,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     </button>
                 </div>
 
+                {registerType === 'member' && (
+                    <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-4 mb-6 text-left">
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="bg-purple-500/20 text-purple-300 text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded">BETA</span>
+                            <h3 className="text-sm font-bold text-purple-100">Early Access</h3>
+                        </div>
+                        <p className="text-xs text-purple-200/70 leading-relaxed">
+                            Bli en av de första att testa vår nya medlemsapp! Logga pass, följ din utveckling och sätt personliga mål.
+                        </p>
+                    </div>
+                )}
+
                 <div className="flex flex-col items-center mb-4">
                     <div 
                         className="w-24 h-24 rounded-full bg-gray-800 border-2 border-gray-700 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary transition-colors relative group"
