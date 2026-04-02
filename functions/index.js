@@ -613,6 +613,43 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
         }
       }
     }
+
+    if (event.type === 'customer.subscription.created' || event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object;
+      const customerId = subscription.customer;
+      const status = subscription.status; // 'active', 'past_due', 'canceled', etc.
+      
+      const db = admin.firestore();
+      
+      // Leta efter användare med detta stripeCustomerId
+      const userQuery = await db.collection('users').where('stripeCustomerId', '==', customerId).limit(1).get();
+      if (!userQuery.empty) {
+        const userId = userQuery.docs[0].id;
+        await db.collection('users').doc(userId).update({
+          subscriptionStatus: status === 'active' || status === 'trialing' ? 'active' : 'inactive',
+          stripeSubscriptionId: status === 'canceled' ? admin.firestore.FieldValue.delete() : subscription.id
+        });
+        console.log(`Uppdaterade prenumerationsstatus för användare ${userId} till ${status}`);
+      }
+
+      // Leta efter organisation med detta stripeCustomerId
+      const orgQuery = await db.collection('organizations').where('stripeCustomerId', '==', customerId).limit(1).get();
+      if (!orgQuery.empty) {
+        const orgId = orgQuery.docs[0].id;
+        if (status === 'canceled') {
+           await db.collection('organizations').doc(orgId).update({
+             stripeSubscriptionId: admin.firestore.FieldValue.delete()
+           });
+           console.log(`Tog bort prenumerations-ID för org ${orgId} (avslutad)`);
+        } else {
+           await db.collection('organizations').doc(orgId).update({
+             stripeSubscriptionId: subscription.id
+           });
+           console.log(`Uppdaterade prenumerations-ID för org ${orgId}`);
+        }
+      }
+    }
+
     res.json({ received: true });
   } catch (error) {
     console.error("Webhook error:", error);
