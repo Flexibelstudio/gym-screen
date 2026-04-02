@@ -599,14 +599,20 @@ export const listenToWeeklyPBs = (orgId: string, onUpdate: (events: StudioEvent[
     if (isOffline || !db || !orgId) { onUpdate([]); return () => {}; }
     
     // Vi tar bort tidsbegränsningen för att visa de senaste 20 rekorden oavsett när de sattes.
+    // Vi filtrerar på 'type' i minnet för att undvika index-fel i Firestore.
     const q = query(
         collection(db, 'studio_events'), 
         where('organizationId', '==', orgId), 
-        where('type', 'in', ['pb', 'pb_batch']), 
         orderBy('timestamp', 'desc'), 
-        limit(20)
+        limit(50)
     );
-    return onSnapshot(q, (snap) => onUpdate(snap.docs.map(d => d.data() as StudioEvent)));
+    return onSnapshot(q, (snap) => {
+        const allEvents = snap.docs.map(d => d.data() as StudioEvent);
+        const pbEvents = allEvents.filter(e => e.type === 'pb' || e.type === 'pb_batch');
+        onUpdate(pbEvents.slice(0, 20));
+    }, (error) => {
+        console.error("Error listening to weekly PBs:", error);
+    });
 };
 
 export const getOrganizations = async (): Promise<Organization[]> => {
