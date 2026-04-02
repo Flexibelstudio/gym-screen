@@ -638,12 +638,14 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
         const orgId = orgQuery.docs[0].id;
         if (status === 'canceled') {
            await db.collection('organizations').doc(orgId).update({
-             stripeSubscriptionId: admin.firestore.FieldValue.delete()
+             stripeSubscriptionId: admin.firestore.FieldValue.delete(),
+             systemFeePaid: false
            });
-           console.log(`Tog bort prenumerations-ID för org ${orgId} (avslutad)`);
+           console.log(`Tog bort prenumerations-ID och satte systemFeePaid=false för org ${orgId} (avslutad)`);
         } else {
            await db.collection('organizations').doc(orgId).update({
-             stripeSubscriptionId: subscription.id
+             stripeSubscriptionId: subscription.id,
+             systemFeePaid: true
            });
            console.log(`Uppdaterade prenumerations-ID för org ${orgId}`);
         }
