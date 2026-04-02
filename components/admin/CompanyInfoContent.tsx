@@ -62,7 +62,7 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
                                                 const res = await fetch(`${apiUrl}/create-portal-session`, {
                                                     method: 'POST',
                                                     headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({ customerId: organization.stripeCustomerId })
+                                                    body: JSON.stringify({ customerId: organization.stripeCustomerId, isOrganization: true })
                                                 });
                                                 const data = await res.json();
                                                 if (data.url) window.location.href = data.url;

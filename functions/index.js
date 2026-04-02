@@ -853,7 +853,7 @@ app.post("/create-member-checkout", async (req, res) => {
 
 app.post('/create-portal-session', async (req, res) => {
   try {
-    const { customerId } = req.body;
+    const { customerId, configurationId, isOrganization } = req.body;
     if (!customerId) {
       return res.status(400).json({ error: "Missing customerId" });
     }
@@ -861,10 +861,18 @@ app.post('/create-portal-session', async (req, res) => {
     const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
     const domain = req.headers.origin || 'https://ais-dev-mioe74iqdi7yxzjsz433lx-46889914413.europe-west2.run.app';
 
-    const session = await stripe.billingPortal.sessions.create({
+    const sessionParams = {
       customer: customerId,
       return_url: domain,
-    });
+    };
+
+    if (configurationId) {
+      sessionParams.configuration = configurationId;
+    } else if (isOrganization && process.env.STRIPE_RESTRICTED_PORTAL_CONFIG_ID) {
+      sessionParams.configuration = process.env.STRIPE_RESTRICTED_PORTAL_CONFIG_ID;
+    }
+
+    const session = await stripe.billingPortal.sessions.create(sessionParams);
 
     res.json({ url: session.url });
   } catch (error) {
