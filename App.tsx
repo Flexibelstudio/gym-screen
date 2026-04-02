@@ -1293,7 +1293,7 @@ const App: React.FC = () => {
 
       <div className="flex flex-col items-center flex-1 min-h-0 relative">
           <main 
-            className={`flex-1 min-h-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
+            className={`flex-1 min-h-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home || page === Page.MemberProfile ? 'justify-start' : 'justify-center'}`}`}
           >
             {showPendingCoach ? (
                 <PendingCoachScreen onLogout={signOut} />
