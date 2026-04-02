@@ -260,7 +260,7 @@ const GoalsEditModal: React.FC<{ currentGoals?: MemberGoals, onSave: (goals: Mem
     );
 };
 
-const LogDetailModal: React.FC<{ log: WorkoutLog, onClose: () => void, onUpdate: (id: string, data: Partial<WorkoutLog>) => void, onDelete: (id: string) => void }> = ({ log, onClose, onUpdate, onDelete }) => {
+const LogDetailModal: React.FC<{ log: WorkoutLog, onClose: () => void, onUpdate: (id: string, data: Partial<WorkoutLog>) => void, onDelete: (id: string) => void, onViewDiploma?: (diploma: WorkoutDiploma) => void }> = ({ log, onClose, onUpdate, onDelete, onViewDiploma }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [comment, setComment] = useState(log.comment || '');
     const handleSave = () => { onUpdate(log.id, { comment }); setIsEditing(false); };
@@ -273,6 +273,14 @@ const LogDetailModal: React.FC<{ log: WorkoutLog, onClose: () => void, onUpdate:
                 {isCustomActivity && (<div className="bg-gray-50 dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700"><div className="grid grid-cols-3 gap-4 divide-x divide-gray-200 dark:divide-gray-700"><div className="text-center px-2"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tid</p><p className="font-mono font-bold text-xl text-gray-900 dark:text-white">{log.durationMinutes || 0}<span className="text-xs ml-1 font-normal text-gray-500">min</span></p></div><div className="text-center px-2"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Distans</p><p className="font-mono font-bold text-xl text-gray-900 dark:text-white">{log.totalDistance || 0}<span className="text-xs ml-1 font-normal text-gray-500">km</span></p></div><div className="text-center px-2"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Energi</p><p className="font-mono font-bold text-xl text-gray-900 dark:text-white">{log.totalCalories || 0}<span className="text-xs ml-1 font-normal text-gray-500">kcal</span></p></div></div></div>)}
                 {log.exerciseResults && log.exerciseResults.length > 0 && (<div className="space-y-2"><h4 className="font-bold text-gray-900 dark:text-white text-sm uppercase tracking-wider mb-2">Resultat</h4>{log.exerciseResults.map((ex, i) => (<div key={i} className="flex justify-between items-center bg-gray-50 dark:bg-gray-900 p-3 rounded-lg border border-gray-100 dark:border-gray-800"><span className="font-medium text-gray-800 dark:text-gray-200">{ex.exerciseName}</span><span className="font-mono text-primary font-bold">{ex.weight ? `${ex.weight}kg` : ''} {ex.reps ? ` ${ex.reps}` : ''}</span></div>))}</div>)}
                 <div><h4 className="font-bold text-gray-900 dark:text-white mb-2 text-sm uppercase tracking-wider">Kommentar</h4>{isEditing ? (<textarea value={comment} onChange={e => setComment(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition" rows={3} />) : (<p className="text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg italic border border-gray-100 dark:border-gray-800">{log.comment || "Ingen kommentar."}</p>)}</div>
+                {log.diploma && onViewDiploma && (
+                    <button 
+                        onClick={() => onViewDiploma(log.diploma!)}
+                        className="w-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-bold py-3 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors flex items-center justify-center gap-2 border border-indigo-100 dark:border-indigo-800/50"
+                    >
+                        <TrophyIcon className="w-5 h-5" /> Visa Diplom
+                    </button>
+                )}
                 <div className="flex gap-4 pt-4 border-t border-gray-100 dark:border-gray-800">{isEditing ? (<button onClick={handleSave} className="flex-1 bg-primary text-white font-bold py-3 rounded-xl hover:brightness-110 transition-colors">Spara ändringar</button>) : (<button onClick={() => setIsEditing(true)} className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold py-3 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Redigera text</button>)}<button onClick={handleDelete} className="px-6 text-red-500 font-bold bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl transition-colors flex items-center justify-center border border-red-100 dark:border-red-900/30" title="Radera pass"><TrashIcon className="w-5 h-5" /></button></div>
             </div>
         </Modal>
@@ -441,8 +449,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         }).length;
         const weeklyStreak = calculateWeeklyStreak(logs);
         const currentWeekKey = getYearWeek(now);
-        const hasTrainedThisWeek = logs.some(l => getYearWeek(new Date(l.date)) === currentWeekKey);
-        return { totalWorkouts, thisMonth, weeklyStreak, hasTrainedThisWeek };
+        const thisWeek = logs.filter(l => getYearWeek(new Date(l.date)) === currentWeekKey).length;
+        const hasTrainedThisWeek = thisWeek > 0;
+        return { totalWorkouts, thisMonth, weeklyStreak, hasTrainedThisWeek, thisWeek };
     }, [logs]);
 
     const daysLeft = useMemo(() => {
@@ -602,15 +611,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
             {/* Header section */}
             <div className="flex items-center justify-end mb-4">
-                <button
-                    onClick={() => setIsMyStrengthVisible(true)}
-                    className="flex flex-col items-center gap-1 group transition-all"
-                >
-                    <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 shadow-sm transition-all group-hover:scale-110 group-active:scale-95 group-hover:shadow-md">
-                        <TrophyIcon className="w-6 h-6" />
-                    </div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-primary transition-colors">Styrka</span>
-                </button>
+                {/* Removed Styrka button */}
             </div>
 
             {/* --- FLIKAR --- */}
@@ -801,6 +802,103 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 </div>
             )}
 
+            {activeTab === 'goals' && (
+                <div className="space-y-6 animate-fade-in">
+                    <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-800">
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                <span className="text-xl">🎯</span> Mina Mål
+                            </h3>
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => setShowSmartGoals(!showSmartGoals)} 
+                                    className="px-3 py-1.5 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-xl transition-colors"
+                                >
+                                    {showSmartGoals ? 'Dölj' : 'Visa'}
+                                </button>
+                                <button 
+                                    onClick={() => setIsEditingGoals(true)} 
+                                    className="p-2 text-gray-400 hover:text-primary transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl"
+                                    title="Redigera mål"
+                                >
+                                    <PencilIcon className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <AnimatePresence>
+                            {showSmartGoals && (
+                                <motion.div 
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="pt-6">
+                                        {userData.goals?.hasSpecificGoals ? (
+                                            <div className="space-y-6">
+                                                <div className="flex flex-wrap gap-2">
+                                                    {userData.goals.selectedGoals.map(g => (
+                                                        <span key={g} className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide border border-gray-200 dark:border-gray-700">{g}</span>
+                                                    ))}
+                                                </div>
+
+                                                <div className="space-y-4 pt-2 border-t border-gray-50 dark:border-gray-800">
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em]">Målanalys (SMART)</p>
+                                                    <div className="space-y-4">
+                                                        {userData.goals.smartCriteria && (
+                                                            <>
+                                                                <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={userData.goals.smartCriteria.specific} />
+                                                                <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={userData.goals.smartCriteria.measurable} />
+                                                                <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={userData.goals.smartCriteria.achievable} />
+                                                                <SmartItem letter="R" color="bg-rose-500" title="Relevant" text={userData.goals.smartCriteria.relevant} />
+                                                            </>
+                                                        )}
+                                                        <SmartItem letter="T" color="bg-indigo-500" title="Tid" text={userData.goals.targetDate || 'Ingen deadline.'} />
+                                                    </div>
+                                                </div>
+
+                                                {daysLeft !== null && (
+                                                    <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl">
+                                                        <div className="flex-grow">
+                                                            <div className="flex justify-between text-xs font-bold text-gray-500 mb-1"><span>Framsteg</span><span>{userData.goals.targetDate}</span></div>
+                                                            <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden p-0.5 border border-gray-100 dark:border-gray-800">
+                                                                <div 
+                                                                    className="h-full bg-primary rounded-full transition-all duration-1000 relative shadow-[0_0_10px_rgba(20,184,166,0.5)]" 
+                                                                    style={{ width: `${Math.max(1.5, progressPercentage)}%` }}
+                                                                >
+                                                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-center min-w-[60px]"><span className="block text-xl font-black text-gray-900 dark:text-white leading-none">{daysLeft}</span><span className="text-[9px] uppercase font-bold text-gray-400">Dagar kvar</span></div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="text-center py-4 bg-gray-50 dark:bg-gray-800/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                                                <p className="text-gray-500 text-sm italic">Inga specifika mål satta.</p>
+                                                <button onClick={() => setIsEditingGoals(true)} className="text-primary text-xs font-bold mt-2 hover:underline">Sätt mål nu</button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'strength' && (
+                <div className="animate-fade-in">
+                    <MyStrengthScreen 
+                        userData={userData} 
+                        logs={logs} 
+                        onClose={() => setActiveTab('overview')} 
+                    />
+                </div>
+            )}
+
             {activeTab === 'benchmarks' && (
                 selectedOrganization && (
                     <BenchmarksView 
@@ -837,53 +935,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     </div>
                 </Modal>
             )}
-            {selectedLog && <LogDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} onUpdate={handleUpdateLog} onDelete={handleDeleteLog} />}
+            {selectedLog && <LogDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} onUpdate={handleUpdateLog} onDelete={handleDeleteLog} onViewDiploma={setViewingDiploma} />}
             
-            <AnimatePresence>
-                {isMyStrengthVisible && (
-                    <>
-                        <motion.div 
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[2000]"
-                            onClick={() => setIsMyStrengthVisible(false)}
-                        />
-                        <motion.div 
-                            initial={{ y: '100%', opacity: 0 }}
-                            animate={{ y: '0%', opacity: 1 }}
-                            exit={{ y: '100%', opacity: 0 }}
-                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="fixed inset-x-0 top-[5vh] bottom-[5vh] z-[2010] px-1 pointer-events-none"
-                        >
-                            <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] h-full max-w-2xl mx-auto shadow-2xl overflow-hidden flex flex-col pointer-events-auto relative">
-                                <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center flex-shrink-0">
-                                    <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
-                                        Min Styrka <span className="text-2xl">🏆</span>
-                                    </h2>
-                                    <button onClick={() => setIsMyStrengthVisible(false)} className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                                        <CloseIcon className="w-6 h-6 text-gray-500 dark:text-gray-400" />
-                                    </button>
-                                </div>
-                                
-                                <div className="flex-grow overflow-y-auto p-4 sm:p-6 custom-scrollbar">
-                                    <MyStrengthScreen onBack={() => setIsMyStrengthVisible(false)} />
-                                </div>
-
-                                <div className="p-6 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 bg-white dark:bg-gray-900">
-                                    <button 
-                                        onClick={() => setIsMyStrengthVisible(false)}
-                                        className="w-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-black py-4 rounded-2xl transition-all active:scale-95 uppercase tracking-widest text-sm hover:bg-gray-200 dark:hover:bg-gray-700"
-                                    >
-                                        STÄNG
-                                    </button>
-                                </div>
-                            </div>
-                        </motion.div>
-                    </>
-                )}
-            </AnimatePresence>
-
             <AnimatePresence>
                 {viewingDiploma && (
                     <WorkoutDiplomaView 
