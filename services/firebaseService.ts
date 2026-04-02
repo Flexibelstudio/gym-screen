@@ -351,11 +351,10 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
         } catch (e) { console.warn("Failed to enrich log", e); }
     }
 
-    await setDoc(newLogRef, newLog);
+    const batch = writeBatch(db);
 
     if (logData.memberId && logData.exerciseResults) {
         try {
-            const batch = writeBatch(db);
             const pbCollectionRef = collection(db, 'users', logData.memberId, 'personalBests');
             const currentPBsSnap = await getDocs(pbCollectionRef);
             const currentPBs: Record<string, any> = {};
@@ -393,6 +392,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
             }
 
             if (newRecords.length > 0) {
+                newLog.newPBs = newRecords;
                 const eventRef = doc(collection(db, 'studio_events'));
                 const eventData: StudioEvent = {
                     id: eventRef.id,
@@ -407,10 +407,11 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 };
                 batch.set(eventRef, eventData);
             }
-
-            await batch.commit();
-        } catch (e) { console.error("PB Batch commit failed", e); }
+        } catch (e) { console.error("PB calculation failed", e); }
     }
+
+    batch.set(newLogRef, newLog);
+    await batch.commit();
 
     return { log: newLog, newRecords };
 };

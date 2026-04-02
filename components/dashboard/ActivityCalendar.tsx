@@ -75,7 +75,7 @@ export const ActivityCalendar: React.FC<ActivityCalendarProps> = ({ logs, onDayC
                             {day.logs.slice(0, 4).map((log, idx) => (
                                 <div 
                                     key={idx} 
-                                    className={`w-1.5 h-1.5 rounded-full ${log.activityType === 'custom_activity' ? 'bg-emerald-500' : 'bg-primary'}`}
+                                    className={`w-1.5 h-1.5 rounded-full ${log.activityType === 'custom_activity' ? 'bg-orange-500' : 'bg-primary'}`}
                                 />
                             ))}
                         </div>

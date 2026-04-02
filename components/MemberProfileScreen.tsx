@@ -239,13 +239,29 @@ const GoalsEditModal: React.FC<{ currentGoals?: MemberGoals, onSave: (goals: Mem
     const [targetDate, setTargetDate] = useState(currentGoals?.targetDate || '');
     const [isSmartEnabled, setIsSmartEnabled] = useState(!!currentGoals?.smartCriteria);
     const [smart, setSmart] = useState<SmartGoalDetail>(currentGoals?.smartCriteria || { specific: '', measurable: '', achievable: '', relevant: '', timeBound: '' });
+    
     const toggleGoal = (goal: string) => setSelectedGoals(selectedGoals.includes(goal) ? selectedGoals.filter(g => g !== goal) : [...selectedGoals, goal]);
+    
+    const handleClear = () => {
+        setSelectedGoals([]);
+        setTargetDate('');
+        setIsSmartEnabled(false);
+        setSmart({ specific: '', measurable: '', achievable: '', relevant: '', timeBound: '' });
+    };
+
     const handleSave = () => onSave({ hasSpecificGoals: selectedGoals.length > 0 || (isSmartEnabled && !!smart.specific), selectedGoals, targetDate, startDate: currentGoals?.startDate || new Date().toISOString().split('T')[0], smartCriteria: isSmartEnabled ? smart : undefined });
+    
     const inputClasses = "w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all font-medium";
     const labelClasses = "block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1";
+    
     return (
         <Modal isOpen={true} onClose={onClose} title="Sätt dina mål" size="md">
             <div className="space-y-8">
+                <div className="flex justify-end">
+                    <button onClick={handleClear} className="text-xs font-bold text-gray-500 hover:text-red-500 transition-colors uppercase tracking-wider">
+                        Börja om / Rensa
+                    </button>
+                </div>
                 <div><label className={labelClasses}>Målkategorier</label><div className="flex flex-wrap gap-2">{['Bli starkare', 'Bygga muskler', 'Gå ner i vikt', 'Bättre kondition', 'HYROX', 'Må bra', 'Rörlighet'].map(goal => (<button key={goal} onClick={() => toggleGoal(goal)} className={`px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${selectedGoals.includes(goal) ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-transparent hover:border-gray-300'}`}>{goal}</button>))}</div></div>
                 <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800/50"><ToggleSwitch label="Använd SMART-metoden" checked={isSmartEnabled} onChange={setIsSmartEnabled} /><p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider mt-2 ml-1">För dig som vill vara extra tydlig</p></div>
                 <AnimatePresence>{isSmartEnabled && (<motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="space-y-4 overflow-hidden">
@@ -298,6 +314,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [selectedLog, setSelectedLog] = useState<WorkoutLog | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isEditingGoals, setIsEditingGoals] = useState(false);
+    const [isCreatingNewGoal, setIsCreatingNewGoal] = useState(false);
     const [isMyStrengthVisible, setIsMyStrengthVisible] = useState(false);
     const [viewingDiploma, setViewingDiploma] = useState<WorkoutDiploma | null>(null);
     const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'strength' | 'benchmarks'>('overview');
@@ -722,13 +739,21 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                                 <span className="text-xl">🎯</span> Mina Mål
                             </h3>
-                            <button 
-                                onClick={() => setIsEditingGoals(true)} 
-                                className="p-2 text-gray-400 hover:text-primary transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl"
-                                title="Redigera mål"
-                            >
-                                <PencilIcon className="w-4 h-4" />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={() => setIsCreatingNewGoal(true)} 
+                                    className="px-3 py-1.5 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-xl transition-colors"
+                                >
+                                    Nytt mål
+                                </button>
+                                <button 
+                                    onClick={() => setIsEditingGoals(true)} 
+                                    className="p-2 text-gray-400 hover:text-primary transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl"
+                                    title="Redigera mål"
+                                >
+                                    <PencilIcon className="w-4 h-4" />
+                                </button>
+                            </div>
                         </div>
                         
                         <div>
@@ -807,7 +832,19 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 )
             )}
 
-            {isEditingGoals && <GoalsEditModal currentGoals={userData.goals} onSave={handleSaveGoals} onClose={() => setIsEditingGoals(false)} />}
+            {(isEditingGoals || isCreatingNewGoal) && (
+                <GoalsEditModal 
+                    currentGoals={isCreatingNewGoal ? undefined : userData.goals} 
+                    onSave={(goals) => {
+                        handleSaveGoals(goals);
+                        setIsCreatingNewGoal(false);
+                    }} 
+                    onClose={() => {
+                        setIsEditingGoals(false);
+                        setIsCreatingNewGoal(false);
+                    }} 
+                />
+            )}
             {selectedDateLogs && (
                 <Modal isOpen={true} onClose={() => setSelectedDateLogs(null)} title={`Pass den ${selectedDateLogs.date.toLocaleDateString('sv-SE')}`}>
                     <div className="space-y-4">
