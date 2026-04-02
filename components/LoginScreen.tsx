@@ -43,7 +43,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     // Profile Fields
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
-    const [age, setAge] = useState('');
+    const [birthDate, setBirthDate] = useState('');
     const [gender, setGender] = useState('prefer_not_to_say');
     const [profileImage, setProfileImage] = useState<string | null>(null); 
 
@@ -135,7 +135,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                 {
                     firstName: firstName.trim(),
                     lastName: lastName.trim(),
-                    age: age ? parseInt(age) : undefined,
+                    birthDate: birthDate || undefined,
                     gender: gender as any,
                     photoBase64: profileImage
                 }
@@ -382,13 +382,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">Ålder</label>
+                        <label className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">Födelsedatum</label>
                         <input
-                            type="number"
-                            value={age}
-                            onChange={(e) => setAge(e.target.value)}
-                            placeholder="30"
-                            className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                            type="date"
+                            value={birthDate}
+                            onChange={(e) => setBirthDate(e.target.value)}
+                            className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition [color-scheme:dark]"
                         />
                     </div>
                     <div>

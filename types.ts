@@ -370,6 +370,7 @@ export interface UserData {
   photoUrl?: string;
   termsAcceptedAt?: number;
   age?: number;
+  birthDate?: string;
   gender?: string;
   goals?: MemberGoals;
   

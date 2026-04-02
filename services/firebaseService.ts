@@ -302,6 +302,7 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
         firstName: additionalData?.firstName || '',
         lastName: additionalData?.lastName || '',
         age: additionalData?.age || null,
+        birthDate: additionalData?.birthDate || null,
         gender: additionalData?.gender || 'prefer_not_to_say',
         isTrainingMember: !isCoach,
         createdAt: serverTimestamp(),

@@ -294,7 +294,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     // Form states
     const [firstName, setFirstName] = useState(userData.firstName || '');
     const [lastName, setLastName] = useState(userData.lastName || '');
-    const [age, setAge] = useState(userData.age?.toString() || '');
+    const [birthDate, setBirthDate] = useState(userData.birthDate || '');
     const [gender, setGender] = useState(userData.gender || 'prefer_not_to_say');
     const [photoUrl, setPhotoUrl] = useState(userData.photoUrl || '');
 
@@ -377,7 +377,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             await updateUserProfile(userData.uid, {
                 firstName: firstName.trim(),
                 lastName: lastName.trim(),
-                age: age ? parseInt(age) : undefined,
+                birthDate: birthDate || undefined,
                 gender: gender as any,
             });
             setIsEditing(false);
@@ -499,8 +499,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Ålder</label>
-                            <input type="number" value={age} onChange={e => setAge(e.target.value)} className="w-full bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm font-bold" />
+                            <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Födelsedatum</label>
+                            <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className="w-full bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm font-bold [color-scheme:light] dark:[color-scheme:dark]" />
                         </div>
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Kön</label>
