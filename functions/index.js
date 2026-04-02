@@ -669,6 +669,8 @@ app.post("/create-checkout-session", async (req, res) => {
       payment_method_types: ['card'],
       mode: 'subscription',
       allow_promotion_codes: true,
+      automatic_tax: { enabled: true },
+      customer_update: { address: 'auto' },
       line_items: lineItems,
       subscription_data: {
         billing_cycle_anchor: billingCycleAnchor
@@ -818,6 +820,8 @@ app.post("/create-member-checkout", async (req, res) => {
       customer: customerId,
       payment_method_types: ['card'],
       mode: 'subscription',
+      automatic_tax: { enabled: true },
+      customer_update: { address: 'auto' },
       line_items: [{
         price_data: {
           currency: 'sek',
