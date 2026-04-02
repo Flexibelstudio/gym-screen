@@ -81,14 +81,22 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
                              <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
                                  <h5 className="font-bold text-gray-900 dark:text-white mb-2">Stripe-konto för utbetalningar</h5>
                                  {organization.stripeConnectAccountId ? (
-                                     <div className="flex items-center justify-between bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+                                     <div className={`flex items-center justify-between p-4 rounded-lg border ${organization.stripeConnectSetupComplete ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'}`}>
                                          <div className="flex items-center gap-3">
-                                             <div className="w-8 h-8 bg-green-100 dark:bg-green-800 rounded-full flex items-center justify-center text-green-600 dark:text-green-400">
-                                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                                             <div className={`w-8 h-8 rounded-full flex items-center justify-center ${organization.stripeConnectSetupComplete ? 'bg-green-100 dark:bg-green-800 text-green-600 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-800 text-yellow-600 dark:text-yellow-400'}`}>
+                                                 {organization.stripeConnectSetupComplete ? (
+                                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>
+                                                 ) : (
+                                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                                 )}
                                              </div>
                                              <div>
-                                                 <p className="font-bold text-green-800 dark:text-green-300">Konto kopplat</p>
-                                                 <p className="text-xs text-green-600 dark:text-green-400">ID: {organization.stripeConnectAccountId}</p>
+                                                 <p className={`font-bold ${organization.stripeConnectSetupComplete ? 'text-green-800 dark:text-green-300' : 'text-yellow-800 dark:text-yellow-300'}`}>
+                                                     {organization.stripeConnectSetupComplete ? 'Konto kopplat och redo' : 'Konto skapat men ej färdigställt'}
+                                                 </p>
+                                                 <p className={`text-xs ${organization.stripeConnectSetupComplete ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'}`}>
+                                                     ID: {organization.stripeConnectAccountId}
+                                                 </p>
                                              </div>
                                          </div>
                                          <button 
