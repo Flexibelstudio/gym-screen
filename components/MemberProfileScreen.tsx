@@ -583,7 +583,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     }
 
     return (
-        <div className="w-full max-w-4xl mx-auto px-1 sm:px-6 py-6 animate-fade-in pb-24">
+        <div className="w-full max-w-4xl mx-auto px-1 sm:px-6 pt-2 pb-24 animate-fade-in">
             
             {/* --- BETALVÄGG OCH LOGIK START --- */}
             {!hasActiveSubscription && (
@@ -610,13 +610,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 />
             )}
 
-            {/* Header section */}
-            <div className="flex items-center justify-end mb-4">
-                {/* Removed Styrka button */}
-            </div>
-
             {/* --- FLIKAR --- */}
-            <div className="sticky top-0 z-40 bg-white dark:bg-black pt-2 pb-4 -mx-1 px-1 sm:-mx-6 sm:px-6">
+            <div className="sticky top-0 z-40 bg-white dark:bg-black pt-2 pb-4 -mx-1 px-1 sm:-mx-6 sm:px-6 -mt-4 sm:-mt-6">
                 <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full shadow-sm">
                     {[
                         { id: 'overview', label: 'Översikt', icon: ChartBarIcon },
@@ -728,63 +723,82 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                                 <span className="text-xl">🎯</span> Mina Mål
                             </h3>
-                            <button 
-                                onClick={() => setIsEditingGoals(true)} 
-                                className="p-2 text-gray-400 hover:text-primary transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl"
-                                title="Redigera mål"
-                            >
-                                <PencilIcon className="w-4 h-4" />
-                            </button>
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => setShowSmartGoals(!showSmartGoals)} 
+                                    className="px-3 py-1.5 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-xl transition-colors"
+                                >
+                                    {showSmartGoals ? 'Dölj' : 'Visa'}
+                                </button>
+                                <button 
+                                    onClick={() => setIsEditingGoals(true)} 
+                                    className="p-2 text-gray-400 hover:text-primary transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl"
+                                    title="Redigera mål"
+                                >
+                                    <PencilIcon className="w-4 h-4" />
+                                </button>
+                            </div>
                         </div>
                         
-                        <div>
-                            {userData.goals?.hasSpecificGoals ? (
-                                <div className="space-y-6">
-                                    <div className="flex flex-wrap gap-2">
-                                        {userData.goals.selectedGoals.map(g => (
-                                            <span key={g} className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide border border-gray-200 dark:border-gray-700">{g}</span>
-                                        ))}
-                                    </div>
+                        <AnimatePresence>
+                            {showSmartGoals && (
+                                <motion.div 
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden"
+                                >
+                                    <div className="pt-2">
+                                        {userData.goals?.hasSpecificGoals ? (
+                                            <div className="space-y-6">
+                                                <div className="flex flex-wrap gap-2">
+                                                    {userData.goals.selectedGoals.map(g => (
+                                                        <span key={g} className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide border border-gray-200 dark:border-gray-700">{g}</span>
+                                                    ))}
+                                                </div>
 
-                                    <div className="space-y-4 pt-2 border-t border-gray-50 dark:border-gray-800">
-                                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em]">Målanalys (SMART)</p>
-                                        <div className="space-y-4">
-                                            {userData.goals.smartCriteria && (
-                                                <>
-                                                    <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={userData.goals.smartCriteria.specific} />
-                                                    <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={userData.goals.smartCriteria.measurable} />
-                                                    <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={userData.goals.smartCriteria.achievable} />
-                                                    <SmartItem letter="R" color="bg-rose-500" title="Relevant" text={userData.goals.smartCriteria.relevant} />
-                                                </>
-                                            )}
-                                            <SmartItem letter="T" color="bg-indigo-500" title="Tid" text={userData.goals.targetDate || 'Ingen deadline.'} />
-                                        </div>
-                                    </div>
-
-                                    {daysLeft !== null && (
-                                        <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl">
-                                            <div className="flex-grow">
-                                                <div className="flex justify-between text-xs font-bold text-gray-500 mb-1"><span>Framsteg</span><span>{userData.goals.targetDate}</span></div>
-                                                <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden p-0.5 border border-gray-100 dark:border-gray-800">
-                                                    <div 
-                                                        className="h-full bg-primary rounded-full transition-all duration-1000 relative shadow-[0_0_10px_rgba(20,184,166,0.5)]" 
-                                                        style={{ width: `${Math.max(1.5, progressPercentage)}%` }}
-                                                    >
-                                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+                                                <div className="space-y-4 pt-2 border-t border-gray-50 dark:border-gray-800">
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em]">Målanalys (SMART)</p>
+                                                    <div className="space-y-4">
+                                                        {userData.goals.smartCriteria && (
+                                                            <>
+                                                                <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={userData.goals.smartCriteria.specific} />
+                                                                <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={userData.goals.smartCriteria.measurable} />
+                                                                <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={userData.goals.smartCriteria.achievable} />
+                                                                <SmartItem letter="R" color="bg-rose-500" title="Relevant" text={userData.goals.smartCriteria.relevant} />
+                                                            </>
+                                                        )}
+                                                        <SmartItem letter="T" color="bg-indigo-500" title="Tid" text={userData.goals.targetDate || 'Ingen deadline.'} />
                                                     </div>
                                                 </div>
+
+                                                {daysLeft !== null && (
+                                                    <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl">
+                                                        <div className="flex-grow">
+                                                            <div className="flex justify-between text-xs font-bold text-gray-500 mb-1"><span>Framsteg</span><span>{userData.goals.targetDate}</span></div>
+                                                            <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden p-0.5 border border-gray-100 dark:border-gray-800">
+                                                                <div 
+                                                                    className="h-full bg-primary rounded-full transition-all duration-1000 relative shadow-[0_0_10px_rgba(20,184,166,0.5)]" 
+                                                                    style={{ width: `${Math.max(1.5, progressPercentage)}%` }}
+                                                                >
+                                                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-center min-w-[60px]"><span className="block text-xl font-black text-gray-900 dark:text-white leading-none">{daysLeft}</span><span className="text-[9px] uppercase font-bold text-gray-400">Dagar kvar</span></div>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="text-center min-w-[60px]"><span className="block text-xl font-black text-gray-900 dark:text-white leading-none">{daysLeft}</span><span className="text-[9px] uppercase font-bold text-gray-400">Dagar kvar</span></div>
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="text-center py-4 bg-gray-50 dark:bg-gray-800/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-                                    <p className="text-gray-500 text-sm italic">Inga specifika mål satta.</p>
-                                    <button onClick={() => setIsEditingGoals(true)} className="text-primary text-xs font-bold mt-2 hover:underline">Sätt mål nu</button>
-                                </div>
+                                        ) : (
+                                            <div className="text-center py-4 bg-gray-50 dark:bg-gray-800/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                                                <p className="text-gray-500 text-sm italic">Inga specifika mål satta.</p>
+                                                <button onClick={() => setIsEditingGoals(true)} className="text-primary text-xs font-bold mt-2 hover:underline">Sätt mål nu</button>
+                                            </div>
+                                        )}
+                                    </div>
+                                </motion.div>
                             )}
-                        </div>
+                        </AnimatePresence>
                     </div>
                 </div>
             )}

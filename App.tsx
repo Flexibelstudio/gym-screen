@@ -1291,7 +1291,7 @@ const App: React.FC = () => {
         isStudioMode={isStudioMode}
       />}
 
-      <div className="flex flex-col items-center flex-1 min-h-0 overflow-hidden relative">
+      <div className="flex flex-col items-center flex-1 min-h-0 relative">
           <main 
             className={`flex-1 min-h-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
           >
