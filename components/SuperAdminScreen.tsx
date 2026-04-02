@@ -81,10 +81,12 @@ interface SuperAdminScreenProps {
     onBack?: () => void;
     onGoToSystemOwner?: () => void;
     initialTab?: string;
+    setCustomBackHandler?: (handler: (() => void) | null) => void;
+    checkUnsavedChanges?: () => boolean;
 }
 
 export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
-    const { organization, theme, onSaveGlobalConfig, workouts, onSelectMember, userRole, onBack, onGoToSystemOwner, initialTab, onDuplicateWorkout } = props;
+    const { organization, theme, onSaveGlobalConfig, workouts, onSelectMember, userRole, onBack, onGoToSystemOwner, initialTab, onDuplicateWorkout, setCustomBackHandler, checkUnsavedChanges } = props;
     const { selectOrganization, studioLoading } = useStudio();
     const { userData } = useAuth();
     const [activeTab, setActiveTab] = useState<AdminTab>((initialTab as AdminTab) || 'dashboard');
@@ -338,7 +340,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             { type: 'link', id: 'globala-installningar', label: 'Globala Inställningar', icon: SettingsIcon },
             { type: 'link', id: 'studios', label: 'Skärmar', icon: BuildingIcon },
             { type: 'link', id: 'varumarke', label: 'Varumärke & Säkerhet', icon: SparklesIcon },
-            { type: 'link', id: 'company-info', label: 'Företagsinformation', icon: BriefcaseIcon }
+            { type: 'link', id: 'company-info', label: 'Ekonomi & Licens', icon: BriefcaseIcon }
         ];
 
         if (userRole === 'coach') {
@@ -369,6 +371,10 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     };
 
     const handleNavClick = (tabId: AdminTab) => {
+        if (checkUnsavedChanges && !checkUnsavedChanges()) {
+            return;
+        }
+        
         if (tabId === activeTab) {
             // Återställ vyn om användaren klickar på den redan aktiva fliken
             if (tabId === 'pass-program') {
@@ -520,7 +526,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             case 'activity-log':
                 return <ActivityLogContent organizationId={organization.id} />;
             case 'pass-program':
-                return <PassProgramContent {...props} subView={passProgramSubView} setSubView={setPassProgramSubView} workoutToEdit={workoutToEdit} setWorkoutToEdit={setWorkoutToEdit} isNewDraft={isNewDraft} setIsNewDraft={setIsNewDraft} aiGeneratorInitialTab={aiGeneratorInitialTab} setAiGeneratorInitialTab={setAiGeneratorInitialTab} autoExpandCategory={autoExpandCategory} setAutoExpandCategory={setAutoExpandCategory} onReturnToHub={() => { setPassProgramSubView('hub'); setWorkoutToEdit(null); setIsNewDraft(false); }} onDuplicateWorkout={onDuplicateWorkout} />;
+                return <PassProgramContent {...props} subView={passProgramSubView} setSubView={setPassProgramSubView} workoutToEdit={workoutToEdit} setWorkoutToEdit={setWorkoutToEdit} isNewDraft={isNewDraft} setIsNewDraft={setIsNewDraft} aiGeneratorInitialTab={aiGeneratorInitialTab} setAiGeneratorInitialTab={setAiGeneratorInitialTab} autoExpandCategory={autoExpandCategory} setAutoExpandCategory={setAutoExpandCategory} onReturnToHub={() => { setPassProgramSubView('hub'); setWorkoutToEdit(null); setIsNewDraft(false); }} onDuplicateWorkout={onDuplicateWorkout} setCustomBackHandler={props.setCustomBackHandler} />;
             case 'infosidor':
                 return <InfosidorContent {...props} />;
             case 'info-karusell':

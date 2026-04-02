@@ -85,7 +85,7 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
     return (
          <div className="bg-slate-50 dark:bg-gray-800/50 p-6 rounded-xl border border-slate-200 dark:border-gray-700">
              <div className="flex justify-between items-center border-b border-slate-200 dark:border-gray-700 pb-4 mb-6">
-                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Företagsinformation</h3>
+                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Ekonomi & Licens</h3>
                  <button 
                     onClick={onEdit} 
                     className="bg-primary/10 hover:bg-primary/20 text-primary font-semibold py-2 px-4 rounded-lg transition-colors text-sm"
