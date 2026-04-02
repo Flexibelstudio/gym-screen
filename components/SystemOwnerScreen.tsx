@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Organization, SmartScreenPricing, InvoiceDetails, SeasonalThemeSetting, ThemeDateRange } from '../types';
 import { OvningsbankContent } from './OvningsbankContent';
-import { getSmartScreenPricing, updateSmartScreenPricing, updateOrganizationDiscount, updateOrganizationFreeCoaches, updateOrganizationBilledStatus, undoLastBilling, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, restoreOrganization, deleteOrganizationPermanently, updateOrganizationName } from '../services/firebaseService';
+import { getSmartScreenPricing, updateSmartScreenPricing, updateOrganizationFreeCoaches, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, restoreOrganization, deleteOrganizationPermanently, updateOrganizationName, getMembers } from '../services/firebaseService';
 import { PencilIcon, HomeIcon, BuildingIcon, SparklesIcon, ToggleSwitch, ChevronDownIcon, CloseIcon } from './icons';
 import { calculateInvoiceDetails } from '../utils/billing';
 import { SystemDashboardContent } from './admin/SystemDashboardContent';
@@ -16,57 +16,46 @@ interface SystemOwnerScreenProps {
 
 interface OrganizationCardProps {
     org: Organization;
-    pricing: SmartScreenPricing;
     onSelect: () => void;
     onArchive: () => void;
     onRestore?: () => void;
     onDeletePermanent?: () => void;
-    onUpdateDiscount: (orgId: string, discount: { type: 'percentage' | 'fixed', value: number }) => Promise<void>;
     onUpdateFreeCoaches: (orgId: string, count: number) => Promise<void>;
-    onMarkAsBilled: (orgId: string, month: string) => void;
-    onUndoBilling: (orgId: string) => void;
     onUpdateName: (orgId: string, name: string) => Promise<void>;
 }
 
-const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, pricing, onSelect, onArchive, onRestore, onDeletePermanent, onUpdateDiscount, onUpdateFreeCoaches, onMarkAsBilled, onUndoBilling, onUpdateName }) => {
-    const [isExpanded, setIsExpanded] = useState(false);
-    const [discountType, setDiscountType] = useState<'percentage' | 'fixed'>(org.discountType || 'percentage');
-    const [discountValue, setDiscountValue] = useState(org.discountValue || org.discountPercentage || 0);
+const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onSelect, onArchive, onRestore, onDeletePermanent, onUpdateFreeCoaches, onUpdateName }) => {
     const [freeCoaches, setFreeCoaches] = useState(org.freeCoachAccounts || 0);
     const [isSaving, setIsSaving] = useState(false);
     const [isEditingName, setIsEditingName] = useState(false);
     const [editNameValue, setEditNameValue] = useState(org.name);
     const [isSavingName, setIsSavingName] = useState(false);
+    const [memberCount, setMemberCount] = useState<number | null>(null);
+    const [staffCount, setStaffCount] = useState<number | null>(null);
 
     const isArchived = org.status === 'archived';
 
     useEffect(() => {
-        setDiscountType(org.discountType || 'percentage');
-        setDiscountValue(org.discountValue || org.discountPercentage || 0);
         setFreeCoaches(org.freeCoachAccounts || 0);
         setEditNameValue(org.name);
-    }, [org.discountType, org.discountValue, org.discountPercentage, org.freeCoachAccounts, org.name]);
+    }, [org.freeCoachAccounts, org.name]);
 
-    const billingDetails = useMemo(() => {
-        if (!pricing) return { currentInvoice: null, nextInvoicePrognosis: null };
-
-        const currentInvoice = calculateInvoiceDetails(org, pricing);
-        
-        const hypotheticalNextOrg: Organization = {
-            ...org,
-            lastBilledMonth: currentInvoice.billingMonthForAction,
+    useEffect(() => {
+        const fetchCounts = async () => {
+            try {
+                const members = await getMembers(org.id);
+                setMemberCount(members.filter(m => m.role === 'member').length);
+                setStaffCount(members.filter(m => m.role === 'coach' || m.role === 'organizationadmin').length);
+            } catch (error) {
+                console.error("Failed to fetch member counts", error);
+            }
         };
-        const nextInvoicePrognosis = calculateInvoiceDetails(hypotheticalNextOrg, pricing);
+        fetchCounts();
+    }, [org.id]);
 
-        return { currentInvoice, nextInvoicePrognosis };
-
-    }, [org, pricing]);
-
-
-    const handleSaveDiscount = async () => {
+    const handleSaveSettings = async () => {
         setIsSaving(true);
         try {
-            await onUpdateDiscount(org.id, { type: discountType, value: discountValue });
             await onUpdateFreeCoaches(org.id, freeCoaches);
         } catch (error) {
             alert("Kunde inte spara inställningarna.");
@@ -91,24 +80,13 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, pri
         }
     };
     
-    const formatKr = (amount: number) => {
-        return `${amount.toFixed(2).replace('.', ',')} kr`;
-    };
-
-    const { currentInvoice, nextInvoicePrognosis } = billingDetails;
-
-
-    if (!currentInvoice) {
-        return null; // or a loading skeleton
-    }
-    
-    const isBilled = org.lastBilledMonth === currentInvoice.billingMonthForAction;
+    const isStripeActive = org.systemFeePaid;
 
     return (
         <div className={`p-4 rounded-lg border shadow-sm transition-all ${isArchived ? 'bg-gray-100 dark:bg-gray-800/20 border-gray-300 dark:border-gray-800 opacity-80' : 'bg-slate-200 dark:bg-gray-900/50 border-slate-300 dark:border-gray-700'}`}>
-            <div className="flex justify-between items-start gap-4">
-                <div>
-                    <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-3">
                         {isEditingName ? (
                             <div className="flex items-center gap-2">
                                 <input
@@ -137,120 +115,60 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, pri
                             </>
                         )}
                         {isArchived && <span className="bg-gray-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">Arkiverad</span>}
-                    </div>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Antal skärmar: {org.studios.length} st</p>
-                     {isBilled && org.lastBilledDate ? (
-                        <div className="text-sm text-green-600 dark:text-green-400 font-semibold flex items-center gap-2 mt-2">
-                             <span>{currentInvoice.billingPeriod} Fakturerad: {new Date(org.lastBilledDate).toLocaleDateString('sv-SE')}</span>
-                             <button onClick={() => onUndoBilling(org.id)} className="text-xs text-gray-500 hover:underline">(Ångra)</button>
-                        </div>
-                    ) : (
-                         <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">Att fakturera {currentInvoice.billingPeriod}:</p>
-                    )}
-                    <p className={`text-4xl font-bold mt-1 ${isArchived ? 'text-gray-400' : 'text-teal-600 dark:text-teal-400'}`}>{formatKr(currentInvoice.totalAmount)}</p>
-                    {!isArchived && nextInvoicePrognosis && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                            Beräknat att fakturera {nextInvoicePrognosis.billingPeriod}: <span className="font-semibold">{formatKr(nextInvoicePrognosis.totalAmount)}</span>
-                        </p>
-                    )}
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2 items-end flex-shrink-0">
-                    {!isArchived && (
-                        <>
-                            {!isBilled && (
-                                <button onClick={() => onMarkAsBilled(org.id, currentInvoice.billingMonthForAction)} className="bg-green-600 hover:bg-green-500 text-white font-semibold py-2 px-4 rounded-lg text-sm whitespace-nowrap">
-                                    Markera fakturerad
-                                </button>
-                            )}
-                            <button onClick={() => setIsExpanded(!isExpanded)} className="bg-slate-300 dark:bg-gray-700 hover:bg-slate-400 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-2 px-4 rounded-lg text-sm whitespace-nowrap">
-                                {isExpanded ? 'Dölj' : 'Underlag'}
-                            </button>
-                            <button onClick={onSelect} className="bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2 px-4 rounded-lg text-sm">Hantera</button>
-                            <button onClick={onArchive} className="bg-orange-600 hover:bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg text-sm">Arkivera</button>
-                        </>
-                    )}
-                    {isArchived && (
-                        <>
-                            <button onClick={onRestore} className="bg-green-600 hover:bg-green-500 text-white font-semibold py-2 px-4 rounded-lg text-sm">Återaktivera</button>
-                            <button onClick={onDeletePermanent} className="bg-red-600 hover:bg-red-500 text-white font-semibold py-2 px-4 rounded-lg text-sm">Radera Permanent</button>
-                        </>
-                    )}
-                </div>
-            </div>
-            {isExpanded && !isArchived && (
-                <div className="mt-4 pt-4 border-t border-slate-300 dark:border-gray-600 space-y-4 animate-fade-in">
-                    <div className="bg-white dark:bg-black/20 p-4 rounded-lg">
-                        <h4 className="font-semibold text-gray-800 dark:text-white mb-2">Ordinarie kostnad för {currentInvoice.billingPeriod}</h4>
-                        <ul className="space-y-1 text-sm">
-                            {currentInvoice.regularItems.map((item, index) => (
-                                <li key={index} className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-gray-700 last:border-b-0">
-                                    <span className="text-gray-800 dark:text-white">{item.description}</span>
-                                    <span className="font-mono text-gray-500 dark:text-gray-400">{item.quantity} st á {item.price} kr</span>
-                                    <span className="font-mono font-semibold text-gray-900 dark:text-white w-28 text-right">{formatKr(item.total)}</span>
-                                </li>
-                            ))}
-                        </ul>
-
-                        {currentInvoice.adjustmentItems.length > 0 && (
-                             <>
-                                <h4 className="font-semibold text-gray-800 dark:text-white mb-2 mt-4">Justeringar från {currentInvoice.adjustmentPeriod}</h4>
-                                <ul className="space-y-1 text-sm">
-                                    {currentInvoice.adjustmentItems.map((item, index) => (
-                                        <li key={index} className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-gray-700 last:border-b-0 text-blue-600 dark:text-blue-400">
-                                            <span>{item.description}</span>
-                                            <span className="font-mono font-semibold w-28 text-right">+ {formatKr(item.amount)}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                             </>
-                        )}
                         
-                        <ul className="mt-4 pt-4 border-t border-slate-200 dark:border-gray-700 text-sm">
-                             <li className="flex justify-between items-center py-2 text-red-600 dark:text-red-400">
-                                <span className="font-semibold">Organisationsrabatt</span>
-                                <span className="font-mono">{currentInvoice.discountDescription}</span>
-                                <span className="font-mono font-semibold w-28 text-right">-{formatKr(currentInvoice.discountAmount)}</span>
-                            </li>
-                        </ul>
-                        <div className="mt-4 pt-4 border-t border-slate-200 dark:border-gray-700 flex justify-end items-baseline">
-                            <span className="text-lg font-semibold text-gray-600 dark:text-gray-300 mr-4">Totalsumma (exkl. moms):</span>
-                            <span className="text-2xl font-bold text-gray-900 dark:text-white">{formatKr(currentInvoice.totalAmount)}</span>
-                        </div>
-                    </div>
-                    <div className="bg-white dark:bg-black/20 p-4 rounded-lg">
-                        <h4 className="font-semibold text-gray-800 dark:text-white mb-2">Inställningar (Rabatt & Coacher)</h4>
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                            <div className="flex items-center gap-2">
-                                <label className="text-sm text-gray-600 dark:text-gray-400 w-24">Rabatt:</label>
-                                <input 
-                                    id={`discount-${org.id}`}
-                                    type="number" 
-                                    value={discountValue}
-                                    onChange={(e) => setDiscountValue(Number(e.target.value))}
-                                    className="w-24 bg-white dark:bg-gray-900 text-black dark:text-white p-2 rounded-md border border-slate-300 dark:border-gray-600 text-right"
-                                />
-                                <div className="bg-slate-300 dark:bg-gray-700 p-1 rounded-lg flex text-sm">
-                                    <button onClick={() => setDiscountType('percentage')} className={`px-3 py-1 rounded-md transition-colors ${discountType === 'percentage' ? 'bg-white dark:bg-black shadow font-semibold' : ''}`}>%</button>
-                                    <button onClick={() => setDiscountType('fixed')} className={`px-3 py-1 rounded-md transition-colors ${discountType === 'fixed' ? 'bg-white dark:bg-black shadow font-semibold' : ''}`}>kr</button>
-                                </div>
+                        {!isArchived && (
+                            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ml-2 ${isStripeActive ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
+                                <div className={`w-2 h-2 rounded-full ${isStripeActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                {isStripeActive ? 'Betalning: Aktiv' : 'Kort saknas / Inaktiv'}
                             </div>
+                        )}
+                    </div>
+                    
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
+                        <div className="bg-white dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-gray-700">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-1">Skärmar</p>
+                            <p className="text-xl font-bold text-gray-900 dark:text-white">{org.studios.length} st</p>
+                        </div>
+                        <div className="bg-white dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-gray-700">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-1">Personal</p>
+                            <p className="text-xl font-bold text-gray-900 dark:text-white">{staffCount !== null ? staffCount : '-'} st</p>
+                        </div>
+                        <div className="bg-white dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-gray-700">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-1">Medlemmar</p>
+                            <p className="text-xl font-bold text-gray-900 dark:text-white">{memberCount !== null ? memberCount : '-'} st</p>
+                        </div>
+                        <div className="bg-white dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-gray-700 flex flex-col justify-between">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-1">Gratis coacher</p>
                             <div className="flex items-center gap-2">
-                                <label className="text-sm text-gray-600 dark:text-gray-400 w-32">Gratis coacher:</label>
                                 <input 
                                     type="number" 
                                     value={freeCoaches}
                                     onChange={(e) => setFreeCoaches(Number(e.target.value))}
-                                    className="w-20 bg-white dark:bg-gray-900 text-black dark:text-white p-2 rounded-md border border-slate-300 dark:border-gray-600 text-right"
+                                    className="w-16 bg-slate-100 dark:bg-gray-900 text-black dark:text-white p-1 rounded border border-slate-300 dark:border-gray-600 text-center font-bold"
                                 />
-                                <span className="text-sm text-gray-500">st</span>
+                                <button onClick={handleSaveSettings} disabled={isSaving || freeCoaches === (org.freeCoachAccounts || 0)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-xs font-semibold disabled:opacity-50">
+                                    {isSaving ? '...' : 'Spara'}
+                                </button>
                             </div>
-                             <button onClick={handleSaveDiscount} disabled={isSaving} className="ml-auto bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg text-sm disabled:opacity-50">
-                                {isSaving ? 'Sparar...' : 'Spara inställningar'}
-                            </button>
                         </div>
                     </div>
                 </div>
-            )}
+                
+                <div className="flex flex-row sm:flex-col gap-2 items-end flex-shrink-0 mt-4 sm:mt-0">
+                    {!isArchived && (
+                        <>
+                            <button onClick={onSelect} className="bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2 px-4 rounded-lg text-sm w-full sm:w-auto">Hantera</button>
+                            <button onClick={onArchive} className="bg-orange-600 hover:bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg text-sm w-full sm:w-auto">Arkivera</button>
+                        </>
+                    )}
+                    {isArchived && (
+                        <>
+                            <button onClick={onRestore} className="bg-green-600 hover:bg-green-500 text-white font-semibold py-2 px-4 rounded-lg text-sm w-full sm:w-auto">Återaktivera</button>
+                            <button onClick={onDeletePermanent} className="bg-red-600 hover:bg-red-500 text-white font-semibold py-2 px-4 rounded-lg text-sm w-full sm:w-auto">Radera Permanent</button>
+                        </>
+                    )}
+                </div>
+            </div>
         </div>
     );
 });
@@ -531,17 +449,12 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
     const [activeTab, setActiveTab] = useState<'dashboard' | 'list' | 'themes' | 'bank'>('dashboard');
     const [newOrgName, setNewOrgName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
-    const [pricing, setPricing] = useState<SmartScreenPricing | null>(null);
     const [localOrgs, setLocalOrgs] = useState(allOrganizations);
     const [isActionSheetOpen, setIsActionSheetOpen] = useState(false);
 
     useEffect(() => {
         setLocalOrgs(allOrganizations);
     }, [allOrganizations]);
-
-    useEffect(() => {
-        getSmartScreenPricing().then(setPricing);
-    }, []);
     
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -584,8 +497,8 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
         }
     }, [onDeleteOrganization]);
     
-    const handleUpdateDiscount = useCallback(async (orgId: string, discount: { type: 'percentage' | 'fixed', value: number }) => {
-        const updatedOrg = await updateOrganizationDiscount(orgId, discount);
+    const handleUpdateFreeCoaches = useCallback(async (orgId: string, count: number) => {
+        const updatedOrg = await updateOrganizationFreeCoaches(orgId, count);
         setLocalOrgs(prev => prev.map(o => o.id === orgId ? updatedOrg : o));
     }, []);
 
@@ -593,33 +506,6 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
         const updatedOrg = await updateOrganizationName(orgId, newName);
         if (updatedOrg) {
             setLocalOrgs(prev => prev.map(o => o.id === orgId ? updatedOrg : o));
-        }
-    }, []);
-
-    const handleUpdateFreeCoaches = useCallback(async (orgId: string, count: number) => {
-        const updatedOrg = await updateOrganizationFreeCoaches(orgId, count);
-        setLocalOrgs(prev => prev.map(o => o.id === orgId ? updatedOrg : o));
-    }, []);
-
-    const handleMarkAsBilled = useCallback(async (orgId: string, monthToMarkAsBilled: string) => {
-        if (!window.confirm(`Är du säker på att du vill markera denna period som fakturerad?`)) return;
-        try {
-            const updatedOrg = await updateOrganizationBilledStatus(orgId, monthToMarkAsBilled);
-            setLocalOrgs(prev => prev.map(o => o.id === orgId ? updatedOrg : o));
-        } catch (error) {
-            console.error(error);
-            alert("Kunde inte markera som fakturerad.");
-        }
-    }, []);
-    
-    const handleUndoBilling = useCallback(async (orgId: string) => {
-        if (!window.confirm(`Är du säker på att du vill ångra den senaste faktureringen?`)) return;
-        try {
-            const updatedOrg = await undoLastBilling(orgId);
-            setLocalOrgs(prev => prev.map(o => o.id === orgId ? updatedOrg : o));
-        } catch (error) {
-            console.error(error);
-            alert("Kunde inte ångra fakturering.");
         }
     }, []);
 
@@ -737,22 +623,16 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                                     <section>
                                         <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-4">Aktiva ({activeOrgs.length})</h4>
                                         <div className="space-y-3">
-                                            {pricing ? activeOrgs.map(org => (
+                                            {activeOrgs.map(org => (
                                                 <OrganizationCard 
                                                     key={org.id} 
                                                     org={org} 
-                                                    pricing={pricing} 
                                                     onSelect={() => onSelectOrganization(org)}
                                                     onArchive={() => handleArchive(org)}
-                                                    onUpdateDiscount={handleUpdateDiscount}
                                                     onUpdateFreeCoaches={handleUpdateFreeCoaches}
-                                                    onMarkAsBilled={handleMarkAsBilled}
-                                                    onUndoBilling={handleUndoBilling}
                                                     onUpdateName={handleUpdateName}
                                                 />
-                                            )) : (
-                                                <div className="text-center py-8 text-gray-500 dark:text-gray-400">Laddar prisinformation...</div>
-                                            )}
+                                            ))}
                                         </div>
                                     </section>
 
@@ -760,19 +640,15 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                                         <section className="pt-8 border-t border-gray-200 dark:border-gray-700">
                                             <h4 className="text-xs font-black uppercase tracking-widest text-orange-500 mb-4">Arkiverade / Inaktiverade ({archivedOrgs.length})</h4>
                                             <div className="space-y-3">
-                                                {pricing && archivedOrgs.map(org => (
+                                                {archivedOrgs.map(org => (
                                                     <OrganizationCard 
                                                         key={org.id} 
                                                         org={org} 
-                                                        pricing={pricing} 
                                                         onSelect={() => onSelectOrganization(org)}
                                                         onArchive={() => {}}
                                                         onRestore={() => handleRestore(org)}
                                                         onDeletePermanent={() => handleDeletePermanent(org)}
-                                                        onUpdateDiscount={handleUpdateDiscount}
                                                         onUpdateFreeCoaches={handleUpdateFreeCoaches}
-                                                        onMarkAsBilled={handleMarkAsBilled}
-                                                        onUndoBilling={handleUndoBilling}
                                                         onUpdateName={handleUpdateName}
                                                     />
                                                 ))}
