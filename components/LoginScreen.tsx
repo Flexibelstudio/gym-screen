@@ -43,7 +43,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     // Profile Fields
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
-    const [age, setAge] = useState('');
+    const [birthDate, setBirthDate] = useState('');
     const [gender, setGender] = useState('prefer_not_to_say');
     const [profileImage, setProfileImage] = useState<string | null>(null); 
 
@@ -135,7 +135,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                 {
                     firstName: firstName.trim(),
                     lastName: lastName.trim(),
-                    age: age ? parseInt(age) : undefined,
+                    birthDate: birthDate || undefined,
                     gender: gender as any,
                     photoBase64: profileImage
                 }
@@ -316,6 +316,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     </button>
                 </div>
 
+                {registerType === 'member' && (
+                    <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-4 mb-6 text-left">
+                        <div className="flex items-center gap-2 mb-1">
+                            <span className="bg-purple-500/20 text-purple-300 text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded">BETA</span>
+                            <h3 className="text-sm font-bold text-purple-100">Early Access</h3>
+                        </div>
+                        <p className="text-xs text-purple-200/70 leading-relaxed">
+                            Bli en av de första att testa vår nya medlemsapp! Logga pass, följ din utveckling och sätt personliga mål.
+                        </p>
+                    </div>
+                )}
+
                 <div className="flex flex-col items-center mb-4">
                     <div 
                         className="w-24 h-24 rounded-full bg-gray-800 border-2 border-gray-700 flex items-center justify-center overflow-hidden cursor-pointer hover:border-primary transition-colors relative group"
@@ -370,13 +382,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">Ålder</label>
+                        <label className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">Födelsedatum</label>
                         <input
-                            type="number"
-                            value={age}
-                            onChange={(e) => setAge(e.target.value)}
-                            placeholder="30"
-                            className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                            type="date"
+                            value={birthDate}
+                            onChange={(e) => setBirthDate(e.target.value)}
+                            className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition [color-scheme:dark]"
                         />
                     </div>
                     <div>

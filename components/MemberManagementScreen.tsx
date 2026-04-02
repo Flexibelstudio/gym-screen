@@ -10,6 +10,7 @@ import QRCode from 'react-qr-code';
 import { Modal } from './ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import { Toast } from './ui/ToastNotification';
+import { calculateAge, formatBirthday } from '../utils/dateUtils';
 
 const generateInviteCode = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -421,7 +422,15 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                             )}
                           </div>
                           <div className="min-w-0">
-                            <p className="font-bold text-gray-900 dark:text-white text-lg truncate">{member.firstName} {member.lastName}</p>
+                            <div className="flex items-center gap-2">
+                                <p className="font-bold text-gray-900 dark:text-white text-lg truncate">{member.firstName} {member.lastName}</p>
+                                {(member.birthDate || member.age) && (
+                                    <span className="text-xs font-bold text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-md">
+                                        {calculateAge(member.birthDate, member.age)} år
+                                        {member.birthDate && ` (Fyller år ${formatBirthday(member.birthDate)})`}
+                                    </span>
+                                )}
+                            </div>
                             <div className="mt-1 flex items-center gap-2">
                                 <RoleSwitcher 
                                     currentRole={member.role}

@@ -370,11 +370,16 @@ export interface UserData {
   photoUrl?: string;
   termsAcceptedAt?: number;
   age?: number;
+  birthDate?: string;
   gender?: string;
   goals?: MemberGoals;
   
   // Subscription / Payment fields
   subscriptionStatus?: 'active' | 'inactive' | 'trialing' | 'past_due' | 'canceled';
+  
+  // Dashboard & Gamification
+  weeklyGoal?: number;
+  showOnLeaderboard?: boolean;
 }
 
 export interface SmartGoalDetail {

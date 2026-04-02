@@ -302,6 +302,7 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
         firstName: additionalData?.firstName || '',
         lastName: additionalData?.lastName || '',
         age: additionalData?.age || null,
+        birthDate: additionalData?.birthDate || null,
         gender: additionalData?.gender || 'prefer_not_to_say',
         isTrainingMember: !isCoach,
         createdAt: serverTimestamp(),
@@ -350,11 +351,10 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
         } catch (e) { console.warn("Failed to enrich log", e); }
     }
 
-    await setDoc(newLogRef, newLog);
+    const batch = writeBatch(db);
 
     if (logData.memberId && logData.exerciseResults) {
         try {
-            const batch = writeBatch(db);
             const pbCollectionRef = collection(db, 'users', logData.memberId, 'personalBests');
             const currentPBsSnap = await getDocs(pbCollectionRef);
             const currentPBs: Record<string, any> = {};
@@ -392,6 +392,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
             }
 
             if (newRecords.length > 0) {
+                newLog.newPBs = newRecords;
                 const eventRef = doc(collection(db, 'studio_events'));
                 const eventData: StudioEvent = {
                     id: eventRef.id,
@@ -406,10 +407,11 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 };
                 batch.set(eventRef, eventData);
             }
-
-            await batch.commit();
-        } catch (e) { console.error("PB Batch commit failed", e); }
+        } catch (e) { console.error("PB calculation failed", e); }
     }
+
+    batch.set(newLogRef, newLog);
+    await batch.commit();
 
     return { log: newLog, newRecords };
 };
@@ -426,6 +428,49 @@ export const deleteWorkoutLog = async (logId: string) => {
     try {
         await deleteDoc(doc(db, 'workoutLogs', logId));
     } catch (e) { console.error("deleteWorkoutLog failed", e); }
+};
+
+export const getLeaderboardData = async (orgId: string): Promise<{ memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]> => {
+    if (isOffline || !db || !orgId) return [];
+    try {
+        // Get start of current week (Monday)
+        const now = new Date();
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+        const startOfWeek = new Date(now.setDate(diff));
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        const q = query(
+            collection(db, 'workoutLogs'), 
+            where("organizationId", "==", orgId),
+            where("date", ">=", startOfWeek.getTime())
+        );
+        
+        const snap = await getDocs(q);
+        const logs = snap.docs.map(d => d.data() as WorkoutLog);
+        
+        // Aggregate by memberId
+        const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
+        
+        logs.forEach(log => {
+            if (!memberStats[log.memberId]) {
+                memberStats[log.memberId] = { count: 0, pbs: 0, name: log.memberName || 'Okänd', photoUrl: log.memberPhotoUrl || '' };
+            }
+            memberStats[log.memberId].count += 1;
+            if (log.newPBs && log.newPBs.length > 0) {
+                memberStats[log.memberId].pbs += log.newPBs.length;
+            }
+        });
+
+        // Convert to array and sort by count
+        return Object.entries(memberStats)
+            .map(([memberId, stats]) => ({ memberId, ...stats }))
+            .sort((a, b) => b.count - a.count);
+
+    } catch (e) {
+        console.error("getLeaderboardData failed", e);
+        return [];
+    }
 };
 
 export const listenToMemberLogs = (memberId: string, onUpdate: (logs: WorkoutLog[]) => void) => {
@@ -555,14 +600,20 @@ export const listenToWeeklyPBs = (orgId: string, onUpdate: (events: StudioEvent[
     if (isOffline || !db || !orgId) { onUpdate([]); return () => {}; }
     
     // Vi tar bort tidsbegränsningen för att visa de senaste 20 rekorden oavsett när de sattes.
+    // Vi filtrerar på 'type' i minnet för att undvika index-fel i Firestore.
     const q = query(
         collection(db, 'studio_events'), 
         where('organizationId', '==', orgId), 
-        where('type', 'in', ['pb', 'pb_batch']), 
         orderBy('timestamp', 'desc'), 
-        limit(20)
+        limit(50)
     );
-    return onSnapshot(q, (snap) => onUpdate(snap.docs.map(d => d.data() as StudioEvent)));
+    return onSnapshot(q, (snap) => {
+        const allEvents = snap.docs.map(d => d.data() as StudioEvent);
+        const pbEvents = allEvents.filter(e => e.type === 'pb' || e.type === 'pb_batch');
+        onUpdate(pbEvents.slice(0, 20));
+    }, (error) => {
+        console.error("Error listening to weekly PBs:", error);
+    });
 };
 
 export const getOrganizations = async (): Promise<Organization[]> => {

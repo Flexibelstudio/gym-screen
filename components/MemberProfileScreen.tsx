@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma, StudioConfig, BenchmarkDefinition } from '../types';
 import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog } from '../services/firebaseService';
-import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon, HistoryIcon } from './icons';
+import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon, HistoryIcon, FlagIcon, StarIcon, ChevronRightIcon } from './icons';
 import { Modal } from './ui/Modal';
 import { resizeImage } from '../utils/imageUtils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -14,6 +14,12 @@ import { PaywallScreen } from './PaywallScreen';
 
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
+
+import { ActivityCalendar } from './dashboard/ActivityCalendar';
+import { BodyHeatmap } from './dashboard/BodyHeatmap';
+import { WeeklyGoalRing } from './dashboard/WeeklyGoalRing';
+import { Leaderboard } from './dashboard/Leaderboard';
+import { Target } from 'lucide-react';
 
 interface MemberProfileScreenProps {
     userData: UserData;
@@ -233,13 +239,29 @@ const GoalsEditModal: React.FC<{ currentGoals?: MemberGoals, onSave: (goals: Mem
     const [targetDate, setTargetDate] = useState(currentGoals?.targetDate || '');
     const [isSmartEnabled, setIsSmartEnabled] = useState(!!currentGoals?.smartCriteria);
     const [smart, setSmart] = useState<SmartGoalDetail>(currentGoals?.smartCriteria || { specific: '', measurable: '', achievable: '', relevant: '', timeBound: '' });
+    
     const toggleGoal = (goal: string) => setSelectedGoals(selectedGoals.includes(goal) ? selectedGoals.filter(g => g !== goal) : [...selectedGoals, goal]);
+    
+    const handleClear = () => {
+        setSelectedGoals([]);
+        setTargetDate('');
+        setIsSmartEnabled(false);
+        setSmart({ specific: '', measurable: '', achievable: '', relevant: '', timeBound: '' });
+    };
+
     const handleSave = () => onSave({ hasSpecificGoals: selectedGoals.length > 0 || (isSmartEnabled && !!smart.specific), selectedGoals, targetDate, startDate: currentGoals?.startDate || new Date().toISOString().split('T')[0], smartCriteria: isSmartEnabled ? smart : undefined });
+    
     const inputClasses = "w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all font-medium";
     const labelClasses = "block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1";
+    
     return (
         <Modal isOpen={true} onClose={onClose} title="Sätt dina mål" size="md">
             <div className="space-y-8">
+                <div className="flex justify-end">
+                    <button onClick={handleClear} className="text-xs font-bold text-gray-500 hover:text-red-500 transition-colors uppercase tracking-wider">
+                        Börja om / Rensa
+                    </button>
+                </div>
                 <div><label className={labelClasses}>Målkategorier</label><div className="flex flex-wrap gap-2">{['Bli starkare', 'Bygga muskler', 'Gå ner i vikt', 'Bättre kondition', 'HYROX', 'Må bra', 'Rörlighet'].map(goal => (<button key={goal} onClick={() => toggleGoal(goal)} className={`px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${selectedGoals.includes(goal) ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-transparent hover:border-gray-300'}`}>{goal}</button>))}</div></div>
                 <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-800/50"><ToggleSwitch label="Använd SMART-metoden" checked={isSmartEnabled} onChange={setIsSmartEnabled} /><p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-wider mt-2 ml-1">För dig som vill vara extra tydlig</p></div>
                 <AnimatePresence>{isSmartEnabled && (<motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="space-y-4 overflow-hidden">
@@ -255,7 +277,7 @@ const GoalsEditModal: React.FC<{ currentGoals?: MemberGoals, onSave: (goals: Mem
     );
 };
 
-const LogDetailModal: React.FC<{ log: WorkoutLog, onClose: () => void, onUpdate: (id: string, data: Partial<WorkoutLog>) => void, onDelete: (id: string) => void }> = ({ log, onClose, onUpdate, onDelete }) => {
+const LogDetailModal: React.FC<{ log: WorkoutLog, onClose: () => void, onUpdate: (id: string, data: Partial<WorkoutLog>) => void, onDelete: (id: string) => void, onViewDiploma?: (diploma: WorkoutDiploma) => void }> = ({ log, onClose, onUpdate, onDelete, onViewDiploma }) => {
     const [isEditing, setIsEditing] = useState(false);
     const [comment, setComment] = useState(log.comment || '');
     const handleSave = () => { onUpdate(log.id, { comment }); setIsEditing(false); };
@@ -268,6 +290,14 @@ const LogDetailModal: React.FC<{ log: WorkoutLog, onClose: () => void, onUpdate:
                 {isCustomActivity && (<div className="bg-gray-50 dark:bg-gray-800 p-5 rounded-2xl border border-gray-100 dark:border-gray-700"><div className="grid grid-cols-3 gap-4 divide-x divide-gray-200 dark:divide-gray-700"><div className="text-center px-2"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Tid</p><p className="font-mono font-bold text-xl text-gray-900 dark:text-white">{log.durationMinutes || 0}<span className="text-xs ml-1 font-normal text-gray-500">min</span></p></div><div className="text-center px-2"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Distans</p><p className="font-mono font-bold text-xl text-gray-900 dark:text-white">{log.totalDistance || 0}<span className="text-xs ml-1 font-normal text-gray-500">km</span></p></div><div className="text-center px-2"><p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Energi</p><p className="font-mono font-bold text-xl text-gray-900 dark:text-white">{log.totalCalories || 0}<span className="text-xs ml-1 font-normal text-gray-500">kcal</span></p></div></div></div>)}
                 {log.exerciseResults && log.exerciseResults.length > 0 && (<div className="space-y-2"><h4 className="font-bold text-gray-900 dark:text-white text-sm uppercase tracking-wider mb-2">Resultat</h4>{log.exerciseResults.map((ex, i) => (<div key={i} className="flex justify-between items-center bg-gray-50 dark:bg-gray-900 p-3 rounded-lg border border-gray-100 dark:border-gray-800"><span className="font-medium text-gray-800 dark:text-gray-200">{ex.exerciseName}</span><span className="font-mono text-primary font-bold">{ex.weight ? `${ex.weight}kg` : ''} {ex.reps ? ` ${ex.reps}` : ''}</span></div>))}</div>)}
                 <div><h4 className="font-bold text-gray-900 dark:text-white mb-2 text-sm uppercase tracking-wider">Kommentar</h4>{isEditing ? (<textarea value={comment} onChange={e => setComment(e.target.value)} className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition" rows={3} />) : (<p className="text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900/50 p-3 rounded-lg italic border border-gray-100 dark:border-gray-800">{log.comment || "Ingen kommentar."}</p>)}</div>
+                {log.diploma && onViewDiploma && (
+                    <button 
+                        onClick={() => onViewDiploma(log.diploma!)}
+                        className="w-full bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-bold py-3 rounded-xl hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-colors flex items-center justify-center gap-2 border border-indigo-100 dark:border-indigo-800/50"
+                    >
+                        <TrophyIcon className="w-5 h-5" /> Visa Diplom
+                    </button>
+                )}
                 <div className="flex gap-4 pt-4 border-t border-gray-100 dark:border-gray-800">{isEditing ? (<button onClick={handleSave} className="flex-1 bg-primary text-white font-bold py-3 rounded-xl hover:brightness-110 transition-colors">Spara ändringar</button>) : (<button onClick={() => setIsEditing(true)} className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-bold py-3 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">Redigera text</button>)}<button onClick={handleDelete} className="px-6 text-red-500 font-bold bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl transition-colors flex items-center justify-center border border-red-100 dark:border-red-900/30" title="Radera pass"><TrashIcon className="w-5 h-5" /></button></div>
             </div>
         </Modal>
@@ -284,9 +314,11 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [selectedLog, setSelectedLog] = useState<WorkoutLog | null>(null);
     const [isSaving, setIsSaving] = useState(false);
     const [isEditingGoals, setIsEditingGoals] = useState(false);
+    const [isCreatingNewGoal, setIsCreatingNewGoal] = useState(false);
     const [isMyStrengthVisible, setIsMyStrengthVisible] = useState(false);
     const [viewingDiploma, setViewingDiploma] = useState<WorkoutDiploma | null>(null);
-    const [activeTab, setActiveTab] = useState<'overview' | 'benchmarks' | 'history'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'strength' | 'benchmarks'>('overview');
+    const [selectedDateLogs, setSelectedDateLogs] = useState<{date: Date, logs: WorkoutLog[]} | null>(null);
     
     // Resume session state
     const [activeSession, setActiveSession] = useState<any | null>(null);
@@ -294,11 +326,24 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     // Form states
     const [firstName, setFirstName] = useState(userData.firstName || '');
     const [lastName, setLastName] = useState(userData.lastName || '');
-    const [age, setAge] = useState(userData.age?.toString() || '');
+    const [birthDate, setBirthDate] = useState(userData.birthDate || '');
     const [gender, setGender] = useState(userData.gender || 'prefer_not_to_say');
     const [photoUrl, setPhotoUrl] = useState(userData.photoUrl || '');
+    const [weeklyGoal, setWeeklyGoal] = useState(userData.weeklyGoal || 3);
+    const [showOnLeaderboard, setShowOnLeaderboard] = useState(userData.showOnLeaderboard !== false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let v = e.target.value.replace(/\D/g, '');
+        if (v.length > 8) v = v.slice(0, 8);
+        if (v.length > 6) {
+            v = `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6)}`;
+        } else if (v.length > 4) {
+            v = `${v.slice(0, 4)}-${v.slice(4)}`;
+        }
+        setBirthDate(v);
+    };
 
     // --- STRIPE PAYWALL LOGIC ---
     const hasActiveSubscription = 
@@ -372,13 +417,19 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     };
 
     const handleSaveProfile = async () => {
+        if (birthDate && birthDate.length !== 10) {
+            alert("Vänligen ange ett fullständigt födelsedatum (ÅÅÅÅ-MM-DD).");
+            return;
+        }
         setIsSaving(true);
         try {
             await updateUserProfile(userData.uid, {
                 firstName: firstName.trim(),
                 lastName: lastName.trim(),
-                age: age ? parseInt(age) : undefined,
+                birthDate: birthDate || undefined,
                 gender: gender as any,
+                weeklyGoal: Number(weeklyGoal),
+                showOnLeaderboard
             });
             setIsEditing(false);
         } catch (error) {
@@ -415,8 +466,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         }).length;
         const weeklyStreak = calculateWeeklyStreak(logs);
         const currentWeekKey = getYearWeek(now);
-        const hasTrainedThisWeek = logs.some(l => getYearWeek(new Date(l.date)) === currentWeekKey);
-        return { totalWorkouts, thisMonth, weeklyStreak, hasTrainedThisWeek };
+        const thisWeek = logs.filter(l => getYearWeek(new Date(l.date)) === currentWeekKey).length;
+        const hasTrainedThisWeek = thisWeek > 0;
+        return { totalWorkouts, thisMonth, weeklyStreak, hasTrainedThisWeek, thisWeek };
     }, [logs]);
 
     const daysLeft = useMemo(() => {
@@ -499,8 +551,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Ålder</label>
-                            <input type="number" value={age} onChange={e => setAge(e.target.value)} className="w-full bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm font-bold" />
+                            <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Födelsedatum</label>
+                            <input type="tel" placeholder="ÅÅÅÅ-MM-DD" maxLength={10} value={birthDate} onChange={handleDateChange} className="w-full bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm font-bold" />
                         </div>
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Kön</label>
@@ -510,6 +562,25 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 <option value="female">Kvinna</option>
                                 <option value="other">Annat</option>
                             </select>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Veckomål (Antal pass)</label>
+                            <input type="number" min="1" max="14" value={weeklyGoal} onChange={e => setWeeklyGoal(Number(e.target.value))} className="w-full bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm font-bold" />
+                        </div>
+                        <div className="flex items-center pt-6">
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <div className="relative">
+                                    <input type="checkbox" className="sr-only" checked={showOnLeaderboard} onChange={e => setShowOnLeaderboard(e.target.checked)} />
+                                    <div className={`block w-14 h-8 rounded-full transition-colors ${showOnLeaderboard ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-700'}`}></div>
+                                    <div className={`absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${showOnLeaderboard ? 'transform translate-x-6' : ''}`}></div>
+                                </div>
+                                <div className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                                    Visa mig på gymmets topplista
+                                </div>
+                            </label>
                         </div>
                     </div>
                     
@@ -528,7 +599,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     }
 
     return (
-        <div className="w-full max-w-4xl mx-auto px-1 sm:px-6 py-6 animate-fade-in pb-24">
+        <div className="w-full max-w-4xl mx-auto px-1 sm:px-6 pt-2 pb-24 animate-fade-in">
             
             {/* --- BETALVÄGG OCH LOGIK START --- */}
             {!hasActiveSubscription && (
@@ -555,60 +626,39 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 />
             )}
 
-            {/* Header section */}
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-4">
-                     <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xl font-black overflow-hidden border border-primary/20 shadow-sm">
-                        {photoUrl ? <img src={photoUrl} className="w-full h-full object-cover" alt="Profil" /> : (userData.firstName?.[0] || userData.email?.[0].toUpperCase())}
-                    </div>
-                    <div>
-                        <h2 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">{userData.firstName} {userData.lastName}</h2>
-                        <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Nivå {level}</span>
-                            <div className="w-20 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                <div className="h-full bg-primary" style={{ width: `${progressToNext}%` }}></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <button
-                    onClick={() => setIsMyStrengthVisible(true)}
-                    className="flex flex-col items-center gap-1 group transition-all"
-                >
-                    <div className="w-12 h-12 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 shadow-sm transition-all group-hover:scale-110 group-active:scale-95 group-hover:shadow-md">
-                        <TrophyIcon className="w-6 h-6" />
-                    </div>
-                    <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-primary transition-colors">Styrka</span>
-                </button>
-            </div>
-
             {/* --- FLIKAR --- */}
-            <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full mb-8">
-                {[
-                    { id: 'overview', label: 'Översikt', icon: ChartBarIcon },
-                    { id: 'benchmarks', label: 'Benchmarks', icon: TrophyIcon },
-                    { id: 'history', label: 'Historik', icon: HistoryIcon }
-                ].map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id as any)}
-                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-                            activeTab === tab.id 
-                            ? 'bg-white dark:bg-gray-700 text-primary shadow-md' 
-                            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                        }`}
-                    >
-                        <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-primary' : 'text-gray-400'}`} />
-                        <span className="hidden sm:inline">{tab.label}</span>
-                    </button>
-                ))}
+            <div className="sticky top-0 z-40 bg-white dark:bg-black pt-2 pb-4 -mx-1 px-1 sm:-mx-6 sm:px-6 -mt-4 sm:-mt-6">
+                <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full shadow-sm">
+                    {[
+                        { id: 'overview', label: 'Översikt', icon: ChartBarIcon },
+                        { id: 'goals', label: 'Mål', icon: Target },
+                        { id: 'strength', label: 'Styrka', icon: TrophyIcon },
+                        { id: 'benchmarks', label: 'Benchmarks', icon: StarIcon }
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id as any)}
+                            className={`flex-1 flex items-center justify-center gap-2 px-2 sm:px-4 py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all ${
+                                activeTab === tab.id 
+                                ? 'bg-white dark:bg-gray-700 text-primary shadow-md' 
+                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                            }`}
+                        >
+                            <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-primary' : 'text-gray-400'}`} />
+                            <span className="hidden sm:inline">{tab.label}</span>
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* --- FLIKINNEHÅLL --- */}
 
             {activeTab === 'overview' && (
                 <div className="space-y-6 animate-fade-in">
+                    
+                    {/* Weekly Goal Ring (Huge) */}
+                    <WeeklyGoalRing current={stats.thisWeek} goal={userData.weeklyGoal || 3} />
+
                     {/* Stats grid */}
                     <div className="grid grid-cols-3 gap-2 sm:gap-4">
                         <div className="relative overflow-hidden bg-gray-900 dark:bg-gray-800 rounded-2xl p-3 sm:p-4 shadow-lg border border-gray-800 text-center flex flex-col items-center justify-center min-h-[100px] group">
@@ -641,6 +691,17 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         </div>
                     </div>
 
+                    {/* Level Meter */}
+                    <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-800">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Nivå {level}</span>
+                            <span className="text-xs font-bold text-gray-400">{progressToNext.toFixed(0)}% till nästa</span>
+                        </div>
+                        <div className="w-full h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${progressToNext}%` }}></div>
+                        </div>
+                    </div>
+
                     {/* Archetype card */}
                     <div className={`bg-gradient-to-br ${archetype.color} rounded-[2rem] p-5 sm:p-8 text-white shadow-2xl relative overflow-hidden`}>
                         <div className="relative z-10">
@@ -656,13 +717,35 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-white/20 rounded-full blur-[60px] pointer-events-none"></div>
                     </div>
 
-                    {/* Goals section */}
+                    <ActivityCalendar 
+                        logs={logs} 
+                        onDayClick={(date, dayLogs) => {
+                            if (dayLogs.length > 0) {
+                                setSelectedDateLogs({ date, logs: dayLogs });
+                            }
+                        }} 
+                    />
+
+                    {userData.organizationId && (
+                        <Leaderboard organizationId={userData.organizationId} />
+                    )}
+                </div>
+            )}
+
+            {activeTab === 'goals' && (
+                <div className="space-y-6 animate-fade-in">
                     <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-800">
-                        <div className="flex justify-between items-center mb-4">
+                        <div className="flex justify-between items-center mb-6">
                             <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                                 <span className="text-xl">🎯</span> Mina Mål
                             </h3>
-                            <div className="flex gap-2">
+                            <div className="flex items-center gap-2">
+                                <button 
+                                    onClick={() => setIsCreatingNewGoal(true)} 
+                                    className="px-3 py-1.5 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 rounded-xl transition-colors"
+                                >
+                                    Nytt mål
+                                </button>
                                 <button 
                                     onClick={() => setIsEditingGoals(true)} 
                                     className="p-2 text-gray-400 hover:text-primary transition-colors hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl"
@@ -673,53 +756,70 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             </div>
                         </div>
                         
-                        {userData.goals?.hasSpecificGoals ? (
-                            <div className="space-y-6">
-                                <div className="flex flex-wrap gap-2">
-                                    {userData.goals.selectedGoals.map(g => (
-                                        <span key={g} className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide border border-gray-200 dark:border-gray-700">{g}</span>
-                                    ))}
-                                </div>
-
-                                <div className="space-y-4 pt-2 border-t border-gray-50 dark:border-gray-800">
-                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em]">Målanalys (SMART)</p>
-                                    <div className="space-y-4">
-                                        {userData.goals.smartCriteria && (
-                                            <>
-                                                <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={userData.goals.smartCriteria.specific} />
-                                                <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={userData.goals.smartCriteria.measurable} />
-                                                <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={userData.goals.smartCriteria.achievable} />
-                                                <SmartItem letter="R" color="bg-rose-500" title="Relevant" text={userData.goals.smartCriteria.relevant} />
-                                            </>
-                                        )}
-                                        <SmartItem letter="T" color="bg-indigo-500" title="Tid" text={userData.goals.targetDate || 'Ingen deadline.'} />
+                        <div>
+                            {userData.goals?.hasSpecificGoals ? (
+                                <div className="space-y-6">
+                                    <div className="flex flex-wrap gap-2">
+                                        {userData.goals.selectedGoals.map(g => (
+                                            <span key={g} className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide border border-gray-200 dark:border-gray-700">{g}</span>
+                                        ))}
                                     </div>
-                                </div>
 
-                                {daysLeft !== null && (
-                                    <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl">
-                                        <div className="flex-grow">
-                                            <div className="flex justify-between text-xs font-bold text-gray-500 mb-1"><span>Framsteg</span><span>{userData.goals.targetDate}</span></div>
-                                            <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden p-0.5 border border-gray-100 dark:border-gray-800">
-                                                <div 
-                                                    className="h-full bg-primary rounded-full transition-all duration-1000 relative shadow-[0_0_10px_rgba(20,184,166,0.5)]" 
-                                                    style={{ width: `${Math.max(1.5, progressPercentage)}%` }}
-                                                >
-                                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
-                                                </div>
-                                            </div>
+                                    <div className="pt-2 border-t border-gray-50 dark:border-gray-800">
+                                        <div className="mb-4">
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-[0.15em]">Målanalys (SMART)</p>
                                         </div>
-                                        <div className="text-center min-w-[60px]"><span className="block text-xl font-black text-gray-900 dark:text-white leading-none">{daysLeft}</span><span className="text-[9px] uppercase font-bold text-gray-400">Dagar kvar</span></div>
+                                        
+                                        <div className="space-y-6">
+                                            <div className="space-y-4">
+                                                {userData.goals.smartCriteria && (
+                                                    <>
+                                                        <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={userData.goals.smartCriteria.specific} />
+                                                        <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={userData.goals.smartCriteria.measurable} />
+                                                        <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={userData.goals.smartCriteria.achievable} />
+                                                        <SmartItem letter="R" color="bg-rose-500" title="Relevant" text={userData.goals.smartCriteria.relevant} />
+                                                    </>
+                                                )}
+                                                <SmartItem letter="T" color="bg-indigo-500" title="Tid" text={userData.goals.targetDate || 'Ingen deadline.'} />
+                                            </div>
+
+                                            {daysLeft !== null && (
+                                                <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl">
+                                                    <div className="flex-grow">
+                                                        <div className="flex justify-between text-xs font-bold text-gray-500 mb-1"><span>Framsteg</span><span>{userData.goals.targetDate}</span></div>
+                                                        <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden p-0.5 border border-gray-100 dark:border-gray-800">
+                                                            <div 
+                                                                className="h-full bg-primary rounded-full transition-all duration-1000 relative shadow-[0_0_10px_rgba(20,184,166,0.5)]" 
+                                                                style={{ width: `${Math.max(1.5, progressPercentage)}%` }}
+                                                            >
+                                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="text-center min-w-[60px]"><span className="block text-xl font-black text-gray-900 dark:text-white leading-none">{daysLeft}</span><span className="text-[9px] uppercase font-bold text-gray-400">Dagar kvar</span></div>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="text-center py-4 bg-gray-50 dark:bg-gray-800/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-                                <p className="text-gray-500 text-sm italic">Inga specifika mål satta.</p>
-                                <button onClick={() => setIsEditingGoals(true)} className="text-primary text-xs font-bold mt-2 hover:underline">Sätt mål nu</button>
-                            </div>
-                        )}
+                                </div>
+                            ) : (
+                                <div className="text-center py-4 bg-gray-50 dark:bg-gray-800/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
+                                    <p className="text-gray-500 text-sm italic">Inga specifika mål satta.</p>
+                                    <button onClick={() => setIsEditingGoals(true)} className="text-primary text-xs font-bold mt-2 hover:underline">Sätt mål nu</button>
+                                </div>
+                            )}
+                        </div>
                     </div>
+                </div>
+            )}
+
+            {activeTab === 'strength' && (
+                <div className="animate-fade-in">
+                    <MyStrengthScreen 
+                        userData={userData} 
+                        logs={logs} 
+                        onClose={() => setActiveTab('overview')} 
+                    />
                 </div>
             )}
 
@@ -732,107 +832,47 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 )
             )}
 
-            {activeTab === 'history' && (
-                <div className="animate-fade-in">
-                    {/* Latest workouts section - villkorligt styrt av enableWorkoutLogging */}
-                    {studioConfig.enableWorkoutLogging && (
-                        <div className="bg-white dark:bg-gray-900 rounded-[2rem] shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
-                            <div className="p-5 sm:p-8 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/30 dark:bg-gray-900/50">
-                                <h3 className="font-black text-xl text-gray-900 dark:text-white uppercase tracking-tight">Loggade Pass</h3>
-                                <span className="text-[10px] font-bold text-gray-300 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded uppercase">{logs.length} st</span>
-                            </div>
-                            <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-[500px] overflow-y-auto">
-                                {loading ? (
-                                    <div className="p-12 text-center flex flex-col items-center">
-                                        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
-                                        <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">Hämtar historik...</p>
-                                    </div>
-                                ) : logs.length === 0 ? (
-                                    <div className="p-12 text-center">
-                                        <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300"><DumbbellIcon className="w-8 h-8" /></div>
-                                        <p className="text-gray-900 dark:text-white font-black text-lg mb-2">Inga loggade pass än.</p>
-                                        <p className="text-sm text-gray-500 max-w-xs mx-auto">Kör ett pass och logga det via QR-koden på skärmen för att se din historik här!</p>
-                                    </div>
-                                ) : (
-                                    logs.map(log => (
-                                        <button key={log.id} onClick={() => setSelectedLog(log)} className="w-full text-left p-4 sm:p-6 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex justify-between items-center group">
-                                            <div className="min-w-0 pr-4">
-                                                <p className="font-black text-gray-900 dark:text-white text-lg group-hover:text-primary transition-colors truncate">{log.workoutTitle}</p>
-                                                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">{new Date(log.date).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-                                            </div>
-                                            <div className="flex gap-3 items-center flex-shrink-0">
-                                                {log.diploma && (
-                                                    <button 
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setViewingDiploma(log.diploma!);
-                                                        }}
-                                                        className="w-8 h-8 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-yellow-600 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors shadow-sm"
-                                                        title="Visa Diplom"
-                                                    >
-                                                        <TrophyIcon className="w-4 h-4" />
-                                                    </button>
-                                                )}
-                                                {log.rpe && <div className="flex flex-col items-center"><span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">RPE</span><span className="bg-primary/10 text-primary text-sm px-3 py-1 rounded-full font-black border border-primary/20">{log.rpe}</span></div>}
-                                                <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-300 dark:text-gray-600 group-hover:bg-primary group-hover:text-white transition-all"><span className="text-xl">→</span></div>
-                                            </div>
-                                        </button>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    )}
-                </div>
+            {(isEditingGoals || isCreatingNewGoal) && (
+                <GoalsEditModal 
+                    currentGoals={isCreatingNewGoal ? undefined : userData.goals} 
+                    onSave={(goals) => {
+                        handleSaveGoals(goals);
+                        setIsCreatingNewGoal(false);
+                    }} 
+                    onClose={() => {
+                        setIsEditingGoals(false);
+                        setIsCreatingNewGoal(false);
+                    }} 
+                />
             )}
-
-            {isEditingGoals && <GoalsEditModal currentGoals={userData.goals} onSave={handleSaveGoals} onClose={() => setIsEditingGoals(false)} />}
-            {selectedLog && <LogDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} onUpdate={handleUpdateLog} onDelete={handleDeleteLog} />}
+            {selectedDateLogs && (
+                <Modal isOpen={true} onClose={() => setSelectedDateLogs(null)} title={`Pass den ${selectedDateLogs.date.toLocaleDateString('sv-SE')}`}>
+                    <div className="space-y-4">
+                        {selectedDateLogs.logs.map(log => (
+                            <button
+                                key={log.id}
+                                onClick={() => {
+                                    setSelectedDateLogs(null);
+                                    setSelectedLog(log);
+                                }}
+                                className="w-full text-left bg-gray-50 dark:bg-gray-800 p-4 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-between group"
+                            >
+                                <div>
+                                    <h4 className="font-bold text-gray-900 dark:text-white mb-1">{log.workoutTitle || 'Pass'}</h4>
+                                    <p className="text-xs text-gray-500">
+                                        {new Date(log.date).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                </div>
+                                <div className="w-8 h-8 rounded-full bg-white dark:bg-gray-900 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors shadow-sm">
+                                    <ChevronRightIcon className="w-4 h-4" />
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </Modal>
+            )}
+            {selectedLog && <LogDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} onUpdate={handleUpdateLog} onDelete={handleDeleteLog} onViewDiploma={setViewingDiploma} />}
             
-            <AnimatePresence>
-                {isMyStrengthVisible && (
-                    <>
-                        <motion.div 
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[2000]"
-                            onClick={() => setIsMyStrengthVisible(false)}
-                        />
-                        <motion.div 
-                            initial={{ y: '100%', opacity: 0 }}
-                            animate={{ y: '0%', opacity: 1 }}
-                            exit={{ y: '100%', opacity: 0 }}
-                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="fixed inset-x-0 top-[5vh] bottom-[5vh] z-[2010] px-1 pointer-events-none"
-                        >
-                            <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] h-full max-w-2xl mx-auto shadow-2xl overflow-hidden flex flex-col pointer-events-auto relative">
-                                <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center flex-shrink-0">
-                                    <h2 className="text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-2">
-                                        Min Styrka <span className="text-2xl">🏆</span>
-                                    </h2>
-                                    <button onClick={() => setIsMyStrengthVisible(false)} className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                                        <CloseIcon className="w-6 h-6 text-gray-500 dark:text-gray-400" />
-                                    </button>
-                                </div>
-                                
-                                <div className="flex-grow overflow-y-auto p-4 sm:p-6 custom-scrollbar">
-                                    <MyStrengthScreen onBack={() => setIsMyStrengthVisible(false)} />
-                                </div>
-
-                                <div className="p-6 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 bg-white dark:bg-gray-900">
-                                    <button 
-                                        onClick={() => setIsMyStrengthVisible(false)}
-                                        className="w-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-black py-4 rounded-2xl transition-all active:scale-95 uppercase tracking-widest text-sm hover:bg-gray-200 dark:hover:bg-gray-700"
-                                    >
-                                        STÄNG
-                                    </button>
-                                </div>
-                            </div>
-                        </motion.div>
-                    </>
-                )}
-            </AnimatePresence>
-
             <AnimatePresence>
                 {viewingDiploma && (
                     <WorkoutDiplomaView 

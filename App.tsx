@@ -50,6 +50,7 @@ import { WorkoutDiplomaView } from './components/WorkoutDiplomaView';
 
 // --- Modals ---
 import { CancelConfirmationModal } from './components/modals/CancelConfirmationModal';
+import { BirthDatePromptModal } from './components/modals/BirthDatePromptModal';
 
 const THEME_STORAGE_KEY = 'flexibel-screen-theme';
 
@@ -349,6 +350,15 @@ const App: React.FC = () => {
   const [showLogCancelModal, setShowLogCancelModal] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [activeDiploma, setActiveDiploma] = useState<WorkoutDiploma | null>(null);
+  const [showBirthDatePrompt, setShowBirthDatePrompt] = useState(false);
+
+  useEffect(() => {
+      if (userData && !userData.birthDate && !isStudioMode) {
+          setShowBirthDatePrompt(true);
+      } else {
+          setShowBirthDatePrompt(false);
+      }
+  }, [userData, isStudioMode]);
 
   useEffect(() => {
       if (mobileLogData || mobileViewData || isSearchWorkoutOpen || isScannerOpen || activeDiploma) {
@@ -1281,9 +1291,9 @@ const App: React.FC = () => {
         isStudioMode={isStudioMode}
       />}
 
-      <div className="flex flex-col items-center flex-1 min-h-0 overflow-hidden relative">
+      <div className="flex flex-col items-center flex-1 min-h-0 relative">
           <main 
-            className={`flex-1 min-h-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home ? 'justify-start' : 'justify-center'}`}`}
+            className={`flex-1 min-h-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home || page === Page.MemberProfile ? 'justify-start' : 'justify-center'}`}`}
           >
             {showPendingCoach ? (
                 <PendingCoachScreen onLogout={signOut} />
@@ -1582,6 +1592,14 @@ const App: React.FC = () => {
        {showTerms && <TermsOfServiceModal onAccept={acceptTerms} />}
        
        {showSupportChat && <SupportChat />}
+
+       {userData && showBirthDatePrompt && (
+           <BirthDatePromptModal 
+               isOpen={showBirthDatePrompt} 
+               onClose={() => setShowBirthDatePrompt(false)} 
+               userData={userData} 
+           />
+       )}
 
        {showScanButton && !showPaywall && !showWelcomePaywall && !showPendingCoach && !mobileLogData && !mobileViewData && !isSearchWorkoutOpen && !isScannerOpen && (
           <div className="fixed bottom-6 right-6 z-[50]">

@@ -47,8 +47,13 @@ export const PaywallScreen: React.FC<{ onLogout: () => void, userData?: any }> =
                 animate={{ opacity: 1, y: 0 }}
                 className="max-w-md w-full bg-gray-900 border border-gray-800 rounded-[2.5rem] p-10 shadow-2xl"
             >
+                <div className="inline-block bg-purple-500/20 text-purple-300 text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full mb-4">
+                    Early Access / Beta
+                </div>
                 <h2 className="text-3xl font-black text-white mb-4">Aktivera Medlemskap</h2>
-                <p className="text-gray-400 mb-8">Få full tillgång till alla träningspass och funktioner för endast 39 kr/mån.</p>
+                <p className="text-gray-400 mb-8">
+                    Bli en av våra första beta-testare! Få full tillgång till den nya medlemsappen med passloggning, statistik och personliga mål för endast <strong>39 kr/mån</strong>.
+                </p>
                 
                 {errorMsg && (
                     <div className="bg-red-900/50 border border-red-500 text-red-200 p-3 rounded-lg mb-6 text-sm">
@@ -80,7 +85,7 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
     return (
          <div className="bg-slate-50 dark:bg-gray-800/50 p-6 rounded-xl border border-slate-200 dark:border-gray-700">
              <div className="flex justify-between items-center border-b border-slate-200 dark:border-gray-700 pb-4 mb-6">
-                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Företagsinformation</h3>
+                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Ekonomi & Licens</h3>
                  <button 
                     onClick={onEdit} 
                     className="bg-primary/10 hover:bg-primary/20 text-primary font-semibold py-2 px-4 rounded-lg transition-colors text-sm"

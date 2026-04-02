@@ -613,6 +613,74 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
         }
       }
     }
+
+    if (event.type === 'customer.subscription.created' || event.type === 'customer.subscription.updated' || event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object;
+      const customerId = subscription.customer;
+      const status = subscription.status; // 'active', 'past_due', 'canceled', etc.
+      
+      const db = admin.firestore();
+      
+      // Leta efter användare med detta stripeCustomerId
+      const userQuery = await db.collection('users').where('stripeCustomerId', '==', customerId).limit(1).get();
+      if (!userQuery.empty) {
+        const userId = userQuery.docs[0].id;
+        await db.collection('users').doc(userId).update({
+          subscriptionStatus: status === 'active' || status === 'trialing' ? 'active' : 'inactive',
+          stripeSubscriptionId: status === 'canceled' ? admin.firestore.FieldValue.delete() : subscription.id
+        });
+        console.log(`Uppdaterade prenumerationsstatus för användare ${userId} till ${status}`);
+      }
+
+      // Leta efter organisation med detta stripeCustomerId
+      const orgQuery = await db.collection('organizations').where('stripeCustomerId', '==', customerId).limit(1).get();
+      if (!orgQuery.empty) {
+        const orgId = orgQuery.docs[0].id;
+        const isPaid = status === 'active' || status === 'trialing';
+        
+        if (status === 'canceled') {
+           await db.collection('organizations').doc(orgId).update({
+             stripeSubscriptionId: admin.firestore.FieldValue.delete(),
+             systemFeePaid: false
+           });
+           console.log(`Tog bort prenumerations-ID och satte systemFeePaid=false för org ${orgId} (avslutad)`);
+        } else {
+           await db.collection('organizations').doc(orgId).update({
+             stripeSubscriptionId: subscription.id,
+             systemFeePaid: isPaid
+           });
+           console.log(`Uppdaterade prenumerations-ID för org ${orgId}, systemFeePaid=${isPaid}`);
+        }
+      }
+    }
+
+    if (event.type === 'invoice.payment_failed') {
+      const invoice = event.data.object;
+      const customerId = invoice.customer;
+      
+      const db = admin.firestore();
+      
+      // Stäng av användare direkt vid misslyckad betalning
+      const userQuery = await db.collection('users').where('stripeCustomerId', '==', customerId).limit(1).get();
+      if (!userQuery.empty) {
+        const userId = userQuery.docs[0].id;
+        await db.collection('users').doc(userId).update({
+          subscriptionStatus: 'inactive'
+        });
+        console.log(`Betalning misslyckades. Satte prenumerationsstatus för användare ${userId} till inactive`);
+      }
+
+      // Stäng av organisation direkt vid misslyckad betalning
+      const orgQuery = await db.collection('organizations').where('stripeCustomerId', '==', customerId).limit(1).get();
+      if (!orgQuery.empty) {
+        const orgId = orgQuery.docs[0].id;
+        await db.collection('organizations').doc(orgId).update({
+          systemFeePaid: false
+        });
+        console.log(`Betalning misslyckades. Satte systemFeePaid=false för org ${orgId}`);
+      }
+    }
+
     res.json({ received: true });
   } catch (error) {
     console.error("Webhook error:", error);
@@ -669,6 +737,8 @@ app.post("/create-checkout-session", async (req, res) => {
       payment_method_types: ['card'],
       mode: 'subscription',
       allow_promotion_codes: true,
+      automatic_tax: { enabled: true },
+      customer_update: { address: 'auto' },
       line_items: lineItems,
       subscription_data: {
         billing_cycle_anchor: billingCycleAnchor
@@ -818,6 +888,8 @@ app.post("/create-member-checkout", async (req, res) => {
       customer: customerId,
       payment_method_types: ['card'],
       mode: 'subscription',
+      automatic_tax: { enabled: true },
+      customer_update: { address: 'auto' },
       line_items: [{
         price_data: {
           currency: 'sek',
@@ -851,8 +923,38 @@ app.post("/create-member-checkout", async (req, res) => {
   }
 });
 
+app.post('/create-portal-session', async (req, res) => {
+  try {
+    const { customerId, configurationId, isOrganization } = req.body;
+    if (!customerId) {
+      return res.status(400).json({ error: "Missing customerId" });
+    }
+
+    const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+    const domain = req.headers.origin || 'https://ais-dev-mioe74iqdi7yxzjsz433lx-46889914413.europe-west2.run.app';
+
+    const sessionParams = {
+      customer: customerId,
+      return_url: domain,
+    };
+
+    if (configurationId) {
+      sessionParams.configuration = configurationId;
+    } else if (isOrganization && process.env.STRIPE_RESTRICTED_PORTAL_CONFIG_ID) {
+      sessionParams.configuration = process.env.STRIPE_RESTRICTED_PORTAL_CONFIG_ID;
+    }
+
+    const session = await stripe.billingPortal.sessions.create(sessionParams);
+
+    res.json({ url: session.url });
+  } catch (error) {
+    console.error("Error creating portal session:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 exports.api = onRequest({
-  secrets: ["STRIPE_SECRET_KEY", "STRIPE_SYSTEM_FEE_PRICE_ID", "STRIPE_PRICE_ID", "STRIPE_WEBHOOK_SECRET", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_SYSTEM_FEE_PRICE_ID", "STRIPE_PRICE_ID", "STRIPE_WEBHOOK_SECRET", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID", "STRIPE_RESTRICTED_PORTAL_CONFIG_ID"]
 }, app);
 
 /**

@@ -1058,9 +1058,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
       <div className="bg-white dark:bg-gray-900 p-6 px-8 flex-shrink-0 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shadow-sm z-10">
         <div className="flex-1 min-w-0 pr-4">
-            <h1 className="text-2xl font-black text-gray-900 dark:text-white leading-tight truncate">
-                {isManualMode ? 'Logga Aktivitet' : workout?.title}
-            </h1>
+            <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-2xl font-black text-gray-900 dark:text-white leading-tight truncate">
+                    {isManualMode ? 'Logga Aktivitet' : workout?.title}
+                </h1>
+                <span className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md">BETA</span>
+            </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Registrera dina resultat</p>
         </div>
         <div className="flex items-center gap-2">
@@ -1073,6 +1076,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       <div className="flex-1 overflow-y-auto bg-gray-5 dark:bg-black scrollbar-hide">
           <div className="p-4 sm:p-8 max-w-2xl mx-auto w-full">
               
+              <div className="mb-6 bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/30 rounded-2xl p-4">
+                  <p className="text-sm text-purple-800 dark:text-purple-300 font-medium">
+                      👋 <strong>Detta är en beta-funktion.</strong> Hittat en bugg eller saknar du något? Hör av dig!
+                  </p>
+              </div>
+
               <div className="mb-6">
                   <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Datum</label>
                   <div className="relative">
