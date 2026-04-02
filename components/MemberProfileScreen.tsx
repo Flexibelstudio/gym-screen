@@ -292,7 +292,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [showSmartGoals, setShowSmartGoals] = useState(false);
     const [isMyStrengthVisible, setIsMyStrengthVisible] = useState(false);
     const [viewingDiploma, setViewingDiploma] = useState<WorkoutDiploma | null>(null);
-    const [activeTab, setActiveTab] = useState<'overview' | 'benchmarks' | 'history'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'goals' | 'strength' | 'benchmarks'>('overview');
+    const [selectedDateLogs, setSelectedDateLogs] = useState<{date: Date, logs: WorkoutLog[]} | null>(null);
     
     // Resume session state
     const [activeSession, setActiveSession] = useState<any | null>(null);
@@ -600,7 +601,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             )}
 
             {/* Header section */}
-            <div className="flex items-center justify-end mb-8">
+            <div className="flex items-center justify-end mb-4">
                 <button
                     onClick={() => setIsMyStrengthVisible(true)}
                     className="flex flex-col items-center gap-1 group transition-all"
@@ -613,15 +614,17 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             </div>
 
             {/* --- FLIKAR --- */}
-            <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full mb-8">
+            <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full mb-8 sticky top-4 z-10 shadow-sm">
                 {[
                     { id: 'overview', label: 'Översikt', icon: ChartBarIcon },
-                    { id: 'benchmarks', label: 'Benchmarks', icon: TrophyIcon }
+                    { id: 'goals', label: 'Mål', icon: FlagIcon },
+                    { id: 'strength', label: 'Styrka', icon: TrophyIcon },
+                    { id: 'benchmarks', label: 'Benchmarks', icon: StarIcon }
                 ].map(tab => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id as any)}
-                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+                        className={`flex-1 flex items-center justify-center gap-2 px-2 sm:px-4 py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all ${
                             activeTab === tab.id 
                             ? 'bg-white dark:bg-gray-700 text-primary shadow-md' 
                             : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
@@ -637,6 +640,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
             {activeTab === 'overview' && (
                 <div className="space-y-6 animate-fade-in">
+                    
+                    {/* Weekly Goal Ring (Huge) */}
+                    <WeeklyGoalRing current={stats.thisWeek} goal={userData.weeklyGoal || 3} />
+
                     {/* Stats grid */}
                     <div className="grid grid-cols-3 gap-2 sm:gap-4">
                         <div className="relative overflow-hidden bg-gray-900 dark:bg-gray-800 rounded-2xl p-3 sm:p-4 shadow-lg border border-gray-800 text-center flex flex-col items-center justify-center min-h-[100px] group">
@@ -669,6 +676,17 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         </div>
                     </div>
 
+                    {/* Level Meter */}
+                    <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-800">
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Nivå {level}</span>
+                            <span className="text-xs font-bold text-gray-400">{progressToNext.toFixed(0)}% till nästa</span>
+                        </div>
+                        <div className="w-full h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${progressToNext}%` }}></div>
+                        </div>
+                    </div>
+
                     {/* Archetype card */}
                     <div className={`bg-gradient-to-br ${archetype.color} rounded-[2rem] p-5 sm:p-8 text-white shadow-2xl relative overflow-hidden`}>
                         <div className="relative z-10">
@@ -684,17 +702,11 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-white/20 rounded-full blur-[60px] pointer-events-none"></div>
                     </div>
 
-                    {/* Dashboard Grid */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <WeeklyGoalRing current={stats.thisWeek} goal={userData.weeklyGoal || 3} />
-                        <BodyHeatmap logs={logs} />
-                    </div>
-
                     <ActivityCalendar 
                         logs={logs} 
                         onDayClick={(date, dayLogs) => {
                             if (dayLogs.length > 0) {
-                                setSelectedLog(dayLogs[0]);
+                                setSelectedDateLogs({ date, logs: dayLogs });
                             }
                         }} 
                     />
@@ -799,6 +811,32 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             )}
 
             {isEditingGoals && <GoalsEditModal currentGoals={userData.goals} onSave={handleSaveGoals} onClose={() => setIsEditingGoals(false)} />}
+            {selectedDateLogs && (
+                <Modal isOpen={true} onClose={() => setSelectedDateLogs(null)} title={`Pass den ${selectedDateLogs.date.toLocaleDateString('sv-SE')}`}>
+                    <div className="space-y-4">
+                        {selectedDateLogs.logs.map(log => (
+                            <button
+                                key={log.id}
+                                onClick={() => {
+                                    setSelectedDateLogs(null);
+                                    setSelectedLog(log);
+                                }}
+                                className="w-full text-left bg-gray-50 dark:bg-gray-800 p-4 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-between group"
+                            >
+                                <div>
+                                    <h4 className="font-bold text-gray-900 dark:text-white mb-1">{log.workoutTitle || 'Pass'}</h4>
+                                    <p className="text-xs text-gray-500">
+                                        {new Date(log.date).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                </div>
+                                <div className="w-8 h-8 rounded-full bg-white dark:bg-gray-900 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors shadow-sm">
+                                    <ChevronRightIcon className="w-4 h-4" />
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                </Modal>
+            )}
             {selectedLog && <LogDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} onUpdate={handleUpdateLog} onDelete={handleDeleteLog} />}
             
             <AnimatePresence>

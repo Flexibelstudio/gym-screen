@@ -8,20 +8,20 @@ interface WeeklyGoalRingProps {
 export const WeeklyGoalRing: React.FC<WeeklyGoalRingProps> = ({ current, goal }) => {
     const safeCurrent = Number(current) || 0;
     const safeGoal = Number(goal) || 3;
-    const radius = 110;
+    const radius = 130;
     const circumference = 2 * Math.PI * radius;
     const percent = Math.min(100, Math.max(0, (safeCurrent / safeGoal) * 100));
     const strokeDashoffset = circumference - (percent / 100) * circumference;
 
     return (
-        <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col items-center justify-center">
+        <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-6 sm:p-8 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col items-center justify-center">
             <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-6 w-full text-left">Veckomål</h3>
             
-            <div className="relative flex items-center justify-center">
-                <svg className="transform -rotate-90 w-72 h-72">
+            <div className="relative flex items-center justify-center w-full max-w-[300px] aspect-square">
+                <svg className="transform -rotate-90 w-full h-full" viewBox="0 0 300 300">
                     <circle
-                        cx="144"
-                        cy="144"
+                        cx="150"
+                        cy="150"
                         r={radius}
                         stroke="currentColor"
                         strokeWidth="24"
@@ -29,8 +29,8 @@ export const WeeklyGoalRing: React.FC<WeeklyGoalRingProps> = ({ current, goal })
                         className="text-gray-100 dark:text-gray-800"
                     />
                     <circle
-                        cx="144"
-                        cy="144"
+                        cx="150"
+                        cy="150"
                         r={radius}
                         stroke="currentColor"
                         strokeWidth="24"
@@ -42,7 +42,7 @@ export const WeeklyGoalRing: React.FC<WeeklyGoalRingProps> = ({ current, goal })
                     />
                 </svg>
                 <div className="absolute flex flex-col items-center justify-center">
-                    <span className="text-7xl font-black text-gray-900 dark:text-white leading-none mb-2">{safeCurrent}</span>
+                    <span className="text-7xl sm:text-8xl font-black text-gray-900 dark:text-white leading-none mb-2">{safeCurrent}</span>
                     <span className="text-sm font-bold text-gray-400 uppercase tracking-widest">av {safeGoal} pass</span>
                 </div>
             </div>

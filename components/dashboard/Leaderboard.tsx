@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getLeaderboardData, getMembers } from '../../services/firebaseService';
-import { TrophyIcon, FireIcon } from '@heroicons/react/24/solid';
+import { TrophyIcon, FireIcon, ChartBarIcon } from '@heroicons/react/24/solid';
 
 interface LeaderboardProps {
     organizationId: string;
@@ -9,6 +9,7 @@ interface LeaderboardProps {
 export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
     const [leaderboard, setLeaderboard] = useState<{ memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]>([]);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<'workouts' | 'pbs'>('workouts');
 
     useEffect(() => {
         const fetchLeaderboard = async () => {
@@ -25,7 +26,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                 );
 
                 const filteredData = data.filter(d => !optedOutMemberIds.has(d.memberId));
-                setLeaderboard(filteredData.slice(0, 10)); // Top 10
+                setLeaderboard(filteredData);
             } catch (error) {
                 console.error("Failed to fetch leaderboard", error);
             } finally {
@@ -46,17 +47,43 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
         );
     }
 
+    const sortedData = [...leaderboard].sort((a, b) => activeTab === 'workouts' ? b.count - a.count : b.pbs - a.pbs);
+    const displayData = (activeTab === 'pbs' ? sortedData.filter(u => u.pbs > 0) : sortedData).slice(0, 10);
+
     return (
         <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-800">
-            <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2 mb-4">
-                <TrophyIcon className="w-5 h-5 text-yellow-500" /> Veckans Topplista
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
+                    <TrophyIcon className="w-5 h-5 text-yellow-500" /> Veckans Topplista
+                </h3>
+            </div>
+
+            <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mb-4">
+                <button
+                    onClick={() => setActiveTab('workouts')}
+                    className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${
+                        activeTab === 'workouts' ? 'bg-white dark:bg-gray-700 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
+                >
+                    <ChartBarIcon className="w-4 h-4" /> Pass
+                </button>
+                <button
+                    onClick={() => setActiveTab('pbs')}
+                    className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 ${
+                        activeTab === 'pbs' ? 'bg-white dark:bg-gray-700 text-orange-500 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                    }`}
+                >
+                    <FireIcon className="w-4 h-4" /> PR
+                </button>
+            </div>
             
-            {leaderboard.length === 0 ? (
-                <p className="text-sm text-gray-500 text-center py-4">Inga pass loggade denna vecka än.</p>
+            {displayData.length === 0 ? (
+                <p className="text-sm text-gray-500 text-center py-4">
+                    {activeTab === 'workouts' ? 'Inga pass loggade denna vecka än.' : 'Inga personbästan satta denna vecka än.'}
+                </p>
             ) : (
                 <div className="space-y-3">
-                    {leaderboard.map((user, index) => (
+                    {displayData.map((user, index) => (
                         <div key={user.memberId} className="flex items-center justify-between bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl">
                             <div className="flex items-center gap-3">
                                 <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black
@@ -76,14 +103,22 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                                 <span className="font-bold text-sm text-gray-900 dark:text-white">{user.name}</span>
                             </div>
                             <div className="flex items-center gap-3">
-                                {user.pbs > 0 && (
-                                    <div className="flex items-center gap-1 text-xs font-bold text-orange-500">
-                                        <FireIcon className="w-3 h-3" /> {user.pbs} PR
+                                {activeTab === 'workouts' ? (
+                                    <>
+                                        {user.pbs > 0 && (
+                                            <div className="flex items-center gap-1 text-xs font-bold text-orange-500">
+                                                <FireIcon className="w-3 h-3" /> {user.pbs} PR
+                                            </div>
+                                        )}
+                                        <div className="text-sm font-black text-primary bg-primary/10 px-2 py-1 rounded-lg">
+                                            {user.count} pass
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="flex items-center gap-1 text-sm font-black text-orange-500 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded-lg">
+                                        <FireIcon className="w-4 h-4" /> {user.pbs} PR
                                     </div>
                                 )}
-                                <div className="text-sm font-black text-primary bg-primary/10 px-2 py-1 rounded-lg">
-                                    {user.count} pass
-                                </div>
                             </div>
                         </div>
                     ))}
