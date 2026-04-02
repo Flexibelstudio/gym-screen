@@ -636,6 +636,8 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
       const orgQuery = await db.collection('organizations').where('stripeCustomerId', '==', customerId).limit(1).get();
       if (!orgQuery.empty) {
         const orgId = orgQuery.docs[0].id;
+        const isPaid = status === 'active' || status === 'trialing';
+        
         if (status === 'canceled') {
            await db.collection('organizations').doc(orgId).update({
              stripeSubscriptionId: admin.firestore.FieldValue.delete(),
@@ -645,10 +647,37 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
         } else {
            await db.collection('organizations').doc(orgId).update({
              stripeSubscriptionId: subscription.id,
-             systemFeePaid: true
+             systemFeePaid: isPaid
            });
-           console.log(`Uppdaterade prenumerations-ID för org ${orgId}`);
+           console.log(`Uppdaterade prenumerations-ID för org ${orgId}, systemFeePaid=${isPaid}`);
         }
+      }
+    }
+
+    if (event.type === 'invoice.payment_failed') {
+      const invoice = event.data.object;
+      const customerId = invoice.customer;
+      
+      const db = admin.firestore();
+      
+      // Stäng av användare direkt vid misslyckad betalning
+      const userQuery = await db.collection('users').where('stripeCustomerId', '==', customerId).limit(1).get();
+      if (!userQuery.empty) {
+        const userId = userQuery.docs[0].id;
+        await db.collection('users').doc(userId).update({
+          subscriptionStatus: 'inactive'
+        });
+        console.log(`Betalning misslyckades. Satte prenumerationsstatus för användare ${userId} till inactive`);
+      }
+
+      // Stäng av organisation direkt vid misslyckad betalning
+      const orgQuery = await db.collection('organizations').where('stripeCustomerId', '==', customerId).limit(1).get();
+      if (!orgQuery.empty) {
+        const orgId = orgQuery.docs[0].id;
+        await db.collection('organizations').doc(orgId).update({
+          systemFeePaid: false
+        });
+        console.log(`Betalning misslyckades. Satte systemFeePaid=false för org ${orgId}`);
       }
     }
 
