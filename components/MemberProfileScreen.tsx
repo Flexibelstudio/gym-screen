@@ -600,25 +600,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             )}
 
             {/* Header section */}
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-4">
-                     <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xl font-black overflow-hidden border border-primary/20 shadow-sm">
-                        {photoUrl ? <img src={photoUrl} className="w-full h-full object-cover" alt="Profil" /> : (userData.firstName?.[0] || userData.email?.[0].toUpperCase())}
-                    </div>
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">{userData.firstName} {userData.lastName}</h2>
-                            <span className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded">BETA</span>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Nivå {level}</span>
-                            <div className="w-20 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                                <div className="h-full bg-primary" style={{ width: `${progressToNext}%` }}></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+            <div className="flex items-center justify-end mb-8">
                 <button
                     onClick={() => setIsMyStrengthVisible(true)}
                     className="flex flex-col items-center gap-1 group transition-all"
@@ -630,14 +612,11 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 </button>
             </div>
 
-
-
             {/* --- FLIKAR --- */}
             <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full mb-8">
                 {[
                     { id: 'overview', label: 'Översikt', icon: ChartBarIcon },
-                    { id: 'benchmarks', label: 'Benchmarks', icon: TrophyIcon },
-                    { id: 'history', label: 'Historik', icon: HistoryIcon }
+                    { id: 'benchmarks', label: 'Benchmarks', icon: TrophyIcon }
                 ].map(tab => (
                     <button
                         key={tab.id}
@@ -817,59 +796,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         definitions={selectedOrganization.benchmarkDefinitions || []} 
                     />
                 )
-            )}
-
-            {activeTab === 'history' && (
-                <div className="animate-fade-in">
-                    {/* Latest workouts section - villkorligt styrt av enableWorkoutLogging */}
-                    {studioConfig.enableWorkoutLogging && (
-                        <div className="bg-white dark:bg-gray-900 rounded-[2rem] shadow-xl border border-gray-100 dark:border-gray-800 overflow-hidden">
-                            <div className="p-5 sm:p-8 border-b border-gray-100 dark:border-gray-700 flex justify-between items-center bg-gray-50/30 dark:bg-gray-900/50">
-                                <h3 className="font-black text-xl text-gray-900 dark:text-white uppercase tracking-tight">Loggade Pass</h3>
-                                <span className="text-[10px] font-bold text-gray-300 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded uppercase">{logs.length} st</span>
-                            </div>
-                            <div className="divide-y divide-gray-100 dark:divide-gray-800 max-h-[500px] overflow-y-auto">
-                                {loading ? (
-                                    <div className="p-12 text-center flex flex-col items-center">
-                                        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mb-3"></div>
-                                        <p className="text-gray-400 font-bold text-xs uppercase tracking-widest">Hämtar historik...</p>
-                                    </div>
-                                ) : logs.length === 0 ? (
-                                    <div className="p-12 text-center">
-                                        <div className="w-16 h-16 bg-gray-50 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300"><DumbbellIcon className="w-8 h-8" /></div>
-                                        <p className="text-gray-900 dark:text-white font-black text-lg mb-2">Inga loggade pass än.</p>
-                                        <p className="text-sm text-gray-500 max-w-xs mx-auto">Kör ett pass och logga det via QR-koden på skärmen för att se din historik här!</p>
-                                    </div>
-                                ) : (
-                                    logs.map(log => (
-                                        <button key={log.id} onClick={() => setSelectedLog(log)} className="w-full text-left p-4 sm:p-6 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all flex justify-between items-center group">
-                                            <div className="min-w-0 pr-4">
-                                                <p className="font-black text-gray-900 dark:text-white text-lg group-hover:text-primary transition-colors truncate">{log.workoutTitle}</p>
-                                                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">{new Date(log.date).toLocaleDateString('sv-SE', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-                                            </div>
-                                            <div className="flex gap-3 items-center flex-shrink-0">
-                                                {log.diploma && (
-                                                    <button 
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setViewingDiploma(log.diploma!);
-                                                        }}
-                                                        className="w-8 h-8 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex items-center justify-center text-yellow-600 dark:text-yellow-400 hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-colors shadow-sm"
-                                                        title="Visa Diplom"
-                                                    >
-                                                        <TrophyIcon className="w-4 h-4" />
-                                                    </button>
-                                                )}
-                                                {log.rpe && <div className="flex flex-col items-center"><span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">RPE</span><span className="bg-primary/10 text-primary text-sm px-3 py-1 rounded-full font-black border border-primary/20">{log.rpe}</span></div>}
-                                                <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-300 dark:text-gray-600 group-hover:bg-primary group-hover:text-white transition-all"><span className="text-xl">→</span></div>
-                                            </div>
-                                        </button>
-                                    ))
-                                )}
-                            </div>
-                        </div>
-                    )}
-                </div>
             )}
 
             {isEditingGoals && <GoalsEditModal currentGoals={userData.goals} onSave={handleSaveGoals} onClose={() => setIsEditingGoals(false)} />}
