@@ -616,31 +616,28 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             </div>
 
             {/* --- FLIKAR --- */}
-            <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full mb-8 sticky top-4 z-10 shadow-sm">
-                {[
-                    { id: 'overview', label: 'Översikt', icon: ChartBarIcon },
-                    { id: 'goals', label: 'Mål', icon: Target },
-                    { id: 'strength', label: 'Styrka', icon: TrophyIcon },
-                    { id: 'benchmarks', label: 'Benchmarks', icon: StarIcon }
-                ].map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => {
-                            setActiveTab(tab.id as any);
-                            if (tab.id === 'goals') {
-                                setIsEditingGoals(true);
-                            }
-                        }}
-                        className={`flex-1 flex items-center justify-center gap-2 px-2 sm:px-4 py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all ${
-                            activeTab === tab.id 
-                            ? 'bg-white dark:bg-gray-700 text-primary shadow-md' 
-                            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                        }`}
-                    >
-                        <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-primary' : 'text-gray-400'}`} />
-                        <span className="hidden sm:inline">{tab.label}</span>
-                    </button>
-                ))}
+            <div className="sticky top-0 z-40 bg-white dark:bg-black pt-2 pb-4 -mx-1 px-1 sm:-mx-6 sm:px-6">
+                <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full shadow-sm">
+                    {[
+                        { id: 'overview', label: 'Översikt', icon: ChartBarIcon },
+                        { id: 'goals', label: 'Mål', icon: Target },
+                        { id: 'strength', label: 'Styrka', icon: TrophyIcon },
+                        { id: 'benchmarks', label: 'Benchmarks', icon: StarIcon }
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id as any)}
+                            className={`flex-1 flex items-center justify-center gap-2 px-2 sm:px-4 py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all ${
+                                activeTab === tab.id 
+                                ? 'bg-white dark:bg-gray-700 text-primary shadow-md' 
+                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                            }`}
+                        >
+                            <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-primary' : 'text-gray-400'}`} />
+                            <span className="hidden sm:inline">{tab.label}</span>
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* --- FLIKINNEHÅLL --- */}

@@ -14,10 +14,10 @@ export const WeeklyGoalRing: React.FC<WeeklyGoalRingProps> = ({ current, goal })
     const strokeDashoffset = circumference - (percent / 100) * circumference;
 
     return (
-        <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-6 sm:p-8 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col items-center justify-center">
-            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-6 w-full text-left">Veckomål</h3>
+        <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-4 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col items-center justify-center">
+            <h3 className="text-sm font-black text-gray-400 uppercase tracking-widest mb-2 w-full text-left">Veckomål</h3>
             
-            <div className="relative flex items-center justify-center w-full max-w-[400px] aspect-square">
+            <div className="relative flex items-center justify-center w-full max-w-[320px] aspect-square">
                 <svg className="transform -rotate-90 w-full h-full" viewBox="0 0 400 400">
                     <circle
                         cx="200"
@@ -42,14 +42,13 @@ export const WeeklyGoalRing: React.FC<WeeklyGoalRingProps> = ({ current, goal })
                     />
                 </svg>
                 <div className="absolute flex flex-col items-center justify-center">
-                    <span className="text-8xl sm:text-9xl font-black text-gray-900 dark:text-white leading-none mb-2">{safeCurrent}</span>
-                    <span className="text-base font-bold text-gray-400 uppercase tracking-widest">av {safeGoal} pass</span>
+                    <span className="text-8xl sm:text-9xl font-black text-gray-900 dark:text-white leading-none mb-1">{safeCurrent}</span>
+                    <span className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">av {safeGoal} pass</span>
+                    <span className="text-xs font-bold text-gray-500 text-center">
+                        {safeCurrent >= safeGoal ? 'Målet nått! 🔥' : `${safeGoal - safeCurrent} pass kvar`}
+                    </span>
                 </div>
             </div>
-            
-            <p className="text-sm font-bold text-gray-500 mt-8 text-center">
-                {safeCurrent >= safeGoal ? 'Målet nått! Grymt jobbat! 🔥' : `${safeGoal - safeCurrent} pass kvar till målet.`}
-            </p>
         </div>
     );
 };
