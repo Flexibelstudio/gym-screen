@@ -13,8 +13,22 @@ export const BirthDatePromptModal: React.FC<BirthDatePromptModalProps> = ({ isOp
     const [birthDate, setBirthDate] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let v = e.target.value.replace(/\D/g, '');
+        if (v.length > 8) v = v.slice(0, 8);
+        if (v.length > 6) {
+            v = `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6)}`;
+        } else if (v.length > 4) {
+            v = `${v.slice(0, 4)}-${v.slice(4)}`;
+        }
+        setBirthDate(v);
+    };
+
     const handleSave = async () => {
-        if (!birthDate) return;
+        if (birthDate.length !== 10) {
+            alert("Vänligen ange ett fullständigt datum (ÅÅÅÅ-MM-DD).");
+            return;
+        }
         setIsSaving(true);
         try {
             await updateUserProfile(userData.uid, { birthDate });
@@ -41,10 +55,12 @@ export const BirthDatePromptModal: React.FC<BirthDatePromptModalProps> = ({ isOp
                 <div className="text-left mt-6">
                     <label className="block text-[10px] font-black text-gray-500 uppercase mb-2 tracking-widest ml-1">Födelsedatum</label>
                     <input
-                        type="date"
+                        type="tel"
+                        placeholder="ÅÅÅÅ-MM-DD"
+                        maxLength={10}
                         value={birthDate}
-                        onChange={(e) => setBirthDate(e.target.value)}
-                        className="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white p-4 rounded-2xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition-all shadow-sm font-bold [color-scheme:light] dark:[color-scheme:dark]"
+                        onChange={handleDateChange}
+                        className="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white p-4 rounded-2xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition-all shadow-sm font-bold"
                     />
                 </div>
 

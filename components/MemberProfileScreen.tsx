@@ -300,6 +300,17 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let v = e.target.value.replace(/\D/g, '');
+        if (v.length > 8) v = v.slice(0, 8);
+        if (v.length > 6) {
+            v = `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6)}`;
+        } else if (v.length > 4) {
+            v = `${v.slice(0, 4)}-${v.slice(4)}`;
+        }
+        setBirthDate(v);
+    };
+
     // --- STRIPE PAYWALL LOGIC ---
     const hasActiveSubscription = 
         userData.role === 'systemowner' || 
@@ -372,6 +383,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     };
 
     const handleSaveProfile = async () => {
+        if (birthDate && birthDate.length !== 10) {
+            alert("Vänligen ange ett fullständigt födelsedatum (ÅÅÅÅ-MM-DD).");
+            return;
+        }
         setIsSaving(true);
         try {
             await updateUserProfile(userData.uid, {
@@ -500,7 +515,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Födelsedatum</label>
-                            <input type="date" value={birthDate} onChange={e => setBirthDate(e.target.value)} className="w-full bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm font-bold [color-scheme:light] dark:[color-scheme:dark]" />
+                            <input type="tel" placeholder="ÅÅÅÅ-MM-DD" maxLength={10} value={birthDate} onChange={handleDateChange} className="w-full bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm font-bold" />
                         </div>
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Kön</label>
