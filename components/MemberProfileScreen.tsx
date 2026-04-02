@@ -586,16 +586,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 </button>
             </div>
 
-            {/* Beta Banner */}
-            <div className="mb-8 bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/30 rounded-2xl p-4 sm:p-5 flex items-start gap-3 sm:gap-4 shadow-sm">
-                <div className="text-2xl sm:text-3xl mt-0.5">👋</div>
-                <div>
-                    <h3 className="text-sm font-black text-purple-900 dark:text-purple-300 uppercase tracking-widest mb-1">Välkommen till vår Beta!</h3>
-                    <p className="text-xs sm:text-sm text-purple-800 dark:text-purple-400 font-medium leading-relaxed">
-                        Du är en av de första som testar vår nya medlemsapp. Vi utvecklar ständigt nya funktioner – hittat en bugg eller saknar du något? Säg till personalen!
-                    </p>
-                </div>
-            </div>
+
 
             {/* --- FLIKAR --- */}
             <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full mb-8">
