@@ -376,6 +376,10 @@ export interface UserData {
   
   // Subscription / Payment fields
   subscriptionStatus?: 'active' | 'inactive' | 'trialing' | 'past_due' | 'canceled';
+  
+  // Dashboard & Gamification
+  weeklyGoal?: number;
+  showOnLeaderboard?: boolean;
 }
 
 export interface SmartGoalDetail {
