@@ -1248,53 +1248,61 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                     <div className="mt-8 mb-6 bg-white dark:bg-gray-900 p-5 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className={`block text-11px font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'time' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                                <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'time' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
                                     Tid (min)
                                     {benchmarkDefinition?.type === 'time' && prevBenchmarkBest && (
                                         <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'time')}</span>
                                     )}
                                 </label>
-                                <TimeInput
-                                    value={sessionStats.time}
-                                    onChange={(val) => setSessionStats(prev => ({ ...prev, time: val }))}
-                                    placeholder={benchmarkDefinition?.type === 'time' ? "45" : "-"}
-                                    className="w-full"
-                                />
+                                <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'time' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
+                                    <TimeInput
+                                        value={sessionStats.time}
+                                        onChange={(val) => setSessionStats(prev => ({ ...prev, time: val }))}
+                                        placeholder={benchmarkDefinition?.type === 'time' ? "45" : "-"}
+                                        className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                    />
+                                </div>
                             </div>
                             <div>
-                                <label className={`block text-11px font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'reps' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                                <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'reps' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
                                     Varv / Reps
                                     {benchmarkDefinition?.type === 'reps' && prevBenchmarkBest && (
                                         <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'reps')}</span>
                                     )}
                                 </label>
-                                <input 
-                                    type="number"
-                                    value={sessionStats.rounds}
-                                    onChange={(e) => setSessionStats(prev => ({ ...prev, rounds: e.target.value }))}
-                                    placeholder={benchmarkDefinition?.type === 'reps' ? "T.ex. 5" : "-"}
-                                    className={`w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border transition-colors ${benchmarkDefinition?.type === 'reps' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}
-                                />
+                                <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'reps' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
+                                    <input 
+                                        type="number"
+                                        value={sessionStats.rounds}
+                                        onChange={(e) => setSessionStats(prev => ({ ...prev, rounds: e.target.value }))}
+                                        placeholder={benchmarkDefinition?.type === 'reps' ? "T.ex. 5" : "-"}
+                                        className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                    />
+                                </div>
                             </div>
                             <div>
-                                <label className="block text-11px font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">kcal</label>
-                                <input 
-                                    type="number"
-                                    value={sessionStats.calories}
-                                    onChange={(e) => setSessionStats(prev => ({ ...prev, calories: e.target.value }))}
-                                    placeholder="T.ex. 350"
-                                    className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700"
-                                />
+                                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">kcal</label>
+                                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                    <input 
+                                        type="number"
+                                        value={sessionStats.calories}
+                                        onChange={(e) => setSessionStats(prev => ({ ...prev, calories: e.target.value }))}
+                                        placeholder="T.ex. 350"
+                                        className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                    />
+                                </div>
                             </div>
                             <div>
-                                <label className="block text-11px font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">km</label>
-                                <input 
-                                    type="number"
-                                    value={sessionStats.distance}
-                                    onChange={(e) => setSessionStats(prev => ({ ...prev, distance: e.target.value }))}
-                                    placeholder="T.ex. 5.3"
-                                    className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700"
-                                />
+                                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">km</label>
+                                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                    <input 
+                                        type="number"
+                                        value={sessionStats.distance}
+                                        onChange={(e) => setSessionStats(prev => ({ ...prev, distance: e.target.value }))}
+                                        placeholder="T.ex. 5.3"
+                                        className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
