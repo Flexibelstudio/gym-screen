@@ -7,6 +7,7 @@ import { playTimerSound, playTada } from '../../hooks/useWorkoutTimer';
 import { WorkoutCompleteModal } from '../WorkoutCompleteModal';
 import { MOCK_EXERCISE_BANK } from '../../data/mockData';
 import { JokerEvent, getRandomJoker } from '../../data/jokers';
+import { ManualExerciseTimer } from '../ManualExerciseTimer';
 
 interface DeckOfCardsGameProps {
     onBack: () => void;
@@ -126,22 +127,6 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
         }
         return () => clearInterval(interval);
     }, [isTimerRunning, timeLeft]);
-
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (jokerTimeLeft !== null && jokerTimeLeft > 0) {
-            interval = setInterval(() => {
-                setJokerTimeLeft(prev => {
-                    if (prev && prev <= 1) {
-                        playTimerSound(studioConfig?.soundProfile || 'airhorn', 1);
-                        return 0;
-                    }
-                    return prev ? prev - 1 : 0;
-                });
-            }, 1000);
-        }
-        return () => clearInterval(interval);
-    }, [jokerTimeLeft, studioConfig?.soundProfile]);
 
     const getExerciseForSuit = (suit: Suit) => {
         if (difficulty === 'custom') {
@@ -460,17 +445,16 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                         <div className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl select-none text-[6rem] sm:text-[8rem] md:text-[10rem] text-primary relative z-10">
                             {formatTime(timeLeft)}
                         </div>
-                        <div className={`flex gap-4 mt-8 relative z-10 transition-opacity duration-300 ${isTimerRunning ? (showTimerControls ? 'opacity-100' : 'opacity-0 group-hover:opacity-100') : 'opacity-100'}`}>
+                        <div className={`flex gap-4 mt-8 relative z-10 transition-opacity duration-300 ${!hasStartedTimer ? 'opacity-0 pointer-events-none' : isTimerRunning ? (showTimerControls ? 'opacity-100' : 'opacity-0 group-hover:opacity-100') : 'opacity-100'}`}>
                             <button 
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    if (!hasStartedTimer) setHasStartedTimer(true);
                                     setIsTimerRunning(!isTimerRunning);
                                     setShowTimerControls(false);
                                 }}
                                 className={`px-10 py-4 text-white rounded-2xl font-black text-xl uppercase tracking-widest shadow-lg transition-transform active:scale-95 ${isTimerRunning ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-500 hover:bg-green-600'}`}
                             >
-                                {!hasStartedTimer ? 'Starta Timer' : isTimerRunning ? 'Pausa' : 'Fortsätt'}
+                                {isTimerRunning ? 'Pausa' : 'Fortsätt'}
                             </button>
                         </div>
                     </div>
@@ -487,6 +471,10 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                                 if (isGoalReached) {
                                     handleFinishGame();
                                 } else {
+                                    if (goalType === 'time' && (!hasStartedTimer || !isTimerRunning)) {
+                                        setIsTimerRunning(true);
+                                        setHasStartedTimer(true);
+                                    }
                                     drawCard();
                                 }
                             }}
@@ -546,8 +534,8 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                                                 {activeJokerEvent?.description}
                                             </p>
                                             {jokerTimeLeft !== null && (
-                                                <div className={`text-5xl font-mono font-black tabular-nums ${jokerTimeLeft === 0 ? 'text-red-400 animate-pulse' : 'text-white'}`}>
-                                                    {formatTime(jokerTimeLeft)}
+                                                <div className="mt-4">
+                                                    <ManualExerciseTimer duration={jokerTimeLeft} />
                                                 </div>
                                             )}
                                         </div>

@@ -3,8 +3,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useStudio } from '../../context/StudioContext';
 import { ChevronLeftIcon, SettingsIcon, SlotMachineIcon } from '../icons';
 import { sounds } from '../../utils/sounds';
-import { playTimerSound, playTada } from '../../hooks/useWorkoutTimer';
 import confetti from 'canvas-confetti';
+import { ManualExerciseTimer } from '../ManualExerciseTimer';
+
+const extractTimeFromExercise = (amount: string): number | null => {
+    const sekMatch = amount.match(/(\d+)\s*sek/i);
+    if (sekMatch) {
+        return parseInt(sekMatch[1], 10);
+    }
+    const minMatch = amount.match(/(\d+)\s*min/i);
+    if (minMatch) {
+        return parseInt(minMatch[1], 10) * 60;
+    }
+    return null;
+};
 
 interface SlotMachineGameProps {
     onBack: () => void;
@@ -58,54 +70,6 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
     const [results, setResults] = useState<[string, string, string]>(['', '', '']);
     const [showResult, setShowResult] = useState(false);
 
-    const [goalType, setGoalType] = useState<'free' | 'time' | 'spins'>('free');
-    const [goalValue, setGoalValue] = useState<number>(10);
-    const [spinsCount, setSpinsCount] = useState<number>(0);
-    
-    // Timer state
-    const [timeLeft, setTimeLeft] = useState<number>(0);
-    const [isTimerRunning, setIsTimerRunning] = useState(false);
-    const [hasStartedTimer, setHasStartedTimer] = useState(false);
-    const [showTimerControls, setShowTimerControls] = useState(false);
-
-    const { studioConfig } = useStudio();
-
-    useEffect(() => {
-        if (showTimerControls) {
-            const timer = setTimeout(() => setShowTimerControls(false), 3000);
-            return () => clearTimeout(timer);
-        }
-    }, [showTimerControls]);
-
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (isTimerRunning && timeLeft > 0) {
-            interval = setInterval(() => {
-                setTimeLeft(prev => {
-                    if (prev <= 1) {
-                        setIsTimerRunning(false);
-                        return 0;
-                    }
-                    return prev - 1;
-                });
-            }, 1000);
-        }
-        return () => clearInterval(interval);
-    }, [isTimerRunning, timeLeft]);
-
-    const formatTime = (seconds: number) => {
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
-        return `${m}:${s.toString().padStart(2, '0')}`;
-    };
-
-    const isGoalReached = () => {
-        if (goalType === 'free') return false;
-        if (goalType === 'spins') return spinsCount >= goalValue;
-        if (goalType === 'time') return hasStartedTimer && timeLeft === 0;
-        return false;
-    };
-
     const activeExercises = difficulty === 'custom' 
         ? customExercises.filter(ex => ex.trim() !== '')
         : PRESET_EXERCISES[difficulty];
@@ -115,14 +79,6 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
             alert('Vänligen fyll i minst 3 övningar.');
             return;
         }
-        
-        if (goalType === 'time') {
-            setTimeLeft(goalValue * 60);
-        }
-        setSpinsCount(0);
-        setHasStartedTimer(false);
-        setIsTimerRunning(false);
-
         setGameState('playing');
         setShowResult(false);
         // Set initial random results to display before first spin
@@ -133,25 +89,11 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
         ]);
     };
 
-    const handleFinishGame = () => {
-        playTada(studioConfig?.soundProfile || 'airhorn', 1);
-        confetti({
-            particleCount: 150,
-            spread: 100,
-            origin: { y: 0.5 },
-            colors: ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6']
-        });
-        setTimeout(() => {
-            setGameState('setup');
-        }, 3000);
-    };
-
     const spin = () => {
-        if (isSpinning || isGoalReached()) return;
+        if (isSpinning) return;
         sounds.mechanicalSpin(2500);
         setIsSpinning(true);
         setShowResult(false);
-        setSpinsCount(prev => prev + 1);
 
         const newResults: [string, string, string] = [
             activeExercises[Math.floor(Math.random() * activeExercises.length)],
@@ -252,60 +194,6 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
                         </div>
                     )}
 
-                    {/* Goal Type */}
-                    <div className="mb-8">
-                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 uppercase tracking-tight">Mål</h3>
-                        <div className="grid grid-cols-3 gap-4">
-                            <button
-                                onClick={() => setGoalType('free')}
-                                className={`py-4 rounded-xl font-bold uppercase tracking-wider transition-all border-2 ${
-                                    goalType === 'free' 
-                                        ? 'border-primary bg-primary/10 text-primary' 
-                                        : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'
-                                }`}
-                            >
-                                Fritt
-                            </button>
-                            <button
-                                onClick={() => setGoalType('time')}
-                                className={`py-4 rounded-xl font-bold uppercase tracking-wider transition-all border-2 ${
-                                    goalType === 'time' 
-                                        ? 'border-primary bg-primary/10 text-primary' 
-                                        : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'
-                                }`}
-                            >
-                                På tid
-                            </button>
-                            <button
-                                onClick={() => setGoalType('spins')}
-                                className={`py-4 rounded-xl font-bold uppercase tracking-wider transition-all border-2 ${
-                                    goalType === 'spins' 
-                                        ? 'border-primary bg-primary/10 text-primary' 
-                                        : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:border-primary/50'
-                                }`}
-                            >
-                                Antal drag
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Goal Value Input */}
-                    {goalType !== 'free' && (
-                        <div className="animate-fade-in mb-8">
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 uppercase tracking-tight">
-                                {goalType === 'time' ? 'Tid (minuter)' : 'Antal drag'}
-                            </h3>
-                            <input
-                                type="number"
-                                min="1"
-                                max="100"
-                                value={goalValue}
-                                onChange={(e) => setGoalValue(Math.max(1, parseInt(e.target.value) || 1))}
-                                className="w-full p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-bold text-xl focus:border-primary focus:ring-0 outline-none"
-                            />
-                        </div>
-                    )}
-
                     <button
                         onClick={handleStart}
                         className="w-full py-5 bg-primary hover:bg-primary/90 text-white rounded-2xl font-black text-xl uppercase tracking-widest shadow-lg transition-transform active:scale-95"
@@ -325,12 +213,7 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
                         Enarmad Bandit
                     </h2>
                     <p className="text-xl text-gray-500 dark:text-gray-400 font-medium mt-2">
-                        {goalType === 'free' 
-                            ? 'Dra i spaken för nästa utmaning!' 
-                            : goalType === 'time' 
-                                ? 'Kör så många du hinner!' 
-                                : `Drag ${spinsCount} av ${goalValue}`
-                        }
+                        Dra i spaken för nästa utmaning!
                     </p>
                 </div>
                 <button
@@ -341,34 +224,8 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
                 </button>
             </div>
 
-            {goalType === 'time' && (
-                <div className="flex flex-col items-center justify-center mb-4 z-10 mt-8">
-                    <div 
-                        className="flex flex-col items-center justify-center relative group cursor-pointer"
-                        onClick={() => setShowTimerControls(true)}
-                    >
-                        <div className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl select-none text-[6rem] sm:text-[8rem] md:text-[10rem] text-primary relative z-10">
-                            {formatTime(timeLeft)}
-                        </div>
-                        <div className={`flex gap-4 mt-8 relative z-10 transition-opacity duration-300 ${isTimerRunning ? (showTimerControls ? 'opacity-100' : 'opacity-0 group-hover:opacity-100') : 'opacity-100'}`}>
-                            <button 
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (!hasStartedTimer) setHasStartedTimer(true);
-                                    setIsTimerRunning(!isTimerRunning);
-                                    setShowTimerControls(false);
-                                }}
-                                className={`px-10 py-4 text-white rounded-2xl font-black text-xl uppercase tracking-widest shadow-lg transition-transform active:scale-95 ${isTimerRunning ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-500 hover:bg-green-600'}`}
-                            >
-                                {!hasStartedTimer ? 'Starta Timer' : isTimerRunning ? 'Pausa' : 'Fortsätt'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
             {/* Slot Machine Container */}
-            <div className={`w-full max-w-4xl bg-gray-900 rounded-[3rem] p-4 md:p-8 shadow-2xl border-8 border-gray-800 relative ${goalType === 'time' ? 'mt-8' : 'mt-16 md:mt-20'} mb-12 z-10 mr-10 ml-2 md:mx-0`}>
+            <div className="w-full max-w-4xl bg-gray-900 rounded-[3rem] p-4 md:p-8 shadow-2xl border-8 border-gray-800 relative mt-16 md:mt-20 mb-12 z-10 mr-10 ml-2 md:mx-0">
                 {/* Top decoration */}
                 <div className="absolute -top-10 left-1/2 -translate-x-1/2 min-w-48 px-8 h-20 bg-gray-800 rounded-full shadow-[0_0_20px_rgba(255,255,255,0.1)] border-4 border-gray-700 flex items-center justify-center overflow-hidden z-20">
                     {logoUrl ? (
@@ -445,26 +302,15 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
                             <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest mb-4">
                                 Din utmaning:
                             </p>
-                            <div className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white drop-shadow-sm leading-tight mb-8">
+                            <div className="text-3xl md:text-4xl font-black text-gray-900 dark:text-white drop-shadow-sm leading-tight mb-6">
                                 Gör <span className="text-green-500">{results[1]}</span> <span className="text-blue-500">{results[0]}</span>
                                 <br/>
                                 <span className="text-purple-500 text-2xl md:text-3xl mt-2 block">({results[2]})</span>
                             </div>
-                            
-                            {!isGoalReached() ? (
-                                <button
-                                    onClick={spin}
-                                    className="px-10 py-4 bg-primary hover:bg-primary/90 text-white rounded-2xl font-black text-xl uppercase tracking-widest shadow-lg transition-transform active:scale-95 hover:-translate-y-1"
-                                >
-                                    Snurra Igen!
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={handleFinishGame}
-                                    className="px-10 py-4 bg-green-500 hover:bg-green-600 text-white rounded-2xl font-black text-xl uppercase tracking-widest shadow-lg transition-transform active:scale-95 hover:-translate-y-1"
-                                >
-                                    Klar!
-                                </button>
+                            {extractTimeFromExercise(results[1]) !== null && (
+                                <div className="mt-6 bg-gray-900 rounded-3xl p-6">
+                                    <ManualExerciseTimer duration={extractTimeFromExercise(results[1])!} />
+                                </div>
                             )}
                         </motion.div>
                     )}

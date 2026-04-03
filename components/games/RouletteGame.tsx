@@ -6,6 +6,19 @@ import { sounds } from '../../utils/sounds';
 import { playTimerSound, playTada } from '../../hooks/useWorkoutTimer';
 import { MOCK_EXERCISE_BANK } from '../../data/mockData';
 import { JokerEvent, getRandomJoker } from '../../data/jokers';
+import { ManualExerciseTimer } from '../ManualExerciseTimer';
+
+const extractTimeFromExercise = (exercise: string): number | null => {
+    const sekMatch = exercise.match(/(\d+)\s*sek/i);
+    if (sekMatch) {
+        return parseInt(sekMatch[1], 10);
+    }
+    const minMatch = exercise.match(/(\d+)\s*min/i);
+    if (minMatch) {
+        return parseInt(minMatch[1], 10) * 60;
+    }
+    return null;
+};
 
 interface RouletteGameProps {
     onBack: () => void;
@@ -131,22 +144,6 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
         return () => clearInterval(interval);
     }, [isTimerRunning, timeLeft]);
 
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (jokerTimeLeft !== null && jokerTimeLeft > 0) {
-            interval = setInterval(() => {
-                setJokerTimeLeft(prev => {
-                    if (prev && prev <= 1) {
-                        playTimerSound(studioConfig?.soundProfile || 'airhorn', 1);
-                        return 0;
-                    }
-                    return prev ? prev - 1 : 0;
-                });
-            }, 1000);
-        }
-        return () => clearInterval(interval);
-    }, [jokerTimeLeft, studioConfig?.soundProfile]);
-
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60);
         const s = seconds % 60;
@@ -193,6 +190,11 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
         sounds.mechanicalSpin(3000);
         const slices = getActiveSlices();
         if (slices.length === 0) return;
+
+        if (goalType === 'time' && (!hasStartedTimer || !isTimerRunning)) {
+            setIsTimerRunning(true);
+            setHasStartedTimer(true);
+        }
 
         setIsSpinning(true);
         setShowResult(false);
@@ -556,17 +558,16 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                         <div className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl select-none text-[6rem] sm:text-[8rem] md:text-[10rem] text-primary relative z-10">
                             {formatTime(timeLeft)}
                         </div>
-                        <div className={`flex gap-4 mt-8 relative z-10 transition-opacity duration-300 ${isTimerRunning ? (showTimerControls ? 'opacity-100' : 'opacity-0 group-hover:opacity-100') : 'opacity-100'}`}>
+                        <div className={`flex gap-4 mt-8 relative z-10 transition-opacity duration-300 ${!hasStartedTimer ? 'opacity-0 pointer-events-none' : isTimerRunning ? (showTimerControls ? 'opacity-100' : 'opacity-0 group-hover:opacity-100') : 'opacity-100'}`}>
                             <button 
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    if (!hasStartedTimer) setHasStartedTimer(true);
                                     setIsTimerRunning(!isTimerRunning);
                                     setShowTimerControls(false);
                                 }}
                                 className={`px-10 py-4 text-white rounded-2xl font-black text-xl uppercase tracking-widest shadow-lg transition-transform active:scale-95 ${isTimerRunning ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-500 hover:bg-green-600'}`}
                             >
-                                {!hasStartedTimer ? 'Starta Timer' : isTimerRunning ? 'Pausa' : 'Fortsätt'}
+                                {isTimerRunning ? 'Pausa' : 'Fortsätt'}
                             </button>
                         </div>
                     </div>
@@ -689,15 +690,20 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                                         <p className="text-4xl md:text-5xl lg:text-6xl font-black drop-shadow-md mb-4">{activeJokerEvent?.title}</p>
                                         <p className="text-xl opacity-90 mb-6">{activeJokerEvent?.description}</p>
                                         {jokerTimeLeft !== null && (
-                                            <div className={`text-6xl font-mono font-black tabular-nums ${jokerTimeLeft === 0 ? 'text-red-400 animate-pulse' : 'text-white'}`}>
-                                                {formatTime(jokerTimeLeft)}
+                                            <div className="mt-4">
+                                                <ManualExerciseTimer duration={jokerTimeLeft} />
                                             </div>
                                         )}
                                     </div>
                                 ) : (
                                     <>
                                         <p className="font-bold uppercase tracking-wider text-lg mb-4 opacity-90">Din utmaning</p>
-                                        <p className="text-5xl md:text-6xl lg:text-7xl font-black drop-shadow-md">{result}</p>
+                                        <p className="text-5xl md:text-6xl lg:text-7xl font-black drop-shadow-md mb-6">{result}</p>
+                                        {extractTimeFromExercise(result) !== null && (
+                                            <div className="mt-4">
+                                                <ManualExerciseTimer duration={extractTimeFromExercise(result)!} />
+                                            </div>
+                                        )}
                                     </>
                                 )}
                             </motion.div>
