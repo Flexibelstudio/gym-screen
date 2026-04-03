@@ -1172,12 +1172,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       <div className="flex-1 overflow-y-auto bg-gray-5 dark:bg-black scrollbar-hide">
           <div className="p-4 sm:p-8 max-w-2xl mx-auto w-full">
               
-              <div className="mb-6 bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/30 rounded-2xl p-4">
-                  <p className="text-sm text-purple-800 dark:text-purple-300 font-medium">
-                      👋 <strong>Detta är en beta-funktion.</strong> Hittat en bugg eller saknar du något? Hör av dig!
-                  </p>
-              </div>
-
               <div className="mb-6">
                   <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Datum</label>
                   <div className="relative">
