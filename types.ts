@@ -467,6 +467,9 @@ export interface WorkoutQRPayload {
 export interface ExerciseSetDetail {
     weight: number | null;
     reps: string | null;
+    time?: number | null;
+    distance?: number | null;
+    kcal?: number | null;
 }
 
 export interface ExerciseResult {
