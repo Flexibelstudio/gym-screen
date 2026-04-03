@@ -460,16 +460,17 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                         <div className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-xl select-none text-[6rem] sm:text-[8rem] md:text-[10rem] text-primary relative z-10">
                             {formatTime(timeLeft)}
                         </div>
-                        <div className={`flex gap-4 mt-8 relative z-10 transition-opacity duration-300 ${!hasStartedTimer ? 'opacity-0 pointer-events-none' : isTimerRunning ? (showTimerControls ? 'opacity-100' : 'opacity-0 group-hover:opacity-100') : 'opacity-100'}`}>
+                        <div className={`flex gap-4 mt-8 relative z-10 transition-opacity duration-300 ${isTimerRunning ? (showTimerControls ? 'opacity-100' : 'opacity-0 group-hover:opacity-100') : 'opacity-100'}`}>
                             <button 
                                 onClick={(e) => {
                                     e.stopPropagation();
+                                    if (!hasStartedTimer) setHasStartedTimer(true);
                                     setIsTimerRunning(!isTimerRunning);
                                     setShowTimerControls(false);
                                 }}
                                 className={`px-10 py-4 text-white rounded-2xl font-black text-xl uppercase tracking-widest shadow-lg transition-transform active:scale-95 ${isTimerRunning ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-green-500 hover:bg-green-600'}`}
                             >
-                                {isTimerRunning ? 'Pausa' : 'Fortsätt'}
+                                {!hasStartedTimer ? 'Starta Timer' : isTimerRunning ? 'Pausa' : 'Fortsätt'}
                             </button>
                         </div>
                     </div>
@@ -486,10 +487,6 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                                 if (isGoalReached) {
                                     handleFinishGame();
                                 } else {
-                                    if (goalType === 'time' && (!hasStartedTimer || !isTimerRunning)) {
-                                        setIsTimerRunning(true);
-                                        setHasStartedTimer(true);
-                                    }
                                     drawCard();
                                 }
                             }}
