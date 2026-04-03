@@ -359,6 +359,14 @@ const PreGameView: React.FC<{
     );
 };
 
+const GROUP_COLORS = [
+    { bg: 'bg-blue-500', border: 'border-blue-500', text: 'text-blue-500', lightBg: 'bg-blue-50 dark:bg-blue-900/20', lightBorder: 'border-blue-200 dark:border-blue-800' },
+    { bg: 'bg-pink-500', border: 'border-pink-500', text: 'text-pink-500', lightBg: 'bg-pink-50 dark:bg-pink-900/20', lightBorder: 'border-pink-200 dark:border-pink-800' },
+    { bg: 'bg-lime-500', border: 'border-lime-500', text: 'text-lime-500', lightBg: 'bg-lime-50 dark:bg-lime-900/20', lightBorder: 'border-lime-200 dark:border-lime-800' },
+    { bg: 'bg-orange-500', border: 'border-orange-500', text: 'text-orange-500', lightBg: 'bg-orange-50 dark:bg-orange-900/20', lightBorder: 'border-orange-200 dark:border-orange-800' },
+    { bg: 'bg-purple-500', border: 'border-purple-500', text: 'text-purple-500', lightBg: 'bg-purple-50 dark:bg-purple-900/20', lightBorder: 'border-purple-200 dark:border-purple-800' },
+];
+
 const ExerciseLogCard: React.FC<{
   name: string;
   result: LocalExerciseResult;
@@ -366,7 +374,9 @@ const ExerciseLogCard: React.FC<{
   aiSuggestion?: string; // Koncept 1: Coach Whisper
   scaling?: string;      // Koncept 1: Alternativ
   lastPerformance?: { weight: number, reps: string } | null;
-}> = ({ name, result, onUpdate, aiSuggestion, scaling, lastPerformance }) => {
+  isLastInGroup?: boolean;
+  onAddGroupSet?: () => void;
+}> = ({ name, result, onUpdate, aiSuggestion, scaling, lastPerformance, isLastInGroup, onAddGroupSet }) => {
     
     const trackingFields = result.trackingFields || ['reps', 'weight'];
     const showReps = trackingFields.includes('reps');
@@ -377,6 +387,13 @@ const ExerciseLogCard: React.FC<{
 
     const dynamicColsCount = [showReps, showWeight, showTime, showDistance, showKcal].filter(Boolean).length;
     const gridColsClass = `grid-cols-[30px_repeat(${dynamicColsCount},_1fr)_40px_40px]`;
+
+    // Extract tailwind color classes from groupColor (e.g. "bg-pink-500")
+    const groupColorObj = result.groupColor ? GROUP_COLORS.find(c => c.bg === result.groupColor) : null;
+    const borderColorClass = groupColorObj ? groupColorObj.border : 'border-gray-100 dark:border-gray-800';
+    const textColorClass = groupColorObj ? groupColorObj.text : 'text-primary';
+    const lightBgClass = groupColorObj ? groupColorObj.lightBg : 'bg-primary/5';
+    const lightBorderClass = groupColorObj ? groupColorObj.lightBorder : 'border-primary/20';
 
     const calculate1RM = (weight: string, reps: string) => {
         const w = parseFloat(weight);
@@ -419,7 +436,7 @@ const ExerciseLogCard: React.FC<{
     const [showTip, setShowTip] = useState(false);
 
     return (
-        <div className={`bg-white dark:bg-gray-900 rounded-2xl p-4 mb-3 border shadow-sm transition-all ${result.groupColor ? 'border-l-4 border-y-gray-100 border-r-gray-100 dark:border-y-gray-800 dark:border-r-gray-800' : 'border-gray-100 dark:border-gray-800'}`} style={result.groupColor ? { borderLeftColor: result.groupColor } : {}}>
+        <div className={`bg-white dark:bg-gray-900 rounded-2xl p-4 mb-3 border shadow-sm transition-all ${result.groupColor ? `border-l-4 ${borderColorClass} border-y-gray-100 border-r-gray-100 dark:border-y-gray-800 dark:border-r-gray-800` : 'border-gray-100 dark:border-gray-800'}`}>
             <div className="flex flex-col gap-2 mb-4">
                 <div className="flex justify-between items-start">
                     <div className="flex-1 min-w-0">
@@ -558,6 +575,14 @@ const ExerciseLogCard: React.FC<{
                     })}
                     {(!result.groupId) && (
                         <button onClick={handleAddSet} className="w-full mt-2 py-2 flex items-center justify-center gap-1 text-xs font-bold text-primary bg-primary/5 hover:bg-primary/10 rounded-lg transition-colors border border-primary/20 border-dashed"><PlusIcon className="w-3 h-3" /> Lägg till set</button>
+                    )}
+                    {(result.groupId && isLastInGroup && onAddGroupSet) && (
+                        <button 
+                            onClick={onAddGroupSet} 
+                            className={`w-full mt-2 py-2 flex items-center justify-center gap-1 text-xs font-bold rounded-lg transition-colors border border-dashed ${textColorClass} ${lightBorderClass} ${lightBgClass}`}
+                        >
+                            <PlusIcon className="w-3 h-3" /> Lägg till set för gruppen
+                        </button>
                     )}
                 </div>
             </div>
@@ -1213,16 +1238,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                     aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} // Koncept 1: Coach Whisper
                                     scaling={activeInsight?.scaling?.[result.exerciseName]} // Koncept 1: Scaling
                                     lastPerformance={history[result.exerciseName]} 
+                                    isLastInGroup={isLastInGroup}
+                                    onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
                                 />
-                                {isLastInGroup && (
-                                    <button 
-                                        onClick={() => handleAddGroupSet(result.groupId!)}
-                                        className="w-full mb-6 py-3 flex items-center justify-center gap-2 text-sm font-black uppercase tracking-widest rounded-xl transition-all border-2 border-dashed"
-                                        style={{ borderColor: result.groupColor, color: result.groupColor, backgroundColor: `${result.groupColor}10` }}
-                                    >
-                                        <PlusIcon className="w-4 h-4" /> Lägg till set för gruppen
-                                    </button>
-                                )}
                             </React.Fragment>
                         );
                     })}
