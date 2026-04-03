@@ -262,7 +262,7 @@ export const SlotMachineGame: React.FC<SlotMachineGameProps> = ({ onBack }) => {
                     )}
 
                     {/* Goal Type */}
-                    <div>
+                    <div className={goalType === 'free' ? 'mb-8' : 'mb-4'}>
                         <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 uppercase tracking-tight">Mål</h3>
                         <div className="grid grid-cols-3 gap-4">
                             <button
