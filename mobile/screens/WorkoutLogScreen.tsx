@@ -112,9 +112,8 @@ const TimeInput: React.FC<{
                     placeholder={placeholder || "0"}
                     className="w-full bg-transparent font-black text-lg text-gray-900 dark:text-white focus:outline-none text-center appearance-none p-4"
                 />
-                 <span className="text-[9px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider text-center -mt-2 pb-2">min</span>
              </div>
-             <span className="text-gray-300 dark:text-gray-600 font-black text-2xl pb-4">:</span>
+             <span className="text-gray-300 dark:text-gray-600 font-black text-2xl pb-1">:</span>
              <div className="flex-1 flex flex-col justify-center">
                 <input
                     type="text"
@@ -125,7 +124,6 @@ const TimeInput: React.FC<{
                     placeholder="00"
                     className="w-full bg-transparent font-black text-lg text-gray-900 dark:text-white focus:outline-none text-center appearance-none p-4"
                 />
-                 <span className="text-[9px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider text-center -mt-2 pb-2">sek</span>
              </div>
         </div>
     );
@@ -608,7 +606,7 @@ const CustomActivityForm: React.FC<{
                 )}
                 <div className={`mt-4 space-y-5 ${isQuickMode ? 'mt-0' : 'mt-8'}`}>
                     <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Aktivitet *</label><input value={activityName} onChange={(e) => onUpdate('name', e.target.value)} placeholder="T.ex. Powerwalk" disabled={isQuickMode} className={`w-full text-xl font-black text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 ${isQuickMode ? 'opacity-70' : ''}`} /></div>
-                    <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Tid *</label><TimeInput value={duration} onChange={(val) => onUpdate('duration', val)} placeholder="60" className="w-full" /></div>
+                    <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Tid (min:sek) *</label><TimeInput value={duration} onChange={(val) => onUpdate('duration', val)} placeholder="60" className="w-full" /></div>
                     <div className="grid grid-cols-2 gap-4">
                         <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Kcal</label><input type="number" value={calories} onChange={(e) => onUpdate('calories', e.target.value)} placeholder="T.ex. 350" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
                         <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Distans (km)</label><input type="number" value={distance} onChange={(e) => onUpdate('distance', e.target.value)} placeholder="T.ex. 5.3" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
@@ -1249,7 +1247,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'time' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
-                                    Tid (min)
+                                    Tid (min:sek)
                                     {benchmarkDefinition?.type === 'time' && prevBenchmarkBest && (
                                         <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'time')}</span>
                                     )}
