@@ -7,6 +7,7 @@ import { playTimerSound, playTada } from '../../hooks/useWorkoutTimer';
 import { WorkoutCompleteModal } from '../WorkoutCompleteModal';
 import { MOCK_EXERCISE_BANK } from '../../data/mockData';
 import { JokerEvent, getRandomJoker } from '../../data/jokers';
+import { ManualExerciseTimer } from '../ManualExerciseTimer';
 
 interface DeckOfCardsGameProps {
     onBack: () => void;
@@ -126,22 +127,6 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
         }
         return () => clearInterval(interval);
     }, [isTimerRunning, timeLeft]);
-
-    useEffect(() => {
-        let interval: NodeJS.Timeout;
-        if (jokerTimeLeft !== null && jokerTimeLeft > 0) {
-            interval = setInterval(() => {
-                setJokerTimeLeft(prev => {
-                    if (prev && prev <= 1) {
-                        playTimerSound(studioConfig?.soundProfile || 'airhorn', 1);
-                        return 0;
-                    }
-                    return prev ? prev - 1 : 0;
-                });
-            }, 1000);
-        }
-        return () => clearInterval(interval);
-    }, [jokerTimeLeft, studioConfig?.soundProfile]);
 
     const getExerciseForSuit = (suit: Suit) => {
         if (difficulty === 'custom') {
@@ -549,8 +534,8 @@ export const DeckOfCardsGame: React.FC<DeckOfCardsGameProps> = ({ onBack }) => {
                                                 {activeJokerEvent?.description}
                                             </p>
                                             {jokerTimeLeft !== null && (
-                                                <div className={`text-5xl font-mono font-black tabular-nums ${jokerTimeLeft === 0 ? 'text-red-400 animate-pulse' : 'text-white'}`}>
-                                                    {formatTime(jokerTimeLeft)}
+                                                <div className="mt-4">
+                                                    <ManualExerciseTimer duration={jokerTimeLeft} />
                                                 </div>
                                             )}
                                         </div>

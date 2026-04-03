@@ -549,21 +549,40 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
     return (
         <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-md border-2 border-gray-200 dark:border-gray-700">
             <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-2 flex-grow min-h-[44px]">
-                    <div className="flex flex-col gap-1 mr-2">
-                        <button disabled={index === 0} onClick={() => onMoveBlock('up')} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 disabled:cursor-not-allowed">
-                            <ChevronUpIcon className="w-5 h-5" />
-                        </button>
-                        <button disabled={index === totalBlocks - 1} onClick={() => onMoveBlock('down')} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 disabled:cursor-not-allowed">
-                            <ChevronDownIcon className="w-5 h-5" />
-                        </button>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-grow min-h-[44px]">
+                    <div className="flex items-center gap-2 flex-grow">
+                        <div className="flex flex-col gap-1 mr-2">
+                            <button disabled={index === 0} onClick={() => onMoveBlock('up')} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 disabled:cursor-not-allowed">
+                                <ChevronUpIcon className="w-5 h-5" />
+                            </button>
+                            <button disabled={index === totalBlocks - 1} onClick={() => onMoveBlock('down')} className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 disabled:opacity-20 disabled:cursor-not-allowed">
+                                <ChevronDownIcon className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <EditableField 
+                            label="Blockets Titel" 
+                            value={block.title} 
+                            onChange={val => handleFieldChange('title', val)}
+                            isTitle
+                        />
                     </div>
-                    <EditableField 
-                        label="Blockets Titel" 
-                        value={block.title} 
-                        onChange={val => handleFieldChange('title', val)}
-                        isTitle
-                    />
+                    <div className="w-full sm:w-auto sm:min-w-[160px] ml-8 sm:ml-0">
+                        <select
+                            value={block.tag || 'Styrka'}
+                            onChange={e => handleFieldChange('tag', e.target.value)}
+                            className="w-full bg-transparent text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 font-bold uppercase tracking-widest text-xs border-b border-transparent hover:border-gray-300 dark:hover:border-gray-600 focus:border-primary focus:outline-none focus:text-primary transition-colors cursor-pointer py-1"
+                        >
+                            <option value="Styrka">Styrka</option>
+                            <option value="Kondition">Kondition</option>
+                            <option value="Rörlighet">Rörlighet</option>
+                            <option value="Teknik">Teknik</option>
+                            <option value="Core/Bål">Core/Bål</option>
+                            <option value="Balans">Balans</option>
+                            <option value="Uppvärmning">Uppvärmning</option>
+                            <option value="Nedvarvning">Nedvarvning</option>
+                            <option value="Finisher">Finisher</option>
+                        </select>
+                    </div>
                 </div>
                 <button onClick={onRemove} className="text-red-500 hover:text-red-400 ml-4 flex-shrink-0 font-semibold p-2">
                     <TrashIcon className="w-5 h-5" />

@@ -47,6 +47,7 @@ interface AppRouterProps {
     
     passkategoriFilter: string | null;
     activeCustomPage: CustomPage | null;
+    customPageToEdit: CustomPage | null;
     activeRaceId: string | null;
     racePrepState: { groups: StartGroup[]; interval: number } | null;
     followMeShowImage: boolean;
@@ -130,7 +131,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
     const { 
         page, navigateTo, handleBack, role, userData, studioConfig, selectedOrganization, allOrganizations, isStudioMode, isImpersonating, theme,
         workouts, activeWorkout, activeBlock,
-        passkategoriFilter, activeCustomPage, activeRaceId, racePrepState, followMeShowImage, mobileLogData,
+        passkategoriFilter, activeCustomPage, customPageToEdit, activeRaceId, racePrepState, followMeShowImage, mobileLogData,
         preferredAdminTab, profileEditTrigger, isAutoTransition, remoteCommand, selectedStudio,
         onSelectWorkout, onSelectPasskategori, onCreateNewWorkout, onStartBlock, onEditWorkout, onDeleteWorkout, onSaveWorkout, onSaveWorkoutNoNav,
         onTogglePublish, onToggleFavorite, onDuplicateWorkout, onTimerFinish,
@@ -338,7 +339,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
             return <CustomPageEditorScreen 
                 onSave={functions.saveCustomPage} 
                 onCancel={handleBack} 
-                pageToEdit={activeCustomPage}
+                pageToEdit={customPageToEdit}
                 setCustomBackHandler={functions.setCustomBackHandler}
             />;
 

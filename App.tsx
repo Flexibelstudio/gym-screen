@@ -1321,6 +1321,7 @@ const App: React.FC = () => {
                 
                 passkategoriFilter={activePasskategori}
                 activeCustomPage={activeCustomPage}
+                customPageToEdit={customPageToEdit}
                 activeRaceId={activeRaceId}
                 racePrepState={racePrepState}
                 followMeShowImage={followMeShowImage}
