@@ -521,17 +521,37 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
     return (
         <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] p-6 sm:p-8 shadow-xl border border-gray-100 dark:border-gray-800 space-y-6">
             <div className="flex justify-between items-start">
-                <div className="flex-grow max-w-2xl">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 block ml-1">Block {index}</label>
-                    <input 
-                        type="text" value={block.title} 
-                        onChange={e => handleFieldChange('title', e.target.value)} 
-                        placeholder="Blockets titel..." 
-                        className={`${inputBaseClasses} w-full text-2xl tracking-tight`} 
-                    />
+                <div className="flex-grow max-w-2xl flex flex-col sm:flex-row gap-4">
+                    <div className="flex-grow">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 block ml-1">Block {index}</label>
+                        <input 
+                            type="text" value={block.title} 
+                            onChange={e => handleFieldChange('title', e.target.value)} 
+                            placeholder="Blockets titel..." 
+                            className={`${inputBaseClasses} w-full text-2xl tracking-tight`} 
+                        />
+                    </div>
+                    <div className="w-full sm:w-48">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-2 block ml-1">Kategori (Tagg)</label>
+                        <select
+                            value={block.tag || 'Styrka'}
+                            onChange={e => handleFieldChange('tag', e.target.value)}
+                            className={`${inputBaseClasses} w-full text-lg cursor-pointer`}
+                        >
+                            <option value="Styrka">Styrka</option>
+                            <option value="Kondition">Kondition</option>
+                            <option value="Rörlighet">Rörlighet</option>
+                            <option value="Teknik">Teknik</option>
+                            <option value="Core/Bål">Core/Bål</option>
+                            <option value="Balans">Balans</option>
+                            <option value="Uppvärmning">Uppvärmning</option>
+                            <option value="Nedvarvning">Nedvarvning</option>
+                            <option value="Finisher">Finisher</option>
+                        </select>
+                    </div>
                 </div>
                 {totalBlocks > 1 && (
-                    <button onClick={onRemove} className="text-red-500 p-3 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors">
+                    <button onClick={onRemove} className="text-red-500 p-3 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors ml-4">
                         <TrashIcon className="w-6 h-6" />
                     </button>
                 )}
@@ -685,7 +705,11 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
 
     useEffect(() => {
         if (setCustomBackHandler) {
-            setCustomBackHandler(() => handleCancel);
+            if (isDirty) {
+                setCustomBackHandler(() => handleCancel);
+            } else {
+                setCustomBackHandler(null);
+            }
         }
         return () => {
             if (setCustomBackHandler) {
