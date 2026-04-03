@@ -65,7 +65,8 @@ const TimeInput: React.FC<{
     onChange: (val: string) => void;
     placeholder?: string;
     className?: string;
-}> = ({ value, onChange, placeholder, className }) => {
+    compact?: boolean;
+}> = ({ value, onChange, placeholder, className, compact }) => {
     const [min, setMin] = useState('');
     const [sec, setSec] = useState('');
 
@@ -101,7 +102,7 @@ const TimeInput: React.FC<{
     };
 
     return (
-        <div className={`flex items-center bg-gray-5 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 px-2 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all ${className}`}>
+        <div className={`flex items-center ${compact ? '' : 'bg-gray-5 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 px-2'} focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all ${className}`}>
              <div className="flex-1 flex flex-col justify-center">
                 <input
                     type="text"
@@ -110,10 +111,10 @@ const TimeInput: React.FC<{
                     value={min}
                     onChange={(e) => update(e.target.value, sec)}
                     placeholder={placeholder || "0"}
-                    className="w-full bg-transparent font-black text-lg text-gray-900 dark:text-white focus:outline-none text-center appearance-none p-4"
+                    className={`w-full bg-transparent font-black text-lg text-gray-900 dark:text-white focus:outline-none text-center appearance-none ${compact ? 'py-0' : 'p-4'}`}
                 />
              </div>
-             <span className="text-gray-300 dark:text-gray-600 font-black text-2xl pb-1">:</span>
+             <span className={`text-gray-300 dark:text-gray-600 font-black ${compact ? 'text-lg pb-0' : 'text-2xl pb-1'}`}>:</span>
              <div className="flex-1 flex flex-col justify-center">
                 <input
                     type="text"
@@ -122,7 +123,7 @@ const TimeInput: React.FC<{
                     value={sec}
                     onChange={(e) => update(min, e.target.value)}
                     placeholder="00"
-                    className="w-full bg-transparent font-black text-lg text-gray-900 dark:text-white focus:outline-none text-center appearance-none p-4"
+                    className={`w-full bg-transparent font-black text-lg text-gray-900 dark:text-white focus:outline-none text-center appearance-none ${compact ? 'py-0' : 'p-4'}`}
                 />
              </div>
         </div>
@@ -1252,6 +1253,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                         onChange={(val) => setSessionStats(prev => ({ ...prev, time: val }))}
                                         placeholder={benchmarkDefinition?.type === 'time' ? "45" : "-"}
                                         className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                        compact={true}
                                     />
                                 </div>
                             </div>
