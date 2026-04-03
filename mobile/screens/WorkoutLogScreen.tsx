@@ -29,10 +29,12 @@ interface LocalExerciseResult {
   setDetails: LocalSetDetail[];
   distance?: string;
   kcal?: string;
+  time?: string;
   isBodyweight?: boolean;
   blockId: string;
   blockTitle: string;
-  coachAdvice?: string; 
+  coachAdvice?: string;
+  trackingFields?: ('time' | 'distance' | 'kcal' | 'reps' | 'weight')[];
 }
 
 interface LogData {
@@ -364,6 +366,12 @@ const ExerciseLogCard: React.FC<{
   lastPerformance?: { weight: number, reps: string } | null;
 }> = ({ name, result, onUpdate, aiSuggestion, scaling, lastPerformance }) => {
     
+    const trackingFields = result.trackingFields || ['reps', 'weight'];
+    const showSets = trackingFields.includes('reps') || trackingFields.includes('weight');
+    const showTime = trackingFields.includes('time');
+    const showDistance = trackingFields.includes('distance');
+    const showKcal = trackingFields.includes('kcal');
+
     const calculate1RM = (weight: string, reps: string) => {
         const w = parseFloat(weight);
         const r = parseFloat(reps);
@@ -463,57 +471,90 @@ const ExerciseLogCard: React.FC<{
                 )}
             </div>
 
-            <div className="space-y-2">
-                <div className="grid grid-cols-[30px_1fr_1fr_40px_40px] gap-2 px-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                    <div className="text-center">Set</div>
-                    <div className="text-center">Reps</div>
-                    <div className="text-center">Vikt (kg)</div>
-                    <div></div>
-                    <div className="text-center">Klar</div>
-                </div>
-
-                {result.setDetails.map((set, index) => {
-                    const oneRm = calculate1RM(set.weight, set.reps);
-                    return (
-                        <div key={index} className={`grid grid-cols-[30px_1fr_1fr_40px_40px] gap-2 items-center transition-all ${set.completed ? 'opacity-50' : 'opacity-100'}`}>
-                            <div className="flex justify-center items-center">
-                                <span className={`text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center transition-colors ${set.completed ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>{index + 1}</span>
-                            </div>
-                            <div className="bg-gray-5 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                <input type="text" inputMode="numeric" value={set.reps} onChange={(e) => handleSetChange(index, 'reps', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" disabled={set.completed} />
-                            </div>
-                            <div className="relative">
-                                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                    <input type="number" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" disabled={set.completed} />
-                                </div>
-                                {oneRm && !set.completed && (
-                                    <motion.div 
-                                        initial={{ scale: 0.8, opacity: 0, y: 5 }}
-                                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                                        exit={{ scale: 0.8, opacity: 0 }}
-                                        className="absolute -top-9 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs font-black px-3 py-1.5 rounded-xl shadow-xl border border-gray-700 whitespace-nowrap z-20 pointer-events-none"
-                                    >
-                                        🔥 1RM: <span className="text-yellow-400">{oneRm}</span>
-                                    </motion.div>
-                                )}
-                            </div>
-                            <div className="flex justify-center">
-                                {result.setDetails.length > 1 && (
-                                    <button onClick={() => handleRemoveSet(index)} className="text-gray-300 hover:text-red-500 transition-colors p-2" disabled={set.completed}><CloseIcon className="w-5 h-5" /></button>
-                                )}
-                            </div>
-                            <div className="flex justify-center">
-                                <button 
-                                    onClick={() => handleToggleComplete(index)} 
-                                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all shadow-sm transform active:scale-90 ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
-                                >
-                                    {set.completed ? <CheckIcon className="w-5 h-5" /> : <div className="w-2 h-2 rounded-full border border-current opacity-30" />}
-                                </button>
-                            </div>
+            <div className="space-y-4">
+                {showSets && (
+                    <div className="space-y-2">
+                        <div className="grid grid-cols-[30px_1fr_1fr_40px_40px] gap-2 px-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                            <div className="text-center">Set</div>
+                            <div className="text-center">Reps</div>
+                            <div className="text-center">Vikt (kg)</div>
+                            <div></div>
+                            <div className="text-center">Klar</div>
                         </div>
-                    );
-                })}
-                <button onClick={handleAddSet} className="w-full mt-2 py-2 flex items-center justify-center gap-1 text-xs font-bold text-primary bg-primary/5 hover:bg-primary/10 rounded-lg transition-colors border border-primary/20 border-dashed"><PlusIcon className="w-3 h-3" /> Lägg till set</button>
+
+                        {result.setDetails.map((set, index) => {
+                            const oneRm = calculate1RM(set.weight, set.reps);
+                            return (
+                                <div key={index} className={`grid grid-cols-[30px_1fr_1fr_40px_40px] gap-2 items-center transition-all ${set.completed ? 'opacity-50' : 'opacity-100'}`}>
+                                    <div className="flex justify-center items-center">
+                                        <span className={`text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center transition-colors ${set.completed ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>{index + 1}</span>
+                                    </div>
+                                    <div className="bg-gray-5 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                        <input type="text" inputMode="numeric" value={set.reps} onChange={(e) => handleSetChange(index, 'reps', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" disabled={set.completed} />
+                                    </div>
+                                    <div className="relative">
+                                        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                            <input type="number" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" disabled={set.completed} />
+                                        </div>
+                                        {oneRm && !set.completed && (
+                                            <motion.div 
+                                                initial={{ scale: 0.8, opacity: 0, y: 5 }}
+                                                animate={{ scale: 1, opacity: 1, y: 0 }}
+                                                exit={{ scale: 0.8, opacity: 0 }}
+                                                className="absolute -top-9 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs font-black px-3 py-1.5 rounded-xl shadow-xl border border-gray-700 whitespace-nowrap z-20 pointer-events-none"
+                                            >
+                                                🔥 1RM: <span className="text-yellow-400">{oneRm}</span>
+                                            </motion.div>
+                                        )}
+                                    </div>
+                                    <div className="flex justify-center">
+                                        {result.setDetails.length > 1 && (
+                                            <button onClick={() => handleRemoveSet(index)} className="text-gray-300 hover:text-red-500 transition-colors p-2" disabled={set.completed}><CloseIcon className="w-5 h-5" /></button>
+                                        )}
+                                    </div>
+                                    <div className="flex justify-center">
+                                        <button 
+                                            onClick={() => handleToggleComplete(index)} 
+                                            className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all shadow-sm transform active:scale-90 ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                                        >
+                                            {set.completed ? <CheckIcon className="w-5 h-5" /> : <div className="w-2 h-2 rounded-full border border-current opacity-30" />}
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        <button onClick={handleAddSet} className="w-full mt-2 py-2 flex items-center justify-center gap-1 text-xs font-bold text-primary bg-primary/5 hover:bg-primary/10 rounded-lg transition-colors border border-primary/20 border-dashed"><PlusIcon className="w-3 h-3" /> Lägg till set</button>
+                    </div>
+                )}
+
+                {(showTime || showDistance || showKcal) && (
+                    <div className={`grid gap-2 mt-2 ${[showTime, showDistance, showKcal].filter(Boolean).length === 1 ? 'grid-cols-1' : [showTime, showDistance, showKcal].filter(Boolean).length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+                        {showTime && (
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 text-center">Tid (min)</label>
+                                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                    <input type="number" value={result.time || ''} onChange={(e) => onUpdate({ time: e.target.value })} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" />
+                                </div>
+                            </div>
+                        )}
+                        {showDistance && (
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 text-center">Distans (km)</label>
+                                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                    <input type="number" value={result.distance || ''} onChange={(e) => onUpdate({ distance: e.target.value })} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" />
+                                </div>
+                            </div>
+                        )}
+                        {showKcal && (
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 text-center">Kcal</label>
+                                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                    <input type="number" value={result.kcal || ''} onChange={(e) => onUpdate({ kcal: e.target.value })} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -617,7 +658,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   
   const uncheckedSetsCount = useMemo(() => {
       if (isManualMode) return 0;
-      return exerciseResults.reduce((acc, ex) => acc + ex.setDetails.filter(s => !s.completed).length, 0);
+      return exerciseResults.reduce((acc, ex) => {
+          const trackingFields = ex.trackingFields || ['reps', 'weight'];
+          const showSets = trackingFields.includes('reps') || trackingFields.includes('weight');
+          if (!showSets) return acc;
+          return acc + ex.setDetails.filter(s => !s.completed).length;
+      }, 0);
   }, [isManualMode, exerciseResults]);
 
   // --- BENCHMARK LOGIC ---
@@ -721,8 +767,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                 setDetails: [...defaultSets],
                                 distance: '',
                                 kcal: '',
+                                time: '',
                                 blockId: block.id,
-                                blockTitle: block.title
+                                blockTitle: block.title,
+                                trackingFields: ex.trackingFields
                             });
                         }
                     });
@@ -881,6 +929,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   weight: maxWeight, 
                   reps: repsSummary, 
                   sets: r.setDetails.length,
+                  time: r.time ? parseFloat(r.time) : null,
+                  distance: r.distance ? parseFloat(r.distance) : null,
+                  kcal: r.kcal ? parseFloat(r.kcal) : null,
                   blockId: r.blockId,
                   coachAdvice: r.coachAdvice
               };

@@ -97,6 +97,8 @@ export interface TimerSettings {
   sequence?: TimerSegment[]; // NYTT: Lista för Custom Mode
 }
 
+export type TrackingField = 'time' | 'distance' | 'kcal' | 'reps' | 'weight';
+
 export interface Exercise {
   id: string;
   name: string;
@@ -106,6 +108,7 @@ export interface Exercise {
   isFromBank?: boolean;
   isFromAI?: boolean;
   loggingEnabled?: boolean;
+  trackingFields?: TrackingField[];
   originalBankId?: string; // NYTT: Referens till Master ID för historik
   groupId?: string; // For grouping exercises (supersets/circuits)
   groupColor?: string; // Color class for the group
@@ -475,6 +478,7 @@ export interface ExerciseResult {
     setDetails?: ExerciseSetDetail[];
     distance?: number | null;
     kcal?: number | null;
+    time?: number | null;
     blockId?: string;
     coachAdvice?: string; // NYTT: Sparar AI-rådet direkt på övningen
 }

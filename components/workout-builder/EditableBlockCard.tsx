@@ -368,6 +368,36 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                       {isGeneratingDesc ? <div className="w-5 h-5 border-2 border-purple-500/50 border-t-purple-500 rounded-full animate-spin"></div> : <SparklesIcon className="w-5 h-5" />}
                     </button>
                 </div>
+                
+                {exercise.loggingEnabled && (
+                    <div className="flex items-center gap-2 flex-wrap mt-2 bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Logga:</span>
+                        {(['time', 'distance', 'kcal', 'reps', 'weight'] as const).map(field => {
+                            const isSelected = exercise.trackingFields ? exercise.trackingFields.includes(field) : (field === 'reps' || field === 'weight');
+                            const label = field === 'time' ? 'Tid' : field === 'distance' ? 'Distans' : field === 'kcal' ? 'Kcal' : field === 'reps' ? 'Reps' : 'Vikt';
+                            return (
+                                <label key={field} className="flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={isSelected}
+                                        onChange={(e) => {
+                                            const current = exercise.trackingFields || ['reps', 'weight'];
+                                            let newFields;
+                                            if (e.target.checked) {
+                                                newFields = [...current, field];
+                                            } else {
+                                                newFields = current.filter(f => f !== field);
+                                            }
+                                            onUpdate(exercise.id, { trackingFields: newFields });
+                                        }}
+                                        className="w-3.5 h-3.5 rounded text-primary focus:ring-primary bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                                    />
+                                    {label}
+                                </label>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </div>
     );
