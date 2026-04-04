@@ -826,10 +826,20 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
 
     const inputBaseClasses = "appearance-none !bg-white dark:!bg-gray-800 !text-gray-900 dark:!text-white border border-gray-200 dark:border-gray-700 rounded-[2rem] p-6 focus:ring-4 focus:ring-primary/20 focus:outline-none transition-all font-black placeholder-gray-300 dark:placeholder-gray-600 shadow-xl";
 
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // Scroll to top on mount
+    useEffect(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        }
+    }, []);
+
     return (
         <div className="w-full h-full flex flex-col animate-fade-in bg-gray-50 dark:bg-black">
             <Toast isVisible={toast.visible} message={toast.message} onClose={() => setToast({ ...toast, visible: false })} />
-            <div className="flex-grow overflow-y-auto px-4 pb-40 pt-6 custom-scrollbar scroll-smooth">
+            <div ref={scrollContainerRef} className="flex-grow overflow-y-auto px-4 pb-40 pt-6 custom-scrollbar scroll-smooth">
                 <div className="max-w-2xl mx-auto space-y-10">
                     
                     {/* Header Card */}

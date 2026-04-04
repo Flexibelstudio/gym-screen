@@ -239,6 +239,11 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeData, setActiveData] = useState<any>(null);
 
+  // Scroll to top on mount
+  useEffect(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, []);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {

@@ -369,6 +369,11 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   const personalBestName = useMemo(() => localStorage.getItem('hyrox-participant-name'), []);
   const isHyroxRace = useMemo(() => workout.id.startsWith('hyrox-full-race') || workout.id.startsWith('custom-race'), [workout.id]);
 
+  // Scroll to top on mount
+  useEffect(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, []);
+
   const isWorkoutLoggable = useMemo(() => {
       return workout.blocks?.some(b => b?.exercises?.some(e => e?.loggingEnabled === true)) || false;
   }, [workout]);

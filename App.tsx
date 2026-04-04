@@ -77,6 +77,11 @@ const App: React.FC = () => {
 
   const page = history[history.length - 1];
 
+  // Scrolla alltid till toppen när vi byter sida
+  useEffect(() => {
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+  }, [page]);
+
   const showWelcomePaywall = useMemo(() => {
       if (!currentUser || role !== 'organizationadmin' || isStudioMode) return false;
       return selectedOrganization?.systemFeePaid === false;
