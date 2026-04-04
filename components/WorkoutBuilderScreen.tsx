@@ -241,7 +241,10 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
 
   // Scroll to top on mount
   useEffect(() => {
-      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      const timer = setTimeout(() => {
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+      }, 10);
+      return () => clearTimeout(timer);
   }, []);
 
   const sensors = useSensors(

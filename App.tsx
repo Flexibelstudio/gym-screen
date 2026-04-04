@@ -79,7 +79,10 @@ const App: React.FC = () => {
 
   // Scrolla alltid till toppen när vi byter sida
   useEffect(() => {
-      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+      const timer = setTimeout(() => {
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+      }, 10);
+      return () => clearTimeout(timer);
   }, [page]);
 
   const showWelcomePaywall = useMemo(() => {
