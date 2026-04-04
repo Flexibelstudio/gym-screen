@@ -671,42 +671,67 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
 
                     <AnimatePresence>
                         {showResult && result && (
-                            <motion.div
-                                initial={{ opacity: 0, y: 20, scale: 0.9 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -20, scale: 0.9 }}
-                                className="px-8 py-12 rounded-3xl shadow-2xl text-center w-full max-w-3xl mx-auto mb-6 mt-8"
-                                style={{ 
-                                    backgroundColor: result === 'JOKER 🃏' ? '#1f2937' : (resultIndex !== null ? COLORS[resultIndex % COLORS.length] : undefined),
-                                    color: '#ffffff'
-                                }}
-                            >
-                                {result === 'JOKER 🃏' ? (
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-6xl mb-4 animate-bounce">🃏</span>
-                                        <p className={`font-bold uppercase tracking-wider text-lg mb-2 ${activeJokerEvent?.type === 'reward' ? 'text-green-400' : 'text-red-400'}`}>
-                                            {activeJokerEvent?.type === 'reward' ? 'Belöning!' : 'Utmaning!'}
-                                        </p>
-                                        <p className="text-4xl md:text-5xl lg:text-6xl font-black drop-shadow-md mb-4">{activeJokerEvent?.title}</p>
-                                        <p className="text-xl opacity-90 mb-6">{activeJokerEvent?.description}</p>
-                                        {jokerTimeLeft !== null && (
-                                            <div className="mt-4">
-                                                <ManualExerciseTimer duration={jokerTimeLeft} />
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <>
-                                        <p className="font-bold uppercase tracking-wider text-lg mb-4 opacity-90">Din utmaning</p>
-                                        <p className="text-5xl md:text-6xl lg:text-7xl font-black drop-shadow-md mb-6">{result}</p>
-                                        {extractTimeFromExercise(result) !== null && (
-                                            <div className="mt-4">
-                                                <ManualExerciseTimer duration={extractTimeFromExercise(result)!} />
-                                            </div>
-                                        )}
-                                    </>
-                                )}
-                            </motion.div>
+                            <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/60 backdrop-blur-sm" onClick={() => setShowResult(false)}>
+                                <motion.div
+                                    initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: -20, scale: 0.9 }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="px-8 py-12 rounded-3xl shadow-2xl text-center w-full max-w-3xl mx-auto relative"
+                                    style={{ 
+                                        backgroundColor: result === 'JOKER 🃏' ? '#1f2937' : (resultIndex !== null ? COLORS[resultIndex % COLORS.length] : undefined),
+                                        color: '#ffffff'
+                                    }}
+                                >
+                                    <button 
+                                        onClick={() => setShowResult(false)}
+                                        className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                    {result === 'JOKER 🃏' ? (
+                                        <div className="flex flex-col items-center">
+                                            <span className="text-6xl mb-4 animate-bounce">🃏</span>
+                                            <p className={`font-bold uppercase tracking-wider text-lg mb-2 ${activeJokerEvent?.type === 'reward' ? 'text-green-400' : 'text-red-400'}`}>
+                                                {activeJokerEvent?.type === 'reward' ? 'Belöning!' : 'Utmaning!'}
+                                            </p>
+                                            <p className="text-4xl md:text-5xl lg:text-6xl font-black drop-shadow-md mb-4">{activeJokerEvent?.title}</p>
+                                            <p className="text-xl opacity-90 mb-6">{activeJokerEvent?.description}</p>
+                                            {jokerTimeLeft !== null && (
+                                                <div className="mt-4">
+                                                    <ManualExerciseTimer duration={jokerTimeLeft} />
+                                                </div>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <p className="font-bold uppercase tracking-wider text-lg mb-4 opacity-90">Din utmaning</p>
+                                            <p className="text-5xl md:text-6xl lg:text-7xl font-black drop-shadow-md mb-6">{result}</p>
+                                            {extractTimeFromExercise(result) !== null && (
+                                                <div className="mt-4">
+                                                    <ManualExerciseTimer duration={extractTimeFromExercise(result)!} />
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                    <button
+                                        onClick={() => {
+                                            setShowResult(false);
+                                            // Small delay to allow modal to close before spinning
+                                            setTimeout(() => {
+                                                if (!isSpinning && !isGoalReached) {
+                                                    handleSpin();
+                                                }
+                                            }, 300);
+                                        }}
+                                        className="mt-8 px-8 py-4 bg-white/20 hover:bg-white/30 rounded-xl font-bold text-xl uppercase tracking-widest transition-colors"
+                                    >
+                                        Snurra igen
+                                    </button>
+                                </motion.div>
+                            </div>
                         )}
                     </AnimatePresence>
 
