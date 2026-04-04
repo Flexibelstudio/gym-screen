@@ -816,8 +816,14 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                         />
                                         <ToggleSwitch 
                                             label="Visa i medlemsapp" 
-                                            checked={workout.showInApp !== false} 
+                                            checked={
+                                                (studioConfig.customCategories.find(c => c.name === workout.category)?.isLocked) 
+                                                ? false 
+                                                : workout.showInApp !== false
+                                            } 
                                             onChange={(val) => handleUpdateWorkoutDetail('showInApp', val)} 
+                                            disabled={studioConfig.customCategories.find(c => c.name === workout.category)?.isLocked}
+                                            description={studioConfig.customCategories.find(c => c.name === workout.category)?.isLocked ? "Låsta kategorier visas inte i appen." : undefined}
                                         />
                                     </>
                                 )}
