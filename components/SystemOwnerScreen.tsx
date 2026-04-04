@@ -607,7 +607,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
             </AnimatePresence>
 
             {/* Content Area */}
-            <div className="flex-grow overflow-y-auto p-4 sm:p-8">
+            <div id="admin-scroll-container" className="flex-grow overflow-y-auto p-4 sm:p-8">
                 <div className="max-w-7xl mx-auto space-y-8 animate-fade-in">
                     
                     {activeTab === 'dashboard' && (

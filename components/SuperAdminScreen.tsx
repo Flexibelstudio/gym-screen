@@ -571,7 +571,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                     )}
                 </AnimatePresence>
                 <aside className={`${isSidebarCollapsed ? 'w-20' : 'w-72'} flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 hidden lg:flex flex-col transition-all duration-300 ease-in-out`}>{renderNavItems(false)}</aside>
-                <main className="flex-grow p-4 sm:p-8 lg:p-10 overflow-y-auto">
+                <main id="admin-scroll-container" className="flex-grow p-4 sm:p-8 lg:p-10 overflow-y-auto">
                     <div className="max-w-screen-2xl mx-auto">
                         {showOnboardingBanner && (<div className="bg-yellow-100 border border-yellow-200 text-yellow-800 p-4 text-center mb-8 rounded-xl shadow-sm flex flex-col sm:flex-row items-center justify-center gap-2 animate-fade-in"><span>⚠️ Er företagsinformation är ofullständig.</span><button onClick={() => setShowOnboardingModal(true)} className="font-bold underline hover:text-yellow-900">Klicka här för att komplettera.</button></div>)}
                         <div className={mainContentWrapperClass}>

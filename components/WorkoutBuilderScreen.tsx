@@ -243,6 +243,10 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   useEffect(() => {
       const timer = setTimeout(() => {
           window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+          const adminContainer = document.getElementById('admin-scroll-container');
+          if (adminContainer) {
+              adminContainer.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+          }
       }, 10);
       return () => clearTimeout(timer);
   }, []);
