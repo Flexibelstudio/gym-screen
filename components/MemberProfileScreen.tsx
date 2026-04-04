@@ -448,6 +448,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         }
     };
 
+    const [showArchetypeInfo, setShowArchetypeInfo] = useState(false);
+
     const handleUpdateLog = async (logId: string, updates: Partial<WorkoutLog>) => {
         await updateWorkoutLog(logId, updates);
     };
@@ -706,7 +708,16 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     <div className={`bg-gradient-to-br ${archetype.color} rounded-[2rem] p-5 sm:p-8 text-white shadow-2xl relative overflow-hidden`}>
                         <div className="relative z-10">
                             <div>
-                                <p className="text-xs font-black uppercase tracking-widest text-white/70 mb-1">Din Träningsprofil</p>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <p className="text-xs font-black uppercase tracking-widest text-white/70">Din Träningsprofil</p>
+                                    <button 
+                                        onClick={() => setShowArchetypeInfo(true)}
+                                        className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
+                                        aria-label="Information om träningsprofiler"
+                                    >
+                                        <span className="text-xs font-bold text-white">i</span>
+                                    </button>
+                                </div>
                                 <h3 className="text-3xl font-black flex items-center gap-3">
                                     {archetype.title}
                                     <span className="bg-white/20 p-1.5 rounded-lg">{archetype.icon}</span>
@@ -873,6 +884,60 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             )}
             {selectedLog && <LogDetailModal log={selectedLog} onClose={() => setSelectedLog(null)} onUpdate={handleUpdateLog} onDelete={handleDeleteLog} onViewDiploma={setViewingDiploma} />}
             
+            {showArchetypeInfo && (
+                <Modal isOpen={true} onClose={() => setShowArchetypeInfo(false)} title="Träningsprofiler">
+                    <div className="space-y-4">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                            Din träningsprofil baseras på vilken typ av pass du loggar mest. Här är de olika profilerna du kan uppnå:
+                        </p>
+                        
+                        <div className="space-y-3">
+                            <div className="bg-gradient-to-br from-blue-500 to-cyan-500 p-4 rounded-xl text-white">
+                                <h4 className="font-black flex items-center gap-2 mb-1">
+                                    Nykomling <SparklesIcon className="w-4 h-4" />
+                                </h4>
+                                <p className="text-sm text-white/90">Du är i början av din resa. Fortsätt såhär!</p>
+                            </div>
+                            
+                            <div className="bg-gradient-to-br from-red-500 to-pink-600 p-4 rounded-xl text-white">
+                                <h4 className="font-black flex items-center gap-2 mb-1">
+                                    Lyftaren <DumbbellIcon className="w-4 h-4" />
+                                </h4>
+                                <p className="text-sm text-white/90">Tunga lyft är din grej. Starkt jobbat!</p>
+                            </div>
+                            
+                            <div className="bg-gradient-to-br from-orange-400 to-red-500 p-4 rounded-xl text-white">
+                                <h4 className="font-black flex items-center gap-2 mb-1">
+                                    Maskinen <FireIcon className="w-4 h-4" />
+                                </h4>
+                                <p className="text-sm text-white/90">Uthållighet av stål. Du slutar aldrig!</p>
+                            </div>
+                            
+                            <div className="bg-gradient-to-br from-yellow-500 to-orange-500 p-4 rounded-xl text-white">
+                                <h4 className="font-black flex items-center gap-2 mb-1">
+                                    HYROX-Krigare <LightningIcon className="w-4 h-4" />
+                                </h4>
+                                <p className="text-sm text-white/90">Du älskar funktionell fitness och tävlingsmomentet!</p>
+                            </div>
+                            
+                            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-4 rounded-xl text-white">
+                                <h4 className="font-black flex items-center gap-2 mb-1">
+                                    Hybridatlet <UserIcon className="w-4 h-4" />
+                                </h4>
+                                <p className="text-sm text-white/90">Du behärskar både styrka och kondition. Den kompletta atleten.</p>
+                            </div>
+                        </div>
+                        
+                        <button 
+                            onClick={() => setShowArchetypeInfo(false)}
+                            className="w-full py-3 mt-6 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                        >
+                            Stäng
+                        </button>
+                    </div>
+                </Modal>
+            )}
+
             <AnimatePresence>
                 {viewingDiploma && (
                     <WorkoutDiplomaView 
