@@ -41,12 +41,14 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
     
     return (
         <div className="w-full max-w-5xl mx-auto px-6 pb-12 animate-fade-in">
-            <div className="text-center mb-10">
-                <h1 className="text-5xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
-                    {passkategori || 'Välj Träningspass'}
-                </h1>
-                <div className="h-1.5 w-24 bg-primary mx-auto rounded-full mb-4"></div>
-            </div>
+            {!passkategori && (
+                <div className="text-center mb-10">
+                    <h1 className="text-5xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
+                        Välj Träningspass
+                    </h1>
+                    <div className="h-1.5 w-24 bg-primary mx-auto rounded-full mb-4"></div>
+                </div>
+            )}
 
             {/* Sökfält */}
             <div className="relative max-w-xl mx-auto mb-12">
