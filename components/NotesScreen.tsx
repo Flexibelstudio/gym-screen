@@ -701,8 +701,9 @@ const CompactTimer: React.FC<{
     isClosing: boolean,
     onFinish: () => void 
 }> = ({ timer, block, onClose, isClosing, onFinish }) => {
-    const minutes = Math.floor(timer.currentTime / 60).toString().padStart(2, '0');
-    const seconds = (timer.currentTime % 60).toString().padStart(2, '0');
+    const timeToDisplay = (block.settings.mode === TimerMode.Stopwatch && timer.status !== TimerStatus.Preparing) ? timer.totalTimeElapsed : timer.currentTime;
+    const minutes = Math.floor(timeToDisplay / 60).toString().padStart(2, '0');
+    const seconds = (timeToDisplay % 60).toString().padStart(2, '0');
     
     useEffect(() => {
         if (timer.status === TimerStatus.Finished) {
