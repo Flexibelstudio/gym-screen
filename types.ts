@@ -147,6 +147,8 @@ export interface Workout {
   startIntervalMinutes?: number; 
   aiCoachSummary?: string;
   benchmarkId?: string; // NYTT: Koppling till ett Benchmark
+  showInStudio?: boolean; // NYTT: Visa på skärm
+  showInApp?: boolean; // NYTT: Visa i medlemsapp
 }
 
 export type Passkategori = string;

@@ -161,7 +161,22 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
 
         case Page.SavedWorkouts:
             return <SavedWorkoutsScreen 
-                workouts={workouts.filter(w => w.isFavorite || (w.isMemberDraft && !w.isPublished))}
+                workouts={workouts.filter(w => {
+                    const isSaved = w.isFavorite || (w.isMemberDraft && !w.isPublished);
+                    if (!isSaved) return false;
+
+                    const categoryConfig = studioConfig.customCategories.find(c => c.name === w.category);
+                    const isCategoryLocked = categoryConfig?.isLocked === true;
+
+                    if (isStudioMode) {
+                        if (w.showInStudio === false) return false;
+                    } else {
+                        if (w.showInApp === false) return false;
+                        if (isCategoryLocked) return false;
+                    }
+
+                    return true;
+                })}
                 onSelectWorkout={onSelectWorkout}
                 onEditWorkout={onEditWorkout}
                 onDeleteWorkout={onDeleteWorkout as any}

@@ -807,6 +807,21 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                             <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400">Inställningar för medlemmar</h4>
                             <div className="space-y-3">
                                 
+                                {workout.blocks.some(b => b.exercises?.some(e => e.loggingEnabled)) && (
+                                    <>
+                                        <ToggleSwitch 
+                                            label="Visa på skärm" 
+                                            checked={workout.showInStudio !== false} 
+                                            onChange={(val) => handleUpdateWorkoutDetail('showInStudio', val)} 
+                                        />
+                                        <ToggleSwitch 
+                                            label="Visa i medlemsapp" 
+                                            checked={workout.showInApp !== false} 
+                                            onChange={(val) => handleUpdateWorkoutDetail('showInApp', val)} 
+                                        />
+                                    </>
+                                )}
+
                                 <div className="pt-2 border-t border-gray-200 dark:border-gray-700 mt-2">
                                     <div className="flex items-center gap-2 mb-2">
                                         <ToggleSwitch 
