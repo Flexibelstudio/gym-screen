@@ -732,6 +732,53 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       return totalSets > 0 && uncheckedSetsCount === 0;
   }, [isSubmitting, isManualMode, customActivity, exerciseResults, uncheckedSetsCount, benchmarkDefinition, sessionStats]);
   
+  // --- WAKE LOCK LOGIC ---
+  const wakeLockRef = useRef<any>(null);
+
+  const requestWakeLock = async () => {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+        console.log('Wake Lock is active!');
+      }
+    } catch (err: any) {
+      console.error(`Wake Lock error: ${err.name}, ${err.message}`);
+    }
+  };
+
+  const releaseWakeLock = async () => {
+    if (wakeLockRef.current !== null) {
+      try {
+        await wakeLockRef.current.release();
+        wakeLockRef.current = null;
+        console.log('Wake Lock released manually');
+      } catch (err) {
+        console.error('Failed to release Wake Lock', err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (viewMode === 'logging') {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && viewMode === 'logging') {
+        requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      releaseWakeLock();
+    };
+  }, [viewMode]);
+
   // --- LOAD INITIAL DATA ---
   useEffect(() => {
     if (!oId) { setLoading(false); return; }
