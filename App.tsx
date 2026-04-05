@@ -14,7 +14,7 @@ import { WelcomePaywall } from './components/WelcomePaywall';
 import PendingCoachScreen from './components/PendingCoachScreen';
 
 // --- Services ---
-import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById, getFreshCategoryWorkouts } from './services/firebaseService';
+import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages } from './services/firebaseService';
 
 // --- Utils ---
 import { deepCopyAndPrepareAsNew } from './utils/workoutUtils';
@@ -118,6 +118,21 @@ const App: React.FC = () => {
   // NEW: Ref to track if we have performed the initial cleanup of remote state
   const hasCleanedUpRef = useRef(false);
   const [isReadyToListen, setIsReadyToListen] = useState(false);
+
+  // Push notification foreground listener
+  useEffect(() => {
+    if (isOffline) return;
+    const unsubscribe = listenToForegroundMessages((payload) => {
+      // Show a simple alert or toast for foreground notifications
+      const title = payload.notification?.title || 'Ny notis';
+      const body = payload.notification?.body || '';
+      // We could use a custom toast component here, but for now alert works or we can just log it
+      // if we don't want to interrupt the user too aggressively.
+      // Let's use a simple alert since it's an admin feature.
+      alert(`${title}\n${body}`);
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !isStudioMode && currentUser) {

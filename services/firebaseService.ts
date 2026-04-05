@@ -49,6 +49,15 @@ import {
   getFunctions, 
   httpsCallable 
 } from 'firebase/functions';
+import { getMessaging, getToken, Messaging, onMessage } from 'firebase/messaging';
+
+export const listenToForegroundMessages = (callback: (payload: any) => void) => {
+    if (isOffline || !messaging) return () => {};
+    return onMessage(messaging, (payload) => {
+        console.log('Message received. ', payload);
+        callback(payload);
+    });
+};
 
 import { firebaseConfig } from './firebaseConfig';
 import { 
@@ -72,6 +81,7 @@ let app: FirebaseApp | null = null;
 export let auth: Auth | null = null;
 export let db: Firestore | null = null;
 export let storage: FirebaseStorage | null = null;
+export let messaging: Messaging | null = null;
 let functions: any = null;
 
 if (!isOffline) {
@@ -81,6 +91,11 @@ if (!isOffline) {
         db = getFirestore(app);
         storage = getStorage(app);
         functions = getFunctions(app, 'us-central1');
+        
+        // Messaging is only supported in browsers that support the required APIs
+        if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+            messaging = getMessaging(app);
+        }
     } catch (error) {
         console.error("CRITICAL: Firebase init failed.", error);
     }
@@ -237,6 +252,33 @@ export const updateUserGoals = async (uid: string, goals: MemberGoals) => {
 export const updateUserProfile = async (uid: string, data: Partial<UserData>) => {
     if (isOffline || !db || !uid) return;
     await updateDoc(doc(db, 'users', uid), sanitizeData(data));
+};
+
+export const requestPushNotificationPermission = async (uid: string): Promise<string | null> => {
+    if (isOffline || !messaging || !db || !uid) return null;
+    try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+            // Get the token
+            const token = await getToken(messaging, {
+                // VAPID key is optional if configured in Firebase Console, but recommended.
+                // We'll let Firebase use the default sender ID from config.
+            });
+            
+            if (token) {
+                // Save token to user profile
+                await updateDoc(doc(db, 'users', uid), {
+                    fcmToken: token,
+                    pushNotificationsEnabled: true
+                });
+                return token;
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error('Error requesting push notification permission:', error);
+        return null;
+    }
 };
 
 export const updateUserRoleCloud = async (targetUid: string, newRole: UserRole) => {
