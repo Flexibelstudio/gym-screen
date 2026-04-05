@@ -8,16 +8,20 @@ import { OneRepMaxModal } from './OneRepMaxModal';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { calculate1RM } from '../utils/workoutUtils';
 
-export const MyStrengthScreen: React.FC<{ onBack: () => void }> = ({ onBack }) => {
-    const { userData } = useAuth();
+export interface MyStrengthScreenProps {
+    userData: any;
+    logs?: WorkoutLog[];
+    onClose?: () => void;
+    onBack?: () => void;
+}
+
+export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, logs, onClose, onBack }) => {
     const [pbs, setPbs] = useState<PersonalBest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editValue, setEditValue] = useState<string>('');
     const [showCalculator, setShowCalculator] = useState(false);
     const [expandedExercise, setExpandedExercise] = useState<string | null>(null);
-    const [historyData, setHistoryData] = useState<Record<string, any[]>>({});
-    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
     useEffect(() => {
         if (!userData?.uid) return;
@@ -41,25 +45,19 @@ export const MyStrengthScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =
         return [...pbs].sort((a, b) => a.exerciseName.localeCompare(b.exerciseName, 'sv'));
     }, [pbs]);
 
-    const fetchHistory = async (exerciseName: string) => {
-        if (!userData?.uid || historyData[exerciseName]) return;
-        
-        setIsLoadingHistory(true);
-        try {
-            const q = query(
-                collection(db, 'workoutLogs'),
-                where("memberId", "==", userData.uid),
-                orderBy("date", "asc")
-            );
-            const snap = await getDocs(q);
-            const logs = snap.docs.map(d => d.data() as WorkoutLog);
-            
+    const historyData = useMemo(() => {
+        const data: Record<string, any[]> = {};
+        const sourceLogs = logs || [];
+        const sortedLogs = [...sourceLogs].sort((a, b) => a.date - b.date);
+
+        sortedPbs.forEach(pb => {
+            const exerciseName = pb.exerciseName;
             const dataPoints: any[] = [];
-            
-            logs.forEach(log => {
+
+            sortedLogs.forEach(log => {
                 if (!log.exerciseResults) return;
                 
-                const exResult = log.exerciseResults.find(ex => ex.exerciseName.toLowerCase() === exerciseName.toLowerCase());
+                const exResult = log.exerciseResults.find(ex => ex.exerciseName.trim().toLowerCase() === exerciseName.trim().toLowerCase());
                 if (!exResult) return;
                 
                 let best1RM = 0;
@@ -95,20 +93,17 @@ export const MyStrengthScreen: React.FC<{ onBack: () => void }> = ({ onBack }) =
                 }
             });
             
-            setHistoryData(prev => ({ ...prev, [exerciseName]: dataPoints }));
-        } catch (error) {
-            console.error("Failed to fetch history", error);
-        } finally {
-            setIsLoadingHistory(false);
-        }
-    };
+            data[exerciseName] = dataPoints;
+        });
+        
+        return data;
+    }, [logs, sortedPbs]);
 
     const toggleExpand = (exerciseName: string) => {
         if (expandedExercise === exerciseName) {
             setExpandedExercise(null);
         } else {
             setExpandedExercise(exerciseName);
-            fetchHistory(exerciseName);
         }
     };
 

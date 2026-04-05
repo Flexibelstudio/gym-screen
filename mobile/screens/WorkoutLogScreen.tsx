@@ -1131,9 +1131,21 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       return (
           <div className="h-full flex flex-col items-center justify-center p-12 bg-white dark:bg-gray-900">
               <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-              <p className="text-gray-500 font-bold uppercase tracking-widest text-sm">
+              <p className="text-gray-500 font-bold uppercase tracking-widest text-sm mb-8 text-center">
                   {isManualMode ? 'Laddar formulär...' : 'Hämtar din personliga strategi...'}
               </p>
+              
+              {!isManualMode && (
+                  <button 
+                      onClick={() => {
+                          setLoading(false);
+                          setViewMode('logging');
+                      }}
+                      className="px-6 py-3 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  >
+                      Hoppa över
+                  </button>
+              )}
           </div>
       );
   }
