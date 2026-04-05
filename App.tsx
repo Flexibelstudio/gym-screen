@@ -72,7 +72,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const timer = setTimeout(() => {
       setMinSplashTimeElapsed(true);
-    }, 3000);
+    }, 2000);
     return () => clearTimeout(timer);
   }, []);
   
