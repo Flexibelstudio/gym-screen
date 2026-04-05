@@ -1224,7 +1224,7 @@ const App: React.FC = () => {
   if (currentUser && !userData && !isStudioMode && !authLoading) {
     return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+            <img src="/favicon.png" alt="SmartStudio" className="w-20 h-20 mb-6 rounded-2xl shadow-sm" />
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Förbereder ditt konto...</h2>
             <p className="text-gray-500 mt-2">Detta tar bara några sekunder.</p>
             <div className="flex flex-col gap-4 mt-8">
@@ -1251,7 +1251,7 @@ const App: React.FC = () => {
   if (isGlobalLoading) {
     return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+            <img src="/favicon.png" alt="SmartStudio" className="w-20 h-20 mb-6 rounded-2xl shadow-sm" />
             <p className="text-gray-500 font-bold uppercase tracking-widest text-sm">Laddar SmartStudio...</p>
         </div>
     );
@@ -1260,7 +1260,7 @@ const App: React.FC = () => {
   if (isOrgMismatch && !isStudioMode) {
       return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+            <img src="/favicon.png" alt="SmartStudio" className="w-20 h-20 mb-6 rounded-2xl shadow-sm" />
             <p className="text-gray-500 font-bold uppercase tracking-widest text-sm">Hämtar organisation...</p>
         </div>
       );
