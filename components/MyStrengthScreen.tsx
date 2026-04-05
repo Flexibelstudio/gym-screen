@@ -178,11 +178,6 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
                                         <p className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-widest">
                                             {new Date(pb.date).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' })}
                                         </p>
-                                        {pb.reps && (
-                                            <span className="text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 px-1.5 py-0.5 rounded font-bold">
-                                                {pb.weight}kg x {pb.reps}
-                                            </span>
-                                        )}
                                     </div>
                                 </div>
                                 
@@ -207,10 +202,14 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
                                         <div className="flex items-center gap-2">
                                             <div className="text-right">
                                                 <div className="flex items-baseline justify-end gap-1">
-                                                    <span className="font-black text-2xl text-primary">{pb.calculated1RM || pb.weight}</span>
+                                                    <span className="font-black text-xl text-primary">
+                                                        {pb.reps ? `${pb.reps} x ${pb.weight}` : pb.weight}
+                                                    </span>
                                                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">kg</span>
                                                 </div>
-                                                <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-right">1RM</div>
+                                                <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-right">
+                                                    {pb.calculated1RM ? `1RM: ${pb.calculated1RM} kg` : '1RM'}
+                                                </div>
                                             </div>
                                             <button 
                                                 onClick={(e) => startEditing(pb, e)}
@@ -230,11 +229,7 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
                                 <div className="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/20">
                                     <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">1RM Historik</h4>
                                     
-                                    {isLoadingHistory ? (
-                                        <div className="flex justify-center py-8">
-                                            <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                        </div>
-                                    ) : hasHistory ? (
+                                    {hasHistory ? (
                                         <div className="h-48 w-full">
                                             <ResponsiveContainer width="100%" height="100%">
                                                 <LineChart data={historyData[pb.exerciseName]} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
