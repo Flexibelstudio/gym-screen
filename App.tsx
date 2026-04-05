@@ -51,6 +51,7 @@ import { WorkoutDiplomaView } from './components/WorkoutDiplomaView';
 // --- Modals ---
 import { CancelConfirmationModal } from './components/modals/CancelConfirmationModal';
 import { BirthDatePromptModal } from './components/modals/BirthDatePromptModal';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
 const THEME_STORAGE_KEY = 'flexibel-screen-theme';
 
@@ -1621,6 +1622,8 @@ const App: React.FC = () => {
               />
           </div>
        )}
+
+       <PWAInstallPrompt />
     </div>
   );
 }
