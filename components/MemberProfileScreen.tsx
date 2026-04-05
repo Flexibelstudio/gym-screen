@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { MyStrengthScreen } from './MyStrengthScreen';
 import { WorkoutDiplomaView } from './WorkoutDiplomaView';
 import { useStudio } from '../context/StudioContext';
+import { PWAInstallPrompt } from './PWAInstallPrompt';
 
 // --- NY IMPORT AV ER PAYWALL SCREEN ---
 import { PaywallScreen } from './PaywallScreen';
@@ -946,6 +947,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     />
                 )}
             </AnimatePresence>
+
+            <PWAInstallPrompt />
         </div>
     );
 };
