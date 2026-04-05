@@ -1,8 +1,8 @@
 
 {
-  "name": "Smart Studio",
+  "name": "SmartStudio",
   "short_name": "SmartStudio",
-  "description": "Smart Studio - Din digitala träningspartner.",
+  "description": "SmartStudio - Din digitala träningspartner.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#000000",
