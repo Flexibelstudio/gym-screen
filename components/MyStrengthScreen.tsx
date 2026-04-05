@@ -41,16 +41,75 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
         return () => unsubscribe();
     }, [userData?.uid]);
 
-    const sortedPbs = useMemo(() => {
-        return [...pbs].sort((a, b) => a.exerciseName.localeCompare(b.exerciseName, 'sv'));
-    }, [pbs]);
+    const enrichedPbs = useMemo(() => {
+        const sourceLogs = logs || [];
+        
+        return [...pbs].map(pb => {
+            let bestSetFromLogs: { weight: number, reps: number, oneRm: number } | null = null;
+            
+            sourceLogs.forEach(log => {
+                if (!log.exerciseResults) return;
+                const exResult = log.exerciseResults.find(ex => ex.exerciseName.trim().toLowerCase() === pb.exerciseName.trim().toLowerCase());
+                if (!exResult) return;
+                
+                if (exResult.setDetails) {
+                    exResult.setDetails.forEach(s => {
+                        const w = parseFloat(s.weight as any);
+                        const r = parseFloat(s.reps as any);
+                        if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0 && r <= 10) {
+                            const oneRm = calculate1RM(w, r);
+                            if (oneRm && (!bestSetFromLogs || oneRm > bestSetFromLogs.oneRm)) {
+                                bestSetFromLogs = { weight: w, reps: r, oneRm };
+                            }
+                        }
+                    });
+                } else if (exResult.weight && exResult.reps) {
+                    const w = parseFloat(exResult.weight as any);
+                    const r = parseFloat(exResult.reps as any);
+                    if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0 && r <= 10) {
+                        const oneRm = calculate1RM(w, r);
+                        if (oneRm && (!bestSetFromLogs || oneRm > bestSetFromLogs.oneRm)) {
+                            bestSetFromLogs = { weight: w, reps: r, oneRm };
+                        }
+                    }
+                }
+            });
+
+            let displayWeight = pb.weight;
+            let displayReps = pb.reps;
+            let display1RM = pb.calculated1RM;
+
+            if (!pb.reps && bestSetFromLogs) {
+                // Old format: pb.weight is actually the 1RM.
+                // If the best set from logs matches this 1RM (or is greater)
+                if (Math.abs(bestSetFromLogs.oneRm - pb.weight) < 2 || bestSetFromLogs.oneRm >= pb.weight) {
+                    displayWeight = bestSetFromLogs.weight;
+                    displayReps = bestSetFromLogs.reps;
+                    display1RM = bestSetFromLogs.oneRm;
+                } else {
+                    // Manually edited to be higher than any logged set
+                    display1RM = pb.weight;
+                }
+            } else if (!pb.reps && !pb.calculated1RM) {
+                // No logs found, and old format
+                display1RM = pb.weight;
+            }
+
+            return {
+                ...pb,
+                displayWeight,
+                displayReps,
+                display1RM
+            };
+        }).sort((a, b) => a.exerciseName.localeCompare(b.exerciseName, 'sv'));
+    }, [pbs, logs]);
 
     const historyData = useMemo(() => {
         const data: Record<string, any[]> = {};
         const sourceLogs = logs || [];
         const sortedLogs = [...sourceLogs].sort((a, b) => a.date - b.date);
 
-        sortedPbs.forEach(pb => {
+        enrichedPbs.forEach(pb => {
             const exerciseName = pb.exerciseName;
             const dataPoints: any[] = [];
 
@@ -150,7 +209,7 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
                     <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
                     <p className="text-xs font-bold uppercase tracking-widest">Hämtar rekord...</p>
                 </div>
-            ) : sortedPbs.length === 0 ? (
+            ) : enrichedPbs.length === 0 ? (
                 <div className="text-center py-16 bg-gray-50 dark:bg-gray-900/50 rounded-[2rem] border-2 border-dashed border-gray-200 dark:border-gray-800">
                     <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300 dark:text-gray-600">
                         <DumbbellIcon className="w-8 h-8" />
@@ -162,7 +221,7 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
                 </div>
             ) : (
                 <div className="grid gap-3">
-                    {sortedPbs.map(pb => {
+                    {enrichedPbs.map(pb => {
                         const isExpanded = expandedExercise === pb.exerciseName;
                         const hasHistory = historyData[pb.exerciseName] && historyData[pb.exerciseName].length > 0;
                         
@@ -203,12 +262,12 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
                                             <div className="text-right">
                                                 <div className="flex items-baseline justify-end gap-1">
                                                     <span className="font-black text-xl text-primary">
-                                                        {pb.reps ? `${pb.reps} x ${pb.weight}` : pb.weight}
+                                                        {pb.displayReps ? `${pb.displayReps} x ${pb.displayWeight}` : pb.displayWeight}
                                                     </span>
                                                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">kg</span>
                                                 </div>
                                                 <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-right">
-                                                    {pb.calculated1RM ? `1RM: ${pb.calculated1RM} kg` : '1RM'}
+                                                    {pb.display1RM ? `1RM: ${pb.display1RM} kg` : '1RM'}
                                                 </div>
                                             </div>
                                             <button 
