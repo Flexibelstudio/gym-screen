@@ -5,7 +5,7 @@ import { ToggleSwitch, SparklesIcon, InformationCircleIcon, SpeakerphoneIcon } f
 import { SelectField } from './AdminShared';
 import { CategoryPromptManager } from '../CategoryPromptManager';
 import { FeatureInfoModal } from './AdminModals';
-import { saveAdminActivity, requestPushNotificationPermission, auth } from '../../services/firebaseService';
+import { saveAdminActivity } from '../../services/firebaseService';
 import { useAuth } from '../../context/AuthContext';
 import { playTimerSound } from '../../hooks/useWorkoutTimer';
 
@@ -24,8 +24,6 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
 }) => {
     const { userData } = useAuth();
     const [showFeatureInfo, setShowFeatureInfo] = useState(false);
-    const [isRequestingPush, setIsRequestingPush] = useState(false);
-    const [pushStatus, setPushStatus] = useState<'idle' | 'granted' | 'denied' | 'error'>('idle');
 
     const handleAiChange = (field: 'instructions' | 'tone', value: string) => {
         handleUpdateConfigField('aiSettings', {
@@ -37,25 +35,6 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
     const handleTestSound = () => {
         const sound = config.soundProfile || 'airhorn';
         playTimerSound(sound, 2); // Play twice
-    };
-
-    const handleEnablePush = async () => {
-        if (!auth?.currentUser?.uid) return;
-        setIsRequestingPush(true);
-        setPushStatus('idle');
-        try {
-            const token = await requestPushNotificationPermission(auth.currentUser.uid);
-            if (token) {
-                setPushStatus('granted');
-            } else {
-                setPushStatus('denied');
-            }
-        } catch (error) {
-            console.error(error);
-            setPushStatus('error');
-        } finally {
-            setIsRequestingPush(false);
-        }
     };
 
     return (
@@ -181,34 +160,6 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                                 )}
                             </div>
                             <p className="text-xs text-gray-500 mt-2 pl-2">Visar logotyp och klocka vid inaktivitet.</p>
-                        </div>
-                    </div>
-                </section>
-
-                <div className="border-t border-gray-100 dark:border-gray-700 my-6"></div>
-
-                <section>
-                    <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Push-notiser</h4>
-                    <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                            Aktivera push-notiser för att få ett pling när en ny organisation registrerar sig eller när nya skärmar/coacher läggs till.
-                        </p>
-                        
-                        <div className="flex items-center gap-4">
-                            <button 
-                                onClick={handleEnablePush} 
-                                disabled={isRequestingPush || pushStatus === 'granted'}
-                                className={`font-semibold py-2 px-6 rounded-lg transition-colors ${
-                                    pushStatus === 'granted' 
-                                        ? 'bg-green-600 text-white cursor-default' 
-                                        : 'bg-primary hover:brightness-95 text-white disabled:opacity-50'
-                                }`}
-                            >
-                                {isRequestingPush ? 'Aktiverar...' : pushStatus === 'granted' ? 'Notiser Aktiverade ✓' : 'Aktivera Notiser på denna enhet'}
-                            </button>
-                            
-                            {pushStatus === 'denied' && <span className="text-red-500 text-sm font-medium">Du nekade behörighet eller så stöds det inte.</span>}
-                            {pushStatus === 'error' && <span className="text-red-500 text-sm font-medium">Ett fel uppstod.</span>}
                         </div>
                     </div>
                 </section>
