@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { Workout } from '../types';
 import { useWorkout } from '../context/WorkoutContext';
+import { useStudio } from '../context/StudioContext';
 import { SearchIcon, DumbbellIcon, ClockIcon } from './icons';
 import { useAuth } from '../context/AuthContext';
 
@@ -13,6 +14,7 @@ interface WorkoutListScreenProps {
 export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkategori, onSelectWorkout }) => {
     const { workouts } = useWorkout();
     const { isStudioMode } = useAuth();
+    const { studioConfig } = useStudio();
     const [searchTerm, setSearchTerm] = useState('');
 
     const filteredWorkouts = useMemo(() => {
@@ -20,18 +22,33 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
             const matchesCategory = !passkategori || w.category === passkategori;
             const matchesSearch = (w.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                                 (w.coachTips && (w.coachTips || '').toLowerCase().includes(searchTerm.toLowerCase()));
+            
+            // Kolla om kategorin är låst
+            const categoryConfig = studioConfig.customCategories.find(c => c.name === w.category);
+            const isCategoryLocked = categoryConfig?.isLocked === true;
+
+            // Filtreringslogik baserat på läge
+            if (isStudioMode) {
+                if (w.showInStudio === false) return false;
+            } else {
+                if (w.showInApp === false) return false;
+                if (isCategoryLocked) return false;
+            }
+
             return w.isPublished && matchesCategory && matchesSearch;
         });
-    }, [workouts, passkategori, searchTerm]);
+    }, [workouts, passkategori, searchTerm, isStudioMode, studioConfig]);
     
     return (
         <div className="w-full max-w-5xl mx-auto px-6 pb-12 animate-fade-in">
-            <div className="text-center mb-10">
-                <h1 className="text-5xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
-                    {passkategori || 'Välj Träningspass'}
-                </h1>
-                <div className="h-1.5 w-24 bg-primary mx-auto rounded-full mb-4"></div>
-            </div>
+            {!passkategori && (
+                <div className="text-center mb-10">
+                    <h1 className="text-5xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
+                        Välj Träningspass
+                    </h1>
+                    <div className="h-1.5 w-24 bg-primary mx-auto rounded-full mb-4"></div>
+                </div>
+            )}
 
             {/* Sökfält */}
             <div className="relative max-w-xl mx-auto mb-12">

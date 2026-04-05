@@ -473,6 +473,52 @@ export const getLeaderboardData = async (orgId: string): Promise<{ memberId: str
     }
 };
 
+export const listenToLeaderboardData = (orgId: string, onUpdate: (data: { memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]) => void) => {
+    if (isOffline || !db || !orgId) {
+        onUpdate([]);
+        return () => {};
+    }
+    
+    // Get start of current week (Monday)
+    const now = new Date();
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+    const startOfWeek = new Date(now.setDate(diff));
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const q = query(
+        collection(db, 'workoutLogs'), 
+        where("organizationId", "==", orgId),
+        where("date", ">=", startOfWeek.getTime())
+    );
+    
+    return onSnapshot(q, (snap) => {
+        const logs = snap.docs.map(d => d.data() as WorkoutLog);
+        
+        // Aggregate by memberId
+        const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
+        
+        logs.forEach(log => {
+            if (!memberStats[log.memberId]) {
+                memberStats[log.memberId] = { count: 0, pbs: 0, name: log.memberName || 'Okänd', photoUrl: log.memberPhotoUrl || '' };
+            }
+            memberStats[log.memberId].count += 1;
+            if (log.newPBs && log.newPBs.length > 0) {
+                memberStats[log.memberId].pbs += log.newPBs.length;
+            }
+        });
+
+        // Convert to array and sort by count
+        const data = Object.entries(memberStats)
+            .map(([memberId, stats]) => ({ memberId, ...stats }))
+            .sort((a, b) => b.count - a.count);
+            
+        onUpdate(data);
+    }, (error) => {
+        console.error("listenToLeaderboardData failed", error);
+    });
+};
+
 export const listenToMemberLogs = (memberId: string, onUpdate: (logs: WorkoutLog[]) => void) => {
     if (isOffline || !db || !memberId) {
         onUpdate([]);

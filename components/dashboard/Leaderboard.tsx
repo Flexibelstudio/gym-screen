@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getLeaderboardData, getMembers } from '../../services/firebaseService';
+import { listenToLeaderboardData, getMembers } from '../../services/firebaseService';
 import { TrophyIcon, FireIcon, ChartBarIcon } from '@heroicons/react/24/solid';
 
 interface LeaderboardProps {
@@ -12,31 +12,38 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
     const [activeTab, setActiveTab] = useState<'workouts' | 'pbs'>('workouts');
 
     useEffect(() => {
-        const fetchLeaderboard = async () => {
+        if (!organizationId) return;
+
+        let unsubscribeLeaderboard: () => void;
+
+        const setupLeaderboard = async () => {
             setLoading(true);
             try {
-                const [data, members] = await Promise.all([
-                    getLeaderboardData(organizationId),
-                    getMembers(organizationId)
-                ]);
-
+                const members = await getMembers(organizationId);
+                
                 // Filter out members who opted out
                 const optedOutMemberIds = new Set(
                     members.filter(m => m.showOnLeaderboard === false).map(m => m.uid)
                 );
 
-                const filteredData = data.filter(d => !optedOutMemberIds.has(d.memberId));
-                setLeaderboard(filteredData);
+                unsubscribeLeaderboard = listenToLeaderboardData(organizationId, (data) => {
+                    const filteredData = data.filter(d => !optedOutMemberIds.has(d.memberId));
+                    setLeaderboard(filteredData);
+                    setLoading(false);
+                });
             } catch (error) {
-                console.error("Failed to fetch leaderboard", error);
-            } finally {
+                console.error("Failed to setup leaderboard", error);
                 setLoading(false);
             }
         };
 
-        if (organizationId) {
-            fetchLeaderboard();
-        }
+        setupLeaderboard();
+
+        return () => {
+            if (unsubscribeLeaderboard) {
+                unsubscribeLeaderboard();
+            }
+        };
     }, [organizationId]);
 
     if (loading) {

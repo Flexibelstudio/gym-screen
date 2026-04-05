@@ -290,27 +290,6 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
     return (
         <div className="w-full max-w-lg mx-auto flex flex-col items-center space-y-8 animate-fade-in relative">
             
-            {/* Tillbaka-knapp */}
-            <button 
-                onPointerDown={(e) => {
-                    if (e.button === 0) {
-                        e.preventDefault();
-                        onCancel();
-                    }
-                }}
-                onClick={(e) => {
-                    if (e.detail === 0) {
-                        onCancel();
-                    }
-                }}
-                className="absolute -top-16 left-0 flex items-center gap-2 text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                <span className="font-bold uppercase tracking-wider text-sm">Tillbaka</span>
-            </button>
-
             {/* Section 1: Timer Type */}
             <section className="w-full">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">1. Välj Timertyp</h2>

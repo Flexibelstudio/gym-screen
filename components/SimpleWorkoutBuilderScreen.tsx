@@ -456,6 +456,36 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                         {isGeneratingDesc ? <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div> : <SparklesIcon className="w-5 h-5" />}
                     </button>
                 </div>
+                
+                {exercise.loggingEnabled && (
+                    <div className="flex items-center gap-2 flex-wrap mt-2 bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Logga:</span>
+                        {(['time', 'distance', 'kcal', 'reps', 'weight'] as const).map(field => {
+                            const isSelected = exercise.trackingFields ? exercise.trackingFields.includes(field) : (field === 'reps' || field === 'weight');
+                            const label = field === 'time' ? 'Tid' : field === 'distance' ? 'Distans' : field === 'kcal' ? 'Kcal' : field === 'reps' ? 'Reps' : 'Vikt';
+                            return (
+                                <label key={field} className="flex items-center gap-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 cursor-pointer select-none">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={isSelected}
+                                        onChange={(e) => {
+                                            const current = exercise.trackingFields || ['reps', 'weight'];
+                                            let newFields;
+                                            if (e.target.checked) {
+                                                newFields = [...current, field];
+                                            } else {
+                                                newFields = current.filter(f => f !== field);
+                                            }
+                                            onUpdate(exercise.id, { trackingFields: newFields });
+                                        }}
+                                        className="w-3.5 h-3.5 rounded text-primary focus:ring-primary bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600"
+                                    />
+                                    {label}
+                                </label>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -796,10 +826,27 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
 
     const inputBaseClasses = "appearance-none !bg-white dark:!bg-gray-800 !text-gray-900 dark:!text-white border border-gray-200 dark:border-gray-700 rounded-[2rem] p-6 focus:ring-4 focus:ring-primary/20 focus:outline-none transition-all font-black placeholder-gray-300 dark:placeholder-gray-600 shadow-xl";
 
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+    // Scroll to top on mount
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+            if (scrollContainerRef.current) {
+                scrollContainerRef.current.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+            }
+            const adminContainer = document.getElementById('admin-scroll-container');
+            if (adminContainer) {
+                adminContainer.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+            }
+        }, 10);
+        return () => clearTimeout(timer);
+    }, []);
+
     return (
         <div className="w-full h-full flex flex-col animate-fade-in bg-gray-50 dark:bg-black">
             <Toast isVisible={toast.visible} message={toast.message} onClose={() => setToast({ ...toast, visible: false })} />
-            <div className="flex-grow overflow-y-auto px-4 pb-40 pt-6 custom-scrollbar scroll-smooth">
+            <div ref={scrollContainerRef} className="flex-grow overflow-y-auto px-4 pb-40 pt-6 custom-scrollbar scroll-smooth">
                 <div className="max-w-2xl mx-auto space-y-10">
                     
                     {/* Header Card */}

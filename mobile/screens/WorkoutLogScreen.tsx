@@ -20,6 +20,9 @@ const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
 interface LocalSetDetail {
     weight: string;
     reps: string;
+    time?: string;
+    distance?: string;
+    kcal?: string;
     completed: boolean;
 }
 
@@ -27,12 +30,13 @@ interface LocalExerciseResult {
   exerciseId: string;
   exerciseName: string;
   setDetails: LocalSetDetail[];
-  distance?: string;
-  kcal?: string;
   isBodyweight?: boolean;
   blockId: string;
   blockTitle: string;
-  coachAdvice?: string; 
+  coachAdvice?: string;
+  trackingFields?: ('time' | 'distance' | 'kcal' | 'reps' | 'weight')[];
+  groupId?: string;
+  groupColor?: string;
 }
 
 interface LogData {
@@ -61,7 +65,8 @@ const TimeInput: React.FC<{
     onChange: (val: string) => void;
     placeholder?: string;
     className?: string;
-}> = ({ value, onChange, placeholder, className }) => {
+    compact?: boolean;
+}> = ({ value, onChange, placeholder, className, compact }) => {
     const [min, setMin] = useState('');
     const [sec, setSec] = useState('');
 
@@ -97,7 +102,7 @@ const TimeInput: React.FC<{
     };
 
     return (
-        <div className={`flex items-center bg-gray-5 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 px-2 focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all ${className}`}>
+        <div className={`flex items-center ${compact ? '' : 'bg-gray-5 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-700 px-2'} focus-within:ring-2 focus-within:ring-primary focus-within:border-primary transition-all ${className}`}>
              <div className="flex-1 flex flex-col justify-center">
                 <input
                     type="text"
@@ -106,11 +111,10 @@ const TimeInput: React.FC<{
                     value={min}
                     onChange={(e) => update(e.target.value, sec)}
                     placeholder={placeholder || "0"}
-                    className="w-full bg-transparent font-black text-lg text-gray-900 dark:text-white focus:outline-none text-center appearance-none p-4"
+                    className={`w-full bg-transparent font-black text-lg text-gray-900 dark:text-white focus:outline-none text-center appearance-none ${compact ? 'py-0' : 'p-4'}`}
                 />
-                 <span className="text-[9px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider text-center -mt-2 pb-2">min</span>
              </div>
-             <span className="text-gray-300 dark:text-gray-600 font-black text-2xl pb-4">:</span>
+             <span className={`text-gray-300 dark:text-gray-600 font-black ${compact ? 'text-lg pb-0' : 'text-2xl pb-1'}`}>:</span>
              <div className="flex-1 flex flex-col justify-center">
                 <input
                     type="text"
@@ -119,9 +123,8 @@ const TimeInput: React.FC<{
                     value={sec}
                     onChange={(e) => update(min, e.target.value)}
                     placeholder="00"
-                    className="w-full bg-transparent font-black text-lg text-gray-900 dark:text-white focus:outline-none text-center appearance-none p-4"
+                    className={`w-full bg-transparent font-black text-lg text-gray-900 dark:text-white focus:outline-none text-center appearance-none ${compact ? 'py-0' : 'p-4'}`}
                 />
-                 <span className="text-[9px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider text-center -mt-2 pb-2">sek</span>
              </div>
         </div>
     );
@@ -355,6 +358,14 @@ const PreGameView: React.FC<{
     );
 };
 
+const GROUP_COLORS = [
+    { bg: 'bg-blue-500', border: 'border-blue-500', text: 'text-blue-500', lightBg: 'bg-blue-50 dark:bg-blue-900/20', lightBorder: 'border-blue-200 dark:border-blue-800' },
+    { bg: 'bg-pink-500', border: 'border-pink-500', text: 'text-pink-500', lightBg: 'bg-pink-50 dark:bg-pink-900/20', lightBorder: 'border-pink-200 dark:border-pink-800' },
+    { bg: 'bg-lime-500', border: 'border-lime-500', text: 'text-lime-500', lightBg: 'bg-lime-50 dark:bg-lime-900/20', lightBorder: 'border-lime-200 dark:border-lime-800' },
+    { bg: 'bg-orange-500', border: 'border-orange-500', text: 'text-orange-500', lightBg: 'bg-orange-50 dark:bg-orange-900/20', lightBorder: 'border-orange-200 dark:border-orange-800' },
+    { bg: 'bg-purple-500', border: 'border-purple-500', text: 'text-purple-500', lightBg: 'bg-purple-50 dark:bg-purple-900/20', lightBorder: 'border-purple-200 dark:border-purple-800' },
+];
+
 const ExerciseLogCard: React.FC<{
   name: string;
   result: LocalExerciseResult;
@@ -362,8 +373,27 @@ const ExerciseLogCard: React.FC<{
   aiSuggestion?: string; // Koncept 1: Coach Whisper
   scaling?: string;      // Koncept 1: Alternativ
   lastPerformance?: { weight: number, reps: string } | null;
-}> = ({ name, result, onUpdate, aiSuggestion, scaling, lastPerformance }) => {
+  isLastInGroup?: boolean;
+  onAddGroupSet?: () => void;
+}> = ({ name, result, onUpdate, aiSuggestion, scaling, lastPerformance, isLastInGroup, onAddGroupSet }) => {
     
+    const trackingFields = result.trackingFields || ['reps', 'weight'];
+    const showReps = trackingFields.includes('reps');
+    const showWeight = trackingFields.includes('weight');
+    const showTime = trackingFields.includes('time');
+    const showDistance = trackingFields.includes('distance');
+    const showKcal = trackingFields.includes('kcal');
+
+    const dynamicColsCount = [showReps, showWeight, showTime, showDistance, showKcal].filter(Boolean).length;
+    const gridColsClass = `grid-cols-[30px_repeat(${dynamicColsCount},_1fr)_40px_40px]`;
+
+    // Extract tailwind color classes from groupColor (e.g. "bg-pink-500")
+    const groupColorObj = result.groupColor ? GROUP_COLORS.find(c => c.bg === result.groupColor) : null;
+    const borderColorClass = groupColorObj ? groupColorObj.border : 'border-gray-100 dark:border-gray-800';
+    const textColorClass = groupColorObj ? groupColorObj.text : 'text-primary';
+    const lightBgClass = groupColorObj ? groupColorObj.lightBg : 'bg-primary/5';
+    const lightBorderClass = groupColorObj ? groupColorObj.lightBorder : 'border-primary/20';
+
     const calculate1RM = (weight: string, reps: string) => {
         const w = parseFloat(weight);
         const r = parseFloat(reps);
@@ -375,7 +405,7 @@ const ExerciseLogCard: React.FC<{
         return null;
     };
 
-    const handleSetChange = (index: number, field: 'weight' | 'reps', value: string) => {
+    const handleSetChange = (index: number, field: keyof LocalSetDetail, value: string) => {
         const newSets = [...result.setDetails];
         newSets[index] = { ...newSets[index], [field]: value };
         onUpdate({ setDetails: newSets });
@@ -393,7 +423,7 @@ const ExerciseLogCard: React.FC<{
 
     const handleAddSet = () => {
         const lastSet = result.setDetails[result.setDetails.length - 1];
-        const newSet = lastSet ? { ...lastSet, completed: false } : { weight: '', reps: '', completed: false };
+        const newSet = lastSet ? { ...lastSet, completed: false } : { weight: '', reps: '', time: '', distance: '', kcal: '', completed: false };
         onUpdate({ setDetails: [...result.setDetails, newSet] });
     };
 
@@ -405,7 +435,7 @@ const ExerciseLogCard: React.FC<{
     const [showTip, setShowTip] = useState(false);
 
     return (
-        <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 mb-3 border border-gray-100 dark:border-gray-800 shadow-sm transition-all">
+        <div className={`bg-white dark:bg-gray-900 rounded-2xl p-4 mb-3 border shadow-sm transition-all ${result.groupColor ? `border-l-4 ${borderColorClass} border-y-gray-100 border-r-gray-100 dark:border-y-gray-800 dark:border-r-gray-800` : 'border-gray-100 dark:border-gray-800'}`}>
             <div className="flex flex-col gap-2 mb-4">
                 <div className="flex justify-between items-start">
                     <div className="flex-1 min-w-0">
@@ -463,57 +493,97 @@ const ExerciseLogCard: React.FC<{
                 )}
             </div>
 
-            <div className="space-y-2">
-                <div className="grid grid-cols-[30px_1fr_1fr_40px_40px] gap-2 px-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                    <div className="text-center">Set</div>
-                    <div className="text-center">Reps</div>
-                    <div className="text-center">Vikt (kg)</div>
-                    <div></div>
-                    <div className="text-center">Klar</div>
-                </div>
+            <div className="space-y-4">
+                <div className="space-y-2">
+                    <div className={`grid ${gridColsClass} gap-2 px-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider`}>
+                        <div className="text-center">Set</div>
+                        {showReps && <div className="text-center">Reps</div>}
+                        {showWeight && <div className="text-center">Vikt</div>}
+                        {showTime && <div className="text-center">Tid</div>}
+                        {showDistance && <div className="text-center">Distans</div>}
+                        {showKcal && <div className="text-center">Kcal</div>}
+                        <div></div>
+                        <div className="text-center">Klar</div>
+                    </div>
 
-                {result.setDetails.map((set, index) => {
-                    const oneRm = calculate1RM(set.weight, set.reps);
-                    return (
-                        <div key={index} className={`grid grid-cols-[30px_1fr_1fr_40px_40px] gap-2 items-center transition-all ${set.completed ? 'opacity-50' : 'opacity-100'}`}>
-                            <div className="flex justify-center items-center">
-                                <span className={`text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center transition-colors ${set.completed ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>{index + 1}</span>
-                            </div>
-                            <div className="bg-gray-5 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                <input type="text" inputMode="numeric" value={set.reps} onChange={(e) => handleSetChange(index, 'reps', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" disabled={set.completed} />
-                            </div>
-                            <div className="relative">
-                                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                    <input type="number" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" disabled={set.completed} />
+                    {result.setDetails.map((set, index) => {
+                        const oneRm = (showWeight && showReps) ? calculate1RM(set.weight, set.reps) : null;
+                        return (
+                            <div key={index} className={`grid ${gridColsClass} gap-2 items-center transition-all ${set.completed ? 'opacity-50' : 'opacity-100'}`}>
+                                <div className="flex justify-center items-center">
+                                    <span className={`text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center transition-colors ${set.completed ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>{index + 1}</span>
                                 </div>
-                                {oneRm && !set.completed && (
-                                    <motion.div 
-                                        initial={{ scale: 0.8, opacity: 0, y: 5 }}
-                                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                                        exit={{ scale: 0.8, opacity: 0 }}
-                                        className="absolute -top-9 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs font-black px-3 py-1.5 rounded-xl shadow-xl border border-gray-700 whitespace-nowrap z-20 pointer-events-none"
+                                
+                                {showReps && (
+                                    <div className="bg-gray-5 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                        <input type="text" inputMode="numeric" value={set.reps} onChange={(e) => handleSetChange(index, 'reps', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" disabled={set.completed} />
+                                    </div>
+                                )}
+                                
+                                {showWeight && (
+                                    <div className="relative">
+                                        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                            <input type="number" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" disabled={set.completed} />
+                                        </div>
+                                        {oneRm && !set.completed && (
+                                            <motion.div 
+                                                initial={{ scale: 0.8, opacity: 0, y: 5 }}
+                                                animate={{ scale: 1, opacity: 1, y: 0 }}
+                                                exit={{ scale: 0.8, opacity: 0 }}
+                                                className="absolute -top-9 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs font-black px-3 py-1.5 rounded-xl shadow-xl border border-gray-700 whitespace-nowrap z-20 pointer-events-none"
+                                            >
+                                                🔥 1RM: <span className="text-yellow-400">{oneRm}</span>
+                                            </motion.div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {showTime && (
+                                    <div className="bg-gray-5 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                        <input type="number" value={set.time || ''} onChange={(e) => handleSetChange(index, 'time', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" disabled={set.completed} />
+                                    </div>
+                                )}
+
+                                {showDistance && (
+                                    <div className="bg-gray-5 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                        <input type="number" value={set.distance || ''} onChange={(e) => handleSetChange(index, 'distance', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" disabled={set.completed} />
+                                    </div>
+                                )}
+
+                                {showKcal && (
+                                    <div className="bg-gray-5 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                        <input type="number" value={set.kcal || ''} onChange={(e) => handleSetChange(index, 'kcal', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" disabled={set.completed} />
+                                    </div>
+                                )}
+
+                                <div className="flex justify-center">
+                                    {result.setDetails.length > 1 && (
+                                        <button onClick={() => handleRemoveSet(index)} className="text-gray-300 hover:text-red-500 transition-colors p-2" disabled={set.completed}><CloseIcon className="w-5 h-5" /></button>
+                                    )}
+                                </div>
+                                <div className="flex justify-center">
+                                    <button 
+                                        onClick={() => handleToggleComplete(index)} 
+                                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all shadow-sm transform active:scale-90 ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
                                     >
-                                        🔥 1RM: <span className="text-yellow-400">{oneRm}</span>
-                                    </motion.div>
-                                )}
+                                        {set.completed ? <CheckIcon className="w-5 h-5" /> : <div className="w-2 h-2 rounded-full border border-current opacity-30" />}
+                                    </button>
+                                </div>
                             </div>
-                            <div className="flex justify-center">
-                                {result.setDetails.length > 1 && (
-                                    <button onClick={() => handleRemoveSet(index)} className="text-gray-300 hover:text-red-500 transition-colors p-2" disabled={set.completed}><CloseIcon className="w-5 h-5" /></button>
-                                )}
-                            </div>
-                            <div className="flex justify-center">
-                                <button 
-                                    onClick={() => handleToggleComplete(index)} 
-                                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all shadow-sm transform active:scale-90 ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
-                                >
-                                    {set.completed ? <CheckIcon className="w-5 h-5" /> : <div className="w-2 h-2 rounded-full border border-current opacity-30" />}
-                                </button>
-                            </div>
-                        </div>
-                    );
-                })}
-                <button onClick={handleAddSet} className="w-full mt-2 py-2 flex items-center justify-center gap-1 text-xs font-bold text-primary bg-primary/5 hover:bg-primary/10 rounded-lg transition-colors border border-primary/20 border-dashed"><PlusIcon className="w-3 h-3" /> Lägg till set</button>
+                        );
+                    })}
+                    {(!result.groupId) && (
+                        <button onClick={handleAddSet} className="w-full mt-2 py-2 flex items-center justify-center gap-1 text-xs font-bold text-primary bg-primary/5 hover:bg-primary/10 rounded-lg transition-colors border border-primary/20 border-dashed"><PlusIcon className="w-3 h-3" /> Lägg till set</button>
+                    )}
+                    {(result.groupId && isLastInGroup && onAddGroupSet) && (
+                        <button 
+                            onClick={onAddGroupSet} 
+                            className={`w-full mt-2 py-2 flex items-center justify-center gap-1 text-xs font-bold rounded-lg transition-colors border border-dashed ${textColorClass} ${lightBorderClass} ${lightBgClass}`}
+                        >
+                            <PlusIcon className="w-3 h-3" /> Lägg till set för gruppen
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -537,7 +607,7 @@ const CustomActivityForm: React.FC<{
                 )}
                 <div className={`mt-4 space-y-5 ${isQuickMode ? 'mt-0' : 'mt-8'}`}>
                     <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Aktivitet *</label><input value={activityName} onChange={(e) => onUpdate('name', e.target.value)} placeholder="T.ex. Powerwalk" disabled={isQuickMode} className={`w-full text-xl font-black text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 ${isQuickMode ? 'opacity-70' : ''}`} /></div>
-                    <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Tid *</label><TimeInput value={duration} onChange={(val) => onUpdate('duration', val)} placeholder="60" className="w-full" /></div>
+                    <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Tid (min:sek) *</label><TimeInput value={duration} onChange={(val) => onUpdate('duration', val)} placeholder="60" className="w-full" /></div>
                     <div className="grid grid-cols-2 gap-4">
                         <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Kcal</label><input type="number" value={calories} onChange={(e) => onUpdate('calories', e.target.value)} placeholder="T.ex. 350" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
                         <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Distans (km)</label><input type="number" value={distance} onChange={(e) => onUpdate('distance', e.target.value)} placeholder="T.ex. 5.3" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
@@ -662,6 +732,53 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       return totalSets > 0 && uncheckedSetsCount === 0;
   }, [isSubmitting, isManualMode, customActivity, exerciseResults, uncheckedSetsCount, benchmarkDefinition, sessionStats]);
   
+  // --- WAKE LOCK LOGIC ---
+  const wakeLockRef = useRef<any>(null);
+
+  const requestWakeLock = async () => {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+        console.log('Wake Lock is active!');
+      }
+    } catch (err: any) {
+      console.error(`Wake Lock error: ${err.name}, ${err.message}`);
+    }
+  };
+
+  const releaseWakeLock = async () => {
+    if (wakeLockRef.current !== null) {
+      try {
+        await wakeLockRef.current.release();
+        wakeLockRef.current = null;
+        console.log('Wake Lock released manually');
+      } catch (err) {
+        console.error('Failed to release Wake Lock', err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (viewMode === 'logging') {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && viewMode === 'logging') {
+        requestWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      releaseWakeLock();
+    };
+  }, [viewMode]);
+
   // --- LOAD INITIAL DATA ---
   useEffect(() => {
     if (!oId) { setLoading(false); return; }
@@ -710,7 +827,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
                 foundWorkout.blocks.forEach(block => {
                     if (block.tag === 'Uppvärmning') return;
-                    const defaultSets: LocalSetDetail[] = [{ weight: '', reps: '', completed: false }];
+                    const defaultSets: LocalSetDetail[] = [{ weight: '', reps: '', time: '', distance: '', kcal: '', completed: false }];
 
                     block.exercises.forEach(ex => {
                         if (ex.loggingEnabled === true) {
@@ -719,10 +836,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                 exerciseId: ex.id,
                                 exerciseName: ex.name,
                                 setDetails: [...defaultSets],
-                                distance: '',
-                                kcal: '',
                                 blockId: block.id,
-                                blockTitle: block.title
+                                blockTitle: block.title,
+                                trackingFields: ex.trackingFields,
+                                groupId: ex.groupId,
+                                groupColor: ex.groupColor
                             });
                         }
                     });
@@ -828,6 +946,19 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
     });
   };
 
+  const handleAddGroupSet = (groupId: string) => {
+      setExerciseResults(prev => {
+          return prev.map(ex => {
+              if (ex.groupId === groupId) {
+                  const lastSet = ex.setDetails[ex.setDetails.length - 1];
+                  const newSet = lastSet ? { ...lastSet, completed: false } : { weight: '', reps: '', time: '', distance: '', kcal: '', completed: false };
+                  return { ...ex, setDetails: [...ex.setDetails, newSet] };
+              }
+              return ex;
+          });
+      });
+  };
+
   const handleStartWorkout = () => {
       setViewMode('logging');
   };
@@ -859,12 +990,19 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               const validWeights = r.setDetails.map(s => parseFloat(s.weight)).filter(n => !isNaN(n));
               const maxWeight = validWeights.length > 0 ? Math.max(...validWeights) : null;
               
+              let totalTime = 0;
+              let totalDistance = 0;
+              let totalKcal = 0;
+
               r.setDetails.forEach(s => {
                   const weight = parseFloat(s.weight);
                   const reps = parseFloat(s.reps);
                   if (!isNaN(weight) && !isNaN(reps)) {
                       totalVolume += weight * reps;
                   }
+                  if (s.time) totalTime += parseFloat(s.time) || 0;
+                  if (s.distance) totalDistance += parseFloat(s.distance) || 0;
+                  if (s.kcal) totalKcal += parseFloat(s.kcal) || 0;
               });
 
               const repsValues = r.setDetails.map(s => s.reps).filter(Boolean);
@@ -876,11 +1014,17 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   exerciseName: r.exerciseName,
                   setDetails: r.setDetails.map(s => ({
                       weight: parseFloat(s.weight) || null,
-                      reps: s.reps || null
+                      reps: s.reps || null,
+                      time: s.time ? parseFloat(s.time) : null,
+                      distance: s.distance ? parseFloat(s.distance) : null,
+                      kcal: s.kcal ? parseFloat(s.kcal) : null
                   })),
                   weight: maxWeight, 
                   reps: repsSummary, 
                   sets: r.setDetails.length,
+                  time: totalTime > 0 ? totalTime : null,
+                  distance: totalDistance > 0 ? totalDistance : null,
+                  kcal: totalKcal > 0 ? totalKcal : null,
                   blockId: r.blockId,
                   coachAdvice: r.coachAdvice
               };
@@ -1076,12 +1220,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       <div className="flex-1 overflow-y-auto bg-gray-5 dark:bg-black scrollbar-hide">
           <div className="p-4 sm:p-8 max-w-2xl mx-auto w-full">
               
-              <div className="mb-6 bg-purple-50 dark:bg-purple-900/10 border border-purple-100 dark:border-purple-900/30 rounded-2xl p-4">
-                  <p className="text-sm text-purple-800 dark:text-purple-300 font-medium">
-                      👋 <strong>Detta är en beta-funktion.</strong> Hittat en bugg eller saknar du något? Hör av dig!
-                  </p>
-              </div>
-
               <div className="mb-6">
                   <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Datum</label>
                   <div className="relative">
@@ -1121,6 +1259,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                     
                     {exerciseResults.map((result, index) => {
                         const isNewBlock = index === 0 || result.blockId !== exerciseResults[index - 1].blockId;
+                        const isLastInGroup = result.groupId && (index === exerciseResults.length - 1 || exerciseResults[index + 1].groupId !== result.groupId);
+
                         return (
                             <React.Fragment key={result.exerciseId}>
                                 {isNewBlock && (
@@ -1138,6 +1278,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                     aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} // Koncept 1: Coach Whisper
                                     scaling={activeInsight?.scaling?.[result.exerciseName]} // Koncept 1: Scaling
                                     lastPerformance={history[result.exerciseName]} 
+                                    isLastInGroup={isLastInGroup}
+                                    onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
                                 />
                             </React.Fragment>
                         );
@@ -1146,53 +1288,62 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                     <div className="mt-8 mb-6 bg-white dark:bg-gray-900 p-5 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className={`block text-11px font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'time' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
-                                    Tid (min)
+                                <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'time' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                                    Tid (min:sek)
                                     {benchmarkDefinition?.type === 'time' && prevBenchmarkBest && (
                                         <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'time')}</span>
                                     )}
                                 </label>
-                                <TimeInput
-                                    value={sessionStats.time}
-                                    onChange={(val) => setSessionStats(prev => ({ ...prev, time: val }))}
-                                    placeholder={benchmarkDefinition?.type === 'time' ? "45" : "-"}
-                                    className="w-full"
-                                />
+                                <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'time' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
+                                    <TimeInput
+                                        value={sessionStats.time}
+                                        onChange={(val) => setSessionStats(prev => ({ ...prev, time: val }))}
+                                        placeholder={benchmarkDefinition?.type === 'time' ? "45" : "-"}
+                                        className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                        compact={true}
+                                    />
+                                </div>
                             </div>
                             <div>
-                                <label className={`block text-11px font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'reps' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                                <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'reps' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
                                     Varv / Reps
                                     {benchmarkDefinition?.type === 'reps' && prevBenchmarkBest && (
                                         <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'reps')}</span>
                                     )}
                                 </label>
-                                <input 
-                                    type="number"
-                                    value={sessionStats.rounds}
-                                    onChange={(e) => setSessionStats(prev => ({ ...prev, rounds: e.target.value }))}
-                                    placeholder={benchmarkDefinition?.type === 'reps' ? "T.ex. 5" : "-"}
-                                    className={`w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border transition-colors ${benchmarkDefinition?.type === 'reps' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}
-                                />
+                                <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'reps' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
+                                    <input 
+                                        type="number"
+                                        value={sessionStats.rounds}
+                                        onChange={(e) => setSessionStats(prev => ({ ...prev, rounds: e.target.value }))}
+                                        placeholder={benchmarkDefinition?.type === 'reps' ? "T.ex. 5" : "-"}
+                                        className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                    />
+                                </div>
                             </div>
                             <div>
-                                <label className="block text-11px font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">kcal</label>
-                                <input 
-                                    type="number"
-                                    value={sessionStats.calories}
-                                    onChange={(e) => setSessionStats(prev => ({ ...prev, calories: e.target.value }))}
-                                    placeholder="T.ex. 350"
-                                    className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700"
-                                />
+                                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">kcal</label>
+                                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                    <input 
+                                        type="number"
+                                        value={sessionStats.calories}
+                                        onChange={(e) => setSessionStats(prev => ({ ...prev, calories: e.target.value }))}
+                                        placeholder="T.ex. 350"
+                                        className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                    />
+                                </div>
                             </div>
                             <div>
-                                <label className="block text-11px font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">km</label>
-                                <input 
-                                    type="number"
-                                    value={sessionStats.distance}
-                                    onChange={(e) => setSessionStats(prev => ({ ...prev, distance: e.target.value }))}
-                                    placeholder="T.ex. 5.3"
-                                    className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700"
-                                />
+                                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">km</label>
+                                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                    <input 
+                                        type="number"
+                                        value={sessionStats.distance}
+                                        onChange={(e) => setSessionStats(prev => ({ ...prev, distance: e.target.value }))}
+                                        placeholder="T.ex. 5.3"
+                                        className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>

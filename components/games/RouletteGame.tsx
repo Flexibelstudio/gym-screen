@@ -574,7 +574,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                 </div>
             )}
 
-            <div className="relative flex flex-col items-center justify-start w-full max-w-4xl mx-auto mt-16 md:mt-24">
+            <div className="relative flex flex-col items-center justify-start w-full max-w-4xl mx-auto mt-8 md:mt-12 flex-grow">
                 {/* Pointer */}
                 <div className="absolute -top-8 z-20 w-16 h-24 flex flex-col items-center pointer-events-none">
                     <div className="w-10 h-10 bg-gray-900 dark:bg-white rounded-full shadow-lg z-10"></div>
@@ -584,6 +584,7 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                 {/* Wheel Container */}
                 <div 
                     className={`relative w-full aspect-square max-w-[800px] p-4 ${!isSpinning && !isGoalReached ? 'cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-transform' : ''}`}
+                    style={{ maxWidth: 'min(100%, 55vh)' }}
                     onClick={() => {
                         if (!isSpinning && !isGoalReached) {
                             handleSpin();
@@ -662,9 +663,9 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                 </div>
 
                 {/* Controls & Result */}
-                <div className="mt-12 md:mt-16 flex flex-col items-center w-full min-h-[250px]">
+                <div className="-mt-16 md:-mt-24 flex flex-col items-center w-full min-h-[250px] z-30 relative">
                     {!isSpinning && !isGoalReached && !showResult && (
-                        <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest animate-pulse mt-12">
+                        <p className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest animate-pulse mt-24">
                             Klicka på hjulet för att snurra!
                         </p>
                     )}
@@ -672,10 +673,10 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                     <AnimatePresence>
                         {showResult && result && (
                             <motion.div
-                                initial={{ opacity: 0, y: 20, scale: 0.9 }}
+                                initial={{ opacity: 0, y: 40, scale: 0.9 }}
                                 animate={{ opacity: 1, y: 0, scale: 1 }}
                                 exit={{ opacity: 0, y: -20, scale: 0.9 }}
-                                className="px-8 py-12 rounded-3xl shadow-2xl text-center w-full max-w-3xl mx-auto mb-6 mt-8"
+                                className="px-8 py-12 rounded-3xl shadow-[0_0_40px_rgba(0,0,0,0.3)] text-center w-full max-w-3xl mx-auto mb-6 mt-4 border-4 border-white/10 backdrop-blur-sm"
                                 style={{ 
                                     backgroundColor: result === 'JOKER 🃏' ? '#1f2937' : (resultIndex !== null ? COLORS[resultIndex % COLORS.length] : undefined),
                                     color: '#ffffff'

@@ -291,6 +291,7 @@ export const calculateBlockDuration = (settings: TimerSettings, exercisesCount: 
 
 export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerSoundProfile = 'airhorn') => {
   const [status, setStatus] = useState<TimerStatus>(TimerStatus.Idle);
+  const [previousStatus, setPreviousStatus] = useState<TimerStatus>(TimerStatus.Idle);
   const [currentTime, setCurrentTime] = useState(0);
   const [currentPhaseDuration, setCurrentPhaseDuration] = useState(0);
   const [completedWorkIntervals, setCompletedWorkIntervals] = useState(0);
@@ -546,15 +547,37 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
     }
   }, [block, soundProfile]);
 
-  const pause = () => { if (status !== TimerStatus.Idle && status !== TimerStatus.Finished) setStatus(TimerStatus.Paused); };
-  const resume = () => { if (status === TimerStatus.Paused) {
-      if (block?.settings.mode === TimerMode.Custom && currentSegment) {
-          setStatus(currentSegment.type === 'work' ? TimerStatus.Running : TimerStatus.Resting);
-      } else {
-          // Fallback logic for resuming standard timers 
-          setStatus(TimerStatus.Running); 
+  const pause = () => { 
+      if (status !== TimerStatus.Idle && status !== TimerStatus.Finished) {
+          setPreviousStatus(status);
+          setStatus(TimerStatus.Paused); 
       }
-  }};
+  };
+  
+  const resume = () => { 
+      if (status === TimerStatus.Paused) {
+          if (previousStatus !== TimerStatus.Idle && previousStatus !== TimerStatus.Paused && previousStatus !== TimerStatus.Finished) {
+              setStatus(previousStatus);
+              return;
+          }
+          
+          // Fallback if previousStatus is not set correctly
+          if (currentTime > 0 && currentPhaseDuration === block?.settings.prepareTime && completedWorkIntervals === 0) {
+              setStatus(TimerStatus.Preparing);
+              return;
+          }
+          
+          if (block?.settings.mode === TimerMode.Custom && currentSegment) {
+              setStatus(currentSegment.type === 'work' ? TimerStatus.Running : TimerStatus.Resting);
+          } else {
+              if (block && currentPhaseDuration === block.settings.restTime) {
+                  setStatus(TimerStatus.Resting);
+              } else {
+                  setStatus(TimerStatus.Running); 
+              }
+          }
+      }
+  };
   
   const reset = useCallback(() => {
     stopTimer();

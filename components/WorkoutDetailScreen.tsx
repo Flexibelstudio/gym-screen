@@ -68,6 +68,17 @@ const getSettingsText = (block: WorkoutBlock) => {
 // --- COMPONENTS ---
 
 export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void }> = ({ workout, onClose }) => {
+    const scrollRef = useRef<HTMLDivElement>(null);
+    
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (scrollRef.current) {
+                scrollRef.current.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+            }
+        }, 10);
+        return () => clearTimeout(timer);
+    }, []);
+
     return (
         <motion.div 
             initial={{ opacity: 0 }}
@@ -92,7 +103,7 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                 </button>
             </div>
 
-            <div className="flex-grow overflow-y-auto p-8 md:p-12 space-y-16">
+            <div ref={scrollRef} className="flex-grow overflow-y-auto p-8 md:p-12 space-y-16">
                 <div className="max-w-7xl mx-auto space-y-16">
                     {workout.blocks?.map((block, bIndex) => {
                         if (!block) return null;
@@ -368,6 +379,14 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const personalBestName = useMemo(() => localStorage.getItem('hyrox-participant-name'), []);
   const isHyroxRace = useMemo(() => workout.id.startsWith('hyrox-full-race') || workout.id.startsWith('custom-race'), [workout.id]);
+
+  // Scroll to top on mount
+  useEffect(() => {
+      const timer = setTimeout(() => {
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+      }, 10);
+      return () => clearTimeout(timer);
+  }, []);
 
   const isWorkoutLoggable = useMemo(() => {
       return workout.blocks?.some(b => b?.exercises?.some(e => e?.loggingEnabled === true)) || false;

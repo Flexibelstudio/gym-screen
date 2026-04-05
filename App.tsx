@@ -51,6 +51,7 @@ import { WorkoutDiplomaView } from './components/WorkoutDiplomaView';
 // --- Modals ---
 import { CancelConfirmationModal } from './components/modals/CancelConfirmationModal';
 import { BirthDatePromptModal } from './components/modals/BirthDatePromptModal';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
 const THEME_STORAGE_KEY = 'flexibel-screen-theme';
 
@@ -76,6 +77,14 @@ const App: React.FC = () => {
   });
 
   const page = history[history.length - 1];
+
+  // Scrolla alltid till toppen när vi byter sida
+  useEffect(() => {
+      const timer = setTimeout(() => {
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+      }, 10);
+      return () => clearTimeout(timer);
+  }, [page]);
 
   const showWelcomePaywall = useMemo(() => {
       if (!currentUser || role !== 'organizationadmin' || isStudioMode) return false;
@@ -1613,6 +1622,8 @@ const App: React.FC = () => {
               />
           </div>
        )}
+
+       <PWAInstallPrompt />
     </div>
   );
 }

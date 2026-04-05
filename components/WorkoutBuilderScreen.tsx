@@ -239,6 +239,18 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeData, setActiveData] = useState<any>(null);
 
+  // Scroll to top on mount
+  useEffect(() => {
+      const timer = setTimeout(() => {
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+          const adminContainer = document.getElementById('admin-scroll-container');
+          if (adminContainer) {
+              adminContainer.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+          }
+      }, 10);
+      return () => clearTimeout(timer);
+  }, []);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -807,6 +819,27 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                             <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400">Inställningar för medlemmar</h4>
                             <div className="space-y-3">
                                 
+                                {workout.blocks.some(b => b.exercises?.some(e => e.loggingEnabled)) && (
+                                    <>
+                                        <ToggleSwitch 
+                                            label="Visa på skärm" 
+                                            checked={workout.showInStudio !== false} 
+                                            onChange={(val) => handleUpdateWorkoutDetail('showInStudio', val)} 
+                                        />
+                                        <ToggleSwitch 
+                                            label="Visa i medlemsapp" 
+                                            checked={
+                                                (studioConfig.customCategories.find(c => c.name === workout.category)?.isLocked) 
+                                                ? false 
+                                                : workout.showInApp !== false
+                                            } 
+                                            onChange={(val) => handleUpdateWorkoutDetail('showInApp', val)} 
+                                            disabled={studioConfig.customCategories.find(c => c.name === workout.category)?.isLocked}
+                                            description={studioConfig.customCategories.find(c => c.name === workout.category)?.isLocked ? "Låsta kategorier visas inte i appen." : undefined}
+                                        />
+                                    </>
+                                )}
+
                                 <div className="pt-2 border-t border-gray-200 dark:border-gray-700 mt-2">
                                     <div className="flex items-center gap-2 mb-2">
                                         <ToggleSwitch 
