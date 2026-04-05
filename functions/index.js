@@ -957,6 +957,66 @@ exports.api = onRequest({
   secrets: ["STRIPE_SECRET_KEY", "STRIPE_SYSTEM_FEE_PRICE_ID", "STRIPE_PRICE_ID", "STRIPE_WEBHOOK_SECRET", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID", "STRIPE_RESTRICTED_PORTAL_CONFIG_ID"]
 }, app);
 
+// ============================================================================
+// PUSH NOTIFICATIONS
+// ============================================================================
+
+/**
+ * Hjälpfunktion för att skicka push-notiser till alla systemägare som har aktiverat det.
+ */
+async function notifySystemOwners(title, body) {
+  const db = admin.firestore();
+  
+  try {
+    const ownersSnap = await db.collection('users')
+      .where('role', '==', 'systemowner')
+      .where('pushNotificationsEnabled', '==', true)
+      .get();
+
+    const tokens = [];
+    ownersSnap.forEach(doc => {
+      const data = doc.data();
+      if (data.fcmToken) {
+        tokens.push(data.fcmToken);
+      }
+    });
+
+    if (tokens.length === 0) {
+      console.log('Inga systemägare med aktiverade push-notiser hittades.');
+      return;
+    }
+
+    const message = {
+      notification: { title, body },
+      tokens: tokens,
+    };
+
+    const response = await admin.messaging().sendEachForMulticast(message);
+    console.log(`${response.successCount} push-notiser skickades framgångsrikt.`);
+    if (response.failureCount > 0) {
+      console.error(`${response.failureCount} push-notiser misslyckades.`);
+    }
+  } catch (error) {
+    console.error('Fel vid skickande av push-notis:', error);
+  }
+}
+
+/**
+ * --- TRIGGER: Ny organisation skapad ---
+ */
+exports.onOrganizationCreated = onDocumentCreated({
+  document: "organizations/{orgId}",
+  secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
+}, async (event) => {
+  const newOrg = event.data.data();
+  if (newOrg) {
+    await notifySystemOwners(
+      'Ny organisation!',
+      `Organisationen "${newOrg.name || 'Okänd'}" har precis skapats.`
+    );
+  }
+});
+
 /**
  * --- TRIGGER: Uppdatera Stripe om en coach skapas ---
  */
@@ -965,6 +1025,24 @@ exports.onUserCreated = onDocumentCreated({
   secrets: ["STRIPE_SECRET_KEY", "STRIPE_COACH_FEE_PRICE_ID", "STRIPE_SCREEN_FEE_PRICE_ID"]
 }, async (event) => {
   const newUser = event.data.data();
+  
+  // 1. Push-notis om det är en ny coach
+  if (newUser.role === 'coach') {
+    let orgName = 'Okänd organisation';
+    if (newUser.organizationId) {
+      const orgDoc = await admin.firestore().collection('organizations').doc(newUser.organizationId).get();
+      if (orgDoc.exists) {
+        orgName = orgDoc.data().name || orgName;
+      }
+    }
+    const coachName = newUser.firstName ? `${newUser.firstName} ${newUser.lastName || ''}`.trim() : 'En ny coach';
+    await notifySystemOwners(
+      'Ny coach registrerad!',
+      `${coachName} har registrerat sig hos ${orgName}.`
+    );
+  }
+
+  // 2. Stripe-uppdatering
   const isCountable = (newUser.role === 'coach' && newUser.status === 'active') || newUser.role === 'organizationadmin';
   if (isCountable && newUser.organizationId) {
     console.log(`Ny användare (coach/admin) ${event.params.userId} skapades i org ${newUser.organizationId}. Uppdaterar Stripe...`);
@@ -977,6 +1055,22 @@ exports.onUserUpdated = onDocumentUpdated({
 }, async (event) => {
   const beforeData = event.data.before.data();
   const afterData = event.data.after.data();
+
+  // Push-notis om en användare blir coach (t.ex. godkänd eller roll uppdaterad)
+  if (beforeData.role !== 'coach' && afterData.role === 'coach') {
+    let orgName = 'Okänd organisation';
+    if (afterData.organizationId) {
+      const orgDoc = await admin.firestore().collection('organizations').doc(afterData.organizationId).get();
+      if (orgDoc.exists) {
+        orgName = orgDoc.data().name || orgName;
+      }
+    }
+    const coachName = afterData.firstName ? `${afterData.firstName} ${afterData.lastName || ''}`.trim() : 'En ny coach';
+    await notifySystemOwners(
+      'Ny coach registrerad!',
+      `${coachName} har registrerat sig hos ${orgName}.`
+    );
+  }
 
   const wasCountable = (beforeData.role === 'coach' && beforeData.status === 'active') || beforeData.role === 'organizationadmin';
   const isCountable = (afterData.role === 'coach' && afterData.status === 'active') || afterData.role === 'organizationadmin';
@@ -1023,6 +1117,14 @@ exports.onOrganizationUpdated = onDocumentUpdated({
   if (beforeStudiosCount !== afterStudiosCount) {
     console.log(`Antal skärmar ändrades från ${beforeStudiosCount} till ${afterStudiosCount} för org ${event.params.orgId}. Uppdaterar Stripe...`);
     await updateStripeScreenCount(event.params.orgId);
+    
+    // Push-notis om en ny skärm lades till
+    if (afterStudiosCount > beforeStudiosCount) {
+      await notifySystemOwners(
+        'Ny skärm tillagd!',
+        `En ny skärm har lagts till i organisationen "${afterData.name || 'Okänd'}".`
+      );
+    }
   }
 });
 exports.flexUpdateOrganization = onCall({

@@ -173,57 +173,6 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
     );
 });
 
-
-const PushNotificationSettings: React.FC = () => {
-    const [isRequesting, setIsRequesting] = useState(false);
-    const [status, setStatus] = useState<'idle' | 'granted' | 'denied' | 'error'>('idle');
-
-    const handleEnablePush = async () => {
-        if (!auth?.currentUser?.uid) return;
-        setIsRequesting(true);
-        setStatus('idle');
-        try {
-            const token = await requestPushNotificationPermission(auth.currentUser.uid);
-            if (token) {
-                setStatus('granted');
-            } else {
-                setStatus('denied');
-            }
-        } catch (error) {
-            console.error(error);
-            setStatus('error');
-        } finally {
-            setIsRequesting(false);
-        }
-    };
-
-    return (
-        <div className="bg-slate-200 dark:bg-gray-900/50 p-6 rounded-lg border border-slate-300 dark:border-gray-700 mt-6">
-            <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Push-notiser</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                Aktivera push-notiser för att få ett pling när en ny organisation registrerar sig eller när nya skärmar/coacher läggs till.
-            </p>
-            
-            <div className="flex items-center gap-4">
-                <button 
-                    onClick={handleEnablePush} 
-                    disabled={isRequesting || status === 'granted'}
-                    className={`font-semibold py-2 px-6 rounded-lg transition-colors ${
-                        status === 'granted' 
-                            ? 'bg-green-600 text-white cursor-default' 
-                            : 'bg-primary hover:brightness-95 text-white disabled:opacity-50'
-                    }`}
-                >
-                    {isRequesting ? 'Aktiverar...' : status === 'granted' ? 'Notiser Aktiverade ✓' : 'Aktivera Notiser på denna enhet'}
-                </button>
-                
-                {status === 'denied' && <span className="text-red-500 text-sm font-medium">Du nekade behörighet eller så stöds det inte.</span>}
-                {status === 'error' && <span className="text-red-500 text-sm font-medium">Ett fel uppstod.</span>}
-            </div>
-        </div>
-    );
-};
-
 const SmartScreenPricingCard: React.FC = () => {
     const [pricing, setPricing] = useState<SmartScreenPricing | null>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -728,7 +677,6 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                             <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-lg space-y-4 border border-slate-200 dark:border-gray-700 shadow-sm">
                                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white border-b border-slate-300 dark:border-gray-700 pb-3 mb-4">Systeminställningar & Prissättning</h3>
                                 <SmartScreenPricingCard />
-                                <PushNotificationSettings />
                             </div>
                         </>
                     )}

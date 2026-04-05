@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, WorkoutDiploma, StudioConfig, BenchmarkDefinition } from '../types';
-import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog } from '../services/firebaseService';
+import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog, requestPushNotificationPermission, auth } from '../services/firebaseService';
 import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon, HistoryIcon, FlagIcon, StarIcon, ChevronRightIcon } from './icons';
 import { Modal } from './ui/Modal';
 import { resizeImage } from '../utils/imageUtils';
@@ -304,6 +305,55 @@ const LogDetailModal: React.FC<{ log: WorkoutLog, onClose: () => void, onUpdate:
     );
 };
 
+const PushNotificationSettings: React.FC = () => {
+    const [isRequesting, setIsRequesting] = useState(false);
+    const [status, setStatus] = useState<'idle' | 'granted' | 'denied' | 'error'>('idle');
+
+    const handleEnablePush = async () => {
+        if (!auth?.currentUser?.uid) return;
+        setIsRequesting(true);
+        setStatus('idle');
+        try {
+            const token = await requestPushNotificationPermission(auth.currentUser.uid);
+            if (token) {
+                setStatus('granted');
+            } else {
+                setStatus('denied');
+            }
+        } catch (error) {
+            console.error(error);
+            setStatus('error');
+        } finally {
+            setIsRequesting(false);
+        }
+    };
+
+    return (
+        <div className="bg-slate-100 dark:bg-gray-800/50 p-6 rounded-2xl border border-slate-200 dark:border-gray-700 mt-2">
+            <h4 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Push-notiser</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                Aktivera push-notiser för att få uppdateringar och påminnelser direkt i din enhet.
+            </p>
+            
+            <div className="flex items-center gap-4">
+                <button 
+                    onClick={handleEnablePush} 
+                    disabled={isRequesting || status === 'granted'}
+                    className={`px-4 py-2 rounded-xl font-bold text-sm transition-all ${
+                        status === 'granted' 
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' 
+                        : 'bg-primary text-white hover:brightness-110'
+                    } disabled:opacity-50`}
+                >
+                    {isRequesting ? 'Aktiverar...' : status === 'granted' ? 'Aktiverat' : 'Aktivera push-notiser'}
+                </button>
+                {status === 'denied' && <span className="text-sm text-red-500">Nekades av webbläsaren</span>}
+                {status === 'error' && <span className="text-sm text-red-500">Ett fel uppstod</span>}
+            </div>
+        </div>
+    );
+};
+
 export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userData, onBack, profileEditTrigger, navigateTo, functions, studioConfig }) => {
     const { selectedOrganization } = useStudio();
     const isNewUser = !userData.firstName || !userData.organizationId;
@@ -586,6 +636,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         </div>
                     </div>
                     
+                    <PushNotificationSettings />
+                    
                     <div className="pt-8">
                         <button 
                             onClick={handleSaveProfile} 
@@ -628,9 +680,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 />
             )}
 
-            {/* --- FLIKAR --- */}
-            <div className="sticky top-0 z-40 bg-white dark:bg-black pt-2 pb-4 -mx-1 px-1 sm:-mx-6 sm:px-6 -mt-4 sm:-mt-6">
-                <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full shadow-sm">
+            {/* --- FLIKAR I HEADER --- */}
+            {document.getElementById('member-header-tabs') && createPortal(
+                <div className="flex gap-2 sm:gap-4">
                     {[
                         { id: 'overview', label: 'Översikt', icon: ChartBarIcon },
                         { id: 'goals', label: 'Mål', icon: Target },
@@ -640,18 +692,19 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id as any)}
-                            className={`flex-1 flex items-center justify-center gap-2 px-2 sm:px-4 py-3 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-widest transition-all ${
+                            className={`p-2 sm:p-2.5 rounded-full transition-all ${
                                 activeTab === tab.id 
-                                ? 'bg-white dark:bg-gray-700 text-primary shadow-md' 
-                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                                ? 'bg-primary/20 text-primary shadow-sm' 
+                                : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
                             }`}
+                            title={tab.label}
                         >
-                            <tab.icon className={`w-4 h-4 ${activeTab === tab.id ? 'text-primary' : 'text-gray-400'}`} />
-                            <span className="hidden sm:inline">{tab.label}</span>
+                            <tab.icon className="w-5 h-5 sm:w-6 sm:h-6" />
                         </button>
                     ))}
-                </div>
-            </div>
+                </div>,
+                document.getElementById('member-header-tabs')!
+            )}
 
             {/* --- FLIKINNEHÅLL --- */}
 
