@@ -15,6 +15,7 @@ import PendingCoachScreen from './components/PendingCoachScreen';
 
 // --- Services ---
 import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages } from './services/firebaseService';
+import { Toast } from './components/ui/ToastNotification';
 
 // --- Utils ---
 import { deepCopyAndPrepareAsNew } from './utils/workoutUtils';
@@ -118,18 +119,15 @@ const App: React.FC = () => {
   // NEW: Ref to track if we have performed the initial cleanup of remote state
   const hasCleanedUpRef = useRef(false);
   const [isReadyToListen, setIsReadyToListen] = useState(false);
+  const [pushToast, setPushToast] = useState<{ message: string, isVisible: boolean }>({ message: '', isVisible: false });
 
   // Push notification foreground listener
   useEffect(() => {
     if (isOffline) return;
     const unsubscribe = listenToForegroundMessages((payload) => {
-      // Show a simple alert or toast for foreground notifications
       const title = payload.notification?.title || 'Ny notis';
       const body = payload.notification?.body || '';
-      // We could use a custom toast component here, but for now alert works or we can just log it
-      // if we don't want to interrupt the user too aggressively.
-      // Let's use a simple alert since it's an admin feature.
-      alert(`${title}\n${body}`);
+      setPushToast({ message: `${title}: ${body}`, isVisible: true });
     });
     return () => unsubscribe();
   }, []);
@@ -1301,6 +1299,14 @@ const App: React.FC = () => {
     <div className={`bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
        <SeasonalOverlay page={page} />
        
+       <Toast 
+         message={pushToast.message} 
+         isVisible={pushToast.isVisible} 
+         onClose={() => setPushToast(prev => ({ ...prev, isVisible: false }))} 
+         duration={5000} 
+         type="info" 
+       />
+
        {isOffline && (
         <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-black text-center p-2 font-semibold z-[1001]">
             Du är offline. Viss funktionalitet kan vara begränsad och ändringar sparas lokalt.

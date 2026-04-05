@@ -961,6 +961,43 @@ exports.api = onRequest({
 // PUSH NOTIFICATIONS
 // ============================================================================
 
+async function notifyOrganizationMembers(orgId, title, body) {
+  const db = admin.firestore();
+  
+  try {
+    const membersSnap = await db.collection('users')
+      .where('organizationId', '==', orgId)
+      .where('pushNotificationsEnabled', '==', true)
+      .get();
+
+    const tokens = [];
+    membersSnap.forEach(doc => {
+      const data = doc.data();
+      if (data.fcmToken) {
+        tokens.push(data.fcmToken);
+      }
+    });
+
+    if (tokens.length === 0) {
+      console.log(`Inga användare med aktiverade push-notiser hittades i org ${orgId}.`);
+      return;
+    }
+
+    const message = {
+      notification: { title, body },
+      tokens: tokens,
+    };
+
+    const response = await admin.messaging().sendEachForMulticast(message);
+    console.log(`${response.successCount} push-notiser skickades framgångsrikt till org ${orgId}.`);
+    if (response.failureCount > 0) {
+      console.error(`${response.failureCount} push-notiser misslyckades för org ${orgId}.`);
+    }
+  } catch (error) {
+    console.error('Fel vid skickande av push-notis till org-medlemmar:', error);
+  }
+}
+
 /**
  * Hjälpfunktion för att skicka push-notiser till alla systemägare som har aktiverat det.
  */
@@ -1151,5 +1188,42 @@ exports.flexUpdateOrganization = onCall({
     return { success: true };
   } catch (error) {
     throw new HttpsError("internal", "Ett fel uppstod vid uppdatering.");
+  }
+});
+
+/**
+ * --- TRIGGER: Nytt pass publicerat ---
+ */
+exports.onWorkoutCreated = onDocumentCreated({
+  document: "workouts/{workoutId}"
+}, async (event) => {
+  const newWorkout = event.data.data();
+  
+  // Om passet skapas och direkt är publicerat och inte ett utkast
+  if (newWorkout && newWorkout.isPublished && !newWorkout.isMemberDraft && newWorkout.organizationId) {
+    await notifyOrganizationMembers(
+      newWorkout.organizationId,
+      'Nytt pass tillgängligt! 🏋️‍♀️',
+      `Passet "${newWorkout.title || 'Nytt pass'}" har precis publicerats.`
+    );
+  }
+});
+
+exports.onWorkoutUpdated = onDocumentUpdated({
+  document: "workouts/{workoutId}"
+}, async (event) => {
+  const beforeData = event.data.before.data();
+  const afterData = event.data.after.data();
+
+  // Om passet ändras från opublicerat till publicerat
+  const wasPublished = beforeData.isPublished === true;
+  const isPublished = afterData.isPublished === true;
+
+  if (!wasPublished && isPublished && !afterData.isMemberDraft && afterData.organizationId) {
+    await notifyOrganizationMembers(
+      afterData.organizationId,
+      'Nytt pass tillgängligt! 🏋️‍♀️',
+      `Passet "${afterData.title || 'Nytt pass'}" har precis publicerats.`
+    );
   }
 });
