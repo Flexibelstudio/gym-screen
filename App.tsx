@@ -67,6 +67,14 @@ const App: React.FC = () => {
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegisterGym, setShowRegisterGym] = useState(false); 
+  const [minSplashTimeElapsed, setMinSplashTimeElapsed] = useState(false);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMinSplashTimeElapsed(true);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
   
   const [history, setHistory] = useState<Page[]>(() => {
       if (isStudioMode) return [Page.Home];
@@ -1211,6 +1219,23 @@ const App: React.FC = () => {
       );
   }
   
+  const showSplashScreen = isGlobalLoading || !minSplashTimeElapsed;
+
+  if (showSplashScreen) {
+    return (
+        <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
+            <motion.img 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5 }}
+                src="/favicon.png" 
+                alt="SmartStudio" 
+                className="w-32 h-32 rounded-3xl shadow-lg" 
+            />
+        </div>
+    );
+  }
+  
   if (!authLoading && !currentUser && !isStudioMode) {
       if (showRegisterGym) {
           return <RegisterGymScreen onCancel={() => setShowRegisterGym(false)} />;
@@ -1244,15 +1269,6 @@ const App: React.FC = () => {
                     Radera detta ofullständiga konto och börja om
                 </button>
             </div>
-        </div>
-    );
-  }
-
-  if (isGlobalLoading) {
-    return (
-        <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
-            <img src="/favicon.png" alt="SmartStudio" className="w-20 h-20 mb-6 rounded-2xl shadow-sm" />
-            <p className="text-gray-500 font-bold uppercase tracking-widest text-sm">Laddar SmartStudio...</p>
         </div>
     );
   }
