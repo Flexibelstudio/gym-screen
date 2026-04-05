@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useWorkout } from '../../context/WorkoutContext'; 
 import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, ChartBarIcon, HistoryIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
+import { calculate1RM } from '../../utils/workoutUtils';
 import { ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
@@ -393,17 +394,6 @@ const ExerciseLogCard: React.FC<{
     const textColorClass = groupColorObj ? groupColorObj.text : 'text-primary';
     const lightBgClass = groupColorObj ? groupColorObj.lightBg : 'bg-primary/5';
     const lightBorderClass = groupColorObj ? groupColorObj.lightBorder : 'border-primary/20';
-
-    const calculate1RM = (weight: string, reps: string) => {
-        const w = parseFloat(weight);
-        const r = parseFloat(reps);
-        if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0) {
-            if (r === 1) return Math.round(w);
-            const oneRm = w * (1 + r / 30);
-            return Math.round(oneRm);
-        }
-        return null;
-    };
 
     const handleSetChange = (index: number, field: keyof LocalSetDetail, value: string) => {
         const newSets = [...result.setDetails];

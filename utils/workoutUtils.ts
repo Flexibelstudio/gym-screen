@@ -40,3 +40,19 @@ export const deepCopyAndPrepareAsNew = (workoutToCopy: Workout): Workout => {
 
     return newWorkout;
 };
+
+/**
+ * Calculates 1RM using the Epley formula.
+ * Returns null if reps > 10 (as it becomes inaccurate) or if inputs are invalid.
+ */
+export const calculate1RM = (weight: number | string, reps: number | string): number | null => {
+    const w = typeof weight === 'string' ? parseFloat(weight) : weight;
+    const r = typeof reps === 'string' ? parseFloat(reps) : reps;
+    
+    if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0 && r <= 10) {
+        if (r === 1) return Math.round(w);
+        const oneRm = w * (1 + r / 30);
+        return Math.round(oneRm);
+    }
+    return null;
+};

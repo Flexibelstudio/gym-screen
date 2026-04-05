@@ -355,14 +355,16 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
     return user;
 };
 
-export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecords: { exerciseName: string, weight: number, diff: number }[] }> => {
+import { calculate1RM } from '../utils/workoutUtils';
+
+export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecords: { exerciseName: string, weight: number, diff: number, reps?: number, calculated1RM?: number }[] }> => {
     if (isOffline || !db || !logData.organizationId) {
         return { log: logData, newRecords: [] };
     }
     
     const newLogRef = doc(collection(db, 'workoutLogs'));
     const newLog = { id: newLogRef.id, ...logData };
-    const newRecords: { exerciseName: string; weight: number; diff: number }[] = [];
+    const newRecords: { exerciseName: string; weight: number; diff: number; reps?: number; calculated1RM?: number }[] = [];
 
     if (logData.workoutId && logData.workoutId !== 'manual' && !logData.benchmarkId) {
         try {
@@ -403,31 +405,52 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
             currentPBsSnap.forEach(d => currentPBs[d.id] = d.data());
 
             for (const exResult of logData.exerciseResults) {
-                let maxW = 0;
+                let bestSet: { weight: number, reps: number, oneRm: number } | null = null;
+                
                 if (exResult.setDetails) {
-                    const weights = exResult.setDetails.map((s: any) => parseFloat(s.weight)).filter((n: number) => !isNaN(n));
-                    if (weights.length > 0) maxW = Math.max(...weights);
-                } else if (exResult.weight) {
-                    maxW = Number(exResult.weight);
+                    exResult.setDetails.forEach((s: any) => {
+                        const w = parseFloat(s.weight);
+                        const r = parseFloat(s.reps);
+                        if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0 && r <= 10) {
+                            const oneRm = calculate1RM(w, r);
+                            if (oneRm && (!bestSet || oneRm > bestSet.oneRm)) {
+                                bestSet = { weight: w, reps: r, oneRm };
+                            }
+                        }
+                    });
+                } else if (exResult.weight && exResult.reps) {
+                    const w = parseFloat(exResult.weight);
+                    const r = parseFloat(exResult.reps);
+                    if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0 && r <= 10) {
+                        const oneRm = calculate1RM(w, r);
+                        if (oneRm) {
+                            bestSet = { weight: w, reps: r, oneRm };
+                        }
+                    }
                 }
 
-                if (maxW > 0 && exResult.exerciseName) {
+                if (bestSet && exResult.exerciseName) {
                     const pbId = getPBId(exResult.exerciseName);
-                    const existingPBWeight = currentPBs[pbId]?.weight || 0;
+                    // Fallback to weight if calculated1RM is missing for older records
+                    const existingPBOneRm = currentPBs[pbId]?.calculated1RM || currentPBs[pbId]?.weight || 0; 
 
-                    if (maxW > existingPBWeight) {
+                    if (bestSet.oneRm > existingPBOneRm) {
                         const pbData: PersonalBest = { 
                             id: pbId, 
                             exerciseName: exResult.exerciseName.trim(), 
-                            weight: maxW, 
+                            weight: bestSet.weight, 
+                            reps: bestSet.reps,
+                            calculated1RM: bestSet.oneRm,
                             date: Date.now() 
                         };
                         batch.set(doc(db, 'users', logData.memberId, 'personalBests', pbId), pbData);
                         
                         newRecords.push({
                             exerciseName: exResult.exerciseName.trim(),
-                            weight: maxW,
-                            diff: parseFloat((maxW - existingPBWeight).toFixed(2))
+                            weight: bestSet.weight, // Keep actual weight for UI
+                            reps: bestSet.reps,
+                            calculated1RM: bestSet.oneRm,
+                            diff: parseFloat((bestSet.oneRm - existingPBOneRm).toFixed(2))
                         });
                     }
                 }

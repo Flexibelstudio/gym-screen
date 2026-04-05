@@ -20,6 +20,8 @@ export interface PersonalBest {
   id: string; // Usually standardized exercise name
   exerciseName: string;
   weight: number;
+  reps?: number;
+  calculated1RM?: number;
   date: number; // Timestamp
 }
 
@@ -329,6 +331,8 @@ export interface PBRecord {
     exerciseName: string; // Synced with firebaseService
     diff: number;
     weight?: number; // Optional current weight
+    reps?: number;
+    calculated1RM?: number;
 }
 
 export interface WorkoutDiploma {
