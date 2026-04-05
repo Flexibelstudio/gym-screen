@@ -18,8 +18,6 @@ export interface MyStrengthScreenProps {
 export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, logs, onClose, onBack }) => {
     const [pbs, setPbs] = useState<PersonalBest[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [editingId, setEditingId] = useState<string | null>(null);
-    const [editValue, setEditValue] = useState<string>('');
     const [showCalculator, setShowCalculator] = useState(false);
     const [expandedExercise, setExpandedExercise] = useState<string | null>(null);
 
@@ -107,28 +105,6 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
         }
     };
 
-    const startEditing = (pb: PersonalBest, e: React.MouseEvent) => {
-        e.stopPropagation();
-        setEditingId(pb.id);
-        setEditValue(pb.weight.toString());
-    };
-
-    const saveEdit = async (pb: PersonalBest, e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (!userData?.uid) return;
-        const newWeight = parseFloat(editValue);
-        if (!isNaN(newWeight) && newWeight > 0) {
-            await updatePersonalBest(userData.uid, pb.exerciseName, newWeight);
-        }
-        setEditingId(null);
-    };
-
-    const cancelEdit = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setEditingId(null);
-        setEditValue('');
-    };
-
     return (
         <div className="w-full animate-fade-in">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -182,46 +158,22 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
                                 </div>
                                 
                                 <div className="flex items-center gap-3">
-                                    {editingId === pb.id ? (
-                                        <div className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 p-1 rounded-xl" onClick={e => e.stopPropagation()}>
-                                            <input 
-                                                type="number" 
-                                                value={editValue} 
-                                                onChange={(e) => setEditValue(e.target.value)}
-                                                className="w-16 bg-transparent text-right font-black text-lg text-gray-900 dark:text-white focus:outline-none p-1"
-                                                autoFocus
-                                            />
-                                            <button onClick={(e) => saveEdit(pb, e)} className="p-1.5 bg-green-500 text-white rounded-lg shadow-sm hover:bg-green-600 transition-colors">
-                                                <SaveIcon className="w-4 h-4" />
-                                            </button>
-                                            <button onClick={cancelEdit} className="p-1.5 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
-                                                <CloseIcon className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-2">
-                                            <div className="text-right">
-                                                <div className="flex items-baseline justify-end gap-1">
-                                                    <span className="font-black text-xl text-primary">
-                                                        {pb.reps ? `${pb.reps} x ${pb.weight}` : pb.weight}
-                                                    </span>
-                                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">kg</span>
-                                                </div>
-                                                <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-right">
-                                                    {pb.calculated1RM ? `1RM: ${pb.calculated1RM} kg` : '1RM'}
-                                                </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="text-right">
+                                            <div className="flex items-baseline justify-end gap-1">
+                                                <span className="font-black text-xl text-primary">
+                                                    {pb.reps ? `${pb.reps} x ${pb.weight}` : pb.weight}
+                                                </span>
+                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">kg</span>
                                             </div>
-                                            <button 
-                                                onClick={(e) => startEditing(pb, e)}
-                                                className="p-1.5 text-gray-300 hover:text-primary transition-colors hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg ml-2"
-                                            >
-                                                <PencilIcon className="w-4 h-4" />
-                                            </button>
-                                            <div className="text-gray-400 ml-1">
-                                                {isExpanded ? <ChevronUpIcon className="w-5 h-5" /> : <ChevronDownIcon className="w-5 h-5" />}
+                                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-right">
+                                                {pb.calculated1RM ? `1RM: ${pb.calculated1RM} kg` : '1RM'}
                                             </div>
                                         </div>
-                                    )}
+                                        <div className="text-gray-400 ml-1">
+                                            {isExpanded ? <ChevronUpIcon className="w-5 h-5" /> : <ChevronDownIcon className="w-5 h-5" />}
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             

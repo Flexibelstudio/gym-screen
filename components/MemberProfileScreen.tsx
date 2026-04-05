@@ -618,10 +618,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Veckomål (Antal pass)</label>
-                            <input type="number" min="1" max="14" value={weeklyGoal} onChange={e => setWeeklyGoal(Number(e.target.value))} className="w-full bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm font-bold" />
-                        </div>
                         <div className="flex items-center pt-6">
                             <label className="flex items-center gap-3 cursor-pointer">
                                 <div className="relative">
@@ -872,6 +868,43 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                     <button onClick={() => setIsEditingGoals(true)} className="text-primary text-xs font-bold mt-2 hover:underline">Sätt mål nu</button>
                                 </div>
                             )}
+                        </div>
+                    </div>
+
+                    <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-800">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                <span className="text-xl">📅</span> Veckomål
+                            </h3>
+                        </div>
+                        <div>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                                Hur många pass siktar du på att träna varje vecka?
+                            </p>
+                            <div className="flex items-center gap-4">
+                                <input 
+                                    type="number" 
+                                    min="1" 
+                                    max="14" 
+                                    value={weeklyGoal} 
+                                    onChange={e => setWeeklyGoal(Number(e.target.value))} 
+                                    className="w-24 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-center text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm font-bold text-lg" 
+                                />
+                                <button 
+                                    onClick={async () => {
+                                        try {
+                                            await updateUserProfile(userData.uid, { weeklyGoal: Number(weeklyGoal) });
+                                            alert("Veckomål sparat!");
+                                        } catch (e) {
+                                            console.error(e);
+                                            alert("Kunde inte spara veckomål.");
+                                        }
+                                    }}
+                                    className="px-6 py-3 bg-primary text-white font-bold rounded-xl hover:brightness-110 transition-colors shadow-sm"
+                                >
+                                    Spara
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
