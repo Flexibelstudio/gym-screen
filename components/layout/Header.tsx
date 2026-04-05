@@ -182,7 +182,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
             </div>
 
-            <div id="member-header-tabs" className="flex-1 flex justify-center items-center mx-2"></div>
+            <div id="member-header-tabs" className="flex-1 flex justify-end items-center mx-2 mr-4"></div>
 
             <div className="flex items-center gap-3 md:gap-4">
                 <div className="relative" ref={dropdownRef}>

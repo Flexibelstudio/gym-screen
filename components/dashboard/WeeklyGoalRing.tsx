@@ -22,7 +22,7 @@ export const WeeklyGoalRing: React.FC<WeeklyGoalRingProps> = ({ current, goal })
                         cy="200"
                         r={radius}
                         stroke="currentColor"
-                        strokeWidth="32"
+                        strokeWidth="20"
                         fill="transparent"
                         className="text-gray-100 dark:text-gray-800"
                     />
@@ -31,7 +31,7 @@ export const WeeklyGoalRing: React.FC<WeeklyGoalRingProps> = ({ current, goal })
                         cy="200"
                         r={radius}
                         stroke="currentColor"
-                        strokeWidth="32"
+                        strokeWidth="20"
                         fill="transparent"
                         strokeDasharray={circumference}
                         strokeDashoffset={strokeDashoffset}
