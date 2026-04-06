@@ -1,5 +1,6 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { CloseIcon } from '../icons';
 import { useStudio } from '../../context/StudioContext';
@@ -16,6 +17,12 @@ interface ModalProps {
 export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, size = 'md', footer }) => {
     const { studioConfig } = useStudio();
     const navPos = studioConfig?.navigationControlPosition || 'top';
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+        return () => setMounted(false);
+    }, []);
     
     const sizeClasses = {
         sm: 'max-w-sm',
@@ -26,11 +33,11 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
         '4xl': 'max-w-4xl',
     };
 
-    return (
+    const modalContent = (
         <AnimatePresence>
             {isOpen && (
                 <motion.div
-                    className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-[1000] p-4"
+                    className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-[10000] p-4"
                     onClick={onClose}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -38,7 +45,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
                     transition={{ duration: 0.25, ease: 'easeOut' }}
                 >
                     <motion.div
-                        className={`bg-white dark:bg-gray-800 rounded-[2rem] shadow-2xl w-full border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90vh] relative ${sizeClasses[size]}`}
+                        className={`bg-white dark:bg-gray-800 rounded-[2rem] shadow-2xl w-full border border-gray-200 dark:border-gray-700 flex flex-col max-h-[90dvh] relative ${sizeClasses[size]}`}
                         onClick={(e) => e.stopPropagation()}
                         initial={{ opacity: 0, scale: 0.95, y: 10 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -79,4 +86,8 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
             )}
         </AnimatePresence>
     );
+
+    if (!mounted) return null;
+
+    return createPortal(modalContent, document.body);
 };
