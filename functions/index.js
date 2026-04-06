@@ -978,14 +978,17 @@ async function notifyOrganizationMembers(orgId, title, body) {
       }
     });
 
-    if (tokens.length === 0) {
+    // Ta bort eventuella dubbletter (t.ex. om flera användare loggat in på samma enhet)
+    const uniqueTokens = [...new Set(tokens)];
+
+    if (uniqueTokens.length === 0) {
       console.log(`Inga användare med aktiverade push-notiser hittades i org ${orgId}.`);
       return;
     }
 
     const message = {
       notification: { title, body },
-      tokens: tokens,
+      tokens: uniqueTokens,
     };
 
     const response = await admin.messaging().sendEachForMulticast(message);
@@ -1018,14 +1021,17 @@ async function notifySystemOwners(title, body) {
       }
     });
 
-    if (tokens.length === 0) {
+    // Ta bort eventuella dubbletter
+    const uniqueTokens = [...new Set(tokens)];
+
+    if (uniqueTokens.length === 0) {
       console.log('Inga systemägare med aktiverade push-notiser hittades.');
       return;
     }
 
     const message = {
       notification: { title, body },
-      tokens: tokens,
+      tokens: uniqueTokens,
     };
 
     const response = await admin.messaging().sendEachForMulticast(message);
