@@ -1063,6 +1063,31 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               setSaveStatus('Letar efter nya rekord...');
               const { log: savedLog, newRecords } = await saveWorkoutLog(cleanForFirestore(finalLogRaw));
 
+              if (benchmarkDefinition && finalLogRaw.benchmarkValue !== undefined) {
+                  let isBenchmarkPB = false;
+                  let benchmarkDiff = 0;
+                  if (prevBenchmarkBest === undefined) {
+                      isBenchmarkPB = true;
+                  } else {
+                      if (benchmarkDefinition.type === 'time') {
+                          isBenchmarkPB = finalLogRaw.benchmarkValue < prevBenchmarkBest;
+                          benchmarkDiff = prevBenchmarkBest - finalLogRaw.benchmarkValue;
+                      } else {
+                          isBenchmarkPB = finalLogRaw.benchmarkValue > prevBenchmarkBest;
+                          benchmarkDiff = finalLogRaw.benchmarkValue - prevBenchmarkBest;
+                      }
+                  }
+
+                  if (isBenchmarkPB) {
+                      newRecords.push({
+                          exerciseName: benchmarkDefinition.title,
+                          weight: benchmarkDefinition.type === 'weight' ? finalLogRaw.benchmarkValue : 0,
+                          diff: benchmarkDiff,
+                          reps: benchmarkDefinition.type === 'reps' ? finalLogRaw.benchmarkValue : undefined,
+                      });
+                  }
+              }
+
               let diplomaData: WorkoutDiploma | null = null;
 
               if (totalVolume > 0) {

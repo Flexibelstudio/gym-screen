@@ -131,12 +131,23 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                                 <div className="space-y-2 mb-3">
                                     <p className="text-m font-black uppercase tracking-[0.2em] text-primary text-center mb-3">Nya PB satta 🏆</p>
                                     <div className="space-y-1">
-                                        {diploma.newPBs?.map((pb, i) => (
-                                            <div key={i} className="flex justify-between items-center text-xs font-bold text-gray-900 dark:text-white bg-white dark:bg-black/40 px-4 py-2.5 rounded-2xl border border-gray-50 dark:border-white/5 shadow-sm">
-                                                <span className="truncate pr-4 uppercase tracking-tight">{pb.exerciseName}</span>
-                                                <span className="text-primary font-black shrink-0">+{pb.diff} kg</span>
-                                            </div>
-                                        ))}
+                                        {diploma.newPBs?.map((pb, i) => {
+                                            let diffText = `+${pb.diff} kg`;
+                                            if (pb.weight === 0 && pb.reps !== undefined) {
+                                                diffText = `+${pb.diff} reps`;
+                                            } else if (pb.weight === 0 && pb.reps === undefined) {
+                                                // Assuming time PB, diff is in seconds
+                                                const m = Math.floor(pb.diff / 60);
+                                                const s = Math.floor(pb.diff % 60);
+                                                diffText = m > 0 ? `-${m}m ${s}s` : `-${s}s`;
+                                            }
+                                            return (
+                                                <div key={i} className="flex justify-between items-center text-xs font-bold text-gray-900 dark:text-white bg-white dark:bg-black/40 px-4 py-2.5 rounded-2xl border border-gray-50 dark:border-white/5 shadow-sm">
+                                                    <span className="truncate pr-4 uppercase tracking-tight">{pb.exerciseName}</span>
+                                                    <span className="text-primary font-black shrink-0">{diffText}</span>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}

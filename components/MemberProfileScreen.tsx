@@ -21,6 +21,7 @@ import { BodyHeatmap } from './dashboard/BodyHeatmap';
 import { WeeklyGoalRing } from './dashboard/WeeklyGoalRing';
 import { Leaderboard } from './dashboard/Leaderboard';
 import { Target } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 interface MemberProfileScreenProps {
     userData: UserData;
@@ -138,15 +139,129 @@ const getAthleteArchetype = (logs: WorkoutLog[]) => {
     return { title: "Hybridatlet", icon: <UserIcon className="w-5 h-5" />, color: "from-indigo-500 to-purple-600", desc: "Du behärskar både styrka och kondition. Den kompletta atleten." };
 };
 
-const BenchmarksView: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefinition[] }> = ({ logs, definitions }) => {
+const BenchmarkDetailModal: React.FC<{ 
+    benchmark: any, 
+    onClose: () => void, 
+    onViewLog: (log: WorkoutLog) => void,
+    formatResult: (val: number, type: string) => string,
+    getUnit: (type: string) => string
+}> = ({ benchmark, onClose, onViewLog, formatResult, getUnit }) => {
+    const { def, history, pb } = benchmark;
     
+    // Prepare chart data
+    const chartData = [...history].reverse().map((log: any) => ({
+        name: new Date(log.date).toLocaleDateString('sv-SE', { month: 'short', day: 'numeric' }),
+        value: log.benchmarkValue,
+        fullDate: new Date(log.date).toLocaleDateString('sv-SE'),
+    }));
+
+    return (
+        <Modal isOpen={true} onClose={onClose} title={def.title} size="lg">
+            <div className="space-y-6">
+                <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 flex justify-between items-center">
+                    <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Personbästa</p>
+                        <p className="text-2xl font-black text-primary">
+                            {formatResult(pb.benchmarkValue, def.type)} <span className="text-sm">{getUnit(def.type)}</span>
+                        </p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">Försök</p>
+                        <p className="text-xl font-bold text-gray-900 dark:text-white">{history.length}</p>
+                    </div>
+                </div>
+
+                {history.length > 1 && (
+                    <div className="h-48 w-full mt-4">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.2} vertical={false} />
+                                <XAxis dataKey="name" stroke="#6B7280" fontSize={10} tickLine={false} axisLine={false} />
+                                <YAxis stroke="#6B7280" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(val) => def.type === 'time' ? formatResult(val, def.type) : val} />
+                                <Tooltip 
+                                    contentStyle={{ backgroundColor: '#1F2937', borderColor: '#374151', borderRadius: '0.5rem', color: '#fff', fontSize: '12px' }}
+                                    formatter={(value: number) => [formatResult(value, def.type) + ' ' + getUnit(def.type), 'Resultat']}
+                                    labelFormatter={(label) => `Datum: ${label}`}
+                                />
+                                <Line type="monotone" dataKey="value" stroke="#14B8A6" strokeWidth={3} dot={{ r: 4, fill: '#14B8A6', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
+                )}
+
+                <div>
+                    <h4 className="font-bold text-gray-900 dark:text-white text-sm uppercase tracking-wider mb-3">Historik</h4>
+                    <div className="space-y-2">
+                        {history.map((log: any, index: number) => {
+                            const isPB = log.id === pb.id;
+                            let diffText = null;
+                            let isImprovement = false;
+                            
+                            if (index < history.length - 1) {
+                                const prevLog = history[index + 1];
+                                const diff = log.benchmarkValue - prevLog.benchmarkValue;
+                                if (diff !== 0) {
+                                    isImprovement = def.type === 'time' ? diff < 0 : diff > 0;
+                                    const diffFormatted = formatResult(Math.abs(diff), def.type);
+                                    diffText = isImprovement ? `+${diffFormatted}` : `-${diffFormatted}`;
+                                    if (def.type === 'time') {
+                                        diffText = isImprovement ? `-${diffFormatted}` : `+${diffFormatted}`;
+                                    }
+                                }
+                            }
+
+                            return (
+                                <div 
+                                    key={log.id} 
+                                    onClick={() => onViewLog(log)}
+                                    className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-xl border border-gray-100 dark:border-gray-800 cursor-pointer hover:border-primary/50 transition-colors"
+                                >
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold text-gray-900 dark:text-white">
+                                                {new Date(log.date).toLocaleDateString('sv-SE')}
+                                            </span>
+                                            {isPB && <span className="bg-yellow-100 text-yellow-800 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">PB</span>}
+                                        </div>
+                                        <div className="flex gap-2 mt-1 text-xs text-gray-500">
+                                            {log.feeling && <span>{log.feeling === 'good' ? '🔥' : log.feeling === 'bad' ? '🤕' : '🙂'}</span>}
+                                            {log.rpe && <span>RPE {log.rpe}</span>}
+                                            {log.diploma && <span className="text-indigo-500 flex items-center gap-1"><TrophyIcon className="w-3 h-3" /> Diplom</span>}
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="font-black text-lg text-gray-900 dark:text-white">
+                                            {formatResult(log.benchmarkValue, def.type)} <span className="text-xs font-bold text-gray-500">{getUnit(def.type)}</span>
+                                        </div>
+                                        {diffText && (
+                                            <div className={`text-[10px] font-bold ${isImprovement ? 'text-green-500' : 'text-red-500'}`}>
+                                                {diffText} {getUnit(def.type)}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        </Modal>
+    );
+};
+
+const BenchmarksView: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefinition[], onViewLog: (log: WorkoutLog) => void }> = ({ logs, definitions, onViewLog }) => {
+    const [selectedBenchmark, setSelectedBenchmark] = useState<any>(null);
+
     // Process data to find PBs for each benchmark definition and sort them
     const sortedBenchmarks = useMemo(() => {
         const mapped = definitions.map(def => {
             // Find all logs that match this benchmark ID
             const relevantLogs = logs.filter(l => l.benchmarkId === def.id && l.benchmarkValue !== undefined);
             
-            if (relevantLogs.length === 0) return { def, pb: null, attempts: 0, lastDate: 0 };
+            if (relevantLogs.length === 0) return { def, pb: null, attempts: 0, lastDate: 0, history: [] };
+
+            // Sort by date descending (newest first)
+            const history = [...relevantLogs].sort((a, b) => b.date - a.date);
 
             // Sort based on type to find PB
             const sortedLogs = [...relevantLogs].sort((a, b) => {
@@ -155,13 +270,37 @@ const BenchmarksView: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefin
             });
             
             // Find latest date for sorting the list
-            const lastDate = Math.max(...relevantLogs.map(l => l.date));
+            const lastDate = history[0].date;
+
+            // Calculate trend (latest vs previous)
+            let trend = null;
+            if (history.length > 1) {
+                const latest = history[0].benchmarkValue || 0;
+                const previous = history[1].benchmarkValue || 0;
+                const diff = latest - previous;
+                
+                let isImprovement = false;
+                if (def.type === 'time') {
+                    isImprovement = diff < 0;
+                } else {
+                    isImprovement = diff > 0;
+                }
+                
+                trend = {
+                    diff: Math.abs(diff),
+                    isImprovement,
+                    hasChanged: diff !== 0
+                };
+            }
 
             return {
                 def,
                 pb: sortedLogs[0],
+                latest: history[0],
                 attempts: relevantLogs.length,
-                lastDate
+                lastDate,
+                history,
+                trend
             };
         });
 
@@ -200,35 +339,56 @@ const BenchmarksView: React.FC<{ logs: WorkoutLog[], definitions: BenchmarkDefin
     return (
         <div className="space-y-6 animate-fade-in">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {sortedBenchmarks.map(({ def, pb, attempts }) => (
-                    <div 
-                        key={def.id} 
-                        className={`relative overflow-hidden rounded-3xl p-6 transition-all bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-gray-800 dark:to-gray-900 border-2 border-yellow-400/30 dark:border-yellow-500/20`}
-                    >
-                        <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-400/10 rounded-full blur-3xl -mr-6 -mt-6"></div>
-                        
-                        <div className="relative z-10">
-                            <div className="flex justify-between items-start mb-4">
-                                <h4 className="font-bold truncate pr-2 text-lg text-gray-900 dark:text-white">
-                                    {def.title}
-                                </h4>
-                                <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-1 rounded-lg">
-                                    <TrophyIcon className="w-4 h-4" />
+                {sortedBenchmarks.map((benchmark) => {
+                    const { def, pb, attempts, trend } = benchmark;
+                    return (
+                        <div 
+                            key={def.id} 
+                            onClick={() => setSelectedBenchmark(benchmark)}
+                            className={`cursor-pointer relative overflow-hidden rounded-3xl p-6 transition-all bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-gray-800 dark:to-gray-900 border-2 border-yellow-400/30 dark:border-yellow-500/20 hover:border-yellow-400 dark:hover:border-yellow-500 hover:shadow-lg`}
+                        >
+                            <div className="absolute top-0 right-0 w-24 h-24 bg-yellow-400/10 rounded-full blur-3xl -mr-6 -mt-6"></div>
+                            
+                            <div className="relative z-10">
+                                <div className="flex justify-between items-start mb-4">
+                                    <h4 className="font-bold truncate pr-2 text-lg text-gray-900 dark:text-white">
+                                        {def.title}
+                                    </h4>
+                                    <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-2 py-1 rounded-lg">
+                                        <TrophyIcon className="w-4 h-4" />
+                                    </div>
+                                </div>
+                                
+                                <div className="flex justify-between items-end">
+                                    <div>
+                                        <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">
+                                            {formatResult(pb!.benchmarkValue!, def.type)} <span className="text-sm text-gray-500 font-bold">{getUnit(def.type)}</span>
+                                        </p>
+                                        <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2 uppercase tracking-wider font-bold">
+                                            {new Date(pb!.date).toLocaleDateString('sv-SE')} • {attempts} försök
+                                        </p>
+                                    </div>
+                                    {trend && trend.hasChanged && (
+                                        <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-lg ${trend.isImprovement ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
+                                            {trend.isImprovement ? '↑' : '↓'} {formatResult(trend.diff, def.type)}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-                            
-                            <div>
-                                <p className="text-4xl font-black text-gray-900 dark:text-white tracking-tight">
-                                    {formatResult(pb!.benchmarkValue!, def.type)} <span className="text-sm text-gray-500 font-bold">{getUnit(def.type)}</span>
-                                </p>
-                                <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-2 uppercase tracking-wider font-bold">
-                                    {new Date(pb!.date).toLocaleDateString('sv-SE')} • {attempts} försök
-                                </p>
-                            </div>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
+
+            {selectedBenchmark && (
+                <BenchmarkDetailModal 
+                    benchmark={selectedBenchmark} 
+                    onClose={() => setSelectedBenchmark(null)} 
+                    onViewLog={onViewLog}
+                    formatResult={formatResult}
+                    getUnit={getUnit}
+                />
+            )}
         </div>
     );
 };
@@ -925,6 +1085,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     <BenchmarksView 
                         logs={logs} 
                         definitions={selectedOrganization.benchmarkDefinitions || []} 
+                        onViewLog={setSelectedLog}
                     />
                 )
             )}
