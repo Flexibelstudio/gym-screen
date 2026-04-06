@@ -58,7 +58,7 @@ export const FeatureInfoModal: React.FC<{ isOpen: boolean; onClose: () => void }
             </div>
 
             <div className="bg-yellow-50 dark:bg-yellow-900/10 p-4 rounded-xl border border-yellow-100 dark:border-yellow-800 text-sm text-yellow-800 dark:text-yellow-200">
-                <strong>Tips:</strong> Eftersom funktionen kostar 39 kr/mån per medlem är detta också en intäktsmöjlighet! Många gym tar en extra avgift för att ge medlemmar tillgång till "Premium-appen" med AI-coaching och loggning.
+                Premium-appen kostar 39 kr/mån för medlemmen. Av detta tjänar ni som gym 20 kr per användare och månad (minus transaktionsavgifter från Stripe).
             </div>
         </div>
         <div className="mt-6 flex justify-end">
