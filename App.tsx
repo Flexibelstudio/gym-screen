@@ -1318,24 +1318,26 @@ const App: React.FC = () => {
        {isStudioMode && <SpotlightOverlay />} 
        {isStudioMode && <PBOverlay />}
 
-       {!isAnyModalOpen && !showPaywall && !showWelcomePaywall && !showPendingCoach && (page === Page.Timer || !isFullScreenPage) && <Header 
-        page={page} 
-        onBack={handleBack} 
-        theme={theme}
-        toggleTheme={toggleTheme}
-        isVisible={isTimerHeaderVisible}
-        activeCustomPageTitle={page === Page.CustomContent ? activeCustomPage?.title : undefined}
-        onSignOut={isStudioMode ? undefined : signOut}
-        role={role}
-        historyLength={history.length}
-        showClock={isStudioMode && (page === Page.WorkoutDetail)}
-        hideBackButton={isBackButtonHidden}
-        onCoachAccessRequest={handleCoachAccessRequest}
-        showCoachButton={isStudioMode}
-        onMemberProfileRequest={handleMemberProfileRequest} 
-        onEditProfileRequest={handleEditProfileRequest}
-        isStudioMode={isStudioMode}
-      />}
+       <div className={(isAnyModalOpen || showPaywall || showWelcomePaywall || showPendingCoach || !(page === Page.Timer || !isFullScreenPage)) ? 'hidden' : 'contents'}>
+           <Header 
+            page={page} 
+            onBack={handleBack} 
+            theme={theme}
+            toggleTheme={toggleTheme}
+            isVisible={isTimerHeaderVisible}
+            activeCustomPageTitle={page === Page.CustomContent ? activeCustomPage?.title : undefined}
+            onSignOut={isStudioMode ? undefined : signOut}
+            role={role}
+            historyLength={history.length}
+            showClock={isStudioMode && (page === Page.WorkoutDetail)}
+            hideBackButton={isBackButtonHidden}
+            onCoachAccessRequest={handleCoachAccessRequest}
+            showCoachButton={isStudioMode}
+            onMemberProfileRequest={handleMemberProfileRequest} 
+            onEditProfileRequest={handleEditProfileRequest}
+            isStudioMode={isStudioMode}
+          />
+       </div>
 
       <div className="flex flex-col items-center flex-1 min-h-0 relative">
           <main 
