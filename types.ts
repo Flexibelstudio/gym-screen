@@ -144,6 +144,7 @@ export interface Workout {
   organizationId: string; 
   showDetailsToMember?: boolean;
   isMemberDraft?: boolean;
+  silentPublish?: boolean;
   participants?: string[]; 
   startGroups?: StartGroup[]; 
   startIntervalMinutes?: number; 

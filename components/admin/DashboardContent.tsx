@@ -305,7 +305,7 @@ const ManageWorkoutsView: React.FC<{
     onEdit: (workout: Workout) => void;
     onDelete: (id: string) => void;
     onDuplicate: (workout: Workout) => void;
-    onTogglePublish: (id: string, isPublished: boolean) => void;
+    onTogglePublish: (id: string, isPublished: boolean, silentPublish?: boolean) => void;
     onCopyToLibrary: (workout: Workout) => void;
     onBack: () => void;
 }> = ({ workouts, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onBack }) => {
@@ -496,7 +496,14 @@ const ManageWorkoutsView: React.FC<{
                                         </td>
                                         <td className="p-5">
                                             <button 
-                                                onClick={() => onTogglePublish(workout.id, !workout.isPublished)}
+                                                onClick={() => {
+                                                    if (!workout.isPublished) {
+                                                        const silent = window.confirm("Vill du skicka en pushnotis till medlemmarna om att passet är publicerat?\n\nOK = Skicka notis\nAvbryt = Skicka INGEN notis");
+                                                        onTogglePublish(workout.id, true, !silent);
+                                                    } else {
+                                                        onTogglePublish(workout.id, false);
+                                                    }
+                                                }}
                                                 className={`text-xs font-bold px-2 py-1 rounded transition-colors uppercase tracking-wider ${
                                                     workout.isPublished 
                                                     ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-200' 
@@ -618,7 +625,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
     setAutoExpandCategory: (category: string | null) => void;
     onSaveWorkout: (workout: Workout) => Promise<Workout>;
     onDeleteWorkout: (id: string) => Promise<void>;
-    onTogglePublish: (id: string, isPublished: boolean) => void;
+    onTogglePublish: (id: string, isPublished: boolean, silentPublish?: boolean) => void;
     onDuplicateWorkout: (workout: Workout) => void;
     setCustomBackHandler?: (handler: (() => void) | null) => void;
 }> = ({

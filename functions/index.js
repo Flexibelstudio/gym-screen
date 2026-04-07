@@ -1216,7 +1216,7 @@ exports.onWorkoutCreated = onDocumentCreated({
   const newWorkout = event.data.data();
   
   // Om passet skapas och direkt är publicerat och inte ett utkast
-  if (newWorkout && newWorkout.isPublished && !newWorkout.isMemberDraft && newWorkout.organizationId) {
+  if (newWorkout && newWorkout.isPublished && !newWorkout.isMemberDraft && newWorkout.organizationId && !newWorkout.silentPublish) {
     await notifyOrganizationMembers(
       newWorkout.organizationId,
       'Nytt pass tillgängligt! 🏋️‍♀️',
@@ -1235,7 +1235,7 @@ exports.onWorkoutUpdated = onDocumentUpdated({
   const wasPublished = beforeData.isPublished === true;
   const isPublished = afterData.isPublished === true;
 
-  if (!wasPublished && isPublished && !afterData.isMemberDraft && afterData.organizationId) {
+  if (!wasPublished && isPublished && !afterData.isMemberDraft && afterData.organizationId && !afterData.silentPublish) {
     await notifyOrganizationMembers(
       afterData.organizationId,
       'Nytt pass tillgängligt! 🏋️‍♀️',

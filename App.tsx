@@ -667,9 +667,9 @@ const App: React.FC = () => {
       });
   };
   
-  const handleTogglePublishStatus = async (workoutId: string, isPublished: boolean) => {
+  const handleTogglePublishStatus = async (workoutId: string, isPublished: boolean, silentPublish?: boolean) => {
     const workoutToToggle = workouts.find(w => w.id === workoutId);
-    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isPublished });
+    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isPublished, silentPublish });
   };
 
   const handleToggleFavoriteStatus = async (workoutId: string) => {
