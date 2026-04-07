@@ -1107,7 +1107,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               if (!diplomaData) {
                   setSaveStatus('AI:n skriver ditt diplom...');
                   try {
-                      diplomaData = await generateWorkoutDiploma({ ...finalLogRaw, newPBs: newRecords });
+                      diplomaData = await generateWorkoutDiploma({ ...savedLog, newPBs: newRecords });
                       if (diplomaData) {
                           diplomaData.title = getRandomDiplomaTitle();
                           diplomaData.newPBs = newRecords.length > 0 ? newRecords : undefined;

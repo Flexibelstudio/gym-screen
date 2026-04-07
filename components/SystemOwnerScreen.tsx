@@ -3,6 +3,7 @@ import { Organization, SmartScreenPricing, InvoiceDetails, SeasonalThemeSetting,
 import { OvningsbankContent } from './OvningsbankContent';
 import { getSmartScreenPricing, updateSmartScreenPricing, updateOrganizationFreeCoaches, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, restoreOrganization, deleteOrganizationPermanently, updateOrganizationName, getMembers, requestPushNotificationPermission, auth } from '../services/firebaseService';
 import { PencilIcon, HomeIcon, BuildingIcon, SparklesIcon, ToggleSwitch, ChevronDownIcon, CloseIcon } from './icons';
+import { MoreVertical } from 'lucide-react';
 import { calculateInvoiceDetails } from '../utils/billing';
 import { SystemDashboardContent } from './admin/SystemDashboardContent';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -32,8 +33,20 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
     const [isSavingName, setIsSavingName] = useState(false);
     const [memberCount, setMemberCount] = useState<number | null>(null);
     const [staffCount, setStaffCount] = useState<number | null>(null);
+    const [showMenu, setShowMenu] = useState(false);
+    const menuRef = React.useRef<HTMLDivElement>(null);
 
     const isArchived = org.status === 'archived';
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setShowMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     useEffect(() => {
         setFreeCoaches(org.freeCoachAccounts || 0);
@@ -154,19 +167,51 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
                     </div>
                 </div>
                 
-                <div className="flex flex-row sm:flex-col gap-2 items-end flex-shrink-0 mt-4 sm:mt-0">
+                <div className="flex flex-row sm:flex-col gap-2 items-end flex-shrink-0 mt-4 sm:mt-0 relative" ref={menuRef}>
                     {!isArchived && (
-                        <>
+                        <div className="flex items-center gap-2">
                             <button onClick={onSelect} className="bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2 px-4 rounded-lg text-sm w-full sm:w-auto">Hantera</button>
-                            <button onClick={onArchive} className="bg-orange-600 hover:bg-orange-500 text-white font-semibold py-2 px-4 rounded-lg text-sm w-full sm:w-auto">Arkivera</button>
-                        </>
+                            <button onClick={() => setShowMenu(!showMenu)} className="p-2 bg-slate-300 hover:bg-slate-400 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                                <MoreVertical className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                            </button>
+                        </div>
                     )}
                     {isArchived && (
-                        <>
+                        <div className="flex items-center gap-2">
                             <button onClick={onRestore} className="bg-green-600 hover:bg-green-500 text-white font-semibold py-2 px-4 rounded-lg text-sm w-full sm:w-auto">Återaktivera</button>
-                            <button onClick={onDeletePermanent} className="bg-red-600 hover:bg-red-500 text-white font-semibold py-2 px-4 rounded-lg text-sm w-full sm:w-auto">Radera Permanent</button>
-                        </>
+                            <button onClick={() => setShowMenu(!showMenu)} className="p-2 bg-slate-300 hover:bg-slate-400 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                                <MoreVertical className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                            </button>
+                        </div>
                     )}
+
+                    <AnimatePresence>
+                        {showMenu && (
+                            <motion.div 
+                                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                                animate={{ opacity: 1, y: 0, scale: 1 }}
+                                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                                transition={{ duration: 0.15 }}
+                                className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-10"
+                            >
+                                {!isArchived ? (
+                                    <button 
+                                        onClick={() => { setShowMenu(false); onArchive(); }} 
+                                        className="w-full text-left px-4 py-3 text-sm text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-medium transition-colors"
+                                    >
+                                        Arkivera
+                                    </button>
+                                ) : (
+                                    <button 
+                                        onClick={() => { setShowMenu(false); onDeletePermanent?.(); }} 
+                                        className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors"
+                                    >
+                                        Radera Permanent
+                                    </button>
+                                )}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
             </div>
         </div>

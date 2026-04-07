@@ -578,6 +578,6 @@ export async function generateWorkoutDiploma(logData: any): Promise<WorkoutDiplo
         stats += `, Benchmark-resultat: ${logData.benchmarkValue}`;
     }
     const pbText = logData.newPBs?.map((pb: any) => `${pb.exerciseName} (+${pb.diff}kg)`).join(', ') || 'Inga nya PB.';
-    const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.DIPLOMA_GENERATOR_PROMPT(logData.workoutTitle, pbText, stats), diplomaSchema);
+    const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.DIPLOMA_GENERATOR_PROMPT(logData.workoutTitle, pbText, stats, logData.aiProgressionPrompt), diplomaSchema);
     return { ...data, newPBs: logData.newPBs };
 }

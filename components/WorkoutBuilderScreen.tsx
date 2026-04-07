@@ -797,6 +797,12 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                       onChange={val => handleUpdateWorkoutDetail('coachTips', val)}
                       isTextarea
                   />
+                  <EditableField 
+                      label="AI-instruktioner (Frivilligt) - Skickas till AI:n när medlem loggar passet"
+                      value={workout.aiProgressionPrompt || ''}
+                      onChange={val => handleUpdateWorkoutDetail('aiProgressionPrompt', val)}
+                      isTextarea
+                  />
                   
                   {sessionRole !== 'member' && (
                     <div className="pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-1 md:grid-cols-2 gap-6">

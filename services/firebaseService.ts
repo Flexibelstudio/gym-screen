@@ -371,6 +371,9 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
             const wSnap = await getDoc(doc(db, 'workouts', logData.workoutId));
             if (wSnap.exists()) {
                 const wData = wSnap.data() as Workout;
+                if (wData.aiProgressionPrompt) {
+                    newLog.aiProgressionPrompt = wData.aiProgressionPrompt;
+                }
                 if (wData.benchmarkId) {
                     newLog.benchmarkId = wData.benchmarkId;
                     if (newLog.durationMinutes) {
@@ -384,6 +387,8 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
         } catch (e) {}
     }
 
+    let showOnLeaderboard = true;
+
     if (logData.memberId) {
         try {
             const userSnap = await getDoc(doc(db, 'users', logData.memberId));
@@ -391,6 +396,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 const userData = userSnap.data();
                 newLog.memberName = `${userData.firstName || 'Medlem'} ${userData.lastName ? userData.lastName[0] + '.' : ''}`.trim();
                 newLog.memberPhotoUrl = userData.photoUrl || null;
+                showOnLeaderboard = userData.showOnLeaderboard !== false;
             }
         } catch (e) { console.warn("Failed to enrich log", e); }
     }
@@ -456,7 +462,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 }
             }
 
-            if (newRecords.length > 0) {
+            if (newRecords.length > 0 && showOnLeaderboard) {
                 newLog.newPBs = newRecords;
                 const eventRef = doc(collection(db, 'studio_events'));
                 const eventData: StudioEvent = {

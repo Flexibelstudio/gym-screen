@@ -160,10 +160,12 @@ Bedöm styrkor, förbättringsområden och ge konkreta "actions" till coachen.
 Poängsätt Styrka, Kondition och Frekvens (0-100).
 `;
 
-export const DIPLOMA_GENERATOR_PROMPT = (title: string, pbText: string, stats: string) => `
+export const DIPLOMA_GENERATOR_PROMPT = (title: string, pbText: string, stats: string, aiProgressionPrompt?: string) => `
 Skapa ett diplom för passet: "${title}".
 REKORD: ${pbText}
 STATS: ${stats}
+
+${aiProgressionPrompt ? `COACHENS INSTRUKTIONER TILL DIG (AI): ${aiProgressionPrompt}\nFölj dessa instruktioner noggrant när du formulerar din feedback och pepp.` : ''}
 
 Fokusera på att hylla framstegen. 'imagePrompt' ska vara en beskrivning på engelska för en abstrakt, 3D-renderad medalj/ikon.
 `;

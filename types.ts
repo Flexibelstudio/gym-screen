@@ -152,6 +152,7 @@ export interface Workout {
   benchmarkId?: string; // NYTT: Koppling till ett Benchmark
   showInStudio?: boolean; // NYTT: Visa på skärm
   showInApp?: boolean; // NYTT: Visa i medlemsapp
+  aiProgressionPrompt?: string; // NYTT: Prompt för AI-progression
 }
 
 export type Passkategori = string;
