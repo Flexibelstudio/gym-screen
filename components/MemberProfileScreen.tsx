@@ -777,16 +777,21 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div className="flex items-center pt-6">
-                            <label className="flex items-center gap-3 cursor-pointer">
-                                <div className="relative">
+                    <div className="grid grid-cols-1 gap-6">
+                        <div className="flex items-start pt-6">
+                            <label className="flex items-start gap-3 cursor-pointer">
+                                <div className="relative mt-0.5 flex-shrink-0">
                                     <input type="checkbox" className="sr-only" checked={showOnLeaderboard} onChange={e => setShowOnLeaderboard(e.target.checked)} />
                                     <div className={`block w-14 h-8 rounded-full transition-colors ${showOnLeaderboard ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-700'}`}></div>
                                     <div className={`absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${showOnLeaderboard ? 'transform translate-x-6' : ''}`}></div>
                                 </div>
-                                <div className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                                    Visa mig på gymmets topplista
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                                        Dela mina resultat i gymmet
+                                    </span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-sm leading-relaxed">
+                                        Visar dig på topplistan och i gymmets gemensamma flöde när du loggar pass och slår rekord.
+                                    </span>
                                 </div>
                             </label>
                         </div>
