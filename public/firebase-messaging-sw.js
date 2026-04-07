@@ -16,12 +16,6 @@ const messaging = firebase.messaging();
 
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Received background message ', payload);
-  
-  const notificationTitle = payload.notification?.title || 'SmartStudio';
-  const notificationOptions = {
-    body: payload.notification?.body,
-    icon: '/favicon.png'
-  };
-
-  self.registration.showNotification(notificationTitle, notificationOptions);
+  // Firebase hanterar automatiskt notiser om payloaden innehåller ett "notification"-objekt.
+  // Vi anropar inte showNotification här för att undvika dubbla notiser.
 });

@@ -988,6 +988,11 @@ async function notifyOrganizationMembers(orgId, title, body) {
 
     const message = {
       notification: { title, body },
+      webpush: {
+        notification: {
+          icon: '/favicon.png'
+        }
+      },
       tokens: uniqueTokens,
     };
 
@@ -1031,6 +1036,11 @@ async function notifySystemOwners(title, body) {
 
     const message = {
       notification: { title, body },
+      webpush: {
+        notification: {
+          icon: '/favicon.png'
+        }
+      },
       tokens: uniqueTokens,
     };
 
