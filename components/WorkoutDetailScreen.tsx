@@ -86,48 +86,50 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[10000] bg-white dark:bg-gray-950 flex flex-col overflow-hidden"
         >
-            <div className="flex justify-between items-center p-8 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
-                <div className="flex items-center gap-6">
-                    <h1 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">
+            <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
+                <div className="flex items-center gap-3 sm:gap-4 flex-wrap min-w-0">
+                    <h1 className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-tight break-words">
                         {workout.title}
                     </h1>
-                    <span className="text-sm font-bold bg-gray-200 dark:bg-gray-800 px-3 py-1 rounded-lg text-gray-500 uppercase tracking-widest">
+                    <span className="text-[10px] sm:text-xs font-bold bg-gray-200 dark:bg-gray-800 px-2.5 py-1 rounded-md text-gray-500 uppercase tracking-widest whitespace-nowrap">
                         Hela Passet
                     </span>
                 </div>
                 <button 
                     onClick={onClose}
-                    className="p-4 bg-gray-200 dark:bg-gray-800 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors shadow-lg active:scale-95"
+                    className="p-2.5 sm:p-3 bg-gray-200 dark:bg-gray-800 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors shadow-sm active:scale-95 flex-shrink-0 ml-4"
                 >
-                    <CloseIcon className="w-8 h-8 text-gray-900 dark:text-white" />
+                    <CloseIcon className="w-6 h-6 text-gray-900 dark:text-white" />
                 </button>
             </div>
 
-            <div ref={scrollRef} className="flex-grow overflow-y-auto p-8 md:p-12 space-y-16">
-                <div className="max-w-7xl mx-auto space-y-16">
+            <div ref={scrollRef} className="flex-grow overflow-y-auto p-4 sm:p-8 space-y-8 sm:space-y-12">
+                <div className="max-w-4xl mx-auto space-y-8 sm:space-y-12">
                     {workout.blocks?.map((block, bIndex) => {
                         if (!block) return null;
                         return (
-                        <div key={block.id || `block-${bIndex}`} className="space-y-6">
-                            <div className="flex items-center gap-4 border-b-4 border-gray-100 dark:border-gray-800 pb-4">
-                                <span className={`inline-flex items-center px-4 py-2 rounded-xl text-lg font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
-                                    {block.tag}
-                                </span>
-                                <h2 className="text-3xl font-black text-gray-900 dark:text-white uppercase tracking-tight">
-                                    {block.title}
-                                </h2>
-                                <div className="ml-auto flex flex-col items-end">
-                                    <span className="text-xl font-mono font-bold text-gray-400">
+                        <div key={block.id || `block-${bIndex}`} className="space-y-4 sm:space-y-5">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 border-b-2 border-gray-100 dark:border-gray-800 pb-3">
+                                <div className="flex items-center gap-3 flex-wrap">
+                                    <span className={`inline-flex items-center px-3 py-1 rounded-lg text-xs sm:text-sm font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
+                                        {block.tag}
+                                    </span>
+                                    <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight break-words">
+                                        {block.title}
+                                    </h2>
+                                </div>
+                                <div className="sm:ml-auto flex flex-row sm:flex-col items-center sm:items-end gap-2 sm:gap-0">
+                                    <span className="text-sm sm:text-base font-mono font-bold text-gray-400">
                                         {block.settings.mode}
                                     </span>
-                                    <span className="text-sm font-bold text-gray-500 uppercase tracking-widest">
+                                    <span className="text-[10px] sm:text-xs font-bold text-gray-500 uppercase tracking-widest break-words">
                                         {getSettingsText(block)}
                                     </span>
                                 </div>
                             </div>
 
                             {block.setupDescription && (
-                                <p className="text-xl text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-5xl">
+                                <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-3xl break-words">
                                     {block.setupDescription}
                                 </p>
                             )}
@@ -140,31 +142,31 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                                     const isGroupedWithNext = nextEx && ex.groupId && ex.groupId === nextEx.groupId;
                                     const isGroupedWithPrev = prevEx && ex.groupId && ex.groupId === prevEx.groupId;
                                     
-                                    const roundedClass = isGroupedWithNext && !isGroupedWithPrev ? 'rounded-t-[2rem] rounded-b-md' :
-                                                         isGroupedWithPrev && !isGroupedWithNext ? 'rounded-b-[2rem] rounded-t-md' :
-                                                         isGroupedWithPrev && isGroupedWithNext ? 'rounded-md' : 'rounded-[2rem]';
+                                    const roundedClass = isGroupedWithNext && !isGroupedWithPrev ? 'rounded-t-2xl rounded-b-sm' :
+                                                         isGroupedWithPrev && !isGroupedWithNext ? 'rounded-b-2xl rounded-t-sm' :
+                                                         isGroupedWithPrev && isGroupedWithNext ? 'rounded-sm' : 'rounded-2xl';
                                                          
-                                    const borderClass = ex.groupColor ? `border-2 border-r-gray-100 border-y-gray-100 dark:border-r-gray-800 dark:border-y-gray-800 border-l-[8px] ${ex.groupColor.replace('bg-', 'border-l-')}` : 'border-2 border-gray-100 dark:border-gray-800';
-                                    const marginClass = isGroupedWithNext ? 'mb-1' : 'mb-4';
+                                    const borderClass = ex.groupColor ? `border border-r-gray-100 border-y-gray-100 dark:border-r-gray-800 dark:border-y-gray-800 border-l-[4px] ${ex.groupColor.replace('bg-', 'border-l-')}` : 'border border-gray-100 dark:border-gray-800';
+                                    const marginClass = isGroupedWithNext ? 'mb-1' : 'mb-3';
 
                                     return (
-                                    <div key={ex.id || `ex-${index}`} className={`flex items-start gap-8 p-6 ${roundedClass} bg-gray-50 dark:bg-gray-900 ${borderClass} ${marginClass}`}>
-                                         <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-xl font-black text-gray-500">
+                                    <div key={ex.id || `ex-${index}`} className={`flex items-start gap-4 p-4 sm:p-5 ${roundedClass} bg-gray-50 dark:bg-gray-900 ${borderClass} ${marginClass}`}>
+                                         <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-sm sm:text-base font-black text-gray-500">
                                             {index + 1}
                                         </div>
-                                        <div className="flex-grow">
-                                            <div className="flex justify-between items-start gap-8">
-                                                <h3 className="text-2xl font-black text-gray-900 dark:text-white leading-tight">
+                                        <div className="flex-grow min-w-0">
+                                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4">
+                                                <h3 className="text-lg sm:text-xl font-black text-gray-900 dark:text-white leading-tight break-words">
                                                     {ex.name || 'Okänd övning'}
                                                 </h3>
                                                 {ex.reps && (
-                                                    <div className="bg-primary/10 text-primary px-4 py-2 rounded-xl whitespace-nowrap">
-                                                        <span className="text-xl font-mono font-black">{formatReps(ex.reps)}</span>
+                                                    <div className="bg-primary/10 text-primary px-3 py-1.5 rounded-lg whitespace-nowrap self-start sm:self-auto">
+                                                        <span className="text-sm sm:text-base font-mono font-black">{formatReps(ex.reps)}</span>
                                                     </div>
                                                 )}
                                             </div>
                                             {ex.description && (
-                                                <p className="text-lg text-gray-500 dark:text-gray-400 mt-2 leading-relaxed font-medium">
+                                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5 leading-relaxed font-medium break-words">
                                                     {ex.description}
                                                 </p>
                                             )}
@@ -172,7 +174,7 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                                     </div>
                                 )})}
                                 {block.exercises?.length === 0 && (
-                                    <p className="text-gray-400 italic pl-4">Inga övningar.</p>
+                                    <p className="text-sm text-gray-400 italic pl-4">Inga övningar.</p>
                                 )}
                             </div>
                         </div>
