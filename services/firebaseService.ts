@@ -1262,6 +1262,74 @@ export const deleteExerciseFromBank = async (id: string) => {
     } catch (e) { console.error("deleteExerciseFromBank failed", e); }
 };
 
+export const mergeExercises = async (sourceId: string, targetId: string) => {
+    if (isOffline || !db) return;
+    try {
+        let targetEx: BankExercise | null = null;
+        let sourceEx: BankExercise | null = null;
+        
+        const globalTargetSnap = await getDoc(doc(db, 'exerciseBank', targetId));
+        if (globalTargetSnap.exists()) targetEx = globalTargetSnap.data() as BankExercise;
+        else {
+            const customTargetSnap = await getDoc(doc(db, 'custom_exercises', targetId));
+            if (customTargetSnap.exists()) targetEx = customTargetSnap.data() as BankExercise;
+        }
+
+        const globalSourceSnap = await getDoc(doc(db, 'exerciseBank', sourceId));
+        if (globalSourceSnap.exists()) sourceEx = globalSourceSnap.data() as BankExercise;
+        else {
+            const customSourceSnap = await getDoc(doc(db, 'custom_exercises', sourceId));
+            if (customSourceSnap.exists()) sourceEx = customSourceSnap.data() as BankExercise;
+        }
+
+        if (!targetEx || !sourceEx) {
+            throw new Error("Kunde inte hitta båda övningarna för sammanslagning.");
+        }
+
+        // Hitta alla pass som använder source-övningen
+        const workoutsSnap = await getDocs(collection(db, 'workouts'));
+        const batch = writeBatch(db);
+        let updateCount = 0;
+
+        workoutsSnap.forEach(docSnap => {
+            const workout = docSnap.data() as Workout;
+            let modified = false;
+
+            if (workout.blocks) {
+                workout.blocks.forEach(block => {
+                    if (block.exercises) {
+                        block.exercises.forEach(ex => {
+                            if (ex.id === sourceId || ex.name === sourceEx!.name) {
+                                ex.id = targetId;
+                                ex.name = targetEx!.name;
+                                ex.isFromBank = true;
+                                modified = true;
+                            }
+                        });
+                    }
+                });
+            }
+
+            if (modified) {
+                batch.update(docSnap.ref, { blocks: workout.blocks });
+                updateCount++;
+            }
+        });
+
+        if (updateCount > 0) {
+            await batch.commit();
+            console.log(`Uppdaterade ${updateCount} pass.`);
+        }
+
+        // Ta bort source-övningen
+        await deleteExerciseFromBank(sourceId);
+
+    } catch (e) {
+        console.error("mergeExercises failed", e);
+        throw e;
+    }
+};
+
 export const updateExerciseImageOverride = async (orgId: string, exerciseId: string, imageUrl: string | null) => {
     if (isOffline || !db || !orgId) return;
     try {
