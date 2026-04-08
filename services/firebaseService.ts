@@ -252,6 +252,29 @@ export const updateUserGoals = async (uid: string, goals: MemberGoals) => {
 export const updateUserProfile = async (uid: string, data: Partial<UserData>) => {
     if (isOffline || !db || !uid) return;
     await updateDoc(doc(db, 'users', uid), sanitizeData(data));
+    
+    // If showOnLeaderboard preference changed, update recent workout logs so they disappear/appear immediately
+    if (data.showOnLeaderboard !== undefined) {
+        try {
+            const now = new Date();
+            const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1)));
+            startOfWeek.setHours(0, 0, 0, 0);
+            
+            const q = query(
+                collection(db, 'workoutLogs'),
+                where("memberId", "==", uid),
+                where("date", ">=", startOfWeek.getTime() - 7 * 24 * 60 * 60 * 1000) // Go back an extra week just in case
+            );
+            const snap = await getDocs(q);
+            const batch = writeBatch(db);
+            snap.docs.forEach(d => {
+                batch.update(d.ref, { showOnLeaderboard: data.showOnLeaderboard });
+            });
+            await batch.commit();
+        } catch (e) {
+            console.error("Failed to update recent logs visibility", e);
+        }
+    }
 };
 
 export const requestPushNotificationPermission = async (uid: string): Promise<string | null> => {
@@ -397,6 +420,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 newLog.memberName = `${userData.firstName || 'Medlem'} ${userData.lastName ? userData.lastName[0] + '.' : ''}`.trim();
                 newLog.memberPhotoUrl = userData.photoUrl || null;
                 showOnLeaderboard = userData.showOnLeaderboard !== false;
+                newLog.showOnLeaderboard = showOnLeaderboard;
             }
         } catch (e) { console.warn("Failed to enrich log", e); }
     }
@@ -471,6 +495,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                     organizationId: logData.organizationId,
                     timestamp: Date.now(),
                     data: { 
+                        memberId: logData.memberId,
                         userName: newLog.memberName || 'En medlem', 
                         userPhotoUrl: newLog.memberPhotoUrl || null, 
                         records: newRecords
@@ -518,7 +543,7 @@ export const getLeaderboardData = async (orgId: string): Promise<{ memberId: str
         );
         
         const snap = await getDocs(q);
-        const logs = snap.docs.map(d => d.data() as WorkoutLog);
+        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false);
         
         // Aggregate by memberId
         const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
@@ -564,7 +589,7 @@ export const listenToLeaderboardData = (orgId: string, onUpdate: (data: { member
     );
     
     return onSnapshot(q, (snap) => {
-        const logs = snap.docs.map(d => d.data() as WorkoutLog);
+        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false);
         
         // Aggregate by memberId
         const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
@@ -608,7 +633,8 @@ export const listenToCommunityLogs = (orgId: string, onUpdate: (logs: WorkoutLog
     }
     const q = query(collection(db, 'workoutLogs'), where("organizationId", "==", orgId), orderBy("date", "desc"), limit(20));
     return onSnapshot(q, (snap) => {
-        onUpdate(snap.docs.map(d => d.data() as WorkoutLog));
+        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false);
+        onUpdate(logs);
     }, (err) => console.error("listenToCommunityLogs failed", err));
 };
 
