@@ -211,6 +211,11 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
         newSettings.restTime = 0;
         newSettings.rounds = 1;
         break;
+      case TimerMode.Stopwatch:
+        newSettings.workTime = 3600; // Default to 1 hour, it counts up anyway
+        newSettings.restTime = 0;
+        newSettings.rounds = 1;
+        break;
       case TimerMode.EMOM:
         newSettings.rounds = totalMinutes;
         newSettings.workTime = 60;
@@ -432,6 +437,13 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
             return <div className={animationClass}><ValueAdjuster label="TIME CAP (MINUTER)" value={totalMinutes} onchange={setTotalMinutes} /></div>;
         case TimerMode.EMOM:
             return <div className={animationClass}><ValueAdjuster label="EMOM (MINUTER)" value={totalMinutes} onchange={setTotalMinutes} /></div>;
+        case TimerMode.Stopwatch:
+             return (
+                <div className={`text-center text-gray-600 dark:text-gray-300 p-4 rounded-lg ${animationClass}`}>
+                    <h4 className="font-bold text-gray-800 dark:text-white text-lg">Stoppur</h4>
+                    <p className="mt-2">Detta block kommer att räkna uppåt tills du stoppar det.</p>
+                </div>
+            );
         case TimerMode.NoTimer:
              return (
                 <div className={`text-center text-gray-600 dark:text-gray-300 p-4 rounded-lg ${animationClass}`}>
@@ -510,6 +522,16 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
               }`}
             >
               TimeCap
+            </button>
+            <button
+              onClick={() => handleModeChange(TimerMode.Stopwatch)}
+              className={`px-4 py-3 text-sm font-bold rounded-xl transition-all duration-200 border-2 ${
+                  mode === TimerMode.Stopwatch 
+                  ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20 scale-105' 
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400'
+              }`}
+            >
+              Stoppur
             </button>
             <button
               onClick={() => !block.followMe && handleModeChange(TimerMode.Custom)}
