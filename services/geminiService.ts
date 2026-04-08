@@ -329,19 +329,19 @@ export async function chatWithAICoach(
     };
 }
 
-export async function parseWorkoutFromText(text: string): Promise<Workout> {
-    const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.TEXT_INTERPRETER_PROMPT(text), workoutSchema);
+export async function parseWorkoutFromText(text: string, availableExercises: string[] = []): Promise<Workout> {
+    const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.TEXT_INTERPRETER_PROMPT(text, availableExercises), workoutSchema);
     // Tolkad text från coachen bör inte vara ett "medlemsutkast" som raderas
     return transformWorkout(data, '', false);
 }
 
-export async function parseWorkoutFromImage(base64Image: string, additionalText?: string, isDraft: boolean = false): Promise<Workout> {
+export async function parseWorkoutFromImage(base64Image: string, additionalText?: string, isDraft: boolean = false, availableExercises: string[] = []): Promise<Workout> {
     const ai = getAIClient();
     const response = await ai.models.generateContent({
         model: VISION_MODEL,
         contents: [
             { inlineData: { mimeType: 'image/png', data: base64Image } },
-            { text: Prompts.IMAGE_INTERPRETER_PROMPT(additionalText) }
+            { text: Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises) }
         ],
         config: {
             systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,

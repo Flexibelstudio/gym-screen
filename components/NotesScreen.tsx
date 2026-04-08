@@ -1292,7 +1292,18 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         try {
             const dataUrl = getCanvasDataUrlWithSmartObjects();
             const base64Image = dataUrl.split(',')[1];
-            const workout = await parseWorkoutFromImage(base64Image, undefined, true);
+            
+            let exerciseNames: string[] = [];
+            if (selectedOrganization) {
+                try {
+                    const bank = await getOrganizationExerciseBank(selectedOrganization.id);
+                    exerciseNames = bank.map(e => e.name);
+                } catch (err) {
+                    console.warn("Could not load exercise bank for AI context", err);
+                }
+            }
+            
+            const workout = await parseWorkoutFromImage(base64Image, undefined, true, exerciseNames);
             setInterpretedWorkout(workout);
         } catch(e) {
             alert(e instanceof Error ? e.message : 'Ett okänt fel inträffade.');

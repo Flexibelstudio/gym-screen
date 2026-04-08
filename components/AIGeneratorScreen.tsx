@@ -127,6 +127,18 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
 
         try {
             let workout: Workout;
+            
+            // HÄMTA ÖVNINGSNAMN FRÅN BANKEN (Används av både generate och parse)
+            let exerciseNames: string[] = [];
+            if (selectedOrganization) {
+                try {
+                    const bank = await getOrganizationExerciseBank(selectedOrganization.id);
+                    exerciseNames = bank.map(e => e.name);
+                    console.log("Loaded context exercises:", exerciseNames.length);
+                } catch (err) {
+                    console.warn("Could not load exercise bank for AI context", err);
+                }
+            }
 
             if (activeTab === 'generate') {
                 // Kombinera kategorins prompt med användarens tillägg
@@ -137,18 +149,6 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                     Användarens specifika önskemål/tillägg: "${prompt}"`;
                 } else if (!prompt.trim()) {
                     throw new Error("Du måste välja en kategori eller skriva ett önskemål.");
-                }
-
-                // HÄMTA ÖVNINGSNAMN FRÅN BANKEN
-                let exerciseNames: string[] = [];
-                if (selectedOrganization) {
-                    try {
-                        const bank = await getOrganizationExerciseBank(selectedOrganization.id);
-                        exerciseNames = bank.map(e => e.name);
-                        console.log("Loaded context exercises:", exerciseNames.length);
-                    } catch (err) {
-                        console.warn("Could not load exercise bank for AI context", err);
-                    }
                 }
 
                 // Generera nytt pass med AI (skicka med bank-listan)
@@ -165,11 +165,11 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                 if (selectedImage) {
                     // Vision capabilities
                     const base64Data = selectedImage.split(',')[1];
-                    workout = await parseWorkoutFromImage(base64Data, prompt);
+                    workout = await parseWorkoutFromImage(base64Data, prompt, false, exerciseNames);
                 } else {
                     if (!prompt.trim()) throw new Error("Klistra in text eller ladda upp en bild för att tolka.");
                     // Text interpretation
-                    workout = await parseWorkoutFromText(prompt);
+                    workout = await parseWorkoutFromText(prompt, exerciseNames);
                 }
             }
             
