@@ -524,9 +524,13 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
               TimeCap
             </button>
             <button
-              onClick={() => handleModeChange(TimerMode.Stopwatch)}
+              onClick={() => !block.followMe && handleModeChange(TimerMode.Stopwatch)}
+              disabled={!!block.followMe}
+              title={block.followMe ? "Kan inte kombineras med Följ mig-läge" : undefined}
               className={`px-4 py-3 text-sm font-bold rounded-xl transition-all duration-200 border-2 ${
-                  mode === TimerMode.Stopwatch 
+                block.followMe 
+                  ? 'bg-gray-100 dark:bg-gray-900 text-gray-400 dark:text-gray-600 border-gray-200 dark:border-gray-800 cursor-not-allowed opacity-60' 
+                  : mode === TimerMode.Stopwatch 
                   ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20 scale-105' 
                   : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400'
               }`}
