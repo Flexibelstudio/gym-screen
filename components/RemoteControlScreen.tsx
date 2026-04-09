@@ -423,9 +423,8 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         setActiveRunningBlockId(null);
         
         if (selectedWorkout.category === 'Fristående') {
-            // It's a freestanding timer, go back to timer setup
             await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
-                view: 'idle',
+                view: 'menu',
                 activeWorkoutId: null,
                 activeBlockId: null,
                 lastUpdate: Date.now(),
@@ -434,7 +433,6 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
             setView('timer_setup');
             setSelectedWorkout(null);
         } else {
-            // It's a regular workout, go back to preview
             await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
                 activeWorkoutId: selectedWorkout.id,
                 view: 'preview', // Go back to workout detail

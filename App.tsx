@@ -531,27 +531,11 @@ const App: React.FC = () => {
       return;
     }
 
-    if (isStudioMode && selectedOrganization && selectedStudio) {
-        setRemoteCommand(null);
-        lastLocalNavigationRef.current = Date.now();
-
-        updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-            activeWorkoutId: null,
-            view: 'idle',
-            activeBlockId: null,
-            lastUpdate: Date.now(),
-            controllerName: 'Touch Screen'
-        });
-        setActiveWorkout(null);
-        setActiveBlock(null);
-        navigateReplace(Page.Home);
-        return;
-    }
-
     if (history.length <= 1) return;
 
     const currentPage = history[history.length - 1];
     const newHistory = history.slice(0, -1);
+    const targetPage = newHistory[newHistory.length - 1];
     
     if (currentPage === Page.Coach && role === 'member') {
         setSessionRole('member');
@@ -563,8 +547,31 @@ const App: React.FC = () => {
         setIsPickingForLog(false);
     }
     
+    if (isStudioMode && selectedOrganization && selectedStudio) {
+         let view: RemoteSessionState['view'] = 'menu';
+         
+         if (targetPage === Page.Timer || targetPage === Page.RepsOnly) {
+             view = 'timer';
+         } else if (targetPage === Page.WorkoutDetail) {
+             view = 'preview';
+         } else if (targetPage === Page.Home) {
+             view = 'idle';
+         }
+         
+         setRemoteCommand(null);
+         lastLocalNavigationRef.current = Date.now();
+
+         updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+             view,
+             activeWorkoutId: activeWorkout?.id || null,
+             activeBlockId: activeBlock?.id || null,
+             lastUpdate: Date.now(),
+             controllerName: 'Touch Screen'
+         });
+    }
+    
     setHistory(newHistory);
-  }, [history, role, isImpersonating, customBackHandler, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio, page, activeWorkout, navigateReplace]);
+  }, [history, role, isImpersonating, customBackHandler, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock]);
 
   const handleMemberProfileRequest = () => {
       if (isStudioMode) {
@@ -848,21 +855,6 @@ const App: React.FC = () => {
     if (completionInfo) return; 
     
     if (!isNatural) {
-      if (activeWorkout && (activeWorkout.id.startsWith('freestanding-workout-') || activeWorkout.id.startsWith('fs-workout-'))) {
-          setActiveWorkout(null);
-          setActiveBlock(null);
-          if (isStudioMode && selectedOrganization && selectedStudio) {
-              updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-                  activeWorkoutId: null,
-                  view: 'menu',
-                  activeBlockId: null,
-                  lastUpdate: Date.now(),
-                  controllerName: 'Touch Screen'
-              });
-          }
-          navigateReplace(Page.FreestandingTimer);
-          return;
-      }
       handleBack();
       return;
     }
@@ -914,18 +906,7 @@ const App: React.FC = () => {
     if (isFreestanding) {
         setActiveWorkout(null);
         setActiveBlock(null);
-        
-        if (isStudioMode && selectedOrganization && selectedStudio) {
-            updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-                activeWorkoutId: null,
-                view: 'menu',
-                activeBlockId: null,
-                lastUpdate: Date.now(),
-                controllerName: 'Touch Screen'
-            });
-        }
-        
-        navigateReplace(Page.FreestandingTimer);
+        handleBack();
         return;
     }
 
