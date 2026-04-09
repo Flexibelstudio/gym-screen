@@ -14,7 +14,8 @@ import { WelcomePaywall } from './components/WelcomePaywall';
 import PendingCoachScreen from './components/PendingCoachScreen';
 
 // --- Services ---
-import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById, getFreshCategoryWorkouts } from './services/firebaseService';
+import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages } from './services/firebaseService';
+import { Toast } from './components/ui/ToastNotification';
 
 // --- Utils ---
 import { deepCopyAndPrepareAsNew } from './utils/workoutUtils';
@@ -67,6 +68,14 @@ const App: React.FC = () => {
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegisterGym, setShowRegisterGym] = useState(false); 
+  const [minSplashTimeElapsed, setMinSplashTimeElapsed] = useState(false);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMinSplashTimeElapsed(true);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
   
   const [history, setHistory] = useState<Page[]>(() => {
       if (isStudioMode) return [Page.Home];
@@ -110,6 +119,18 @@ const App: React.FC = () => {
   // NEW: Ref to track if we have performed the initial cleanup of remote state
   const hasCleanedUpRef = useRef(false);
   const [isReadyToListen, setIsReadyToListen] = useState(false);
+  const [pushToast, setPushToast] = useState<{ message: string, isVisible: boolean }>({ message: '', isVisible: false });
+
+  // Push notification foreground listener
+  useEffect(() => {
+    if (isOffline) return;
+    const unsubscribe = listenToForegroundMessages((payload) => {
+      const title = payload.notification?.title || 'Ny notis';
+      const body = payload.notification?.body || '';
+      setPushToast({ message: `${title}: ${body}`, isVisible: true });
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (!authLoading && !isStudioMode && currentUser) {
@@ -646,9 +667,9 @@ const App: React.FC = () => {
       });
   };
   
-  const handleTogglePublishStatus = async (workoutId: string, isPublished: boolean) => {
+  const handleTogglePublishStatus = async (workoutId: string, isPublished: boolean, silentPublish?: boolean) => {
     const workoutToToggle = workouts.find(w => w.id === workoutId);
-    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isPublished });
+    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isPublished, silentPublish });
   };
 
   const handleToggleFavoriteStatus = async (workoutId: string) => {
@@ -1211,6 +1232,23 @@ const App: React.FC = () => {
       );
   }
   
+  const showSplashScreen = isGlobalLoading || !minSplashTimeElapsed;
+
+  if (showSplashScreen) {
+    return (
+        <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
+            <motion.img 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5 }}
+                src="/favicon.png" 
+                alt="SmartStudio" 
+                className="w-32 h-32 rounded-3xl shadow-lg" 
+            />
+        </div>
+    );
+  }
+  
   if (!authLoading && !currentUser && !isStudioMode) {
       if (showRegisterGym) {
           return <RegisterGymScreen onCancel={() => setShowRegisterGym(false)} />;
@@ -1224,7 +1262,7 @@ const App: React.FC = () => {
   if (currentUser && !userData && !isStudioMode && !authLoading) {
     return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+            <img src="/favicon.png" alt="SmartStudio" className="w-20 h-20 mb-6 rounded-2xl shadow-sm" />
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">Förbereder ditt konto...</h2>
             <p className="text-gray-500 mt-2">Detta tar bara några sekunder.</p>
             <div className="flex flex-col gap-4 mt-8">
@@ -1248,19 +1286,10 @@ const App: React.FC = () => {
     );
   }
 
-  if (isGlobalLoading) {
-    return (
-        <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-gray-500 font-bold uppercase tracking-widest text-sm">Laddar SmartStudio...</p>
-        </div>
-    );
-  }
-
   if (isOrgMismatch && !isStudioMode) {
       return (
         <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
-            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+            <img src="/favicon.png" alt="SmartStudio" className="w-20 h-20 mb-6 rounded-2xl shadow-sm" />
             <p className="text-gray-500 font-bold uppercase tracking-widest text-sm">Hämtar organisation...</p>
         </div>
       );
@@ -1270,6 +1299,14 @@ const App: React.FC = () => {
     <div className={`bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
        <SeasonalOverlay page={page} />
        
+       <Toast 
+         message={pushToast.message} 
+         isVisible={pushToast.isVisible} 
+         onClose={() => setPushToast(prev => ({ ...prev, isVisible: false }))} 
+         duration={5000} 
+         type="info" 
+       />
+
        {isOffline && (
         <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-black text-center p-2 font-semibold z-[1001]">
             Du är offline. Viss funktionalitet kan vara begränsad och ändringar sparas lokalt.
@@ -1281,24 +1318,26 @@ const App: React.FC = () => {
        {isStudioMode && <SpotlightOverlay />} 
        {isStudioMode && <PBOverlay />}
 
-       {!isAnyModalOpen && !showPaywall && !showWelcomePaywall && !showPendingCoach && (page === Page.Timer || !isFullScreenPage) && <Header 
-        page={page} 
-        onBack={handleBack} 
-        theme={theme}
-        toggleTheme={toggleTheme}
-        isVisible={isTimerHeaderVisible}
-        activeCustomPageTitle={page === Page.CustomContent ? activeCustomPage?.title : undefined}
-        onSignOut={isStudioMode ? undefined : signOut}
-        role={role}
-        historyLength={history.length}
-        showClock={isStudioMode && (page === Page.WorkoutDetail)}
-        hideBackButton={isBackButtonHidden}
-        onCoachAccessRequest={handleCoachAccessRequest}
-        showCoachButton={isStudioMode}
-        onMemberProfileRequest={handleMemberProfileRequest} 
-        onEditProfileRequest={handleEditProfileRequest}
-        isStudioMode={isStudioMode}
-      />}
+       <div className={(isAnyModalOpen || showPaywall || showWelcomePaywall || showPendingCoach || !(page === Page.Timer || !isFullScreenPage)) ? 'hidden' : 'contents'}>
+           <Header 
+            page={page} 
+            onBack={handleBack} 
+            theme={theme}
+            toggleTheme={toggleTheme}
+            isVisible={isTimerHeaderVisible}
+            activeCustomPageTitle={page === Page.CustomContent ? activeCustomPage?.title : undefined}
+            onSignOut={isStudioMode ? undefined : signOut}
+            role={role}
+            historyLength={history.length}
+            showClock={isStudioMode && (page === Page.WorkoutDetail)}
+            hideBackButton={isBackButtonHidden}
+            onCoachAccessRequest={handleCoachAccessRequest}
+            showCoachButton={isStudioMode}
+            onMemberProfileRequest={handleMemberProfileRequest} 
+            onEditProfileRequest={handleEditProfileRequest}
+            isStudioMode={isStudioMode}
+          />
+       </div>
 
       <div className="flex flex-col items-center flex-1 min-h-0 relative">
           <main 

@@ -35,12 +35,14 @@ VIKTIGA REGLER FÖR REPS-FÄLTET:
 - Skriv ALDRIG tidsangivelser (t.ex. "40 sek") i 'reps'-fältet. Det är redundant information.
 
 ${availableExercises.length > 0 ? `
-VIKTIGT OM ÖVNINGSVAL (CONTEXT INJECTION):
-Här följer en lista på övningar som redan finns i vår databas. Du MÅSTE prioritera att använda exakt dessa namn om de passar in i passet.
-Detta för att statistiken ska bli korrekt. Om du vill ha "Kettlebell Marklyft" och det finns i listan, skriv exakt så.
-Om en specifik rörelse du vill ha INTE finns i listan är det okej att hitta på ett nytt namn, men kolla alltid listan först.
+CRITIKAL: ÖVNINGSVAL OCH NAMNGIVNING (CONTEXT INJECTION):
+Här följer en lista på övningar som redan finns i gymmets databas. 
+Du MÅSTE i första hand använda EXAKT dessa namn. 
+Detta är extremt viktigt för att medlemmarnas statistik och personbästan (PB) ska fungera.
+Om du vill ha "Armhävningar" och det står "Armhävningar" i listan, skriv exakt så. Hitta INTE på varianter som "Armhävningar (Push-ups)" om det inte är absolut nödvändigt.
+Skapa BARA nya övningsnamn om rörelsen du vill ha absolut inte finns representerad i listan nedan.
 
-TILLGÄNGLIGA ÖVNINGAR (PRIORITERA DESSA):
+TILLGÄNGLIGA ÖVNINGAR I DATABASEN (ANVÄND DESSA NAMN):
 ${availableExercises.join(', ')}
 ` : ''}
 `;
@@ -75,7 +77,7 @@ ${chatHistory}
 ANVÄNDARENS NYA MEDDELANDE:
 "${userMessage}"
 
-TILLGÄNGLIGA ÖVNINGAR I BANKEN:
+TILLGÄNGLIGA ÖVNINGAR I BANKEN (CRITICAL: ANVÄND EXAKT DESSA NAMN I FÖRSTA HAND FÖR ATT STATISTIKEN SKA FUNGERA):
 ${availableExercises.join(', ')}
 
 INSTRUKTIONER:
@@ -90,7 +92,7 @@ INSTRUKTIONER:
 4. Om du returnerar 'suggestedExercises', se till att de är relevanta och gärna hämtade från TILLGÄNGLIGA ÖVNINGAR om möjligt.
 `;
 
-export const TEXT_INTERPRETER_PROMPT = (text: string) => `
+export const TEXT_INTERPRETER_PROMPT = (text: string, availableExercises: string[] = []) => `
 Analysera följande text och avgör om det är en färdig lista eller en instruktion för att skapa ett pass.
 "${text}"
 
@@ -103,9 +105,21 @@ STRIKTA REGLER FÖR STRUKTUR:
 1. SMARTA BLOCK: Identifiera varianter (Rx/Int/Beg) och slå ihop till ett block med instruktioner i 'setupDescription'.
 2. COACH TIPS: All kringtext om strategi läggs i 'coachTips'.
 3. STEGAR: Förklara ladders/stegar tydligt i 'setupDescription'.
+
+${availableExercises.length > 0 ? `
+CRITIKAL: ÖVNINGSVAL OCH NAMNGIVNING (CONTEXT INJECTION):
+Här följer en lista på övningar som redan finns i gymmets databas. 
+Du MÅSTE i första hand använda EXAKT dessa namn. 
+Detta är extremt viktigt för att medlemmarnas statistik och personbästan (PB) ska fungera.
+Om du vill ha "Armhävningar" och det står "Armhävningar" i listan, skriv exakt så. Hitta INTE på varianter som "Armhävningar (Push-ups)" om det inte är absolut nödvändigt.
+Skapa BARA nya övningsnamn om rörelsen du vill ha absolut inte finns representerad i listan nedan.
+
+TILLGÄNGLIGA ÖVNINGAR I DATABASEN (ANVÄND DESSA NAMN):
+${availableExercises.join(', ')}
+` : ''}
 `;
 
-export const IMAGE_INTERPRETER_PROMPT = (additionalText?: string) => `
+export const IMAGE_INTERPRETER_PROMPT = (additionalText?: string, availableExercises: string[] = []) => `
 Analysera bilden och eventuell text: "${additionalText || ''}".
 
 Ditt uppdrag är att tolka skissen eller texten och skapa ett digitalt pass.
@@ -120,6 +134,18 @@ STRIKTA LOGIKREGLER:
 3. KVALITET: Övningarna ska vara funktionella och säkra.
 
 Var kreativ om det behövs (vid korta instruktioner), men exakt om det finns en tydlig lista.
+
+${availableExercises.length > 0 ? `
+CRITIKAL: ÖVNINGSVAL OCH NAMNGIVNING (CONTEXT INJECTION):
+Här följer en lista på övningar som redan finns i gymmets databas. 
+Du MÅSTE i första hand använda EXAKT dessa namn. 
+Detta är extremt viktigt för att medlemmarnas statistik och personbästan (PB) ska fungera.
+Om du vill ha "Armhävningar" och det står "Armhävningar" i listan, skriv exakt så. Hitta INTE på varianter som "Armhävningar (Push-ups)" om det inte är absolut nödvändigt.
+Skapa BARA nya övningsnamn om rörelsen du vill ha absolut inte finns representerad i listan nedan.
+
+TILLGÄNGLIGA ÖVNINGAR I DATABASEN (ANVÄND DESSA NAMN):
+${availableExercises.join(', ')}
+` : ''}
 `;
 
 export const EXERCISE_DESCRIPTION_PROMPT = (name: string) => `
@@ -160,10 +186,12 @@ Bedöm styrkor, förbättringsområden och ge konkreta "actions" till coachen.
 Poängsätt Styrka, Kondition och Frekvens (0-100).
 `;
 
-export const DIPLOMA_GENERATOR_PROMPT = (title: string, pbText: string, stats: string) => `
+export const DIPLOMA_GENERATOR_PROMPT = (title: string, pbText: string, stats: string, aiProgressionPrompt?: string) => `
 Skapa ett diplom för passet: "${title}".
 REKORD: ${pbText}
 STATS: ${stats}
+
+${aiProgressionPrompt ? `COACHENS INSTRUKTIONER TILL DIG (AI): ${aiProgressionPrompt}\nFölj dessa instruktioner noggrant när du formulerar din feedback och pepp.` : ''}
 
 Fokusera på att hylla framstegen. 'imagePrompt' ska vara en beskrivning på engelska för en abstrakt, 3D-renderad medalj/ikon.
 `;

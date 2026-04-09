@@ -305,7 +305,7 @@ const ManageWorkoutsView: React.FC<{
     onEdit: (workout: Workout) => void;
     onDelete: (id: string) => void;
     onDuplicate: (workout: Workout) => void;
-    onTogglePublish: (id: string, isPublished: boolean) => void;
+    onTogglePublish: (id: string, isPublished: boolean, silentPublish?: boolean) => void;
     onCopyToLibrary: (workout: Workout) => void;
     onBack: () => void;
 }> = ({ workouts, onEdit, onDelete, onDuplicate, onTogglePublish, onCopyToLibrary, onBack }) => {
@@ -318,6 +318,9 @@ const ManageWorkoutsView: React.FC<{
         key: 'createdAt',
         direction: 'none'
     });
+    const [publishConfirmWorkoutId, setPublishConfirmWorkoutId] = useState<string | null>(null);
+    const [deleteConfirmWorkoutId, setDeleteConfirmWorkoutId] = useState<string | null>(null);
+    const [copyConfirmWorkoutId, setCopyConfirmWorkoutId] = useState<string | null>(null);
     
     const ITEMS_PER_PAGE = 50;
 
@@ -496,7 +499,13 @@ const ManageWorkoutsView: React.FC<{
                                         </td>
                                         <td className="p-5">
                                             <button 
-                                                onClick={() => onTogglePublish(workout.id, !workout.isPublished)}
+                                                onClick={() => {
+                                                    if (!workout.isPublished) {
+                                                        setPublishConfirmWorkoutId(workout.id);
+                                                    } else {
+                                                        onTogglePublish(workout.id, false);
+                                                    }
+                                                }}
                                                 className={`text-xs font-bold px-2 py-1 rounded transition-colors uppercase tracking-wider ${
                                                     workout.isPublished 
                                                     ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 hover:bg-green-200' 
@@ -511,7 +520,7 @@ const ManageWorkoutsView: React.FC<{
                                                 {activeTab === 'drafts' && (
                                                     <button 
                                                         onClick={() => {
-                                                            if(window.confirm(`Vill du skapa en permanent kopia av "${workout.title}" i biblioteket? Originalet ligger kvar som utkast.`)) onCopyToLibrary(workout);
+                                                            setCopyConfirmWorkoutId(workout.id);
                                                         }}
                                                         className="p-2 text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 rounded-lg transition-colors" 
                                                         title="Spara som permanent mall"
@@ -544,7 +553,7 @@ const ManageWorkoutsView: React.FC<{
                                                 </button>
                                                 <button 
                                                     onClick={() => {
-                                                        if(window.confirm(`Vill du ta bort passet "${workout.title}"?`)) onDelete(workout.id);
+                                                        setDeleteConfirmWorkoutId(workout.id);
                                                     }} 
                                                     className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" 
                                                     title="Ta bort"
@@ -599,6 +608,112 @@ const ManageWorkoutsView: React.FC<{
                         onClose={() => setPreviewWorkout(null)}
                     />
                 )}
+                {publishConfirmWorkoutId && (
+                    <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl"
+                        >
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Publicera pass</h3>
+                            <p className="text-gray-600 dark:text-gray-300 mb-6">
+                                Vill du skicka en pushnotis till medlemmarna om att passet är publicerat?
+                            </p>
+                            <div className="flex flex-col gap-3">
+                                <button 
+                                    onClick={() => {
+                                        onTogglePublish(publishConfirmWorkoutId, true, false);
+                                        setPublishConfirmWorkoutId(null);
+                                    }}
+                                    className="w-full py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-colors"
+                                >
+                                    Ja, skicka notis
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        onTogglePublish(publishConfirmWorkoutId, true, true);
+                                        setPublishConfirmWorkoutId(null);
+                                    }}
+                                    className="w-full py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                >
+                                    Nej, publicera i tysthet
+                                </button>
+                                <button 
+                                    onClick={() => setPublishConfirmWorkoutId(null)}
+                                    className="w-full py-3 text-gray-500 font-medium hover:text-gray-700 dark:hover:text-gray-300 transition-colors mt-2"
+                                >
+                                    Avbryt
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+                {deleteConfirmWorkoutId && (
+                    <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl"
+                        >
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Ta bort pass</h3>
+                            <p className="text-gray-600 dark:text-gray-300 mb-6">
+                                Är du säker på att du vill ta bort detta pass? Detta kan inte ångras.
+                            </p>
+                            <div className="flex justify-end gap-3">
+                                <button 
+                                    onClick={() => setDeleteConfirmWorkoutId(null)}
+                                    className="px-5 py-2.5 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                                >
+                                    Avbryt
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        onDelete(deleteConfirmWorkoutId);
+                                        setDeleteConfirmWorkoutId(null);
+                                    }}
+                                    className="px-5 py-2.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors"
+                                >
+                                    Ta bort
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+                {copyConfirmWorkoutId && (
+                    <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl"
+                        >
+                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Spara som mall</h3>
+                            <p className="text-gray-600 dark:text-gray-300 mb-6">
+                                Vill du skapa en permanent kopia av detta pass i biblioteket? Originalet ligger kvar som utkast.
+                            </p>
+                            <div className="flex justify-end gap-3">
+                                <button 
+                                    onClick={() => setCopyConfirmWorkoutId(null)}
+                                    className="px-5 py-2.5 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                                >
+                                    Avbryt
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        const workout = workouts.find(w => w.id === copyConfirmWorkoutId);
+                                        if (workout) onCopyToLibrary(workout);
+                                        setCopyConfirmWorkoutId(null);
+                                    }}
+                                    className="px-5 py-2.5 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600 transition-colors"
+                                >
+                                    Spara som mall
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
             </AnimatePresence>
         </div>
     );
@@ -618,7 +733,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
     setAutoExpandCategory: (category: string | null) => void;
     onSaveWorkout: (workout: Workout) => Promise<Workout>;
     onDeleteWorkout: (id: string) => Promise<void>;
-    onTogglePublish: (id: string, isPublished: boolean) => void;
+    onTogglePublish: (id: string, isPublished: boolean, silentPublish?: boolean) => void;
     onDuplicateWorkout: (workout: Workout) => void;
     setCustomBackHandler?: (handler: (() => void) | null) => void;
 }> = ({

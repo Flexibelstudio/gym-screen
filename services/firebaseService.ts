@@ -49,6 +49,15 @@ import {
   getFunctions, 
   httpsCallable 
 } from 'firebase/functions';
+import { getMessaging, getToken, Messaging, onMessage } from 'firebase/messaging';
+
+export const listenToForegroundMessages = (callback: (payload: any) => void) => {
+    if (isOffline || !messaging) return () => {};
+    return onMessage(messaging, (payload) => {
+        console.log('Message received. ', payload);
+        callback(payload);
+    });
+};
 
 import { firebaseConfig } from './firebaseConfig';
 import { 
@@ -72,6 +81,7 @@ let app: FirebaseApp | null = null;
 export let auth: Auth | null = null;
 export let db: Firestore | null = null;
 export let storage: FirebaseStorage | null = null;
+export let messaging: Messaging | null = null;
 let functions: any = null;
 
 if (!isOffline) {
@@ -81,6 +91,11 @@ if (!isOffline) {
         db = getFirestore(app);
         storage = getStorage(app);
         functions = getFunctions(app, 'us-central1');
+        
+        // Messaging is only supported in browsers that support the required APIs
+        if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+            messaging = getMessaging(app);
+        }
     } catch (error) {
         console.error("CRITICAL: Firebase init failed.", error);
     }
@@ -237,6 +252,56 @@ export const updateUserGoals = async (uid: string, goals: MemberGoals) => {
 export const updateUserProfile = async (uid: string, data: Partial<UserData>) => {
     if (isOffline || !db || !uid) return;
     await updateDoc(doc(db, 'users', uid), sanitizeData(data));
+    
+    // If showOnLeaderboard preference changed, update recent workout logs so they disappear/appear immediately
+    if (data.showOnLeaderboard !== undefined) {
+        try {
+            const now = new Date();
+            const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1)));
+            startOfWeek.setHours(0, 0, 0, 0);
+            
+            const q = query(
+                collection(db, 'workoutLogs'),
+                where("memberId", "==", uid),
+                where("date", ">=", startOfWeek.getTime() - 7 * 24 * 60 * 60 * 1000) // Go back an extra week just in case
+            );
+            const snap = await getDocs(q);
+            const batch = writeBatch(db);
+            snap.docs.forEach(d => {
+                batch.update(d.ref, { showOnLeaderboard: data.showOnLeaderboard });
+            });
+            await batch.commit();
+        } catch (e) {
+            console.error("Failed to update recent logs visibility", e);
+        }
+    }
+};
+
+export const requestPushNotificationPermission = async (uid: string): Promise<string | null> => {
+    if (isOffline || !messaging || !db || !uid) return null;
+    try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+            // Get the token
+            const token = await getToken(messaging, {
+                // VAPID key is optional if configured in Firebase Console, but recommended.
+                // We'll let Firebase use the default sender ID from config.
+            });
+            
+            if (token) {
+                // Save token to user profile
+                await updateDoc(doc(db, 'users', uid), {
+                    fcmToken: token,
+                    pushNotificationsEnabled: true
+                });
+                return token;
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error('Error requesting push notification permission:', error);
+        return null;
+    }
 };
 
 export const updateUserRoleCloud = async (targetUid: string, newRole: UserRole) => {
@@ -313,20 +378,25 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
     return user;
 };
 
-export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecords: { exerciseName: string, weight: number, diff: number }[] }> => {
+import { calculate1RM } from '../utils/workoutUtils';
+
+export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecords: { exerciseName: string, weight: number, diff: number, reps?: number, calculated1RM?: number }[] }> => {
     if (isOffline || !db || !logData.organizationId) {
         return { log: logData, newRecords: [] };
     }
     
     const newLogRef = doc(collection(db, 'workoutLogs'));
     const newLog = { id: newLogRef.id, ...logData };
-    const newRecords: { exerciseName: string; weight: number; diff: number }[] = [];
+    const newRecords: { exerciseName: string; weight: number; diff: number; reps?: number; calculated1RM?: number }[] = [];
 
     if (logData.workoutId && logData.workoutId !== 'manual' && !logData.benchmarkId) {
         try {
             const wSnap = await getDoc(doc(db, 'workouts', logData.workoutId));
             if (wSnap.exists()) {
                 const wData = wSnap.data() as Workout;
+                if (wData.aiProgressionPrompt) {
+                    newLog.aiProgressionPrompt = wData.aiProgressionPrompt;
+                }
                 if (wData.benchmarkId) {
                     newLog.benchmarkId = wData.benchmarkId;
                     if (newLog.durationMinutes) {
@@ -340,6 +410,8 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
         } catch (e) {}
     }
 
+    let showOnLeaderboard = true;
+
     if (logData.memberId) {
         try {
             const userSnap = await getDoc(doc(db, 'users', logData.memberId));
@@ -347,6 +419,8 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 const userData = userSnap.data();
                 newLog.memberName = `${userData.firstName || 'Medlem'} ${userData.lastName ? userData.lastName[0] + '.' : ''}`.trim();
                 newLog.memberPhotoUrl = userData.photoUrl || null;
+                showOnLeaderboard = userData.showOnLeaderboard !== false;
+                newLog.showOnLeaderboard = showOnLeaderboard;
             }
         } catch (e) { console.warn("Failed to enrich log", e); }
     }
@@ -361,37 +435,58 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
             currentPBsSnap.forEach(d => currentPBs[d.id] = d.data());
 
             for (const exResult of logData.exerciseResults) {
-                let maxW = 0;
+                let bestSet: { weight: number, reps: number, oneRm: number } | null = null;
+                
                 if (exResult.setDetails) {
-                    const weights = exResult.setDetails.map((s: any) => parseFloat(s.weight)).filter((n: number) => !isNaN(n));
-                    if (weights.length > 0) maxW = Math.max(...weights);
-                } else if (exResult.weight) {
-                    maxW = Number(exResult.weight);
+                    exResult.setDetails.forEach((s: any) => {
+                        const w = parseFloat(s.weight);
+                        const r = parseFloat(s.reps);
+                        if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0 && r <= 10) {
+                            const oneRm = calculate1RM(w, r);
+                            if (oneRm && (!bestSet || oneRm > bestSet.oneRm)) {
+                                bestSet = { weight: w, reps: r, oneRm };
+                            }
+                        }
+                    });
+                } else if (exResult.weight && exResult.reps) {
+                    const w = parseFloat(exResult.weight);
+                    const r = parseFloat(exResult.reps);
+                    if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0 && r <= 10) {
+                        const oneRm = calculate1RM(w, r);
+                        if (oneRm) {
+                            bestSet = { weight: w, reps: r, oneRm };
+                        }
+                    }
                 }
 
-                if (maxW > 0 && exResult.exerciseName) {
+                if (bestSet && exResult.exerciseName) {
                     const pbId = getPBId(exResult.exerciseName);
-                    const existingPBWeight = currentPBs[pbId]?.weight || 0;
+                    // Fallback to weight if calculated1RM is missing for older records
+                    const existingPBOneRm = currentPBs[pbId]?.calculated1RM || currentPBs[pbId]?.weight || 0; 
 
-                    if (maxW > existingPBWeight) {
+                    if (bestSet.oneRm > existingPBOneRm) {
                         const pbData: PersonalBest = { 
                             id: pbId, 
                             exerciseName: exResult.exerciseName.trim(), 
-                            weight: maxW, 
+                            weight: bestSet.weight, 
+                            reps: bestSet.reps,
+                            calculated1RM: bestSet.oneRm,
                             date: Date.now() 
                         };
                         batch.set(doc(db, 'users', logData.memberId, 'personalBests', pbId), pbData);
                         
                         newRecords.push({
                             exerciseName: exResult.exerciseName.trim(),
-                            weight: maxW,
-                            diff: parseFloat((maxW - existingPBWeight).toFixed(2))
+                            weight: bestSet.weight, // Keep actual weight for UI
+                            reps: bestSet.reps,
+                            calculated1RM: bestSet.oneRm,
+                            diff: parseFloat((bestSet.oneRm - existingPBOneRm).toFixed(2))
                         });
                     }
                 }
             }
 
-            if (newRecords.length > 0) {
+            if (newRecords.length > 0 && showOnLeaderboard) {
                 newLog.newPBs = newRecords;
                 const eventRef = doc(collection(db, 'studio_events'));
                 const eventData: StudioEvent = {
@@ -400,6 +495,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                     organizationId: logData.organizationId,
                     timestamp: Date.now(),
                     data: { 
+                        memberId: logData.memberId,
                         userName: newLog.memberName || 'En medlem', 
                         userPhotoUrl: newLog.memberPhotoUrl || null, 
                         records: newRecords
@@ -447,7 +543,7 @@ export const getLeaderboardData = async (orgId: string): Promise<{ memberId: str
         );
         
         const snap = await getDocs(q);
-        const logs = snap.docs.map(d => d.data() as WorkoutLog);
+        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false);
         
         // Aggregate by memberId
         const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
@@ -493,7 +589,7 @@ export const listenToLeaderboardData = (orgId: string, onUpdate: (data: { member
     );
     
     return onSnapshot(q, (snap) => {
-        const logs = snap.docs.map(d => d.data() as WorkoutLog);
+        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false);
         
         // Aggregate by memberId
         const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
@@ -537,7 +633,8 @@ export const listenToCommunityLogs = (orgId: string, onUpdate: (logs: WorkoutLog
     }
     const q = query(collection(db, 'workoutLogs'), where("organizationId", "==", orgId), orderBy("date", "desc"), limit(20));
     return onSnapshot(q, (snap) => {
-        onUpdate(snap.docs.map(d => d.data() as WorkoutLog));
+        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false);
+        onUpdate(logs);
     }, (err) => console.error("listenToCommunityLogs failed", err));
 };
 

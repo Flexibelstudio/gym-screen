@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useWorkout } from '../../context/WorkoutContext'; 
 import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, ChartBarIcon, HistoryIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
+import { calculate1RM } from '../../utils/workoutUtils';
 import { ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition } from '../../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
@@ -393,17 +394,6 @@ const ExerciseLogCard: React.FC<{
     const textColorClass = groupColorObj ? groupColorObj.text : 'text-primary';
     const lightBgClass = groupColorObj ? groupColorObj.lightBg : 'bg-primary/5';
     const lightBorderClass = groupColorObj ? groupColorObj.lightBorder : 'border-primary/20';
-
-    const calculate1RM = (weight: string, reps: string) => {
-        const w = parseFloat(weight);
-        const r = parseFloat(reps);
-        if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0) {
-            if (r === 1) return Math.round(w);
-            const oneRm = w * (1 + r / 30);
-            return Math.round(oneRm);
-        }
-        return null;
-    };
 
     const handleSetChange = (index: number, field: keyof LocalSetDetail, value: string) => {
         const newSets = [...result.setDetails];
@@ -1073,6 +1063,31 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               setSaveStatus('Letar efter nya rekord...');
               const { log: savedLog, newRecords } = await saveWorkoutLog(cleanForFirestore(finalLogRaw));
 
+              if (benchmarkDefinition && finalLogRaw.benchmarkValue !== undefined) {
+                  let isBenchmarkPB = false;
+                  let benchmarkDiff = 0;
+                  if (prevBenchmarkBest === undefined) {
+                      isBenchmarkPB = true;
+                  } else {
+                      if (benchmarkDefinition.type === 'time') {
+                          isBenchmarkPB = finalLogRaw.benchmarkValue < prevBenchmarkBest;
+                          benchmarkDiff = prevBenchmarkBest - finalLogRaw.benchmarkValue;
+                      } else {
+                          isBenchmarkPB = finalLogRaw.benchmarkValue > prevBenchmarkBest;
+                          benchmarkDiff = finalLogRaw.benchmarkValue - prevBenchmarkBest;
+                      }
+                  }
+
+                  if (isBenchmarkPB) {
+                      newRecords.push({
+                          exerciseName: benchmarkDefinition.title,
+                          weight: benchmarkDefinition.type === 'weight' ? finalLogRaw.benchmarkValue : 0,
+                          diff: benchmarkDiff,
+                          reps: benchmarkDefinition.type === 'reps' ? finalLogRaw.benchmarkValue : undefined,
+                      });
+                  }
+              }
+
               let diplomaData: WorkoutDiploma | null = null;
 
               if (totalVolume > 0) {
@@ -1092,7 +1107,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               if (!diplomaData) {
                   setSaveStatus('AI:n skriver ditt diplom...');
                   try {
-                      diplomaData = await generateWorkoutDiploma({ ...finalLogRaw, newPBs: newRecords });
+                      diplomaData = await generateWorkoutDiploma({ ...savedLog, newPBs: newRecords });
                       if (diplomaData) {
                           diplomaData.title = getRandomDiplomaTitle();
                           diplomaData.newPBs = newRecords.length > 0 ? newRecords : undefined;
@@ -1141,9 +1156,21 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       return (
           <div className="h-full flex flex-col items-center justify-center p-12 bg-white dark:bg-gray-900">
               <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-              <p className="text-gray-500 font-bold uppercase tracking-widest text-sm">
+              <p className="text-gray-500 font-bold uppercase tracking-widest text-sm mb-8 text-center">
                   {isManualMode ? 'Laddar formulär...' : 'Hämtar din personliga strategi...'}
               </p>
+              
+              {!isManualMode && (
+                  <button 
+                      onClick={() => {
+                          setLoading(false);
+                          setViewMode('logging');
+                      }}
+                      className="px-6 py-3 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+                  >
+                      Hoppa över
+                  </button>
+              )}
           </div>
       );
   }

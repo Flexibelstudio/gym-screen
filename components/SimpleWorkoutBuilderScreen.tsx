@@ -874,6 +874,19 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                                     rows={3}
                                 />
                             </div>
+                            <div>
+                                <label className="text-[10px] font-black text-purple-500 uppercase tracking-[0.3em] mb-2 block ml-2 flex items-center gap-2">
+                                    <SparklesIcon className="w-4 h-4" /> AI-instruktioner (Frivilligt)
+                                </label>
+                                <textarea 
+                                    value={workout.aiProgressionPrompt || ''} 
+                                    onChange={e => setWorkout({ ...workout, aiProgressionPrompt: e.target.value })} 
+                                    placeholder="T.ex. 'Fokusera på att peppa användaren att öka vikten i knäböj nästa gång'..." 
+                                    className={`${inputBaseClasses} w-full text-lg h-24 resize-none !bg-white dark:!bg-gray-900 border-purple-200 dark:border-purple-900 focus:border-purple-500 focus:ring-purple-500`} 
+                                    rows={2}
+                                />
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-2">Denna text skickas till AI:n när en medlem loggar passet och ber om feedback.</p>
+                            </div>
                         </div>
                     </div>
 

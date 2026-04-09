@@ -20,6 +20,8 @@ export interface PersonalBest {
   id: string; // Usually standardized exercise name
   exerciseName: string;
   weight: number;
+  reps?: number;
+  calculated1RM?: number;
   date: number; // Timestamp
 }
 
@@ -142,6 +144,7 @@ export interface Workout {
   organizationId: string; 
   showDetailsToMember?: boolean;
   isMemberDraft?: boolean;
+  silentPublish?: boolean;
   participants?: string[]; 
   startGroups?: StartGroup[]; 
   startIntervalMinutes?: number; 
@@ -149,6 +152,7 @@ export interface Workout {
   benchmarkId?: string; // NYTT: Koppling till ett Benchmark
   showInStudio?: boolean; // NYTT: Visa på skärm
   showInApp?: boolean; // NYTT: Visa i medlemsapp
+  aiProgressionPrompt?: string; // NYTT: Prompt för AI-progression
 }
 
 export type Passkategori = string;
@@ -329,6 +333,8 @@ export interface PBRecord {
     exerciseName: string; // Synced with firebaseService
     diff: number;
     weight?: number; // Optional current weight
+    reps?: number;
+    calculated1RM?: number;
 }
 
 export interface WorkoutDiploma {
@@ -513,6 +519,7 @@ export interface WorkoutLog {
     newPBs?: PBRecord[]; 
     benchmarkId?: string; // NYTT: För att enkelt gruppera benchmarks
     benchmarkValue?: number; // NYTT: Resultatet (tid i sekunder, antal reps, eller vikt)
+    showOnLeaderboard?: boolean; // NYTT: För att dölja i flöden och topplistor
 }
 
 export interface CheckInEvent {

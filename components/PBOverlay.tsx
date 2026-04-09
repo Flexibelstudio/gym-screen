@@ -7,7 +7,7 @@ import { listenForStudioEvents } from '../services/firebaseService';
 import { StudioEvent, TimerStatus } from '../types';
 import { Confetti } from './WorkoutCompleteModal';
 
-const DISPLAY_DURATION = 8000; 
+const DISPLAY_DURATION = 5000; 
 // TTL (Time To Live) för events om man t.ex. tappar nätet och återansluter. 
 // Vi visar inte events som är äldre än 10 minuter i en "live"-kö.
 const EVENT_TTL = 10 * 60 * 1000; 
@@ -168,7 +168,7 @@ export const PBOverlay: React.FC = () => {
                 playBellSound();
 
                 // Vänta visningstiden + lite extra för exit-animation
-                setTimeout(() => {
+                const timerId = setTimeout(() => {
                     setCurrentEvent(null);
                     
                     // Vänta på att exit-animationen ska bli klar innan vi låser upp för nästa
@@ -181,6 +181,10 @@ export const PBOverlay: React.FC = () => {
                     }, 600); // 0.6s exit animation buffer
                     
                 }, DISPLAY_DURATION);
+                
+                // We don't need to return a cleanup function here because this is inside processQueue,
+                // but we need to make sure we don't accidentally run multiple timeouts if processQueue is called again.
+                // The isLocked.current = true prevents processQueue from running again while this timeout is active.
             } else {
                 isLocked.current = false;
             }
@@ -193,17 +197,16 @@ export const PBOverlay: React.FC = () => {
         <div className="fixed inset-0 pointer-events-none z-[9999] flex items-center justify-center p-4">
             <AnimatePresence mode="wait">
                 {currentEvent && (
-                    <>
+                    <motion.div
+                        key={currentEvent.id} // Viktigt: Unikt key tvingar React att rendera om helt
+                        initial={{ opacity: 0, y: 100, scale: 0.8 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -50, scale: 0.9 }}
+                        transition={{ duration: 0.5, ease: "backOut" }}
+                        className="bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 p-2 rounded-[3.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.6)] w-full max-w-xl relative"
+                    >
                         <Confetti />
-                        <motion.div
-                            key={currentEvent.id} // Viktigt: Unikt key tvingar React att rendera om helt
-                            initial={{ opacity: 0, y: 100, scale: 0.8 }}
-                            animate={{ opacity: 1, y: 0, scale: 1 }}
-                            exit={{ opacity: 0, y: -50, scale: 0.9 }}
-                            transition={{ duration: 0.5, ease: "backOut" }}
-                            className="bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 p-2 rounded-[3.5rem] shadow-[0_50px_100px_-20px_rgba(0,0,0,0.6)] w-full max-w-xl"
-                        >
-                            <div className="bg-white dark:bg-gray-900 rounded-[3.2rem] p-8 flex flex-col items-center border border-white/20 relative overflow-hidden min-h-[500px]">
+                        <div className="bg-white dark:bg-gray-900 rounded-[3.2rem] p-8 flex flex-col items-center border border-white/20 relative overflow-hidden min-h-[500px]">
                                 
                                 <div className="absolute inset-0 bg-yellow-500/5 animate-pulse rounded-[3rem]"></div>
                                 
@@ -269,7 +272,6 @@ export const PBOverlay: React.FC = () => {
                                 </div>
                             </div>
                         </motion.div>
-                    </>
                 )}
             </AnimatePresence>
         </div>
