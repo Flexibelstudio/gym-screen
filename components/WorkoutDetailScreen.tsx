@@ -87,49 +87,49 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
             className="fixed inset-0 z-[10000] bg-white dark:bg-gray-950 flex flex-col overflow-hidden"
         >
             <div className="flex justify-between items-center p-4 sm:p-6 lg:p-8 xl:p-12 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
-                <div className="flex items-center gap-3 sm:gap-4 lg:gap-6 xl:gap-8 flex-wrap min-w-0">
-                    <h1 className="text-2xl sm:text-3xl lg:text-5xl xl:text-9xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-tight break-words">
+                <div className="flex items-center gap-3 sm:gap-4 md:gap-6 lg:gap-8 xl:gap-8 flex-wrap min-w-0">
+                    <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-7xl xl:text-9xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-tight break-words">
                         {workout.title}
                     </h1>
-                    <span className="text-[10px] sm:text-xs lg:text-sm xl:text-3xl font-bold bg-gray-200 dark:bg-gray-800 px-2.5 py-1 lg:px-4 lg:py-2 xl:px-8 xl:py-4 rounded-md text-gray-500 uppercase tracking-widest whitespace-nowrap">
+                    <span className="text-[10px] sm:text-xs md:text-lg lg:text-2xl xl:text-3xl font-bold bg-gray-200 dark:bg-gray-800 px-2.5 py-1 md:px-4 md:py-2 lg:px-6 lg:py-3 xl:px-8 xl:py-4 rounded-md text-gray-500 uppercase tracking-widest whitespace-nowrap">
                         Hela Passet
                     </span>
                 </div>
                 <button 
                     onClick={onClose}
-                    className="p-2.5 sm:p-3 lg:p-4 xl:p-6 bg-gray-200 dark:bg-gray-800 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors shadow-sm active:scale-95 flex-shrink-0 ml-4"
+                    className="p-2.5 sm:p-3 md:p-4 lg:p-6 xl:p-6 bg-gray-200 dark:bg-gray-800 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors shadow-sm active:scale-95 flex-shrink-0 ml-4"
                 >
-                    <CloseIcon className="w-6 h-6 lg:w-8 lg:h-8 xl:w-16 xl:h-16 text-gray-900 dark:text-white" />
+                    <CloseIcon className="w-6 h-6 md:w-10 md:h-10 lg:w-12 lg:h-12 xl:w-16 xl:h-16 text-gray-900 dark:text-white" />
                 </button>
             </div>
 
-            <div ref={scrollRef} className="flex-grow overflow-y-auto p-4 sm:p-8 lg:p-12 xl:p-32 space-y-8 sm:space-y-12 lg:space-y-16 xl:space-y-32">
-                <div className="max-w-4xl lg:max-w-6xl xl:max-w-screen-2xl mx-auto space-y-8 sm:space-y-12 lg:space-y-16 xl:space-y-32">
+            <div ref={scrollRef} className="flex-grow overflow-y-auto p-4 sm:p-8 md:p-12 lg:p-20 xl:p-32 space-y-8 sm:space-y-12 md:space-y-16 lg:space-y-24 xl:space-y-32">
+                <div className="max-w-4xl lg:max-w-6xl xl:max-w-screen-2xl mx-auto space-y-8 sm:space-y-12 md:space-y-16 lg:space-y-24 xl:space-y-32">
                     {workout.blocks?.map((block, bIndex) => {
                         if (!block) return null;
                         return (
-                        <div key={block.id || `block-${bIndex}`} className="space-y-4 sm:space-y-5 lg:space-y-8 xl:space-y-16">
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 lg:gap-6 xl:gap-12 border-b-2 border-gray-100 dark:border-gray-800 pb-3 lg:pb-6 xl:pb-12">
-                                <div className="flex items-center gap-3 lg:gap-5 xl:gap-10 flex-wrap">
-                                    <span className={`inline-flex items-center px-3 py-1 lg:px-4 lg:py-2 xl:px-8 xl:py-4 rounded-lg text-xs sm:text-sm lg:text-base xl:text-4xl font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
+                        <div key={block.id || `block-${bIndex}`} className="space-y-4 sm:space-y-5 md:space-y-8 lg:space-y-12 xl:space-y-16">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 md:gap-6 lg:gap-8 xl:gap-12 border-b-2 border-gray-100 dark:border-gray-800 pb-3 md:pb-6 lg:pb-8 xl:pb-12">
+                                <div className="flex items-center gap-3 md:gap-5 lg:gap-8 xl:gap-10 flex-wrap">
+                                    <span className={`inline-flex items-center px-3 py-1 md:px-4 md:py-2 lg:px-6 lg:py-3 xl:px-8 xl:py-4 rounded-lg text-xs sm:text-sm md:text-xl lg:text-3xl xl:text-4xl font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
                                         {block.tag}
                                     </span>
-                                    <h2 className="text-xl sm:text-2xl lg:text-4xl xl:text-8xl font-black text-gray-900 dark:text-white uppercase tracking-tight break-words">
+                                    <h2 className="text-xl sm:text-2xl md:text-5xl lg:text-6xl xl:text-8xl font-black text-gray-900 dark:text-white uppercase tracking-tight break-words">
                                         {block.title}
                                     </h2>
                                 </div>
                                 <div className="sm:ml-auto flex flex-row sm:flex-col items-center sm:items-end gap-2 sm:gap-0 lg:gap-1 xl:gap-4">
-                                    <span className="text-sm sm:text-base lg:text-xl xl:text-5xl font-mono font-bold text-gray-400">
+                                    <span className="text-sm sm:text-base md:text-2xl lg:text-4xl xl:text-5xl font-mono font-bold text-gray-400">
                                         {block.settings.mode}
                                     </span>
-                                    <span className="text-[10px] sm:text-xs lg:text-sm xl:text-3xl font-bold text-gray-500 uppercase tracking-widest break-words">
+                                    <span className="text-[10px] sm:text-xs md:text-lg lg:text-2xl xl:text-3xl font-bold text-gray-500 uppercase tracking-widest break-words">
                                         {getSettingsText(block)}
                                     </span>
                                 </div>
                             </div>
 
                             {block.setupDescription && (
-                                <p className="text-sm sm:text-base lg:text-xl xl:text-5xl text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-3xl lg:max-w-4xl xl:max-w-7xl break-words">
+                                <p className="text-sm sm:text-base md:text-2xl lg:text-4xl xl:text-5xl text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-3xl lg:max-w-4xl xl:max-w-7xl break-words">
                                     {block.setupDescription}
                                 </p>
                             )}
@@ -182,8 +182,8 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                 </div>
             </div>
             
-            <div className="p-6 lg:p-8 xl:p-16 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex justify-center flex-shrink-0">
-                 <button onClick={onClose} className="bg-black dark:bg-white text-white dark:text-black font-black text-xl lg:text-2xl xl:text-6xl py-4 px-12 lg:py-5 lg:px-16 xl:py-12 xl:px-32 rounded-full shadow-xl hover:scale-105 transition-transform uppercase tracking-widest">
+            <div className="p-6 md:p-8 lg:p-12 xl:p-16 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex justify-center flex-shrink-0">
+                 <button onClick={onClose} className="bg-black dark:bg-white text-white dark:text-black font-black text-xl md:text-3xl lg:text-5xl xl:text-6xl py-4 px-12 md:py-6 md:px-20 lg:py-8 lg:px-24 xl:py-12 xl:px-32 rounded-full shadow-xl hover:scale-105 transition-transform uppercase tracking-widest">
                      Stäng visningsläge
                  </button>
             </div>
