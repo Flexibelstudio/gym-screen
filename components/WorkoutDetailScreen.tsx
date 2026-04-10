@@ -47,27 +47,27 @@ const getSettingsText = (block: WorkoutBlock) => {
     const { mode, workTime, restTime, rounds } = block.settings;
     switch(mode) {
         case TimerMode.Tabata:
-            return `Tabata: ${rounds || 0} ronder (${formatTime(workTime || 0)} / ${formatTime(restTime || 0)})`;
+            return `${rounds || 0} ronder (${formatTime(workTime || 0)} / ${formatTime(restTime || 0)})`;
         case TimerMode.Interval:
             const totalIntervals = rounds || 0;
             const laps = block.settings.specifiedLaps != null ? block.settings.specifiedLaps : null;
             const lapText = laps && laps > 1 ? ` (${laps} varv)` : '';
-            return `Intervall: ${totalIntervals}x (${formatTime(workTime || 0)} / ${formatTime(restTime || 0)})${lapText}`;
+            return `${totalIntervals}x (${formatTime(workTime || 0)} / ${formatTime(restTime || 0)})${lapText}`;
         case TimerMode.AMRAP:
         case TimerMode.TimeCap:
-            return `${mode}: ${formatTime(workTime || 0)} totalt`;
+            return `${formatTime(workTime || 0)} totalt`;
         case TimerMode.EMOM:
-            return `EMOM: ${rounds || 0} min totalt`;
+            return `${rounds || 0} min totalt`;
         case TimerMode.NoTimer:
             return 'Egen takt';
         default:
-            return `${mode}: ${rounds || 0}x (${workTime || 0}s / ${restTime || 0}s)`;
+            return `${rounds || 0}x (${workTime || 0}s / ${restTime || 0}s)`;
     }
 };
 
 // --- COMPONENTS ---
 
-export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void }> = ({ workout, onClose }) => {
+export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void; blockId?: string }> = ({ workout, onClose, blockId }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     
     useEffect(() => {
@@ -79,6 +79,10 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
         return () => clearTimeout(timer);
     }, []);
 
+    const blocksToShow = blockId 
+        ? workout.blocks?.filter(b => b.id === blockId) 
+        : workout.blocks;
+
     return (
         <motion.div 
             initial={{ opacity: 0 }}
@@ -88,12 +92,9 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
         >
             <div className="flex justify-between items-center p-4 sm:p-6 lg:p-8 xl:p-12 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
                 <div className="flex items-center gap-3 sm:gap-4 md:gap-6 lg:gap-8 xl:gap-8 flex-wrap min-w-0">
-                    <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-7xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-tight break-words">
+                    <h1 className={`font-black text-gray-900 dark:text-white uppercase tracking-tight leading-tight break-words ${blockId ? 'text-lg sm:text-xl md:text-2xl lg:text-3xl xl:text-4xl text-gray-400' : 'text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-7xl'}`}>
                         {workout.title}
                     </h1>
-                    <span className="text-[10px] sm:text-xs md:text-lg lg:text-2xl xl:text-3xl font-bold bg-gray-200 dark:bg-gray-800 px-2.5 py-1 md:px-4 md:py-2 lg:px-6 lg:py-3 xl:px-8 xl:py-4 rounded-md text-gray-500 uppercase tracking-widest whitespace-nowrap">
-                        Hela Passet
-                    </span>
                 </div>
                 <button 
                     onClick={onClose}
@@ -105,7 +106,7 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
 
             <div ref={scrollRef} className="flex-grow overflow-y-auto p-4 sm:p-8 md:p-12 lg:p-20 xl:p-32 space-y-8 sm:space-y-12 md:space-y-16 lg:space-y-24 xl:space-y-32">
                 <div className="max-w-4xl lg:max-w-6xl xl:max-w-screen-2xl mx-auto space-y-8 sm:space-y-12 md:space-y-16 lg:space-y-24 xl:space-y-32">
-                    {workout.blocks?.map((block, bIndex) => {
+                    {blocksToShow?.map((block, bIndex) => {
                         if (!block) return null;
                         return (
                         <div key={block.id || `block-${bIndex}`} className="space-y-4 sm:space-y-5 md:space-y-8 lg:space-y-12 xl:space-y-16">
@@ -198,7 +199,8 @@ const WorkoutBlockCard: React.FC<{
     onUpdateBlock: (block: WorkoutBlock) => void;
     isCoachView: boolean;
     organizationId: string;
-}> = ({ block, onStart, onEditSettings, onUpdateBlock, isCoachView, organizationId }) => {
+    onPresent?: () => void;
+}> = ({ block, onStart, onEditSettings, onUpdateBlock, isCoachView, organizationId, onPresent }) => {
     
     const [exercisesVisible, setExercisesVisible] = useState(true);
 
@@ -253,6 +255,15 @@ const WorkoutBlockCard: React.FC<{
                 </div>
                 
                 <div className="flex-shrink-0 flex gap-3 w-full sm:w-auto mt-4 sm:mt-0">
+                    {onPresent && (
+                        <button 
+                            onClick={onPresent}
+                            className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-black py-3 px-4 rounded-xl flex items-center justify-center transition-all shadow-sm active:scale-95 group w-full sm:w-auto"
+                            title="Visa på skärm"
+                        >
+                            <EyeIcon className="w-6 h-6" />
+                        </button>
+                    )}
                     <button 
                         onClick={onStart} 
                         className="bg-primary hover:brightness-95 text-white font-black py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all shadow-md shadow-primary/30 transform active:scale-95 group w-full sm:w-auto"
@@ -378,6 +389,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   const [results, setResults] = useState<WorkoutResult[]>([]);
   const [resultsLoading, setResultsLoading] = useState(false);
   const [visualizingFullWorkout, setVisualizingFullWorkout] = useState(false); 
+  const [visualizingBlockId, setVisualizingBlockId] = useState<string | null>(null);
   
   const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const personalBestName = useMemo(() => localStorage.getItem('hyrox-participant-name'), []);
@@ -593,6 +605,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                             onUpdateBlock={handleUpdateBlock}
                             isCoachView={isCoachView}
                             organizationId={selectedOrganization?.id || ''}
+                            onPresent={() => setVisualizingBlockId(block.id)}
                         />
                     </div>
                 )})}
@@ -649,10 +662,14 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
       )}
       
       <AnimatePresence>
-          {visualizingFullWorkout && (
+          {(visualizingFullWorkout || visualizingBlockId) && (
               <WorkoutPresentationModal
                   workout={sessionWorkout}
-                  onClose={() => setVisualizingFullWorkout(false)}
+                  onClose={() => {
+                      setVisualizingFullWorkout(false);
+                      setVisualizingBlockId(null);
+                  }}
+                  blockId={visualizingBlockId || undefined}
               />
           )}
       </AnimatePresence>
