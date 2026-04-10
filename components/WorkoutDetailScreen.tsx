@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, StudioConfig, WorkoutResult, WorkoutLog } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
 import { StarIcon, PencilIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, CloseIcon, ClockIcon, UsersIcon, ChartBarIcon, TrophyIcon, EyeIcon } from './icons';
@@ -75,25 +76,30 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
             onHeaderVisibilityChange(false);
         }
         
+        // Lock body scroll
+        const originalStyle = window.getComputedStyle(document.body).overflow;
+        document.body.style.overflow = 'hidden';
+        
         const timer = setTimeout(() => {
             if (scrollRef.current) {
                 scrollRef.current.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
             }
-        }, 10);
+        }, 50);
         
         return () => {
             clearTimeout(timer);
+            document.body.style.overflow = originalStyle;
             if (onHeaderVisibilityChange) {
                 onHeaderVisibilityChange(true);
             }
         };
-    }, [onHeaderVisibilityChange]);
+    }, [onHeaderVisibilityChange, blockId]);
 
     const blocksToShow = blockId 
         ? workout.blocks?.filter(b => b.id === blockId) 
         : workout.blocks;
 
-    return (
+    const modalContent = (
         <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -200,6 +206,8 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
             </div>
         </motion.div>
     );
+    
+    return createPortal(modalContent, document.body);
 };
 
 const WorkoutBlockCard: React.FC<{
