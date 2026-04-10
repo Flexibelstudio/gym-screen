@@ -1317,6 +1317,7 @@ const App: React.FC = () => {
             onMemberProfileRequest={handleMemberProfileRequest} 
             onEditProfileRequest={handleEditProfileRequest}
             isStudioMode={isStudioMode}
+            hasCustomBack={!!customBackHandler}
           />
        </div>
 
