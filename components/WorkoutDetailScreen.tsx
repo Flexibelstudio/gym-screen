@@ -67,17 +67,27 @@ const getSettingsText = (block: WorkoutBlock) => {
 
 // --- COMPONENTS ---
 
-export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void; blockId?: string }> = ({ workout, onClose, blockId }) => {
+export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () => void; blockId?: string; onHeaderVisibilityChange?: (visible: boolean) => void }> = ({ workout, onClose, blockId, onHeaderVisibilityChange }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     
     useEffect(() => {
+        if (onHeaderVisibilityChange) {
+            onHeaderVisibilityChange(false);
+        }
+        
         const timer = setTimeout(() => {
             if (scrollRef.current) {
                 scrollRef.current.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
             }
         }, 10);
-        return () => clearTimeout(timer);
-    }, []);
+        
+        return () => {
+            clearTimeout(timer);
+            if (onHeaderVisibilityChange) {
+                onHeaderVisibilityChange(true);
+            }
+        };
+    }, [onHeaderVisibilityChange]);
 
     const blocksToShow = blockId 
         ? workout.blocks?.filter(b => b.id === blockId) 
@@ -670,6 +680,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                       setVisualizingBlockId(null);
                   }}
                   blockId={visualizingBlockId || undefined}
+                  onHeaderVisibilityChange={onHeaderVisibilityChange}
               />
           )}
       </AnimatePresence>
