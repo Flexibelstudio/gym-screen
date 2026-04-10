@@ -129,7 +129,7 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                             </div>
 
                             {block.setupDescription && (
-                                <p className="text-sm sm:text-base md:text-2xl lg:text-4xl xl:text-5xl text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-3xl lg:max-w-4xl xl:max-w-7xl break-words">
+                                <p className="text-sm sm:text-base md:text-2xl lg:text-4xl xl:text-4xl text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-3xl lg:max-w-4xl xl:max-w-7xl break-words">
                                     {block.setupDescription}
                                 </p>
                             )}
@@ -156,7 +156,7 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                                         </div>
                                         <div className="flex-grow min-w-0">
                                             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4 lg:gap-6 xl:gap-12">
-                                                <h3 className="text-lg sm:text-xl lg:text-3xl xl:text-7xl font-black text-gray-900 dark:text-white leading-tight break-words">
+                                                <h3 className="text-lg sm:text-xl lg:text-3xl xl:text-8xl font-black text-gray-900 dark:text-white leading-tight break-words">
                                                     {ex.name || 'Okänd övning'}
                                                 </h3>
                                                 {ex.reps && (
@@ -166,7 +166,7 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                                                 )}
                                             </div>
                                             {ex.description && (
-                                                <p className="text-sm lg:text-lg xl:text-4xl text-gray-500 dark:text-gray-400 mt-1.5 lg:mt-3 xl:mt-8 leading-relaxed font-medium break-words">
+                                                <p className="text-sm lg:text-lg xl:text-5xl text-gray-500 dark:text-gray-400 mt-1.5 lg:mt-3 xl:mt-8 leading-relaxed font-medium break-words">
                                                     {ex.description}
                                                 </p>
                                             )}
