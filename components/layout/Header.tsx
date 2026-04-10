@@ -47,6 +47,21 @@ export const Header: React.FC<HeaderProps> = ({
   const { userData } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isExiting, setIsExiting] = useState(false);
+
+  // Reset isExiting when page changes
+  useEffect(() => {
+      setIsExiting(false);
+  }, [page]);
+
+  const handleBackClick = () => {
+      if (isExiting) return;
+      setIsExiting(true);
+      // Short delay to allow the UI to paint the exiting state (overlay fade out)
+      setTimeout(() => {
+          onBack();
+      }, 50);
+  };
   
   // Hämta positionering från config (default 'top')
   const navPosition = studioConfig?.navigationControlPosition || 'top';
@@ -120,12 +135,12 @@ export const Header: React.FC<HeaderProps> = ({
                 onPointerDown={(e) => {
                     if (e.button === 0) {
                         e.preventDefault();
-                        onBack();
+                        handleBackClick();
                     }
                 }}
                 onClick={(e) => {
                     if (e.detail === 0) {
-                        onBack();
+                        handleBackClick();
                     }
                 }}
                 className={`fixed bottom-6 left-6 z-[100] bg-gray-900/90 dark:bg-white/90 text-white dark:text-black hover:bg-gray-800 dark:hover:bg-white transition-all py-5 px-10 rounded-full shadow-2xl backdrop-blur-md border border-white/20 active:scale-95 active:duration-75 duration-300 ${visibilityClass}`}
@@ -140,12 +155,12 @@ export const Header: React.FC<HeaderProps> = ({
             onPointerDown={(e) => {
                 if (e.button === 0) {
                     e.preventDefault();
-                    onBack();
+                    handleBackClick();
                 }
             }}
             onClick={(e) => {
                 if (e.detail === 0) {
-                    onBack();
+                    handleBackClick();
                 }
             }}
             className="text-primary hover:brightness-95 transition-colors text-lg font-semibold flex items-center gap-1 p-3 -ml-3 active:scale-95 active:duration-75"
@@ -360,6 +375,11 @@ export const Header: React.FC<HeaderProps> = ({
         
         {/* Render fixed bottom back button if configured */}
         {navPosition === 'bottom' && renderBackButton()}
+        
+        {/* Exiting overlay for immediate visual feedback */}
+        {isExiting && (
+            <div className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-sm transition-opacity duration-100"></div>
+        )}
     </>
   );
 };
