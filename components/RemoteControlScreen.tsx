@@ -422,13 +422,25 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
         
         setActiveRunningBlockId(null);
         
-        await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
-            activeWorkoutId: selectedWorkout.id,
-            view: 'preview', // Go back to workout detail
-            activeBlockId: null,
-            lastUpdate: Date.now(),
-            controllerName: currentControllerName
-        });
+        if (selectedWorkout.category === 'Fristående') {
+            await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
+                view: 'menu',
+                activeWorkoutId: null,
+                activeBlockId: null,
+                lastUpdate: Date.now(),
+                controllerName: currentControllerName
+            });
+            setView('timer_setup');
+            setSelectedWorkout(null);
+        } else {
+            await updateStudioRemoteState(selectedOrganization.id, connectedStudioId, {
+                activeWorkoutId: selectedWorkout.id,
+                view: 'preview', // Go back to workout detail
+                activeBlockId: null,
+                lastUpdate: Date.now(),
+                controllerName: currentControllerName
+            });
+        }
     };
     
     const sendCommand = async (cmd: 'start' | 'pause' | 'resume' | 'reset' | 'finish') => {

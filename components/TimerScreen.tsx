@@ -608,6 +608,18 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   // --- NEW STATES FOR TEXT/REPS SIZE ---
   const [textSizeScale, setTextSizeScale] = useState(1);
   const [repsSizeScale, setRepsSizeScale] = useState(1);
+  
+  // EXITING STATE FOR IMMEDIATE VISUAL FEEDBACK
+  const [isExiting, setIsExiting] = useState(false);
+
+  const handleExit = () => {
+      if (isExiting) return;
+      setIsExiting(true);
+      // Allow the UI to paint the exiting state (overlay fade out) before blocking the thread with unmount
+      setTimeout(() => {
+          onFinish({ isNatural: false });
+      }, 100);
+  };
 
   // Sync with Remote State
   // IMPORTANT: We need to listen to the selectedStudio from context which gets updated via the snapshot listener in App.tsx
@@ -1268,7 +1280,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       {/* UPDATE: Also visible if paused to allow exit */}
       {(isLobbyMode || isActuallyFinishedOrIdle || isActuallyPaused) && (
           <button
-              onClick={() => onFinish({ isNatural: false })}
+              onClick={handleExit}
               className={`fixed ${navPos === 'bottom' ? 'bottom-8' : 'top-8'} left-8 z-[60] bg-black/20 hover:bg-black/40 text-white backdrop-blur-md px-6 py-3 rounded-full font-bold transition-all flex items-center gap-3 border border-white/10 shadow-lg group`}
           >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1292,8 +1304,19 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       )}
       
       <AnimatePresence>
+        {isExiting && (
+            <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }} 
+                transition={{ duration: 0.1 }}
+                className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center backdrop-blur-sm"
+            >
+                <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+            </motion.div>
+        )}
         {isActuallyPaused && !showFinishAnimation && !isLobbyMode && (
-            <PauseOverlay onResume={() => handleRemoteAction('resume')} onRestart={() => handleRemoteAction('reset')} onFinish={() => onFinish({ isNatural: false })} />
+            <PauseOverlay onResume={() => handleRemoteAction('resume')} onRestart={() => handleRemoteAction('reset')} onFinish={handleExit} />
         )}
         {participantToEdit && (
             <EditResultModal 
@@ -1387,7 +1410,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             {/* SIFFROR (Tiden) - Mitten */}
             <div className={`z-20 relative flex flex-col items-center w-full text-white transition-opacity duration-300 ${isLobbyMode ? 'opacity-30 blur-sm' : 'opacity-100'}`}>
                 <div className="flex items-center justify-center w-full gap-2">
-                     <span className="font-mono font-black leading-none tracking-tighter tabular-nums drop-shadow-2xl select-none text-[7rem] sm:text-[9rem] md:text-[11rem]">
+                     <span className="font-mono font-black leading-none tracking-tighter tabular-nums select-none text-[7rem] sm:text-[9rem] md:text-[11rem]">
                         {minutesStr}:{secondsStr}
                      </span>
                 </div>
@@ -1606,7 +1629,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[35%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
                 {isActuallyFinishedOrIdle ? (
                     <>
-                        <button onClick={() => onFinish({ isNatural: false })} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-50 active:scale-95 transition-all text-xl backdrop-blur-md border-2 border-white/20 uppercase" style={{ touchAction: 'manipulation' }}>TILLBAKA</button>
+                        <button onClick={handleExit} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-50 active:scale-95 transition-all text-xl backdrop-blur-md border-2 border-white/20 uppercase" style={{ touchAction: 'manipulation' }}>TILLBAKA</button>
                         <button onClick={() => handleRemoteAction('start')} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl active:scale-95 transition-transform text-xl border-4 border-white/50 uppercase" style={{ touchAction: 'manipulation' }}>STARTA</button>
                     </>
                 ) : isActuallyPaused ? (
