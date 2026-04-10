@@ -88,10 +88,10 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
         >
             <div className="flex justify-between items-center p-4 sm:p-6 lg:p-8 xl:p-12 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
                 <div className="flex items-center gap-3 sm:gap-4 lg:gap-6 xl:gap-8 flex-wrap min-w-0">
-                    <h1 className="text-2xl sm:text-3xl lg:text-5xl xl:text-7xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-tight break-words">
+                    <h1 className="text-2xl sm:text-3xl lg:text-5xl xl:text-9xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-tight break-words">
                         {workout.title}
                     </h1>
-                    <span className="text-[10px] sm:text-xs lg:text-sm xl:text-xl font-bold bg-gray-200 dark:bg-gray-800 px-2.5 py-1 lg:px-4 lg:py-2 xl:px-6 xl:py-3 rounded-md text-gray-500 uppercase tracking-widest whitespace-nowrap">
+                    <span className="text-[10px] sm:text-xs lg:text-sm xl:text-3xl font-bold bg-gray-200 dark:bg-gray-800 px-2.5 py-1 lg:px-4 lg:py-2 xl:px-8 xl:py-4 rounded-md text-gray-500 uppercase tracking-widest whitespace-nowrap">
                         Hela Passet
                     </span>
                 </div>
@@ -99,37 +99,37 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                     onClick={onClose}
                     className="p-2.5 sm:p-3 lg:p-4 xl:p-6 bg-gray-200 dark:bg-gray-800 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors shadow-sm active:scale-95 flex-shrink-0 ml-4"
                 >
-                    <CloseIcon className="w-6 h-6 lg:w-8 lg:h-8 xl:w-12 xl:h-12 text-gray-900 dark:text-white" />
+                    <CloseIcon className="w-6 h-6 lg:w-8 lg:h-8 xl:w-16 xl:h-16 text-gray-900 dark:text-white" />
                 </button>
             </div>
 
-            <div ref={scrollRef} className="flex-grow overflow-y-auto p-4 sm:p-8 lg:p-12 xl:p-20 space-y-8 sm:space-y-12 lg:space-y-16 xl:space-y-24">
-                <div className="max-w-4xl lg:max-w-6xl xl:max-w-screen-2xl mx-auto space-y-8 sm:space-y-12 lg:space-y-16 xl:space-y-24">
+            <div ref={scrollRef} className="flex-grow overflow-y-auto p-4 sm:p-8 lg:p-12 xl:p-32 space-y-8 sm:space-y-12 lg:space-y-16 xl:space-y-32">
+                <div className="max-w-4xl lg:max-w-6xl xl:max-w-screen-2xl mx-auto space-y-8 sm:space-y-12 lg:space-y-16 xl:space-y-32">
                     {workout.blocks?.map((block, bIndex) => {
                         if (!block) return null;
                         return (
-                        <div key={block.id || `block-${bIndex}`} className="space-y-4 sm:space-y-5 lg:space-y-8 xl:space-y-12">
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 lg:gap-6 xl:gap-8 border-b-2 border-gray-100 dark:border-gray-800 pb-3 lg:pb-6 xl:pb-8">
-                                <div className="flex items-center gap-3 lg:gap-5 xl:gap-8 flex-wrap">
-                                    <span className={`inline-flex items-center px-3 py-1 lg:px-4 lg:py-2 xl:px-6 xl:py-3 rounded-lg text-xs sm:text-sm lg:text-base xl:text-2xl font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
+                        <div key={block.id || `block-${bIndex}`} className="space-y-4 sm:space-y-5 lg:space-y-8 xl:space-y-16">
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 lg:gap-6 xl:gap-12 border-b-2 border-gray-100 dark:border-gray-800 pb-3 lg:pb-6 xl:pb-12">
+                                <div className="flex items-center gap-3 lg:gap-5 xl:gap-10 flex-wrap">
+                                    <span className={`inline-flex items-center px-3 py-1 lg:px-4 lg:py-2 xl:px-8 xl:py-4 rounded-lg text-xs sm:text-sm lg:text-base xl:text-4xl font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
                                         {block.tag}
                                     </span>
-                                    <h2 className="text-xl sm:text-2xl lg:text-4xl xl:text-6xl font-black text-gray-900 dark:text-white uppercase tracking-tight break-words">
+                                    <h2 className="text-xl sm:text-2xl lg:text-4xl xl:text-8xl font-black text-gray-900 dark:text-white uppercase tracking-tight break-words">
                                         {block.title}
                                     </h2>
                                 </div>
-                                <div className="sm:ml-auto flex flex-row sm:flex-col items-center sm:items-end gap-2 sm:gap-0 lg:gap-1 xl:gap-2">
-                                    <span className="text-sm sm:text-base lg:text-xl xl:text-3xl font-mono font-bold text-gray-400">
+                                <div className="sm:ml-auto flex flex-row sm:flex-col items-center sm:items-end gap-2 sm:gap-0 lg:gap-1 xl:gap-4">
+                                    <span className="text-sm sm:text-base lg:text-xl xl:text-5xl font-mono font-bold text-gray-400">
                                         {block.settings.mode}
                                     </span>
-                                    <span className="text-[10px] sm:text-xs lg:text-sm xl:text-xl font-bold text-gray-500 uppercase tracking-widest break-words">
+                                    <span className="text-[10px] sm:text-xs lg:text-sm xl:text-3xl font-bold text-gray-500 uppercase tracking-widest break-words">
                                         {getSettingsText(block)}
                                     </span>
                                 </div>
                             </div>
 
                             {block.setupDescription && (
-                                <p className="text-sm sm:text-base lg:text-xl xl:text-3xl text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-3xl lg:max-w-4xl xl:max-w-6xl break-words">
+                                <p className="text-sm sm:text-base lg:text-xl xl:text-5xl text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-3xl lg:max-w-4xl xl:max-w-7xl break-words">
                                     {block.setupDescription}
                                 </p>
                             )}
@@ -146,27 +146,27 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                                                          isGroupedWithPrev && !isGroupedWithNext ? 'rounded-b-2xl rounded-t-sm' :
                                                          isGroupedWithPrev && isGroupedWithNext ? 'rounded-sm' : 'rounded-2xl';
                                                          
-                                    const borderClass = ex.groupColor ? `border border-r-gray-100 border-y-gray-100 dark:border-r-gray-800 dark:border-y-gray-800 border-l-[4px] xl:border-l-[8px] ${ex.groupColor.replace('bg-', 'border-l-')}` : 'border border-gray-100 dark:border-gray-800';
-                                    const marginClass = isGroupedWithNext ? 'mb-1 xl:mb-2' : 'mb-3 lg:mb-4 xl:mb-6';
+                                    const borderClass = ex.groupColor ? `border border-r-gray-100 border-y-gray-100 dark:border-r-gray-800 dark:border-y-gray-800 border-l-[4px] xl:border-l-[12px] ${ex.groupColor.replace('bg-', 'border-l-')}` : 'border border-gray-100 dark:border-gray-800';
+                                    const marginClass = isGroupedWithNext ? 'mb-1 xl:mb-3' : 'mb-3 lg:mb-4 xl:mb-10';
 
                                     return (
-                                    <div key={ex.id || `ex-${index}`} className={`flex items-start gap-4 lg:gap-6 xl:gap-10 p-4 sm:p-5 lg:p-8 xl:p-12 ${roundedClass} bg-gray-50 dark:bg-gray-900 ${borderClass} ${marginClass}`}>
-                                         <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 lg:w-14 lg:h-14 xl:w-20 xl:h-20 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-sm sm:text-base lg:text-xl xl:text-3xl font-black text-gray-500">
+                                    <div key={ex.id || `ex-${index}`} className={`flex items-start gap-4 lg:gap-6 xl:gap-16 p-4 sm:p-5 lg:p-8 xl:p-16 ${roundedClass} bg-gray-50 dark:bg-gray-900 ${borderClass} ${marginClass}`}>
+                                         <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 lg:w-14 lg:h-14 xl:w-32 xl:h-32 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-sm sm:text-base lg:text-xl xl:text-5xl font-black text-gray-500">
                                             {index + 1}
                                         </div>
                                         <div className="flex-grow min-w-0">
-                                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4 lg:gap-6 xl:gap-10">
-                                                <h3 className="text-lg sm:text-xl lg:text-3xl xl:text-5xl font-black text-gray-900 dark:text-white leading-tight break-words">
+                                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4 lg:gap-6 xl:gap-12">
+                                                <h3 className="text-lg sm:text-xl lg:text-3xl xl:text-7xl font-black text-gray-900 dark:text-white leading-tight break-words">
                                                     {ex.name || 'Okänd övning'}
                                                 </h3>
                                                 {ex.reps && (
-                                                    <div className="bg-primary/10 text-primary px-3 py-1.5 lg:px-5 lg:py-2.5 xl:px-8 xl:py-4 rounded-lg whitespace-nowrap self-start sm:self-auto">
-                                                        <span className="text-sm sm:text-base lg:text-2xl xl:text-4xl font-mono font-black">{formatReps(ex.reps)}</span>
+                                                    <div className="bg-primary/10 text-primary px-3 py-1.5 lg:px-5 lg:py-2.5 xl:px-12 xl:py-6 rounded-lg whitespace-nowrap self-start sm:self-auto">
+                                                        <span className="text-sm sm:text-base lg:text-2xl xl:text-6xl font-mono font-black">{formatReps(ex.reps)}</span>
                                                     </div>
                                                 )}
                                             </div>
                                             {ex.description && (
-                                                <p className="text-sm lg:text-lg xl:text-2xl text-gray-500 dark:text-gray-400 mt-1.5 lg:mt-3 xl:mt-5 leading-relaxed font-medium break-words">
+                                                <p className="text-sm lg:text-lg xl:text-4xl text-gray-500 dark:text-gray-400 mt-1.5 lg:mt-3 xl:mt-8 leading-relaxed font-medium break-words">
                                                     {ex.description}
                                                 </p>
                                             )}
@@ -182,8 +182,8 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                 </div>
             </div>
             
-            <div className="p-6 lg:p-8 xl:p-12 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex justify-center flex-shrink-0">
-                 <button onClick={onClose} className="bg-black dark:bg-white text-white dark:text-black font-black text-xl lg:text-2xl xl:text-4xl py-4 px-12 lg:py-5 lg:px-16 xl:py-8 xl:px-24 rounded-full shadow-xl hover:scale-105 transition-transform uppercase tracking-widest">
+            <div className="p-6 lg:p-8 xl:p-16 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex justify-center flex-shrink-0">
+                 <button onClick={onClose} className="bg-black dark:bg-white text-white dark:text-black font-black text-xl lg:text-2xl xl:text-6xl py-4 px-12 lg:py-5 lg:px-16 xl:py-12 xl:px-32 rounded-full shadow-xl hover:scale-105 transition-transform uppercase tracking-widest">
                      Stäng visningsläge
                  </button>
             </div>
