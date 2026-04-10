@@ -198,12 +198,6 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                     )})}
                 </div>
             </div>
-            
-            <div className="p-6 md:p-8 lg:p-12 xl:p-16 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex justify-center flex-shrink-0">
-                 <button onClick={onClose} className="bg-black dark:bg-white text-white dark:text-black font-black text-xl md:text-3xl lg:text-5xl xl:text-6xl py-4 px-12 md:py-6 md:px-20 lg:py-8 lg:px-24 xl:py-12 xl:px-32 rounded-full shadow-xl hover:scale-105 transition-transform uppercase tracking-widest">
-                     Stäng visningsläge
-                 </button>
-            </div>
         </motion.div>
     );
     
