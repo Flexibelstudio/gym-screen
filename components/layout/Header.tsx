@@ -23,6 +23,7 @@ interface HeaderProps {
     onMemberProfileRequest?: () => void;
     onEditProfileRequest?: () => void;
     isStudioMode?: boolean;
+    hasCustomBack?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -41,7 +42,8 @@ export const Header: React.FC<HeaderProps> = ({
     showCoachButton,
     onMemberProfileRequest,
     onEditProfileRequest,
-    isStudioMode
+    isStudioMode,
+    hasCustomBack = false
 }) => {
   const { selectedOrganization, studioConfig, studioLoading } = useStudio();
   const { userData } = useAuth();
@@ -56,6 +58,12 @@ export const Header: React.FC<HeaderProps> = ({
 
   const handleBackClick = () => {
       if (isExiting) return;
+      
+      if (hasCustomBack) {
+          onBack();
+          return;
+      }
+
       setIsExiting(true);
       // Short delay to allow the UI to paint the exiting state (overlay fade out)
       setTimeout(() => {
