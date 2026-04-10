@@ -88,7 +88,7 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
         >
             <div className="flex justify-between items-center p-4 sm:p-6 lg:p-8 xl:p-12 border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 flex-shrink-0">
                 <div className="flex items-center gap-3 sm:gap-4 md:gap-6 lg:gap-8 xl:gap-8 flex-wrap min-w-0">
-                    <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-7xl xl:text-9xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-tight break-words">
+                    <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-7xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-tight break-words">
                         {workout.title}
                     </h1>
                     <span className="text-[10px] sm:text-xs md:text-lg lg:text-2xl xl:text-3xl font-bold bg-gray-200 dark:bg-gray-800 px-2.5 py-1 md:px-4 md:py-2 lg:px-6 lg:py-3 xl:px-8 xl:py-4 rounded-md text-gray-500 uppercase tracking-widest whitespace-nowrap">
@@ -114,7 +114,7 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                                     <span className={`inline-flex items-center px-3 py-1 md:px-4 md:py-2 lg:px-6 lg:py-3 xl:px-8 xl:py-4 rounded-lg text-xs sm:text-sm md:text-xl lg:text-3xl xl:text-4xl font-black uppercase tracking-[0.1em] shadow-sm ${getTagColor(block.tag)}`}>
                                         {block.tag}
                                     </span>
-                                    <h2 className="text-xl sm:text-2xl md:text-5xl lg:text-6xl xl:text-8xl font-black text-gray-900 dark:text-white uppercase tracking-tight break-words">
+                                    <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-6xl font-black text-gray-900 dark:text-white uppercase tracking-tight break-words">
                                         {block.title}
                                     </h2>
                                 </div>
@@ -129,7 +129,7 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                             </div>
 
                             {block.setupDescription && (
-                                <p className="text-sm sm:text-base md:text-2xl lg:text-4xl xl:text-4xl text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-3xl lg:max-w-4xl xl:max-w-7xl break-words">
+                                <p className="text-sm sm:text-base md:text-xl lg:text-2xl xl:text-3xl text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-3xl lg:max-w-4xl xl:max-w-7xl break-words">
                                     {block.setupDescription}
                                 </p>
                             )}
@@ -150,23 +150,23 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                                     const marginClass = isGroupedWithNext ? 'mb-1 xl:mb-3' : 'mb-3 lg:mb-4 xl:mb-10';
 
                                     return (
-                                    <div key={ex.id || `ex-${index}`} className={`flex items-start gap-4 lg:gap-6 xl:gap-16 p-4 sm:p-5 lg:p-8 xl:p-16 ${roundedClass} bg-gray-50 dark:bg-gray-900 ${borderClass} ${marginClass}`}>
-                                         <div className="flex-shrink-0 w-8 h-8 sm:w-10 sm:h-10 lg:w-14 lg:h-14 xl:w-32 xl:h-32 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-sm sm:text-base lg:text-xl xl:text-5xl font-black text-gray-500">
+                                    <div key={ex.id || `ex-${index}`} className={`flex items-start gap-4 md:gap-6 lg:gap-10 xl:gap-16 p-4 sm:p-6 md:p-8 lg:p-12 xl:p-16 ${roundedClass} bg-gray-50 dark:bg-gray-900 ${borderClass} ${marginClass}`}>
+                                         <div className="flex-shrink-0 w-8 h-8 sm:w-12 sm:h-12 md:w-16 md:h-16 lg:w-20 lg:h-20 xl:w-28 xl:h-28 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-sm sm:text-lg md:text-2xl lg:text-3xl xl:text-5xl font-black text-gray-500">
                                             {index + 1}
                                         </div>
                                         <div className="flex-grow min-w-0">
                                             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2 sm:gap-4 lg:gap-6 xl:gap-12">
-                                                <h3 className="text-lg sm:text-xl lg:text-3xl xl:text-8xl font-black text-gray-900 dark:text-white leading-tight break-words">
+                                                <h3 className="text-lg sm:text-2xl md:text-4xl lg:text-5xl xl:text-7xl font-black text-gray-900 dark:text-white leading-tight break-words">
                                                     {ex.name || 'Okänd övning'}
                                                 </h3>
                                                 {ex.reps && (
-                                                    <div className="bg-primary/10 text-primary px-3 py-1.5 lg:px-5 lg:py-2.5 xl:px-12 xl:py-6 rounded-lg whitespace-nowrap self-start sm:self-auto">
-                                                        <span className="text-sm sm:text-base lg:text-2xl xl:text-6xl font-mono font-black">{formatReps(ex.reps)}</span>
+                                                    <div className="bg-primary/10 text-primary px-3 py-1.5 md:px-5 md:py-2.5 lg:px-8 lg:py-4 xl:px-12 xl:py-6 rounded-lg whitespace-nowrap self-start sm:self-auto">
+                                                        <span className="text-sm sm:text-lg md:text-2xl lg:text-4xl xl:text-5xl font-mono font-black">{formatReps(ex.reps)}</span>
                                                     </div>
                                                 )}
                                             </div>
                                             {ex.description && (
-                                                <p className="text-sm lg:text-lg xl:text-5xl text-gray-500 dark:text-gray-400 mt-1.5 lg:mt-3 xl:mt-8 leading-relaxed font-medium break-words">
+                                                <p className="text-sm sm:text-base md:text-xl lg:text-2xl xl:text-3xl text-gray-500 dark:text-gray-400 mt-1.5 lg:mt-3 xl:mt-8 leading-relaxed font-medium break-words">
                                                     {ex.description}
                                                 </p>
                                             )}
