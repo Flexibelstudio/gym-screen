@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, StudioConfig, WorkoutResult, WorkoutLog } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
 import { StarIcon, PencilIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, CloseIcon, ClockIcon, UsersIcon, ChartBarIcon, TrophyIcon, EyeIcon } from './icons';
@@ -75,25 +76,30 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
             onHeaderVisibilityChange(false);
         }
         
+        // Lock body scroll
+        const originalStyle = window.getComputedStyle(document.body).overflow;
+        document.body.style.overflow = 'hidden';
+        
         const timer = setTimeout(() => {
             if (scrollRef.current) {
                 scrollRef.current.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
             }
-        }, 10);
+        }, 50);
         
         return () => {
             clearTimeout(timer);
+            document.body.style.overflow = originalStyle;
             if (onHeaderVisibilityChange) {
                 onHeaderVisibilityChange(true);
             }
         };
-    }, [onHeaderVisibilityChange]);
+    }, [onHeaderVisibilityChange, blockId]);
 
     const blocksToShow = blockId 
         ? workout.blocks?.filter(b => b.id === blockId) 
         : workout.blocks;
 
-    return (
+    const modalContent = (
         <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -192,14 +198,10 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                     )})}
                 </div>
             </div>
-            
-            <div className="p-6 md:p-8 lg:p-12 xl:p-16 bg-gray-50 dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex justify-center flex-shrink-0">
-                 <button onClick={onClose} className="bg-black dark:bg-white text-white dark:text-black font-black text-xl md:text-3xl lg:text-5xl xl:text-6xl py-4 px-12 md:py-6 md:px-20 lg:py-8 lg:px-24 xl:py-12 xl:px-32 rounded-full shadow-xl hover:scale-105 transition-transform uppercase tracking-widest">
-                     Stäng visningsläge
-                 </button>
-            </div>
         </motion.div>
     );
+    
+    return createPortal(modalContent, document.body);
 };
 
 const WorkoutBlockCard: React.FC<{
