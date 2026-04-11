@@ -201,7 +201,7 @@ const App: React.FC = () => {
           if (isStudioMode && selectedOrganization && selectedStudio && !hasCleanedUpRef.current) {
                hasCleanedUpRef.current = true;
                await updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
-               setIsReadyToListen(true);
+               // We wait for the snapshot to reflect the null state before listening
           } else if (!isStudioMode) {
                setIsReadyToListen(true);
           }
@@ -211,6 +211,12 @@ const App: React.FC = () => {
           clearRemoteStateOnMount();
       }
   }, [isStudioMode, selectedOrganization?.id, selectedStudio?.id, studioLoading]);
+
+  useEffect(() => {
+      if (isStudioMode && hasCleanedUpRef.current && !isReadyToListen && selectedStudio && !selectedStudio.remoteState) {
+          setIsReadyToListen(true);
+      }
+  }, [isStudioMode, isReadyToListen, selectedStudio?.remoteState]);
 
       // STUDIO RECEIVER LOGIC (TV Mode)
       useEffect(() => {
@@ -547,6 +553,17 @@ const App: React.FC = () => {
         setIsPickingForLog(false);
     }
     
+    // Clear active block if we are leaving the timer
+    let nextActiveBlockId = activeBlock?.id || null;
+    if (targetPage === Page.WorkoutDetail || targetPage === Page.Home || targetPage === Page.Coach || targetPage === Page.SuperAdmin) {
+        setActiveBlock(null);
+        nextActiveBlockId = null;
+    }
+    
+    if (targetPage === Page.Home || targetPage === Page.Coach || targetPage === Page.SuperAdmin) {
+        setActiveWorkout(null);
+    }
+    
     if (isStudioMode && selectedOrganization && selectedStudio) {
          let view: RemoteSessionState['view'] = 'menu';
          
@@ -563,8 +580,8 @@ const App: React.FC = () => {
 
          updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
              view,
-             activeWorkoutId: activeWorkout?.id || null,
-             activeBlockId: activeBlock?.id || null,
+             activeWorkoutId: (targetPage === Page.Home || targetPage === Page.Coach || targetPage === Page.SuperAdmin) ? null : (activeWorkout?.id || null),
+             activeBlockId: nextActiveBlockId,
              lastUpdate: Date.now(),
              controllerName: 'Touch Screen'
          });
@@ -909,6 +926,8 @@ const App: React.FC = () => {
         handleBack();
         return;
     }
+
+    setActiveBlock(null);
 
     if (isFinalBlock) {
       if (page === Page.Timer || page === Page.RepsOnly) {
