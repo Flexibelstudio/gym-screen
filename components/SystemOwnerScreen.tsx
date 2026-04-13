@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Organization, SmartScreenPricing, InvoiceDetails, SeasonalThemeSetting, ThemeDateRange } from '../types';
 import { OvningsbankContent } from './OvningsbankContent';
-import { getSmartScreenPricing, updateSmartScreenPricing, updateOrganizationFreeCoaches, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, restoreOrganization, deleteOrganizationPermanently, updateOrganizationName, getMembers, requestPushNotificationPermission, auth } from '../services/firebaseService';
+import { getSmartScreenPricing, updateSmartScreenPricing, updateOrganizationFreeCoaches, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, restoreOrganization, deleteOrganizationPermanently, updateOrganizationName, getMembers, requestPushNotificationPermission, auth, updateGlobalConfig } from '../services/firebaseService';
 import { PencilIcon, HomeIcon, BuildingIcon, SparklesIcon, ToggleSwitch, ChevronDownIcon, CloseIcon } from './icons';
 import { MoreVertical } from 'lucide-react';
 import { calculateInvoiceDetails } from '../utils/billing';
@@ -23,10 +23,12 @@ interface OrganizationCardProps {
     onDeletePermanent?: () => void;
     onUpdateFreeCoaches: (orgId: string, count: number) => Promise<void>;
     onUpdateName: (orgId: string, name: string) => Promise<void>;
+    onUpdateGlobalConfig: (orgId: string, config: any) => Promise<void>;
 }
 
-const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onSelect, onArchive, onRestore, onDeletePermanent, onUpdateFreeCoaches, onUpdateName }) => {
+const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onSelect, onArchive, onRestore, onDeletePermanent, onUpdateFreeCoaches, onUpdateName, onUpdateGlobalConfig }) => {
     const [freeCoaches, setFreeCoaches] = useState(org.freeCoachAccounts || 0);
+    const [enableEventsModule, setEnableEventsModule] = useState(org.globalConfig?.enableEventsModule || false);
     const [isSaving, setIsSaving] = useState(false);
     const [isEditingName, setIsEditingName] = useState(false);
     const [editNameValue, setEditNameValue] = useState(org.name);
@@ -51,7 +53,8 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
     useEffect(() => {
         setFreeCoaches(org.freeCoachAccounts || 0);
         setEditNameValue(org.name);
-    }, [org.freeCoachAccounts, org.name]);
+        setEnableEventsModule(org.globalConfig?.enableEventsModule || false);
+    }, [org.freeCoachAccounts, org.name, org.globalConfig?.enableEventsModule]);
 
     useEffect(() => {
         const fetchCounts = async () => {
@@ -70,6 +73,7 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
         setIsSaving(true);
         try {
             await onUpdateFreeCoaches(org.id, freeCoaches);
+            await onUpdateGlobalConfig(org.id, { ...org.globalConfig, enableEventsModule });
         } catch (error) {
             alert("Kunde inte spara inställningarna.");
         } finally {
@@ -159,7 +163,19 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
                                     onChange={(e) => setFreeCoaches(Number(e.target.value))}
                                     className="w-16 bg-slate-100 dark:bg-gray-900 text-black dark:text-white p-1 rounded border border-slate-300 dark:border-gray-600 text-center font-bold"
                                 />
-                                <button onClick={handleSaveSettings} disabled={isSaving || freeCoaches === (org.freeCoachAccounts || 0)} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-xs font-semibold disabled:opacity-50">
+                                <button onClick={handleSaveSettings} disabled={isSaving || (freeCoaches === (org.freeCoachAccounts || 0) && enableEventsModule === (org.globalConfig?.enableEventsModule || false))} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-xs font-semibold disabled:opacity-50">
+                                    {isSaving ? '...' : 'Spara'}
+                                </button>
+                            </div>
+                        </div>
+                        <div className="bg-white dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-gray-700 flex flex-col justify-between">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-1">Event & Tävlingar</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <ToggleSwitch 
+                                    checked={enableEventsModule} 
+                                    onChange={() => setEnableEventsModule(!enableEventsModule)} 
+                                />
+                                <button onClick={handleSaveSettings} disabled={isSaving || (freeCoaches === (org.freeCoachAccounts || 0) && enableEventsModule === (org.globalConfig?.enableEventsModule || false))} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-xs font-semibold disabled:opacity-50">
                                     {isSaving ? '...' : 'Spara'}
                                 </button>
                             </div>
@@ -553,6 +569,11 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
         }
     }, []);
 
+    const handleUpdateGlobalConfig = useCallback(async (orgId: string, config: any) => {
+        await updateGlobalConfig(orgId, config);
+        setLocalOrgs(prev => prev.map(o => o.id === orgId ? { ...o, globalConfig: config } : o));
+    }, []);
+
     const tabs = [
         { id: 'dashboard', label: 'Dashboard' },
         { id: 'list', label: 'Organisationer' },
@@ -675,6 +696,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                                                     onArchive={() => handleArchive(org)}
                                                     onUpdateFreeCoaches={handleUpdateFreeCoaches}
                                                     onUpdateName={handleUpdateName}
+                                                    onUpdateGlobalConfig={handleUpdateGlobalConfig}
                                                 />
                                             ))}
                                         </div>
@@ -694,6 +716,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                                                         onDeletePermanent={() => handleDeletePermanent(org)}
                                                         onUpdateFreeCoaches={handleUpdateFreeCoaches}
                                                         onUpdateName={handleUpdateName}
+                                                        onUpdateGlobalConfig={handleUpdateGlobalConfig}
                                                     />
                                                 ))}
                                             </div>

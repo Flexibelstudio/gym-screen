@@ -334,7 +334,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             { type: 'link', id: 'activity-log', label: 'Historik', icon: HistoryIcon },
             { type: 'header', label: 'Innehåll' },
             { type: 'link', id: 'pass-program', label: 'Pass & Program', icon: DumbbellIcon },
-            { type: 'link', id: 'events', label: 'Event & Tävlingar', icon: FlagIcon },
+            ...(organization.globalConfig.enableEventsModule ? [{ type: 'link', id: 'events', label: 'Event & Tävlingar', icon: FlagIcon }] : []),
             { type: 'link', id: 'infosidor', label: 'Infosidor', icon: DocumentTextIcon },
             { type: 'link', id: 'info-karusell', label: 'Info-karusell', icon: SpeakerphoneIcon },
             { type: 'link', id: 'medlemmar', label: 'Team & Medlemmar', icon: UsersIcon },

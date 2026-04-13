@@ -182,6 +182,7 @@ export interface StudioConfig {
   enableExerciseBank?: boolean;
   customCategories: CustomCategoryWithPrompt[];
   enableHyrox?: boolean;
+  enableEventsModule?: boolean;
   enableNotes?: boolean;
   enableWorkoutLogging?: boolean;
   enableWorkoutGames?: boolean; // NYTT: Träningslekar
