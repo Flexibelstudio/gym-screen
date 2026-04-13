@@ -1445,6 +1445,16 @@ export const saveRace = async (data: any, orgId: string) => {
     } catch (e) { console.error("saveRace failed", e); throw e; }
 };
 
+export const deleteRace = async (raceId: string) => {
+    if (isOffline || !db || !raceId) return;
+    try {
+        await deleteDoc(doc(db, 'races', raceId));
+    } catch (e) {
+        console.error("deleteRace failed", e);
+        throw e;
+    }
+};
+
 export const getPastRaces = async (orgId: string) => {
     if (isOffline || !db || !orgId) return [];
     try {
