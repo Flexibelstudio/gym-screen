@@ -1112,12 +1112,23 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       });
 
       try {
-          const raceData: Omit<HyroxRace, 'id' | 'createdAt' | 'organizationId'> = {
+          // Extract the original race ID if it was a planned race
+          let originalRaceId = undefined;
+          if (activeWorkout.id && activeWorkout.id.startsWith('custom-race-') && activeWorkout.id !== 'custom-race') {
+              originalRaceId = activeWorkout.id.replace('custom-race-', '');
+          }
+
+          const raceData: any = {
               raceName: activeWorkout.title,
               exercises: block.exercises?.map(e => `${e.reps || ''} ${e.name}`.trim()) || [],
               startGroups: startGroups.map(g => ({ id: g.id, name: g.name, participants: g.participants.split('\n').map(p => p.trim()).filter(Boolean) })),
-              results: raceResults
+              results: raceResults,
+              status: 'completed'
           };
+          
+          if (originalRaceId) {
+              raceData.id = originalRaceId;
+          }
           
           const savedRace = await saveRace(raceData, organization.id);
           if (savedRace && savedRace.id) {

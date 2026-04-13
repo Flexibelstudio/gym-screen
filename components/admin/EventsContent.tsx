@@ -236,6 +236,7 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
     const [loading, setLoading] = useState(true);
     const [view, setView] = useState<'list' | 'create' | 'edit'>('list');
     const [selectedEvent, setSelectedEvent] = useState<HyroxRace | null>(null);
+    const [activeTab, setActiveTab] = useState<'upcoming' | 'archive'>('upcoming');
 
     const fetchEvents = async () => {
         setLoading(true);
@@ -269,6 +270,9 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
         return <div className="p-8 text-center text-gray-500">Laddar event...</div>;
     }
 
+    const upcomingEvents = events.filter(e => e.status !== 'completed' && (!e.results || e.results.length === 0));
+    const completedEvents = events.filter(e => e.status === 'completed' || (e.results && e.results.length > 0));
+
     if (view === 'list') {
         return (
             <div className="space-y-6 animate-fade-in">
@@ -285,56 +289,129 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                     </button>
                 </div>
 
-                {events.length === 0 ? (
-                    <div className="bg-white dark:bg-gray-900 rounded-2xl p-12 text-center border border-gray-200 dark:border-gray-800 shadow-sm">
-                        <div className="bg-gray-100 dark:bg-gray-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                            <CalendarIcon className="w-8 h-8 text-gray-400" />
-                        </div>
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Inga event planerade</h3>
-                        <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-6">
-                            Här kan du skapa upp Hyrox-simuleringar och andra tävlingar i förväg, hantera startlistor och heat.
-                        </p>
-                        <button 
-                            onClick={() => setView('create')}
-                            className="text-primary font-bold hover:underline"
-                        >
-                            Skapa ditt första event
-                        </button>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {events.map(event => (
-                            <div key={event.id} className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow">
-                                <div className="flex justify-between items-start mb-4">
-                                    <h3 className="font-bold text-lg text-gray-900 dark:text-white">{event.raceName}</h3>
-                                    <span className={`text-xs font-bold px-2 py-1 rounded-full ${event.status === 'completed' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
-                                        {event.status === 'completed' ? 'Genomfört' : 'Planerat'}
-                                    </span>
-                                </div>
-                                <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-                                    <div className="flex items-center gap-2">
-                                        <CalendarIcon className="w-4 h-4" />
-                                        {event.scheduledDate ? new Date(event.scheduledDate).toLocaleDateString('sv-SE') : 'Inget datum satt'}
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <UsersIcon className="w-4 h-4" />
-                                        {event.startGroups?.reduce((acc, g) => acc + (g.participantList?.length || 0), 0) || 0} deltagare
-                                    </div>
-                                </div>
-                                <div className="mt-6 flex gap-2">
-                                    <button 
-                                        onClick={() => {
-                                            setSelectedEvent(event);
-                                            setView('edit');
-                                        }}
-                                        className="flex-1 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-bold py-2 rounded-lg transition-colors text-sm"
-                                    >
-                                        Hantera
-                                    </button>
-                                </div>
+                <div className="flex border-b border-gray-200 dark:border-gray-800">
+                    <button
+                        onClick={() => setActiveTab('upcoming')}
+                        className={`py-3 px-6 font-bold text-sm border-b-2 transition-colors ${
+                            activeTab === 'upcoming'
+                                ? 'border-primary text-primary'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        }`}
+                    >
+                        Kommande ({upcomingEvents.length})
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('archive')}
+                        className={`py-3 px-6 font-bold text-sm border-b-2 transition-colors ${
+                            activeTab === 'archive'
+                                ? 'border-primary text-primary'
+                                : 'border-transparent text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        }`}
+                    >
+                        Arkiv / Genomförda ({completedEvents.length})
+                    </button>
+                </div>
+
+                {activeTab === 'upcoming' && (
+                    upcomingEvents.length === 0 ? (
+                        <div className="bg-white dark:bg-gray-900 rounded-2xl p-12 text-center border border-gray-200 dark:border-gray-800 shadow-sm">
+                            <div className="bg-gray-100 dark:bg-gray-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <CalendarIcon className="w-8 h-8 text-gray-400" />
                             </div>
-                        ))}
-                    </div>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Inga event planerade</h3>
+                            <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-6">
+                                Här kan du skapa upp Hyrox-simuleringar och andra tävlingar i förväg, hantera startlistor och heat.
+                            </p>
+                            <button 
+                                onClick={() => setView('create')}
+                                className="text-primary font-bold hover:underline"
+                            >
+                                Skapa ditt första event
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {upcomingEvents.map(event => (
+                                <div key={event.id} className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <h3 className="font-bold text-lg text-gray-900 dark:text-white">{event.raceName}</h3>
+                                        <span className="text-xs font-bold px-2 py-1 rounded-full bg-blue-100 text-blue-800">
+                                            Planerat
+                                        </span>
+                                    </div>
+                                    <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                                        <div className="flex items-center gap-2">
+                                            <CalendarIcon className="w-4 h-4" />
+                                            {event.scheduledDate ? new Date(event.scheduledDate).toLocaleDateString('sv-SE') : 'Inget datum satt'}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <UsersIcon className="w-4 h-4" />
+                                            {event.startGroups?.reduce((acc, g) => acc + (g.participantList?.length || 0), 0) || 0} deltagare
+                                        </div>
+                                    </div>
+                                    <div className="mt-6 flex gap-2">
+                                        <button 
+                                            onClick={() => {
+                                                setSelectedEvent(event);
+                                                setView('edit');
+                                            }}
+                                            className="flex-1 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-bold py-2 rounded-lg transition-colors text-sm"
+                                        >
+                                            Hantera
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )
+                )}
+
+                {activeTab === 'archive' && (
+                    completedEvents.length === 0 ? (
+                        <div className="bg-white dark:bg-gray-900 rounded-2xl p-12 text-center border border-gray-200 dark:border-gray-800 shadow-sm">
+                            <div className="bg-gray-100 dark:bg-gray-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <CalendarIcon className="w-8 h-8 text-gray-400" />
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Inget i arkivet</h3>
+                            <p className="text-gray-500 dark:text-gray-400 max-w-md mx-auto mb-6">
+                                När ett lopp är genomfört på skärmen hamnar det här automatiskt.
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {completedEvents.map(event => (
+                                <div key={event.id} className="bg-white dark:bg-gray-900 rounded-2xl p-6 border border-gray-200 dark:border-gray-800 shadow-sm hover:shadow-md transition-shadow opacity-80">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <h3 className="font-bold text-lg text-gray-900 dark:text-white">{event.raceName}</h3>
+                                        <span className="text-xs font-bold px-2 py-1 rounded-full bg-green-100 text-green-800">
+                                            Genomfört
+                                        </span>
+                                    </div>
+                                    <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+                                        <div className="flex items-center gap-2">
+                                            <CalendarIcon className="w-4 h-4" />
+                                            {new Date(event.createdAt).toLocaleDateString('sv-SE')}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <UsersIcon className="w-4 h-4" />
+                                            {event.results?.length || 0} i mål
+                                        </div>
+                                    </div>
+                                    <div className="mt-6 flex gap-2">
+                                        <button 
+                                            onClick={() => {
+                                                setSelectedEvent(event);
+                                                setView('edit');
+                                            }}
+                                            className="flex-1 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-bold py-2 rounded-lg transition-colors text-sm"
+                                        >
+                                            Visa detaljer
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )
                 )}
             </div>
         );
