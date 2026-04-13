@@ -1032,10 +1032,19 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   }, [isHyroxRace, timeForCountdownDisplay, groupForCountdownDisplay, status]);
 
   // --- HYROX HANDLERS ---
-  const startedParticipants = useMemo(() => 
-    startGroups.filter(g => g.startTime !== undefined).flatMap(g => g.participants.split('\n').map(p => p.trim()).filter(Boolean)),
-    [startGroups]
-  );
+  const startedParticipants = useMemo(() => {
+    return startGroups.filter(g => g.startTime !== undefined).flatMap(g => {
+        if (g.participantList && g.participantList.length > 0) {
+            return g.participantList;
+        }
+        // Fallback for legacy string participants
+        return g.participants.split('\n').map(p => p.trim()).filter(Boolean).map((name, index) => ({
+            id: `legacy-${g.id}-${index}`,
+            name,
+            startNumber: index + 1
+        }));
+    });
+  }, [startGroups]);
 
   const handleParticipantFinish = (name: string) => {
     setSavingParticipant(name);

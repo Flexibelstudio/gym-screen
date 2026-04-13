@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { StudioConfig, Studio, Organization, CustomPage, UserData, UserRole, InfoCarousel, DisplayWindow, Workout, CompanyDetails } from '../types';
-import { HomeIcon, DocumentTextIcon, SpeakerphoneIcon, UsersIcon, DumbbellIcon, BriefcaseIcon, BuildingIcon, SettingsIcon, ChartBarIcon, CopyIcon, CloseIcon, SparklesIcon, HistoryIcon, QrCodeIcon } from './icons';
+import { HomeIcon, DocumentTextIcon, SpeakerphoneIcon, UsersIcon, DumbbellIcon, BriefcaseIcon, BuildingIcon, SettingsIcon, ChartBarIcon, CopyIcon, CloseIcon, SparklesIcon, HistoryIcon, QrCodeIcon, FlagIcon } from './icons';
 import { getAdminsForOrganization, getCoachesForOrganization, saveAdminActivity } from '../services/firebaseService';
 import { OvningsbankContent } from './OvningsbankContent';
 import { PrintablePoster } from './PrintablePoster';
@@ -18,6 +18,7 @@ import { generateWorkout } from '../services/geminiService';
 import { MemberManagementScreen } from './MemberManagementScreen';
 import { AdminAnalyticsScreen } from './AdminAnalyticsScreen';
 import { ActivityLogContent } from './admin/ActivityLogContent';
+import { EventsContent } from './admin/EventsContent';
 import { useAuth } from '../context/AuthContext';
 import QRCode from "react-qr-code"; 
 import { motion, AnimatePresence } from 'framer-motion';
@@ -47,7 +48,7 @@ type AdminTab =
     'dashboard' | 
     'pass-program' | 'infosidor' | 'info-karusell' | 'medlemmar' |
     'globala-installningar' | 'studios' | 'varumarke' | 'company-info' |
-    'ovningsbank' | 'analytics' | 'activity-log';
+    'ovningsbank' | 'analytics' | 'activity-log' | 'events';
 
 interface SuperAdminScreenProps {
     organization: Organization;
@@ -333,6 +334,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             { type: 'link', id: 'activity-log', label: 'Historik', icon: HistoryIcon },
             { type: 'header', label: 'Innehåll' },
             { type: 'link', id: 'pass-program', label: 'Pass & Program', icon: DumbbellIcon },
+            { type: 'link', id: 'events', label: 'Event & Tävlingar', icon: FlagIcon },
             { type: 'link', id: 'infosidor', label: 'Infosidor', icon: DocumentTextIcon },
             { type: 'link', id: 'info-karusell', label: 'Info-karusell', icon: SpeakerphoneIcon },
             { type: 'link', id: 'medlemmar', label: 'Team & Medlemmar', icon: UsersIcon },
@@ -527,6 +529,8 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                 return <ActivityLogContent organizationId={organization.id} />;
             case 'pass-program':
                 return <PassProgramContent {...props} subView={passProgramSubView} setSubView={setPassProgramSubView} workoutToEdit={workoutToEdit} setWorkoutToEdit={setWorkoutToEdit} isNewDraft={isNewDraft} setIsNewDraft={setIsNewDraft} aiGeneratorInitialTab={aiGeneratorInitialTab} setAiGeneratorInitialTab={setAiGeneratorInitialTab} autoExpandCategory={autoExpandCategory} setAutoExpandCategory={setAutoExpandCategory} onReturnToHub={() => { setPassProgramSubView('hub'); setWorkoutToEdit(null); setIsNewDraft(false); }} onDuplicateWorkout={onDuplicateWorkout} setCustomBackHandler={props.setCustomBackHandler} />;
+            case 'events':
+                return <EventsContent organization={organization} />;
             case 'infosidor':
                 return <InfosidorContent {...props} />;
             case 'info-karusell':

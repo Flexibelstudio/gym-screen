@@ -321,10 +321,20 @@ export interface Organization {
   systemFeeDate?: number;
 }
 
+export interface RaceParticipant {
+  id: string;
+  name: string;
+  email?: string;
+  startNumber?: number;
+  partnerName?: string;
+  partnerEmail?: string;
+}
+
 export interface StartGroup {
   id: string;
   name: string;
-  participants: string;
+  participants: string; // Legacy string
+  participantList?: RaceParticipant[]; // Structured list
   startTime?: number; 
 }
 
@@ -551,7 +561,11 @@ export interface StudioEvent {
 }
 
 export interface HyroxRaceResult {
+    participantId?: string;
     participant: string;
+    email?: string;
+    partnerName?: string;
+    partnerEmail?: string;
     time: number;
     groupId: string;
 }
@@ -561,6 +575,8 @@ export interface HyroxRace {
     organizationId: string;
     raceName: string;
     createdAt: number;
+    scheduledDate?: number;
+    status?: 'planned' | 'completed';
     exercises: string[];
     startGroups: StartGroup[];
     results: HyroxRaceResult[];
