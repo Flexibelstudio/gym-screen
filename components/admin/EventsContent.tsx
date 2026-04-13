@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Organization, HyroxRace, StartGroup, RaceParticipant } from '../../types';
-import { getPastRaces, saveRace } from '../../services/firebaseService';
+import { getPastRaces, saveRace, deleteRace } from '../../services/firebaseService';
 import { PlusIcon, CalendarIcon, UsersIcon, TrashIcon, PencilIcon, SaveIcon } from '../icons';
 import { motion } from 'framer-motion';
 
@@ -11,13 +11,15 @@ interface EventsContentProps {
 const EventEditor: React.FC<{
     event: HyroxRace | null;
     organizationId: string;
+    studios: { id: string, name: string }[];
     onSave: (event: HyroxRace) => void;
     onCancel: () => void;
-}> = ({ event, organizationId, onSave, onCancel }) => {
+}> = ({ event, organizationId, studios, onSave, onCancel }) => {
     const [raceName, setRaceName] = useState(event?.raceName || '');
     const [scheduledDate, setScheduledDate] = useState(
         event?.scheduledDate ? new Date(event.scheduledDate).toISOString().split('T')[0] : ''
     );
+    const [studioId, setStudioId] = useState(event?.studioId || '');
     const [participantsText, setParticipantsText] = useState('');
     const [participants, setParticipants] = useState<RaceParticipant[]>(
         event?.startGroups?.flatMap(g => g.participantList || []) || []
@@ -25,6 +27,70 @@ const EventEditor: React.FC<{
     const [startGroups, setStartGroups] = useState<StartGroup[]>(
         event?.startGroups || [{ id: 'group-1', name: 'Heat 1', participants: '', participantList: [] }]
     );
+    const [draggedParticipantId, setDraggedParticipantId] = useState<string | null>(null);
+
+    const assignedIds = new Set(startGroups.flatMap(g => g.participantList?.map(p => p.id) || []));
+    const unassignedParticipants = participants.filter(p => !assignedIds.has(p.id));
+
+    const handleDragStart = (e: React.DragEvent, participantId: string) => {
+        setDraggedParticipantId(participantId);
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', participantId);
+    };
+
+    const handleDropToUnassigned = (e: React.DragEvent) => {
+        e.preventDefault();
+        if (!draggedParticipantId) return;
+
+        setStartGroups(prevGroups => prevGroups.map(g => ({
+            ...g,
+            participantList: (g.participantList || []).filter(p => p.id !== draggedParticipantId)
+        })));
+        setDraggedParticipantId(null);
+    };
+
+    const handleDropToGroup = (e: React.DragEvent, groupId: string) => {
+        e.preventDefault();
+        if (!draggedParticipantId) return;
+
+        const participant = participants.find(p => p.id === draggedParticipantId);
+        if (!participant) return;
+
+        setStartGroups(prevGroups => {
+            const cleanedGroups = prevGroups.map(g => ({
+                ...g,
+                participantList: (g.participantList || []).filter(p => p.id !== draggedParticipantId)
+            }));
+
+            return cleanedGroups.map(g => {
+                if (g.id === groupId) {
+                    return {
+                        ...g,
+                        participantList: [...(g.participantList || []), participant]
+                    };
+                }
+                return g;
+            });
+        });
+        setDraggedParticipantId(null);
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    };
+
+    const handleDeleteParticipant = (participantId: string) => {
+        setParticipants(participants.filter(x => x.id !== participantId));
+        setStartGroups(prevGroups => prevGroups.map(g => ({
+            ...g,
+            participantList: (g.participantList || []).filter(p => p.id !== participantId)
+        })));
+    };
+
+    const [editingResultId, setEditingResultId] = useState<string | null>(null);
+    const [editResultTime, setEditResultTime] = useState<number>(0);
+    const [results, setResults] = useState<HyroxRaceResult[]>(event?.results || []);
 
     const handleImportParticipants = () => {
         if (!participantsText.trim()) return;
@@ -83,21 +149,57 @@ const EventEditor: React.FC<{
         const newEvent: HyroxRace = {
             id: event?.id || `race-${Date.now()}`,
             organizationId,
+            studioId: studioId || undefined,
             raceName,
             createdAt: event?.createdAt || Date.now(),
             scheduledDate: scheduledDate ? new Date(scheduledDate).getTime() : undefined,
             status: event?.status || 'planned',
             exercises: event?.exercises || [], // We can let them select exercises later
             startGroups: updatedGroups,
-            results: event?.results || []
+            results: results
         };
 
         onSave(newEvent);
     };
 
+    const handleSaveResult = (participantId: string) => {
+        setResults(prev => prev.map(r => 
+            (r.participantId === participantId || r.participant === participantId) 
+                ? { ...r, time: editResultTime } 
+                : r
+        ).sort((a, b) => a.time - b.time));
+        setEditingResultId(null);
+    };
+
+    const handleResetToPlanned = () => {
+        if (!event) return;
+        if (window.confirm('Är du säker på att du vill återställa detta event till planerat? Alla resultat kommer att raderas.')) {
+            const newEvent: HyroxRace = {
+                ...event,
+                status: 'planned',
+                results: []
+            };
+            onSave(newEvent);
+        }
+    };
+
     return (
         <div className="bg-white dark:bg-gray-900 rounded-2xl p-8 border border-gray-200 dark:border-gray-800 shadow-sm space-y-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+                    {event?.status === 'completed' ? 'Genomfört Event' : 'Eventdetaljer'}
+                </h3>
+                {event?.status === 'completed' && (
+                    <button 
+                        onClick={handleResetToPlanned}
+                        className="bg-yellow-100 text-yellow-800 px-4 py-2 rounded-lg font-bold text-sm hover:bg-yellow-200 transition-colors"
+                    >
+                        Återställ till planerat
+                    </button>
+                )}
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Eventnamn</label>
                     <input 
@@ -116,6 +218,19 @@ const EventEditor: React.FC<{
                         onChange={(e) => setScheduledDate(e.target.value)}
                         className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
                     />
+                </div>
+                <div>
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Skärm / Studio</label>
+                    <select 
+                        value={studioId}
+                        onChange={(e) => setStudioId(e.target.value)}
+                        className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                    >
+                        <option value="">Alla skärmar</option>
+                        {studios.map(studio => (
+                            <option key={studio.id} value={studio.id}>{studio.name}</option>
+                        ))}
+                    </select>
                 </div>
             </div>
 
@@ -140,13 +255,22 @@ const EventEditor: React.FC<{
                     </div>
                     
                     <div>
-                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Alla Deltagare ({participants.length})</label>
-                        <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 h-48 overflow-y-auto space-y-2">
-                            {participants.length === 0 ? (
-                                <p className="text-gray-500 text-sm text-center mt-8">Inga deltagare tillagda än.</p>
+                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Alla Deltagare ({unassignedParticipants.length} otilldelade)</label>
+                        <div 
+                            className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 h-48 overflow-y-auto space-y-2"
+                            onDrop={handleDropToUnassigned}
+                            onDragOver={handleDragOver}
+                        >
+                            {unassignedParticipants.length === 0 ? (
+                                <p className="text-gray-500 text-sm text-center mt-8">Alla deltagare är tilldelade heat.</p>
                             ) : (
-                                participants.map(p => (
-                                    <div key={p.id} className="flex justify-between items-center bg-white dark:bg-gray-900 p-2 rounded-lg border border-gray-100 dark:border-gray-800">
+                                unassignedParticipants.map(p => (
+                                    <div 
+                                        key={p.id} 
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, p.id)}
+                                        className="flex justify-between items-center bg-white dark:bg-gray-900 p-2 rounded-lg border border-gray-100 dark:border-gray-800 cursor-grab active:cursor-grabbing hover:border-primary/50 transition-colors"
+                                    >
                                         <div className="flex items-center gap-3">
                                             <span className="bg-primary/10 text-primary font-bold text-xs px-2 py-1 rounded-md">#{p.startNumber}</span>
                                             <div>
@@ -160,7 +284,7 @@ const EventEditor: React.FC<{
                                             </div>
                                         </div>
                                         <button 
-                                            onClick={() => setParticipants(participants.filter(x => x.id !== p.id))}
+                                            onClick={() => handleDeleteParticipant(p.id)}
                                             className="text-red-500 hover:bg-red-50 p-1 rounded-md"
                                         >
                                             <TrashIcon className="w-4 h-4" />
@@ -186,8 +310,13 @@ const EventEditor: React.FC<{
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {startGroups.map((group, index) => (
-                        <div key={group.id} className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
-                            <div className="flex justify-between items-center mb-2">
+                        <div 
+                            key={group.id} 
+                            className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 flex flex-col"
+                            onDrop={(e) => handleDropToGroup(e, group.id)}
+                            onDragOver={handleDragOver}
+                        >
+                            <div className="flex justify-between items-center mb-4">
                                 <input 
                                     type="text" 
                                     value={group.name}
@@ -205,13 +334,101 @@ const EventEditor: React.FC<{
                                     <TrashIcon className="w-4 h-4" />
                                 </button>
                             </div>
-                            <p className="text-xs text-gray-500">
-                                Deltagare tilldelas automatiskt till Heat 1 för tillfället. (Drag-and-drop kommer i nästa uppdatering).
-                            </p>
+                            
+                            <div className="flex-grow bg-white dark:bg-gray-900 rounded-lg border border-dashed border-gray-300 dark:border-gray-700 p-2 min-h-[100px] space-y-2">
+                                {!group.participantList || group.participantList.length === 0 ? (
+                                    <p className="text-xs text-gray-400 text-center mt-8">Dra deltagare hit</p>
+                                ) : (
+                                    group.participantList.map(p => (
+                                        <div 
+                                            key={p.id}
+                                            draggable
+                                            onDragStart={(e) => handleDragStart(e, p.id)}
+                                            className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 p-2 rounded border border-gray-100 dark:border-gray-700 cursor-grab active:cursor-grabbing text-sm"
+                                        >
+                                            <span className="text-primary font-bold text-xs">#{p.startNumber}</span>
+                                            <span className="font-medium text-gray-900 dark:text-white truncate">
+                                                {p.name} {p.partnerName && `& ${p.partnerName}`}
+                                            </span>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
                         </div>
                     ))}
                 </div>
             </div>
+
+            {event?.status === 'completed' && results && results.length > 0 && (
+                <div className="border-t border-gray-200 dark:border-gray-800 pt-8">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Resultat</h3>
+                    <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 space-y-2">
+                        {results.map((result, index) => {
+                            const resultId = result.participantId || result.participant;
+                            const isEditing = editingResultId === resultId;
+                            
+                            return (
+                                <div key={index} className="flex justify-between items-center bg-white dark:bg-gray-900 p-3 rounded-lg border border-gray-100 dark:border-gray-800">
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-bold text-gray-900 dark:text-white">{index + 1}.</span>
+                                        <div>
+                                            <p className="font-bold text-gray-900 dark:text-white">{result.participant}</p>
+                                            {result.partnerName && <p className="text-xs text-gray-500">& {result.partnerName}</p>}
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        {isEditing ? (
+                                            <div className="flex items-center gap-2">
+                                                <input 
+                                                    type="number" 
+                                                    value={Math.floor(editResultTime / 60)}
+                                                    onChange={(e) => setEditResultTime((parseInt(e.target.value) || 0) * 60 + (editResultTime % 60))}
+                                                    className="w-16 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-right"
+                                                />
+                                                <span>:</span>
+                                                <input 
+                                                    type="number" 
+                                                    value={editResultTime % 60}
+                                                    onChange={(e) => setEditResultTime(Math.floor(editResultTime / 60) * 60 + (parseInt(e.target.value) || 0))}
+                                                    className="w-16 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-right"
+                                                    max="59"
+                                                />
+                                                <button 
+                                                    onClick={() => handleSaveResult(resultId)}
+                                                    className="bg-green-100 text-green-800 px-3 py-1 rounded font-bold text-xs"
+                                                >
+                                                    Spara
+                                                </button>
+                                                <button 
+                                                    onClick={() => setEditingResultId(null)}
+                                                    className="bg-gray-100 text-gray-800 px-3 py-1 rounded font-bold text-xs"
+                                                >
+                                                    Avbryt
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="font-mono font-bold text-lg text-gray-900 dark:text-white">
+                                                    {Math.floor(result.time / 60)}:{String(result.time % 60).padStart(2, '0')}
+                                                </div>
+                                                <button 
+                                                    onClick={() => {
+                                                        setEditingResultId(resultId);
+                                                        setEditResultTime(result.time);
+                                                    }}
+                                                    className="text-gray-400 hover:text-primary"
+                                                >
+                                                    <PencilIcon className="w-4 h-4" />
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             <div className="flex justify-end gap-4 pt-8 border-t border-gray-200 dark:border-gray-800">
                 <button 
@@ -263,6 +480,17 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
         } catch (error) {
             console.error("Failed to save event", error);
             alert("Kunde inte spara eventet.");
+        }
+    };
+
+    const handleDeleteEvent = async (eventId: string) => {
+        // Since we can't use window.confirm, we'll just delete it for now.
+        // Or we could add a custom confirm modal, but let's keep it simple.
+        try {
+            await deleteRace(eventId);
+            await fetchEvents();
+        } catch (error) {
+            console.error("Failed to delete event", error);
         }
     };
 
@@ -359,6 +587,13 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                         >
                                             Hantera
                                         </button>
+                                        <button 
+                                            onClick={() => handleDeleteEvent(event.id)}
+                                            className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-4 py-2 rounded-lg font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors flex items-center justify-center"
+                                            title="Radera event"
+                                        >
+                                            <TrashIcon className="w-4 h-4" />
+                                        </button>
                                     </div>
                                 </div>
                             ))}
@@ -407,6 +642,13 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                         >
                                             Visa detaljer
                                         </button>
+                                        <button 
+                                            onClick={() => handleDeleteEvent(event.id)}
+                                            className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-4 py-2 rounded-lg font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors flex items-center justify-center"
+                                            title="Radera event"
+                                        >
+                                            <TrashIcon className="w-4 h-4" />
+                                        </button>
                                     </div>
                                 </div>
                             ))}
@@ -434,6 +676,7 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
             <EventEditor 
                 event={selectedEvent} 
                 organizationId={organization.id} 
+                studios={organization.studios}
                 onSave={handleSaveEvent} 
                 onCancel={() => { setView('list'); setSelectedEvent(null); }} 
             />

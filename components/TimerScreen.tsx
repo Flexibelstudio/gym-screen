@@ -1046,16 +1046,42 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     });
   }, [startGroups]);
 
-  const handleParticipantFinish = (name: string) => {
-    setSavingParticipant(name);
-    const group = startGroups.find(g => g.participants.includes(name));
+  const handleParticipantFinish = (participantId: string) => {
+    setSavingParticipant(participantId);
+    
+    // Find the group that contains this participant
+    const group = startGroups.find(g => {
+        if (g.participantList && g.participantList.length > 0) {
+            return g.participantList.some(p => p.id === participantId);
+        }
+        // Fallback for legacy string participants where participantId is actually the name/id generated in startedParticipants
+        // The generated ID is `legacy-${g.id}-${index}`, so we can check if participantId starts with `legacy-${g.id}`
+        return participantId.startsWith(`legacy-${g.id}`);
+    });
+
     if (group?.startTime !== undefined) {
       const netTime = Math.max(0, totalTimeElapsed - group.startTime);
       setFinishedParticipants(prev => ({
         ...prev,
-        [name]: { time: netTime, placement: Object.keys(prev).length + 1 }
+        [participantId]: { time: netTime, placement: Object.keys(prev).length + 1 }
       }));
-      speak(`Målgång ${name}!`);
+      
+      // Try to find the actual name for the speech synthesis
+      let participantName = participantId;
+      if (group.participantList && group.participantList.length > 0) {
+          const p = group.participantList.find(p => p.id === participantId);
+          if (p) participantName = p.name;
+      } else {
+          // Extract name from legacy participants based on index
+          const match = participantId.match(/legacy-.*-(\d+)/);
+          if (match) {
+              const index = parseInt(match[1], 10);
+              const names = group.participants.split('\n').map(p => p.trim()).filter(Boolean);
+              if (names[index]) participantName = names[index];
+          }
+      }
+      
+      speak(`Målgång ${participantName}!`);
     }
     setSavingParticipant(null);
   };
@@ -1340,7 +1366,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         )}
         {participantToEdit && (
             <EditResultModal 
-                participantName={participantToEdit}
+                participantName={startedParticipants.find(p => p.id === participantToEdit)?.name || participantToEdit}
                 currentTime={finishedParticipants[participantToEdit]?.time || 0}
                 onSave={handleUpdateResult}
                 onAddPenalty={handleAddPenalty}

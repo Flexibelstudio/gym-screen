@@ -574,6 +574,7 @@ export interface HyroxRaceResult {
 export interface HyroxRace {
     id: string;
     organizationId: string;
+    studioId?: string;
     raceName: string;
     createdAt: number;
     scheduledDate?: number;

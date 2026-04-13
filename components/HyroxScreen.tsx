@@ -316,7 +316,7 @@ const createCustomRaceWorkout = (
 
 
 export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWorkout, studioConfig, racePrepState, onPrepComplete, remoteCommand }) => {
-    const { selectedOrganization } = useStudio();
+    const { selectedOrganization, selectedStudio } = useStudio();
     const [view, setView] = useState<'hub' | 'editor' | 'prep'>('hub');
     const [plannedRaces, setPlannedRaces] = useState<HyroxRace[]>([]);
     const lastProcessedCommandRef = useRef<number>(0);
@@ -324,11 +324,15 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
     useEffect(() => {
         if (selectedOrganization) {
             getPastRaces(selectedOrganization.id).then(races => {
-                const planned = races.filter(r => r.status !== 'completed' && (!r.results || r.results.length === 0));
+                const planned = races.filter(r => 
+                    r.status !== 'completed' && 
+                    (!r.results || r.results.length === 0) &&
+                    (!r.studioId || !selectedStudio || r.studioId === selectedStudio.id)
+                );
                 setPlannedRaces(planned);
             }).catch(console.error);
         }
-    }, [selectedOrganization]);
+    }, [selectedOrganization, selectedStudio]);
 
     useEffect(() => {
         if (remoteCommand && remoteCommand.type === 'start_hyrox' && remoteCommand.timestamp > lastProcessedCommandRef.current) {
