@@ -7,6 +7,7 @@ import { MoreVertical } from 'lucide-react';
 import { calculateInvoiceDetails } from '../utils/billing';
 import { SystemDashboardContent } from './admin/SystemDashboardContent';
 import { GalleryManagementTab } from './admin/GalleryManagementTab';
+import { LeadsManagementTab } from './admin/LeadsManagementTab';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SystemOwnerScreenProps {
@@ -507,7 +508,7 @@ const SeasonalThemesTab: React.FC = () => {
 };
 
 export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganizations, onSelectOrganization, onCreateOrganization, onDeleteOrganization }) => {
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'list' | 'themes' | 'bank' | 'gallery'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'list' | 'themes' | 'bank' | 'gallery' | 'leads'>('dashboard');
     const [newOrgName, setNewOrgName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
     const [localOrgs, setLocalOrgs] = useState(allOrganizations);
@@ -580,7 +581,8 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
         { id: 'list', label: 'Organisationer' },
         { id: 'themes', label: 'Säsongsteman' },
         { id: 'bank', label: 'Övningsbank' },
-        { id: 'gallery', label: 'Kundgalleri' }
+        { id: 'gallery', label: 'Kundgalleri' },
+        { id: 'leads', label: 'Leads' }
     ] as const;
 
     const currentTabLabel = tabs.find(t => t.id === activeTab)?.label || 'Dashboard';
@@ -761,6 +763,10 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
 
                     {activeTab === 'gallery' && (
                         <GalleryManagementTab />
+                    )}
+
+                    {activeTab === 'leads' && (
+                        <LeadsManagementTab />
                     )}
                 </div>
             </div>

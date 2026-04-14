@@ -606,6 +606,17 @@ export interface GalleryImage {
     createdAt: number;
 }
 
+export interface Lead {
+    id: string;
+    name: string;
+    email: string;
+    gymName: string;
+    phone?: string;
+    message?: string;
+    status: 'new' | 'contacted' | 'archived';
+    createdAt: number;
+}
+
 export interface Note {
     id: string;
     timestamp: number;

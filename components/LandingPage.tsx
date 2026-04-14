@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { SparklesIcon, DumbbellIcon, BuildingIcon, ClockIcon, UsersIcon, ChevronDownIcon } from './icons';
 import { GalleryImage } from '../types';
-import { getGalleryImages } from '../services/firebaseService';
+import { getGalleryImages, createLead } from '../services/firebaseService';
 
 interface LandingPageProps {
     onLoginClick: () => void;
@@ -61,6 +61,10 @@ const SystemImages = () => (
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterGymClick }) => {
     const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+    const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
+    const [leadForm, setLeadForm] = useState({ name: '', email: '', gymName: '', phone: '', message: '' });
+    const [isSubmittingLead, setIsSubmittingLead] = useState(false);
+    const [leadSuccess, setLeadSuccess] = useState(false);
 
     useEffect(() => {
         const loadGallery = async () => {
@@ -69,6 +73,26 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
         };
         loadGallery();
     }, []);
+
+    const handleLeadSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!leadForm.name || !leadForm.email || !leadForm.gymName) return;
+        
+        setIsSubmittingLead(true);
+        const success = await createLead(leadForm);
+        setIsSubmittingLead(false);
+        
+        if (success) {
+            setLeadSuccess(true);
+            setTimeout(() => {
+                setIsDemoModalOpen(false);
+                setLeadSuccess(false);
+                setLeadForm({ name: '', email: '', gymName: '', phone: '', message: '' });
+            }, 3000);
+        } else {
+            alert("Ett fel uppstod. Vänligen försök igen senare.");
+        }
+    };
 
     return (
         <div className="min-h-screen bg-black text-white font-sans selection:bg-primary selection:text-white overflow-x-hidden">
@@ -80,6 +104,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                         <span className="text-xl font-bold tracking-tight">SmartStudio</span>
                     </div>
                     <div className="flex gap-4">
+                        <button onClick={() => setIsDemoModalOpen(true)} className="text-sm font-semibold text-primary hover:text-teal-400 transition-colors hidden sm:block">
+                            Boka Demo
+                        </button>
                         <button onClick={onLoginClick} className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">
                             Logga in
                         </button>
@@ -119,10 +146,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                                     Starta din studio
                                 </button>
                                 <button 
-                                    onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+                                    onClick={() => setIsDemoModalOpen(true)}
                                     className="px-8 py-4 rounded-full font-bold border border-white/20 hover:bg-white/5 transition-colors"
                                 >
-                                    Se funktioner
+                                    Boka Demo
                                 </button>
                             </div>
                         </motion.div>
@@ -231,6 +258,106 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                     </div>
                 </div>
             </footer>
+
+            {/* Demo Modal */}
+            {isDemoModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        className="bg-gray-900 border border-gray-800 rounded-3xl p-8 max-w-md w-full relative shadow-2xl"
+                    >
+                        <button 
+                            onClick={() => setIsDemoModalOpen(false)}
+                            className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors"
+                        >
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+
+                        {leadSuccess ? (
+                            <div className="text-center py-8">
+                                <div className="w-16 h-16 bg-primary/20 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
+                                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                                <h3 className="text-2xl font-bold text-white mb-2">Tack för din förfrågan!</h3>
+                                <p className="text-gray-400">Vi hör av oss till dig så snart som möjligt för att boka in en demo.</p>
+                            </div>
+                        ) : (
+                            <>
+                                <h3 className="text-2xl font-bold text-white mb-2">Boka en Demo</h3>
+                                <p className="text-gray-400 mb-6">Fyll i dina uppgifter så kontaktar vi dig för att visa hur SmartStudio kan hjälpa din verksamhet.</p>
+                                
+                                <form onSubmit={handleLeadSubmit} className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Ditt namn *</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            value={leadForm.name}
+                                            onChange={e => setLeadForm({...leadForm, name: e.target.value})}
+                                            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                            placeholder="Anna Andersson"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">E-postadress *</label>
+                                        <input 
+                                            type="email" 
+                                            required
+                                            value={leadForm.email}
+                                            onChange={e => setLeadForm({...leadForm, email: e.target.value})}
+                                            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                            placeholder="anna@exempel.se"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Gymmets/Studions namn *</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            value={leadForm.gymName}
+                                            onChange={e => setLeadForm({...leadForm, gymName: e.target.value})}
+                                            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                            placeholder="CrossFit Svea"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Telefonnummer (frivilligt)</label>
+                                        <input 
+                                            type="tel" 
+                                            value={leadForm.phone}
+                                            onChange={e => setLeadForm({...leadForm, phone: e.target.value})}
+                                            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                            placeholder="070-123 45 67"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Meddelande (frivilligt)</label>
+                                        <textarea 
+                                            value={leadForm.message}
+                                            onChange={e => setLeadForm({...leadForm, message: e.target.value})}
+                                            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none h-24"
+                                            placeholder="Berätta gärna lite kort om era behov..."
+                                        />
+                                    </div>
+                                    
+                                    <button 
+                                        type="submit" 
+                                        disabled={isSubmittingLead}
+                                        className={`w-full bg-primary text-black font-bold py-4 rounded-xl transition-all ${isSubmittingLead ? 'opacity-70 cursor-not-allowed' : 'hover:bg-teal-400 hover:shadow-[0_0_15px_-3px_rgba(20,184,166,0.4)]'}`}
+                                    >
+                                        {isSubmittingLead ? 'Skickar...' : 'Skicka förfrågan'}
+                                    </button>
+                                </form>
+                            </>
+                        )}
+                    </motion.div>
+                </div>
+            )}
         </div>
     );
 };

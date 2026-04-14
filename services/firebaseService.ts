@@ -65,7 +65,7 @@ import {
   BankExercise, SuggestedExercise, WorkoutResult, CompanyDetails, 
   SmartScreenPricing, HyroxRace, SeasonalThemeSetting, MemberGoals, 
   WorkoutLog, CheckInEvent, Member, UserRole, PersonalBest, StudioEvent,
-  CustomPage, AdminActivity, BenchmarkDefinition, RemoteSessionState, Studio, GalleryImage
+  CustomPage, AdminActivity, BenchmarkDefinition, RemoteSessionState, Studio, GalleryImage, Lead
 } from '../types';
 import { MOCK_ORGANIZATIONS, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_MEMBERS, MOCK_SMART_SCREEN_PRICING } from '../data/mockData';
 
@@ -1593,5 +1593,59 @@ export const removeGalleryImage = async (id: string, imageUrl: string): Promise<
         }
     } catch (error) {
         console.error("Error removing gallery image:", error);
+    }
+};
+
+// --- LEADS ---
+export const createLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'status'>): Promise<boolean> => {
+    if (isOffline || !db) return false;
+    try {
+        const newDocRef = doc(collection(db, 'leads'));
+        const newLead: Lead = {
+            id: newDocRef.id,
+            ...leadData,
+            status: 'new',
+            createdAt: Date.now()
+        };
+        await setDoc(newDocRef, newLead);
+
+        // Optional: Also write to a 'mail' collection if using Firebase Trigger Email extension
+        try {
+            await setDoc(doc(collection(db, 'mail')), {
+                to: 'hej@smartstudio.se',
+                message: {
+                    subject: `Ny förfrågan från ${leadData.gymName}`,
+                    text: `Ny förfrågan från landningssidan:\n\nNamn: ${leadData.name}\nE-post: ${leadData.email}\nGym: ${leadData.gymName}\nTelefon: ${leadData.phone || '-'}\nMeddelande: ${leadData.message || '-'}`
+                }
+            });
+        } catch (mailError) {
+            console.log("Could not write to mail collection, maybe not set up yet.", mailError);
+        }
+
+        return true;
+    } catch (error) {
+        console.error("Error creating lead:", error);
+        return false;
+    }
+};
+
+export const getLeads = async (): Promise<Lead[]> => {
+    if (isOffline || !db) return [];
+    try {
+        const q = query(collection(db, 'leads'), orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Lead));
+    } catch (error) {
+        console.error("Error getting leads:", error);
+        return [];
+    }
+};
+
+export const updateLeadStatus = async (id: string, status: Lead['status']): Promise<void> => {
+    if (isOffline || !db) return;
+    try {
+        await updateDoc(doc(db, 'leads', id), { status });
+    } catch (error) {
+        console.error("Error updating lead status:", error);
     }
 };
