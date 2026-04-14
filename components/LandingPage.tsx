@@ -1,7 +1,9 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { SparklesIcon, DumbbellIcon, BuildingIcon, ClockIcon, UsersIcon, ChevronDownIcon } from './icons';
+import { GalleryImage } from '../types';
+import { getGalleryImages } from '../services/firebaseService';
 
 interface LandingPageProps {
     onLoginClick: () => void;
@@ -58,6 +60,16 @@ const SystemImages = () => (
 );
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterGymClick }) => {
+    const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+
+    useEffect(() => {
+        const loadGallery = async () => {
+            const images = await getGalleryImages();
+            setGalleryImages(images);
+        };
+        loadGallery();
+    }, []);
+
     return (
         <div className="min-h-screen bg-black text-white font-sans selection:bg-primary selection:text-white overflow-x-hidden">
             {/* Nav */}
@@ -177,6 +189,35 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                     </div>
                 </div>
             </section>
+
+            {/* Customer Gallery Marquee */}
+            {galleryImages.length > 0 && (
+                <section className="py-24 bg-black relative overflow-hidden border-t border-white/5">
+                    <div className="text-center mb-12 px-6">
+                        <h2 className="text-3xl md:text-5xl font-bold mb-4">Gör som dessa studios – ta träningen till nästa nivå</h2>
+                    </div>
+                    
+                    <div className="relative w-full flex overflow-hidden group">
+                        {/* Duplicate the array to create an infinite loop effect */}
+                        <motion.div 
+                            className="flex gap-6 px-3"
+                            animate={{ x: ["0%", "-50%"] }}
+                            transition={{ ease: "linear", duration: 30, repeat: Infinity }}
+                        >
+                            {[...galleryImages, ...galleryImages].map((img, idx) => (
+                                <div key={`${img.id}-${idx}`} className="relative flex-shrink-0 w-64 h-64 md:w-80 md:h-80 rounded-2xl overflow-hidden border border-white/10 group-hover:opacity-75 hover:!opacity-100 transition-opacity">
+                                    <img src={img.imageUrl} alt={img.gymName || 'Studio'} className="w-full h-full object-cover" />
+                                    {img.gymName && (
+                                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-6 pt-12">
+                                            <span className="text-white font-bold text-lg">{img.gymName}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </motion.div>
+                    </div>
+                </section>
+            )}
 
             {/* Footer */}
             <footer className="border-t border-white/10 py-12 bg-black">

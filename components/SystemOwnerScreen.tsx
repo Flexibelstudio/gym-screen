@@ -6,6 +6,7 @@ import { PencilIcon, HomeIcon, BuildingIcon, SparklesIcon, ToggleSwitch, Chevron
 import { MoreVertical } from 'lucide-react';
 import { calculateInvoiceDetails } from '../utils/billing';
 import { SystemDashboardContent } from './admin/SystemDashboardContent';
+import { GalleryManagementTab } from './admin/GalleryManagementTab';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface SystemOwnerScreenProps {
@@ -506,7 +507,7 @@ const SeasonalThemesTab: React.FC = () => {
 };
 
 export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganizations, onSelectOrganization, onCreateOrganization, onDeleteOrganization }) => {
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'list' | 'themes' | 'bank'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'list' | 'themes' | 'bank' | 'gallery'>('dashboard');
     const [newOrgName, setNewOrgName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
     const [localOrgs, setLocalOrgs] = useState(allOrganizations);
@@ -578,7 +579,8 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
         { id: 'dashboard', label: 'Dashboard' },
         { id: 'list', label: 'Organisationer' },
         { id: 'themes', label: 'Säsongsteman' },
-        { id: 'bank', label: 'Övningsbank' }
+        { id: 'bank', label: 'Övningsbank' },
+        { id: 'gallery', label: 'Kundgalleri' }
     ] as const;
 
     const currentTabLabel = tabs.find(t => t.id === activeTab)?.label || 'Dashboard';
@@ -755,6 +757,10 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
 
                     {activeTab === 'bank' && (
                         <OvningsbankContent />
+                    )}
+
+                    {activeTab === 'gallery' && (
+                        <GalleryManagementTab />
                     )}
                 </div>
             </div>

@@ -65,7 +65,7 @@ import {
   BankExercise, SuggestedExercise, WorkoutResult, CompanyDetails, 
   SmartScreenPricing, HyroxRace, SeasonalThemeSetting, MemberGoals, 
   WorkoutLog, CheckInEvent, Member, UserRole, PersonalBest, StudioEvent,
-  CustomPage, AdminActivity, BenchmarkDefinition, RemoteSessionState, Studio
+  CustomPage, AdminActivity, BenchmarkDefinition, RemoteSessionState, Studio, GalleryImage
 } from '../types';
 import { MOCK_ORGANIZATIONS, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_MEMBERS, MOCK_SMART_SCREEN_PRICING } from '../data/mockData';
 
@@ -1546,4 +1546,52 @@ export const updateExerciseSuggestion = async (s: SuggestedExercise) => {
     try {
         await setDoc(doc(db, 'exerciseSuggestions', s.id), s, { merge: true });
     } catch (e) { console.error("updateExerciseSuggestion failed", e); }
+};
+
+// --- GALLERY IMAGES ---
+export const getGalleryImages = async (): Promise<GalleryImage[]> => {
+    if (isOffline || !db) return [];
+    try {
+        const q = query(collection(db, 'system_gallery'), orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GalleryImage));
+    } catch (error) {
+        console.error("Error getting gallery images:", error);
+        return [];
+    }
+};
+
+export const addGalleryImage = async (file: File, gymName: string): Promise<GalleryImage | null> => {
+    if (isOffline || !db || !storage) return null;
+    try {
+        const storageRef = ref(storage, `gallery/${Date.now()}_${file.name}`);
+        await uploadBytes(storageRef, file);
+        const imageUrl = await getDownloadURL(storageRef);
+        
+        const newDocRef = doc(collection(db, 'system_gallery'));
+        const newImage: GalleryImage = {
+            id: newDocRef.id,
+            imageUrl,
+            gymName,
+            createdAt: Date.now()
+        };
+        await setDoc(newDocRef, newImage);
+        return newImage;
+    } catch (error) {
+        console.error("Error adding gallery image:", error);
+        return null;
+    }
+};
+
+export const removeGalleryImage = async (id: string, imageUrl: string): Promise<void> => {
+    if (isOffline || !db || !storage) return;
+    try {
+        await deleteDoc(doc(db, 'system_gallery', id));
+        if (imageUrl) {
+            const imageRef = ref(storage, imageUrl);
+            await deleteObject(imageRef).catch(e => console.log("Image might already be deleted or not found", e));
+        }
+    } catch (error) {
+        console.error("Error removing gallery image:", error);
+    }
 };

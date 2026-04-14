@@ -597,7 +597,13 @@ export interface SmartObject {
     endY?: number;
     text?: string;
     color: string;
-    fontSize?: number;
+}
+
+export interface GalleryImage {
+    id: string;
+    imageUrl: string;
+    gymName?: string;
+    createdAt: number;
 }
 
 export interface Note {
