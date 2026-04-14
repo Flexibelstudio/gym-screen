@@ -164,20 +164,18 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
                 {/* FOOTER INFO */}
                 <div className="px-8 pb-8 flex-shrink-0 flex justify-between items-center bg-white dark:bg-gray-950 border-t border-gray-50 dark:border-gray-900 pt-4 relative z-10">
                     <div className="text-left">
-                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Datum</p>
-                        <p className="text-[9px] font-bold text-gray-900 dark:text-white">{new Date().toLocaleDateString('sv-SE')}</p>
+                        <p className="text-[10px] font-bold text-gray-900 dark:text-white">{new Date().toLocaleDateString('sv-SE')}</p>
                     </div>
                     
                     <div className="text-right flex flex-col items-end">
-                        <p className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-0.5">Studio</p>
                         {selectedOrganization?.logoUrlLight ? (
-                            <img src={selectedOrganization.logoUrlLight} alt={studioName} className="h-8 object-contain dark:hidden" referrerPolicy="no-referrer" />
+                            <img src={selectedOrganization.logoUrlLight} alt={studioName} className="h-14 object-contain dark:hidden" referrerPolicy="no-referrer" />
                         ) : null}
                         {selectedOrganization?.logoUrlDark ? (
-                            <img src={selectedOrganization.logoUrlDark} alt={studioName} className="h-8 object-contain hidden dark:block" referrerPolicy="no-referrer" />
+                            <img src={selectedOrganization.logoUrlDark} alt={studioName} className="h-14 object-contain hidden dark:block" referrerPolicy="no-referrer" />
                         ) : null}
                         {(!selectedOrganization?.logoUrlLight && !selectedOrganization?.logoUrlDark) && (
-                            <p className="text-[9px] font-black text-primary uppercase">{studioName}</p>
+                            <p className="text-[12px] font-black text-primary uppercase">{studioName}</p>
                         )}
                     </div>
                 </div>
