@@ -1102,6 +1102,25 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                           newPBs: newRecords.length > 0 ? newRecords : undefined
                       };
                   }
+              } else if (finalLogRaw.totalDistance > 0 || finalLogRaw.totalCalories > 0 || finalLogRaw.durationMinutes > 0) {
+                  // Fallback for cardio/time-based workouts
+                  let achievementText = "";
+                  if (finalLogRaw.totalDistance > 0) {
+                      achievementText = `Du avverkade ${finalLogRaw.totalDistance} km!`;
+                  } else if (finalLogRaw.totalCalories > 0) {
+                      achievementText = `Du brände ${finalLogRaw.totalCalories} kcal!`;
+                  } else if (finalLogRaw.durationMinutes > 0) {
+                      achievementText = `Du kämpade i ${finalLogRaw.durationMinutes} minuter!`;
+                  }
+                  
+                  diplomaData = {
+                      title: getRandomDiplomaTitle(),
+                      subtitle: "Grymt jobbat!",
+                      achievement: achievementText,
+                      footer: "Starkt jobbat!",
+                      imagePrompt: "🔥",
+                      newPBs: newRecords.length > 0 ? newRecords : undefined
+                  };
               }
 
               if (!diplomaData) {
