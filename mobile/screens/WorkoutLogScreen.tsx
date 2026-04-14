@@ -1090,7 +1090,44 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
               let diplomaData: WorkoutDiploma | null = null;
 
-              if (totalVolume > 0) {
+              if (benchmarkDefinition && finalLogRaw.benchmarkValue !== undefined) {
+                  if (benchmarkDefinition.type === 'weight') {
+                      const comparison = getFunComparison(finalLogRaw.benchmarkValue);
+                      if (comparison) {
+                          diplomaData = {
+                              title: getRandomDiplomaTitle(),
+                              subtitle: `BENCHMARK: ${benchmarkDefinition.title}`,
+                              achievement: `Du lyfte totalt ${finalLogRaw.benchmarkValue.toLocaleString()} kg! Det motsvarar ca ${comparison.count} st ${comparison.name}`,
+                              footer: `En ${comparison.single} väger ca ${comparison.weight} kg`,
+                              imagePrompt: comparison.emoji,
+                              newPBs: newRecords.length > 0 ? newRecords : undefined
+                          };
+                      }
+                  } else if (benchmarkDefinition.type === 'reps') {
+                      diplomaData = {
+                          title: getRandomDiplomaTitle(),
+                          subtitle: `BENCHMARK: ${benchmarkDefinition.title}`,
+                          achievement: `Du klarade hela ${finalLogRaw.benchmarkValue} varv/reps!`,
+                          footer: "Vilken maskin!",
+                          imagePrompt: "🤖",
+                          newPBs: newRecords.length > 0 ? newRecords : undefined
+                      };
+                  } else if (benchmarkDefinition.type === 'time') {
+                      const m = Math.floor(finalLogRaw.benchmarkValue / 60);
+                      const s = Math.floor(finalLogRaw.benchmarkValue % 60);
+                      const timeStr = m > 0 ? `${m} min ${s} sek` : `${s} sekunder`;
+                      diplomaData = {
+                          title: getRandomDiplomaTitle(),
+                          subtitle: `BENCHMARK: ${benchmarkDefinition.title}`,
+                          achievement: `Du slutförde passet på ${timeStr}!`,
+                          footer: "Snabbt jobbat!",
+                          imagePrompt: "⚡",
+                          newPBs: newRecords.length > 0 ? newRecords : undefined
+                      };
+                  }
+              }
+
+              if (!diplomaData && totalVolume > 0) {
                   const comparison = getFunComparison(totalVolume);
                   if (comparison) {
                       diplomaData = {
@@ -1102,6 +1139,25 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                           newPBs: newRecords.length > 0 ? newRecords : undefined
                       };
                   }
+              } else if (!diplomaData && (finalLogRaw.totalDistance > 0 || finalLogRaw.totalCalories > 0 || finalLogRaw.durationMinutes > 0)) {
+                  // Fallback for cardio/time-based workouts
+                  let achievementText = "";
+                  if (finalLogRaw.totalDistance > 0) {
+                      achievementText = `Du avverkade ${finalLogRaw.totalDistance} km!`;
+                  } else if (finalLogRaw.totalCalories > 0) {
+                      achievementText = `Du brände ${finalLogRaw.totalCalories} kcal!`;
+                  } else if (finalLogRaw.durationMinutes > 0) {
+                      achievementText = `Du kämpade i ${finalLogRaw.durationMinutes} minuter!`;
+                  }
+                  
+                  diplomaData = {
+                      title: getRandomDiplomaTitle(),
+                      subtitle: "Grymt jobbat!",
+                      achievement: achievementText,
+                      footer: "Starkt jobbat!",
+                      imagePrompt: "🔥",
+                      newPBs: newRecords.length > 0 ? newRecords : undefined
+                  };
               }
 
               if (!diplomaData) {

@@ -1,7 +1,9 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { SparklesIcon, DumbbellIcon, BuildingIcon, ClockIcon, UsersIcon, ChevronDownIcon } from './icons';
+import { GalleryImage } from '../types';
+import { getGalleryImages, createLead } from '../services/firebaseService';
 
 interface LandingPageProps {
     onLoginClick: () => void;
@@ -58,6 +60,40 @@ const SystemImages = () => (
 );
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegisterGymClick }) => {
+    const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+    const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
+    const [leadForm, setLeadForm] = useState({ name: '', email: '', gymName: '', phone: '', message: '' });
+    const [isSubmittingLead, setIsSubmittingLead] = useState(false);
+    const [leadSuccess, setLeadSuccess] = useState(false);
+
+    useEffect(() => {
+        const loadGallery = async () => {
+            const images = await getGalleryImages();
+            setGalleryImages(images);
+        };
+        loadGallery();
+    }, []);
+
+    const handleLeadSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!leadForm.name || !leadForm.email || !leadForm.gymName) return;
+        
+        setIsSubmittingLead(true);
+        const success = await createLead(leadForm);
+        setIsSubmittingLead(false);
+        
+        if (success) {
+            setLeadSuccess(true);
+            setTimeout(() => {
+                setIsDemoModalOpen(false);
+                setLeadSuccess(false);
+                setLeadForm({ name: '', email: '', gymName: '', phone: '', message: '' });
+            }, 3000);
+        } else {
+            alert("Ett fel uppstod. Vänligen försök igen senare.");
+        }
+    };
+
     return (
         <div className="min-h-screen bg-black text-white font-sans selection:bg-primary selection:text-white overflow-x-hidden">
             {/* Nav */}
@@ -68,6 +104,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                         <span className="text-xl font-bold tracking-tight">SmartStudio</span>
                     </div>
                     <div className="flex gap-4">
+                        <button onClick={() => setIsDemoModalOpen(true)} className="text-sm font-semibold text-primary hover:text-teal-400 transition-colors hidden sm:block">
+                            Boka Demo
+                        </button>
                         <button onClick={onLoginClick} className="text-sm font-semibold text-gray-300 hover:text-white transition-colors">
                             Logga in
                         </button>
@@ -107,10 +146,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                                     Starta din studio
                                 </button>
                                 <button 
-                                    onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
+                                    onClick={() => setIsDemoModalOpen(true)}
                                     className="px-8 py-4 rounded-full font-bold border border-white/20 hover:bg-white/5 transition-colors"
                                 >
-                                    Se funktioner
+                                    Boka Demo
                                 </button>
                             </div>
                         </motion.div>
@@ -178,6 +217,62 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                 </div>
             </section>
 
+            {/* Customer Gallery Marquee */}
+            {galleryImages.length > 0 && (
+                <section className="py-24 bg-black relative overflow-hidden border-t border-white/5">
+                    <div className="text-center mb-12 px-6">
+                        <h2 className="text-3xl md:text-5xl font-bold mb-4">Gör som dessa studios – ta träningen till nästa nivå</h2>
+                    </div>
+                    
+                    <div className="relative w-full flex overflow-hidden group">
+                        {/* Duplicate the array to create an infinite loop effect */}
+                        <motion.div 
+                            className="flex gap-6 px-3"
+                            animate={{ x: ["0%", "-50%"] }}
+                            transition={{ ease: "linear", duration: 30, repeat: Infinity }}
+                        >
+                            {[...galleryImages, ...galleryImages].map((img, idx) => (
+                                <div key={`${img.id}-${idx}`} className="relative flex-shrink-0 w-64 h-64 md:w-80 md:h-80 rounded-2xl overflow-hidden border border-white/10 group-hover:opacity-75 hover:!opacity-100 transition-opacity">
+                                    <img src={img.imageUrl} alt={img.gymName || 'Studio'} className="w-full h-full object-cover" />
+                                    {img.gymName && (
+                                        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-6 pt-12">
+                                            <span className="text-white font-bold text-lg">{img.gymName}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </motion.div>
+                    </div>
+                </section>
+            )}
+
+            {/* Bottom CTA Section */}
+            <section className="py-24 bg-gradient-to-b from-black to-gray-900 border-t border-white/5 relative overflow-hidden">
+                {/* Decorative background elements */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent"></div>
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/10 blur-[120px] rounded-full pointer-events-none"></div>
+                
+                <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6 }}
+                    >
+                        <h2 className="text-4xl md:text-5xl font-bold mb-6 text-white tracking-tight">Redo att ta din studio till nästa nivå?</h2>
+                        <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
+                            Boka en kostnadsfri demo så visar vi hur SmartStudio kan spara tid och lyfta upplevelsen för dina medlemmar.
+                        </p>
+                        <button 
+                            onClick={() => setIsDemoModalOpen(true)}
+                            className="bg-primary hover:bg-teal-400 text-black text-lg px-10 py-4 rounded-full font-bold transition-all transform hover:scale-105 shadow-[0_0_30px_-5px_rgba(20,184,166,0.4)]"
+                        >
+                            Boka Demo
+                        </button>
+                    </motion.div>
+                </div>
+            </section>
+
             {/* Footer */}
             <footer className="border-t border-white/10 py-12 bg-black">
                 <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
@@ -190,6 +285,106 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                     </div>
                 </div>
             </footer>
+
+            {/* Demo Modal */}
+            {isDemoModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        className="bg-gray-900 border border-gray-800 rounded-3xl p-8 max-w-md w-full relative shadow-2xl"
+                    >
+                        <button 
+                            onClick={() => setIsDemoModalOpen(false)}
+                            className="absolute top-6 right-6 text-gray-400 hover:text-white transition-colors"
+                        >
+                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+
+                        {leadSuccess ? (
+                            <div className="text-center py-8">
+                                <div className="w-16 h-16 bg-primary/20 text-primary rounded-full flex items-center justify-center mx-auto mb-6">
+                                    <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                                <h3 className="text-2xl font-bold text-white mb-2">Tack för din förfrågan!</h3>
+                                <p className="text-gray-400">Vi hör av oss till dig så snart som möjligt för att boka in en demo.</p>
+                            </div>
+                        ) : (
+                            <>
+                                <h3 className="text-2xl font-bold text-white mb-2">Boka en Demo</h3>
+                                <p className="text-gray-400 mb-6">Fyll i dina uppgifter så kontaktar vi dig för att visa hur SmartStudio kan hjälpa din verksamhet.</p>
+                                
+                                <form onSubmit={handleLeadSubmit} className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Ditt namn *</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            value={leadForm.name}
+                                            onChange={e => setLeadForm({...leadForm, name: e.target.value})}
+                                            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                            placeholder="Anna Andersson"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">E-postadress *</label>
+                                        <input 
+                                            type="email" 
+                                            required
+                                            value={leadForm.email}
+                                            onChange={e => setLeadForm({...leadForm, email: e.target.value})}
+                                            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                            placeholder="anna@exempel.se"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Gymmets/Studions namn *</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            value={leadForm.gymName}
+                                            onChange={e => setLeadForm({...leadForm, gymName: e.target.value})}
+                                            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                            placeholder="CrossFit Svea"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Telefonnummer (frivilligt)</label>
+                                        <input 
+                                            type="tel" 
+                                            value={leadForm.phone}
+                                            onChange={e => setLeadForm({...leadForm, phone: e.target.value})}
+                                            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
+                                            placeholder="070-123 45 67"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-300 mb-1">Meddelande (frivilligt)</label>
+                                        <textarea 
+                                            value={leadForm.message}
+                                            onChange={e => setLeadForm({...leadForm, message: e.target.value})}
+                                            className="w-full bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all resize-none h-24"
+                                            placeholder="Berätta gärna lite kort om era behov..."
+                                        />
+                                    </div>
+                                    
+                                    <button 
+                                        type="submit" 
+                                        disabled={isSubmittingLead}
+                                        className={`w-full bg-primary text-black font-bold py-4 rounded-xl transition-all ${isSubmittingLead ? 'opacity-70 cursor-not-allowed' : 'hover:bg-teal-400 hover:shadow-[0_0_15px_-3px_rgba(20,184,166,0.4)]'}`}
+                                    >
+                                        {isSubmittingLead ? 'Skickar...' : 'Skicka förfrågan'}
+                                    </button>
+                                </form>
+                            </>
+                        )}
+                    </motion.div>
+                </div>
+            )}
         </div>
     );
 };

@@ -1,14 +1,15 @@
 
 import React, { useMemo } from 'react';
+import { RaceParticipant } from '../../types';
 
 interface FinishData { time: number; placement: number | null; }
 
 interface ParticipantFinishListProps {
-    participants: string[];
+    participants: RaceParticipant[];
     finishData: Record<string, FinishData>;
-    onFinish: (name: string) => void;
-    onEdit: (name: string) => void;
-    isSaving: (name: string) => boolean;
+    onFinish: (id: string) => void;
+    onEdit: (id: string) => void;
+    isSaving: (id: string) => boolean;
 }
 
 export const ParticipantFinishList: React.FC<ParticipantFinishListProps> = ({ participants, finishData, onFinish, onEdit, isSaving }) => {
@@ -19,10 +20,10 @@ export const ParticipantFinishList: React.FC<ParticipantFinishListProps> = ({ pa
     };
 
     const sortedParticipants = useMemo(() => {
-        const unfinished = participants.filter(p => !finishData[p]);
+        const unfinished = participants.filter(p => !finishData[p.id]);
         const finished = participants
-            .filter(p => finishData[p])
-            .sort((a, b) => finishData[a].time - finishData[b].time);
+            .filter(p => finishData[p.id])
+            .sort((a, b) => finishData[a.id].time - finishData[b.id].time);
         return [...finished, ...unfinished];
     }, [participants, finishData]);
 
@@ -38,17 +39,17 @@ export const ParticipantFinishList: React.FC<ParticipantFinishListProps> = ({ pa
         <div className="flex flex-col p-4 sm:p-6 flex-grow min-h-0 bg-white dark:bg-gray-900">
             <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-6 flex-shrink-0 tracking-tight uppercase">Resultat</h3>
             <div className="flex-grow overflow-y-auto space-y-2 pr-1 scrollbar-hide">
-                {sortedParticipants.map((name, index) => {
-                    const finishedInfo = finishData[name];
+                {sortedParticipants.map((p, index) => {
+                    const finishedInfo = finishData[p.id];
                     const isFinished = !!finishedInfo;
                     const displayPlacement = isFinished ? index + 1 : null;
 
                     return (
                         <div
-                            key={name}
+                            key={p.id}
                             onClick={() => {
                               if (isFinished) {
-                                onEdit(name);
+                                onEdit(p.id);
                               }
                             }}
                             className={`p-4 rounded-xl flex justify-between items-center transition-all ${
@@ -59,7 +60,7 @@ export const ParticipantFinishList: React.FC<ParticipantFinishListProps> = ({ pa
                         >
                             <span className={`font-bold truncate mr-2 ${isFinished ? 'text-green-800 dark:text-green-300' : 'text-gray-700 dark:text-gray-300'}`}>
                               {isFinished && <span className="mr-2">#{displayPlacement}</span>}
-                              <span>{name}</span>
+                              <span>{p.name} {p.partnerName && <span className="text-gray-500 font-normal text-sm">& {p.partnerName}</span>}</span>
                             </span>
                             {isFinished ? (
                                 <div className="flex items-center gap-3">
@@ -68,11 +69,11 @@ export const ParticipantFinishList: React.FC<ParticipantFinishListProps> = ({ pa
                                 </div>
                             ) : (
                                 <button
-                                    onClick={(e) => { e.stopPropagation(); onFinish(name); }}
-                                    disabled={isSaving(name)}
+                                    onClick={(e) => { e.stopPropagation(); onFinish(p.id); }}
+                                    disabled={isSaving(p.id)}
                                     className="text-white text-xs font-black py-2 px-4 rounded-lg transition-all bg-indigo-600 hover:bg-indigo-500 disabled:bg-green-600 disabled:cursor-wait shadow-md active:scale-95 uppercase tracking-widest"
                                 >
-                                    {isSaving(name) ? '...' : 'I Mål'}
+                                    {isSaving(p.id) ? '...' : 'I Mål'}
                                 </button>
                             )}
                         </div>

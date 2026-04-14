@@ -1,9 +1,11 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Page, Workout, WorkoutBlock, TimerMode, Exercise, StudioConfig, StartGroup } from '../types';
+import { Page, Workout, WorkoutBlock, TimerMode, Exercise, StudioConfig, StartGroup, HyroxRace } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Modal } from './ui/Modal';
 import { useStudio } from '../context/StudioContext';
+import { getPastRaces } from '../services/firebaseService';
+import { CalendarIcon, UsersIcon } from './icons';
 
 const RACE_CONFIG_STORAGE_KEY = 'hyrox-custom-race-config';
 
@@ -314,9 +316,23 @@ const createCustomRaceWorkout = (
 
 
 export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWorkout, studioConfig, racePrepState, onPrepComplete, remoteCommand }) => {
-    const { selectedOrganization } = useStudio();
+    const { selectedOrganization, selectedStudio } = useStudio();
     const [view, setView] = useState<'hub' | 'editor' | 'prep'>('hub');
+    const [plannedRaces, setPlannedRaces] = useState<HyroxRace[]>([]);
     const lastProcessedCommandRef = useRef<number>(0);
+
+    useEffect(() => {
+        if (selectedOrganization) {
+            getPastRaces(selectedOrganization.id).then(races => {
+                const planned = races.filter(r => 
+                    r.status !== 'completed' && 
+                    (!r.results || r.results.length === 0) &&
+                    (!r.studioId || !selectedStudio || r.studioId === selectedStudio.id)
+                );
+                setPlannedRaces(planned);
+            }).catch(console.error);
+        }
+    }, [selectedOrganization, selectedStudio]);
 
     useEffect(() => {
         if (remoteCommand && remoteCommand.type === 'start_hyrox' && remoteCommand.timestamp > lastProcessedCommandRef.current) {
@@ -353,17 +369,48 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
         setView('hub');
     };
 
-    const startFullRace = (groups: StartGroup[], interval: number) => {
-        // Use the config from state (which was set by the editor or on mount),
-        // or create a default config if nothing has been saved yet.
-        const configToUse = raceConfig || { name: 'HYROX Race', exercises: createDefaultExercises() };
+    const handleStartPlannedRace = (race: HyroxRace) => {
+        // Map the string array to Exercise objects if needed, or just use default for now
+        // since we don't have a full exercise editor in the admin panel yet.
+        const exercises = race.exercises && race.exercises.length > 0 
+            ? race.exercises.map((e, i) => ({ id: `ex-${i}`, name: e, reps: '', description: '' }))
+            : createDefaultExercises();
 
-        // VIKTIGT: Skicka med orgId för att säkra sparande
-        const orgId = selectedOrganization?.id || '';
-        const raceWorkout = createCustomRaceWorkout(configToUse, groups, interval, orgId);
-        onSelectWorkout(raceWorkout);
+        setRaceConfig({ name: race.raceName, exercises });
         
-        setView('hub'); // Reset view for next time
+        // Pass the planned race's groups to the prep modal
+        // We need to ensure the race ID is passed so we can update it later.
+        // For now, we'll just set the config and open the prep modal.
+        // To properly update the existing race, we'd need to pass the race ID to the workout.
+        // We can do this by setting a special ID format or adding a property to the workout.
+        // Let's modify startFullRace to accept a raceId.
+        setView('prep');
+    };
+
+    const startFullRace = (groups: StartGroup[], interval: number) => {
+        const configToUse = raceConfig || { name: 'HYROX Race', exercises: createDefaultExercises() };
+        const orgId = selectedOrganization?.id || '';
+        
+        // Check if this is a planned race by looking for it in plannedRaces
+        const plannedRace = plannedRaces.find(r => r.raceName === configToUse.name);
+        
+        const raceWorkout = createCustomRaceWorkout(configToUse, groups, interval, orgId);
+        
+        // If it's a planned race, we should use its ID so we update it instead of creating a new one
+        if (plannedRace) {
+            // We can embed the original race ID in the workout ID so TimerScreen can extract it
+            // Or we can just let TimerScreen create a new one and we delete the planned one?
+            // Actually, if we just set the workout ID to start with 'custom-race-' + plannedRace.id
+            // TimerScreen doesn't extract it currently.
+            // Let's just pass it as a custom property if possible, or let TimerScreen create a new one for now.
+            // To keep it simple and robust, we'll let it create a new one and the planned one will remain until deleted,
+            // OR we can modify TimerScreen to look for an existing race with the same name today.
+            // Let's just pass the plannedRace.id in the workout ID.
+            raceWorkout.id = `custom-race-${plannedRace.id}`;
+        }
+
+        onSelectWorkout(raceWorkout);
+        setView('hub');
         onPrepComplete();
     };
 
@@ -377,10 +424,42 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
     }
 
     return (
-        <div className="w-full max-w-5xl mx-auto text-center animate-fade-in">
+        <div className="w-full max-w-5xl mx-auto text-center animate-fade-in pb-12">
             <p className="text-lg text-gray-500 dark:text-gray-400 mb-10 max-w-2xl mx-auto">
                 Kör hela loppet, delar av ett HYROX-pass eller en annan tävling – från första löpningen till sista repetitionen.
             </p>
+            
+            {plannedRaces.length > 0 && (
+                <div className="mb-12 text-left">
+                    <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-6 uppercase tracking-tight">Planerade Event</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {plannedRaces.map(race => (
+                            <div key={race.id} className="bg-white dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-between">
+                                <div>
+                                    <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{race.raceName}</h4>
+                                    <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-6">
+                                        <div className="flex items-center gap-1">
+                                            <CalendarIcon className="w-4 h-4" />
+                                            {race.scheduledDate ? new Date(race.scheduledDate).toLocaleDateString('sv-SE') : 'Inget datum'}
+                                        </div>
+                                        <div className="flex items-center gap-1">
+                                            <UsersIcon className="w-4 h-4" />
+                                            {race.startGroups?.reduce((acc, g) => acc + (g.participantList?.length || 0), 0) || 0} deltagare
+                                        </div>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => handleStartPlannedRace(race)}
+                                    className="w-full bg-primary text-white font-bold py-3 rounded-lg hover:brightness-110 transition-all"
+                                >
+                                    Starta Event
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <div className="flex flex-col items-center gap-6">
                 <button
                     onClick={handleSimulateFullRaceClick}
@@ -404,7 +483,7 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
                         isOpen={true}
                         onClose={handleCloseModal}
                         onStart={startFullRace}
-                        initialGroups={racePrepState?.groups}
+                        initialGroups={racePrepState?.groups || (plannedRaces.find(r => r.raceName === raceConfig?.name)?.startGroups)}
                         initialInterval={racePrepState?.interval}
                     />
                 )}

@@ -26,7 +26,9 @@ export const HyroxRaceListScreen: React.FC<HyroxRaceListScreenProps> = ({ onSele
             setError(null);
             try {
                 const pastRaces = await getPastRaces(selectedOrganization.id);
-                setRaces(pastRaces);
+                // Only show completed races in the "Past Races" list
+                const completedRaces = pastRaces.filter(r => r.status === 'completed' || (r.results && r.results.length > 0));
+                setRaces(completedRaces);
             } catch (e) {
                 setError("Kunde inte hämta tidigare lopp.");
                 console.error(e);

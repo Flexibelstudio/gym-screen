@@ -1626,6 +1626,18 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 )}
                 <canvas ref={canvasRef} className="w-full h-full block" />
                 
+                {/* Timer Zone Marker */}
+                <div className="absolute top-[260px] left-0 right-0 pointer-events-none flex justify-between px-0 opacity-40 z-0">
+                    <div className="flex items-center">
+                        <div className="w-4 h-[2px] bg-gray-400 dark:bg-gray-500 rounded-r-full"></div>
+                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-2 rotate-90 origin-left translate-y-6">Timer</span>
+                    </div>
+                    <div className="flex items-center">
+                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mr-2 -rotate-90 origin-right translate-y-6">Timer</span>
+                        <div className="w-4 h-[2px] bg-gray-400 dark:bg-gray-500 rounded-l-full"></div>
+                    </div>
+                </div>
+                
                 {/* Render Smart Objects */}
                 {smartObjects.map(obj => {
                     const isArrow = obj.type === 'arrow';
@@ -1676,7 +1688,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                                     onChange={(e) => updateSmartObject(obj.id, { text: e.target.value })}
                                     rows={Math.max(1, (obj.text || '').split('\n').length)}
                                     className="bg-transparent border-none outline-none text-center w-full resize-none overflow-hidden"
-                                    style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: '36px', lineHeight: '1.2' }}
+                                    style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: `${obj.fontSize || 36}px`, lineHeight: '1.2' }}
                                     placeholder="Skriv här..."
                                 />
                             ) : obj.type !== 'arrow' ? (
@@ -1685,7 +1697,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                                     onChange={(e) => updateSmartObject(obj.id, { text: e.target.value })}
                                     rows={Math.max(1, (obj.text || '').split('\n').length)}
                                     className="bg-transparent border-none outline-none text-center w-full relative z-10 resize-none overflow-hidden"
-                                    style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: '28px', lineHeight: '1.2' }}
+                                    style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: `${obj.fontSize || 28}px`, lineHeight: '1.2' }}
                                     placeholder=""
                                 />
                             ) : null}
@@ -1709,9 +1721,15 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                                 </div>
                             ) : (
                                 <ResizeHandle onResize={(dx, dy) => {
+                                    const newWidth = Math.max(50, obj.width + dx);
+                                    const newHeight = Math.max(50, obj.height + dy);
+                                    const heightRatio = newHeight / obj.height;
+                                    const currentFontSize = obj.fontSize || (obj.type === 'text' ? 36 : 28);
+                                    
                                     updateSmartObject(obj.id, { 
-                                        width: Math.max(50, obj.width + dx), 
-                                        height: Math.max(50, obj.height + dy) 
+                                        width: newWidth, 
+                                        height: newHeight,
+                                        fontSize: currentFontSize * heightRatio
                                     });
                                 }} />
                             )}

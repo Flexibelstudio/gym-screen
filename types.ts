@@ -182,6 +182,7 @@ export interface StudioConfig {
   enableExerciseBank?: boolean;
   customCategories: CustomCategoryWithPrompt[];
   enableHyrox?: boolean;
+  enableEventsModule?: boolean;
   enableNotes?: boolean;
   enableWorkoutLogging?: boolean;
   enableWorkoutGames?: boolean; // NYTT: Träningslekar
@@ -321,10 +322,20 @@ export interface Organization {
   systemFeeDate?: number;
 }
 
+export interface RaceParticipant {
+  id: string;
+  name: string;
+  email?: string;
+  startNumber?: number;
+  partnerName?: string;
+  partnerEmail?: string;
+}
+
 export interface StartGroup {
   id: string;
   name: string;
-  participants: string;
+  participants: string; // Legacy string
+  participantList?: RaceParticipant[]; // Structured list
   startTime?: number; 
 }
 
@@ -551,7 +562,11 @@ export interface StudioEvent {
 }
 
 export interface HyroxRaceResult {
+    participantId?: string;
     participant: string;
+    email?: string;
+    partnerName?: string;
+    partnerEmail?: string;
     time: number;
     groupId: string;
 }
@@ -559,8 +574,11 @@ export interface HyroxRaceResult {
 export interface HyroxRace {
     id: string;
     organizationId: string;
+    studioId?: string;
     raceName: string;
     createdAt: number;
+    scheduledDate?: number;
+    status?: 'planned' | 'completed';
     exercises: string[];
     startGroups: StartGroup[];
     results: HyroxRaceResult[];
@@ -579,6 +597,24 @@ export interface SmartObject {
     endY?: number;
     text?: string;
     color: string;
+}
+
+export interface GalleryImage {
+    id: string;
+    imageUrl: string;
+    gymName?: string;
+    createdAt: number;
+}
+
+export interface Lead {
+    id: string;
+    name: string;
+    email: string;
+    gymName: string;
+    phone?: string;
+    message?: string;
+    status: 'new' | 'contacted' | 'archived';
+    createdAt: number;
 }
 
 export interface Note {
