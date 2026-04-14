@@ -246,6 +246,33 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                 </section>
             )}
 
+            {/* Bottom CTA Section */}
+            <section className="py-24 bg-gradient-to-b from-black to-gray-900 border-t border-white/5 relative overflow-hidden">
+                {/* Decorative background elements */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-3xl h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent"></div>
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-primary/10 blur-[120px] rounded-full pointer-events-none"></div>
+                
+                <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        whileInView={{ opacity: 1, y: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.6 }}
+                    >
+                        <h2 className="text-4xl md:text-5xl font-bold mb-6 text-white tracking-tight">Redo att ta din studio till nästa nivå?</h2>
+                        <p className="text-xl text-gray-400 mb-10 max-w-2xl mx-auto leading-relaxed">
+                            Boka en kostnadsfri demo så visar vi hur SmartStudio kan spara tid och lyfta upplevelsen för dina medlemmar.
+                        </p>
+                        <button 
+                            onClick={() => setIsDemoModalOpen(true)}
+                            className="bg-primary hover:bg-teal-400 text-black text-lg px-10 py-4 rounded-full font-bold transition-all transform hover:scale-105 shadow-[0_0_30px_-5px_rgba(20,184,166,0.4)]"
+                        >
+                            Boka Demo
+                        </button>
+                    </motion.div>
+                </div>
+            </section>
+
             {/* Footer */}
             <footer className="border-t border-white/10 py-12 bg-black">
                 <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">

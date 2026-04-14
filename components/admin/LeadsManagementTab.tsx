@@ -79,12 +79,10 @@ export const LeadsManagementTab: React.FC = () => {
                                 
                                 <div className="flex flex-col gap-2 min-w-[140px]">
                                     <a 
-                                        href={`https://mail.google.com/mail/?view=cm&fs=1&to=${lead.email}&su=${encodeURIComponent('Angående er förfrågan om SmartStudio')}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
+                                        href={`mailto:${lead.email}?subject=${encodeURIComponent('Angående er förfrågan om SmartStudio')}`}
                                         className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-black font-bold rounded-lg hover:bg-primary/90 transition-colors text-sm"
                                     >
-                                        <MailIcon className="w-4 h-4" /> Svara (Gmail)
+                                        <MailIcon className="w-4 h-4" /> Svara via e-post
                                     </a>
                                     
                                     {lead.status === 'new' && (

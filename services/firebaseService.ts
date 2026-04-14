@@ -1607,20 +1607,20 @@ export const createLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'stat
             status: 'new',
             createdAt: Date.now()
         };
+        
+        // Vi sparar leadet först. Om detta misslyckas kastas ett fel och vi returnerar false.
         await setDoc(newDocRef, newLead);
 
-        // Optional: Also write to a 'mail' collection if using Firebase Trigger Email extension
-        try {
-            await setDoc(doc(collection(db, 'mail')), {
-                to: 'hej@smartstudio.se',
-                message: {
-                    subject: `Ny förfrågan från ${leadData.gymName}`,
-                    text: `Ny förfrågan från landningssidan:\n\nNamn: ${leadData.name}\nE-post: ${leadData.email}\nGym: ${leadData.gymName}\nTelefon: ${leadData.phone || '-'}\nMeddelande: ${leadData.message || '-'}`
-                }
-            });
-        } catch (mailError) {
-            console.log("Could not write to mail collection, maybe not set up yet.", mailError);
-        }
+        // Vi försöker skriva till mail-samlingen, men vi bryr oss inte om det misslyckas 
+        // (t.ex. pga saknade regler innan Trigger Email är uppsatt).
+        // Vi använder .catch() direkt på Promise:t istället för try/catch för att vara helt säkra på att det inte bubblar upp.
+        setDoc(doc(collection(db, 'mail')), {
+            to: 'hej@smartstudio.se',
+            message: {
+                subject: `Ny förfrågan från ${leadData.gymName}`,
+                text: `Ny förfrågan från landningssidan:\n\nNamn: ${leadData.name}\nE-post: ${leadData.email}\nGym: ${leadData.gymName}\nTelefon: ${leadData.phone || '-'}\nMeddelande: ${leadData.message || '-'}`
+            }
+        }).catch(e => console.log("Mail notification skipped (expected if Trigger Email is not set up):", e.message));
 
         return true;
     } catch (error) {
