@@ -395,7 +395,9 @@ export const Header: React.FC<HeaderProps> = ({
         
         {/* Exiting overlay for immediate visual feedback */}
         {isExiting && (
-            <div className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-sm transition-opacity duration-100"></div>
+            <div className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-sm transition-opacity duration-100 flex items-center justify-center">
+                <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+            </div>
         )}
     </>
   );

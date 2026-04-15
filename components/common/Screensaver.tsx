@@ -160,7 +160,7 @@ export const Screensaver: React.FC<ScreensaverProps> = ({ logoUrl, bottomOffset 
             {logoUrl && (
                  <div 
                     ref={logoRef} 
-                    className="absolute top-0 left-0 w-80 h-80 p-4"
+                    className="absolute top-0 left-0 w-[400px] h-[400px] p-4"
                     style={{ willChange: 'transform' }}
                 >
                     <img src={logoUrl} alt="Logo" className="w-full h-full object-contain drop-shadow-2xl" />
