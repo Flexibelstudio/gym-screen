@@ -405,6 +405,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                     
                     <button 
                         onClick={handleToggleLogging}
+                        disabled={!isBanked}
                         className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all border font-black text-[10px] uppercase tracking-wider transform active:scale-95 ${
                             exercise.loggingEnabled 
                             ? 'bg-green-500 border-green-600 text-white shadow-lg' 
@@ -412,7 +413,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                                 ? isLogButtonLocked
                                     ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400 cursor-not-allowed opacity-70'
                                     : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400 hover:border-gray-400'
-                                : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-300 cursor-not-allowed'
+                                : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 cursor-not-allowed border-dashed'
                         }`}
                         title={
                             !isBanked 
@@ -424,10 +425,17 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                     >
                         {isLogButtonLocked && isBanked ? (
                             <LockClosedIcon className="w-3.5 h-3.5 text-current" />
+                        ) : !isBanked ? (
+                            <>
+                                <ChartBarIcon className="w-4 h-4 text-current opacity-50" />
+                                <span className="hidden sm:inline opacity-70">Spara först</span>
+                            </>
                         ) : (
-                            <ChartBarIcon className={`w-4 h-4 ${exercise.loggingEnabled ? 'text-white' : 'text-current'}`} />
+                            <>
+                                <ChartBarIcon className={`w-4 h-4 ${exercise.loggingEnabled ? 'text-white' : 'text-current'}`} />
+                                <span className="hidden sm:inline">{exercise.loggingEnabled ? 'Loggas' : 'Loggas ej'}</span>
+                            </>
                         )}
-                        <span className="hidden sm:inline">{exercise.loggingEnabled ? 'Loggas' : 'Loggas ej'}</span>
                     </button>
 
                     <button onClick={onOpenHandwriting} className="text-gray-400 hover:text-primary p-2" title="Skriv för hand">

@@ -317,7 +317,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                                     ? isLogButtonLocked 
                                         ? 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 cursor-not-allowed opacity-70' 
                                         : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 hover:border-gray-400'
-                                    : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-300 cursor-not-allowed'
+                                    : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 cursor-not-allowed border-dashed'
                             }`}
                             title={
                                 !isBanked 
@@ -329,6 +329,11 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                         >
                              {isLogButtonLocked && isBanked ? (
                                 <LockClosedIcon className="w-3.5 h-3.5 text-current" />
+                            ) : !isBanked ? (
+                                <>
+                                    <ChartBarIcon className="w-3.5 h-3.5 text-current opacity-50" />
+                                    <span className="opacity-70">Spara först</span>
+                                </>
                             ) : (
                                 <ChartBarIcon className={`w-3.5 h-3.5 ${exercise.loggingEnabled ? 'text-white' : 'text-current'}`} />
                             )}
