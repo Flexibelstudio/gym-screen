@@ -8,10 +8,11 @@ import { useAuth } from '../context/AuthContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
 import { EditableField } from './workout-builder/EditableField';
 import { ExerciseBankPanel, ExercisePreviewModal } from './workout-builder/ExerciseBankPanel';
+import { createPortal } from 'react-dom';
 import { AICoachSidebar } from './workout-builder/AICoachPanel';
 import { EditableBlockCard } from './workout-builder/EditableBlockCard';
 import { analyzeCurrentWorkout } from '../services/geminiService';
-import { ToggleSwitch, DumbbellIcon, SparklesIcon, TrophyIcon, CheckIcon } from './icons';
+import { ToggleSwitch, DumbbellIcon, SparklesIcon, TrophyIcon, CheckIcon, ChevronLeftIcon } from './icons';
 import { Toast } from './ui/ToastNotification';
 import {
   DndContext,
@@ -546,6 +547,8 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
       });
   }, []);
 
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
+
   const isDirty = useMemo(() => {
     if (isNewDraft && initialWorkout) {
         return true;
@@ -568,10 +571,9 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
 
   const handleCancel = () => {
     if (isDirty) {
-      if (window.confirm('Du har osparade ändringar. Är du säker på att du vill lämna?')) {
-        onCancel();
-      }
+      setShowUnsavedWarning(true);
     } else {
+      if (setCustomBackHandler) setCustomBackHandler(null);
       onCancel();
     }
   };
@@ -588,6 +590,12 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   }, [setCustomBackHandler, isDirty, onCancel]);
 
   const handleSave = async () => {
+    if (!isDirty) {
+      if (setCustomBackHandler) setCustomBackHandler(null);
+      onCancel();
+      return;
+    }
+
     const finalWorkout = { ...workout };
 
     if (isBenchmark) {
@@ -637,6 +645,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
             timestamp: Date.now()
         });
     }
+    if (setCustomBackHandler) setCustomBackHandler(null);
     onSave(finalWorkout);
   };
   
@@ -975,7 +984,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
         
         <div className="mt-8 flex justify-end gap-4 pb-12 pt-4 border-t border-gray-200 dark:border-gray-700">
             <button onClick={handleCancel} className="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-white font-bold py-3 px-8 rounded-xl transition-colors">Avbryt</button>
-            <button onClick={handleSave} className="bg-primary hover:brightness-110 text-white font-bold py-3 px-8 rounded-xl transition-colors shadow-lg" disabled={!isDirty}>
+            <button onClick={handleSave} className="bg-primary hover:brightness-110 text-white font-bold py-3 px-8 rounded-xl transition-colors shadow-lg">
               Spara Pass
             </button>
         </div>
@@ -1058,6 +1067,36 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
           </div>
         ) : null}
       </DragOverlay>
+
+      {showUnsavedWarning && createPortal(
+          <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Osparade ändringar</h3>
+                  <p className="text-gray-600 dark:text-gray-300 mb-6">
+                      Du har gjort ändringar i passet som inte är sparade. Är du säker på att du vill lämna utan att spara?
+                  </p>
+                  <div className="flex justify-end gap-3">
+                      <button 
+                          onClick={() => setShowUnsavedWarning(false)}
+                          className="px-5 py-2.5 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                      >
+                          Avbryt
+                      </button>
+                      <button 
+                          onClick={() => {
+                              setShowUnsavedWarning(false);
+                              if (setCustomBackHandler) setCustomBackHandler(null);
+                              onCancel();
+                          }}
+                          className="px-5 py-2.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors"
+                      >
+                          Lämna utan att spara
+                      </button>
+                  </div>
+              </div>
+          </div>,
+          document.body
+      )}
     </DndContext>
   );
 };

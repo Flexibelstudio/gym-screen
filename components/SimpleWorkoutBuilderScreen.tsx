@@ -737,6 +737,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
         if (isDirty) {
             setShowUnsavedWarning(true);
         } else {
+            if (setCustomBackHandler) setCustomBackHandler(null);
             onCancel();
         }
     };
@@ -790,10 +791,12 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
 
     const handleSave = () => {
         if (!isDirty) {
+            if (setCustomBackHandler) setCustomBackHandler(null);
             onCancel();
             return;
         }
         if (!workout.title.trim()) { alert("Passet måste ha ett namn."); return; }
+        if (setCustomBackHandler) setCustomBackHandler(null);
         onSave({ ...workout, organizationId: selectedOrganization?.id || '' });
     };
     
@@ -963,6 +966,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                             <button 
                                 onClick={() => {
                                     setShowUnsavedWarning(false);
+                                    if (setCustomBackHandler) setCustomBackHandler(null);
                                     onCancel();
                                 }}
                                 className="px-5 py-2.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors"
