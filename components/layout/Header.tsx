@@ -192,7 +192,7 @@ export const Header: React.FC<HeaderProps> = ({
               <img 
                   src={displayUrl} 
                   alt="Logo" 
-                  className={`${isFavicon ? 'h-16 md:h-20' : 'h-10 md:h-12'} w-auto object-contain pointer-events-none`} 
+                  className={`h-10 md:h-12 w-auto object-contain pointer-events-none ${isFavicon ? 'scale-[1.5] origin-left' : ''}`} 
               />
           );
       }
