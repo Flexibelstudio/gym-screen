@@ -118,7 +118,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                         {workout.title || 'Namnlöst pass'}
                                     </h3>
                                     
-                                    <p className="text-gray-500 dark:text-gray-400 leading-relaxed font-medium line-clamp-4 overflow-hidden">
+                                    <p className="text-gray-500 dark:text-gray-400 leading-relaxed font-medium line-clamp-4 overflow-hidden whitespace-pre-wrap">
                                         {workout.coachTips || "Välkommen till dagens pass. Fokusera på teknik och intensitet!"}
                                     </p>
                                 </div>

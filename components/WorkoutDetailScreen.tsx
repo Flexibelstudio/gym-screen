@@ -576,7 +576,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
             <AnimatePresence>
                 {coachTipsVisible && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                        <p className="text-xl text-orange-900/80 dark:text-orange-100/80 leading-relaxed font-medium">
+                        <p className="text-xl text-orange-900/80 dark:text-orange-100/80 leading-relaxed font-medium whitespace-pre-wrap">
                             {sessionWorkout.coachTips}
                         </p>
                     </motion.div>
