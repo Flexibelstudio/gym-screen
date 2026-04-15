@@ -184,10 +184,17 @@ export const Header: React.FC<HeaderProps> = ({
           return <div className="h-10 md:h-12 w-32 bg-transparent"></div>;
       }
 
+      const isFavicon = !!selectedOrganization?.faviconUrl;
       const displayUrl = selectedOrganization?.faviconUrl || logoUrl;
 
       if (displayUrl) {
-          return <img src={displayUrl} alt="Logo" className="h-10 md:h-12 w-auto object-contain pointer-events-none" />;
+          return (
+              <img 
+                  src={displayUrl} 
+                  alt="Logo" 
+                  className={`${isFavicon ? 'h-16 md:h-20' : 'h-10 md:h-12'} w-auto object-contain pointer-events-none`} 
+              />
+          );
       }
 
       // Sista utväg om laddning är klar men logga saknas helt
