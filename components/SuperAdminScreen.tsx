@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { StudioConfig, Studio, Organization, CustomPage, UserData, UserRole, InfoCarousel, DisplayWindow, Workout, CompanyDetails } from '../types';
-import { HomeIcon, DocumentTextIcon, SpeakerphoneIcon, UsersIcon, DumbbellIcon, BriefcaseIcon, BuildingIcon, SettingsIcon, ChartBarIcon, CopyIcon, CloseIcon, SparklesIcon, HistoryIcon, QrCodeIcon, FlagIcon } from './icons';
+import { HomeIcon, DocumentTextIcon, SpeakerphoneIcon, UsersIcon, DumbbellIcon, BriefcaseIcon, BuildingIcon, SettingsIcon, ChartBarIcon, CopyIcon, CloseIcon, SparklesIcon, HistoryIcon, QrCodeIcon, FlagIcon, ChevronLeftIcon } from './icons';
 import { getAdminsForOrganization, getCoachesForOrganization, saveAdminActivity } from '../services/firebaseService';
 import { OvningsbankContent } from './OvningsbankContent';
 import { PrintablePoster } from './PrintablePoster';
@@ -558,7 +558,13 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             <header className="h-16 flex-shrink-0 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 sm:px-6 z-50 shadow-sm">
                 <div className="flex items-center gap-4">
                     <button onClick={handleMenuIconClick} className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" title="Meny"><MenuIcon className="w-6 h-6" /></button>
-                    {userRole === 'systemowner' && (<button onClick={onGoToSystemOwner || onBack} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors font-bold text-xs border border-gray-200 dark:border-gray-700 mr-2">&larr; Systemvy</button>)}
+                    {onBack && (
+                        <button onClick={onBack} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors font-bold text-xs border border-gray-200 dark:border-gray-700 mr-2">
+                            <ChevronLeftIcon className="w-4 h-4" />
+                            <span className="hidden sm:inline">Tillbaka</span>
+                        </button>
+                    )}
+                    {userRole === 'systemowner' && onGoToSystemOwner && (<button onClick={onGoToSystemOwner} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors font-bold text-xs border border-gray-200 dark:border-gray-700 mr-2">&larr; Systemvy</button>)}
                     {studioLoading ? (<div className="h-8 w-24 bg-transparent"></div>) : displayLogoUrl ? (<img src={displayLogoUrl} alt={`${organization.name} logotyp`} className="max-h-8 object-contain" />) : (<h1 className="text-lg font-bold text-gray-900 dark:text-white tracking-tight truncate">{organization.name}</h1>)}
                 </div>
             </header>

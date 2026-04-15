@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Organization, Workout, UserData, BenchmarkDefinition } from '../../types';
 import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, TrophyIcon, EyeIcon } from '../icons';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -608,7 +609,7 @@ const ManageWorkoutsView: React.FC<{
                         onClose={() => setPreviewWorkout(null)}
                     />
                 )}
-                {publishConfirmWorkoutId && (
+                {publishConfirmWorkoutId && createPortal(
                     <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
                         <motion.div 
                             initial={{ opacity: 0, scale: 0.95 }}
@@ -647,9 +648,10 @@ const ManageWorkoutsView: React.FC<{
                                 </button>
                             </div>
                         </motion.div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
-                {deleteConfirmWorkoutId && (
+                {deleteConfirmWorkoutId && createPortal(
                     <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
                         <motion.div 
                             initial={{ opacity: 0, scale: 0.95 }}
@@ -679,9 +681,10 @@ const ManageWorkoutsView: React.FC<{
                                 </button>
                             </div>
                         </motion.div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
-                {copyConfirmWorkoutId && (
+                {copyConfirmWorkoutId && createPortal(
                     <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
                         <motion.div 
                             initial={{ opacity: 0, scale: 0.95 }}
@@ -712,7 +715,8 @@ const ManageWorkoutsView: React.FC<{
                                 </button>
                             </div>
                         </motion.div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
             </AnimatePresence>
         </div>

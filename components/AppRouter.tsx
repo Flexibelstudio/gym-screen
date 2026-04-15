@@ -388,7 +388,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onTogglePublish={onTogglePublish}
                 onDuplicateWorkout={onDuplicateWorkout}
                 onSelectMember={() => {}}
-                onBack={functions.handleGoToSystemOwner}
+                onBack={handleBack}
                 onGoToSystemOwner={functions.handleGoToSystemOwner}
                 initialTab={preferredAdminTab}
                 setCustomBackHandler={functions.setCustomBackHandler}
