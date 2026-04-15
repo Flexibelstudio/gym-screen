@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise } from '../types';
 import { ToggleSwitch, PencilIcon, ChartBarIcon, SparklesIcon, ChevronUpIcon, ChevronDownIcon, TrashIcon, BuildingIcon, PlusIcon, LockClosedIcon } from './icons';
 import { TimerSetupModal } from './TimerSetupModal';
@@ -722,6 +723,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
     const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
     const [handwritingCb, setHandwritingCb] = useState<((t: string) => void) | null>(null);
     const [exerciseBank, setExerciseBank] = useState<BankExercise[]>([]);
+    const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
     
     useEffect(() => {
         setInitialSnapshot(JSON.stringify(workout));
@@ -733,9 +735,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
 
     const handleCancel = () => {
         if (isDirty) {
-            if (window.confirm('Du har osparade ändringar. Är du säker på att du vill lämna?')) {
-                onCancel();
-            }
+            setShowUnsavedWarning(true);
         } else {
             onCancel();
         }
@@ -743,11 +743,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
 
     useEffect(() => {
         if (setCustomBackHandler) {
-            if (isDirty) {
-                setCustomBackHandler(() => handleCancel);
-            } else {
-                setCustomBackHandler(null);
-            }
+            setCustomBackHandler(() => handleCancel);
         }
         return () => {
             if (setCustomBackHandler) {
@@ -793,6 +789,10 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
     }, [selectedOrganization]);
 
     const handleSave = () => {
+        if (!isDirty) {
+            onCancel();
+            return;
+        }
         if (!workout.title.trim()) { alert("Passet måste ha ett namn."); return; }
         onSave({ ...workout, organizationId: selectedOrganization?.id || '' });
     };
@@ -944,6 +944,35 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                     onClose={() => setHandwritingCb(null)} 
                     onComplete={t => { handwritingCb(t); setHandwritingCb(null); }} 
                 />
+            )}
+
+            {showUnsavedWarning && createPortal(
+                <div className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Osparade ändringar</h3>
+                        <p className="text-gray-600 dark:text-gray-300 mb-6">
+                            Du har gjort ändringar i passet som inte är sparade. Är du säker på att du vill lämna utan att spara?
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button 
+                                onClick={() => setShowUnsavedWarning(false)}
+                                className="px-5 py-2.5 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                            >
+                                Avbryt
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    setShowUnsavedWarning(false);
+                                    onCancel();
+                                }}
+                                className="px-5 py-2.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors"
+                            >
+                                Lämna utan att spara
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
             )}
         </div>
     );

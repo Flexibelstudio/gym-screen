@@ -114,7 +114,7 @@ export const Header: React.FC<HeaderProps> = ({
   
   // FIX: Force back button visibility in Studio Mode if not on Home screen
   const isStudioContent = isStudioMode && page !== Page.Home;
-  const canGoBack = (historyLength > 1 && !pagesWithoutBack.includes(page)) || isStudioContent;
+  const canGoBack = (historyLength > 1 && !pagesWithoutBack.includes(page)) || isStudioContent || hasCustomBack;
 
   const isMemberAppView = (!isStudioMode && page === Page.Home) || page === Page.MemberProfile;
 
