@@ -146,7 +146,7 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                             </div>
 
                             {block.setupDescription && (
-                                <p className="text-sm sm:text-base md:text-xl lg:text-2xl xl:text-3xl text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-3xl lg:max-w-4xl xl:max-w-7xl break-words">
+                                <p className="text-sm sm:text-base md:text-xl lg:text-2xl xl:text-3xl text-gray-500 dark:text-gray-400 font-medium leading-relaxed max-w-3xl lg:max-w-4xl xl:max-w-7xl break-words whitespace-pre-wrap">
                                     {block.setupDescription}
                                 </p>
                             )}
@@ -183,7 +183,7 @@ export const WorkoutPresentationModal: React.FC<{ workout: Workout; onClose: () 
                                                 )}
                                             </div>
                                             {ex.description && (
-                                                <p className="text-sm sm:text-base md:text-xl lg:text-2xl xl:text-3xl text-gray-500 dark:text-gray-400 mt-1.5 lg:mt-3 xl:mt-8 leading-relaxed font-medium break-words">
+                                                <p className="text-sm sm:text-base md:text-xl lg:text-2xl xl:text-3xl text-gray-500 dark:text-gray-400 mt-1.5 lg:mt-3 xl:mt-8 leading-relaxed font-medium break-words whitespace-pre-wrap">
                                                     {ex.description}
                                                 </p>
                                             )}
@@ -261,7 +261,7 @@ const WorkoutBlockCard: React.FC<{
                         )}
                     </div>
                     <h2 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-tight mb-2 break-words">{block.title}</h2>
-                    <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed font-medium">
+                    <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed font-medium whitespace-pre-wrap">
                         {block.setupDescription || "Arbeta dig igenom följande övningar..."}
                     </p>
                 </div>
@@ -325,7 +325,7 @@ const WorkoutBlockCard: React.FC<{
                     <div key={ex.id || `ex-${index}`} className={`flex items-start gap-4 p-4 ${roundedClass} bg-gray-50 dark:bg-gray-900 ${borderClass} ${marginClass}`}>
                         <div className="flex-grow min-w-0">
                             <h4 className="text-lg font-black text-gray-900 dark:text-white leading-tight break-words">{ex.name || 'Okänd övning'}</h4>
-                            {ex.description && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed font-medium break-words">{ex.description}</p>}
+                            {ex.description && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 leading-relaxed font-medium break-words whitespace-pre-wrap">{ex.description}</p>}
                         </div>
                         {ex.reps && (
                             <div className="bg-white dark:bg-gray-800 px-3 py-1.5 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 font-mono font-black text-primary text-sm flex-shrink-0 whitespace-nowrap">

@@ -597,7 +597,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                 <PrintablePoster
                     title={posterToPrint === 'member' ? 'Skapa konto för att logga din träning och sätta mål' : 'Skapa coachkonto för att hantera medlemmar'}
                     code={posterToPrint === 'member' ? (organization.inviteCode || '') : (organization.coachCode || '')}
-                    url={posterToPrint === 'member' ? `${window.location.origin}/?invite=${organization.inviteCode}` : `${window.location.origin}/?coach=${organization.coachCode}`}
+                    url={`${window.location.origin}/?invite=${posterToPrint === 'member' ? organization.inviteCode : organization.coachCode}`}
                     organizationName={organization.name}
                 />
             )}

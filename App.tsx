@@ -445,8 +445,9 @@ const App: React.FC = () => {
       const params = new URLSearchParams(window.location.search);
       const logPayload = params.get('log');
       const inviteCode = params.get('invite');
+      const coachCode = params.get('coach');
       
-      if (inviteCode) {
+      if (inviteCode || coachCode) {
           setShowLogin(true);
       }
 
