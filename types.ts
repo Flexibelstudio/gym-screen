@@ -186,6 +186,8 @@ export interface StudioConfig {
   enableNotes?: boolean;
   enableWorkoutLogging?: boolean;
   enableWorkoutGames?: boolean; // NYTT: Träningslekar
+  enableTimer?: boolean; // NYTT: Fristående timer
+  enableOtherWorkouts?: boolean; // NYTT: Övriga pass
   checkInImageEnabled?: boolean;
   checkInImageUrl?: string;
   seasonalTheme?: ThemeOption;
