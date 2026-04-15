@@ -444,6 +444,12 @@ const App: React.FC = () => {
   useEffect(() => {
       const params = new URLSearchParams(window.location.search);
       const logPayload = params.get('log');
+      const inviteCode = params.get('invite');
+      
+      if (inviteCode) {
+          setShowLogin(true);
+      }
+
       if (logPayload) {
           try {
               const decoded = JSON.parse(atob(logPayload));
