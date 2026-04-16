@@ -834,12 +834,14 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const [showBlockSelector, setShowBlockSelector] = useState(false);
     const [blockForCircuit, setBlockForCircuit] = useState<WorkoutBlock | null>(null);
     const [lastDrawnBlock, setLastDrawnBlock] = useState<WorkoutBlock | null>(null);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
 
     // --- COACH NOTES ON IDEA BOARD ---
     const [coachNotes, setCoachNotes] = useState<CoachNote[]>([]);
     const [isCoachNotesModalOpen, setIsCoachNotesModalOpen] = useState(false);
     const [activeNotesTab, setActiveNotesTab] = useState<'coach' | 'idea'>('coach');
     const [activeCoachNote, setActiveCoachNote] = useState<CoachNote | null>(null);
+    const [selectedCoachFilter, setSelectedCoachFilter] = useState<string | null>(null);
 
     useEffect(() => {
         if (!selectedOrganization?.id) return;
@@ -943,6 +945,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
 
     const handleInteraction = useCallback(() => {
         setControlsVisible(true);
+        setIsMenuOpen(false);
         if (hideTimeoutRef.current) {
             clearTimeout(hideTimeoutRef.current);
         }
@@ -1620,14 +1623,38 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             onMouseMove={handleInteraction} 
             onTouchStart={handleInteraction}
         >
-            <div className={`absolute top-4 right-4 z-20 flex items-center gap-2 transition-all duration-500 ${!controlsVisible ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
-                <button onClick={() => setIsCoachNotesModalOpen(true)} className="bg-primary/90 hover:bg-primary text-white font-bold py-2 px-4 rounded-lg transition-colors backdrop-blur-sm shadow-md flex items-center gap-2" disabled={animationState !== 'finished'}>
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5-3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+            {/* Top Right Hamburger Menu */}
+            <div className={`absolute top-4 right-4 z-50 transition-all duration-500 ${!controlsVisible ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`} onClick={(e) => e.stopPropagation()}>
+                <button 
+                    onClick={() => setIsMenuOpen(!isMenuOpen)} 
+                    className="p-3 bg-gray-800/80 hover:bg-gray-700 text-white rounded-xl backdrop-blur-md shadow-lg transition-colors border border-gray-700"
+                    disabled={animationState !== 'finished'}
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                     </svg>
-                    Anteckningar
                 </button>
-                <button onClick={() => setIsInfoModalVisible(true)} className="bg-gray-600/80 hover:bg-gray-500 text-white font-bold p-2 rounded-lg transition-colors backdrop-blur-sm shadow-md" title="Om Idé-tavlan" disabled={animationState !== 'finished'}><InformationCircleIcon className="w-6 h-6" /></button>
+                {isMenuOpen && (
+                    <div className="absolute top-14 right-0 w-56 bg-gray-800/95 backdrop-blur-md shadow-2xl rounded-xl border border-gray-700 py-2 flex flex-col pointer-events-auto">
+                        <button onClick={() => { setIsCoachNotesModalOpen(true); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors">Anteckningar</button>
+                        <button onClick={() => { handleSaveNote(); setIsMenuOpen(false); }} disabled={(history.length === 0 && smartObjects.length === 0) || saveState !== 'idle' || animationState !== 'finished'} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            {saveState === 'saving' ? 'Sparar...' : saveState === 'saved' ? 'Sparad!' : 'Spara & Arkivera'}
+                        </button>
+                        <button onClick={() => { handleBeautifyDrawing(); setIsMenuOpen(false); }} disabled={history.length === 0 || animationState !== 'finished'} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            {isBeautifying ? 'Trollar...' : 'Snygga till'}
+                        </button>
+                        <button onClick={() => { handleInterpretAsWorkout(); setIsMenuOpen(false); }} disabled={(history.length === 0 && smartObjects.length === 0) || animationState !== 'finished'} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                            {isInterpretingWorkout ? 'Tolkar...' : 'Skapa Pass'}
+                        </button>
+                        <button onClick={() => { handleToggleTimer(); setIsMenuOpen(false); }} disabled={animationState !== 'finished'} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                            {timerBlock ? 'Stoppa Timer' : 'Timer'}
+                        </button>
+                        {lastDrawnBlock && animationState === 'finished' && (
+                            <button onClick={() => { setBlockForCircuit(lastDrawnBlock); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors">Justera</button>
+                        )}
+                        <button onClick={() => { setIsInfoModalVisible(true); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors border-t border-gray-700 mt-2">Om Idétavlan</button>
+                    </div>
+                )}
             </div>
 
             <button 
@@ -1784,35 +1811,31 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 })}
             </div>
             
-            <div className={`absolute bottom-0 left-0 right-0 z-20 p-6 flex flex-col gap-4 items-center transition-all duration-500 ${!controlsVisible ? 'opacity-0 translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'} pointer-events-none`}>
+            <div className={`absolute bottom-6 left-6 z-20 flex items-center gap-4 transition-all duration-500 ${!controlsVisible ? 'opacity-0 translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'} pointer-events-auto`}>
+                <div className="flex gap-2 bg-gray-800/80 backdrop-blur-md p-2 rounded-xl shadow-lg border border-gray-700">
+                    <button onClick={handleUndo} disabled={history.length === 0 || animationState !== 'finished'} className="p-3 text-white hover:bg-gray-700 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Ångra">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+                        </svg>
+                    </button>
+                    <button onClick={clearCanvas} disabled={animationState !== 'finished'} className="p-3 text-white hover:bg-gray-700 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Rensa">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                        </svg>
+                    </button>
+                </div>
                 
-                <div className="flex justify-center gap-3 pointer-events-auto bg-black/20 backdrop-blur-sm p-2 rounded-full mb-2">
+                <div className="flex gap-2 bg-gray-800/80 backdrop-blur-md p-2 rounded-xl shadow-lg border border-gray-700">
                     {effectiveColors.map(color => (
                         <button
                             key={color.hex}
                             onClick={() => setDrawingColor(color.hex)}
-                            className={`w-10 h-10 rounded-full border-2 transition-transform hover:scale-110 shadow-md ${drawingColor === color.hex ? 'border-white scale-110 shadow-lg' : 'border-transparent'}`}
+                            className={`w-10 h-10 rounded-full border-2 transition-transform hover:scale-110 shadow-sm ${drawingColor === color.hex ? 'border-white scale-110 shadow-md' : 'border-transparent'}`}
                             style={{ backgroundColor: color.hex }}
                             title={color.label}
                             aria-label={`Välj färg ${color.label}`}
                         />
                     ))}
-                </div>
-
-                <div className="flex flex-wrap justify-center gap-4 pointer-events-auto">
-                    <button onClick={handleUndo} disabled={history.length === 0 || animationState !== 'finished'} className="bg-gray-600/90 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg transition-colors backdrop-blur-sm shadow-lg">Ångra</button>
-                    <button onClick={clearCanvas} disabled={animationState !== 'finished'} className="bg-gray-600/90 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg backdrop-blur-sm shadow-lg">Rensa</button>
-                    
-                    <button onClick={handleBeautifyDrawing} disabled={history.length === 0 || animationState !== 'finished'} className="bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">
-                        {isBeautifying ? 'Trollar...' : '🪄 Snygga till'}
-                    </button>
-
-                    <button onClick={handleSaveNote} disabled={(history.length === 0 && smartObjects.length === 0) || saveState !== 'idle' || animationState !== 'finished'} className="bg-primary/90 hover:brightness-95 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">{saveState === 'saving' ? 'Sparar...' : saveState === 'saved' ? '✔️ Sparad!' : '💾 Spara & Arkivera'}</button>
-                    <button onClick={handleInterpretAsWorkout} disabled={(history.length === 0 && smartObjects.length === 0) || animationState !== 'finished'} className="bg-purple-600/90 hover:bg-purple-500 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">{isInterpretingWorkout ? 'Tolkar...' : '✍️ Skapa Pass'}</button>
-                    <button onClick={handleToggleTimer} disabled={animationState !== 'finished'} className="bg-blue-600/90 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">{timerBlock ? 'Stoppa Timer' : 'Timer'}</button>
-                    {lastDrawnBlock && animationState === 'finished' && (
-                        <button onClick={() => setBlockForCircuit(lastDrawnBlock)} className="bg-indigo-600/90 hover:bg-indigo-500 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">✏️ Justera</button>
-                    )}
                 </div>
             </div>
 
@@ -1856,13 +1879,13 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             )}
 
             {/* Combined Notes & Archive Modal */}
-            <Modal isOpen={isCoachNotesModalOpen} onClose={() => setIsCoachNotesModalOpen(false)} title="Mina Anteckningar & Arkiv" size="4xl">
+            <Modal isOpen={isCoachNotesModalOpen} onClose={() => setIsCoachNotesModalOpen(false)} title="Anteckningar" size="4xl">
                 <div className="flex gap-4 mb-4 border-b border-gray-200 dark:border-gray-800 pb-2">
                     <button 
                         onClick={() => setActiveNotesTab('coach')}
                         className={`pb-2 px-4 font-bold text-sm sm:text-base transition-colors relative ${activeNotesTab === 'coach' ? 'text-primary' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
                     >
-                        Mina Anteckningar
+                        Anteckningar
                         {activeNotesTab === 'coach' && <div className="absolute bottom-[-9px] left-0 right-0 h-1 bg-primary rounded-t-full" />}
                     </button>
                     <button 
@@ -1876,46 +1899,101 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
 
                 <div className="space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
                     {activeNotesTab === 'coach' ? (
-                        coachNotes.length === 0 ? (
-                            <p className="text-gray-500 text-center py-12">Inga anteckningar hittades för denna studio.</p>
-                        ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-2">
-                                {coachNotes.filter(n => n.isFavorite || (Date.now() - n.createdAt) <= 14 * 24 * 60 * 60 * 1000).map(note => (
-                                    <button 
-                                        key={note.id}
-                                        onClick={() => {
-                                            handleSelectCoachNote(note);
-                                            setIsCoachNotesModalOpen(false);
-                                        }}
-                                        className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-left hover:border-primary transition-colors flex flex-col group h-full shadow-sm"
-                                    >
-                                        <div className="flex items-center gap-3 mb-3 shrink-0">
-                                            {note.creatorPhotoUrl ? (
-                                                <img src={note.creatorPhotoUrl} alt="" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
-                                            ) : (
-                                                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
-                                                    {note.creatorName.charAt(0)}
-                                                </div>
-                                            )}
-                                            <div>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 leading-tight">{note.creatorName}</p>
-                                                <h4 className="font-bold text-gray-900 dark:text-white line-clamp-1">{note.title}</h4>
-                                            </div>
+                        (() => {
+                            const activeCoachNotes = coachNotes.filter(n => n.isFavorite || (Date.now() - n.createdAt) <= 14 * 24 * 60 * 60 * 1000);
+                            
+                            if (activeCoachNotes.length === 0) {
+                                return <p className="text-gray-500 text-center py-12">Inga anteckningar hittades för denna studio.</p>;
+                            }
+
+                            const uniqueCoaches = Array.from(new Map(activeCoachNotes.map(n => [n.createdBy, { id: n.createdBy, name: n.creatorName, photo: n.creatorPhotoUrl }])).values());
+
+                            if (!selectedCoachFilter) {
+                                return (
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Välj vems anteckningar du vill se</h3>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-2">
+                                            {uniqueCoaches.map((coach: any) => {
+                                                const coachNoteCount = activeCoachNotes.filter(n => n.createdBy === coach.id).length;
+                                                return (
+                                                    <button 
+                                                        key={coach.id}
+                                                        onClick={() => setSelectedCoachFilter(coach.id)}
+                                                        className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-center hover:border-primary transition-colors flex flex-col items-center gap-3 shadow-sm"
+                                                    >
+                                                        {coach.photo ? (
+                                                            <img src={coach.photo} alt={coach.name} className="w-16 h-16 rounded-full object-cover" referrerPolicy="no-referrer" />
+                                                        ) : (
+                                                            <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xl">
+                                                                {coach.name.charAt(0)}
+                                                            </div>
+                                                        )}
+                                                        <div>
+                                                            <h4 className="font-bold text-gray-900 dark:text-white line-clamp-1">{coach.name}</h4>
+                                                            <p className="text-xs text-gray-500">{coachNoteCount} anteckning{coachNoteCount !== 1 ? 'ar' : ''}</p>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
-                                        
-                                        {note.imageUrl ? (
-                                            <div className="w-full h-32 bg-gray-200 dark:bg-gray-900 rounded-lg overflow-hidden shrink-0">
-                                                <img src={note.imageUrl} alt="" className="w-full h-full object-cover" />
-                                            </div>
-                                        ) : (
-                                            <div className="w-full flex-grow bg-gray-100 dark:bg-gray-900 rounded-lg p-3 overflow-hidden">
-                                                <p className="text-xs text-gray-600 dark:text-gray-300 font-serif line-clamp-6">{note.text}</p>
-                                            </div>
-                                        )}
-                                    </button>
-                                ))}
-                            </div>
-                        )
+                                    </div>
+                                );
+                            }
+
+                            const filteredNotes = activeCoachNotes.filter(n => n.createdBy === selectedCoachFilter);
+                            const coachName = uniqueCoaches?.find((c: any) => c.id === selectedCoachFilter)?.name || 'Användaren';
+
+                            return (
+                                <div>
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <button 
+                                            onClick={() => setSelectedCoachFilter(null)}
+                                            className="p-1 px-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm font-bold transition-colors flex items-center gap-1"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                                            Översikt
+                                        </button>
+                                        <h3 className="text-lg font-bold text-gray-900 dark:text-white ml-2">{coachName}s anteckningar</h3>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-2">
+                                        {filteredNotes.map(note => (
+                                            <button 
+                                                key={note.id}
+                                                onClick={() => {
+                                                    handleSelectCoachNote(note);
+                                                    setIsCoachNotesModalOpen(false);
+                                                }}
+                                                className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-left hover:border-primary transition-colors flex flex-col group h-full shadow-sm"
+                                            >
+                                                <div className="flex items-center gap-3 mb-3 shrink-0">
+                                                    {note.creatorPhotoUrl ? (
+                                                        <img src={note.creatorPhotoUrl} alt="" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
+                                                    ) : (
+                                                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
+                                                            {note.creatorName.charAt(0)}
+                                                        </div>
+                                                    )}
+                                                    <div>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400 leading-tight">{note.creatorName}</p>
+                                                        <h4 className="font-bold text-gray-900 dark:text-white line-clamp-1">{note.title}</h4>
+                                                    </div>
+                                                </div>
+                                                
+                                                {note.imageUrl ? (
+                                                    <div className="w-full h-32 bg-gray-200 dark:bg-gray-900 rounded-lg overflow-hidden shrink-0">
+                                                        <img src={note.imageUrl} alt="" className="w-full h-full object-cover" />
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-full flex-grow bg-gray-100 dark:bg-gray-900 rounded-lg p-3 overflow-hidden">
+                                                        <p className="text-xs text-gray-600 dark:text-gray-300 font-serif line-clamp-6">{note.text}</p>
+                                                    </div>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })()
                     ) : (
                         savedNotes.length === 0 ? (
                             <p className="text-gray-400 text-center py-12">Arkivet är tomt.</p>

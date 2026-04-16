@@ -26,6 +26,7 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
     const [isSaving, setIsSaving] = useState(false);
     const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const cameraInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
         if (!selectedOrganization?.id) return;
@@ -263,14 +264,31 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
                                 </button>
                             </div>
                         ) : (
-                            <div 
-                                onClick={() => fileInputRef.current?.click()}
-                                className="w-full border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-8 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-primary hover:border-primary cursor-pointer transition-colors"
-                            >
-                                <div className="text-4xl mb-2">📸</div>
-                                <span className="font-bold">Klicka för att fota eller välja bild</span>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div 
+                                    onClick={() => cameraInputRef.current?.click()}
+                                    className="w-full border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-6 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-primary hover:border-primary cursor-pointer transition-colors"
+                                >
+                                    <div className="text-4xl mb-2">📸</div>
+                                    <span className="font-bold text-center">Fota</span>
+                                </div>
+                                <div 
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="w-full border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-6 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-primary hover:border-primary cursor-pointer transition-colors"
+                                >
+                                    <div className="text-4xl mb-2">🖼️</div>
+                                    <span className="font-bold text-center">Välj bild</span>
+                                </div>
                             </div>
                         )}
+                        <input 
+                            type="file" 
+                            accept="image/*" 
+                            capture="environment"
+                            ref={cameraInputRef} 
+                            onChange={handleImageSelect} 
+                            className="hidden" 
+                        />
                         <input 
                             type="file" 
                             accept="image/*" 
