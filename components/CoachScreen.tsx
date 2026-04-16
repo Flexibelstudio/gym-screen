@@ -20,6 +20,7 @@ import {
 
 interface CoachScreenProps {
   role: UserRole;
+  isStudioMode?: boolean;
   navigateTo: (page: Page) => void;
   onSelectCustomPage: (page: CustomPage) => void;
   isImpersonating?: boolean;
@@ -77,23 +78,25 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
 
   const items: { title: string; subTitle?: string; action: () => void; icon: React.ReactNode; gradient: string; isLocked?: boolean }[] = [];
 
-  // 1. DIN TRÄNING (Alltid överst)
-  items.push({ 
-      title: 'Min Träning', 
-      subTitle: 'Se statistik & mål',
-      action: onMemberProfileRequest || (() => navigateTo(Page.MemberProfile)),
-      icon: <UserIcon className="w-8 h-8" />,
-      gradient: 'bg-gradient-to-br from-teal-500 to-emerald-700'
-  });
+  // 1. DIN TRÄNING (Visa inte i StudioMode)
+  if (!isStudioMode) {
+      items.push({ 
+          title: 'Min Träning', 
+          subTitle: 'Se statistik & mål',
+          action: onMemberProfileRequest || (() => navigateTo(Page.MemberProfile)),
+          icon: <UserIcon className="w-8 h-8" />,
+          gradient: 'bg-gradient-to-br from-teal-500 to-emerald-700'
+      });
 
-  // NYTT: Anteckningar
-  items.push({
-      title: 'Anteckningar',
-      subTitle: 'Spara pass & idéer',
-      action: () => navigateTo(Page.CoachNotes),
-      icon: <DocumentTextIcon className="w-8 h-8" />,
-      gradient: 'bg-primary bg-gradient-to-br from-primary via-primary to-indigo-800'
-  });
+      // NYTT: Anteckningar
+      items.push({
+          title: 'Anteckningar',
+          subTitle: 'Spara pass & idéer',
+          action: () => navigateTo(Page.CoachNotes),
+          icon: <DocumentTextIcon className="w-8 h-8" />,
+          gradient: 'bg-primary bg-gradient-to-br from-primary via-primary to-indigo-800'
+      });
+  }
 
   // 2. LOGIK FÖR ADMIN / MANAGEMENT
   if (isImpersonating) {

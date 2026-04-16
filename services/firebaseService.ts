@@ -765,13 +765,16 @@ export const saveCoachNote = async (noteData: Omit<CoachNote, 'id' | 'createdAt'
     if (isOffline || !db) return null;
     try {
         const ref = doc(collection(db, 'coachNotes'));
-        const newNote: CoachNote = {
+        const newNote: any = {
             ...noteData,
             id: ref.id,
             createdAt: Date.now()
         };
+        // Clean up undefined fields
+        Object.keys(newNote).forEach(key => newNote[key] === undefined && delete newNote[key]);
+        
         await setDoc(ref, newNote);
-        return newNote;
+        return newNote as CoachNote;
     } catch (e) {
         console.error("saveCoachNote failed", e);
         return null;

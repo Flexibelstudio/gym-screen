@@ -270,6 +270,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
         case Page.Coach:
             return <CoachScreen 
                 role={role} 
+                isStudioMode={isStudioMode}
                 navigateTo={navigateTo}
                 onSelectCustomPage={functions.handleSelectCustomPage}
                 isImpersonating={isImpersonating}
