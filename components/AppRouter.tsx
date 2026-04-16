@@ -18,6 +18,7 @@ import { MemberManagementScreen } from './MemberManagementScreen';
 import { AdminAnalyticsScreen } from './AdminAnalyticsScreen';
 import { MemberProfileScreen } from './MemberProfileScreen';
 import { CoachScreen } from './CoachScreen';
+import { CoachNotesScreen } from './CoachNotesScreen';
 import { SuperAdminScreen } from './SuperAdminScreen';
 import { SystemOwnerScreen } from './SystemOwnerScreen';
 import { CustomContentScreen } from './CustomContentScreen';
@@ -277,6 +278,9 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onAdminLogin={functions.handleCoachAccessRequest}
                 onMemberProfileRequest={functions.handleMemberProfileRequest}
             />;
+
+        case Page.CoachNotes:
+            return <CoachNotesScreen onBack={handleBack} />;
 
         case Page.IdeaBoard:
             return <NotesScreen 

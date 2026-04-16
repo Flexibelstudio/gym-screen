@@ -759,6 +759,57 @@ export const listenToWeeklyPBs = (orgId: string, onUpdate: (events: StudioEvent[
     });
 };
 
+// --- COACH NOTES ---
+
+export const saveCoachNote = async (noteData: Omit<CoachNote, 'id' | 'createdAt'>): Promise<CoachNote | null> => {
+    if (isOffline || !db) return null;
+    try {
+        const ref = doc(collection(db, 'coachNotes'));
+        const newNote: CoachNote = {
+            ...noteData,
+            id: ref.id,
+            createdAt: Date.now()
+        };
+        await setDoc(ref, newNote);
+        return newNote;
+    } catch (e) {
+        console.error("saveCoachNote failed", e);
+        return null;
+    }
+};
+
+export const listenToCoachNotes = (orgId: string, onUpdate: (notes: CoachNote[]) => void) => {
+    if (isOffline || !db || !orgId) {
+        onUpdate([]);
+        return () => {};
+    }
+    const q = query(
+        collection(db, 'coachNotes'),
+        where('organizationId', '==', orgId),
+        orderBy('createdAt', 'desc')
+    );
+    return onSnapshot(q, (snap) => {
+        onUpdate(snap.docs.map(d => d.data() as CoachNote));
+    }, (err) => console.error("listenToCoachNotes failed", err));
+};
+
+export const toggleCoachNoteFavorite = async (noteId: string, isFavorite: boolean) => {
+    if (isOffline || !db || !noteId) return;
+    try {
+        await updateDoc(doc(db, 'coachNotes', noteId), { isFavorite });
+    } catch (e) { console.error("toggleCoachNoteFavorite failed", e); }
+};
+
+export const deleteCoachNote = async (noteId: string, imageUrl?: string) => {
+    if (isOffline || !db || !noteId) return;
+    try {
+        if (imageUrl) {
+            await deleteImageByUrl(imageUrl);
+        }
+        await deleteDoc(doc(db, 'coachNotes', noteId));
+    } catch (e) { console.error("deleteCoachNote failed", e); }
+};
+
 export const getOrganizations = async (): Promise<Organization[]> => {
     if (isOffline || !db) return MOCK_ORGANIZATIONS;
     try {

@@ -86,6 +86,15 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
       gradient: 'bg-gradient-to-br from-teal-500 to-emerald-700'
   });
 
+  // NYTT: Anteckningar
+  items.push({
+      title: 'Anteckningar',
+      subTitle: 'Spara pass & idéer',
+      action: () => navigateTo(Page.CoachNotes),
+      icon: <DocumentTextIcon className="w-8 h-8" />,
+      gradient: 'bg-primary bg-gradient-to-br from-primary via-primary to-indigo-800'
+  });
+
   // 2. LOGIK FÖR ADMIN / MANAGEMENT
   if (isImpersonating) {
       // Om vi förhandsgranskar vyn från adminpanelen
