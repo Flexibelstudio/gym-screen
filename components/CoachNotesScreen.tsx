@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Page, CoachNote } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useStudio } from '../context/StudioContext';
-import { listenToCoachNotes, saveCoachNote, toggleCoachNoteFavorite, deleteCoachNote, uploadImage } from '../services/firebaseService';
+import { listenToCoachNotes, saveCoachNote, toggleCoachNoteFavorite, deleteCoachNote, uploadImage, updateCoachNote } from '../services/firebaseService';
 import { Modal } from './ui/Modal';
 import { CloseIcon, PlusIcon, TrashIcon } from './icons';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -24,6 +24,7 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
     const [newImage, setNewImage] = useState<File | null>(null);
     const [newImagePreview, setNewImagePreview] = useState<string | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
@@ -50,7 +51,7 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
 
     const handleSaveNote = async () => {
         if (!selectedOrganization?.id || !userData?.uid) return;
-        if (!newText.trim() && !newImage) {
+        if (!newText.trim() && !newImage && !newImagePreview) {
             alert("Du måste lägga till text eller en bild.");
             return;
         }
@@ -58,27 +59,48 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
         setIsSaving(true);
         try {
             let imageUrl = '';
+            // If we have a new file, upload it
             if (newImage) {
                 const path = `coachNotes/${selectedOrganization.id}/${userData.uid}_${Date.now()}`;
                 imageUrl = await uploadImage(path, newImage);
             }
 
-            await saveCoachNote({
-                organizationId: selectedOrganization.id,
-                createdBy: userData.uid,
-                creatorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'Coach',
-                creatorPhotoUrl: userData.photoUrl,
-                title: newTitle.trim() || `Anteckning ${new Date().toLocaleDateString('sv-SE')}`,
-                text: newText.trim(),
-                imageUrl: imageUrl || undefined,
-                isFavorite: false
-            });
+            if (editingNoteId) {
+                // Determine the correct image URL for the update
+                // If a new image was uploaded, use that.
+                // If no new image, but we still have an preview, it means the old image wasn't removed. Keep it (or don't send it to avoid overriding).
+                // If no new image and no preview, it means the user deleted the image. Set to null to remove.
+                let finalImageUrl = imageUrl;
+                if (!imageUrl) {
+                    if (newImagePreview) {
+                        finalImageUrl = newImagePreview; // Keep existing
+                    }
+                }
+                
+                await updateCoachNote(editingNoteId, {
+                    title: newTitle.trim() || `Anteckning ${new Date().toLocaleDateString('sv-SE')}`,
+                    text: newText.trim(),
+                    imageUrl: finalImageUrl || null // Allow nulling out existing image
+                });
+            } else {
+                await saveCoachNote({
+                    organizationId: selectedOrganization.id,
+                    createdBy: userData.uid,
+                    creatorName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || 'Coach',
+                    creatorPhotoUrl: userData.photoUrl,
+                    title: newTitle.trim() || `Anteckning ${new Date().toLocaleDateString('sv-SE')}`,
+                    text: newText.trim(),
+                    imageUrl: imageUrl || undefined,
+                    isFavorite: false
+                });
+            }
 
             setIsCreateModalOpen(false);
             setNewTitle('');
             setNewText('');
             setNewImage(null);
             setNewImagePreview(null);
+            setEditingNoteId(null);
         } catch (error) {
             console.error("Failed to save note:", error);
             alert("Ett fel uppstod när anteckningen skulle sparas.");
@@ -172,7 +194,22 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
                                             {note.text}
                                         </p>
                                     )}
-                                    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button 
+                                            onClick={() => {
+                                                setEditingNoteId(note.id);
+                                                setNewTitle(note.title);
+                                                setNewText(note.text || '');
+                                                setNewImagePreview(note.imageUrl || null);
+                                                setNewImage(null);
+                                                setIsCreateModalOpen(true);
+                                            }}
+                                            className="text-gray-500 hover:text-gray-700 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                                              <path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
+                                            </svg>
+                                        </button>
                                         <button 
                                             onClick={() => {
                                                 if(window.confirm('Är du säker på att du vill radera denna anteckning?')) {
@@ -191,7 +228,16 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
                 </div>
             )}
 
-            <Modal isOpen={isCreateModalOpen} onClose={() => !isSaving && setIsCreateModalOpen(false)} title="Ny Anteckning" size="lg">
+            <Modal isOpen={isCreateModalOpen} onClose={() => {
+                if(!isSaving) {
+                    setIsCreateModalOpen(false);
+                    setEditingNoteId(null);
+                    setNewTitle('');
+                    setNewText('');
+                    setNewImage(null);
+                    setNewImagePreview(null);
+                }
+            }} title={editingNoteId ? "Redigera Anteckning" : "Ny Anteckning"} size="lg">
                 <div className="space-y-6">
                     <div>
                         <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Titel (Valfritt)</label>

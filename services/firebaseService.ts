@@ -781,6 +781,19 @@ export const saveCoachNote = async (noteData: Omit<CoachNote, 'id' | 'createdAt'
     }
 };
 
+export const updateCoachNote = async (noteId: string, updates: Partial<Omit<CoachNote, 'id' | 'createdAt'>>): Promise<void> => {
+    if (isOffline || !db || !noteId) return;
+    try {
+        const cleanedUpdates: any = { ...updates };
+        // Clean up undefined fields
+        Object.keys(cleanedUpdates).forEach(key => cleanedUpdates[key] === undefined && delete cleanedUpdates[key]);
+        
+        await updateDoc(doc(db, 'coachNotes', noteId), cleanedUpdates);
+    } catch (e) {
+        console.error("updateCoachNote failed", e);
+    }
+};
+
 export const listenToCoachNotes = (orgId: string, onUpdate: (notes: CoachNote[]) => void) => {
     if (isOffline || !db || !orgId) {
         onUpdate([]);

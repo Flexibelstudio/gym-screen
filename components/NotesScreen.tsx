@@ -838,6 +838,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     // --- COACH NOTES ON IDEA BOARD ---
     const [coachNotes, setCoachNotes] = useState<CoachNote[]>([]);
     const [isCoachNotesModalOpen, setIsCoachNotesModalOpen] = useState(false);
+    const [activeNotesTab, setActiveNotesTab] = useState<'coach' | 'idea'>('coach');
     const [activeCoachNote, setActiveCoachNote] = useState<CoachNote | null>(null);
 
     useEffect(() => {
@@ -1620,14 +1621,12 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             onTouchStart={handleInteraction}
         >
             <div className={`absolute top-4 right-4 z-20 flex items-center gap-2 transition-all duration-500 ${!controlsVisible ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
-                <button onClick={() => setIsCoachNotesModalOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold py-2 px-4 rounded-lg transition-colors backdrop-blur-sm shadow-md flex items-center gap-2" disabled={animationState !== 'finished'}>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
-                        <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+                <button onClick={() => setIsCoachNotesModalOpen(true)} className="bg-primary/90 hover:bg-primary text-white font-bold py-2 px-4 rounded-lg transition-colors backdrop-blur-sm shadow-md flex items-center gap-2" disabled={animationState !== 'finished'}>
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m0 12.75h7.5m-7.5-3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
                     </svg>
-                    Hämta Anteckning
+                    Anteckningar
                 </button>
-                <button onClick={() => setIsArchiveVisible(true)} className="bg-gray-600/80 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition-colors backdrop-blur-sm shadow-md" disabled={animationState !== 'finished'}>Arkiv ({savedNotes.length})</button>
                 <button onClick={() => setIsInfoModalVisible(true)} className="bg-gray-600/80 hover:bg-gray-500 text-white font-bold p-2 rounded-lg transition-colors backdrop-blur-sm shadow-md" title="Om Idé-tavlan" disabled={animationState !== 'finished'}><InformationCircleIcon className="w-6 h-6" /></button>
             </div>
 
@@ -1840,7 +1839,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             {interpretedWorkout && !showBlockSelector && !blockForCircuit && <WorkoutActionChoiceModal workout={interpretedWorkout} onGoToBuilder={handleGoToBuilder} onDrawCircuit={() => { if (interpretedWorkout.blocks.length > 1) setShowBlockSelector(true); else setBlockForCircuit(interpretedWorkout.blocks[0]); }} onCancel={() => setInterpretedWorkout(null)} />}
             {interpretedWorkout && showBlockSelector && <BlockSelectionModal workout={interpretedWorkout} onSelect={(idx) => { setBlockForCircuit(interpretedWorkout.blocks[idx]); setShowBlockSelector(false); }} onCancel={() => setShowBlockSelector(false)} />}
             {blockForCircuit && <CircuitReorderModal block={blockForCircuit} onConfirm={drawCircuitOnCanvas} onCancel={() => setBlockForCircuit(null)} />}
-            {isArchiveVisible && <NoteArchiveModal notes={savedNotes} onClose={() => setIsArchiveVisible(false)} onDelete={handleDeleteNoteAction} onUpdate={handleUpdateNoteAction} onLoad={handleLoadNote} />}
             {isInfoModalVisible && <IdeaBoardInfoModal onClose={() => setIsInfoModalVisible(false)} />}
             {isTimerSetupVisible && <IdeaBoardTimerSetupModal onStart={handleStartTimerSetup} onClose={() => setIsTimerSetupVisible(false)} block={lastDrawnBlock || { exercises: [] } as any} />}
             {completionInfo && <WorkoutCompleteModal isOpen={!!completionInfo} onClose={() => { setCompletionInfo(null); handleCloseTimer(); }} workout={completionInfo.workout} isFinalBlock={completionInfo.isFinal} blockTag={completionInfo.blockTag} finishTime={completionInfo.finishTime} organizationId={selectedOrganization?.id || ''} />}
@@ -1857,45 +1855,107 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 </div>
             )}
 
-            {/* Coach Notes Selection Modal */}
-            <Modal isOpen={isCoachNotesModalOpen} onClose={() => setIsCoachNotesModalOpen(false)} title="Välj Anteckning" size="2xl">
-                <div className="space-y-4 max-h-[60vh] overflow-y-auto">
-                    {coachNotes.length === 0 ? (
-                        <p className="text-gray-500 text-center py-8">Inga anteckningar hittades för denna studio.</p>
-                    ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-2">
-                            {coachNotes.filter(n => n.isFavorite || (Date.now() - n.createdAt) <= 14 * 24 * 60 * 60 * 1000).map(note => (
-                                <button 
-                                    key={note.id}
-                                    onClick={() => handleSelectCoachNote(note)}
-                                    className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-left hover:border-primary transition-colors flex flex-col group"
-                                >
-                                    <div className="flex items-center gap-3 mb-3 shrink-0">
-                                        {note.creatorPhotoUrl ? (
-                                            <img src={note.creatorPhotoUrl} alt="" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
+            {/* Combined Notes & Archive Modal */}
+            <Modal isOpen={isCoachNotesModalOpen} onClose={() => setIsCoachNotesModalOpen(false)} title="Mina Anteckningar & Arkiv" size="4xl">
+                <div className="flex gap-4 mb-4 border-b border-gray-200 dark:border-gray-800 pb-2">
+                    <button 
+                        onClick={() => setActiveNotesTab('coach')}
+                        className={`pb-2 px-4 font-bold text-sm sm:text-base transition-colors relative ${activeNotesTab === 'coach' ? 'text-primary' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                    >
+                        Mina Anteckningar
+                        {activeNotesTab === 'coach' && <div className="absolute bottom-[-9px] left-0 right-0 h-1 bg-primary rounded-t-full" />}
+                    </button>
+                    <button 
+                        onClick={() => setActiveNotesTab('idea')}
+                        className={`pb-2 px-4 font-bold text-sm sm:text-base transition-colors relative ${activeNotesTab === 'idea' ? 'text-primary' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                    >
+                        Idétavlans Arkiv ({savedNotes.length})
+                        {activeNotesTab === 'idea' && <div className="absolute bottom-[-9px] left-0 right-0 h-1 bg-primary rounded-t-full" />}
+                    </button>
+                </div>
+
+                <div className="space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                    {activeNotesTab === 'coach' ? (
+                        coachNotes.length === 0 ? (
+                            <p className="text-gray-500 text-center py-12">Inga anteckningar hittades för denna studio.</p>
+                        ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-2">
+                                {coachNotes.filter(n => n.isFavorite || (Date.now() - n.createdAt) <= 14 * 24 * 60 * 60 * 1000).map(note => (
+                                    <button 
+                                        key={note.id}
+                                        onClick={() => {
+                                            handleSelectCoachNote(note);
+                                            setIsCoachNotesModalOpen(false);
+                                        }}
+                                        className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-left hover:border-primary transition-colors flex flex-col group h-full shadow-sm"
+                                    >
+                                        <div className="flex items-center gap-3 mb-3 shrink-0">
+                                            {note.creatorPhotoUrl ? (
+                                                <img src={note.creatorPhotoUrl} alt="" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
+                                            ) : (
+                                                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
+                                                    {note.creatorName.charAt(0)}
+                                                </div>
+                                            )}
+                                            <div>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 leading-tight">{note.creatorName}</p>
+                                                <h4 className="font-bold text-gray-900 dark:text-white line-clamp-1">{note.title}</h4>
+                                            </div>
+                                        </div>
+                                        
+                                        {note.imageUrl ? (
+                                            <div className="w-full h-32 bg-gray-200 dark:bg-gray-900 rounded-lg overflow-hidden shrink-0">
+                                                <img src={note.imageUrl} alt="" className="w-full h-full object-cover" />
+                                            </div>
                                         ) : (
-                                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
-                                                {note.creatorName.charAt(0)}
+                                            <div className="w-full flex-grow bg-gray-100 dark:bg-gray-900 rounded-lg p-3 overflow-hidden">
+                                                <p className="text-xs text-gray-600 dark:text-gray-300 font-serif line-clamp-6">{note.text}</p>
                                             </div>
                                         )}
-                                        <div>
-                                            <p className="text-xs text-gray-500 dark:text-gray-400 leading-tight">{note.creatorName}</p>
-                                            <h4 className="font-bold text-gray-900 dark:text-white line-clamp-1">{note.title}</h4>
+                                    </button>
+                                ))}
+                            </div>
+                        )
+                    ) : (
+                        savedNotes.length === 0 ? (
+                            <p className="text-gray-400 text-center py-12">Arkivet är tomt.</p>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-2">
+                                {savedNotes.map(note => (
+                                    <div key={note.id} className="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col gap-3">
+                                        <div className="w-full h-40 bg-gray-200 dark:bg-gray-900 rounded-lg overflow-hidden shrink-0 relative">
+                                            <img src={note.imageUrl} alt="Handskriven anteckning" className="w-full h-full object-contain" />
+                                        </div>
+                                        <div className="flex flex-col flex-grow">
+                                            <p className="text-xs text-gray-500 mb-2">{new Date(note.timestamp).toLocaleString('sv-SE')}</p>
+                                            {note.text && (
+                                                <pre className="flex-grow whitespace-pre-wrap font-sans bg-gray-100 dark:bg-gray-900 p-3 rounded-lg text-gray-800 dark:text-gray-200 text-xs mb-3 custom-scrollbar overflow-y-auto max-h-24">
+                                                    {note.text}
+                                                </pre>
+                                            )}
+                                            <div className="flex gap-2 mt-auto flex-wrap">
+                                                <button onClick={() => {
+                                                    handleLoadNote(note);
+                                                    setIsCoachNotesModalOpen(false);
+                                                }} className="bg-primary/90 hover:bg-primary text-white text-xs font-bold py-2 px-3 rounded-lg transition-colors flex-1">
+                                                    Ladda till tavlan
+                                                </button>
+                                                {note.text ? (
+                                                    <button onClick={() => {
+                                                        if (note.text) navigator.clipboard.writeText(note.text);
+                                                    }} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 text-xs font-bold py-2 px-3 rounded-lg transition-colors flex-1">
+                                                        Kopiera text
+                                                    </button>
+                                                ) : null}
+                                                <button onClick={() => handleDeleteNoteAction(note.id)} className="bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 text-xs font-bold py-2 px-3 rounded-lg transition-colors shrink-0">
+                                                    Ta bort
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                    
-                                    {note.imageUrl ? (
-                                        <div className="w-full h-32 bg-gray-200 dark:bg-gray-900 rounded-lg overflow-hidden shrink-0">
-                                            <img src={note.imageUrl} alt="" className="w-full h-full object-cover" />
-                                        </div>
-                                    ) : (
-                                        <div className="w-full h-32 bg-gray-100 dark:bg-gray-900 rounded-lg p-3 overflow-hidden shrink-0">
-                                            <p className="text-xs text-gray-600 dark:text-gray-300 font-serif line-clamp-6">{note.text}</p>
-                                        </div>
-                                    )}
-                                </button>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        )
                     )}
                 </div>
             </Modal>
