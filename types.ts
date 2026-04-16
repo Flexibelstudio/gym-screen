@@ -59,6 +59,7 @@ export enum Page {
   MyStrength, 
   RemoteControl, // NYTT: Fjärrkontrollssida
   WorkoutGamesHub, // NYTT: Träningslekar
+  CoachNotes, // NYTT: Anteckningar för coacher
 }
 
 export enum TimerMode {
@@ -617,6 +618,19 @@ export interface Lead {
     message?: string;
     status: 'new' | 'contacted' | 'archived';
     createdAt: number;
+}
+
+export interface CoachNote {
+    id: string;
+    organizationId: string;
+    createdBy: string;
+    creatorName: string;
+    creatorPhotoUrl?: string;
+    title: string;
+    text?: string;
+    imageUrl?: string;
+    createdAt: number;
+    isFavorite: boolean;
 }
 
 export interface Note {
