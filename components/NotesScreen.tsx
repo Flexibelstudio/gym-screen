@@ -6,10 +6,14 @@ import { deleteImageByUrl, resolveAndCreateExercises } from '../services/firebas
 import { useWorkoutTimer, getAudioContext } from '../hooks/useWorkoutTimer';
 import { useStudio } from '../context/StudioContext';
 import { ValueAdjuster, InformationCircleIcon, ChevronUpIcon, ChevronDownIcon, CloseIcon, PlusIcon, TrashIcon } from './icons';
+import { DraggableImage } from './ui/DraggableImage';
+import { listenToCoachNotes } from '../services/firebaseService';
+
 import { Modal } from './ui/Modal';
 import { WorkoutCompleteModal } from './WorkoutCompleteModal';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import rough from 'roughjs';
+import { CoachNote } from '../types';
 
 interface NotesScreenProps {
     onWorkoutInterpreted: (w: Workout) => void;
@@ -831,6 +835,40 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const [blockForCircuit, setBlockForCircuit] = useState<WorkoutBlock | null>(null);
     const [lastDrawnBlock, setLastDrawnBlock] = useState<WorkoutBlock | null>(null);
 
+    // --- COACH NOTES ON IDEA BOARD ---
+    const [coachNotes, setCoachNotes] = useState<CoachNote[]>([]);
+    const [isCoachNotesModalOpen, setIsCoachNotesModalOpen] = useState(false);
+    const [activeCoachNote, setActiveCoachNote] = useState<CoachNote | null>(null);
+
+    useEffect(() => {
+        if (!selectedOrganization?.id) return;
+        const unsubscribe = listenToCoachNotes(selectedOrganization.id, (notes) => {
+            setCoachNotes(notes);
+        });
+        return () => unsubscribe();
+    }, [selectedOrganization?.id]);
+
+    const handleSelectCoachNote = (note: CoachNote) => {
+        setIsCoachNotesModalOpen(false);
+        if (note.imageUrl) {
+            setActiveCoachNote(note);
+        } else if (note.text) {
+            // Put text on canvas as a smart object
+            const newObj: SmartObject = {
+                id: `smart-text-${Date.now()}`,
+                type: 'text',
+                x: 100,
+                y: 100,
+                width: 400,
+                height: 200,
+                text: note.title ? `${note.title}\n\n${note.text}` : note.text,
+                color: '#FFFFFF',
+                fontSize: 36
+            };
+            setSmartObjects(prev => [...prev, newObj]);
+        }
+    };
+
     const isDrawing = useRef(false);
     const points = useRef<{x: number, y: number}[]>([]);
     
@@ -1582,6 +1620,13 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             onTouchStart={handleInteraction}
         >
             <div className={`absolute top-4 right-4 z-20 flex items-center gap-2 transition-all duration-500 ${!controlsVisible ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
+                <button onClick={() => setIsCoachNotesModalOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold py-2 px-4 rounded-lg transition-colors backdrop-blur-sm shadow-md flex items-center gap-2" disabled={animationState !== 'finished'}>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" />
+                        <path fillRule="evenodd" d="M4 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v11a2 2 0 01-2 2H6a2 2 0 01-2-2V5zm3 4a1 1 0 000 2h.01a1 1 0 100-2H7zm3 0a1 1 0 000 2h3a1 1 0 100-2h-3zm-3 4a1 1 0 100 2h.01a1 1 0 100-2H7zm3 0a1 1 0 100 2h3a1 1 0 100-2h-3z" clipRule="evenodd" />
+                    </svg>
+                    Hämta Anteckning
+                </button>
                 <button onClick={() => setIsArchiveVisible(true)} className="bg-gray-600/80 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition-colors backdrop-blur-sm shadow-md" disabled={animationState !== 'finished'}>Arkiv ({savedNotes.length})</button>
                 <button onClick={() => setIsInfoModalVisible(true)} className="bg-gray-600/80 hover:bg-gray-500 text-white font-bold p-2 rounded-lg transition-colors backdrop-blur-sm shadow-md" title="Om Idé-tavlan" disabled={animationState !== 'finished'}><InformationCircleIcon className="w-6 h-6" /></button>
             </div>
@@ -1686,6 +1731,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                                 <textarea
                                     value={obj.text || ''}
                                     onChange={(e) => updateSmartObject(obj.id, { text: e.target.value })}
+                                    onPointerDown={(e) => e.stopPropagation()}
                                     rows={Math.max(1, (obj.text || '').split('\n').length)}
                                     className="bg-transparent border-none outline-none text-center w-full resize-none overflow-hidden"
                                     style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: `${obj.fontSize || 36}px`, lineHeight: '1.2' }}
@@ -1695,6 +1741,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                                 <textarea
                                     value={obj.text || ''}
                                     onChange={(e) => updateSmartObject(obj.id, { text: e.target.value })}
+                                    onPointerDown={(e) => e.stopPropagation()}
                                     rows={Math.max(1, (obj.text || '').split('\n').length)}
                                     className="bg-transparent border-none outline-none text-center w-full relative z-10 resize-none overflow-hidden"
                                     style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: `${obj.fontSize || 28}px`, lineHeight: '1.2' }}
@@ -1797,6 +1844,61 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             {isInfoModalVisible && <IdeaBoardInfoModal onClose={() => setIsInfoModalVisible(false)} />}
             {isTimerSetupVisible && <IdeaBoardTimerSetupModal onStart={handleStartTimerSetup} onClose={() => setIsTimerSetupVisible(false)} block={lastDrawnBlock || { exercises: [] } as any} />}
             {completionInfo && <WorkoutCompleteModal isOpen={!!completionInfo} onClose={() => { setCompletionInfo(null); handleCloseTimer(); }} workout={completionInfo.workout} isFinalBlock={completionInfo.isFinal} blockTag={completionInfo.blockTag} finishTime={completionInfo.finishTime} organizationId={selectedOrganization?.id || ''} />}
+
+            {/* Draggable Active Image Note */}
+            {activeCoachNote?.imageUrl && (
+                <div className="fixed inset-0 pointer-events-none z-40 overflow-hidden">
+                    <DraggableImage 
+                        src={activeCoachNote.imageUrl} 
+                        alt={activeCoachNote.title} 
+                        initialPosition={{ x: 100, y: 100 }}
+                        onClose={() => setActiveCoachNote(null)}
+                    />
+                </div>
+            )}
+
+            {/* Coach Notes Selection Modal */}
+            <Modal isOpen={isCoachNotesModalOpen} onClose={() => setIsCoachNotesModalOpen(false)} title="Välj Anteckning" size="2xl">
+                <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+                    {coachNotes.length === 0 ? (
+                        <p className="text-gray-500 text-center py-8">Inga anteckningar hittades för denna studio.</p>
+                    ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-2">
+                            {coachNotes.filter(n => n.isFavorite || (Date.now() - n.createdAt) <= 14 * 24 * 60 * 60 * 1000).map(note => (
+                                <button 
+                                    key={note.id}
+                                    onClick={() => handleSelectCoachNote(note)}
+                                    className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-left hover:border-primary transition-colors flex flex-col group"
+                                >
+                                    <div className="flex items-center gap-3 mb-3 shrink-0">
+                                        {note.creatorPhotoUrl ? (
+                                            <img src={note.creatorPhotoUrl} alt="" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
+                                        ) : (
+                                            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
+                                                {note.creatorName.charAt(0)}
+                                            </div>
+                                        )}
+                                        <div>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 leading-tight">{note.creatorName}</p>
+                                            <h4 className="font-bold text-gray-900 dark:text-white line-clamp-1">{note.title}</h4>
+                                        </div>
+                                    </div>
+                                    
+                                    {note.imageUrl ? (
+                                        <div className="w-full h-32 bg-gray-200 dark:bg-gray-900 rounded-lg overflow-hidden shrink-0">
+                                            <img src={note.imageUrl} alt="" className="w-full h-full object-cover" />
+                                        </div>
+                                    ) : (
+                                        <div className="w-full h-32 bg-gray-100 dark:bg-gray-900 rounded-lg p-3 overflow-hidden shrink-0">
+                                            <p className="text-xs text-gray-600 dark:text-gray-300 font-serif line-clamp-6">{note.text}</p>
+                                        </div>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </Modal>
         </div>
     );
 };
