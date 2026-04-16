@@ -124,7 +124,7 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
                     <button onClick={onBack} className="p-2 bg-gray-200 dark:bg-gray-800 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors">
                         <CloseIcon className="w-6 h-6 text-gray-700 dark:text-gray-300" />
                     </button>
-                    <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Mina Anteckningar</h1>
+                    <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Anteckningar</h1>
                 </div>
                 <button 
                     onClick={() => setIsCreateModalOpen(true)}
