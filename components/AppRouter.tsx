@@ -232,7 +232,6 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 isAutoTransition={isAutoTransition}
                 // Pass command to TimerScreen
                 remoteCommand={remoteCommand}
-                selectedStudio={selectedStudio}
             />;
 
         case Page.FreestandingTimer:
