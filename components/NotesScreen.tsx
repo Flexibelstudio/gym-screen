@@ -659,13 +659,11 @@ const CompactTimer: React.FC<{
             controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000);
         };
 
-        window.addEventListener('pointermove', handleActivity);
-        window.addEventListener('touchstart', handleActivity);
+        window.addEventListener('pointerdown', handleActivity);
         window.addEventListener('keydown', handleActivity);
 
         return () => {
-            window.removeEventListener('pointermove', handleActivity);
-            window.removeEventListener('touchstart', handleActivity);
+            window.removeEventListener('pointerdown', handleActivity);
             window.removeEventListener('keydown', handleActivity);
             if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
         };
@@ -691,13 +689,12 @@ const CompactTimer: React.FC<{
     return (
         <>
             <AnimatePresence>
-                {timer.status === TimerStatus.Paused && createPortal(
+                {timer.status === TimerStatus.Paused && (
                     <PauseOverlay 
                         onResume={timer.resume}
                         onRestart={() => { timer.reset(); setTimeout(() => timer.start(), 100); }}
                         onFinish={onClose}
-                    />,
-                    document.body
+                    />
                 )}
             </AnimatePresence>
 
@@ -706,38 +703,38 @@ const CompactTimer: React.FC<{
                 style={{ backgroundColor: timerColor, minHeight: '220px' }}
             >
                 <div className="flex w-full items-center justify-center mb-2 relative">
-                    <div className="px-4 py-1 rounded-full bg-black/20 backdrop-blur-md border border-white/20 shadow-sm">
-                        <span className="font-black tracking-[0.2em] text-white uppercase text-xs sm:text-sm">
+                    <div className="px-5 py-1.5 rounded-full bg-black/20 backdrop-blur-md border border-white/20 shadow-sm">
+                        <span className="font-black tracking-[0.2em] text-white uppercase text-base sm:text-lg">
                             {block.settings.mode.toUpperCase()}
                         </span>
                     </div>
                 </div>
                 
                 {(block.settings.mode === TimerMode.Interval || block.settings.mode === TimerMode.Tabata || block.settings.mode === TimerMode.Custom) && (
-                    <div className="absolute top-6 right-6 flex flex-col items-end gap-1 px-2 sm:px-4">
+                    <div className="absolute top-6 right-6 flex flex-col items-end gap-1 px-2 sm:px-4 pointer-events-none">
                         <div className="flex flex-col items-end">
-                            <span className="block text-white/80 font-black text-[10px] sm:text-xs uppercase tracking-[0.4em] mb-1 drop-shadow-md">{block.settings.mode === TimerMode.Custom ? 'SEGMENT' : 'INTERVALL'}</span>
+                            <span className="block text-white/80 font-black text-[14px] sm:text-[16px] uppercase tracking-[0.4em] mb-1 drop-shadow-md">{block.settings.mode === TimerMode.Custom ? 'SEGMENT' : 'INTERVALL'}</span>
                             <div className="flex items-baseline justify-end gap-1">
-                                <span className="font-black text-3xl sm:text-4xl text-white drop-shadow-lg leading-none">{currentIntervalInLap}</span>
-                                <span className="text-lg sm:text-xl font-black text-white/80 drop-shadow-md">/ {timer.effectiveIntervalsPerLap}</span>
+                                <span className="font-black text-5xl sm:text-6xl text-white drop-shadow-lg leading-none">{currentIntervalInLap}</span>
+                                <span className="text-2xl sm:text-3xl font-black text-white/80 drop-shadow-md">/ {timer.effectiveIntervalsPerLap}</span>
                             </div>
                         </div>
 
                         <div className="flex items-center justify-end gap-3 mt-1 sm:mt-2">
-                            <span className="text-white/80 font-black text-[9px] sm:text-[10px] uppercase tracking-[0.3em] drop-shadow-md">VARV</span>
+                            <span className="text-white/80 font-black text-[13px] sm:text-[14px] uppercase tracking-[0.3em] drop-shadow-md">VARV</span>
                             <div className="flex items-baseline gap-1">
-                                <span className="font-black text-lg sm:text-xl text-white drop-shadow-md leading-none">{Math.floor(timer.completedWorkIntervals / timer.effectiveIntervalsPerLap) + 1}</span>
-                                <span className="text-xs font-black text-white/80 drop-shadow-md">/ {Math.ceil(timer.totalRounds / timer.effectiveIntervalsPerLap)}</span>
+                                <span className="font-black text-3xl sm:text-4xl text-white drop-shadow-md leading-none">{Math.floor(timer.completedWorkIntervals / timer.effectiveIntervalsPerLap) + 1}</span>
+                                <span className="text-base sm:text-lg font-black text-white/80 drop-shadow-md">/ {Math.ceil(timer.totalRounds / timer.effectiveIntervalsPerLap)}</span>
                             </div>
                         </div>
                     </div>
                 )}
                 
                 <div className="flex flex-col items-center flex-grow justify-center mt-8 cursor-default select-none pointer-events-none">
-                    <p className="text-white font-bold tracking-[0.3em] uppercase text-sm sm:text-base mb-1 drop-shadow-md opacity-90">
+                    <p className="text-white font-bold tracking-[0.3em] uppercase text-xl sm:text-2xl mb-1 drop-shadow-md opacity-90">
                         {statusText}
                     </p>
-                    <div className="font-mono text-7xl sm:text-8xl md:text-9xl leading-none font-black text-white tabular-nums drop-shadow-2xl my-2">
+                    <div className="font-mono text-8xl sm:text-9xl md:text-[10rem] leading-none font-black text-white tabular-nums drop-shadow-2xl my-2">
                         {minutes}:{seconds}
                     </div>
                 </div>
@@ -752,21 +749,28 @@ const CompactTimer: React.FC<{
                         />
                     </div>
                 )}
-                
+            </div>
+            
+            {createPortal(
                 <AnimatePresence>
                     {timer.status !== TimerStatus.Paused && showControls && (
-                        <motion.button
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.8 }}
-                            onClick={timer.pause}
-                            className="absolute bottom-6 right-6 w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-all active:scale-95 shadow-2xl border-2 border-white/20 pointer-events-auto backdrop-blur-md z-40"
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[9998] pointer-events-none flex flex-col items-center justify-center p-8 text-center"
                         >
-                            <svg className="w-10 h-10 sm:w-12 sm:h-12 fill-current" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
-                        </motion.button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); timer.pause(); }}
+                                className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl active:bg-gray-100 transition-transform active:scale-95 text-xl border-4 border-white/50 uppercase pointer-events-auto"
+                            >
+                                PAUSA
+                            </button>
+                        </motion.div>
                     )}
-                </AnimatePresence>
-            </div>
+                </AnimatePresence>,
+                document.body
+            )}
         </>
     );
 };
@@ -1693,7 +1697,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 <canvas ref={canvasRef} className="w-full h-full block" />
                 
                 {/* Timer Zone Marker */}
-                <div className="absolute top-[260px] left-0 right-0 pointer-events-none flex justify-between px-0 opacity-40 z-0">
+                <div className="absolute top-[320px] left-0 right-0 pointer-events-none flex justify-between px-0 opacity-40 z-0">
                     <div className="flex items-center">
                         <div className="w-4 h-[2px] bg-gray-400 dark:bg-gray-500 rounded-r-full"></div>
                         <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-2 rotate-90 origin-left translate-y-6">Timer</span>

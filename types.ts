@@ -600,6 +600,7 @@ export interface SmartObject {
     endY?: number;
     text?: string;
     color: string;
+    fontSize?: number;
 }
 
 export interface GalleryImage {
