@@ -689,6 +689,9 @@ const App: React.FC = () => {
                 });
             }
             navigateReplace(Page.WorkoutDetail);
+        } else if (isEditingNewDraft) {
+            setIsEditingNewDraft(false);
+            navigateReplace(Page.WorkoutDetail);
         } else {
             handleBack();
             setPreferredAdminTab('pass-program');
