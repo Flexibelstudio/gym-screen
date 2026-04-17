@@ -57,20 +57,19 @@ export const DraggableImage: React.FC<DraggableImageProps> = ({ src, alt, initia
 
                 {children}
 
-                {/* Resize Handle med framer-motion drag */}
+                {/* Resize Handle med framer-motion onPan */}
                 <motion.div 
-                    className="absolute bottom-0 right-0 w-20 h-20 cursor-se-resize bg-black/40 hover:bg-primary flex items-center justify-center rounded-tl-full transition-colors z-[60] pointer-events-auto"
-                    drag
-                    dragMomentum={false}
-                    onDrag={(event, info) => {
+                    className="absolute bottom-0 right-0 w-24 h-24 cursor-se-resize bg-slate-800/80 hover:bg-primary flex items-center justify-center rounded-tl-full transition-colors z-[60] pointer-events-auto border-l-2 border-t-2 border-white/10"
+                    onPan={(event, info) => {
                         setSize(prev => ({
                             width: Math.max(300, prev.width + info.delta.x),
                             height: Math.max(300, prev.height + info.delta.y),
                         }));
                     }}
                     onPointerDown={(e) => e.stopPropagation()}
+                    style={{ touchAction: 'none' }}
                 >
-                   <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-white translate-x-2 translate-y-2">
+                   <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-white translate-x-3 translate-y-3">
                         <path d="M21 15L15 21M21 8L8 21M21 21H8H21ZM21 21V15V21Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                 </motion.div>
