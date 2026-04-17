@@ -62,13 +62,9 @@ export const DraggableImage: React.FC<DraggableImageProps> = ({ src, alt, initia
                     className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize bg-black/20 hover:bg-primary/80 flex items-center justify-center rounded-tl-lg transition-colors opacity-0 group-hover:opacity-100 z-[60] pointer-events-auto"
                     onPointerDownCapture={(e) => {
                         e.stopPropagation();
-                        e.nativeEvent.stopImmediatePropagation();
                     }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
                     onPointerDown={(e) => {
                         e.stopPropagation(); // prevent triggering parent drag
-                        e.nativeEvent.stopImmediatePropagation();
                         
                         setIsResizing(true);
                         

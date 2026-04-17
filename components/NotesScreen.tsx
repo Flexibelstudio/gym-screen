@@ -7,7 +7,7 @@ import { deleteImageByUrl, resolveAndCreateExercises, getOrganizationExerciseBan
 import { useWorkoutTimer, getAudioContext } from '../hooks/useWorkoutTimer';
 import { useStudio } from '../context/StudioContext';
 import { PauseOverlay } from './timer/TimerModals';
-import { ValueAdjuster, InformationCircleIcon, ChevronUpIcon, ChevronDownIcon, CloseIcon, PlusIcon, TrashIcon } from './icons';
+import { ValueAdjuster, InformationCircleIcon, ChevronUpIcon, ChevronDownIcon, CloseIcon, PlusIcon, TrashIcon, PlayIcon } from './icons';
 import { DraggableImage } from './ui/DraggableImage';
 import { listenToCoachNotes } from '../services/firebaseService';
 
@@ -627,6 +627,7 @@ const filterTimeFromReps = (reps: string): string => {
 };
 
 const getTimerHexColor = (status: TimerStatus, mode: TimerMode | string) => {
+    if (status === TimerStatus.Idle) return '#1e293b';
     if (status === TimerStatus.Resting) return '#2dd4bf';
     if (status === TimerStatus.Preparing) return '#3b82f6';
     if (status === TimerStatus.Paused) return '#6b7280';
@@ -676,7 +677,8 @@ const CompactTimer: React.FC<{
     }, [timer.status, onFinish]);
 
     const timerColor = getTimerHexColor(timer.status, block.settings.mode);
-    const statusText = timer.status === TimerStatus.Preparing ? 'Gör dig redo' : 
+    const statusText = timer.status === TimerStatus.Idle ? 'Redo att starta' :
+                       timer.status === TimerStatus.Preparing ? 'Gör dig redo' : 
                        (block.settings.mode === TimerMode.Custom && timer.currentSegment?.title) ? timer.currentSegment.title :
                        timer.status === TimerStatus.Resting ? 'Vila' : 'Arbete';
 
@@ -688,15 +690,18 @@ const CompactTimer: React.FC<{
 
     return (
         <>
-            <AnimatePresence>
-                {timer.status === TimerStatus.Paused && (
-                    <PauseOverlay 
-                        onResume={timer.resume}
-                        onRestart={() => { timer.reset(); setTimeout(() => timer.start(), 100); }}
-                        onFinish={onClose}
-                    />
-                )}
-            </AnimatePresence>
+            {createPortal(
+                <AnimatePresence>
+                    {timer.status === TimerStatus.Paused && (
+                        <PauseOverlay 
+                            onResume={timer.resume}
+                            onRestart={() => { timer.reset(); setTimeout(() => timer.start(), 100); }}
+                            onFinish={onClose}
+                        />
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
 
             <div 
                 className={`w-[95%] md:w-[90%] mx-auto mt-4 rounded-[2rem] p-6 sm:p-8 flex flex-col items-center justify-center shadow-2xl transition-all duration-300 relative overflow-hidden ${isClosing ? 'opacity-0 -translate-y-10' : 'opacity-100 translate-y-0'}`}
@@ -749,11 +754,22 @@ const CompactTimer: React.FC<{
                         />
                     </div>
                 )}
+                
+                {timer.status === TimerStatus.Idle && (
+                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm rounded-[2rem]">
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); timer.start(); }}
+                            className="bg-white text-black active:scale-110 transition-transform duration-200 rounded-full p-6 shadow-2xl border-4 border-white/50 group pointer-events-auto"
+                        >
+                            <PlayIcon className="w-16 h-16 ml-1 fill-current group-active:text-primary transition-colors" />
+                        </button>
+                    </div>
+                )}
             </div>
             
             {createPortal(
                 <AnimatePresence>
-                    {timer.status !== TimerStatus.Paused && showControls && (
+                    {timer.status !== TimerStatus.Paused && timer.status !== TimerStatus.Idle && showControls && (
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -1019,12 +1035,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             setIsTimerSetupVisible(true);
         }
     }, [timerBlock, handleCloseTimer]);
-
-    useEffect(() => {
-        if (timerBlock && timer.status === TimerStatus.Idle) {
-            timer.start();
-        }
-    }, [timerBlock, timer.status, timer.start]);
 
     const skipAnimation = useCallback(() => setAnimationState('exiting'), []);
 
