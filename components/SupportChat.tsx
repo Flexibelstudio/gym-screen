@@ -90,9 +90,9 @@ Här är din kunskapsbas om hur systemet fungerar:
 * **Följ mig-läge:** I passbyggaren kan man aktivera "Följ mig". På: Alla gör samma övning samtidigt. Av: Stationsbaserad cirkelträning.
 * **AI Coach Feedback:** När man bygger pass kan man klicka på "Analysera". Då ger AI:n tips på förbättringar (balans, flås, etc.) och "Magic Pen"-förslag för specifika justeringar.
 
-**2. IDÉ-TAVLAN (Whiteboard)**
+**2. AI WHITEBOARD**
 * Detta är en digital rityta där man kan skissa fritt.
-* **Unik funktion:** Man kan klicka "Skapa Pass" inne i Idé-tavlan. Då läser AI:n av det du ritat/skrivit och skapar ett riktigt träningspass.
+* **Unik funktion:** Man kan klicka "Skapa Pass" inne i AI Whiteboard. Då läser AI:n av det du ritat/skrivit och skapar ett riktigt träningspass.
 * Man kan också spara sina skisser i ett arkiv.
 
 **3. TIMER-LÄGEN**
@@ -118,7 +118,7 @@ Här är din kunskapsbas om hur systemet fungerar:
 * **Info-karusell:** En rullande banner i botten på hemskärmen för nyheter.
 
 **7. ROLLER**
-* **Coach:** Kan skapa pass, starta timers, använda Idé-tavlan.
+* **Coach:** Kan skapa pass, starta timers, använda AI Whiteboard.
 * **Admin:** Kan dessutom hantera studios, logotyper, färger och prenumerationer.
 
 Om användaren frågar om något tekniskt fel, be dem ladda om sidan eller kontakta hej@smartstudio.se om problemet kvarstår.
@@ -160,7 +160,7 @@ Om användaren frågar om något tekniskt fel, be dem ladda om sidan eller konta
             setChat(newChat);
             setMessages([{
                 role: 'model',
-                text: 'Hej! Jag är Smart Support. Jag kan allt om passbyggaren, HYROX, Idé-tavlan och timers. Vad funderar du på?'
+                text: 'Hej! Jag är Smart Support. Jag kan allt om passbyggaren, HYROX, AI Whiteboard och timers. Vad funderar du på?'
             }]);
         }
     }, [isOpen, chat]);

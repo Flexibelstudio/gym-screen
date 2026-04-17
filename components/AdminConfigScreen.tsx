@@ -313,7 +313,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                                 </div>
                             </div>
                         )}
-                        {renderToggle('enableNotes', "Aktivera 'Idé-tavlan'", "Whiteboard för coacher.")}
+                        {renderToggle('enableNotes', "Aktivera AI Whiteboard", "Digital whiteboard för att skissa upp pass och spara anteckningar.")}
                         {renderToggle('enableExerciseBank', "Aktivera Övningsbank", "Tillgång till globala övningar.")}
                         {renderToggle('enableHyrox', "Aktivera HYROX-modul", "Tävlingsläge och tidtagning.")}
                     </div>

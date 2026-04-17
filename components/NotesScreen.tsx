@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Note, Workout, StudioConfig, TimerMode, TimerStatus, WorkoutBlock, Exercise, TimerSettings, TimerSoundProfile, SmartObject, SmartObjectType } from '../types';
 import { interpretHandwriting, parseWorkoutFromImage, beautifyDrawing } from '../services/geminiService';
 import { deleteImageByUrl, resolveAndCreateExercises, getOrganizationExerciseBank } from '../services/firebaseService';
@@ -145,9 +146,9 @@ const RoughShape: React.FC<{ type: string, width: number, height: number, color:
 };
 
 const IdeaBoardInfoModal: React.FC<IdeaBoardInfoModalProps> = ({ onClose }) => (
-    <Modal isOpen={true} onClose={onClose} title="Om Idé-tavlan" size="2xl">
+    <Modal isOpen={true} onClose={onClose} title="Om AI Whiteboard" size="2xl">
         <div className="space-y-4 text-gray-900 dark:text-gray-100">
-            <p>Idé-tavlan är din digitala whiteboard där du kan skapa, spara och utveckla idéer till pass, program och övningar.</p>
+            <p>AI Whiteboard är din digitala whiteboard där du kan skapa, spara och utveckla idéer till pass, program och övningar.</p>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white pt-2">✏️ Rita och skriv fritt</h3>
             <p>Skissa upp passupplägg, anteckningar eller flöden direkt på ytan. Du kan rensa tavlan och ångra drag.</p>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white pt-2">🤖 Den smarta AI-coachen</h3>
@@ -646,6 +647,29 @@ const CompactTimer: React.FC<{
     const minutes = Math.floor(timeToDisplay / 60).toString().padStart(2, '0');
     const seconds = (timeToDisplay % 60).toString().padStart(2, '0');
     
+    // Auto-hide pause button logic
+    const [showControls, setShowControls] = useState(false);
+    const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+        const handleActivity = () => {
+            setShowControls(true);
+            if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+            controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000);
+        };
+
+        window.addEventListener('pointermove', handleActivity);
+        window.addEventListener('touchstart', handleActivity);
+        window.addEventListener('keydown', handleActivity);
+
+        return () => {
+            window.removeEventListener('pointermove', handleActivity);
+            window.removeEventListener('touchstart', handleActivity);
+            window.removeEventListener('keydown', handleActivity);
+            if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+        };
+    }, []);
+
     useEffect(() => {
         if (timer.status === TimerStatus.Finished) {
             onFinish();
@@ -665,15 +689,43 @@ const CompactTimer: React.FC<{
 
     return (
         <div 
-            className={`w-[95%] md:w-[90%] mx-auto mt-4 rounded-[2rem] p-6 sm:p-8 flex flex-col items-center justify-center shadow-2xl transition-all duration-300 relative ${isClosing ? 'opacity-0 -translate-y-10' : 'opacity-100 translate-y-0'}`}
+            className={`w-[95%] md:w-[90%] mx-auto mt-4 rounded-[2rem] p-6 sm:p-8 flex flex-col items-center justify-center shadow-2xl transition-all duration-300 relative overflow-hidden ${isClosing ? 'opacity-0 -translate-y-10' : 'opacity-100 translate-y-0'}`}
             style={{ backgroundColor: timerColor, minHeight: '220px' }}
         >
-            <button 
-                onClick={onClose}
-                className="absolute top-4 right-4 text-white/50 hover:text-white pointer-events-auto transition-colors"
-            >
-                <CloseIcon className="w-8 h-8" />
-            </button>
+            {/* PAUSED OVERLAY */}
+            <AnimatePresence>
+                {timer.status === TimerStatus.Paused && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center gap-4 p-6"
+                    >
+                        <h3 className="text-white font-black text-2xl uppercase tracking-widest mb-2 text-center">Timern är Pausad</h3>
+                        
+                        <div className="flex flex-wrap items-center justify-center gap-3 w-full max-w-sm">
+                            <button 
+                                onClick={timer.resume}
+                                className="flex-1 bg-white text-black font-bold py-3 px-4 rounded-xl hover:bg-gray-200 active:scale-95 transition-all w-full text-center"
+                            >
+                                Fortsätt
+                            </button>
+                            <button 
+                                onClick={() => { timer.reset(); setTimeout(() => timer.start(), 100); }}
+                                className="flex-1 bg-white/20 text-white font-bold py-3 px-4 rounded-xl hover:bg-white/30 active:scale-95 transition-all w-full text-center"
+                            >
+                                Starta om
+                            </button>
+                        </div>
+                        <button 
+                            onClick={onClose}
+                            className="bg-red-500/20 text-red-100 border border-red-500/50 font-bold py-3 px-6 rounded-xl hover:bg-red-500/40 active:scale-95 transition-all w-full max-w-sm mt-2"
+                        >
+                            Avbryt och Stäng
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
             
             <div className="flex w-full items-center justify-center mb-2 relative">
                 <div className="px-4 py-1 rounded-full bg-black/20 backdrop-blur-md border border-white/20 shadow-sm">
@@ -683,33 +735,34 @@ const CompactTimer: React.FC<{
                 </div>
             </div>
             
-            <div className="flex flex-col items-center flex-grow justify-center">
-                <p className="text-white font-bold tracking-[0.3em] uppercase text-sm sm:text-base mb-1 drop-shadow-md opacity-90">
-                    {statusText}
-                </p>
-                <div className="font-mono text-7xl sm:text-8xl md:text-9xl leading-none font-black text-white tabular-nums drop-shadow-2xl my-2">
-                    {minutes}:{seconds}
-                </div>
-            </div>
-
             {(block.settings.mode === TimerMode.Interval || block.settings.mode === TimerMode.Tabata || block.settings.mode === TimerMode.Custom) && (
-                <div className="flex items-center gap-4 mt-2">
-                    <div className="bg-black/20 backdrop-blur-md rounded-xl py-2 px-6 flex flex-col items-center justify-center border border-white/10 shadow-lg">
-                        <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">VARV</span>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-black text-white leading-none">{timer.currentRound}</span>
-                            <span className="text-sm font-bold text-white/60">/ {timer.totalRounds}</span>
+                <div className="absolute top-6 right-6 flex items-center gap-2">
+                    <div className="bg-black/20 backdrop-blur-md rounded-xl px-4 py-2 flex flex-col items-center justify-center border border-white/10 shadow-lg">
+                        <span className="text-white/70 text-xs font-bold uppercase tracking-widest">VARV</span>
+                        <div className="flex items-baseline gap-1 mt-1">
+                            <span className="text-3xl font-black text-white leading-none">{Math.floor(timer.completedWorkIntervals / timer.effectiveIntervalsPerLap) + 1}</span>
+                            <span className="text-lg font-bold text-white/60">/ {Math.ceil(timer.totalRounds / timer.effectiveIntervalsPerLap)}</span>
                         </div>
                     </div>
                     
-                    <div className="bg-black/20 backdrop-blur-md rounded-xl px-5 py-2 flex items-center border border-white/10 h-full shadow-lg">
-                        <div className="flex flex-col items-center">
-                             <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">{block.settings.mode === TimerMode.Custom ? 'SEGMENT' : 'INTERVALL'}</span>
-                             <span className="text-xl font-bold text-white leading-none mt-0.5">{currentIntervalInLap} / {timer.effectiveIntervalsPerLap}</span>
+                    <div className="bg-black/20 backdrop-blur-md rounded-xl px-4 py-2 flex flex-col items-center justify-center border border-white/10 shadow-lg">
+                        <span className="text-white/70 text-xs font-bold uppercase tracking-widest">{block.settings.mode === TimerMode.Custom ? 'SEGMENT' : 'INTERVALL'}</span>
+                        <div className="flex items-baseline gap-1 mt-1">
+                            <span className="text-3xl font-black text-white leading-none">{currentIntervalInLap}</span>
+                            <span className="text-lg font-bold text-white/60">/ {timer.effectiveIntervalsPerLap}</span>
                         </div>
                     </div>
                 </div>
             )}
+            
+            <div className="flex flex-col items-center flex-grow justify-center mt-8 cursor-default select-none pointer-events-none">
+                <p className="text-white font-bold tracking-[0.3em] uppercase text-sm sm:text-base mb-1 drop-shadow-md opacity-90">
+                    {statusText}
+                </p>
+                <div className="font-mono text-7xl sm:text-8xl md:text-9xl md:text-[140px] leading-none font-black text-white tabular-nums drop-shadow-2xl my-2">
+                    {minutes}:{seconds}
+                </div>
+            </div>
 
             {timer.totalBlockDuration > 0 && (
                 <div className="w-full h-2 bg-black/30 rounded-full overflow-hidden backdrop-blur-md border border-white/20 shadow-inner mt-6">
@@ -722,16 +775,19 @@ const CompactTimer: React.FC<{
                 </div>
             )}
             
-            <button 
-                onClick={timer.status === TimerStatus.Paused ? timer.resume : timer.pause}
-                className="absolute bottom-6 right-6 w-14 h-14 rounded-2xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-all active:scale-95 shadow-xl border border-white/20 pointer-events-auto backdrop-blur-sm"
-            >
-                {timer.status === TimerStatus.Paused ? (
-                    <svg className="w-8 h-8 fill-current" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.333-5.89a1.5 1.5 0 000-2.538L6.3 2.841z"/></svg>
-                ) : (
-                    <svg className="w-8 h-8 fill-current" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
+            <AnimatePresence>
+                {timer.status !== TimerStatus.Paused && showControls && (
+                    <motion.button
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.8 }}
+                        onClick={timer.pause}
+                        className="absolute bottom-6 right-6 w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-all active:scale-95 shadow-2xl border-2 border-white/20 pointer-events-auto backdrop-blur-md z-40"
+                    >
+                        <svg className="w-10 h-10 sm:w-12 sm:h-12 fill-current" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
+                    </motion.button>
                 )}
-            </button>
+            </AnimatePresence>
         </div>
     );
 };
@@ -959,7 +1015,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 title: timerBlock.title,
                 blocks: [timerBlock],
                 coachTips: '',
-                category: 'Idé-tavlan',
+                category: 'AI Whiteboard',
                 isPublished: false,
                 createdAt: Date.now(),
                 organizationId: '',
@@ -1612,7 +1668,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         {lastDrawnBlock && (
                             <button onClick={() => { setBlockForCircuit(lastDrawnBlock); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors">Justera</button>
                         )}
-                        <button onClick={() => { setIsInfoModalVisible(true); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors border-t border-gray-700 mt-2">Om Idétavlan</button>
+                        <button onClick={() => { setIsInfoModalVisible(true); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors border-t border-gray-700 mt-2">Om AI Whiteboard</button>
                     </div>
                 )}
             </div>
@@ -1865,7 +1921,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         onClick={() => setActiveNotesTab('idea')}
                         className={`pb-2 px-4 font-bold text-sm sm:text-base transition-colors relative ${activeNotesTab === 'idea' ? 'text-primary' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
                     >
-                        Idétavlans Arkiv ({savedNotes.length})
+                        AI Whiteboard Arkiv ({savedNotes.length})
                         {activeNotesTab === 'idea' && <div className="absolute bottom-[-9px] left-0 right-0 h-1 bg-primary rounded-t-full" />}
                     </button>
                 </div>
@@ -2019,30 +2075,33 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             </Modal>
 
             {/* Fullscreen Image Preview */}
-            <AnimatePresence>
-                {fullscreenImage && (
-                    <motion.div 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[99999] bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
-                        onClick={() => setFullscreenImage(null)}
-                    >
-                        <button 
-                            className="absolute top-6 right-6 bg-white/10 hover:bg-white/20 text-white rounded-full p-3 transition-colors"
-                            onClick={(e) => { e.stopPropagation(); setFullscreenImage(null); }}
+            {typeof window !== 'undefined' && createPortal(
+                <AnimatePresence>
+                    {fullscreenImage && (
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[999999] bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
+                            onClick={() => setFullscreenImage(null)}
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                        <img 
-                            src={fullscreenImage} 
-                            alt="Förstorad" 
-                            className="max-w-full max-h-full object-contain"
-                            onClick={(e) => e.stopPropagation()} 
-                        />
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                            <button 
+                                className="absolute top-6 right-6 bg-white/10 hover:bg-white/20 text-white rounded-full p-3 transition-colors"
+                                onClick={(e) => { e.stopPropagation(); setFullscreenImage(null); }}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                            <img 
+                                src={fullscreenImage} 
+                                alt="Förstorad" 
+                                className="max-w-full max-h-full object-contain"
+                                onClick={(e) => e.stopPropagation()} 
+                            />
+                        </motion.div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
         </div>
     );
 };

@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { SparklesIcon, DumbbellIcon, DocumentTextIcon, CloseIcon, VideoIcon, InformationCircleIcon } from './icons';
 import { generateWorkout, parseWorkoutFromText, parseWorkoutFromImage, parseWorkoutFromYoutube } from '../services/geminiService';
 import { resolveAndCreateExercises, getOrganizationExerciseBank, listenToCoachNotes } from '../services/firebaseService';
@@ -404,7 +405,7 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                                 onClick={(e) => { e.stopPropagation(); setFullscreenImage(selectedImage); }}
                                 title="Klicka för att förstora"
                             >
-                                <img src={selectedImage} alt="Uppladdad" className="w-full h-full object-contain rounded-lg transition-transform group-hover:scale-[1.02]" />
+                                <img src={selectedImage} alt="Uppladdad" className="w-full h-full object-contain rounded-lg transition-transform" />
                                 <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg pointer-events-none">
                                     <span className="text-white font-bold tracking-widest uppercase text-sm">Förstora bild</span>
                                 </div>
@@ -594,30 +595,33 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
             </Modal>
 
             {/* Fullscreen Image Preview */}
-            <AnimatePresence>
-                {fullscreenImage && (
-                    <motion.div 
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[99999] bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
-                        onClick={() => setFullscreenImage(null)}
-                    >
-                        <button 
-                            className="absolute top-6 right-6 bg-white/10 hover:bg-white/20 text-white rounded-full p-3 transition-colors"
-                            onClick={(e) => { e.stopPropagation(); setFullscreenImage(null); }}
+            {typeof window !== 'undefined' && createPortal(
+                <AnimatePresence>
+                    {fullscreenImage && (
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[999999] bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
+                            onClick={() => setFullscreenImage(null)}
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                        <img 
-                            src={fullscreenImage} 
-                            alt="Förstorad" 
-                            className="max-w-full max-h-full object-contain"
-                            onClick={(e) => e.stopPropagation()} 
-                        />
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                            <button 
+                                className="absolute top-6 right-6 bg-white/10 hover:bg-white/20 text-white rounded-full p-3 transition-colors"
+                                onClick={(e) => { e.stopPropagation(); setFullscreenImage(null); }}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                            <img 
+                                src={fullscreenImage} 
+                                alt="Förstorad" 
+                                className="max-w-full max-h-full object-contain"
+                                onClick={(e) => e.stopPropagation()} 
+                            />
+                        </motion.div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
         </div>
     );
 };

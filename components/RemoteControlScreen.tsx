@@ -822,7 +822,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                         }
                                     }}
                                     icon={<PencilIcon className="w-8 h-8" />}
-                                    label="Idétavlan"
+                                    label="AI Whiteboard"
                                 />
                             )}
 

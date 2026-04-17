@@ -202,7 +202,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                             delay={0.4}
                         />
                         <FeatureCard 
-                            title="Idé-tavlan" 
+                            title="AI Whiteboard" 
                             desc="Digital whiteboard för att skissa upp pass för hand, som sedan tolkas automatiskt till digitala pass."
                             icon={<span className="text-2xl">✏️</span>}
                             delay={0.5}
