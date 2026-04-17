@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useStudio } from '../context/StudioContext';
 import { listenToCoachNotes, saveCoachNote, toggleCoachNoteFavorite, deleteCoachNote, uploadImage, updateCoachNote } from '../services/firebaseService';
 import { Modal } from './ui/Modal';
+import { WebCamCaptureModal } from './ui/WebCamCaptureModal';
 import { CloseIcon, PlusIcon, TrashIcon } from './icons';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -17,6 +18,7 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
     const [notes, setNotes] = useState<CoachNote[]>([]);
     const [activeTab, setActiveTab] = useState<'active' | 'archive'>('active');
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isWebCamOpen, setIsWebCamOpen] = useState(false);
 
     // Create Note State
     const [newTitle, setNewTitle] = useState('');
@@ -263,7 +265,16 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
                         ) : (
                             <div className="grid grid-cols-2 gap-4">
                                 <div 
-                                    onClick={() => cameraInputRef.current?.click()}
+                                    onClick={() => {
+                                        // On mobile browser, 'capture' works best opening native camera.
+                                        // On desktop, the native input just acts as a file picker, so we use HTML5 camera instead.
+                                        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                                        if (isMobile) {
+                                            cameraInputRef.current?.click();
+                                        } else {
+                                            setIsWebCamOpen(true);
+                                        }
+                                    }}
                                     className="w-full border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-6 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50 hover:text-primary hover:border-primary cursor-pointer transition-colors"
                                 >
                                     <div className="text-4xl mb-2">📸</div>
@@ -323,6 +334,15 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
                     </div>
                 </div>
             </Modal>
+
+            <WebCamCaptureModal 
+                isOpen={isWebCamOpen} 
+                onClose={() => setIsWebCamOpen(false)} 
+                onCapture={(base64String) => {
+                    setNewImagePreview(base64String);
+                    setIsWebCamOpen(false);
+                }} 
+            />
         </div>
     );
 };

@@ -967,7 +967,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                                 onClick={() => {
                                     setShowUnsavedWarning(false);
                                     if (setCustomBackHandler) setCustomBackHandler(null);
-                                    onCancel();
+                                    setTimeout(() => onCancel(), 0);
                                 }}
                                 className="px-5 py-2.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors"
                             >

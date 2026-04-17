@@ -1661,7 +1661,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         <button onClick={() => { handleBeautifyDrawing(); setIsMenuOpen(false); }} disabled={history.length === 0 || animationState !== 'finished'} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             {isBeautifying ? 'Trollar...' : 'Snygga till'}
                         </button>
-                        <button onClick={() => { handleInterpretAsWorkout(); setIsMenuOpen(false); }} disabled={(history.length === 0 && smartObjects.length === 0) || animationState !== 'finished'} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                        <button onClick={() => { handleInterpretAsWorkout(); setIsMenuOpen(false); }} disabled={(history.length === 0 && smartObjects.length === 0 && !activeCoachNote?.imageUrl) || animationState !== 'finished'} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                             {isInterpretingWorkout ? 'Tolkar...' : 'Skapa Pass'}
                         </button>
                         <button onClick={() => { handleToggleTimer(); setIsMenuOpen(false); }} disabled={animationState !== 'finished'} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">

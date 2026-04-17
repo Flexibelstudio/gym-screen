@@ -77,6 +77,7 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
             setPrompt(note.text);
         }
         if (note.imageUrl) {
+            setActiveTab('parse'); // Auto-switch to parse tab to show the image
             setIsProcessing(true);
             try {
                 const { fetchImageAsBase64 } = await import('../utils/imageFetch');
@@ -281,34 +282,34 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-xl relative overflow-hidden transition-colors">
                 
                 {/* Tabs */}
-                <div className="flex gap-4 mb-6 border-b border-gray-200 dark:border-gray-800 pb-4 overflow-x-auto scrollbar-hide">
+                <div className="flex flex-wrap gap-2 sm:gap-4 mb-6 border-b border-gray-200 dark:border-gray-800 pb-4">
                     <button 
                         onClick={() => setActiveTab('generate')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-bold whitespace-nowrap ${activeTab === 'generate' ? 'bg-purple-600 text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors font-bold whitespace-nowrap ${activeTab === 'generate' ? 'bg-purple-600 text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                     >
                         <SparklesIcon className="w-5 h-5" />
                         Skapa nytt
                     </button>
                     <button 
                         onClick={() => setActiveTab('parse')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-bold whitespace-nowrap ${activeTab === 'parse' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors font-bold whitespace-nowrap ${activeTab === 'parse' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                     >
                         <DocumentTextIcon className="w-5 h-5" />
                         Tolka text/bild
                     </button>
                     <button 
                         onClick={() => setActiveTab('youtube')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-bold whitespace-nowrap ${activeTab === 'youtube' ? 'bg-red-600 text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors font-bold whitespace-nowrap ${activeTab === 'youtube' ? 'bg-red-600 text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                     >
                         <VideoIcon className="w-5 h-5" />
                         YouTube-länk
                     </button>
 
-                    <div className="w-px bg-gray-200 dark:bg-gray-700 mx-1 hidden sm:block"></div>
+                    <div className="w-full sm:w-px h-px sm:h-auto bg-gray-200 dark:bg-gray-700 sm:mx-1 my-2 sm:my-0"></div>
 
                     <button 
                         onClick={(e) => { e.preventDefault(); setIsNotesModalOpen(true); }}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-bold whitespace-nowrap text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50"
+                        className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors font-bold whitespace-nowrap text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50"
                     >
                         📝 Hämta anteckning
                     </button>
