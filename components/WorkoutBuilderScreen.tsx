@@ -595,7 +595,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
 
   useEffect(() => {
     if (setCustomBackHandler) {
-      setCustomBackHandler(() => () => handleCancelRef.current());
+      setCustomBackHandler(() => handleCancelRef.current());
     }
     return () => {
       if (setCustomBackHandler) {
@@ -605,7 +605,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   }, [setCustomBackHandler]);
 
   const handleSave = async () => {
-    if (!isDirty) {
+    if (!isDirty && !isNewDraft) {
       if (setCustomBackHandler) setCustomBackHandler(null);
       onCancel();
       return;

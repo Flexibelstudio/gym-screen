@@ -17,7 +17,7 @@ export const WorkoutGamesHubScreen: React.FC<WorkoutGamesHubScreenProps> = ({ on
 
     useEffect(() => {
         if ((activeGame !== 'hub') && setCustomBackHandler) {
-            setCustomBackHandler(() => () => setActiveGame('hub'));
+            setCustomBackHandler(() => setActiveGame('hub'));
         } else if (setCustomBackHandler) {
             setCustomBackHandler(null);
         }

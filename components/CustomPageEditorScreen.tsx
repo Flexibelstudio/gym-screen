@@ -95,7 +95,7 @@ export const CustomPageEditorScreen: React.FC<CustomPageEditorScreenProps & { se
     useEffect(() => {
         if (setCustomBackHandler) {
             if (isDirty) {
-                setCustomBackHandler(() => () => handleCancelRef.current());
+                setCustomBackHandler(() => handleCancelRef.current());
             } else {
                 setCustomBackHandler(null);
             }

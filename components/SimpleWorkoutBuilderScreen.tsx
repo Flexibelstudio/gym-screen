@@ -607,7 +607,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
 
     useEffect(() => {
         if (setCustomBackHandler) {
-            setCustomBackHandler(() => () => handleCancelRef.current());
+            setCustomBackHandler(() => handleCancelRef.current());
         }
         return () => {
             if (setCustomBackHandler) {
