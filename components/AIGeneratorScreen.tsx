@@ -52,49 +52,11 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [generatedWorkout, setGeneratedWorkout] = useState<Workout | null>(null);
     
-    // Notes Import State
-    const [coachNotes, setCoachNotes] = useState<CoachNote[]>([]);
-    const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
-    
     // Image Handling State
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const cameraInputRef = useRef<HTMLInputElement>(null);
     const dropZoneRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
-
-    // Fetch coach notes
-    useEffect(() => {
-        if (!selectedOrganization?.id) return;
-        const unsubscribe = listenToCoachNotes(selectedOrganization.id, (notes) => {
-            setCoachNotes(notes);
-        });
-        return () => unsubscribe();
-    }, [selectedOrganization?.id]);
-
-    const handleImportNote = async (note: CoachNote) => {
-        setIsNotesModalOpen(false);
-        if (note.text) {
-            setPrompt(note.text);
-        }
-        if (note.imageUrl) {
-            setIsProcessing(true);
-            try {
-                // Fetch image and convert to base64 to put in selectedImage
-                const res = await fetch(note.imageUrl);
-                const blob = await res.blob();
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    setSelectedImage(reader.result as string);
-                    setIsProcessing(false);
-                };
-                reader.readAsDataURL(blob);
-            } catch (err) {
-                console.error("Failed to load note image", err);
-                setIsProcessing(false);
-            }
-        }
-    };
 
     // Sync state if prop changes
     useEffect(() => {
@@ -370,28 +332,33 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
 
                 {/* DROP ZONE (Only in parse mode) */}
                 {activeTab === 'parse' && (
-                    <div className="mb-6 w-full relative">
-                        <input 
-                            type="file" 
-                            ref={cameraInputRef} 
-                            onChange={(e) => { if(e.target.files && e.target.files[0]) handleFile(e.target.files[0]) }} 
-                            accept="image/*" 
-                            capture="environment"
-                            style={{ position: 'absolute', opacity: 0, width: 1, height: 1, overflow: 'hidden' }}
-                        />
+                    <div 
+                        ref={dropZoneRef}
+                        onDragEnter={handleDragEnter}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        onClick={() => !selectedImage && fileInputRef.current?.click()}
+                        className={`
+                            mb-6 w-full p-6 border-2 border-dashed rounded-xl transition-all cursor-pointer flex flex-col items-center justify-center min-h-[120px] relative
+                            ${isDragging 
+                                ? 'border-primary bg-primary/10 scale-[1.01]' 
+                                : 'border-gray-300 dark:border-gray-700 hover:border-gray-400 dark:hover:border-gray-600 bg-gray-50 dark:bg-gray-800/50'}
+                        `}
+                    >
                         <input 
                             type="file" 
                             ref={fileInputRef} 
                             onChange={(e) => { if(e.target.files && e.target.files[0]) handleFile(e.target.files[0]) }} 
                             accept="image/*" 
-                            style={{ position: 'absolute', opacity: 0, width: 1, height: 1, overflow: 'hidden' }}
+                            className="hidden" 
                         />
                         
                         {selectedImage ? (
-                            <div className="relative w-full h-48 group">
-                                <img src={selectedImage} alt="Uppladdad" className="w-full h-full object-contain rounded-lg border border-gray-200 dark:border-gray-700" />
+                            <div className="relative w-full h-48 group" onClick={(e) => e.stopPropagation()}>
+                                <img src={selectedImage} alt="Uppladdad" className="w-full h-full object-contain rounded-lg" />
                                 <button 
-                                    onClick={() => { setSelectedImage(null); if(fileInputRef.current) fileInputRef.current.value = ''; if(cameraInputRef.current) cameraInputRef.current.value = ''; }}
+                                    onClick={() => { setSelectedImage(null); if(fileInputRef.current) fileInputRef.current.value = ''; }}
                                     className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition-colors"
                                     title="Ta bort bild"
                                 >
@@ -399,46 +366,18 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                                 </button>
                             </div>
                         ) : (
-                            <div 
-                                ref={dropZoneRef}
-                                onDragEnter={handleDragEnter}
-                                onDragOver={handleDragOver}
-                                onDragLeave={handleDragLeave}
-                                onDrop={handleDrop}
-                                className={`
-                                    w-full p-6 border-2 border-dashed rounded-xl transition-all flex flex-col items-center justify-center min-h-[160px]
-                                    ${isDragging 
-                                        ? 'border-primary bg-primary/10 scale-[1.01]' 
-                                        : 'border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50'}
-                                `}
-                            >
-                                <div className="grid grid-cols-2 gap-4 w-full max-w-sm mb-4">
-                                    <div 
-                                        onClick={() => cameraInputRef.current?.click()}
-                                        className="w-full bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 flex flex-col items-center justify-center text-gray-700 dark:text-gray-300 hover:border-primary hover:text-primary cursor-pointer transition-colors shadow-sm"
-                                    >
-                                        <div className="text-3xl mb-1">📸</div>
-                                        <span className="font-bold text-sm">Fota</span>
-                                    </div>
-                                    <div 
-                                        onClick={() => fileInputRef.current?.click()}
-                                        className="w-full bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-xl p-4 flex flex-col items-center justify-center text-gray-700 dark:text-gray-300 hover:border-primary hover:text-primary cursor-pointer transition-colors shadow-sm"
-                                    >
-                                        <div className="text-3xl mb-1">🖼️</div>
-                                        <span className="font-bold text-sm">Välj bild</span>
-                                    </div>
+                            <div className="text-center pointer-events-none">
+                                <div className="mx-auto w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center mb-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
                                 </div>
-                                
-                                <p className="text-gray-500 dark:text-gray-400 font-bold text-sm mb-2">
-                                    {isDragging ? 'Släpp bilden här!' : '...eller dra och släpp en bild'}
+                                <p className="text-gray-700 dark:text-gray-300 font-bold text-sm">
+                                    {isDragging ? 'Släpp bilden här!' : 'Klicka eller dra en bild hit'}
                                 </p>
-                                
-                                <button 
-                                    onClick={() => setIsNotesModalOpen(true)}
-                                    className="bg-white dark:bg-gray-800 text-primary dark:text-purple-400 font-bold px-4 py-2 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-sm"
-                                >
-                                    Hämta från Anteckningar
-                                </button>
+                                <p className="text-gray-500 dark:text-gray-400 text-xs mt-1">
+                                    T.ex. foto på whiteboard eller anteckningsblock
+                                </p>
                             </div>
                         )}
                     </div>
@@ -559,47 +498,6 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                     </div>
                 </div>
             )}
-            
-            {/* Modal for importing notes (AIGenerator) */}
-            <Modal isOpen={isNotesModalOpen} onClose={() => setIsNotesModalOpen(false)} title="Välj Anteckning" size="4xl">
-                {coachNotes.length === 0 ? (
-                    <p className="text-gray-500 text-center py-12">Inga anteckningar hittades.</p>
-                ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-2 max-h-[60vh] overflow-y-auto">
-                        {coachNotes.map(note => (
-                            <button 
-                                key={note.id}
-                                onClick={() => handleImportNote(note)}
-                                className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-left hover:border-primary transition-colors flex flex-col group h-full shadow-sm"
-                            >
-                                <div className="flex items-center gap-3 mb-3 shrink-0">
-                                    {note.creatorPhotoUrl ? (
-                                        <img src={note.creatorPhotoUrl} alt="" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
-                                    ) : (
-                                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
-                                            {note.creatorName.charAt(0)}
-                                        </div>
-                                    )}
-                                    <div>
-                                        <p className="text-xs text-gray-500 dark:text-gray-400 leading-tight">{note.creatorName}</p>
-                                        <h4 className="font-bold text-gray-900 dark:text-white line-clamp-1">{note.title}</h4>
-                                    </div>
-                                </div>
-                                
-                                {note.imageUrl ? (
-                                    <div className="w-full h-32 bg-gray-200 dark:bg-gray-900 rounded-lg overflow-hidden shrink-0">
-                                        <img src={note.imageUrl} alt="" className="w-full h-full object-cover" />
-                                    </div>
-                                ) : (
-                                    <div className="w-full flex-grow bg-gray-100 dark:bg-gray-900 rounded-lg p-3 overflow-hidden">
-                                        <p className="text-xs text-gray-600 dark:text-gray-300 font-serif line-clamp-6">{note.text}</p>
-                                    </div>
-                                )}
-                            </button>
-                        ))}
-                    </div>
-                )}
-            </Modal>
         </div>
     );
 };
