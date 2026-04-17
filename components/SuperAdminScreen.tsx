@@ -586,7 +586,9 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                         {showOnboardingBanner && (<div className="bg-yellow-100 border border-yellow-200 text-yellow-800 p-4 text-center mb-8 rounded-xl shadow-sm flex flex-col sm:flex-row items-center justify-center gap-2 animate-fade-in"><span>⚠️ Er företagsinformation är ofullständig.</span><button onClick={() => setShowOnboardingModal(true)} className="font-bold underline hover:text-yellow-900">Klicka här för att komplettera.</button></div>)}
                         <div className={mainContentWrapperClass}>
                             {renderContent()}
-                            {activeTab !== 'company-info' && activeTab !== 'pass-program' && (<SwitchToStudioView organization={props.organization} onSwitchToStudioView={props.onSwitchToStudioView} />)}
+                            {activeTab === 'dashboard' && (userRole === 'organizationadmin' || userRole === 'systemowner') && (
+                                <SwitchToStudioView organization={props.organization} onSwitchToStudioView={props.onSwitchToStudioView} />
+                            )}
                         </div>
                     </div>
                 </main>
