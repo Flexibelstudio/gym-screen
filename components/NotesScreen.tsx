@@ -820,6 +820,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const [isInterpretingWorkout, setIsInterpretingWorkout] = useState(false);
     const [isBeautifying, setIsBeautifying] = useState(false);
     const [isResolving, setIsResolving] = useState(false); // Ny state för att visa att vi matchar mot banken
+    const [parseError, setParseError] = useState<string | null>(null);
     const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
     const [history, setHistory] = useState<ImageData[]>([]);
     const [isArchiveVisible, setIsArchiveVisible] = useState(false);
@@ -1339,9 +1340,13 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         try {
             let base64Image = '';
             if (activeCoachNote?.imageUrl) {
-                const { fetchImageAsBase64 } = await import('../utils/imageFetch');
-                const dataUrl = await fetchImageAsBase64(activeCoachNote.imageUrl);
-                base64Image = dataUrl.split(',')[1];
+                if (activeCoachNote.imageUrl.startsWith('data:image')) {
+                    base64Image = activeCoachNote.imageUrl.split(',')[1];
+                } else {
+                    const { fetchImageAsBase64 } = await import('../utils/imageFetch');
+                    const dataUrl = await fetchImageAsBase64(activeCoachNote.imageUrl);
+                    base64Image = dataUrl.split(',')[1];
+                }
             } else {
                 const dataUrl = getCanvasDataUrlWithSmartObjects();
                 base64Image = dataUrl.split(',')[1];
@@ -1360,7 +1365,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             const workout = await parseWorkoutFromImage(base64Image, undefined, true, exerciseNames);
             setInterpretedWorkout(workout);
         } catch(e) {
-            alert(e instanceof Error ? e.message : 'Ett okänt fel inträffade.');
+            setParseError(e instanceof Error ? e.message : 'Ett okänt fel inträffade.');
         } finally {
             setIsInterpretingWorkout(false);
         }
@@ -1873,6 +1878,19 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                     <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mb-4"></div>
                     <p className="text-3xl font-bold text-white mb-2">Matchar övningar...</p>
                     <p className="text-gray-400">Kollar din övningsbank (skapar inget nytt).</p>
+                </div>
+            )}
+
+            {/* ERROR MODAL */}
+            {parseError && (
+                <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md flex flex-col items-center justify-center z-50 p-4 text-center animate-fade-in">
+                    <div className="bg-gray-800 p-8 rounded-2xl max-w-lg border border-gray-700 shadow-2xl relative">
+                        <button onClick={() => setParseError(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
+                        <div className="text-red-400 text-5xl mb-4">⚠️</div>
+                        <h2 className="text-2xl font-bold text-white mb-4">Ett fel uppstod</h2>
+                        <p className="text-gray-300 font-medium mb-6">{parseError}</p>
+                        <button onClick={() => setParseError(null)} className="bg-primary px-6 py-3 rounded-xl font-bold text-white hover:bg-primary/90 w-full transition-colors">Förstått</button>
+                    </div>
                 </div>
             )}
 

@@ -62,24 +62,18 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
         setIsSaving(true);
         try {
             let imageUrl = '';
-            // If we have a new file, upload it
-            if (newImage) {
-                const path = `coachNotes/${selectedOrganization.id}/${userData.uid}_${Date.now()}`;
-                imageUrl = await uploadImage(path, newImage);
-            } else if (newImagePreview && newImagePreview.startsWith('data:image')) {
-                // If it's a base64 string from the webcam
-                const path = `coachNotes/${selectedOrganization.id}/${userData.uid}_${Date.now()}_webcam.jpg`;
-                const response = await fetch(newImagePreview);
-                const blob = await response.blob();
-                const file = new File([blob], 'webcam.jpg', { type: 'image/jpeg' });
-                imageUrl = await uploadImage(path, file);
+            
+            if (newImage || newImagePreview) {
+                const { resizeAndCompressImage } = await import('../utils/imageResize');
+                if (newImage) {
+                    imageUrl = await resizeAndCompressImage(newImage, 1000, 1000, 0.7);
+                } else if (newImagePreview) {
+                    imageUrl = await resizeAndCompressImage(newImagePreview, 1000, 1000, 0.7);
+                }
             }
 
             if (editingNoteId) {
-                let finalImageUrl = imageUrl;
-                if (!imageUrl && newImagePreview && !newImagePreview.startsWith('data:image')) {
-                    finalImageUrl = newImagePreview; // Keep existing external URL
-                }
+                let finalImageUrl = imageUrl || (newImagePreview && !newImagePreview.startsWith('data:image') ? newImagePreview : '');
                 
                 await updateCoachNote(editingNoteId, {
                     title: newTitle.trim() || `Anteckning ${new Date().toLocaleDateString('sv-SE')}`,
@@ -327,7 +321,7 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
                         </button>
                         <button 
                             onClick={handleSaveNote}
-                            disabled={isSaving || (!newText.trim() && !newImage)}
+                            disabled={isSaving || (!newText.trim() && !newImage && !newImagePreview)}
                             className="flex-1 py-4 rounded-xl font-bold bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 flex justify-center items-center"
                         >
                             {isSaving ? 'Sparar...' : 'Spara Anteckning'}

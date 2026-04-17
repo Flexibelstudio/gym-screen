@@ -42,6 +42,6 @@ export const fetchImageAsBase64 = async (url: string): Promise<string> => {
             }
         }
         
-        throw new Error("All image fetch attempts failed. Image might be blocked or unavailable.");
+        throw new Error("Kunde inte analysera bilden. Det beror oftast på att en Ad-blocker blockerar nedladdningen av externa bilder, eller på grund av säkerhetsinställningar. Ladda upp bilden på nytt i din anteckning, då sparas den i ett nytt format som kringgår problemet!");
     }
 };
