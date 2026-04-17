@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Note, Workout, StudioConfig, TimerMode, TimerStatus, WorkoutBlock, Exercise, TimerSettings, TimerSoundProfile, SmartObject, SmartObjectType } from '../types';
 import { interpretHandwriting, parseWorkoutFromImage, beautifyDrawing } from '../services/geminiService';
-import { deleteImageByUrl, resolveAndCreateExercises } from '../services/firebaseService';
+import { deleteImageByUrl, resolveAndCreateExercises, getOrganizationExerciseBank } from '../services/firebaseService';
 import { useWorkoutTimer, getAudioContext } from '../hooks/useWorkoutTimer';
 import { useStudio } from '../context/StudioContext';
 import { ValueAdjuster, InformationCircleIcon, ChevronUpIcon, ChevronDownIcon, CloseIcon, PlusIcon, TrashIcon } from './icons';
@@ -1339,16 +1339,9 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         try {
             let base64Image = '';
             if (activeCoachNote?.imageUrl) {
-                const response = await fetch(activeCoachNote.imageUrl);
-                const blob = await response.blob();
-                const reader = new FileReader();
-                base64Image = await new Promise<string>((resolve) => {
-                    reader.onloadend = () => {
-                        resolve(reader.result as string);
-                    };
-                    reader.readAsDataURL(blob);
-                });
-                base64Image = base64Image.split(',')[1];
+                const { fetchImageAsBase64 } = await import('../utils/imageFetch');
+                const dataUrl = await fetchImageAsBase64(activeCoachNote.imageUrl);
+                base64Image = dataUrl.split(',')[1];
             } else {
                 const dataUrl = getCanvasDataUrlWithSmartObjects();
                 base64Image = dataUrl.split(',')[1];
@@ -1899,7 +1892,25 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         alt={activeCoachNote.title} 
                         initialPosition={{ x: 100, y: 100 }}
                         onClose={() => setActiveCoachNote(null)}
-                    />
+                    >
+                        <div className="absolute bottom-4 left-0 right-0 flex justify-center z-50 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleInterpretAsWorkout();
+                                }}
+                                disabled={isInterpretingWorkout}
+                                className="bg-primary text-white font-bold py-2 px-4 shadow-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 rounded-full overflow-hidden"
+                            >
+                                {isInterpretingWorkout ? (
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                ) : (
+                                    <span className="text-xl leading-none">✨</span>
+                                )}
+                                <span>{isInterpretingWorkout ? 'Tolkar...' : 'Skapa Pass'}</span>
+                            </button>
+                        </div>
+                    </DraggableImage>
                 </div>
             )}
 

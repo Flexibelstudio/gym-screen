@@ -79,17 +79,13 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
         if (note.imageUrl) {
             setIsProcessing(true);
             try {
-                // Fetch image and convert to base64 to put in selectedImage
-                const res = await fetch(note.imageUrl);
-                const blob = await res.blob();
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    setSelectedImage(reader.result as string);
-                    setIsProcessing(false);
-                };
-                reader.readAsDataURL(blob);
+                const { fetchImageAsBase64 } = await import('../utils/imageFetch');
+                const base64DataUrl = await fetchImageAsBase64(note.imageUrl);
+                setSelectedImage(base64DataUrl);
+                setIsProcessing(false);
             } catch (err) {
                 console.error("Failed to load note image", err);
+                setError("Kunde inte hämta bilden (CORS).");
                 setIsProcessing(false);
             }
         }
@@ -307,6 +303,15 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                         <VideoIcon className="w-5 h-5" />
                         YouTube-länk
                     </button>
+
+                    <div className="w-px bg-gray-200 dark:bg-gray-700 mx-1 hidden sm:block"></div>
+
+                    <button 
+                        onClick={(e) => { e.preventDefault(); setIsNotesModalOpen(true); }}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-bold whitespace-nowrap text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50"
+                    >
+                        📝 Hämta anteckning
+                    </button>
                 </div>
 
                 {isProcessing && (
@@ -451,15 +456,6 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                     )}
                     
                     <div className="flex gap-3 w-full sm:w-auto">
-                        {activeTab === 'parse' && (
-                            <button 
-                                onClick={(e) => { e.preventDefault(); setIsNotesModalOpen(true); }}
-                                disabled={isProcessing}
-                                className="bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 font-bold py-3 px-4 sm:px-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                Hämta från anteckning
-                            </button>
-                        )}
                         <button
                             onClick={handleAction}
                             disabled={isProcessing || (activeTab === 'generate' && !selectedCategory && !prompt.trim()) || (activeTab === 'parse' && !prompt.trim() && !selectedImage) || (activeTab === 'youtube' && !youtubeUrl.trim())}

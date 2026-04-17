@@ -6,9 +6,10 @@ interface DraggableImageProps {
     alt: string;
     initialPosition?: { x: number, y: number };
     onClose?: () => void;
+    children?: React.ReactNode;
 }
 
-export const DraggableImage: React.FC<DraggableImageProps> = ({ src, alt, initialPosition = { x: 50, y: 50 }, onClose }) => {
+export const DraggableImage: React.FC<DraggableImageProps> = ({ src, alt, initialPosition = { x: 50, y: 50 }, onClose, children }) => {
     const [size, setSize] = useState({ width: 300, height: 400 });
     const imageRef = useRef<HTMLImageElement>(null);
 
@@ -46,6 +47,8 @@ export const DraggableImage: React.FC<DraggableImageProps> = ({ src, alt, initia
                         ✕
                     </button>
                 )}
+
+                {children}
 
                 {/* Resize Handle */}
                 <div 
