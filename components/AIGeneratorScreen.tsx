@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { SparklesIcon, DumbbellIcon, DocumentTextIcon, CloseIcon, VideoIcon, InformationCircleIcon } from './icons';
 import { generateWorkout, parseWorkoutFromText, parseWorkoutFromImage, parseWorkoutFromYoutube } from '../services/geminiService';
 import { resolveAndCreateExercises, getOrganizationExerciseBank, listenToCoachNotes } from '../services/firebaseService';
