@@ -337,10 +337,16 @@ export async function parseWorkoutFromText(text: string, availableExercises: str
 
 export async function parseWorkoutFromImage(base64Image: string, additionalText?: string, isDraft: boolean = false, availableExercises: string[] = []): Promise<Workout> {
     const ai = getAIClient();
+    
+    // Ensure we strip the data:image/...;base64, prefix if it exists
+    const cleanBase64 = base64Image.includes('base64,') 
+        ? base64Image.split('base64,')[1] 
+        : base64Image;
+
     const response = await ai.models.generateContent({
         model: VISION_MODEL,
         contents: [
-            { inlineData: { mimeType: 'image/png', data: base64Image } },
+            { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
             { text: Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises) }
         ],
         config: {

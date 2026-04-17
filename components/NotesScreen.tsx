@@ -364,13 +364,13 @@ const IntroAnimation = ({ onSkip }: { onSkip: () => void }) => {
     })), []);
 
     return (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-8 text-center bg-gray-950/50 backdrop-blur-sm">
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-8 text-center pointer-events-none">
             <div className="relative w-full h-full flex-grow">
                 {randomizedWords.map(({ text, className, style }) => (
                     <span key={text} className={`absolute -translate-x-1/2 -translate-y-1/2 animate-word-cloud-fade-in opacity-0 ${className}`} style={style as React.CSSProperties}>{text}</span>
                 ))}
             </div>
-            <button onClick={onSkip} className="flex-shrink-0 bg-black/30 text-white/80 hover:text-white backdrop-blur-sm py-2 px-5 rounded-full text-sm font-semibold transition-colors mt-4">Hoppa över</button>
+            <button onClick={onSkip} className="pointer-events-auto flex-shrink-0 bg-black/30 text-white/80 hover:text-white backdrop-blur-sm py-2 px-5 rounded-full text-sm font-semibold transition-colors mt-4">Hoppa över</button>
         </div>
     );
 };
@@ -1122,7 +1122,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         };
 
         const startDrawing = (e: PointerEvent) => {
-            if (animationState !== 'finished') return;
+            if (animationState !== 'finished') setAnimationState('finished');
             e.preventDefault();
             isDrawing.current = true;
             points.current = [getPointerPos(e)];
@@ -1134,7 +1134,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         };
 
         const draw = (e: PointerEvent) => {
-            if (!isDrawing.current || animationState !== 'finished') return;
+            if (!isDrawing.current) return;
             e.preventDefault();
             const pos = getPointerPos(e);
             points.current.push(pos);
@@ -1155,7 +1155,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         };
 
         const stopDrawing = () => {
-            if (!isDrawing.current || animationState !== 'finished') return;
+            if (!isDrawing.current) return;
             isDrawing.current = false;
             if (points.current.length < 1) { points.current = []; return; }
 
@@ -1646,7 +1646,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 <button 
                     onClick={() => setIsMenuOpen(!isMenuOpen)} 
                     className="p-3 bg-gray-800/80 hover:bg-gray-700 text-white rounded-xl backdrop-blur-md shadow-lg transition-colors border border-gray-700"
-                    disabled={animationState !== 'finished'}
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
@@ -1655,19 +1654,19 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 {isMenuOpen && (
                     <div className="absolute top-14 right-0 w-56 bg-gray-800/95 backdrop-blur-md shadow-2xl rounded-xl border border-gray-700 py-2 flex flex-col pointer-events-auto">
                         <button onClick={() => { setIsCoachNotesModalOpen(true); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors">Anteckningar</button>
-                        <button onClick={() => { handleSaveNote(); setIsMenuOpen(false); }} disabled={(history.length === 0 && smartObjects.length === 0) || saveState !== 'idle' || animationState !== 'finished'} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <button onClick={() => { handleSaveNote(); setIsMenuOpen(false); }} disabled={(history.length === 0 && smartObjects.length === 0) || saveState !== 'idle'} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             {saveState === 'saving' ? 'Sparar...' : saveState === 'saved' ? 'Sparad!' : 'Spara & Arkivera'}
                         </button>
-                        <button onClick={() => { handleBeautifyDrawing(); setIsMenuOpen(false); }} disabled={history.length === 0 || animationState !== 'finished'} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <button onClick={() => { handleBeautifyDrawing(); setIsMenuOpen(false); }} disabled={history.length === 0} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             {isBeautifying ? 'Trollar...' : 'Snygga till'}
                         </button>
-                        <button onClick={() => { handleInterpretAsWorkout(); setIsMenuOpen(false); }} disabled={(history.length === 0 && smartObjects.length === 0 && !activeCoachNote?.imageUrl) || animationState !== 'finished'} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                        <button onClick={() => { handleInterpretAsWorkout(); setIsMenuOpen(false); }} disabled={(history.length === 0 && smartObjects.length === 0 && !activeCoachNote?.imageUrl)} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
                             {isInterpretingWorkout ? 'Tolkar...' : 'Skapa Pass'}
                         </button>
-                        <button onClick={() => { handleToggleTimer(); setIsMenuOpen(false); }} disabled={animationState !== 'finished'} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <button onClick={() => { handleToggleTimer(); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                             {timerBlock ? 'Stoppa Timer' : 'Timer'}
                         </button>
-                        {lastDrawnBlock && animationState === 'finished' && (
+                        {lastDrawnBlock && (
                             <button onClick={() => { setBlockForCircuit(lastDrawnBlock); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors">Justera</button>
                         )}
                         <button onClick={() => { setIsInfoModalVisible(true); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors border-t border-gray-700 mt-2">Om Idétavlan</button>
@@ -1711,7 +1710,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             
             <div ref={containerRef} className="absolute inset-0 w-full h-full z-0 bg-gray-800 transition-colors" style={{ touchAction: 'none' }}>
                 {animationState !== 'finished' && (
-                    <div className={`absolute inset-0 z-10 transition-opacity duration-500 ${animationState === 'exiting' ? 'opacity-0' : 'opacity-100'}`} style={{ pointerEvents: animationState === 'exiting' ? 'none' : 'auto' }}><IntroAnimation onSkip={skipAnimation} /></div>
+                    <div className={`absolute inset-0 z-10 pointer-events-none transition-opacity duration-500 ${animationState === 'exiting' ? 'opacity-0' : 'opacity-100'}`}><IntroAnimation onSkip={skipAnimation} /></div>
                 )}
                 <canvas ref={canvasRef} className="w-full h-full block" />
                 
@@ -1831,12 +1830,12 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             
             <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4 transition-all duration-500 flex-wrap justify-center w-full px-4 ${!controlsVisible ? 'opacity-0 translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'} pointer-events-auto`}>
                 <div className="flex gap-2 bg-gray-800/80 backdrop-blur-md p-2 rounded-xl shadow-lg border border-gray-700">
-                    <button onClick={handleUndo} disabled={history.length === 0 || animationState !== 'finished'} className="p-3 text-white hover:bg-gray-700 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Ångra">
+                    <button onClick={handleUndo} disabled={history.length === 0} className="p-3 text-white hover:bg-gray-700 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Ångra">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
                         </svg>
                     </button>
-                    <button onClick={clearCanvas} disabled={animationState !== 'finished'} className="p-3 text-white hover:bg-gray-700 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Rensa">
+                    <button onClick={clearCanvas} className="p-3 text-white hover:bg-gray-700 rounded-lg transition-colors" title="Rensa">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
                         </svg>

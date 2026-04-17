@@ -66,18 +66,19 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
             if (newImage) {
                 const path = `coachNotes/${selectedOrganization.id}/${userData.uid}_${Date.now()}`;
                 imageUrl = await uploadImage(path, newImage);
+            } else if (newImagePreview && newImagePreview.startsWith('data:image')) {
+                // If it's a base64 string from the webcam
+                const path = `coachNotes/${selectedOrganization.id}/${userData.uid}_${Date.now()}_webcam.jpg`;
+                const response = await fetch(newImagePreview);
+                const blob = await response.blob();
+                const file = new File([blob], 'webcam.jpg', { type: 'image/jpeg' });
+                imageUrl = await uploadImage(path, file);
             }
 
             if (editingNoteId) {
-                // Determine the correct image URL for the update
-                // If a new image was uploaded, use that.
-                // If no new image, but we still have an preview, it means the old image wasn't removed. Keep it (or don't send it to avoid overriding).
-                // If no new image and no preview, it means the user deleted the image. Set to null to remove.
                 let finalImageUrl = imageUrl;
-                if (!imageUrl) {
-                    if (newImagePreview) {
-                        finalImageUrl = newImagePreview; // Keep existing
-                    }
+                if (!imageUrl && newImagePreview && !newImagePreview.startsWith('data:image')) {
+                    finalImageUrl = newImagePreview; // Keep existing external URL
                 }
                 
                 await updateCoachNote(editingNoteId, {
