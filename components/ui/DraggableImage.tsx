@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion, useDragControls } from 'framer-motion';
 
 interface DraggableImageProps {
     src: string;
@@ -10,45 +10,45 @@ interface DraggableImageProps {
 }
 
 export const DraggableImage: React.FC<DraggableImageProps> = ({ src, alt, initialPosition = { x: 50, y: 50 }, onClose, children }) => {
-    const [size, setSize] = useState({ width: 300, height: 400 });
-    const [isResizing, setIsResizing] = useState(false);
-    const imageRef = useRef<HTMLImageElement>(null);
-
-    // Initial logic to maintain aspect ratio could go here, 
-    // but for now we give it a default starting size.
+    // Gör den MYCKET STÖRRE direkt, till exempel 600x800
+    const [size, setSize] = useState({ width: 600, height: 800 });
+    const dragControls = useDragControls();
 
     return (
         <motion.div
-            drag={!isResizing}
+            drag
+            dragControls={dragControls}
+            dragListener={false} // Egen listener inuti! Så inte resizern hänger med
             dragMomentum={false}
             initial={initialPosition}
             style={{
-                position: 'fixed', // Use fixed, not absolute inside a container
+                position: 'fixed', 
                 width: size.width,
                 height: size.height,
-                zIndex: 40 + (isResizing ? 10 : 0),
-                // Center it initially if we want, but Framer Motion initial overrides
+                zIndex: 50, // hög z-index
             }}
-            className="group touch-none pointer-events-auto shadow-2xl rounded-xl"
+            className="group touch-none pointer-events-auto rounded-2xl shadow-2xl"
         >
-            <div className="relative w-full h-full bg-white rounded-xl shadow-2xl overflow-hidden border-2 border-white/20">
-                <img 
-                    ref={imageRef}
-                    src={src} 
-                    alt={alt} 
-                    className="w-full h-full object-contain pointer-events-none" // prevent img from intercepting drag
-                />
+            <div className="relative w-full h-full bg-white rounded-2xl shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden border-2 border-white/20 flex flex-col">
+                {/* Drag Handle & Image container */}
+                <div 
+                    className="w-full h-full active:cursor-grabbing cursor-grab flex items-center justify-center p-2"
+                    onPointerDown={(e) => {
+                        dragControls.start(e);
+                    }}
+                >
+                    <img 
+                        src={src} 
+                        alt={alt} 
+                        className="w-full h-full object-contain pointer-events-none" 
+                    />
+                </div>
                 
                 {onClose && (
                     <button 
-                        onPointerDownCapture={(e) => {
-                            e.stopPropagation();
-                            e.nativeEvent.stopImmediatePropagation();
-                        }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onTouchStart={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
                         onClick={onClose}
-                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-md hover:bg-red-600 pointer-events-auto"
+                        className="absolute top-3 right-3 bg-red-500 text-white rounded-full w-12 h-12 flex items-center justify-center text-xl opacity-80 hover:opacity-100 transition-opacity z-50 shadow-xl hover:bg-red-600 pointer-events-auto border-2 border-white/50"
                         title="Stäng bild"
                     >
                         ✕
@@ -57,46 +57,23 @@ export const DraggableImage: React.FC<DraggableImageProps> = ({ src, alt, initia
 
                 {children}
 
-                {/* Resize Handle */}
-                <div 
-                    className="absolute bottom-0 right-0 w-8 h-8 cursor-se-resize bg-black/20 hover:bg-primary/80 flex items-center justify-center rounded-tl-lg transition-colors opacity-0 group-hover:opacity-100 z-[60] pointer-events-auto"
-                    onPointerDownCapture={(e) => {
-                        e.stopPropagation();
+                {/* Resize Handle med framer-motion drag */}
+                <motion.div 
+                    className="absolute bottom-0 right-0 w-20 h-20 cursor-se-resize bg-black/40 hover:bg-primary flex items-center justify-center rounded-tl-full transition-colors z-[60] pointer-events-auto"
+                    drag
+                    dragMomentum={false}
+                    onDrag={(event, info) => {
+                        setSize(prev => ({
+                            width: Math.max(300, prev.width + info.delta.x),
+                            height: Math.max(300, prev.height + info.delta.y),
+                        }));
                     }}
-                    onPointerDown={(e) => {
-                        e.stopPropagation(); // prevent triggering parent drag
-                        
-                        setIsResizing(true);
-                        
-                        const startX = e.clientX;
-                        const startY = e.clientY;
-                        const startWidth = size.width;
-                        const startHeight = size.height;
-
-                        const handlePointerMove = (moveEvent: PointerEvent) => {
-                            moveEvent.preventDefault();
-                            moveEvent.stopPropagation();
-                            setSize({
-                                width: Math.max(150, startWidth + (moveEvent.clientX - startX)),
-                                height: Math.max(150, startHeight + (moveEvent.clientY - startY)),
-                            });
-                        };
-
-                        const handlePointerUp = (upEvent: PointerEvent) => {
-                            upEvent.stopPropagation();
-                            setIsResizing(false);
-                            window.removeEventListener('pointermove', handlePointerMove);
-                            window.removeEventListener('pointerup', handlePointerUp);
-                        };
-
-                        window.addEventListener('pointermove', handlePointerMove);
-                        window.addEventListener('pointerup', handlePointerUp);
-                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
                 >
-                   <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-white">
+                   <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-10 h-10 text-white translate-x-2 translate-y-2">
                         <path d="M21 15L15 21M21 8L8 21M21 21H8H21ZM21 21V15V21Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
-                </div>
+                </motion.div>
             </div>
         </motion.div>
     );
