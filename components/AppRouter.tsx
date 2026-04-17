@@ -50,6 +50,7 @@ interface AppRouterProps {
     activeCustomPage: CustomPage | null;
     customPageToEdit: CustomPage | null;
     activeRaceId: string | null;
+    isEditingNewDraft: boolean;
     racePrepState: { groups: StartGroup[]; interval: number } | null;
     followMeShowImage: boolean;
     mobileLogData: { workoutId: string, organizationId: string } | null;
@@ -257,6 +258,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 studioConfig={studioConfig}
                 sessionRole={role}
                 setCustomBackHandler={functions.setCustomBackHandler}
+                isNewDraft={props.isEditingNewDraft}
             />;
 
         case Page.SimpleWorkoutBuilder:
@@ -264,6 +266,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 initialWorkout={activeWorkout} 
                 onSave={onSaveWorkout} 
                 onCancel={handleBack}
+                isNewDraft={props.isEditingNewDraft}
                 setCustomBackHandler={functions.setCustomBackHandler}
             />;
 

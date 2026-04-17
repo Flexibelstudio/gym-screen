@@ -97,12 +97,8 @@ const ColorPicker: React.FC<{ currentColor: string, onColorSelect: (color: strin
     );
 };
 
-interface NoteArchiveModalProps {
-    notes: Note[];
+interface IdeaBoardInfoModalProps {
     onClose: () => void;
-    onDelete: (noteId: string) => void;
-    onUpdate: (note: Note) => void;
-    onLoad: (note: Note) => void;
 }
 
 const RoughShape: React.FC<{ type: string, width: number, height: number, color: string, arrowStartX?: number, arrowStartY?: number, arrowEndX?: number, arrowEndY?: number }> = ({ type, width, height, color, arrowStartX, arrowStartY, arrowEndX, arrowEndY }) => {
@@ -147,65 +143,6 @@ const RoughShape: React.FC<{ type: string, width: number, height: number, color:
         <svg ref={svgRef} width={width} height={height} className="absolute inset-0 pointer-events-none" style={{ overflow: 'visible' }} />
     );
 };
-const NoteArchiveModal: React.FC<NoteArchiveModalProps> = ({ notes, onClose, onDelete, onUpdate, onLoad }) => {
-    const [interpretingId, setInterpretingId] = useState<string | null>(null);
-
-    const handleCopy = (text: string) => {
-        if (text) {
-            navigator.clipboard.writeText(text);
-        }
-    };
-
-    const handleInterpret = async (note: Note) => {
-        setInterpretingId(note.id);
-        try {
-            const base64Image = note.imageUrl.split(',')[1];
-            const text = await interpretHandwriting(base64Image);
-            onUpdate({ ...note, text });
-        } catch (e) {
-            alert(e instanceof Error ? e.message : 'Ett okänt fel inträffade.');
-        } finally {
-            setInterpretingId(null);
-        }
-    };
-
-    return (
-        <Modal isOpen={true} onClose={onClose} title="Arkiverade Anteckningar" size="4xl">
-            <div className="space-y-4">
-                {notes.length === 0 ? (
-                    <p className="text-gray-400 text-center mt-10">Arkivet är tomt.</p>
-                ) : (
-                    notes.map(note => (
-                        <div key={note.id} className="bg-gray-900/50 p-4 rounded-lg border border-gray-700 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <img src={note.imageUrl} alt="Handskriven anteckning" className="w-full h-auto object-contain rounded-md bg-gray-900" />
-                            </div>
-                            <div className="flex flex-col">
-                                <p className="text-xs text-gray-500 mb-2">{new Date(note.timestamp).toLocaleString('sv-SE')}</p>
-                                <pre className="flex-grow whitespace-pre-wrap font-sans bg-gray-900 p-3 rounded-md text-gray-200">{note.text || 'Otolkad anteckning...'}</pre>
-                                <div className="flex gap-2 mt-3 flex-shrink-0 flex-wrap">
-                                    <button onClick={() => onLoad(note)} className="bg-blue-600 hover:bg-blue-50 text-sm font-semibold py-2 px-3 rounded-md">Fortsätt rita</button>
-                                    {note.text ? (
-                                        <button onClick={() => handleCopy(note.text)} className="bg-gray-600 hover:bg-gray-50 text-sm font-semibold py-2 px-3 rounded-md">Kopiera text</button>
-                                    ) : (
-                                        <button onClick={() => handleInterpret(note)} disabled={interpretingId === note.id} className="bg-purple-600 hover:bg-purple-50 text-sm font-semibold py-2 px-3 rounded-md flex items-center gap-1">
-                                            {interpretingId === note.id ? 'Tolkar...' : 'Tolka text'}
-                                        </button>
-                                    )}
-                                    <button onClick={() => onDelete(note.id)} className="bg-red-600 hover:bg-red-50 text-sm font-semibold py-2 px-3 rounded-md">Ta bort</button>
-                                </div>
-                            </div>
-                        </div>
-                    ))
-                )}
-            </div>
-        </Modal>
-    );
-};
-
-interface IdeaBoardInfoModalProps {
-    onClose: () => void;
-}
 
 const IdeaBoardInfoModal: React.FC<IdeaBoardInfoModalProps> = ({ onClose }) => (
     <Modal isOpen={true} onClose={onClose} title="Om Idé-tavlan" size="2xl">
@@ -836,6 +773,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const [blockForCircuit, setBlockForCircuit] = useState<WorkoutBlock | null>(null);
     const [lastDrawnBlock, setLastDrawnBlock] = useState<WorkoutBlock | null>(null);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
 
     // --- COACH NOTES ON IDEA BOARD ---
     const [coachNotes, setCoachNotes] = useState<CoachNote[]>([]);
@@ -2036,8 +1974,15 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-2">
                                 {savedNotes.map(note => (
                                     <div key={note.id} className="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col gap-3">
-                                        <div className="w-full h-40 bg-gray-200 dark:bg-gray-900 rounded-lg overflow-hidden shrink-0 relative">
-                                            <img src={note.imageUrl} alt="Handskriven anteckning" className="w-full h-full object-contain" />
+                                        <div 
+                                            className="w-full h-40 bg-gray-200 dark:bg-gray-900 rounded-lg overflow-hidden shrink-0 relative group cursor-pointer"
+                                            onClick={() => setFullscreenImage(note.imageUrl)}
+                                            title="Klicka för att förstora"
+                                        >
+                                            <img src={note.imageUrl} alt="Handskriven anteckning" className="w-full h-full object-contain transition-transform group-hover:scale-[1.02]" />
+                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg pointer-events-none">
+                                                <span className="text-white font-bold tracking-widest uppercase text-sm">Förstora bild</span>
+                                            </div>
                                         </div>
                                         <div className="flex flex-col flex-grow">
                                             <p className="text-xs text-gray-500 mb-2">{new Date(note.timestamp).toLocaleString('sv-SE')}</p>
@@ -2072,6 +2017,32 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                     )}
                 </div>
             </Modal>
+
+            {/* Fullscreen Image Preview */}
+            <AnimatePresence>
+                {fullscreenImage && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[99999] bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
+                        onClick={() => setFullscreenImage(null)}
+                    >
+                        <button 
+                            className="absolute top-6 right-6 bg-white/10 hover:bg-white/20 text-white rounded-full p-3 transition-colors"
+                            onClick={(e) => { e.stopPropagation(); setFullscreenImage(null); }}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                        <img 
+                            src={fullscreenImage} 
+                            alt="Förstorad" 
+                            className="max-w-full max-h-full object-contain"
+                            onClick={(e) => e.stopPropagation()} 
+                        />
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

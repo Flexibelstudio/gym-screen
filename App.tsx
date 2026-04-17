@@ -1388,6 +1388,7 @@ const App: React.FC = () => {
                 activeCustomPage={activeCustomPage}
                 customPageToEdit={customPageToEdit}
                 activeRaceId={activeRaceId}
+                isEditingNewDraft={isEditingNewDraft}
                 racePrepState={racePrepState}
                 followMeShowImage={followMeShowImage}
                 mobileLogData={null}

@@ -58,6 +58,7 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
     
     // Image Handling State
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const dropZoneRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
@@ -398,11 +399,18 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                         />
                         
                         {selectedImage ? (
-                            <div className="relative w-full h-48 group" onClick={(e) => e.stopPropagation()}>
-                                <img src={selectedImage} alt="Uppladdad" className="w-full h-full object-contain rounded-lg" />
+                            <div 
+                                className="relative w-full h-48 group cursor-pointer" 
+                                onClick={(e) => { e.stopPropagation(); setFullscreenImage(selectedImage); }}
+                                title="Klicka för att förstora"
+                            >
+                                <img src={selectedImage} alt="Uppladdad" className="w-full h-full object-contain rounded-lg transition-transform group-hover:scale-[1.02]" />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg pointer-events-none">
+                                    <span className="text-white font-bold tracking-widest uppercase text-sm">Förstora bild</span>
+                                </div>
                                 <button 
                                     onClick={(e) => { e.stopPropagation(); setSelectedImage(null); if(fileInputRef.current) fileInputRef.current.value = ''; }}
-                                    className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition-colors"
+                                    className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition-colors z-10"
                                     title="Ta bort bild"
                                 >
                                     <CloseIcon className="w-4 h-4" />
@@ -584,6 +592,32 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                     </div>
                 )}
             </Modal>
+
+            {/* Fullscreen Image Preview */}
+            <AnimatePresence>
+                {fullscreenImage && (
+                    <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[99999] bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
+                        onClick={() => setFullscreenImage(null)}
+                    >
+                        <button 
+                            className="absolute top-6 right-6 bg-white/10 hover:bg-white/20 text-white rounded-full p-3 transition-colors"
+                            onClick={(e) => { e.stopPropagation(); setFullscreenImage(null); }}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                        </button>
+                        <img 
+                            src={fullscreenImage} 
+                            alt="Förstorad" 
+                            className="max-w-full max-h-full object-contain"
+                            onClick={(e) => e.stopPropagation()} 
+                        />
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 };

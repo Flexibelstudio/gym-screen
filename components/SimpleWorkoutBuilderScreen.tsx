@@ -716,7 +716,7 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
 };
 
 // --- Main Component ---
-export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | null; onSave: (w: Workout) => void; onCancel: () => void; setCustomBackHandler?: (handler: (() => void) | null) => void }> = ({ initialWorkout, onSave, onCancel, setCustomBackHandler }) => {
+export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | null; onSave: (w: Workout) => void; onCancel: () => void; isNewDraft?: boolean; setCustomBackHandler?: (handler: (() => void) | null) => void }> = ({ initialWorkout, onSave, onCancel, isNewDraft, setCustomBackHandler }) => {
     const { selectedOrganization, studioConfig } = useStudio();
     const [workout, setWorkout] = useState<Workout>(() => initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
     const [initialSnapshot, setInitialSnapshot] = useState<string>('');
@@ -805,7 +805,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
     }, [selectedOrganization]);
 
     const handleSave = () => {
-        if (!isDirty) {
+        if (!isDirty && !isNewDraft) {
             if (setCustomBackHandler) setCustomBackHandler(null);
             onCancel();
             return;
