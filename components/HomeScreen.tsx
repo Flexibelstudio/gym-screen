@@ -217,8 +217,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         });
     });
     if (studioConfig.enableHyrox) items.push({ title: 'HYROX', action: () => navigateTo(Page.Hyrox), icon: <HyroxIcon /> });
-    if (studioConfig.enableWorkoutGames) items.push({ title: 'Träningslekar', action: () => navigateTo(Page.WorkoutGamesHub), icon: <SparklesIcon className="w-8 h-8" />, hideTitle: true });
-    if (studioConfig.enableNotes) items.push({ title: 'AI Whiteboard', action: () => navigateTo(Page.IdeaBoard), icon: <PencilIcon className="w-8 h-8" />, hideTitle: true });
+    if (studioConfig.enableWorkoutGames) items.push({ title: 'Träningslekar', action: () => navigateTo(Page.WorkoutGamesHub), icon: <SparklesIcon className="w-8 h-8" /> });
+    if (studioConfig.enableNotes) items.push({ title: 'AI White-board', action: () => navigateTo(Page.IdeaBoard), icon: <PencilIcon className="w-8 h-8" /> });
     if (studioConfig.enableTimer !== false) items.push({ title: 'Timer', subTitle: 'Intervall', action: () => navigateTo(Page.FreestandingTimer), icon: <TimerIcon /> });
     if (studioConfig.enableOtherWorkouts !== false) items.push({ title: 'Övriga pass', action: () => navigateTo(Page.SavedWorkouts), icon: <StarIcon className="w-8 h-8" filled={false} /> });
     return items;
