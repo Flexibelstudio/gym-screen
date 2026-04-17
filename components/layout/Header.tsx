@@ -222,7 +222,7 @@ export const Header: React.FC<HeaderProps> = ({
                       
                       {onMemberProfileRequest && (
                           <button 
-                              onClick={() => { setIsDropdownOpen(false); if (stopImpersonation) stopImpersonation(); navigateTo ? navigateTo(Page.Home) : onMemberProfileRequest(); }} 
+                              onClick={() => { setIsDropdownOpen(false); if (stopImpersonation) stopImpersonation(); onMemberProfileRequest(); }} 
                               className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
                           >
                               <UserIcon className="w-4 h-4" /> Medlemsvy
