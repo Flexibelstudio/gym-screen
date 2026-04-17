@@ -48,7 +48,7 @@ export const Header: React.FC<HeaderProps> = ({
     navigateTo
 }) => {
   const { selectedOrganization, studioConfig, studioLoading } = useStudio();
-  const { userData } = useAuth();
+  const { userData, stopImpersonation } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [isExiting, setIsExiting] = useState(false);
@@ -222,7 +222,7 @@ export const Header: React.FC<HeaderProps> = ({
                       
                       {onMemberProfileRequest && (
                           <button 
-                              onClick={() => { setIsDropdownOpen(false); navigateTo ? navigateTo(Page.Home) : onMemberProfileRequest(); }} 
+                              onClick={() => { setIsDropdownOpen(false); if (stopImpersonation) stopImpersonation(); navigateTo ? navigateTo(Page.Home) : onMemberProfileRequest(); }} 
                               className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
                           >
                               <UserIcon className="w-4 h-4" /> Medlemsvy
@@ -259,9 +259,9 @@ export const Header: React.FC<HeaderProps> = ({
                           <>
                               <div className="h-px bg-gray-100 dark:bg-gray-800 my-1 mx-2"></div>
                               
-                              {navigateTo && (
+                              {navigateTo && page !== Page.SuperAdmin && (
                                   <button 
-                                      onClick={() => { setIsDropdownOpen(false); navigateTo(Page.AdminAnalytics); }} 
+                                      onClick={() => { setIsDropdownOpen(false); navigateTo(Page.SuperAdmin); }} 
                                       className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
                                   >
                                       <SettingsIcon className="w-4 h-4" /> Admin
@@ -277,9 +277,9 @@ export const Header: React.FC<HeaderProps> = ({
                                   </button>
                               )}
 
-                              {navigateTo && (
+                              {navigateTo && page !== Page.CoachNotes && (
                                   <button 
-                                      onClick={() => { setIsDropdownOpen(false); navigateTo(Page.IdeaBoard); }} 
+                                      onClick={() => { setIsDropdownOpen(false); navigateTo(Page.CoachNotes); }} 
                                       className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
                                   >
                                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">

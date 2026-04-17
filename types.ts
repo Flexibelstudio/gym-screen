@@ -393,6 +393,7 @@ export interface UserData {
   firstName?: string;
   lastName?: string;
   photoUrl?: string;
+  stripeCustomerId?: string;
   termsAcceptedAt?: number;
   age?: number;
   birthDate?: string;

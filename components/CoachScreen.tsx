@@ -78,25 +78,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
 
   const items: { title: string; subTitle?: string; action: () => void; icon: React.ReactNode; gradient: string; isLocked?: boolean }[] = [];
 
-  // 1. DIN TRÄNING (Visa inte i StudioMode)
-  if (!isStudioMode) {
-      items.push({ 
-          title: 'Min Träning', 
-          subTitle: 'Se statistik & mål',
-          action: onMemberProfileRequest || (() => navigateTo(Page.MemberProfile)),
-          icon: <UserIcon className="w-8 h-8" />,
-          gradient: 'bg-gradient-to-br from-teal-500 to-emerald-700'
-      });
-
-      // NYTT: Anteckningar
-      items.push({
-          title: 'Anteckningar',
-          subTitle: 'Spara pass & idéer',
-          action: () => navigateTo(Page.CoachNotes),
-          icon: <DocumentTextIcon className="w-8 h-8" />,
-          gradient: 'bg-primary bg-gradient-to-br from-primary via-primary to-indigo-800'
-      });
-  }
+  // 1. Borttaget: Min Träning & Anteckningar (finns nu i profilmenyn)
 
   // 2. LOGIK FÖR ADMIN / MANAGEMENT
   if (isImpersonating) {
@@ -133,7 +115,7 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
   } else {
       // Om vi navigerar från personlig profil (Web/Mobil)
       
-      // NYTT: REMOTE CONTROL
+      // REMOTE CONTROL
       // Bara för coacher/admins på personliga enheter (inte TV-skärmar)
       if (role === 'coach' || role === 'organizationadmin' || role === 'systemowner') {
           items.push({
@@ -143,43 +125,10 @@ export const CoachScreen: React.FC<CoachScreenProps> = ({ role, navigateTo, onSe
               icon: <LightningIcon className="w-8 h-8" />,
               gradient: 'bg-gradient-to-br from-orange-500 to-amber-600'
           });
-
-          items.push({
-              title: 'Studiovy',
-              subTitle: 'Se och starta pass',
-              action: () => navigateTo(Page.Home),
-              icon: <DumbbellIcon className="w-8 h-8" />,
-              gradient: 'bg-gradient-to-br from-blue-500 to-indigo-600'
-          });
       }
-
-      if (role === 'systemowner') {
-          items.push({ 
-              title: 'Systemägare', 
-              subTitle: 'Hantera alla organisationer',
-              action: () => navigateTo(Page.SystemOwner), 
-              icon: <SettingsIcon className="w-8 h-8" />,
-              gradient: 'bg-gradient-to-br from-gray-800 to-black'
-          });
-      }
-
-      // Konsoliderad Admin-knapp för admins, Coachadmin för coacher
-      const isAdmin = role === 'organizationadmin' || role === 'systemowner';
-      items.push({ 
-          title: isAdmin ? 'Admin' : 'Coachadmin', 
-          subTitle: isAdmin ? 'Hantera studio & pass' : 'Skapa & hantera pass',
-          action: () => navigateTo(Page.SuperAdmin),
-          icon: isAdmin ? <BriefcaseIcon className="w-8 h-8" /> : <DumbbellIcon className="w-8 h-8" />,
-          gradient: 'bg-gradient-to-br from-blue-600 to-indigo-700'
-      });
-
-      items.push({
-          title: 'Logga ut',
-          subTitle: 'Avsluta session',
-          action: () => signOut(),
-          icon: <UserIcon className="w-8 h-8" />,
-          gradient: 'bg-gradient-to-br from-red-500 to-red-800'
-      });
+      
+      // Logga ut, Systemägare, Admin, Studiovy etc. 
+      // har plockats bort härifrån och finns nu uteslutande i header-profilmenyn.
   }
 
   // 3. INFOSIDOR (Content for all staff)
