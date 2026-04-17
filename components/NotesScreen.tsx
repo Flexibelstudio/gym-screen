@@ -945,7 +945,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
 
     const handleInteraction = useCallback(() => {
         setControlsVisible(true);
-        setIsMenuOpen(false);
         if (hideTimeoutRef.current) {
             clearTimeout(hideTimeoutRef.current);
         }
@@ -953,9 +952,15 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         if (isTimerActive) {
             hideTimeoutRef.current = window.setTimeout(() => {
                 setControlsVisible(false);
+                setIsMenuOpen(false);
             }, 3000);
         }
     }, [isTimerActive]);
+
+    const handlePointerDown = useCallback(() => {
+        setIsMenuOpen(false);
+        handleInteraction();
+    }, [handleInteraction]);
 
     useEffect(() => {
         if (isTimerActive) {
@@ -1633,14 +1638,15 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     return (
         <div 
             className="absolute inset-0 w-full h-full flex flex-col overflow-hidden bg-gray-800"
-            onClick={handleInteraction} 
+            onPointerDown={handlePointerDown}
             onMouseMove={handleInteraction} 
-            onTouchStart={handleInteraction}
+            onTouchStart={handlePointerDown}
         >
             {/* Top Right Hamburger Menu */}
             <div 
                 className={`absolute top-4 right-4 z-50 transition-all duration-500 ${!controlsVisible ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`} 
                 onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
                 onMouseMove={(e) => e.stopPropagation()}
                 onTouchStart={(e) => e.stopPropagation()}
             >

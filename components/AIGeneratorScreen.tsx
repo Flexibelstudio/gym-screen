@@ -52,11 +52,48 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [generatedWorkout, setGeneratedWorkout] = useState<Workout | null>(null);
     
+    // Notes Import State
+    const [coachNotes, setCoachNotes] = useState<CoachNote[]>([]);
+    const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
+    
     // Image Handling State
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const dropZoneRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
+
+    // Fetch coach notes
+    useEffect(() => {
+        if (!selectedOrganization?.id) return;
+        const unsubscribe = listenToCoachNotes(selectedOrganization.id, (notes) => {
+            setCoachNotes(notes);
+        });
+        return () => unsubscribe();
+    }, [selectedOrganization?.id]);
+
+    const handleImportNote = async (note: CoachNote) => {
+        setIsNotesModalOpen(false);
+        if (note.text) {
+            setPrompt(note.text);
+        }
+        if (note.imageUrl) {
+            setIsProcessing(true);
+            try {
+                // Fetch image and convert to base64 to put in selectedImage
+                const res = await fetch(note.imageUrl);
+                const blob = await res.blob();
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    setSelectedImage(reader.result as string);
+                    setIsProcessing(false);
+                };
+                reader.readAsDataURL(blob);
+            } catch (err) {
+                console.error("Failed to load note image", err);
+                setIsProcessing(false);
+            }
+        }
+    };
 
     // Sync state if prop changes
     useEffect(() => {
@@ -358,7 +395,7 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                             <div className="relative w-full h-48 group" onClick={(e) => e.stopPropagation()}>
                                 <img src={selectedImage} alt="Uppladdad" className="w-full h-full object-contain rounded-lg" />
                                 <button 
-                                    onClick={() => { setSelectedImage(null); if(fileInputRef.current) fileInputRef.current.value = ''; }}
+                                    onClick={(e) => { e.stopPropagation(); setSelectedImage(null); if(fileInputRef.current) fileInputRef.current.value = ''; }}
                                     className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition-colors"
                                     title="Ta bort bild"
                                 >
@@ -413,17 +450,28 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                         <span className="text-xs text-gray-500 italic">Jag hittar automatiskt övningar, reps och tider.</span>
                     )}
                     
-                    <button
-                        onClick={handleAction}
-                        disabled={isProcessing || (activeTab === 'generate' && !selectedCategory && !prompt.trim()) || (activeTab === 'parse' && !prompt.trim() && !selectedImage) || (activeTab === 'youtube' && !youtubeUrl.trim())}
-                        className={`
-                            ${activeTab === 'generate' ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500' : activeTab === 'youtube' ? 'bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500'}
-                            text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 w-full sm:w-auto justify-center
-                        `}
-                    >
-                        {activeTab === 'generate' ? <SparklesIcon className="w-5 h-5" /> : activeTab === 'youtube' ? <VideoIcon className="w-5 h-5" /> : <DocumentTextIcon className="w-5 h-5" />}
-                        {activeTab === 'generate' ? 'Skapa Pass med AI' : activeTab === 'youtube' ? 'Analysera Video' : (selectedImage ? 'Tolka Bild' : 'Tolka Text')}
-                    </button>
+                    <div className="flex gap-3 w-full sm:w-auto">
+                        {activeTab === 'parse' && (
+                            <button 
+                                onClick={(e) => { e.preventDefault(); setIsNotesModalOpen(true); }}
+                                disabled={isProcessing}
+                                className="bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 font-bold py-3 px-4 sm:px-6 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex items-center justify-center text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                Hämta från anteckning
+                            </button>
+                        )}
+                        <button
+                            onClick={handleAction}
+                            disabled={isProcessing || (activeTab === 'generate' && !selectedCategory && !prompt.trim()) || (activeTab === 'parse' && !prompt.trim() && !selectedImage) || (activeTab === 'youtube' && !youtubeUrl.trim())}
+                            className={`
+                                ${activeTab === 'generate' ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500' : activeTab === 'youtube' ? 'bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500'}
+                                text-white font-bold py-3 px-6 sm:px-8 rounded-xl shadow-lg transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 flex-grow sm:flex-grow-0 justify-center
+                            `}
+                        >
+                            {activeTab === 'generate' ? <SparklesIcon className="w-5 h-5" /> : activeTab === 'youtube' ? <VideoIcon className="w-5 h-5" /> : <DocumentTextIcon className="w-5 h-5" />}
+                            {activeTab === 'generate' ? 'Skapa Pass med AI' : activeTab === 'youtube' ? 'Analysera Video' : (selectedImage ? 'Tolka Bild' : 'Tolka Text')}
+                        </button>
+                    </div>
                 </div>
                 
                 {error && (
@@ -498,6 +546,47 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                     </div>
                 </div>
             )}
+            
+            {/* Modal for importing notes (AIGenerator) */}
+            <Modal isOpen={isNotesModalOpen} onClose={() => setIsNotesModalOpen(false)} title="Välj Anteckning" size="4xl">
+                {coachNotes.length === 0 ? (
+                    <p className="text-gray-500 text-center py-12">Inga anteckningar hittades.</p>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-2 max-h-[60vh] overflow-y-auto">
+                        {coachNotes.map(note => (
+                            <button 
+                                key={note.id}
+                                onClick={() => handleImportNote(note)}
+                                className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-left hover:border-primary transition-colors flex flex-col group h-full shadow-sm"
+                            >
+                                <div className="flex items-center gap-3 mb-3 shrink-0">
+                                    {note.creatorPhotoUrl ? (
+                                        <img src={note.creatorPhotoUrl} alt="" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
+                                            {note.creatorName.charAt(0)}
+                                        </div>
+                                    )}
+                                    <div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 leading-tight">{note.creatorName}</p>
+                                        <h4 className="font-bold text-gray-900 dark:text-white line-clamp-1">{note.title}</h4>
+                                    </div>
+                                </div>
+                                
+                                {note.imageUrl ? (
+                                    <div className="w-full h-32 bg-gray-200 dark:bg-gray-900 rounded-lg overflow-hidden shrink-0">
+                                        <img src={note.imageUrl} alt="" className="w-full h-full object-cover" />
+                                    </div>
+                                ) : (
+                                    <div className="w-full flex-grow bg-gray-100 dark:bg-gray-900 rounded-lg p-3 overflow-hidden">
+                                        <p className="text-xs text-gray-600 dark:text-gray-300 font-serif line-clamp-6">{note.text}</p>
+                                    </div>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 };
