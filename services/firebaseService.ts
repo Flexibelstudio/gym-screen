@@ -1146,11 +1146,16 @@ export const getWorkoutById = async (id: string): Promise<Workout | null> => {
     }
 };
 
-export const saveWorkout = async (w: Workout) => {
-    if (isOffline || !db || !w.id) return;
+export const saveWorkout = async (w: Workout): Promise<Workout> => {
+    if (isOffline || !db || !w.id) return w;
     try {
         await setDoc(doc(db, 'workouts', w.id), sanitizeData(w), { merge: true });
-    } catch (e) { console.error("saveWorkout failed", e); }
+        return w;
+    } catch (e) { 
+        console.error("saveWorkout failed", e); 
+        // Throw the error so the caller knows it failed
+        throw e;
+    }
 };
 
 export const deleteWorkout = async (id: string) => {

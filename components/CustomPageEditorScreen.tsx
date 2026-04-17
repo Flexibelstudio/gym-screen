@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { CustomPage, CustomPageTab } from '../types';
 import { MarkdownRenderer } from './CustomContentScreen';
 import { enhancePageWithAI } from '../services/geminiService';
@@ -33,10 +33,13 @@ const ToolButton: React.FC<{ onClick: () => void; label: string; icon: React.Rea
     </button>
 );
 
-export const CustomPageEditorScreen: React.FC<CustomPageEditorScreenProps> = ({ onSave, onCancel, pageToEdit }) => {
+export const CustomPageEditorScreen: React.FC<CustomPageEditorScreenProps & { setCustomBackHandler?: (handler: (() => void) | null) => void }> = ({ onSave, onCancel, pageToEdit, setCustomBackHandler }) => {
     const [title, setTitle] = useState('');
     const [tabs, setTabs] = useState<CustomPageTab[]>([]);
     const [activeTabIndex, setActiveTabIndex] = useState(0);
+
+    // Initial snapshot for dirty checking
+    const [initialSnapshot, setInitialSnapshot] = useState('');
 
     // Mobile toggle for Edit/Preview. Desktop uses split view.
     const [mobileViewMode, setMobileViewMode] = useState<'edit' | 'preview'>('edit');
@@ -46,14 +49,63 @@ export const CustomPageEditorScreen: React.FC<CustomPageEditorScreenProps> = ({ 
     useEffect(() => {
         if (pageToEdit) {
             setTitle(pageToEdit.title);
-            setTabs(pageToEdit.tabs && pageToEdit.tabs.length > 0 ? pageToEdit.tabs : [createNewTab()]);
+            const initialTabs = pageToEdit.tabs && pageToEdit.tabs.length > 0 ? pageToEdit.tabs : [createNewTab()];
+            setTabs(initialTabs);
             setActiveTabIndex(0);
+            setInitialSnapshot(JSON.stringify({ title: pageToEdit.title, tabs: initialTabs }));
         } else {
             setTitle('');
-            setTabs([createNewTab()]);
+            const initialTabs = [createNewTab()];
+            setTabs(initialTabs);
             setActiveTabIndex(0);
+            setInitialSnapshot(JSON.stringify({ title: '', tabs: initialTabs }));
         }
     }, [pageToEdit]);
+
+    const isDirty = useMemo(() => {
+        return JSON.stringify({ title, tabs }) !== initialSnapshot;
+    }, [title, tabs, initialSnapshot]);
+
+    const handleCancelRef = useRef(() => {
+        if (isDirty) {
+            if (window.confirm('Du har osparade ändringar. Är du säker på att du vill lämna?')) {
+                onCancel();
+            }
+        } else {
+            onCancel();
+        }
+    });
+
+    useEffect(() => {
+        handleCancelRef.current = () => {
+            if (isDirty) {
+                if (window.confirm('Du har osparade ändringar. Är du säker på att du vill lämna?')) {
+                    onCancel();
+                }
+            } else {
+                onCancel();
+            }
+        };
+    }, [isDirty, onCancel]);
+
+    const handleCancel = useCallback(() => {
+        handleCancelRef.current();
+    }, []);
+
+    useEffect(() => {
+        if (setCustomBackHandler) {
+            if (isDirty) {
+                setCustomBackHandler(() => () => handleCancelRef.current());
+            } else {
+                setCustomBackHandler(null);
+            }
+        }
+        return () => {
+            if (setCustomBackHandler) {
+                setCustomBackHandler(null);
+            }
+        };
+    }, [setCustomBackHandler, isDirty]);
 
     const handleSave = async () => {
         setIsProcessing(true);
@@ -155,7 +207,7 @@ export const CustomPageEditorScreen: React.FC<CustomPageEditorScreenProps> = ({ 
                     />
                 </div>
                 <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-                    <button onClick={onCancel} className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white font-medium px-4 py-2 transition-colors">Avbryt</button>
+                    <button onClick={handleCancel} className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white font-medium px-4 py-2 transition-colors">Avbryt</button>
                     <button 
                         onClick={handleSave} 
                         disabled={!isSavable || isProcessing}

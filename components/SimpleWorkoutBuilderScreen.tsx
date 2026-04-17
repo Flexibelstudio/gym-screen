@@ -733,25 +733,40 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
         return JSON.stringify(workout) !== initialSnapshot;
     }, [workout, initialSnapshot]);
 
-    const handleCancel = () => {
+    const handleCancelRef = useRef(() => {
         if (isDirty) {
             setShowUnsavedWarning(true);
         } else {
             if (setCustomBackHandler) setCustomBackHandler(null);
             onCancel();
         }
+    });
+
+    useEffect(() => {
+        handleCancelRef.current = () => {
+            if (isDirty) {
+                setShowUnsavedWarning(true);
+            } else {
+                if (setCustomBackHandler) setCustomBackHandler(null);
+                onCancel();
+            }
+        };
+    }, [isDirty, onCancel, setCustomBackHandler]);
+
+    const handleCancel = () => {
+        handleCancelRef.current();
     };
 
     useEffect(() => {
         if (setCustomBackHandler) {
-            setCustomBackHandler(() => handleCancel);
+            setCustomBackHandler(() => () => handleCancelRef.current());
         }
         return () => {
             if (setCustomBackHandler) {
                 setCustomBackHandler(null);
             }
         };
-    }, [setCustomBackHandler, isDirty, onCancel]);
+    }, [setCustomBackHandler]);
     
     // Toast state
     const [toast, setToast] = useState<{ message: string, visible: boolean }>({ message: '', visible: false });

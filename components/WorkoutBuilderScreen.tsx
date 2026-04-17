@@ -569,25 +569,40 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   }, [workout, isSingleBlockMode, initialFocusedBlockId]);
 
 
-  const handleCancel = () => {
+  const handleCancelRef = useRef(() => {
     if (isDirty) {
       setShowUnsavedWarning(true);
     } else {
       if (setCustomBackHandler) setCustomBackHandler(null);
       onCancel();
     }
+  });
+
+  useEffect(() => {
+    handleCancelRef.current = () => {
+      if (isDirty) {
+        setShowUnsavedWarning(true);
+      } else {
+        if (setCustomBackHandler) setCustomBackHandler(null);
+        onCancel();
+      }
+    };
+  }, [isDirty, onCancel, setCustomBackHandler]);
+
+  const handleCancel = () => {
+    handleCancelRef.current();
   };
 
   useEffect(() => {
     if (setCustomBackHandler) {
-      setCustomBackHandler(() => handleCancel);
+      setCustomBackHandler(() => () => handleCancelRef.current());
     }
     return () => {
       if (setCustomBackHandler) {
         setCustomBackHandler(null);
       }
     };
-  }, [setCustomBackHandler, isDirty, onCancel]);
+  }, [setCustomBackHandler]);
 
   const handleSave = async () => {
     if (!isDirty) {
