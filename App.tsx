@@ -320,7 +320,13 @@ const App: React.FC = () => {
           return () => clearInterval(intervalId);
       }, [isStudioMode, selectedOrganization, selectedStudio]);
 
-  const [customBackHandler, setCustomBackHandler] = useState<(() => void) | null>(null);
+  const [customBackHandlerState, setCustomBackHandlerState] = useState<(() => void) | null>(null);
+  const customBackHandlerRef = useRef<(() => void) | null>(null);
+
+  const setCustomBackHandler = useCallback((handler: (() => void) | null) => {
+      customBackHandlerRef.current = handler;
+      setCustomBackHandlerState(handler ? () => handler : null);
+  }, []);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   useEffect(() => {
@@ -539,8 +545,8 @@ const App: React.FC = () => {
 
 
   const handleBack = useCallback(() => {
-    if (customBackHandler) {
-      customBackHandler();
+    if (customBackHandlerRef.current) {
+      customBackHandlerRef.current();
       return;
     }
 
@@ -595,7 +601,7 @@ const App: React.FC = () => {
     }
     
     setHistory(newHistory);
-  }, [history, role, isImpersonating, customBackHandler, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock]);
+  }, [history, role, isImpersonating, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock]);
 
   const handleMemberProfileRequest = () => {
       if (isStudioMode) {
@@ -1343,7 +1349,7 @@ const App: React.FC = () => {
             onMemberProfileRequest={handleMemberProfileRequest} 
             onEditProfileRequest={handleEditProfileRequest}
             isStudioMode={isStudioMode}
-            hasCustomBack={!!customBackHandler}
+          hasCustomBack={!!customBackHandlerState}
           />
        </div>
 
