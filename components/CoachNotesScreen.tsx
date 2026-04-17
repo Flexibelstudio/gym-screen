@@ -122,9 +122,6 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
         <div className="w-full max-w-6xl mx-auto px-4 py-8">
             <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-4">
-                    <button onClick={onBack} className="p-2 bg-gray-200 dark:bg-gray-800 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors">
-                        <CloseIcon className="w-6 h-6 text-gray-700 dark:text-gray-300" />
-                    </button>
                     <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Anteckningar</h1>
                 </div>
                 <button 
@@ -287,14 +284,14 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
                             capture="environment"
                             ref={cameraInputRef} 
                             onChange={handleImageSelect} 
-                            className="hidden" 
+                            style={{ position: 'absolute', opacity: 0, width: 1, height: 1, overflow: 'hidden' }}
                         />
                         <input 
                             type="file" 
                             accept="image/*" 
                             ref={fileInputRef} 
                             onChange={handleImageSelect} 
-                            className="hidden" 
+                            style={{ position: 'absolute', opacity: 0, width: 1, height: 1, overflow: 'hidden' }}
                         />
                     </div>
 

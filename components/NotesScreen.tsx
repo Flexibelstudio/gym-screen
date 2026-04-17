@@ -1329,11 +1329,25 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     }, [remoteCommand]);
     
     const handleInterpretAsWorkout = async () => {
-        if (!canvasRef.current || (history.length === 0 && smartObjects.length === 0)) return;
+        if (!canvasRef.current || (history.length === 0 && smartObjects.length === 0 && !activeCoachNote?.imageUrl)) return;
         setIsInterpretingWorkout(true);
         try {
-            const dataUrl = getCanvasDataUrlWithSmartObjects();
-            const base64Image = dataUrl.split(',')[1];
+            let base64Image = '';
+            if (activeCoachNote?.imageUrl) {
+                const response = await fetch(activeCoachNote.imageUrl);
+                const blob = await response.blob();
+                const reader = new FileReader();
+                base64Image = await new Promise<string>((resolve) => {
+                    reader.onloadend = () => {
+                        resolve(reader.result as string);
+                    };
+                    reader.readAsDataURL(blob);
+                });
+                base64Image = base64Image.split(',')[1];
+            } else {
+                const dataUrl = getCanvasDataUrlWithSmartObjects();
+                base64Image = dataUrl.split(',')[1];
+            }
             
             let exerciseNames: string[] = [];
             if (selectedOrganization) {
@@ -1624,7 +1638,12 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             onTouchStart={handleInteraction}
         >
             {/* Top Right Hamburger Menu */}
-            <div className={`absolute top-4 right-4 z-50 transition-all duration-500 ${!controlsVisible ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`} onClick={(e) => e.stopPropagation()}>
+            <div 
+                className={`absolute top-4 right-4 z-50 transition-all duration-500 ${!controlsVisible ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`} 
+                onClick={(e) => e.stopPropagation()}
+                onMouseMove={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+            >
                 <button 
                     onClick={() => setIsMenuOpen(!isMenuOpen)} 
                     className="p-3 bg-gray-800/80 hover:bg-gray-700 text-white rounded-xl backdrop-blur-md shadow-lg transition-colors border border-gray-700"
@@ -1811,7 +1830,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 })}
             </div>
             
-            <div className={`absolute bottom-6 left-6 z-20 flex items-center gap-4 transition-all duration-500 ${!controlsVisible ? 'opacity-0 translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'} pointer-events-auto`}>
+            <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-4 transition-all duration-500 flex-wrap justify-center w-full px-4 ${!controlsVisible ? 'opacity-0 translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'} pointer-events-auto`}>
                 <div className="flex gap-2 bg-gray-800/80 backdrop-blur-md p-2 rounded-xl shadow-lg border border-gray-700">
                     <button onClick={handleUndo} disabled={history.length === 0 || animationState !== 'finished'} className="p-3 text-white hover:bg-gray-700 rounded-lg disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Ångra">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
