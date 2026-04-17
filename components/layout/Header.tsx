@@ -24,6 +24,7 @@ interface HeaderProps {
     onEditProfileRequest?: () => void;
     isStudioMode?: boolean;
     hasCustomBack?: boolean;
+    navigateTo?: (page: Page) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -43,7 +44,8 @@ export const Header: React.FC<HeaderProps> = ({
     onMemberProfileRequest,
     onEditProfileRequest,
     isStudioMode,
-    hasCustomBack = false
+    hasCustomBack = false,
+    navigateTo
 }) => {
   const { selectedOrganization, studioConfig, studioLoading } = useStudio();
   const { userData } = useAuth();
@@ -89,20 +91,6 @@ export const Header: React.FC<HeaderProps> = ({
   const logoUrl = theme === 'dark' 
     ? selectedOrganization?.logoUrlDark || selectedOrganization?.logoUrlLight 
     : selectedOrganization?.logoUrlLight || selectedOrganization?.logoUrlDark;
-
-  const themeToggleButton = (
-    <button onClick={toggleTheme} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" aria-label="Växla tema">
-      {theme === 'dark' ? (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-        </svg>
-      ) : (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-        </svg>
-      )}
-    </button>
-  );
 
   const pagesWithoutBack = [
     Page.Home, 
@@ -205,6 +193,147 @@ export const Header: React.FC<HeaderProps> = ({
       );
   };
 
+  const renderProfileMenu = () => {
+      const isAdminRole = role === 'coach' || role === 'organizationadmin' || role === 'systemowner';
+
+      return (
+          <div className="relative" ref={dropdownRef}>
+              <button
+                  onClick={(e) => { e.stopPropagation(); setIsDropdownOpen(!isDropdownOpen); }}
+                  className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-700 dark:text-gray-200 hover:ring-2 hover:ring-primary transition-all shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700"
+              >
+                  {userData?.photoUrl ? (
+                      <img src={userData.photoUrl} alt="Profil" className="w-full h-full object-cover" />
+                  ) : (
+                      <UserIcon className="w-6 h-6" />
+                  )}
+              </button>
+
+              {isDropdownOpen && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden py-2 animate-fade-in origin-top-right z-50">
+                      {onEditProfileRequest && (
+                          <button 
+                              onClick={() => { setIsDropdownOpen(false); onEditProfileRequest(); }} 
+                              className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
+                          >
+                              <PencilIcon className="w-4 h-4" /> Redigera profil
+                          </button>
+                      )}
+                      
+                      {onMemberProfileRequest && (
+                          <button 
+                              onClick={() => { setIsDropdownOpen(false); navigateTo ? navigateTo(Page.Home) : onMemberProfileRequest(); }} 
+                              className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
+                          >
+                              <UserIcon className="w-4 h-4" /> Medlemsvy
+                          </button>
+                      )}
+
+                      {userData?.stripeCustomerId && (
+                          <button 
+                              onClick={async () => {
+                                  setIsDropdownOpen(false);
+                                  try {
+                                      const apiUrl = import.meta.env.VITE_API_URL;
+                                      const res = await fetch(`${apiUrl}/create-portal-session`, {
+                                          method: 'POST',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ customerId: userData.stripeCustomerId })
+                                      });
+                                      const data = await res.json();
+                                      if (data.url) window.location.href = data.url;
+                                  } catch (e) {
+                                      console.error("Error opening portal:", e);
+                                  }
+                              }} 
+                              className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
+                          >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                              </svg>
+                              Hantera prenumeration
+                          </button>
+                      )}
+                      
+                      {isAdminRole && (
+                          <>
+                              <div className="h-px bg-gray-100 dark:bg-gray-800 my-1 mx-2"></div>
+                              
+                              {navigateTo && (
+                                  <button 
+                                      onClick={() => { setIsDropdownOpen(false); navigateTo(Page.AdminAnalytics); }} 
+                                      className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
+                                  >
+                                      <SettingsIcon className="w-4 h-4" /> Admin
+                                  </button>
+                              )}
+
+                              {onCoachAccessRequest && (
+                                  <button 
+                                      onClick={() => { setIsDropdownOpen(false); onCoachAccessRequest(); }} 
+                                      className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
+                                  >
+                                      <BriefcaseIcon className="w-4 h-4" /> Coach-vy
+                                  </button>
+                              )}
+
+                              {navigateTo && (
+                                  <button 
+                                      onClick={() => { setIsDropdownOpen(false); navigateTo(Page.IdeaBoard); }} 
+                                      className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
+                                  >
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.89 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.89l12.683-12.683z" />
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 7.125L16.875 4.5" />
+                                      </svg>
+                                      Anteckningar
+                                  </button>
+                              )}
+                          </>
+                      )}
+
+                      <div className="h-px bg-gray-100 dark:bg-gray-800 my-1 mx-2"></div>
+                      
+                      <button 
+                          onClick={() => { setIsDropdownOpen(false); toggleTheme(); }} 
+                          className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
+                      >
+                          {theme === 'dark' ? (
+                              <>
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                                  </svg>
+                                  Ljust läge
+                              </>
+                          ) : (
+                              <>
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                                  </svg>
+                                  Mörkt läge
+                              </>
+                          )}
+                      </button>
+
+                      <div className="h-px bg-gray-100 dark:bg-gray-800 my-1 mx-2"></div>
+                      
+                      {onSignOut && (
+                          <button 
+                              onClick={() => { setIsDropdownOpen(false); onSignOut(); }} 
+                              className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 transition-colors flex items-center gap-3"
+                          >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                              </svg>
+                              Logga ut
+                          </button>
+                      )}
+                  </div>
+              )}
+          </div>
+      );
+  };
+
   if (isMemberAppView) {
       return (
         <header className="w-full max-w-6xl mx-auto flex justify-between items-center pt-6 pb-6 px-4 sm:px-6 z-30 relative">
@@ -217,111 +346,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div id="member-header-tabs" className="flex-1 flex justify-end items-center mx-2 mr-4"></div>
 
             <div className="flex items-center gap-3 md:gap-4">
-                <div className="relative" ref={dropdownRef}>
-                    <button
-                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-700 dark:text-gray-200 hover:ring-2 hover:ring-primary transition-all shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700"
-                    >
-                        {userData?.photoUrl ? (
-                            <img src={userData.photoUrl} alt="Profil" className="w-full h-full object-cover" />
-                        ) : (
-                            <UserIcon className="w-6 h-6" />
-                        )}
-                    </button>
-
-                    {isDropdownOpen && (
-                        <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-900 rounded-xl shadow-2xl border border-gray-100 dark:border-gray-700 overflow-hidden py-2 animate-fade-in origin-top-right z-50">
-                            {page !== Page.MemberProfile && onMemberProfileRequest && (
-                                <button 
-                                    onClick={() => { setIsDropdownOpen(false); onMemberProfileRequest(); }} 
-                                    className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
-                                >
-                                    <UserIcon className="w-4 h-4" /> Min profil
-                                </button>
-                            )}
-                            {onEditProfileRequest && (
-                                <button 
-                                    onClick={() => { setIsDropdownOpen(false); onEditProfileRequest(); }} 
-                                    className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
-                                >
-                                    <PencilIcon className="w-4 h-4" /> Redigera profil
-                                </button>
-                            )}
-                            
-                            {userData?.stripeCustomerId && (
-                                <button 
-                                    onClick={async () => {
-                                        setIsDropdownOpen(false);
-                                        try {
-                                            const apiUrl = import.meta.env.VITE_API_URL;
-                                            const res = await fetch(`${apiUrl}/create-portal-session`, {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({ customerId: userData.stripeCustomerId })
-                                            });
-                                            const data = await res.json();
-                                            if (data.url) window.location.href = data.url;
-                                        } catch (e) {
-                                            console.error("Error opening portal:", e);
-                                        }
-                                    }} 
-                                    className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                                    </svg>
-                                    Hantera prenumeration
-                                </button>
-                            )}
-                            
-                            {(role === 'coach' || role === 'organizationadmin' || role === 'systemowner') && onCoachAccessRequest && (
-                                <button 
-                                    onClick={() => { setIsDropdownOpen(false); onCoachAccessRequest(); }} 
-                                    className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
-                                >
-                                    <BriefcaseIcon className="w-4 h-4" /> Coach-vy
-                                </button>
-                            )}
-
-                            <div className="h-px bg-gray-100 dark:bg-gray-800 my-1 mx-2"></div>
-                            
-                            <button 
-                                onClick={() => { setIsDropdownOpen(false); toggleTheme(); }} 
-                                className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
-                            >
-                                {theme === 'dark' ? (
-                                    <>
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-yellow-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                                        </svg>
-                                        Ljust läge
-                                    </>
-                                ) : (
-                                    <>
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                          <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                                        </svg>
-                                        Mörkt läge
-                                    </>
-                                )}
-                            </button>
-
-                            <div className="h-px bg-gray-100 dark:bg-gray-800 my-1 mx-2"></div>
-                            
-                            {onSignOut && (
-                                <button 
-                                    onClick={() => { setIsDropdownOpen(false); onSignOut(); }} 
-                                    className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 transition-colors flex items-center gap-3"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                                    </svg>
-                                    Logga ut
-                                </button>
-                            )}
-                        </div>
-                    )}
-                </div>
+                {renderProfileMenu()}
             </div>
         </header>
       );
@@ -365,26 +390,10 @@ export const Header: React.FC<HeaderProps> = ({
 
         <div className="flex-1 flex justify-end items-center gap-4">
             {showClock && <DigitalClock />}
-            {page !== Page.MemberProfile && onMemberProfileRequest && !isStudioMode && (
-                <button onClick={onMemberProfileRequest} className="p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-800 dark:text-white" aria-label="Min Profil">
-                    <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold border border-primary/20 overflow-hidden shadow-sm">
-                        {userData?.photoUrl ? (
-                            <img src={userData.photoUrl} alt="Profil" className="w-full h-full object-cover" />
-                        ) : (
-                            <UserIcon className="w-5 h-5" />
-                        )}
-                    </div>
-                </button>
-            )}
-            {showCoachButton && onCoachAccessRequest && (
+            {!isStudioMode && renderProfileMenu()}
+            {isStudioMode && onCoachAccessRequest && (
                 <button onClick={onCoachAccessRequest} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors text-gray-800 dark:text-white" aria-label="Coach-åtkomst">
                     <BriefcaseIcon className="w-6 h-6" />
-                </button>
-            )}
-            {themeToggleButton}
-            {onSignOut && (
-                <button onClick={onSignOut} className="text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary transition-colors text-lg font-semibold px-2">
-                    Logga ut
                 </button>
             )}
         </div>

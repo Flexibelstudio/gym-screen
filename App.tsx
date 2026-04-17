@@ -1352,7 +1352,8 @@ const App: React.FC = () => {
             onMemberProfileRequest={handleMemberProfileRequest} 
             onEditProfileRequest={handleEditProfileRequest}
             isStudioMode={isStudioMode}
-          hasCustomBack={!!customBackHandlerState}
+            hasCustomBack={!!customBackHandlerState}
+            navigateTo={navigateTo}
           />
        </div>
 
