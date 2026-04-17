@@ -1231,7 +1231,8 @@ const App: React.FC = () => {
   };
 
   const isFullScreenPage = page === Page.Timer || page === Page.RepsOnly || page === Page.IdeaBoard || page === Page.RemoteControl;
-  const paddingClass = isFullScreenPage ? '' : 'p-4 sm:p-6 lg:p-8';
+  const isAdminDashboardMode = page === Page.SuperAdmin || page === Page.SystemOwner;
+  const paddingClass = (isFullScreenPage || isAdminDashboardMode) ? '' : 'p-4 sm:p-6 lg:p-8';
   
   const isAdminOrCoach = role === 'systemowner' || role === 'organizationadmin' || role === 'coach';
   const isMemberFacingPage = [Page.Home, Page.WorkoutDetail, Page.SavedWorkouts, Page.MemberProfile, Page.WorkoutList, Page.WorkoutGamesHub].includes(page);
@@ -1359,7 +1360,7 @@ const App: React.FC = () => {
 
       <div className="flex flex-col items-center flex-1 min-h-0 relative">
           <main 
-            className={`flex-1 min-h-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home || page === Page.MemberProfile || page === Page.CoachNotes ? 'justify-start' : 'justify-center'}`}`}
+            className={`flex-1 min-h-0 w-full ${isFullScreenPage || isAdminDashboardMode ? 'block relative' : `flex flex-col items-center ${page === Page.Home || page === Page.MemberProfile || page === Page.CoachNotes ? 'justify-start' : 'justify-center'}`}`}
           >
             {showPendingCoach ? (
                 <PendingCoachScreen onLogout={signOut} />

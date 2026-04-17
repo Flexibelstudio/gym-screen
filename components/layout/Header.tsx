@@ -352,6 +352,17 @@ export const Header: React.FC<HeaderProps> = ({
       );
   }
 
+  // För Admin och Systemägar-skärmarna som har sina egna fasta headermoduler, 
+  // ska vi bara rendera profilmenyn absolut placerad över deras tomma högra sida.
+  // Detta förhindrar att en överflödig, tom <header> trycker ner hela admin-layouten.
+  if (page === Page.SuperAdmin || page === Page.SystemOwner) {
+      return (
+         <div className="fixed top-2.5 lg:top-3 right-4 sm:right-6 z-[60] flex items-center">
+             {renderProfileMenu()}
+         </div>
+      );
+  }
+
   const getTitle = () => {
     switch(page) {
       case Page.CustomContent: return activeCustomPageTitle || 'Information';
