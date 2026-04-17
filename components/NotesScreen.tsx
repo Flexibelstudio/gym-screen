@@ -1892,25 +1892,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         alt={activeCoachNote.title} 
                         initialPosition={{ x: 100, y: 100 }}
                         onClose={() => setActiveCoachNote(null)}
-                    >
-                        <div className="absolute bottom-4 left-0 right-0 flex justify-center z-50 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleInterpretAsWorkout();
-                                }}
-                                disabled={isInterpretingWorkout}
-                                className="bg-primary text-white font-bold py-2 px-4 shadow-lg hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 rounded-full overflow-hidden"
-                            >
-                                {isInterpretingWorkout ? (
-                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                ) : (
-                                    <span className="text-xl leading-none">✨</span>
-                                )}
-                                <span>{isInterpretingWorkout ? 'Tolkar...' : 'Skapa Pass'}</span>
-                            </button>
-                        </div>
-                    </DraggableImage>
+                    />
                 </div>
             )}
 
