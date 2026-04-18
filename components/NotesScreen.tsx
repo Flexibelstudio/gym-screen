@@ -1641,7 +1641,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         onBack();
                     }
                 }}
-                className={`absolute top-4 left-4 z-20 bg-gray-600/80 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition-all duration-500 backdrop-blur-sm shadow-md flex items-center gap-2 ${!controlsVisible ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`}
+                className={`absolute top-4 left-4 z-20 text-white font-bold p-3 rounded-lg hover:bg-gray-700/50 transition-all duration-500 flex items-center gap-2 drop-shadow-md ${!controlsVisible ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`}
             >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -1791,7 +1791,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 onMouseMove={(e) => e.stopPropagation()}
                 onTouchStart={(e) => e.stopPropagation()}
             >
-                <div className="bg-gray-800/80 backdrop-blur-md p-3 rounded-2xl shadow-xl border border-gray-700 flex flex-col items-center gap-4">
+                <div className="flex flex-col items-center gap-4 py-3">
                     {/* 1. Hamburger Menu */}
                     <div className="relative">
                         <button 
@@ -1827,8 +1827,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         )}
                     </div>
 
-                    <div className="w-8 h-px bg-gray-600 rounded-full"></div>
-
                     {/* 2. Undo & Clear */}
                     <div className="flex flex-col gap-2">
                         <button onClick={handleUndo} disabled={history.length === 0} className="p-3 text-gray-300 hover:bg-gray-700 hover:text-white rounded-xl disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Ångra">
@@ -1843,10 +1841,8 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         </button>
                     </div>
 
-                    <div className="w-8 h-px bg-gray-600 rounded-full"></div>
-
                     {/* 3. Colors */}
-                    <div className="flex flex-col gap-3 py-1">
+                    <div className="flex flex-col gap-3 py-1 mt-2">
                         {effectiveColors.map(color => (
                             <button
                                 key={color.hex}
