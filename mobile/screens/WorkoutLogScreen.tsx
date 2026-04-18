@@ -9,7 +9,7 @@ import { Modal } from '../../components/ui/Modal';
 import { calculate1RM } from '../../utils/workoutUtils';
 import { ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition, BankExercise, Workout } from '../../types';
 import { MOCK_EXERCISE_BANK } from '../../data/mockData';
-import { saveCustomProgram } from '../../services/firebaseService';
+import { saveCustomProgram, fetchCustomPrograms } from '../../services/firebaseService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
 import { useStudio } from '../../context/StudioContext';
@@ -887,7 +887,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
             let foundWorkout = orgWorkouts.find(w => w.id === wId);
             
             if (!foundWorkout) {
-                 foundWorkout = contextWorkouts.find(w => w.id === wId);
+                 foundWorkout = contextWorkouts.find((w: any) => w.id === wId);
+            }
+
+            if (!foundWorkout && wId.startsWith('custom-')) {
+                 const customPrograms = await fetchCustomPrograms(userId);
+                 foundWorkout = customPrograms.find(w => w.id === wId);
             }
             
             if (foundWorkout) {
@@ -1119,6 +1124,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               return {
                   exerciseId: r.exerciseId,
                   exerciseName: r.exerciseName,
+                  trackingFields: r.trackingFields,
                   setDetails: r.setDetails.map(s => ({
                       weight: parseFloat(s.weight) || null,
                       reps: s.reps || null,
@@ -1173,9 +1179,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                           tag: 'Custom',
                           followMe: false,
                           settings: { rounds: 1, mode: "Stoppur" as any },
-                          exercises: exerciseResultsToSave.map(r => ({ 
+                          exercises: exerciseResultsToSave.map((r: any) => ({ 
                               id: r.exerciseId, 
                               name: r.exerciseName,
+                              trackingFields: r.trackingFields,
                               loggingEnabled: true 
                           }))
                       }]
