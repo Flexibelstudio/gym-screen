@@ -1923,7 +1923,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         onClick={() => setActiveNotesTab('idea')}
                         className={`pb-2 px-4 font-bold text-sm sm:text-base transition-colors relative ${activeNotesTab === 'idea' ? 'text-primary' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
                     >
-                        AI Whiteboard Arkiv ({savedNotes.length})
+                        Arkiv ({savedNotes.length})
                         {activeNotesTab === 'idea' && <div className="absolute bottom-[-9px] left-0 right-0 h-1 bg-primary rounded-t-full" />}
                     </button>
                 </div>

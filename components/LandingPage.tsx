@@ -190,15 +190,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                             delay={0.2}
                         />
                         <FeatureCard 
-                            title="Digital Skyltning" 
+                            title="Info-karusell" 
                             desc="Förvandla dina skärmar till digitala anslagstavlor när de inte används för träning. Schemalägg info enkelt."
                             icon={<BuildingIcon className="w-8 h-8" />}
                             delay={0.3}
                         />
                         <FeatureCard 
-                            title="Övningsbank" 
-                            desc="Hundratals inbyggda övningar med instruktioner. Lägg in egna och återanvänd dem."
-                            icon={<DumbbellIcon className="w-8 h-8" />}
+                            title="Anteckningar" 
+                            desc="Samla alla träningsidéer på ett ställe. Skriv, skissa eller chatta med AI för att bygga perfekta pass."
+                            icon={<span className="text-2xl">📝</span>}
                             delay={0.4}
                         />
                         <FeatureCard 
@@ -206,12 +206,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                             desc="Digital whiteboard för att skissa upp pass för hand, som sedan tolkas automatiskt till digitala pass."
                             icon={<span className="text-2xl">✏️</span>}
                             delay={0.5}
-                        />
-                        <FeatureCard 
-                            title="Teamhantering" 
-                            desc="Ge dina coacher rätt verktyg och behörigheter. Hantera flera studios från ett konto."
-                            icon={<UsersIcon className="w-8 h-8" />}
-                            delay={0.6}
                         />
                     </div>
                 </div>
