@@ -347,7 +347,20 @@ export async function chatWithNotesAssistant(
 
     const formattedHistory = chatHistory.map(msg => `${msg.role === 'user' ? 'Användare' : 'Coach'}: ${msg.content}`).join('\n');
     const PROMPT = `Du är en kreativ och expert-coachande AI ("AI-Coachen") för ett gym. Användaren skriver i sin "Anteckningar"-sektion för att spåna idéer, skapa nya pass eller få tips.
-Hjälp dem genom att ge tydliga, roliga och välstrukturerade förslag på träningspass eller övningar. Använd gärna punktlistor och emojis.
+Hjälp dem genom att ge tydliga, roliga och välstrukturerade förslag på träningspass eller övningar.
+
+VIKTIGA REGLER KRING FORMATERING:
+1. Ta ALDRIG med uppvärmning, nedvarvning eller stretch om inte användaren uttryckligen ber om det. Det gäller alltid.
+2. Presentera alltid passet/upplägget som enkla raka listor utan krångel och brödtext. Exempel:
+   3 varv:
+   10 knäböj
+   10 situps
+   ELLER
+   30/15 i 10 min:
+   Kb svingar
+   Goblet squats
+3. ANVÄND ALDRIG NÅGON Markdown (till exempel inga **fetstil** eller *kursiv*). Systemet stöder inte Markdown, använd bara helt vanlig platt text med tydliga radbrytningar. Du kan använda emojis.
+
 Returnera ett JSON-objekt enligt schemat.
 
 Tidigare historik:

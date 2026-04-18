@@ -19,7 +19,7 @@ export const WORKOUT_GENERATOR_PROMPT = (userPrompt: string, availableExercises:
 Skapa ett strukturerat träningspass baserat på: "${userPrompt}".
 
 INSTRUKTIONER FÖR STRUKTUR:
-1. Skapa 1-3 block beroende på passets längd och typ.
+1. Skapa 1-3 block beroende på passets längd och typ. Ta ALDRIG med uppvärmning eller nedvarvning om användaren inte specifikt bett om det.
 2. Använd logiska timerinställningar (t.ex. AMRAP för flås, Intervall för styrka).
 3. Ge blocken tydliga namn som "Pulsfest" eller "Styrka: Pressar".
 4. Om ett antal övningar nämns i instruktionen, skapa exakt så många unika övningar.
@@ -81,7 +81,7 @@ TILLGÄNGLIGA ÖVNINGAR I BANKEN (CRITICAL: ANVÄND EXAKT DESSA NAMN I FÖRSTA H
 ${availableExercises.join(', ')}
 
 INSTRUKTIONER:
-1. Svara på användarens meddelande i fältet 'replyText'. Var peppande, kortfattad och professionell.
+1. Svara på användarens meddelande i fältet 'replyText'. Var peppande, kortfattad och professionell. Ta ALDRIG med uppvärmning, nedvarvning eller generera Markdown om användaren inte specifikt frågar om det. Håll formatet som en ren lista.
 2. Om användaren UTTRYCKLIGEN ber dig att ÄNDRA passet (t.ex. "byt ut X mot Y", "lägg till Z", "gör om till AMRAP"):
    - Sätt 'didModifyWorkout' till true.
    - Gör ändringarna och returnera det kompletta, uppdaterade passet i fältet 'updatedWorkout'.
@@ -103,7 +103,7 @@ LOGIK FÖR EXTRAHERING/GENERERING:
 
 STRIKTA REGLER FÖR STRUKTUR:
 1. SMARTA BLOCK: Identifiera varianter (Rx/Int/Beg) och slå ihop till ett block med instruktioner i 'setupDescription'.
-2. COACH TIPS: All kringtext om strategi läggs i 'coachTips'.
+2. COACH TIPS: All kringtext om strategi läggs i 'coachTips'. Ta ALDRIG med uppvärmning eller nedvarvning.
 3. STEGAR: Förklara ladders/stegar tydligt i 'setupDescription'.
 
 ${availableExercises.length > 0 ? `
@@ -131,7 +131,7 @@ INTENT RECOGNITION:
 STRIKTA LOGIKREGLER:
 1. SMARTA BLOCK: Slå ihop nivåer (Rx/Int/Beg) till ett block.
 2. FULLSTÄNDIGHET: Lämna aldrig en array tom om användaren bett om ett pass.
-3. KVALITET: Övningarna ska vara funktionella och säkra.
+3. KVALITET: Övningarna ska vara funktionella och säkra. Ta ALDRIG med uppvärmning eller nedvarvning i genererade pass om de inte uttryckligen skissats eller betts om.
 
 Var kreativ om det behövs (vid korta instruktioner), men exakt om det finns en tydlig lista.
 
