@@ -191,7 +191,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                             className="flex-1 px-4 py-3 rounded-2xl border-2 border-gray-100 dark:border-gray-800 text-gray-600 dark:text-gray-300 font-black text-center text-[10px] uppercase tracking-widest hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors active:scale-95"
                                             style={{ touchAction: 'manipulation' }}
                                         >
-                                            Visa pass
+                                            Visa
                                         </button>
                                         {isLoggable && (
                                             <button
@@ -199,7 +199,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                                 className="flex-[1.5] px-4 py-3 rounded-2xl bg-primary text-white font-black text-center text-[10px] uppercase tracking-widest shadow-lg shadow-primary/20 hover:brightness-110 transition-all active:scale-95"
                                                 style={{ touchAction: 'manipulation' }}
                                             >
-                                                Logga pass
+                                                Logga
                                             </button>
                                         )}
                                     </div>
