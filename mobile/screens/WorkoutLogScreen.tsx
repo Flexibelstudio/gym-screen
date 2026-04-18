@@ -808,6 +808,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const isFormValid = useMemo(() => {
       if (isSubmitting) return false;
       if (isManualMode) {
+          if (saveAsProgram && programName.trim().length === 0) return false;
           if (exerciseResults.length > 0) return true;
           return customActivity.name.trim() !== '' && customActivity.duration.trim() !== '';
       }
@@ -819,7 +820,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
       const totalSets = exerciseResults.reduce((acc, ex) => acc + ex.setDetails.length, 0);
       return totalSets > 0 && uncheckedSetsCount === 0;
-  }, [isSubmitting, isManualMode, customActivity, exerciseResults, uncheckedSetsCount, benchmarkDefinition, sessionStats]);
+  }, [isSubmitting, isManualMode, customActivity, exerciseResults, uncheckedSetsCount, benchmarkDefinition, sessionStats, saveAsProgram, programName]);
   
   // --- WAKE LOCK LOGIC ---
   const wakeLockRef = useRef<any>(null);

@@ -21,10 +21,17 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
     const [customPrograms, setCustomPrograms] = useState<Workout[]>([]);
 
     useEffect(() => {
-        if (user?.uid) {
-            fetchCustomPrograms(user.uid).then(setCustomPrograms).catch(console.warn);
-        }
-    }, [user?.uid]);
+        const load = () => {
+            if (user?.uid) {
+                fetchCustomPrograms(user.uid).then(setCustomPrograms).catch(console.warn);
+            }
+        };
+        
+        load();
+        
+        window.addEventListener('customProgramsUpdated', load);
+        return () => window.removeEventListener('customProgramsUpdated', load);
+    }, [user?.uid, activeTab]);
 
     const filteredWorkouts = useMemo(() => {
         const sourceWorkouts = (!passkategori && activeTab === 'mina') ? customPrograms : workouts;

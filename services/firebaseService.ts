@@ -1727,6 +1727,7 @@ export const saveCustomProgram = async (userId: string, program: Workout): Promi
     try {
         const docRef = doc(db, `users/${userId}/customPrograms`, program.id);
         await setDoc(docRef, sanitizeData(program));
+        window.dispatchEvent(new Event('customProgramsUpdated'));
     } catch (e) {
         console.error("saveCustomProgram failed", e);
         throw e;
