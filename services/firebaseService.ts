@@ -620,7 +620,7 @@ export const listenToMemberLogs = (memberId: string, onUpdate: (logs: WorkoutLog
         onUpdate([]);
         return () => {};
     }
-    const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"), limit(50));
+    const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"));
     return onSnapshot(q, (snap) => {
         onUpdate(snap.docs.map(d => d.data() as WorkoutLog));
     }, (err) => console.error("listenToMemberLogs failed", err));
@@ -641,7 +641,7 @@ export const listenToCommunityLogs = (orgId: string, onUpdate: (logs: WorkoutLog
 export const getMemberLogs = async (memberId: string): Promise<WorkoutLog[]> => {
     if (isOffline || !db || !memberId) return []; 
     try {
-        const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"), limit(50));
+        const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"));
         const snap = await getDocs(q);
         return snap.docs.map(d => d.data() as WorkoutLog);
     } catch (e) { return []; }
