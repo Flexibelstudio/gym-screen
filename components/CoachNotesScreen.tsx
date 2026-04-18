@@ -179,62 +179,64 @@ export const CoachNotesScreen: React.FC<CoachNotesScreenProps> = ({ onBack }) =>
     }
 
     return (
-        <div className="w-full max-w-6xl mx-auto px-4 py-8">
-            <div className="flex items-center justify-between mb-8">
-                <div className="flex items-center gap-4">
+        <div className="w-full max-w-6xl mx-auto px-4 py-8 md:py-12">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                <div className="flex items-center">
                     <h1 className="text-3xl font-black text-gray-900 dark:text-white tracking-tight">Anteckningar</h1>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 w-full md:w-auto">
                     <button 
                         onClick={() => setIsChatOpen(true)}
-                        className="bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white px-5 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shadow-sm border border-gray-200 dark:border-gray-700"
+                        className="flex-1 md:flex-none justify-center bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-4 md:py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shadow-sm border border-gray-200 dark:border-gray-700 text-sm sm:text-base whitespace-nowrap"
                     >
                         💬 Chatta med AI
                     </button>
                     <button 
                         onClick={() => setIsCreateModalOpen(true)}
-                        className="bg-primary text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-lg"
+                        className="flex-1 md:flex-none justify-center bg-primary text-white px-4 py-4 md:py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-primary/90 transition-colors shadow-lg text-sm sm:text-base whitespace-nowrap"
                     >
-                        <PlusIcon className="w-5 h-5" /> Ny Anteckning
+                        <PlusIcon className="w-5 h-5 shrink-0" /> Ny Anteckning
                     </button>
                 </div>
             </div>
 
-            <div className="flex gap-4 mb-4 border-b border-gray-200 dark:border-gray-800 pb-2">
-                <button 
-                    onClick={() => setActiveTab('active')}
-                    className={`pb-2 px-4 font-bold text-lg transition-colors relative ${activeTab === 'active' ? 'text-primary' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
-                >
-                    Aktiva & Favoriter
-                    {activeTab === 'active' && <div className="absolute bottom-[-9px] left-0 right-0 h-1 bg-primary rounded-t-full" />}
-                </button>
-                <button 
-                    onClick={() => setActiveTab('archive')}
-                    className={`pb-2 px-4 font-bold text-lg transition-colors relative ${activeTab === 'archive' ? 'text-primary' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
-                >
-                    Arkiv
-                    {activeTab === 'archive' && <div className="absolute bottom-[-9px] left-0 right-0 h-1 bg-primary rounded-t-full" />}
-                </button>
-            </div>
-
-            {/* Sökruta */}
-            <div className="mb-8 relative max-w-md">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gray-400">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-                    </svg>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 border-b border-gray-200 dark:border-gray-800 pb-4 md:pb-2">
+                <div className="flex gap-4">
+                    <button 
+                        onClick={() => setActiveTab('active')}
+                        className={`pb-2 px-2 md:px-4 font-bold text-base md:text-lg transition-colors relative ${activeTab === 'active' ? 'text-primary' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                    >
+                        Aktiva & Favoriter
+                        {activeTab === 'active' && <div className="absolute bottom-[-17px] md:bottom-[-9px] left-0 right-0 h-1 bg-primary rounded-t-full" />}
+                    </button>
+                    <button 
+                        onClick={() => setActiveTab('archive')}
+                        className={`pb-2 px-2 md:px-4 font-bold text-base md:text-lg transition-colors relative ${activeTab === 'archive' ? 'text-primary' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                    >
+                        Arkiv
+                        {activeTab === 'archive' && <div className="absolute bottom-[-17px] md:bottom-[-9px] left-0 right-0 h-1 bg-primary rounded-t-full" />}
+                    </button>
                 </div>
-                <input 
-                    type="text"
-                    placeholder="Sök bland anteckningar..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-shadow"
-                />
+
+                {/* Sökruta */}
+                <div className="relative w-full md:w-80 shrink-0">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-gray-400">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                        </svg>
+                    </div>
+                    <input 
+                        type="text"
+                        placeholder="Sök bland anteckningar..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 bg-gray-50 dark:bg-gray-800 md:bg-transparent md:dark:bg-transparent md:border-transparent md:hover:bg-gray-50 md:dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all"
+                    />
+                </div>
             </div>
 
             {displayedNotes.length === 0 ? (
-                <div className="text-center py-20 bg-gray-50 dark:bg-gray-900/50 rounded-3xl border border-gray-200 dark:border-gray-800">
+                <div className="text-center py-16 md:py-20 bg-gray-50 dark:bg-gray-900/50 rounded-3xl border border-gray-200 dark:border-gray-800 mx-1">
                     <div className="text-6xl mb-4">📝</div>
                     <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Inga anteckningar här</h3>
                     <p className="text-gray-500 dark:text-gray-400">
