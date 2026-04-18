@@ -3,9 +3,9 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Workout } from '../types';
 import { useWorkout } from '../context/WorkoutContext';
 import { useStudio } from '../context/StudioContext';
-import { SearchIcon, DumbbellIcon, ClockIcon } from './icons';
+import { SearchIcon, DumbbellIcon, ClockIcon, TrashIcon } from './icons';
 import { useAuth } from '../context/AuthContext';
-import { fetchCustomPrograms } from '../services/firebaseService';
+import { fetchCustomPrograms, deleteCustomProgram } from '../services/firebaseService';
 
 interface WorkoutListScreenProps {
     passkategori?: string;
@@ -19,6 +19,8 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<'alla' | 'mina'>('alla');
     const [customPrograms, setCustomPrograms] = useState<Workout[]>([]);
+    const [programToDelete, setProgramToDelete] = useState<Workout | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     useEffect(() => {
         const load = () => {
@@ -157,9 +159,22 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                         </div>
                                     </div>
                                     
-                                    <h3 className="text-2xl font-black text-primary dark:text-primary leading-tight mb-4 min-h-[1.5em]">
-                                        {workout.title || 'Namnlöst pass'}
-                                    </h3>
+                                    <div className="flex justify-between items-start mb-4">
+                                         <h3 className="text-2xl font-black text-primary dark:text-primary leading-tight min-h-[1.5em] pr-8">
+                                             {workout.title || 'Namnlöst pass'}
+                                         </h3>
+                                         {activeTab === 'mina' && !isStudioMode && (
+                                             <button
+                                                 onClick={(e) => {
+                                                     e.stopPropagation();
+                                                     setProgramToDelete(workout);
+                                                 }}
+                                                 className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
+                                             >
+                                                 <TrashIcon className="w-5 h-5" />
+                                             </button>
+                                         )}
+                                    </div>
                                     
                                     <p className="text-gray-500 dark:text-gray-400 leading-relaxed font-medium line-clamp-4 overflow-hidden whitespace-pre-wrap">
                                         {workout.coachTips || "Välkommen till dagens pass. Fokusera på teknik och intensitet!"}
@@ -205,6 +220,47 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                     <p className="text-gray-500 dark:text-gray-400">
                         {searchTerm ? 'Försök att söka på något annat.' : 'Vänligen välj en annan kategori.'}
                     </p>
+                </div>
+            )}
+            
+            {programToDelete && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-white dark:bg-gray-900 rounded-3xl p-6 sm:p-8 max-w-sm w-full shadow-2xl border border-gray-100 dark:border-gray-800">
+                        <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mx-auto mb-6">
+                            <TrashIcon className="w-8 h-8 text-red-600 dark:text-red-500" />
+                        </div>
+                        <h3 className="text-xl font-black text-gray-900 dark:text-white text-center mb-2">Radera program?</h3>
+                        <p className="text-gray-500 dark:text-gray-400 text-center mb-8">
+                            Är du säker på att du vill radera <b>{programToDelete.title}</b>? Detta kan inte ångras.
+                        </p>
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setProgramToDelete(null)}
+                                disabled={isDeleting}
+                                className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl font-black uppercase tracking-widest text-xs hover:bg-gray-200 dark:hover:bg-gray-700 transition active:scale-95 disabled:opacity-50"
+                            >
+                                Avbryt
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!currentUser?.uid) return;
+                                    setIsDeleting(true);
+                                    try {
+                                        await deleteCustomProgram(currentUser.uid, programToDelete.id);
+                                        setProgramToDelete(null);
+                                    } catch (e) {
+                                        console.error('Failed to delete program', e);
+                                    } finally {
+                                        setIsDeleting(false);
+                                    }
+                                }}
+                                disabled={isDeleting}
+                                className="flex-1 px-4 py-3 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest text-xs shadow-lg shadow-red-600/20 hover:brightness-110 transition flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                            >
+                                {isDeleting ? 'Raderar...' : 'Radera'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>

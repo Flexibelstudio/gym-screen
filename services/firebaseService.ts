@@ -1750,6 +1750,7 @@ export const deleteCustomProgram = async (userId: string, programId: string): Pr
     if (isOffline || !db) return;
     try {
         await deleteDoc(doc(db, `users/${userId}/customPrograms`, programId));
+        window.dispatchEvent(new Event('customProgramsUpdated'));
     } catch (e) {
         console.error("deleteCustomProgram failed", e);
         throw e;
