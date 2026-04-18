@@ -628,11 +628,51 @@ const ExerciseLogCard: React.FC<{
 };
 
 const CustomActivityForm: React.FC<{
-  activityName: string; duration: string; distance: string; calories: string; onUpdate: (field: string, value: string) => void; isQuickMode?: boolean;
-}> = ({ activityName, duration, distance, calories, onUpdate, isQuickMode }) => {
+  activityName: string; duration: string; distance: string; calories: string; onUpdate: (field: string, value: string) => void; isQuickMode?: boolean; hasExercises?: boolean;
+}> = ({ activityName, duration, distance, calories, onUpdate, isQuickMode, hasExercises }) => {
+    const [isExpanded, setIsExpanded] = useState(!hasExercises);
+
+    useEffect(() => {
+        setIsExpanded(!hasExercises);
+    }, [hasExercises]);
+
+    if (hasExercises && !isExpanded) {
+        return (
+            <div className="py-2 animate-fade-in">
+                <button 
+                    onClick={() => setIsExpanded(true)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm p-4 rounded-3xl flex items-center justify-between text-left transition-all active:scale-95"
+                >
+                    <div>
+                        <h3 className="text-sm font-black text-gray-800 dark:text-gray-200 uppercase tracking-widest">Generell Aktivitet</h3>
+                        <p className="text-xs text-gray-500 font-medium mt-1">
+                            Frivilligt: Ange namn, konditionstid eller distans för passet
+                        </p>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-400">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6 py-2 animate-fade-in">
-            <div className="bg-white dark:bg-gray-900 p-5 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
+            <div className="bg-white dark:bg-gray-900 p-5 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm relative">
+                {hasExercises && (
+                    <button 
+                        onClick={() => setIsExpanded(false)}
+                        className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                    >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                    </button>
+                )}
+                
                 {!isQuickMode && (
                     <>
                         <h3 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-4">Vanliga aktiviteter</h3>
@@ -644,8 +684,14 @@ const CustomActivityForm: React.FC<{
                     </>
                 )}
                 <div className={`mt-4 space-y-5 ${isQuickMode ? 'mt-0' : 'mt-8'}`}>
-                    <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Aktivitet *</label><input value={activityName} onChange={(e) => onUpdate('name', e.target.value)} placeholder="T.ex. Powerwalk" disabled={isQuickMode} className={`w-full text-xl font-black text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 ${isQuickMode ? 'opacity-70' : ''}`} /></div>
-                    <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Tid (min:sek) *</label><TimeInput value={duration} onChange={(val) => onUpdate('duration', val)} placeholder="60" className="w-full" /></div>
+                    <div>
+                        <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Aktivitet {!hasExercises && '*'}</label>
+                        <input value={activityName} onChange={(e) => onUpdate('name', e.target.value)} placeholder={hasExercises ? "T.ex. Funktionellt (Frivilligt)" : "T.ex. Powerwalk"} disabled={isQuickMode} className={`w-full text-xl font-black text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 ${isQuickMode ? 'opacity-70' : ''}`} />
+                    </div>
+                    <div>
+                        <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Tid (min:sek) {!hasExercises && '*'}</label>
+                        <TimeInput value={duration} onChange={(val) => onUpdate('duration', val)} placeholder="60" className="w-full" />
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Kcal</label><input type="number" value={calories} onChange={(e) => onUpdate('calories', e.target.value)} placeholder="T.ex. 350" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
                         <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Distans (km)</label><input type="number" value={distance} onChange={(e) => onUpdate('distance', e.target.value)} placeholder="T.ex. 5.3" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
@@ -762,6 +808,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const isFormValid = useMemo(() => {
       if (isSubmitting) return false;
       if (isManualMode) {
+          if (exerciseResults.length > 0) return true;
           return customActivity.name.trim() !== '' && customActivity.duration.trim() !== '';
       }
 
@@ -1093,7 +1140,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               memberId: userId,
               organizationId: oId,
               workoutId: isManualMode ? 'manual' : (wId || 'unknown'),
-              workoutTitle: isQuickOrManual ? customActivity.name : (workout?.title || 'Träningspass'),
+              workoutTitle: isQuickOrManual ? (customActivity.name || 'Eget Pass') : (workout?.title || 'Träningspass'),
               date: logDateMs,
               source: isManualMode ? 'manual' : 'qr_scan',
               rpe: logData.rpe,
@@ -1416,6 +1463,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                       calories={customActivity.calories}
                       onUpdate={handleCustomActivityUpdate}
                       isQuickMode={false}
+                      hasExercises={exerciseResults.length > 0}
                   />
               )}
 
