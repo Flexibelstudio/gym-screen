@@ -66,8 +66,8 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 Senaste pass (max 15 st):
                 ${JSON.stringify(recentLogs, null, 2)}
                 
-                Personbästa (PR):
-                ${personalBests.length > 0 ? personalBests.join('\n') : 'Inga PR loggade ännu.'}
+                Personbästa (PB):
+                ${personalBests.length > 0 ? personalBests.join('\n') : 'Inga PB loggade ännu.'}
                 
                 Fysiska begränsningar/mål: ${userData?.goals || 'Inga specifika angivna.'}
                 `;
@@ -94,7 +94,7 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             - Använd inte emojis i överflöd, max 1-2 per svar.
 
             UPPDRAG: COACH ASSISTENT (Integrerad med medlemsdatabasen)
-            Du har tillgång till medlemmens träningshistorik, personbästa (PR) och profil.
+            Du har tillgång till medlemmens träningshistorik, personbästa (PB) och profil.
 
             Logik för personifiering:
             - Söka först: Innan ett svar genereras, utgå från medlemmens historik och relevanta värden.

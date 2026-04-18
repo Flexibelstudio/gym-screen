@@ -80,7 +80,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                         activeTab === 'pbs' ? 'bg-white dark:bg-gray-700 text-orange-500 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
                 >
-                    <FireIcon className="w-4 h-4" /> PR
+                    <FireIcon className="w-4 h-4" /> PB
                 </button>
             </div>
             
@@ -111,19 +111,12 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                             </div>
                             <div className="flex items-center gap-3">
                                 {activeTab === 'workouts' ? (
-                                    <>
-                                        {user.pbs > 0 && (
-                                            <div className="flex items-center gap-1 text-xs font-bold text-orange-500">
-                                                <FireIcon className="w-3 h-3" /> {user.pbs} PR
-                                            </div>
-                                        )}
-                                        <div className="text-sm font-black text-primary bg-primary/10 px-2 py-1 rounded-lg">
-                                            {user.count} pass
-                                        </div>
-                                    </>
+                                    <div className="text-sm font-black text-primary bg-primary/10 px-2 py-1 rounded-lg">
+                                        {user.count} pass
+                                    </div>
                                 ) : (
                                     <div className="flex items-center gap-1 text-sm font-black text-orange-500 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded-lg">
-                                        <FireIcon className="w-4 h-4" /> {user.pbs} PR
+                                        <FireIcon className="w-4 h-4" /> {user.pbs} PB
                                     </div>
                                 )}
                             </div>
