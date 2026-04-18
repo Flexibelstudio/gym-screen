@@ -163,23 +163,25 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                          <h3 className="text-2xl font-black text-primary dark:text-primary leading-tight min-h-[1.5em] pr-8">
                                              {workout.title || 'Namnlöst pass'}
                                          </h3>
-                                         {activeTab === 'mina' && !isStudioMode && (
-                                             <button
-                                                 onClick={(e) => {
-                                                     e.stopPropagation();
-                                                     setProgramToDelete(workout);
-                                                 }}
-                                                 className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-colors"
-                                             >
-                                                 <TrashIcon className="w-5 h-5" />
-                                             </button>
-                                         )}
                                     </div>
                                     
                                     <p className="text-gray-500 dark:text-gray-400 leading-relaxed font-medium line-clamp-4 overflow-hidden whitespace-pre-wrap">
                                         {workout.coachTips || "Välkommen till dagens pass. Fokusera på teknik och intensitet!"}
                                     </p>
                                 </div>
+                                
+                                {activeTab === 'mina' && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setProgramToDelete(workout);
+                                        }}
+                                        className="absolute top-6 right-6 p-3 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/40 rounded-full transition-colors z-40 cursor-pointer shadow-sm border border-gray-100 dark:border-gray-700 hover:scale-105 active:scale-95"
+                                        aria-label="Radera pass"
+                                    >
+                                        <TrashIcon className="w-5 h-5" />
+                                    </button>
+                                )}
 
                                 {/* MOBILE ACTIONS - Endast synliga utanför studioläge */}
                                 {!isStudioMode && (
