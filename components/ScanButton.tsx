@@ -273,7 +273,7 @@ export const ScanButton: React.FC<ScanButtonProps> = ({ onScan, onLogWorkout, on
                             <div className="bg-gray-100 dark:bg-gray-700 p-2 rounded-full text-gray-600 dark:text-gray-300">
                                 <DumbbellIcon className="w-5 h-5" />
                             </div>
-                            <span className="font-bold text-sm whitespace-nowrap">Logga Annan Aktivitet</span>
+                            <span className="font-bold text-sm whitespace-nowrap">Logga Egen Aktivitet</span>
                         </button>
                     </>
                 )}

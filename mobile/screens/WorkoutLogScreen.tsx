@@ -7,7 +7,9 @@ import { useWorkout } from '../../context/WorkoutContext';
 import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, ChartBarIcon, HistoryIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
 import { calculate1RM } from '../../utils/workoutUtils';
-import { ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition } from '../../types';
+import { ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition, BankExercise, Workout } from '../../types';
+import { MOCK_EXERCISE_BANK } from '../../data/mockData';
+import { saveCustomProgram } from '../../services/firebaseService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
 import { useStudio } from '../../context/StudioContext';
@@ -671,6 +673,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [dailyFeeling, setDailyFeeling] = useState<'good' | 'neutral' | 'bad'>('neutral');
   const [customActivity, setCustomActivity] = useState({ name: '', duration: '', distance: '', calories: '' });
   const [sessionStats, setSessionStats] = useState({ distance: '', calories: '', time: '', rounds: '' });
+  const [showExerciseSearch, setShowExerciseSearch] = useState(false);
+  const [exerciseSearchTerm, setExerciseSearchTerm] = useState('');
+  const [saveAsProgram, setSaveAsProgram] = useState(false);
+  const [programName, setProgramName] = useState('');
 
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
@@ -924,6 +930,23 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
     else if (navigation) navigation.goBack();
   };
 
+  const handleAddManualExercise = (exerciseName: string) => {
+      if (!exerciseName.trim()) return;
+      const newEx: LocalExerciseResult = {
+          exerciseId: 'manual-' + Date.now(),
+          exerciseName: exerciseName.trim(),
+          blockId: 'manual-block',
+          blockTitle: 'Valda övningar',
+          trackingFields: ['weight', 'reps'],
+          setDetails: [{ weight: '', reps: '', completed: false }]
+      };
+      setExerciseResults(prev => [...prev, newEx]);
+      setShowExerciseSearch(false);
+      setExerciseSearchTerm('');
+  };
+
+  const filteredBank = MOCK_EXERCISE_BANK.filter(ex => ex.name.toLowerCase().includes(exerciseSearchTerm.toLowerCase()));
+
   const handleCustomActivityUpdate = (field: string, value: string) => {
     setCustomActivity(prev => ({ ...prev, [field]: value }));
   };
@@ -976,7 +999,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
           
           let totalVolume = 0;
           
-          const exerciseResultsToSave = isQuickOrManual ? [] : exerciseResults.map(r => {
+          const exerciseResultsToSave = exerciseResults.map(r => {
               const validWeights = r.setDetails.map(s => parseFloat(s.weight)).filter(n => !isNaN(n));
               const maxWeight = validWeights.length > 0 ? Math.max(...validWeights) : null;
               
@@ -1035,35 +1058,52 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               benchmarkId: benchmarkDefinition?.id,
           };
 
+          finalLogRaw.durationMinutes = parseFloat(isQuickOrManual ? customActivity.duration : sessionStats.time) || 0;
+          finalLogRaw.totalDistance = parseFloat(isQuickOrManual ? customActivity.distance : sessionStats.distance) || 0;
+          finalLogRaw.totalCalories = parseInt(isQuickOrManual ? customActivity.calories : sessionStats.calories) || 0;
+          
           if (isQuickOrManual) {
-              finalLogRaw.activityType = isManualMode ? 'custom_activity' : 'gym_workout';
-              finalLogRaw.durationMinutes = parseFloat(customActivity.duration) || 0;
-              finalLogRaw.totalDistance = parseFloat(customActivity.distance) || 0;
-              finalLogRaw.totalCalories = parseInt(customActivity.calories) || 0;
+              finalLogRaw.activityType = 'custom_activity';
               
-              const finalLog = cleanForFirestore(finalLogRaw);
-              await saveWorkoutLog(finalLog);
-              localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
-              setShowCelebration(true);
-          } else {
-              finalLogRaw.durationMinutes = parseFloat(sessionStats.time) || 0;
-              finalLogRaw.totalDistance = parseFloat(sessionStats.distance) || 0;
-              finalLogRaw.totalCalories = parseInt(sessionStats.calories) || 0;
-              
-              if (benchmarkDefinition) {
-                  if (benchmarkDefinition.type === 'time') {
-                      finalLogRaw.benchmarkValue = (parseFloat(sessionStats.time) || 0) * 60;
-                  } else if (benchmarkDefinition.type === 'reps') {
-                      finalLogRaw.benchmarkValue = parseFloat(sessionStats.rounds) || 0;
-                  } else if (benchmarkDefinition.type === 'weight') {
-                      finalLogRaw.benchmarkValue = totalVolume;
-                  }
+              if (saveAsProgram && programName.trim().length > 0) {
+                  const newWorkout: Workout = {
+                      id: 'custom-' + Date.now(),
+                      title: programName.trim(),
+                      category: 'Mina sparade program',
+                      isPublished: true,
+                      createdAt: Date.now(),
+                      organizationId: oId, // Fallback if needed, but handled by read rules
+                      blocks: [{
+                          id: 'manual-block',
+                          title: 'Valda övningar',
+                          tag: 'Custom',
+                          followMe: false,
+                          settings: { rounds: 1, mode: "Stoppur" as any },
+                          exercises: exerciseResultsToSave.map(r => ({ 
+                              id: r.exerciseId, 
+                              name: r.exerciseName,
+                              loggingEnabled: true 
+                          }))
+                      }]
+                  };
+                  await saveCustomProgram(userId, newWorkout);
               }
+          }
 
-              setSaveStatus('Letar efter nya rekord...');
-              const { log: savedLog, newRecords } = await saveWorkoutLog(cleanForFirestore(finalLogRaw));
+          if (benchmarkDefinition && !isQuickOrManual) {
+              if (benchmarkDefinition.type === 'time') {
+                  finalLogRaw.benchmarkValue = (parseFloat(sessionStats.time) || 0) * 60;
+              } else if (benchmarkDefinition.type === 'reps') {
+                  finalLogRaw.benchmarkValue = parseFloat(sessionStats.rounds) || 0;
+              } else if (benchmarkDefinition.type === 'weight') {
+                  finalLogRaw.benchmarkValue = totalVolume;
+              }
+          }
 
-              if (benchmarkDefinition && finalLogRaw.benchmarkValue !== undefined) {
+          setSaveStatus(isQuickOrManual ? 'Sparar...' : 'Letar efter nya rekord...');
+          const { log: savedLog, newRecords } = await saveWorkoutLog(cleanForFirestore(finalLogRaw));
+
+          if (benchmarkDefinition && finalLogRaw.benchmarkValue !== undefined && !isQuickOrManual) {
                   let isBenchmarkPB = false;
                   let benchmarkDiff = 0;
                   if (prevBenchmarkBest === undefined) {
@@ -1197,8 +1237,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               }
 
               localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
-              handleCancel(true, diplomaData);
-          }
+              handleCancel(true, diplomaData || undefined);
 
       } catch (err) {
           console.error(err);
@@ -1323,7 +1362,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                   />
               )}
               
-              {isManualMode ? (
+              {isManualMode && (
                   <CustomActivityForm 
                       activityName={customActivity.name}
                       duration={customActivity.duration}
@@ -1332,9 +1371,28 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                       onUpdate={handleCustomActivityUpdate}
                       isQuickMode={false}
                   />
-              ) : (
+              )}
+
+              {isManualMode && (
+                  <div className="mt-8 mb-4 flex flex-col gap-4">
+                      <div className="flex items-center justify-between">
+                          <h3 className="text-base font-black uppercase tracking-widest text-gray-800 dark:text-gray-200">
+                              {exerciseResults.length > 0 ? 'Dina övningar' : 'Valfria övningar'}
+                          </h3>
+                          <button 
+                              onClick={() => setShowExerciseSearch(true)}
+                              className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-primary rounded-full text-xs font-bold flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition uppercase tracking-wider"
+                          >
+                              <PlusIcon className="w-4 h-4" />
+                              Lägg till övning
+                          </button>
+                      </div>
+                  </div>
+              )}
+
+              {(!isManualMode || exerciseResults.length > 0) && (
                   <>
-                    {exerciseResults.length === 0 && (
+                    {!isManualMode && exerciseResults.length === 0 && (
                         <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800 text-center mb-8">
                             <p className="text-gray-500 text-sm">Inga övningar i detta pass är markerade för specifik loggning. Du kan fortfarande ange distans, kcal och skriva en kommentar nedan.</p>
                         </div>
@@ -1346,7 +1404,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
                         return (
                             <React.Fragment key={result.exerciseId}>
-                                {isNewBlock && (
+                                {isNewBlock && !isManualMode && (
                                     <div className="mt-8 mb-4 flex items-center gap-3">
                                         <div className="h-5 w-1.5 bg-primary rounded-full shadow-sm"></div>
                                         <h3 className="text-base font-black uppercase tracking-widest text-gray-800 dark:text-gray-200">
@@ -1358,8 +1416,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                     name={result.exerciseName}
                                     result={result}
                                     onUpdate={(updates) => handleUpdateResult(index, updates)}
-                                    aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} // Koncept 1: Coach Whisper
-                                    scaling={activeInsight?.scaling?.[result.exerciseName]} // Koncept 1: Scaling
+                                    aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
+                                    scaling={activeInsight?.scaling?.[result.exerciseName]} 
                                     lastPerformance={history[result.exerciseName]} 
                                     isLastInGroup={isLastInGroup}
                                     onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
@@ -1368,69 +1426,99 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                         );
                     })}
 
-                    <div className="mt-8 mb-6 bg-white dark:bg-gray-900 p-5 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'time' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
-                                    Tid (min:sek)
-                                    {benchmarkDefinition?.type === 'time' && prevBenchmarkBest && (
-                                        <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'time')}</span>
-                                    )}
-                                </label>
-                                <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'time' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
-                                    <TimeInput
-                                        value={sessionStats.time}
-                                        onChange={(val) => setSessionStats(prev => ({ ...prev, time: val }))}
-                                        placeholder={benchmarkDefinition?.type === 'time' ? "45" : "-"}
-                                        className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                        compact={true}
-                                    />
+                    {!isManualMode && (
+                        <div className="mt-8 mb-6 bg-white dark:bg-gray-900 p-5 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'time' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                                        Tid (min:sek)
+                                        {benchmarkDefinition?.type === 'time' && prevBenchmarkBest && (
+                                            <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'time')}</span>
+                                        )}
+                                    </label>
+                                    <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'time' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
+                                        <TimeInput
+                                            value={sessionStats.time}
+                                            onChange={(val) => setSessionStats(prev => ({ ...prev, time: val }))}
+                                            placeholder={benchmarkDefinition?.type === 'time' ? "45" : "-"}
+                                            className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                            compact={true}
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'reps' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
-                                    Varv / Reps
-                                    {benchmarkDefinition?.type === 'reps' && prevBenchmarkBest && (
-                                        <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'reps')}</span>
-                                    )}
-                                </label>
-                                <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'reps' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
-                                    <input 
-                                        type="number"
-                                        value={sessionStats.rounds}
-                                        onChange={(e) => setSessionStats(prev => ({ ...prev, rounds: e.target.value }))}
-                                        placeholder={benchmarkDefinition?.type === 'reps' ? "T.ex. 5" : "-"}
-                                        className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                    />
+                                <div>
+                                    <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'reps' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                                        Varv / Reps
+                                        {benchmarkDefinition?.type === 'reps' && prevBenchmarkBest && (
+                                            <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'reps')}</span>
+                                        )}
+                                    </label>
+                                    <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'reps' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
+                                        <input 
+                                            type="number"
+                                            value={sessionStats.rounds}
+                                            onChange={(e) => setSessionStats(prev => ({ ...prev, rounds: e.target.value }))}
+                                            placeholder={benchmarkDefinition?.type === 'reps' ? "T.ex. 5" : "-"}
+                                            className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">kcal</label>
-                                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                    <input 
-                                        type="number"
-                                        value={sessionStats.calories}
-                                        onChange={(e) => setSessionStats(prev => ({ ...prev, calories: e.target.value }))}
-                                        placeholder="T.ex. 350"
-                                        className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                    />
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">kcal</label>
+                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                        <input 
+                                            type="number"
+                                            value={sessionStats.calories}
+                                            onChange={(e) => setSessionStats(prev => ({ ...prev, calories: e.target.value }))}
+                                            placeholder="T.ex. 350"
+                                            className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">km</label>
-                                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                    <input 
-                                        type="number"
-                                        value={sessionStats.distance}
-                                        onChange={(e) => setSessionStats(prev => ({ ...prev, distance: e.target.value }))}
-                                        placeholder="T.ex. 5.3"
-                                        className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                    />
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">km</label>
+                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                        <input 
+                                            type="number"
+                                            value={sessionStats.distance}
+                                            onChange={(e) => setSessionStats(prev => ({ ...prev, distance: e.target.value }))}
+                                            placeholder="T.ex. 3.5"
+                                            className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                   </>
+              )}
+
+              {isManualMode && exerciseResults.length > 0 && (
+                  <div className="mt-6 p-5 bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col gap-4">
+                      <div className="flex items-center gap-3">
+                          <input 
+                              type="checkbox" 
+                              checked={saveAsProgram}
+                              onChange={(e) => setSaveAsProgram(e.target.checked)}
+                              id="saveAsProgram"
+                              className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
+                          />
+                          <label htmlFor="saveAsProgram" className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                              Spara som nytt program
+                          </label>
+                      </div>
+                      {saveAsProgram && (
+                          <div className="animate-fade-in">
+                              <input 
+                                  type="text"
+                                  value={programName}
+                                  onChange={(e) => setProgramName(e.target.value)}
+                                  placeholder="T.ex. Axlar & Rygg"
+                                  className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-primary transition-all font-medium placeholder-gray-400"
+                              />
+                          </div>
+                      )}
+                  </div>
               )}
 
               <PostWorkoutForm 
@@ -1488,6 +1576,71 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               </div>
           </div>
       </div>
+{showExerciseSearch && (
+          <Modal isOpen={showExerciseSearch} onClose={() => setShowExerciseSearch(false)}>
+              <div className="p-6 h-[70vh] flex flex-col items-center">
+                  <div className="w-full flex items-center justify-between mb-8 cursor-pointer" onClick={() => setShowExerciseSearch(false)}>
+                      <h2 className="text-xl font-black uppercase tracking-widest text-gray-900 dark:text-white">Lägg till övning</h2>
+                      <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+                          <CloseIcon className="w-5 h-5 text-gray-500" />
+                      </div>
+                  </div>
+                  
+                  <div className="w-full max-w-md relative mb-6">
+                      <input 
+                          type="text" 
+                          placeholder="Sök i övningsbanken eller skriv egen..." 
+                          value={exerciseSearchTerm}
+                          onChange={(e) => setExerciseSearchTerm(e.target.value)}
+                          className="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-[2rem] py-4 px-6 font-bold focus:outline-none focus:ring-2 focus:ring-primary shadow-inner border border-gray-100 dark:border-gray-800"
+                      />
+                  </div>
+
+                  <div className="w-full max-w-md flex-1 overflow-y-auto scrollbar-hide space-y-2">
+                      {exerciseSearchTerm.length > 0 && !filteredBank.some(ex => ex.name.toLowerCase() === exerciseSearchTerm.toLowerCase()) && (
+                          <div 
+                              onClick={() => handleAddManualExercise(exerciseSearchTerm)}
+                              className="p-4 rounded-2xl border-2 border-dashed border-primary hover:bg-primary/5 transition flex items-center gap-3 cursor-pointer mb-4"
+                          >
+                              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                                  <PlusIcon className="w-5 h-5" />
+                              </div>
+                              <div className="flex-1">
+                                  <div className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">Skapa Egen:</div>
+                                  <div className="font-medium text-gray-600 dark:text-gray-300">"{exerciseSearchTerm}"</div>
+                              </div>
+                          </div>
+                      )}
+                      
+                      {filteredBank.map(ex => (
+                          <div 
+                              key={ex.id}
+                              onClick={() => handleAddManualExercise(ex.name)}
+                              className="p-4 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition flex items-center gap-4 cursor-pointer"
+                          >
+                              <div className="w-12 h-12 rounded-xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500 font-black text-lg">
+                                  {ex.name.charAt(0)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                  <h4 className="font-bold text-gray-900 dark:text-white truncate">{ex.name}</h4>
+                                  <div className="flex items-center gap-2 mt-1">
+                                      <span className="text-[10px] font-black uppercase tracking-widest text-primary px-2 py-0.5 bg-primary/10 rounded">
+                                          {ex.muscleGroup}
+                                      </span>
+                                  </div>
+                              </div>
+                              <PlusIcon className="w-5 h-5 text-gray-400" />
+                          </div>
+                      ))}
+                      {filteredBank.length === 0 && exerciseSearchTerm.length === 0 && (
+                          <div className="text-center py-10">
+                              <p className="text-gray-500 font-medium">Sök för att hitta övningar.</p>
+                          </div>
+                      )}
+                  </div>
+              </div>
+          </Modal>
+      )}
     </div>
   );
 }

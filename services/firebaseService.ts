@@ -1721,3 +1721,37 @@ export const updateLeadStatus = async (id: string, status: Lead['status']): Prom
         console.error("Error updating lead status:", error);
     }
 };
+
+export const saveCustomProgram = async (userId: string, program: Workout): Promise<void> => {
+    if (isOffline || !db) return;
+    try {
+        const docRef = doc(db, `users/${userId}/customPrograms`, program.id);
+        await setDoc(docRef, sanitizeData(program));
+    } catch (e) {
+        console.error("saveCustomProgram failed", e);
+        throw e;
+    }
+};
+
+export const fetchCustomPrograms = async (userId: string): Promise<Workout[]> => {
+    if (isOffline || !db || !userId) return [];
+    try {
+        const q = query(collection(db, `users/${userId}/customPrograms`), orderBy("createdAt", "desc"));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => doc.data() as Workout);
+    } catch (e) {
+        console.error("fetchCustomPrograms failed", e);
+        return [];
+    }
+};
+
+export const deleteCustomProgram = async (userId: string, programId: string): Promise<void> => {
+    if (isOffline || !db) return;
+    try {
+        await deleteDoc(doc(db, `users/${userId}/customPrograms`, programId));
+    } catch (e) {
+        console.error("deleteCustomProgram failed", e);
+        throw e;
+    }
+};
+

@@ -1,10 +1,11 @@
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Workout } from '../types';
 import { useWorkout } from '../context/WorkoutContext';
 import { useStudio } from '../context/StudioContext';
 import { SearchIcon, DumbbellIcon, ClockIcon } from './icons';
 import { useAuth } from '../context/AuthContext';
+import { fetchCustomPrograms } from '../services/firebaseService';
 
 interface WorkoutListScreenProps {
     passkategori?: string;
@@ -13,12 +14,22 @@ interface WorkoutListScreenProps {
 
 export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkategori, onSelectWorkout }) => {
     const { workouts } = useWorkout();
-    const { isStudioMode } = useAuth();
+    const { isStudioMode, user } = useAuth();
     const { studioConfig } = useStudio();
     const [searchTerm, setSearchTerm] = useState('');
+    const [activeTab, setActiveTab] = useState<'alla' | 'mina'>('alla');
+    const [customPrograms, setCustomPrograms] = useState<Workout[]>([]);
+
+    useEffect(() => {
+        if (user?.uid) {
+            fetchCustomPrograms(user.uid).then(setCustomPrograms).catch(console.warn);
+        }
+    }, [user?.uid]);
 
     const filteredWorkouts = useMemo(() => {
-        return workouts.filter(w => {
+        const sourceWorkouts = (!passkategori && activeTab === 'mina') ? customPrograms : workouts;
+
+        return sourceWorkouts.filter(w => {
             const matchesCategory = !passkategori || w.category === passkategori;
             const matchesSearch = (w.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                                 (w.coachTips && (w.coachTips || '').toLowerCase().includes(searchTerm.toLowerCase()));
@@ -27,26 +38,51 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
             const categoryConfig = studioConfig.customCategories.find(c => c.name === w.category);
             const isCategoryLocked = categoryConfig?.isLocked === true;
 
-            // Filtreringslogik baserat på läge
-            if (isStudioMode) {
-                if (w.showInStudio === false) return false;
-            } else {
-                if (w.showInApp === false) return false;
-                if (isCategoryLocked) return false;
+            // Filtreringslogik baserat på läge (gäller ej egna program)
+            if (activeTab !== 'mina') {
+                if (isStudioMode) {
+                    if (w.showInStudio === false) return false;
+                } else {
+                    if (w.showInApp === false) return false;
+                    if (isCategoryLocked) return false;
+                }
             }
 
             return w.isPublished && matchesCategory && matchesSearch;
         });
-    }, [workouts, passkategori, searchTerm, isStudioMode, studioConfig]);
+    }, [workouts, customPrograms, passkategori, searchTerm, isStudioMode, studioConfig, activeTab]);
     
     return (
         <div className="w-full max-w-5xl mx-auto px-6 pb-12 animate-fade-in">
             {!passkategori && (
-                <div className="text-center mb-10">
+                <div className="text-center mb-6">
                     <h1 className="text-5xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
                         Välj Träningspass
                     </h1>
-                    <div className="h-1.5 w-24 bg-primary mx-auto rounded-full mb-4"></div>
+                    <div className="h-1.5 w-24 bg-primary mx-auto rounded-full mb-8"></div>
+                    
+                    <div className="flex items-center justify-center gap-2 mb-8">
+                        <button
+                            onClick={() => setActiveTab('alla')}
+                            className={`px-6 py-2.5 rounded-full font-black uppercase tracking-widest text-sm transition-all ${
+                                activeTab === 'alla'
+                                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg'
+                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+                            }`}
+                        >
+                            Studions Pass
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('mina')}
+                            className={`px-6 py-2.5 rounded-full font-black uppercase tracking-widest text-sm transition-all ${
+                                activeTab === 'mina'
+                                    ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+                            }`}
+                        >
+                            Mina Program ({customPrograms.length})
+                        </button>
+                    </div>
                 </div>
             )}
 
