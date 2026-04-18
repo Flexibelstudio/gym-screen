@@ -14,7 +14,7 @@ interface WorkoutListScreenProps {
 
 export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkategori, onSelectWorkout }) => {
     const { workouts } = useWorkout();
-    const { isStudioMode, user } = useAuth();
+    const { isStudioMode, currentUser } = useAuth();
     const { studioConfig } = useStudio();
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<'alla' | 'mina'>('alla');
@@ -22,8 +22,8 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
 
     useEffect(() => {
         const load = () => {
-            if (user?.uid) {
-                fetchCustomPrograms(user.uid).then(setCustomPrograms).catch(console.warn);
+            if (currentUser?.uid) {
+                fetchCustomPrograms(currentUser.uid).then(setCustomPrograms).catch(console.warn);
             }
         };
         
@@ -31,7 +31,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
         
         window.addEventListener('customProgramsUpdated', load);
         return () => window.removeEventListener('customProgramsUpdated', load);
-    }, [user?.uid, activeTab]);
+    }, [currentUser?.uid, activeTab]);
 
     const filteredWorkouts = useMemo(() => {
         const sourceWorkouts = (!passkategori && activeTab === 'mina') ? customPrograms : workouts;
