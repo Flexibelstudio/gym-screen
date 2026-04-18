@@ -329,6 +329,38 @@ export async function chatWithAICoach(
     };
 }
 
+export interface NotesChatResponse {
+    replyText: string;
+}
+
+export async function chatWithNotesAssistant(
+    chatHistory: { role: 'user' | 'assistant', content: string }[], 
+    userMessage: string
+): Promise<NotesChatResponse> {
+    const aiNotesChatSchema = {
+        type: Type.OBJECT,
+        required: ['replyText'],
+        properties: {
+            replyText: { type: Type.STRING }
+        }
+    };
+
+    const formattedHistory = chatHistory.map(msg => `${msg.role === 'user' ? 'Användare' : 'Coach'}: ${msg.content}`).join('\n');
+    const PROMPT = `Du är en kreativ och expert-coachande AI ("AI-Coachen") för ett gym. Användaren skriver i sin "Anteckningar"-sektion för att spåna idéer, skapa nya pass eller få tips.
+Hjälp dem genom att ge tydliga, roliga och välstrukturerade förslag på träningspass eller övningar. Använd gärna punktlistor och emojis.
+Returnera ett JSON-objekt enligt schemat.
+
+Tidigare historik:
+${formattedHistory}
+
+Användarens nya meddelande:
+${userMessage}
+`;
+    
+    const data = await _callGeminiJSON<any>(TEXT_MODEL, PROMPT, aiNotesChatSchema);
+    return { replyText: data.replyText };
+}
+
 export async function parseWorkoutFromText(text: string, availableExercises: string[] = []): Promise<Workout> {
     const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.TEXT_INTERPRETER_PROMPT(text, availableExercises), workoutSchema);
     // Tolkad text från coachen bör inte vara ett "medlemsutkast" som raderas

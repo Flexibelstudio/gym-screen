@@ -154,6 +154,8 @@ const IdeaBoardInfoModal: React.FC<IdeaBoardInfoModalProps> = ({ onClose }) => (
             <p>Skissa upp passupplägg, anteckningar eller flöden direkt på ytan. Du kan rensa tavlan och ångra drag.</p>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white pt-2">🤖 Den smarta AI-coachen</h3>
             <p>Klicka på “Skapa Pass” – AI:n analyserar dina anteckningar och skapar ett komplett träningspass. Du kan välja att öppna det i passbyggaren eller låta AI:n "renrita" det som en snygg cirkelstation direkt på tavlan.</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white pt-2">📝 Anteckningar</h3>
+            <p>Du kan hämta dina sparade Anteckningar direkt via menyn till höger. Kasta upp text eller bild på whiteboarden, rita vidare på skissen och låt AI:n skapa ett pass av resultatet.</p>
         </div>
     </Modal>
 );
