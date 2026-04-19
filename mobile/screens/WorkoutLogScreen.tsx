@@ -1692,8 +1692,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       </div>
 {showExerciseSearch && (
           <Modal isOpen={showExerciseSearch} onClose={() => setShowExerciseSearch(false)} size="lg">
-              <div className="p-6 h-[85vh] flex flex-col items-center w-full">
-                  <div className="w-full flex items-center justify-between mb-8 cursor-pointer" onClick={() => setShowExerciseSearch(false)}>
+              <div className="flex flex-col items-center w-full h-[85vh]">
+                  <div className="w-full flex items-center justify-between mb-4 mt-2 sm:mb-8 sm:mt-0 cursor-pointer" onClick={() => setShowExerciseSearch(false)}>
                       <h2 className="text-xl font-black uppercase tracking-widest text-gray-900 dark:text-white">Lägg till övning</h2>
                       <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition">
                           <CloseIcon className="w-5 h-5 text-gray-500" />
@@ -1706,11 +1706,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                           placeholder="Sök i övningsbanken eller skriv egen..." 
                           value={exerciseSearchTerm}
                           onChange={(e) => setExerciseSearchTerm(e.target.value)}
-                          className="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-[2rem] py-4 px-6 font-bold focus:outline-none focus:ring-2 focus:ring-primary shadow-inner border border-gray-100 dark:border-gray-800"
+                          className="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-[2rem] py-4 px-6 font-bold focus:outline-none focus:ring-2 focus:ring-primary border border-gray-200 dark:border-gray-700"
                       />
                   </div>
 
-                  <div className="w-full flex-1 overflow-y-auto scrollbar-hide space-y-2">
+                  <div className="w-full flex-1 overflow-y-auto scrollbar-hide space-y-2 pb-10">
                       {exerciseSearchTerm.length > 0 && !filteredBank.some(ex => ex.name.toLowerCase() === exerciseSearchTerm.toLowerCase()) && (
                           <div 
                               onClick={() => handleAddManualExercise(exerciseSearchTerm)}
