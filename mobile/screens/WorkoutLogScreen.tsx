@@ -254,10 +254,10 @@ const PreGameView: React.FC<{
     onStart: () => void;
     onCancel: () => void;
     onFeelingChange: (feeling: 'good' | 'neutral' | 'bad') => void;
-    currentFeeling: 'good' | 'neutral' | 'bad';
+    currentFeeling: 'good' | 'neutral' | 'bad' | null;
 }> = ({ workoutTitle, insights, onStart, onCancel, onFeelingChange, currentFeeling }) => {
     
-    const activeContent = insights[currentFeeling];
+    const activeContent = currentFeeling ? insights[currentFeeling] : null;
     const displayStrategy = activeContent?.strategy || activeContent?.readiness?.message || "Laddar strategi...";
     
     let themeClass = "from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-800";
@@ -292,60 +292,65 @@ const PreGameView: React.FC<{
                             <button 
                                 key={f} 
                                 onClick={() => onFeelingChange(f as any)} 
-                                className={`p-4 rounded-2xl border-2 transition-all ${currentFeeling === f ? 'bg-white dark:bg-gray-800 border-primary scale-110 shadow-lg z-10' : 'bg-white/50 dark:bg-gray-800/50 border-transparent hover:bg-white dark:hover:bg-gray-800'}`}
+                                className={`p-4 rounded-2xl border-2 transition-all ${currentFeeling === f ? 'bg-white dark:bg-gray-800 border-primary scale-110 shadow-lg z-10' : 'bg-white/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800'}`}
                             >
                                 <span className="text-2xl block">{f === 'good' ? '🔥' : f === 'bad' ? '🤕' : '🙂'}</span>
                             </button>
                         ))}
                     </div>
+                    {!currentFeeling && (
+                        <p className="text-center text-sm text-gray-400 dark:text-gray-500 mt-4 animate-pulse">Klicka på en emoji för att få din strategi</p>
+                    )}
                 </div>
 
-                <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-xl mb-6 transition-all">
-                    <div className="flex items-start gap-4 mb-6">
-                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-lg ${currentFeeling === 'good' ? 'from-orange-500 to-red-600' : currentFeeling === 'bad' ? 'from-green-500 to-blue-600' : 'from-indigo-500 to-purple-600'}`}>
-                            <SparklesIcon className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Dagens Fokus</h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium italic">"{displayStrategy}"</p>
-                        </div>
-                    </div>
-                    
-                    <div className="space-y-4">
-                        {activeContent?.suggestions && Object.keys(activeContent.suggestions).length > 0 && (
-                            <div className={`p-4 rounded-2xl border ${currentFeeling === 'good' ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800/30' : 'bg-gray-50 dark:bg-gray-900/30 border-gray-100 dark:border-gray-700'}`}>
-                                <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}>
-                                    {currentFeeling === 'good' && <FireIcon className="w-4 h-4" />}
-                                    Smart Load (Förslag)
-                                </h4>
-                                <div className="space-y-2">
-                                    {Object.entries(activeContent.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
-                                        <div key={exercise} className="flex justify-between items-center bg-white dark:bg-black/20 p-2.5 rounded-lg border border-gray-100 dark:border-white/5">
-                                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{exercise}</span>
-                                            <span className={`text-sm font-bold ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-primary'}`}>{suggestion}</span>
-                                        </div>
-                                    ))}
-                                </div>
+                {currentFeeling && (
+                    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-xl mb-6 transition-all animate-fade-in">
+                        <div className="flex items-start gap-4 mb-6">
+                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-lg ${currentFeeling === 'good' ? 'from-orange-500 to-red-600' : currentFeeling === 'bad' ? 'from-green-500 to-blue-600' : 'from-indigo-500 to-purple-600'}`}>
+                                <SparklesIcon className="w-6 h-6 text-white" />
                             </div>
-                        )}
+                            <div>
+                                <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Dagens Fokus</h3>
+                                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium italic">"{displayStrategy}"</p>
+                            </div>
+                        </div>
                         
-                        {activeContent?.scaling && Object.keys(activeContent.scaling).length > 0 && (
-                            <div className="mt-4">
-                                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
-                                    <LightningIcon className="w-3 h-3" /> Alternativ / Skalning
-                                </h4>
-                                <div className="space-y-2">
-                                    {Object.entries(activeContent.scaling).map(([exercise, alternative]) => (
-                                        <div key={exercise} className="bg-white/50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
-                                            <div className="text-xs text-gray-500 line-through mb-0.5">{exercise}</div>
-                                            <div className="text-sm font-bold text-gray-900 dark:text-white">👉 {alternative}</div>
-                                        </div>
-                                    ))}
+                        <div className="space-y-4">
+                            {activeContent?.suggestions && Object.keys(activeContent.suggestions).length > 0 && (
+                                <div className={`p-4 rounded-2xl border ${currentFeeling === 'good' ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800/30' : 'bg-gray-50 dark:bg-gray-900/30 border-gray-100 dark:border-gray-700'}`}>
+                                    <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                                        {currentFeeling === 'good' && <FireIcon className="w-4 h-4" />}
+                                        Smart Load (Dina resultatmål)
+                                    </h4>
+                                    <div className="space-y-2">
+                                        {Object.entries(activeContent.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
+                                            <div key={exercise} className="flex justify-between items-center bg-white dark:bg-black/20 p-2.5 rounded-lg border border-gray-100 dark:border-white/5">
+                                                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{exercise}</span>
+                                                <span className={`text-sm font-bold ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-primary'}`}>{suggestion}</span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                            
+                            {activeContent?.scaling && Object.keys(activeContent.scaling).length > 0 && (
+                                <div className="mt-4">
+                                    <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                        <LightningIcon className="w-3 h-3" /> Alternativ / Skalning
+                                    </h4>
+                                    <div className="space-y-2">
+                                        {Object.entries(activeContent.scaling).map(([exercise, alternative]) => (
+                                            <div key={exercise} className="bg-white/50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
+                                                <div className="text-xs text-gray-500 line-through mb-0.5">{exercise}</div>
+                                                <div className="text-sm font-bold text-gray-900 dark:text-white">👉 {alternative}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* --- START BUTTON IN SCROLL FLOW --- */}
                 <div className="mt-8 pb-12">
@@ -773,7 +778,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
   const [allLogs, setAllLogs] = useState<WorkoutLog[]>([]);
   const [viewMode, setViewMode] = useState<'pre-game' | 'logging'>(isManualMode ? 'logging' : 'pre-game');
-  const [dailyFeeling, setDailyFeeling] = useState<'good' | 'neutral' | 'bad'>('neutral');
+  const [dailyFeeling, setDailyFeeling] = useState<'good' | 'neutral' | 'bad' | null>(null);
   const [customActivity, setCustomActivity] = useState({ name: '', duration: '', distance: '', calories: '' });
   const [sessionStats, setSessionStats] = useState({ distance: '', calories: '', time: '', rounds: '' });
   const [showExerciseSearch, setShowExerciseSearch] = useState(false);
@@ -990,7 +995,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                         const exerciseNames = exercises.map(e => e.exerciseName);
                         if (exerciseNames.length > 0) {
                             // Fetch complete insights immediately (good/neutral/bad)
-                            const insights = await generateMemberInsights(logs, foundWorkout.title, exerciseNames);
+                            const insights = await generateMemberInsights(logs, foundWorkout.title, exerciseNames, foundWorkout.aiProgressionPrompt, historyMap);
                             setAiInsights(insights);
                         } else {
                             setViewMode('logging');
@@ -1396,7 +1401,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   }
 
   // --- KONCEPT 2: MISSION BANNER (Sticky Header) ---
-  const activeInsight = aiInsights?.[dailyFeeling];
+  const activeInsight = dailyFeeling ? aiInsights?.[dailyFeeling] : undefined;
   const missionTitle = dailyFeeling === 'good' ? 'Attack Mode' : dailyFeeling === 'bad' ? 'Rehab Mode' : 'Maintenance Mode';
 
   return (
@@ -1467,7 +1472,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               </div>
 
               {/* MISSION BANNER (KONCEPT 2) */}
-              {!isManualMode && activeInsight && (
+              {!isManualMode && activeInsight && dailyFeeling && (
                   <MissionHeader 
                       strategy={activeInsight.strategy || activeInsight.readiness.message} 
                       feeling={dailyFeeling} 

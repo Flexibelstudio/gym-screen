@@ -558,12 +558,15 @@ const transformInsightContent = (data: any): InsightContent => {
 export async function generateMemberInsights(
     logs: WorkoutLog[], 
     title: string, 
-    exercises: string[]
+    exercises: string[],
+    aiProgressionPrompt?: string,
+    specificHistory?: Record<string, { weight: number, reps: string }>
 ): Promise<MemberInsightResponse> {
     const logStr = JSON.stringify(logs.slice(0, 5));
+    const specificHistoryStr = specificHistory && Object.keys(specificHistory).length > 0 ? JSON.stringify(specificHistory) : undefined;
     const data = await _callGeminiJSON<any>(
         TEXT_MODEL, 
-        Prompts.MEMBER_INSIGHTS_PROMPT(title, exercises, logStr), 
+        Prompts.MEMBER_INSIGHTS_PROMPT(title, exercises, logStr, specificHistoryStr, aiProgressionPrompt), 
         fullMemberInsightSchema
     );
     

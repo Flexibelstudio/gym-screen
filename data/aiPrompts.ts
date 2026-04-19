@@ -153,24 +153,26 @@ Skriv en minimalistisk instruktion (max 20 ord) i imperativ form för övningen:
 Beskriv endast rörelsen, inga hälsofördelar eller adjektiv.
 `;
 
-export const MEMBER_INSIGHTS_PROMPT = (title: string, exercises: string[], logs: string) => {
+export const MEMBER_INSIGHTS_PROMPT = (title: string, exercises: string[], logs: string, specificHistory?: string, aiProgressionPrompt?: string) => {
     return `
     Skapa en komplett Pre-Game Strategy inför passet: "${title}".
     Övningar: ${exercises.join(', ')}
-    Historik: ${logs}
+    Generell Historik (senaste pass): ${logs}
+    ${specificHistory ? `Specifik historik för just dessa övningar (Ditt senaste resultat på dessa: vikt/reps): ${specificHistory}` : ''}
+    ${aiProgressionPrompt ? `\nCOACHENS PROGRESSIONSREGEL FÖR DETTA PASS: "${aiProgressionPrompt}"\n-> VIKTIGT: Följ och integrera precis denna regel från coachen i dina rekommendationer ("Smart Load" och strategi) för dagens pass!\n` : ''}
 
     Ditt uppdrag är att generera TRE OLIKA strategier baserat på hur medlemmen känner sig idag.
 
     SCENARIO 1: 🔥 PIGG & STARK (ATTACK MODE)
-    Strategi: Uppmuntra till att slå PB eller öka volymen. Föreslå tyngre vikter.
+    Strategi: Uppmuntra till att slå PB eller öka volymen. Föreslå tyngre vikter utifrån historik och coachregel.
     Tonläge: Utmanande och aggressivt peppande. "Idag är dagen!"
 
     SCENARIO 2: 🙂 NEUTRAL (MAINTENANCE MODE)
-    Strategi: Fokus på konsistens och flyt. Standardvikter baserat på historik.
+    Strategi: Fokus på konsistens och flyt. Standardvikter baserat på historik och coachregel.
     Tonläge: Stabilt och professionellt. "Keep building the base."
 
     SCENARIO 3: 🤕 SLITEN/SKADAD (REHAB MODE)
-    Strategi: Fokus på rörlighet, teknik och att genomföra passet lugnt. Föreslå lättare vikter eller skalade övningar.
+    Strategi: Fokus på rörlighet, teknik och att genomföra passet lugnt. Föreslå lättare vikter eller skalade övningar (ignorera höjningskrav i coachregeln här).
     Tonläge: Omtänksamt och lugnande. "Kvalitet före kvantitet."
 
     VIKTIGT: Returnera ett JSON-objekt med nycklarna "good", "neutral", och "bad", där varje nyckel innehåller 'readiness', 'strategy', 'suggestions' (array) och 'scaling' (array).
