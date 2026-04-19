@@ -230,6 +230,7 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
     let userId = null;
     let userPhotoUrl = null;
     let userName = user.name || "Okänd Atlet";
+    let showOnLeaderboard = true;
 
     const userQuery = await db.collection("users").where("email", "==", user.email).limit(1).get();
     
@@ -239,6 +240,7 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
       const userData = userDoc.data();
       userPhotoUrl = userData.photoUrl || null;
       userName = userData.firstName ? `${userData.firstName} ${userData.lastName || ''}` : userName;
+      showOnLeaderboard = userData.showOnLeaderboard !== false;
     } else {
       const newUserRef = db.collection("users").doc();
       userId = newUserRef.id;
@@ -313,7 +315,7 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
       }
     }
 
-    if (newRecords.length > 0) {
+    if (newRecords.length > 0 && showOnLeaderboard) {
       const eventRef = db.collection("studio_events").doc();
       batch.set(eventRef, {
         id: eventRef.id,
@@ -322,6 +324,8 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
         timestamp: Date.now(),
         data: { userName, userPhotoUrl, records: newRecords }
       });
+      batch.update(logRef, { newPBs: newRecords });
+    } else if (newRecords.length > 0) {
       batch.update(logRef, { newPBs: newRecords });
     }
 
@@ -881,8 +885,8 @@ app.post("/create-member-checkout", async (req, res) => {
 
     const domain = req.headers.origin || 'https://smartstudio.se';
 
-    // 19 kr av 39 kr = 48.7179%
-    const applicationFeePercent = 48.7179;
+    // 19 kr av 39 kr = 48.72% (max 2 decimaler tillåts av Stripe)
+    const applicationFeePercent = 48.72;
 
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
@@ -968,6 +972,7 @@ async function notifyOrganizationMembers(orgId, title, body) {
     const membersSnap = await db.collection('users')
       .where('organizationId', '==', orgId)
       .where('pushNotificationsEnabled', '==', true)
+      .where('role', 'in', ['member', 'coach', 'organizationadmin'])
       .get();
 
     const tokens = [];
