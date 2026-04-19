@@ -1035,6 +1035,7 @@ export const getFreshCategoryWorkouts = async (orgId: string, category: string):
     try {
         const q = query(
           collection(db, 'workouts'), 
+          where("organizationId", "==", orgId),
           where("category", "==", category),
           where("isPublished", "==", true),
           where("isMemberDraft", "==", false)
@@ -1052,8 +1053,7 @@ export const getFreshCategoryWorkouts = async (orgId: string, category: string):
                     }));
                 }
                 return data;
-            })
-            .filter(w => w.organizationId === orgId || w.organizationId === "" || w.organizationId === null);
+            });
     } catch (error) {
         console.error("Error fetching fresh category workouts:", error);
         return [];
@@ -1065,11 +1065,7 @@ export const getWorkoutsForOrganization = async (orgId: string): Promise<Workout
     try {
         const q = query(
           collection(db, 'workouts'), 
-          or(
-            where("organizationId", "==", orgId),
-            where("organizationId", "==", ""),
-            where("organizationId", "==", null)
-          )
+          where("organizationId", "==", orgId)
         );
         const snap = await getDocs(q);
         return snap.docs.map(d => {
@@ -1098,11 +1094,7 @@ export const subscribeToWorkoutsForOrganization = (orgId: string, onUpdate: (wor
     
     const q = query(
       collection(db, 'workouts'), 
-      or(
-        where("organizationId", "==", orgId),
-        where("organizationId", "==", ""),
-        where("organizationId", "==", null)
-      )
+      where("organizationId", "==", orgId)
     );
 
     return onSnapshot(q, (snap) => {
