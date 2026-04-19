@@ -13,7 +13,6 @@ import { saveCustomProgram, fetchCustomPrograms } from '../../services/firebaseS
 import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
 import { useStudio } from '../../context/StudioContext';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 
 // --- Local Storage Key ---
@@ -795,8 +794,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
       return exerciseResults.reduce((acc, ex) => acc + ex.setDetails.filter(s => !s.completed).length, 0);
   }, [isManualMode, exerciseResults]);
 
-  const [showVolumeHistory, setShowVolumeHistory] = useState(false);
-
   // --- BENCHMARK LOGIC ---
   const benchmarkDefinition = useMemo(() => {
       if (!workout?.benchmarkId || !selectedOrganization?.benchmarkDefinitions) return null;
@@ -1454,14 +1451,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Registrera dina resultat</p>
         </div>
         <div className="flex items-center gap-2">
-            {!isManualMode && wId && (
-                <button 
-                  onClick={() => setShowVolumeHistory(true)} 
-                  className="p-3 bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-300 rounded-full hover:bg-primary/20 transition-all flex-shrink-0 shadow-sm active:scale-90"
-                >
-                    <ChartBarIcon className="w-6 h-6" />
-                </button>
-            )}
             <button onClick={() => handleCancel(false)} className="p-3 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all flex-shrink-0 shadow-sm active:scale-90" disabled={isSubmitting}>
                 <CloseIcon className="w-6 h-6 text-gray-500 dark:text-gray-400" />
             </button>
@@ -1772,135 +1761,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               </div>
           </Modal>
       )}
-
-      {/* --- VOLUME HISTORY MODAL --- */}
-      {showVolumeHistory && wId && (
-        <Modal 
-            isOpen={showVolumeHistory} 
-            onClose={() => setShowVolumeHistory(false)}
-            title="Passhistorik"
-            size="lg"
-            maxHeight="min(95vh, 800px)"
-        >
-            <div className="flex flex-col h-full bg-white dark:bg-gray-900">
-                <div className="p-6 overflow-y-auto">
-                    {(() => {
-                        const historyLogs = allLogs.filter(l => l.workoutId === wId).sort((a,b) => a.date - b.date);
-                        
-                        // We only want to plot data if we actually have some volume points
-                        const chartData = historyLogs
-                            .filter(l => l.totalVolume && l.totalVolume > 0)
-                            .map(l => ({
-                                date: new Date(l.date).toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' }),
-                                volume: l.totalVolume,
-                                rawDate: l.date
-                            }));
-
-                        // If this workout has never been logged with volume, show that
-                        if (historyLogs.length === 0) {
-                            return (
-                                <div className="text-center py-12">
-                                    <div className="text-4xl mb-4">📊</div>
-                                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Ingen historik än</h3>
-                                    <p className="text-gray-500 dark:text-gray-400">När du loggar detta pass med vikter kommer din utveckling att ritas ut här.</p>
-                                </div>
-                            );
-                        }
-
-                        const bestVolume = chartData.length > 0 ? Math.max(...chartData.map(d => d.volume!)) : 0;
-                        const timesCompleted = historyLogs.length;
-
-                        return (
-                            <div className="space-y-8">
-                                {/* Highlights */}
-                                <div className="flex justify-between items-end border-b border-gray-100 dark:border-gray-800 pb-6">
-                                    <div>
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">Max Volym</p>
-                                        <div className="flex items-baseline gap-1">
-                                            <span className="text-3xl font-black text-primary">{bestVolume > 0 ? bestVolume.toLocaleString('sv-SE') : '-'}</span>
-                                            <span className="text-sm font-bold text-primary/70 mb-1">kg</span>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-1">Pass genomförda</p>
-                                        <span className="text-2xl font-black text-gray-900 dark:text-white">{timesCompleted}</span>
-                                    </div>
-                                </div>
-
-                                {/* Chart */}
-                                {chartData.length > 1 ? (
-                                    <div className="h-48 w-full -ml-4 mt-8">
-                                        <ResponsiveContainer width="100%" height="100%">
-                                            <LineChart data={chartData}>
-                                                <XAxis 
-                                                    dataKey="date" 
-                                                    axisLine={false} 
-                                                    tickLine={false} 
-                                                    tick={{ fill: '#9ca3af', fontSize: 10, fontWeight: 700 }} 
-                                                    dy={10} 
-                                                />
-                                                <Tooltip 
-                                                    contentStyle={{ backgroundColor: '#111827', border: 'none', borderRadius: '12px', color: '#fff', fontWeight: 'bold' }}
-                                                    formatter={(value: any) => [`${value} kg`, 'Total Volym']}
-                                                />
-                                                <Line 
-                                                    type="monotone" 
-                                                    dataKey="volume" 
-                                                    stroke="#0ea5e9" /* Primary Color adjust if strictly using primary class */
-                                                    strokeWidth={3} 
-                                                    dot={{ r: 4, fill: '#0ea5e9', strokeWidth: 2, stroke: '#fff' }} 
-                                                    activeDot={{ r: 6, fill: '#0ea5e9', strokeWidth: 0 }}
-                                                />
-                                            </LineChart>
-                                        </ResponsiveContainer>
-                                    </div>
-                                ) : (
-                                     <div className="h-32 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-100 dark:border-gray-800">
-                                         <p className="text-sm text-gray-500 font-medium">Vi behöver minst ett till pass med vikter <br/>för att rita din utvecklingskurva.</p>
-                                     </div>
-                                )}
-
-                                {/* History List */}
-                                <div>
-                                    <h3 className="text-[11px] font-black uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-4 ml-1">Tidigare pass</h3>
-                                    <div className="space-y-3">
-                                        {[...historyLogs].reverse().map(log => (
-                                            <div key={log.id} className="p-4 bg-gray-50 dark:bg-gray-800/80 rounded-2xl border border-gray-100 dark:border-gray-800/50 flex justify-between items-center">
-                                                <div>
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className="font-bold text-gray-900 dark:text-white">
-                                                            {new Date(log.date).toLocaleDateString('sv-SE', { year: 'numeric', month: 'short', day: 'numeric' })}
-                                                        </span>
-                                                        {log.totalVolume === bestVolume && bestVolume > 0 && (
-                                                            <span className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ml-2">PB</span>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex items-center gap-3 text-xs text-gray-500">
-                                                        {log.rpe && <span>RPE {log.rpe}</span>}
-                                                        {log.durationMinutes ? <span>{log.durationMinutes} min</span> : null}
-                                                    </div>
-                                                </div>
-                                                {log.totalVolume ? (
-                                                    <div className="text-right">
-                                                        <span className="text-lg font-black text-gray-900 dark:text-white">{log.totalVolume.toLocaleString('sv-SE')}</span>
-                                                        <span className="text-xs font-bold text-gray-400 ml-1">kg</span>
-                                                    </div>
-                                                ) : (
-                                                    <div className="text-right text-xs font-medium text-gray-400 italic">
-                                                        Startvikt saknas
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })()}
-                </div>
-            </div>
-        </Modal>
-      )}
     </div>
   );
-}
+};
