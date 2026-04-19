@@ -373,12 +373,13 @@ const ExerciseLogCard: React.FC<{
   name: string;
   result: LocalExerciseResult;
   onUpdate: (updates: Partial<LocalExerciseResult>) => void;
+  onRemove?: () => void;
   aiSuggestion?: string; // Koncept 1: Coach Whisper
   scaling?: string;      // Koncept 1: Alternativ
   lastPerformance?: { weight: number, reps: string } | null;
   isLastInGroup?: boolean;
   onAddGroupSet?: () => void;
-}> = ({ name, result, onUpdate, aiSuggestion, scaling, lastPerformance, isLastInGroup, onAddGroupSet }) => {
+}> = ({ name, result, onUpdate, onRemove, aiSuggestion, scaling, lastPerformance, isLastInGroup, onAddGroupSet }) => {
     
     const trackingFields = result.trackingFields || ['reps', 'weight'];
     const showReps = trackingFields.includes('reps');
@@ -453,16 +454,26 @@ const ExerciseLogCard: React.FC<{
                             </p>
                         )}
                     </div>
-                    {/* Gear / Edit button */}
-                    <button 
-                        onClick={() => setIsEditingFields(!isEditingFields)}
-                        className={`p-2 rounded-xl transition-colors ${isEditingFields ? 'bg-primary/10 text-primary' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                    </button>
+                    {/* Gear / Edit / Delete buttons */}
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => setIsEditingFields(!isEditingFields)}
+                            className={`p-2 rounded-xl transition-colors ${isEditingFields ? 'bg-primary/10 text-primary' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </button>
+                        {onRemove && (
+                            <button 
+                                onClick={onRemove}
+                                className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {isEditingFields && (
@@ -1518,6 +1529,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                     name={result.exerciseName}
                                     result={result}
                                     onUpdate={(updates) => handleUpdateResult(index, updates)}
+                                    onRemove={isManualMode ? () => setExerciseResults(prev => prev.filter((_, i) => i !== index)) : undefined}
                                     aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
                                     scaling={activeInsight?.scaling?.[result.exerciseName]} 
                                     lastPerformance={history[result.exerciseName]} 
@@ -1679,8 +1691,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
           </div>
       </div>
 {showExerciseSearch && (
-          <Modal isOpen={showExerciseSearch} onClose={() => setShowExerciseSearch(false)}>
-              <div className="p-6 h-[70vh] flex flex-col items-center">
+          <Modal isOpen={showExerciseSearch} onClose={() => setShowExerciseSearch(false)} size="lg">
+              <div className="p-6 h-[85vh] flex flex-col items-center w-full">
                   <div className="w-full flex items-center justify-between mb-8 cursor-pointer" onClick={() => setShowExerciseSearch(false)}>
                       <h2 className="text-xl font-black uppercase tracking-widest text-gray-900 dark:text-white">Lägg till övning</h2>
                       <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition">
@@ -1688,7 +1700,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                       </div>
                   </div>
                   
-                  <div className="w-full max-w-md relative mb-6">
+                  <div className="w-full relative mb-6">
                       <input 
                           type="text" 
                           placeholder="Sök i övningsbanken eller skriv egen..." 
@@ -1698,7 +1710,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                       />
                   </div>
 
-                  <div className="w-full max-w-md flex-1 overflow-y-auto scrollbar-hide space-y-2">
+                  <div className="w-full flex-1 overflow-y-auto scrollbar-hide space-y-2">
                       {exerciseSearchTerm.length > 0 && !filteredBank.some(ex => ex.name.toLowerCase() === exerciseSearchTerm.toLowerCase()) && (
                           <div 
                               onClick={() => handleAddManualExercise(exerciseSearchTerm)}

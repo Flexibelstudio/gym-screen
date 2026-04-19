@@ -849,6 +849,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
                     sessionRole="organizationadmin"
                     isNewDraft={isNewDraft}
                     organization={organization}
+                    isAdminView={true}
                     setCustomBackHandler={setCustomBackHandler}
                 />
             </div>
