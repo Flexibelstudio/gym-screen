@@ -1749,3 +1749,15 @@ export const deleteCustomProgram = async (userId: string, programId: string): Pr
     }
 };
 
+export const activateMemberSubscriptionLocally = async (userId: string): Promise<void> => {
+    if (isOffline || !db) return;
+    try {
+        await updateDoc(doc(db, 'users', userId), {
+            subscriptionStatus: 'active'
+        });
+    } catch (e) {
+        console.error("Optimistic subscription activation failed", e);
+    }
+};
+
+

@@ -14,7 +14,7 @@ import { WelcomePaywall } from './components/WelcomePaywall';
 import PendingCoachScreen from './components/PendingCoachScreen';
 
 // --- Services ---
-import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages } from './services/firebaseService';
+import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages, activateMemberSubscriptionLocally } from './services/firebaseService';
 import { Toast } from './components/ui/ToastNotification';
 
 // --- Utils ---
@@ -452,9 +452,21 @@ const App: React.FC = () => {
       const logPayload = params.get('log');
       const inviteCode = params.get('invite');
       const coachCode = params.get('coach');
+      const successParam = params.get('success');
+      const typeParam = params.get('type');
       
       if (inviteCode || coachCode) {
           setShowLogin(true);
+      }
+
+      // Optimistic update for member subscription success
+      if (successParam === 'true' && typeParam === 'member' && userData?.uid) {
+          console.log("Stripe checkout success! Optimistically activating subscription...");
+          // Uppdatera doc lokalt så vi släpps igenom betalväggen snabbt
+          activateMemberSubscriptionLocally(userData.uid).then(() => {
+              // Rensa sen bort url params så vi slipper checka varje gång
+              window.history.replaceState({}, document.title, window.location.pathname);
+          });
       }
 
       if (logPayload) {
@@ -467,7 +479,7 @@ const App: React.FC = () => {
               console.error("Failed to parse QR payload from URL", e);
           }
       }
-  }, []);
+  }, [userData?.uid]);
 
   const pagesThatPreventScreensaver: Page[] = [
       Page.Timer, 
