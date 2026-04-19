@@ -186,14 +186,18 @@ Bedöm styrkor, förbättringsområden och ge konkreta "actions" till coachen.
 Poängsätt Styrka, Kondition och Frekvens (0-100).
 `;
 
-export const DIPLOMA_GENERATOR_PROMPT = (title: string, pbText: string, stats: string, aiProgressionPrompt?: string) => `
+export const DIPLOMA_GENERATOR_PROMPT = (title: string, pbText: string, stats: string, exerciseSummary: string, aiProgressionPrompt?: string) => `
 Skapa ett diplom för passet: "${title}".
 REKORD: ${pbText}
 STATS: ${stats}
+GENOMFÖRDA ÖVNINGAR: ${exerciseSummary}
 
 ${aiProgressionPrompt ? `COACHENS INSTRUKTIONER TILL DIG (AI): ${aiProgressionPrompt}\nFölj dessa instruktioner noggrant när du formulerar din feedback och pepp.` : ''}
 
-Fokusera på att hylla framstegen. Du ska välja EXAKT EN (1) passande EMOJI för detta pass som 'imagePrompt' (t.ex. "🔥", "🦍", "🏆", "🚀"). Skriv INGEN annan text för imagePrompt.
+Fokusera på att hylla insatsen baserat på de faktiska övningarna och siffrorna! 
+VIKTIGT: Din 'achievement' (huvudtexten) MÅSTE vara KORT, KAXIG och PUNCHIG (max 10-15 ord). Undvik långt filosofiskt flum. Nämna gärna en specifik övning de körde (t.ex. "Sjukt starkt jobbat med hela 50 burpees idag!").
+
+Du ska välja EXAKT EN (1) passande EMOJI för detta pass som 'imagePrompt' (t.ex. "🔥", "🦍", "🏆", "🚀", "🥵", "💦"). Skriv INGEN annan text för imagePrompt.
 `;
 
 export const ADMIN_ANALYTICS_CHAT_PROMPT = (question: string, logSummary: string) => `

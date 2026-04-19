@@ -624,11 +624,32 @@ export async function generateBusinessActions(logs: WorkoutLog[]): Promise<strin
 }
 
 export async function generateWorkoutDiploma(logData: any): Promise<WorkoutDiploma> {
-    let stats = `Distans: ${logData.totalDistance}km, Kcal: ${logData.totalCalories}`;
+    let stats = `Distans: ${logData.totalDistance || 0}km, Kcal: ${logData.totalCalories || 0}`;
     if (logData.benchmarkValue !== undefined) {
         stats += `, Benchmark-resultat: ${logData.benchmarkValue}`;
     }
     const pbText = logData.newPBs?.map((pb: any) => `${pb.exerciseName} (+${pb.diff}kg)`).join(', ') || 'Inga nya PB.';
-    const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.DIPLOMA_GENERATOR_PROMPT(logData.workoutTitle, pbText, stats, logData.aiProgressionPrompt), diplomaSchema);
+    
+    // Bygg en sammanfattning av vilka övningar som faktiskt kördes
+    let exerciseSummary = "Inga specifika övningar hittades.";
+    if (logData.exerciseResults && logData.exerciseResults.length > 0) {
+        exerciseSummary = logData.exerciseResults.map((ex: any) => {
+            let details = [];
+            if (ex.sets) details.push(`${ex.sets} set`);
+            if (ex.reps) details.push(`${ex.reps} reps`);
+            if (ex.weight) details.push(`${ex.weight}kg`);
+            if (ex.distance) details.push(`${ex.distance}m`);
+            if (ex.time) {
+                const m = Math.floor(ex.time / 60);
+                const s = ex.time % 60;
+                details.push(m > 0 ? `${m}m ${s}s` : `${s}s`);
+            }
+            return `${ex.exerciseName}: ${details.join(', ')}`;
+        }).join(" | ");
+    } else if (logData.comment) {
+        exerciseSummary = `Användarkommentar: ${logData.comment}`;
+    }
+
+    const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.DIPLOMA_GENERATOR_PROMPT(logData.workoutTitle, pbText, stats, exerciseSummary, logData.aiProgressionPrompt), diplomaSchema);
     return { ...data, newPBs: logData.newPBs };
 }
