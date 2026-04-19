@@ -260,18 +260,18 @@ const PreGameView: React.FC<{
     const activeContent = currentFeeling ? insights[currentFeeling] : null;
     const displayStrategy = activeContent?.strategy || activeContent?.readiness?.message || "Laddar strategi...";
     
-    let themeClass = "from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-800";
+    let themeClass = "from-indigo-50 dark:from-indigo-900/20";
     
     if (currentFeeling === 'good') {
-        themeClass = "from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20";
+        themeClass = "from-orange-100 dark:from-orange-900/20";
     } else if (currentFeeling === 'bad') {
-        themeClass = "from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20";
+        themeClass = "from-blue-100 dark:from-blue-900/20";
     }
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white relative overflow-hidden animate-fade-in">
             {/* Background Gradient */}
-            <div className={`absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b ${themeClass} to-transparent z-0 transition-colors duration-500 pointer-events-none`}></div>
+            <div className={`absolute inset-0 bg-gradient-to-b ${themeClass} via-white/50 dark:via-gray-900/50 to-white dark:to-gray-900 z-0 transition-colors duration-500 pointer-events-none`}></div>
             
             {/* Scrollable Content Area */}
             <div className="relative z-10 flex-1 overflow-y-auto p-6 scrollbar-hide">
