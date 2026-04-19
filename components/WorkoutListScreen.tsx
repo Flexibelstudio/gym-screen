@@ -102,17 +102,31 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
 
                 <div className="relative z-10 flex-grow flex flex-col">
-                    <div className="flex justify-between items-start mb-6">
-                        <div className="flex items-center gap-2">
-                             <h3 className="text-xl font-bold text-white pr-4">
+                    <div className="flex justify-between items-start mb-6 w-full">
+                        <div className="flex items-center gap-2 flex-1 pr-2">
+                             <h3 className="text-xl font-bold text-white leading-tight">
                                  {workout.title || 'Namnlöst pass'}
                              </h3>
                         </div>
-                        {attempts > 0 && pbVolume && pbVolume > 0 ? (
-                            <div className="bg-yellow-900/30 text-yellow-400 px-2.5 py-2.5 rounded-xl border border-yellow-500/20 shadow-sm flex-shrink-0">
-                                <TrophyIcon className="w-5 h-5" />
-                            </div>
-                        ) : null}
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                            {activeTab === 'mina' && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setProgramToDelete(workout);
+                                    }}
+                                    className="p-2 bg-gray-800/80 backdrop-blur-sm text-gray-500 hover:text-red-400 hover:bg-red-900/40 rounded-full transition-colors z-40 cursor-pointer border border-gray-700 hover:scale-105 active:scale-95"
+                                    aria-label="Radera pass"
+                                >
+                                    <TrashIcon className="w-4 h-4" />
+                                </button>
+                            )}
+                            {workout.benchmarkId && (
+                                <div className="bg-yellow-900/30 text-yellow-400 px-2.5 py-2.5 rounded-xl border border-yellow-500/20 shadow-sm">
+                                    <TrophyIcon className="w-5 h-5" />
+                                </div>
+                            )}
+                        </div>
                     </div>
                     
                     {attempts > 0 ? (
@@ -164,19 +178,6 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                         </div>
                     )}
                 </div>
-                
-                {activeTab === 'mina' && (
-                    <button
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            setProgramToDelete(workout);
-                        }}
-                        className="absolute top-6 right-16 p-2 bg-gray-800/80 backdrop-blur-sm text-gray-500 hover:text-red-400 hover:bg-red-900/40 rounded-full transition-colors z-40 cursor-pointer border border-gray-700 hover:scale-105 active:scale-95"
-                        aria-label="Radera pass"
-                    >
-                        <TrashIcon className="w-4 h-4" />
-                    </button>
-                )}
                 
                 <div className="absolute bottom-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none z-0">
                     <DumbbellIcon className="w-20 h-20 text-white" />
