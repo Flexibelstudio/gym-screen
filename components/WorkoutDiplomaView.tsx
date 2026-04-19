@@ -54,7 +54,9 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
     const achievement = diploma.achievement || diploma.comparison || "";
     const footer = diploma.footer || "";
     const studioName = selectedOrganization?.name || "SmartCoach";
-    const icon = diploma.imagePrompt || "🏆"; 
+    
+    // Safely parse icon: Fallback if AI gave a long description instead of a single emoji
+    const icon = (diploma.imagePrompt && diploma.imagePrompt.length <= 15) ? diploma.imagePrompt : "🏆"; 
 
     const iconSizeClass = pbCount > 5 
         ? "text-6xl sm:text-7xl mb-1" 

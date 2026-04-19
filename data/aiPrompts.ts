@@ -193,7 +193,7 @@ STATS: ${stats}
 
 ${aiProgressionPrompt ? `COACHENS INSTRUKTIONER TILL DIG (AI): ${aiProgressionPrompt}\nFölj dessa instruktioner noggrant när du formulerar din feedback och pepp.` : ''}
 
-Fokusera på att hylla framstegen. 'imagePrompt' ska vara en beskrivning på engelska för en abstrakt, 3D-renderad medalj/ikon.
+Fokusera på att hylla framstegen. Du ska välja EXAKT EN (1) passande EMOJI för detta pass som 'imagePrompt' (t.ex. "🔥", "🦍", "🏆", "🚀"). Skriv INGEN annan text för imagePrompt.
 `;
 
 export const ADMIN_ANALYTICS_CHAT_PROMPT = (question: string, logSummary: string) => `
