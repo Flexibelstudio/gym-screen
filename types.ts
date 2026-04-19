@@ -535,6 +535,7 @@ export interface WorkoutLog {
     benchmarkId?: string; // NYTT: För att enkelt gruppera benchmarks
     benchmarkValue?: number; // NYTT: Resultatet (tid i sekunder, antal reps, eller vikt)
     showOnLeaderboard?: boolean; // NYTT: För att dölja i flöden och topplistor
+    totalVolume?: number; // NYTT: Total vikt x reps under passet
 }
 
 export interface CheckInEvent {
