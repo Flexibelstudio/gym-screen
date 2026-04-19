@@ -107,11 +107,6 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                              <h3 className="text-xl font-bold text-white pr-4">
                                  {workout.title || 'Namnlöst pass'}
                              </h3>
-                             {!isLoggable && (
-                                <span className="inline-block px-2 py-0.5 rounded bg-gray-800 text-gray-500 text-[9px] font-black uppercase tracking-widest border border-gray-700">
-                                    VISA
-                                </span>
-                             )}
                         </div>
                         {attempts > 0 && pbVolume && pbVolume > 0 ? (
                             <div className="bg-yellow-900/30 text-yellow-400 px-2.5 py-2.5 rounded-xl border border-yellow-500/20 shadow-sm flex-shrink-0">
@@ -141,6 +136,31 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                              <p className="text-[11px] text-gray-600 mt-4 uppercase tracking-widest font-black">
                                  INGA FÖRSÖK ÄN
                              </p>
+                        </div>
+                    )}
+
+                    {!isStudioMode && (
+                        <div className="flex gap-2 w-full mt-8 relative z-20">
+                             <button
+                                 onClick={(e) => {
+                                     e.stopPropagation();
+                                     onSelectWorkout(workout, 'view');
+                                 }}
+                                 className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-colors shadow-sm"
+                             >
+                                 Visa
+                             </button>
+                             {isLoggable && (
+                                 <button
+                                     onClick={(e) => {
+                                         e.stopPropagation();
+                                         onSelectWorkout(workout, 'log');
+                                     }}
+                                     className="flex-1 py-3 bg-primary text-white hover:bg-primary/90 rounded-2xl text-xs font-black uppercase tracking-widest transition-colors shadow-sm"
+                                 >
+                                     Logga
+                                 </button>
+                             )}
                         </div>
                     )}
                 </div>
