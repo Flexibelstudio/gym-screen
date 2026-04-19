@@ -896,7 +896,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
         // Reset state for new workout
         setAiInsights(null);
         setViewMode('pre-game');
-        setDailyFeeling('neutral');
+        setDailyFeeling(null);
         
         try {
             const orgWorkouts = await getWorkoutsForOrganization(oId);
