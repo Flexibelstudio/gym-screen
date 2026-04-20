@@ -709,7 +709,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
             <div className="bg-primary/5 dark:bg-primary/10 p-5 rounded-3xl flex justify-between items-center border border-primary/20">
                 <div>
                     <p className="text-[10px] font-black text-primary/60 uppercase tracking-widest mb-1">Vald Timer</p>
-                    <p className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">{block.settings.mode}</p>
+                    <p className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">{settingsText}</p>
                 </div>
                 <button onClick={onEditSettings} className="bg-primary text-white font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-xl shadow-lg shadow-primary/20 active:scale-95 transition-all">Anpassa klockan</button>
             </div>

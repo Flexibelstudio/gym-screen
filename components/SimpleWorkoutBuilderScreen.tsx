@@ -403,6 +403,30 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
         onUpdate({ ...block, exercises: updatedExercises });
     };
 
+    const settingsText = useMemo(() => {
+        const { mode, workTime, restTime, rounds, specifiedLaps, specifiedIntervalsPerLap } = block.settings;
+        if (mode === TimerMode.NoTimer) return "Ingen timer";
+        if (mode === TimerMode.Stopwatch) return "Stoppur";
+        
+        const formatTime = (t: number) => {
+            const m = Math.floor(t / 60);
+            const s = t % 60;
+            const mPart = m > 0 ? `${m}m` : '';
+            const sPart = s > 0 ? `${s}s` : '';
+            return `${mPart} ${sPart}`.trim() || '0s';
+        }
+
+        if (mode === TimerMode.AMRAP || mode === TimerMode.TimeCap) return `${mode}: ${formatTime(workTime)}`;
+        if (mode === TimerMode.EMOM) return `EMOM: ${rounds} min`;
+
+        let displayString = `${mode}: ${rounds}x`;
+        if (specifiedLaps && specifiedIntervalsPerLap) {
+            displayString = `${mode}: ${specifiedLaps} varv x ${specifiedIntervalsPerLap} intervaller`;
+        }
+
+        return `${displayString} (${formatTime(workTime)} / ${formatTime(restTime)})`;
+    }, [block.settings]);
+
     const inputBaseClasses = "appearance-none !bg-white dark:!bg-gray-900 !text-gray-900 dark:!text-white border border-gray-100 dark:border-gray-800 rounded-2xl p-4 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-black placeholder-gray-300 dark:placeholder-gray-600 shadow-inner";
     const isLastBlock = index === totalBlocks;
     const isLogButtonLocked = !enableWorkoutLogging;
@@ -527,7 +551,7 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
             <div className="bg-primary/5 dark:bg-primary/10 p-5 rounded-3xl flex justify-between items-center border border-primary/20">
                 <div>
                     <p className="text-[10px] font-black text-primary/60 uppercase tracking-widest mb-1">Vald Timer</p>
-                    <p className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">{block.settings.mode}</p>
+                    <p className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">{settingsText}</p>
                 </div>
                 <button onClick={onEditSettings} className="bg-primary text-white font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-xl shadow-lg shadow-primary/20 active:scale-95 transition-all">Anpassa klockan</button>
             </div>
