@@ -52,7 +52,7 @@ export const PaywallScreen: React.FC<{ onLogout: () => void, userData?: any }> =
                 </div>
                 <h2 className="text-3xl font-black text-white mb-4">Aktivera Medlemskap</h2>
                 <p className="text-gray-400 mb-8">
-                    Bli en av våra första beta-testare! Få full tillgång till den nya medlemsappen med passloggning, statistik och personliga mål för endast <strong>39 kr/mån</strong>.
+                    Få full tillgång till den nya medlemsappen med passloggning, statistik och personliga mål för endast <strong>39 kr/mån</strong>.
                 </p>
                 
                 {errorMsg && (
