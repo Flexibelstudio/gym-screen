@@ -59,6 +59,7 @@ export enum Page {
   MyStrength, 
   RemoteControl, // NYTT: Fjärrkontrollssida
   WorkoutGamesHub, // NYTT: Träningslekar
+  CoachNotes, // NYTT: Anteckningar för coacher
 }
 
 export enum TimerMode {
@@ -186,6 +187,8 @@ export interface StudioConfig {
   enableNotes?: boolean;
   enableWorkoutLogging?: boolean;
   enableWorkoutGames?: boolean; // NYTT: Träningslekar
+  enableTimer?: boolean; // NYTT: Fristående timer
+  enableOtherWorkouts?: boolean; // NYTT: Övriga pass
   checkInImageEnabled?: boolean;
   checkInImageUrl?: string;
   seasonalTheme?: ThemeOption;
@@ -390,6 +393,7 @@ export interface UserData {
   firstName?: string;
   lastName?: string;
   photoUrl?: string;
+  stripeCustomerId?: string;
   termsAcceptedAt?: number;
   age?: number;
   birthDate?: string;
@@ -531,6 +535,7 @@ export interface WorkoutLog {
     benchmarkId?: string; // NYTT: För att enkelt gruppera benchmarks
     benchmarkValue?: number; // NYTT: Resultatet (tid i sekunder, antal reps, eller vikt)
     showOnLeaderboard?: boolean; // NYTT: För att dölja i flöden och topplistor
+    totalVolume?: number; // NYTT: Total vikt x reps under passet
 }
 
 export interface CheckInEvent {
@@ -597,6 +602,7 @@ export interface SmartObject {
     endY?: number;
     text?: string;
     color: string;
+    fontSize?: number;
 }
 
 export interface GalleryImage {
@@ -615,6 +621,19 @@ export interface Lead {
     message?: string;
     status: 'new' | 'contacted' | 'archived';
     createdAt: number;
+}
+
+export interface CoachNote {
+    id: string;
+    organizationId: string;
+    createdBy: string;
+    creatorName: string;
+    creatorPhotoUrl?: string;
+    title: string;
+    text?: string;
+    imageUrl?: string;
+    createdAt: number;
+    isFavorite: boolean;
 }
 
 export interface Note {

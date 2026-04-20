@@ -1,15 +1,21 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Note, Workout, StudioConfig, TimerMode, TimerStatus, WorkoutBlock, Exercise, TimerSettings, TimerSoundProfile, SmartObject, SmartObjectType } from '../types';
 import { interpretHandwriting, parseWorkoutFromImage, beautifyDrawing } from '../services/geminiService';
-import { deleteImageByUrl, resolveAndCreateExercises } from '../services/firebaseService';
+import { deleteImageByUrl, resolveAndCreateExercises, getOrganizationExerciseBank } from '../services/firebaseService';
 import { useWorkoutTimer, getAudioContext } from '../hooks/useWorkoutTimer';
 import { useStudio } from '../context/StudioContext';
-import { ValueAdjuster, InformationCircleIcon, ChevronUpIcon, ChevronDownIcon, CloseIcon, PlusIcon, TrashIcon } from './icons';
+import { PauseOverlay } from './timer/TimerModals';
+import { ValueAdjuster, InformationCircleIcon, ChevronUpIcon, ChevronDownIcon, CloseIcon, PlusIcon, TrashIcon, PlayIcon } from './icons';
+import { DraggableImage } from './ui/DraggableImage';
+import { listenToCoachNotes } from '../services/firebaseService';
+
 import { Modal } from './ui/Modal';
 import { WorkoutCompleteModal } from './WorkoutCompleteModal';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import rough from 'roughjs';
+import { CoachNote } from '../types';
 
 interface NotesScreenProps {
     onWorkoutInterpreted: (w: Workout) => void;
@@ -93,12 +99,8 @@ const ColorPicker: React.FC<{ currentColor: string, onColorSelect: (color: strin
     );
 };
 
-interface NoteArchiveModalProps {
-    notes: Note[];
+interface IdeaBoardInfoModalProps {
     onClose: () => void;
-    onDelete: (noteId: string) => void;
-    onUpdate: (note: Note) => void;
-    onLoad: (note: Note) => void;
 }
 
 const RoughShape: React.FC<{ type: string, width: number, height: number, color: string, arrowStartX?: number, arrowStartY?: number, arrowEndX?: number, arrowEndY?: number }> = ({ type, width, height, color, arrowStartX, arrowStartY, arrowEndX, arrowEndY }) => {
@@ -143,74 +145,17 @@ const RoughShape: React.FC<{ type: string, width: number, height: number, color:
         <svg ref={svgRef} width={width} height={height} className="absolute inset-0 pointer-events-none" style={{ overflow: 'visible' }} />
     );
 };
-const NoteArchiveModal: React.FC<NoteArchiveModalProps> = ({ notes, onClose, onDelete, onUpdate, onLoad }) => {
-    const [interpretingId, setInterpretingId] = useState<string | null>(null);
-
-    const handleCopy = (text: string) => {
-        if (text) {
-            navigator.clipboard.writeText(text);
-        }
-    };
-
-    const handleInterpret = async (note: Note) => {
-        setInterpretingId(note.id);
-        try {
-            const base64Image = note.imageUrl.split(',')[1];
-            const text = await interpretHandwriting(base64Image);
-            onUpdate({ ...note, text });
-        } catch (e) {
-            alert(e instanceof Error ? e.message : 'Ett okänt fel inträffade.');
-        } finally {
-            setInterpretingId(null);
-        }
-    };
-
-    return (
-        <Modal isOpen={true} onClose={onClose} title="Arkiverade Anteckningar" size="4xl">
-            <div className="space-y-4">
-                {notes.length === 0 ? (
-                    <p className="text-gray-400 text-center mt-10">Arkivet är tomt.</p>
-                ) : (
-                    notes.map(note => (
-                        <div key={note.id} className="bg-gray-900/50 p-4 rounded-lg border border-gray-700 grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <img src={note.imageUrl} alt="Handskriven anteckning" className="w-full h-auto object-contain rounded-md bg-gray-900" />
-                            </div>
-                            <div className="flex flex-col">
-                                <p className="text-xs text-gray-500 mb-2">{new Date(note.timestamp).toLocaleString('sv-SE')}</p>
-                                <pre className="flex-grow whitespace-pre-wrap font-sans bg-gray-900 p-3 rounded-md text-gray-200">{note.text || 'Otolkad anteckning...'}</pre>
-                                <div className="flex gap-2 mt-3 flex-shrink-0 flex-wrap">
-                                    <button onClick={() => onLoad(note)} className="bg-blue-600 hover:bg-blue-50 text-sm font-semibold py-2 px-3 rounded-md">Fortsätt rita</button>
-                                    {note.text ? (
-                                        <button onClick={() => handleCopy(note.text)} className="bg-gray-600 hover:bg-gray-50 text-sm font-semibold py-2 px-3 rounded-md">Kopiera text</button>
-                                    ) : (
-                                        <button onClick={() => handleInterpret(note)} disabled={interpretingId === note.id} className="bg-purple-600 hover:bg-purple-50 text-sm font-semibold py-2 px-3 rounded-md flex items-center gap-1">
-                                            {interpretingId === note.id ? 'Tolkar...' : 'Tolka text'}
-                                        </button>
-                                    )}
-                                    <button onClick={() => onDelete(note.id)} className="bg-red-600 hover:bg-red-50 text-sm font-semibold py-2 px-3 rounded-md">Ta bort</button>
-                                </div>
-                            </div>
-                        </div>
-                    ))
-                )}
-            </div>
-        </Modal>
-    );
-};
-
-interface IdeaBoardInfoModalProps {
-    onClose: () => void;
-}
 
 const IdeaBoardInfoModal: React.FC<IdeaBoardInfoModalProps> = ({ onClose }) => (
-    <Modal isOpen={true} onClose={onClose} title="Om Idé-tavlan" size="2xl">
+    <Modal isOpen={true} onClose={onClose} title="Om AI Whiteboard" size="2xl">
         <div className="space-y-4 text-gray-900 dark:text-gray-100">
-            <p>Idé-tavlan är din digitala whiteboard där du kan skapa, spara och utveckla idéer till pass, program och övningar.</p>
+            <p>AI Whiteboard är din digitala whiteboard där du kan skapa, spara och utveckla idéer till pass, program och övningar.</p>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white pt-2">✏️ Rita och skriv fritt</h3>
             <p>Skissa upp passupplägg, anteckningar eller flöden direkt på ytan. Du kan rensa tavlan och ångra drag.</p>
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white pt-2">🤖 Den smarta AI-coachen</h3>
             <p>Klicka på “Skapa Pass” – AI:n analyserar dina anteckningar och skapar ett komplett träningspass. Du kan välja att öppna det i passbyggaren eller låta AI:n "renrita" det som en snygg cirkelstation direkt på tavlan.</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white pt-2">📝 Anteckningar</h3>
+            <p>Du kan hämta dina sparade Anteckningar direkt via menyn till höger. Kasta upp text eller bild på whiteboarden, rita vidare på skissen och låt AI:n skapa ett pass av resultatet.</p>
         </div>
     </Modal>
 );
@@ -360,13 +305,13 @@ const IntroAnimation = ({ onSkip }: { onSkip: () => void }) => {
     })), []);
 
     return (
-        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-8 text-center bg-gray-950/50 backdrop-blur-sm">
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-8 text-center pointer-events-none">
             <div className="relative w-full h-full flex-grow">
                 {randomizedWords.map(({ text, className, style }) => (
                     <span key={text} className={`absolute -translate-x-1/2 -translate-y-1/2 animate-word-cloud-fade-in opacity-0 ${className}`} style={style as React.CSSProperties}>{text}</span>
                 ))}
             </div>
-            <button onClick={onSkip} className="flex-shrink-0 bg-black/30 text-white/80 hover:text-white backdrop-blur-sm py-2 px-5 rounded-full text-sm font-semibold transition-colors mt-4">Hoppa över</button>
+            <button onClick={onSkip} className="pointer-events-auto flex-shrink-0 bg-black/30 text-white/80 hover:text-white backdrop-blur-sm py-2 px-5 rounded-full text-sm font-semibold transition-colors mt-4">Hoppa över</button>
         </div>
     );
 };
@@ -684,6 +629,7 @@ const filterTimeFromReps = (reps: string): string => {
 };
 
 const getTimerHexColor = (status: TimerStatus, mode: TimerMode | string) => {
+    if (status === TimerStatus.Idle) return '#1e293b';
     if (status === TimerStatus.Resting) return '#2dd4bf';
     if (status === TimerStatus.Preparing) return '#3b82f6';
     if (status === TimerStatus.Paused) return '#6b7280';
@@ -705,6 +651,27 @@ const CompactTimer: React.FC<{
     const minutes = Math.floor(timeToDisplay / 60).toString().padStart(2, '0');
     const seconds = (timeToDisplay % 60).toString().padStart(2, '0');
     
+    // Auto-hide pause button logic
+    const [showControls, setShowControls] = useState(false);
+    const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+        const handleActivity = () => {
+            setShowControls(true);
+            if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+            controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000);
+        };
+
+        window.addEventListener('pointerdown', handleActivity);
+        window.addEventListener('keydown', handleActivity);
+
+        return () => {
+            window.removeEventListener('pointerdown', handleActivity);
+            window.removeEventListener('keydown', handleActivity);
+            if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
+        };
+    }, []);
+
     useEffect(() => {
         if (timer.status === TimerStatus.Finished) {
             onFinish();
@@ -712,7 +679,8 @@ const CompactTimer: React.FC<{
     }, [timer.status, onFinish]);
 
     const timerColor = getTimerHexColor(timer.status, block.settings.mode);
-    const statusText = timer.status === TimerStatus.Preparing ? 'Gör dig redo' : 
+    const statusText = timer.status === TimerStatus.Idle ? 'Redo att starta' :
+                       timer.status === TimerStatus.Preparing ? 'Gör dig redo' : 
                        (block.settings.mode === TimerMode.Custom && timer.currentSegment?.title) ? timer.currentSegment.title :
                        timer.status === TimerStatus.Resting ? 'Vila' : 'Arbete';
 
@@ -723,75 +691,105 @@ const CompactTimer: React.FC<{
     const currentIntervalInLap = (timer.completedWorkIntervals % timer.effectiveIntervalsPerLap) + 1;
 
     return (
-        <div 
-            className={`w-[95%] md:w-[90%] mx-auto mt-4 rounded-[2rem] p-6 sm:p-8 flex flex-col items-center justify-center shadow-2xl transition-all duration-300 relative ${isClosing ? 'opacity-0 -translate-y-10' : 'opacity-100 translate-y-0'}`}
-            style={{ backgroundColor: timerColor, minHeight: '220px' }}
-        >
-            <button 
-                onClick={onClose}
-                className="absolute top-4 right-4 text-white/50 hover:text-white pointer-events-auto transition-colors"
-            >
-                <CloseIcon className="w-8 h-8" />
-            </button>
-            
-            <div className="flex w-full items-center justify-center mb-2 relative">
-                <div className="px-4 py-1 rounded-full bg-black/20 backdrop-blur-md border border-white/20 shadow-sm">
-                    <span className="font-black tracking-[0.2em] text-white uppercase text-xs sm:text-sm">
-                        {block.settings.mode.toUpperCase()}
-                    </span>
-                </div>
-            </div>
-            
-            <div className="flex flex-col items-center flex-grow justify-center">
-                <p className="text-white font-bold tracking-[0.3em] uppercase text-sm sm:text-base mb-1 drop-shadow-md opacity-90">
-                    {statusText}
-                </p>
-                <div className="font-mono text-7xl sm:text-8xl md:text-9xl leading-none font-black text-white tabular-nums drop-shadow-2xl my-2">
-                    {minutes}:{seconds}
-                </div>
-            </div>
-
-            {(block.settings.mode === TimerMode.Interval || block.settings.mode === TimerMode.Tabata || block.settings.mode === TimerMode.Custom) && (
-                <div className="flex items-center gap-4 mt-2">
-                    <div className="bg-black/20 backdrop-blur-md rounded-xl py-2 px-6 flex flex-col items-center justify-center border border-white/10 shadow-lg">
-                        <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">VARV</span>
-                        <div className="flex items-baseline gap-1">
-                            <span className="text-2xl font-black text-white leading-none">{timer.currentRound}</span>
-                            <span className="text-sm font-bold text-white/60">/ {timer.totalRounds}</span>
-                        </div>
-                    </div>
-                    
-                    <div className="bg-black/20 backdrop-blur-md rounded-xl px-5 py-2 flex items-center border border-white/10 h-full shadow-lg">
-                        <div className="flex flex-col items-center">
-                             <span className="text-white/70 text-[10px] font-bold uppercase tracking-widest">{block.settings.mode === TimerMode.Custom ? 'SEGMENT' : 'INTERVALL'}</span>
-                             <span className="text-xl font-bold text-white leading-none mt-0.5">{currentIntervalInLap} / {timer.effectiveIntervalsPerLap}</span>
-                        </div>
-                    </div>
-                </div>
+        <>
+            {createPortal(
+                <AnimatePresence>
+                    {timer.status === TimerStatus.Paused && (
+                        <PauseOverlay 
+                            onResume={timer.resume}
+                            onRestart={() => { timer.reset(); setTimeout(() => timer.start(), 100); }}
+                            onFinish={onClose}
+                        />
+                    )}
+                </AnimatePresence>,
+                document.body
             )}
 
-            {timer.totalBlockDuration > 0 && (
-                <div className="w-full h-2 bg-black/30 rounded-full overflow-hidden backdrop-blur-md border border-white/20 shadow-inner mt-6">
-                    <motion.div 
-                        className="h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)] relative"
-                        initial={{ width: 0 }}
-                        animate={{ width: `${progressPercentage}%` }}
-                        transition={{ duration: 1, ease: "linear" }}
-                    />
-                </div>
-            )}
-            
-            <button 
-                onClick={timer.status === TimerStatus.Paused ? timer.resume : timer.pause}
-                className="absolute bottom-6 right-6 w-14 h-14 rounded-2xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center transition-all active:scale-95 shadow-xl border border-white/20 pointer-events-auto backdrop-blur-sm"
+            <div 
+                className={`w-[95%] md:w-[90%] mx-auto mt-4 rounded-[2rem] p-6 sm:p-8 flex flex-col items-center justify-center shadow-2xl transition-all duration-300 relative overflow-hidden ${isClosing ? 'opacity-0 -translate-y-10' : 'opacity-100 translate-y-0'}`}
+                style={{ backgroundColor: timerColor, minHeight: '220px' }}
             >
-                {timer.status === TimerStatus.Paused ? (
-                    <svg className="w-8 h-8 fill-current" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.333-5.89a1.5 1.5 0 000-2.538L6.3 2.841z"/></svg>
-                ) : (
-                    <svg className="w-8 h-8 fill-current" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd"/></svg>
+                <div className="flex w-full items-center justify-center mb-2 relative">
+                    <div className="px-5 py-1.5 rounded-full bg-black/20 backdrop-blur-md border border-white/20 shadow-sm">
+                        <span className="font-black tracking-[0.2em] text-white uppercase text-base sm:text-lg">
+                            {block.settings.mode.toUpperCase()}
+                        </span>
+                    </div>
+                </div>
+                
+                {(block.settings.mode === TimerMode.Interval || block.settings.mode === TimerMode.Tabata || block.settings.mode === TimerMode.Custom) && (
+                    <div className="absolute top-6 right-6 flex flex-col items-end gap-1 px-2 sm:px-4 pointer-events-none">
+                        <div className="flex flex-col items-end">
+                            <span className="block text-white/80 font-black text-[14px] sm:text-[16px] uppercase tracking-[0.4em] mb-1 drop-shadow-md">{block.settings.mode === TimerMode.Custom ? 'SEGMENT' : 'INTERVALL'}</span>
+                            <div className="flex items-baseline justify-end gap-1">
+                                <span className="font-black text-5xl sm:text-6xl text-white drop-shadow-lg leading-none">{currentIntervalInLap}</span>
+                                <span className="text-2xl sm:text-3xl font-black text-white/80 drop-shadow-md">/ {timer.effectiveIntervalsPerLap}</span>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-end gap-3 mt-1 sm:mt-2">
+                            <span className="text-white/80 font-black text-[13px] sm:text-[14px] uppercase tracking-[0.3em] drop-shadow-md">VARV</span>
+                            <div className="flex items-baseline gap-1">
+                                <span className="font-black text-3xl sm:text-4xl text-white drop-shadow-md leading-none">{Math.floor(timer.completedWorkIntervals / timer.effectiveIntervalsPerLap) + 1}</span>
+                                <span className="text-base sm:text-lg font-black text-white/80 drop-shadow-md">/ {Math.ceil(timer.totalRounds / timer.effectiveIntervalsPerLap)}</span>
+                            </div>
+                        </div>
+                    </div>
                 )}
-            </button>
-        </div>
+                
+                <div className="flex flex-col items-center flex-grow justify-center mt-8 cursor-default select-none pointer-events-none">
+                    <p className="text-white font-bold tracking-[0.3em] uppercase text-xl sm:text-2xl mb-1 drop-shadow-md opacity-90">
+                        {statusText}
+                    </p>
+                    <div className="font-mono text-8xl sm:text-9xl md:text-[10rem] leading-none font-black text-white tabular-nums drop-shadow-2xl my-2">
+                        {minutes}:{seconds}
+                    </div>
+                </div>
+
+                {timer.totalBlockDuration > 0 && (
+                    <div className="w-full h-2 bg-black/30 rounded-full overflow-hidden backdrop-blur-md border border-white/20 shadow-inner mt-6">
+                        <motion.div 
+                            className="h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)] relative"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${progressPercentage}%` }}
+                            transition={{ duration: 1, ease: "linear" }}
+                        />
+                    </div>
+                )}
+                
+                {timer.status === TimerStatus.Idle && (
+                    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm rounded-[2rem]">
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); timer.start(); }}
+                            className="bg-white text-black active:scale-110 transition-transform duration-200 rounded-full p-6 shadow-2xl border-4 border-white/50 group pointer-events-auto"
+                        >
+                            <PlayIcon className="w-16 h-16 ml-1 fill-current group-active:text-primary transition-colors" />
+                        </button>
+                    </div>
+                )}
+            </div>
+            
+            {createPortal(
+                <AnimatePresence>
+                    {timer.status !== TimerStatus.Paused && timer.status !== TimerStatus.Idle && showControls && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[9998] pointer-events-none flex flex-col items-center justify-center p-8 text-center"
+                        >
+                            <button
+                                onClick={(e) => { e.stopPropagation(); timer.pause(); }}
+                                className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl active:bg-gray-100 transition-transform active:scale-95 text-xl border-4 border-white/50 uppercase pointer-events-auto"
+                            >
+                                PAUSA
+                            </button>
+                        </motion.div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
+        </>
     );
 };
 
@@ -816,6 +814,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const [isInterpretingWorkout, setIsInterpretingWorkout] = useState(false);
     const [isBeautifying, setIsBeautifying] = useState(false);
     const [isResolving, setIsResolving] = useState(false); // Ny state för att visa att vi matchar mot banken
+    const [parseError, setParseError] = useState<string | null>(null);
     const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
     const [history, setHistory] = useState<ImageData[]>([]);
     const [isArchiveVisible, setIsArchiveVisible] = useState(false);
@@ -830,6 +829,44 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const [showBlockSelector, setShowBlockSelector] = useState(false);
     const [blockForCircuit, setBlockForCircuit] = useState<WorkoutBlock | null>(null);
     const [lastDrawnBlock, setLastDrawnBlock] = useState<WorkoutBlock | null>(null);
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+
+    // --- COACH NOTES ON IDEA BOARD ---
+    const [coachNotes, setCoachNotes] = useState<CoachNote[]>([]);
+    const [isCoachNotesModalOpen, setIsCoachNotesModalOpen] = useState(false);
+    const [activeNotesTab, setActiveNotesTab] = useState<'coach' | 'idea'>('coach');
+    const [activeCoachNote, setActiveCoachNote] = useState<CoachNote | null>(null);
+    const [selectedCoachFilter, setSelectedCoachFilter] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!selectedOrganization?.id) return;
+        const unsubscribe = listenToCoachNotes(selectedOrganization.id, (notes) => {
+            setCoachNotes(notes);
+        });
+        return () => unsubscribe();
+    }, [selectedOrganization?.id]);
+
+    const handleSelectCoachNote = (note: CoachNote) => {
+        setIsCoachNotesModalOpen(false);
+        if (note.imageUrl) {
+            setActiveCoachNote(note);
+        } else if (note.text) {
+            // Put text on canvas as a smart object
+            const newObj: SmartObject = {
+                id: `smart-text-${Date.now()}`,
+                type: 'text',
+                x: 100,
+                y: 100,
+                width: 400,
+                height: 200,
+                text: note.title ? `${note.title}\n\n${note.text}` : note.text,
+                color: '#FFFFFF',
+                fontSize: 36
+            };
+            setSmartObjects(prev => [...prev, newObj]);
+        }
+    };
 
     const isDrawing = useRef(false);
     const points = useRef<{x: number, y: number}[]>([]);
@@ -911,9 +948,15 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         if (isTimerActive) {
             hideTimeoutRef.current = window.setTimeout(() => {
                 setControlsVisible(false);
+                setIsMenuOpen(false);
             }, 3000);
         }
     }, [isTimerActive]);
+
+    const handlePointerDown = useCallback(() => {
+        setIsMenuOpen(false);
+        handleInteraction();
+    }, [handleInteraction]);
 
     useEffect(() => {
         if (isTimerActive) {
@@ -973,7 +1016,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 title: timerBlock.title,
                 blocks: [timerBlock],
                 coachTips: '',
-                category: 'Idé-tavlan',
+                category: 'AI Whiteboard',
                 isPublished: false,
                 createdAt: Date.now(),
                 organizationId: '',
@@ -994,12 +1037,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             setIsTimerSetupVisible(true);
         }
     }, [timerBlock, handleCloseTimer]);
-
-    useEffect(() => {
-        if (timerBlock && timer.status === TimerStatus.Idle) {
-            timer.start();
-        }
-    }, [timerBlock, timer.status, timer.start]);
 
     const skipAnimation = useCallback(() => setAnimationState('exiting'), []);
 
@@ -1075,7 +1112,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         };
 
         const startDrawing = (e: PointerEvent) => {
-            if (animationState !== 'finished') return;
+            if (animationState !== 'finished') setAnimationState('finished');
             e.preventDefault();
             isDrawing.current = true;
             points.current = [getPointerPos(e)];
@@ -1087,7 +1124,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         };
 
         const draw = (e: PointerEvent) => {
-            if (!isDrawing.current || animationState !== 'finished') return;
+            if (!isDrawing.current) return;
             e.preventDefault();
             const pos = getPointerPos(e);
             points.current.push(pos);
@@ -1108,7 +1145,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
         };
 
         const stopDrawing = () => {
-            if (!isDrawing.current || animationState !== 'finished') return;
+            if (!isDrawing.current) return;
             isDrawing.current = false;
             if (points.current.length < 1) { points.current = []; return; }
 
@@ -1287,11 +1324,22 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     }, [remoteCommand]);
     
     const handleInterpretAsWorkout = async () => {
-        if (!canvasRef.current || (history.length === 0 && smartObjects.length === 0)) return;
+        if (!canvasRef.current || (history.length === 0 && smartObjects.length === 0 && !activeCoachNote?.imageUrl)) return;
         setIsInterpretingWorkout(true);
         try {
-            const dataUrl = getCanvasDataUrlWithSmartObjects();
-            const base64Image = dataUrl.split(',')[1];
+            let base64Image = '';
+            if (activeCoachNote?.imageUrl) {
+                if (activeCoachNote.imageUrl.startsWith('data:image')) {
+                    base64Image = activeCoachNote.imageUrl.split(',')[1];
+                } else {
+                    const { fetchImageAsBase64 } = await import('../utils/imageFetch');
+                    const dataUrl = await fetchImageAsBase64(activeCoachNote.imageUrl);
+                    base64Image = dataUrl.split(',')[1];
+                }
+            } else {
+                const dataUrl = getCanvasDataUrlWithSmartObjects();
+                base64Image = dataUrl.split(',')[1];
+            }
             
             let exerciseNames: string[] = [];
             if (selectedOrganization) {
@@ -1306,7 +1354,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             const workout = await parseWorkoutFromImage(base64Image, undefined, true, exerciseNames);
             setInterpretedWorkout(workout);
         } catch(e) {
-            alert(e instanceof Error ? e.message : 'Ett okänt fel inträffade.');
+            setParseError(e instanceof Error ? e.message : 'Ett okänt fel inträffade.');
         } finally {
             setIsInterpretingWorkout(false);
         }
@@ -1577,14 +1625,11 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     return (
         <div 
             className="absolute inset-0 w-full h-full flex flex-col overflow-hidden bg-gray-800"
-            onClick={handleInteraction} 
+            onPointerDown={handlePointerDown}
             onMouseMove={handleInteraction} 
-            onTouchStart={handleInteraction}
+            onTouchStart={handlePointerDown}
         >
-            <div className={`absolute top-4 right-4 z-20 flex items-center gap-2 transition-all duration-500 ${!controlsVisible ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`}>
-                <button onClick={() => setIsArchiveVisible(true)} className="bg-gray-600/80 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition-colors backdrop-blur-sm shadow-md" disabled={animationState !== 'finished'}>Arkiv ({savedNotes.length})</button>
-                <button onClick={() => setIsInfoModalVisible(true)} className="bg-gray-600/80 hover:bg-gray-500 text-white font-bold p-2 rounded-lg transition-colors backdrop-blur-sm shadow-md" title="Om Idé-tavlan" disabled={animationState !== 'finished'}><InformationCircleIcon className="w-6 h-6" /></button>
-            </div>
+
 
             <button 
                 onPointerDown={(e) => {
@@ -1598,7 +1643,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         onBack();
                     }
                 }}
-                className={`absolute top-4 left-4 z-20 bg-gray-600/80 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition-all duration-500 backdrop-blur-sm shadow-md flex items-center gap-2 ${!controlsVisible ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`}
+                className={`absolute top-4 left-4 z-20 text-white font-bold p-3 rounded-lg hover:bg-gray-700/50 transition-all duration-500 flex items-center gap-2 drop-shadow-md ${!controlsVisible ? 'opacity-0 -translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'}`}
             >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -1622,12 +1667,12 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             
             <div ref={containerRef} className="absolute inset-0 w-full h-full z-0 bg-gray-800 transition-colors" style={{ touchAction: 'none' }}>
                 {animationState !== 'finished' && (
-                    <div className={`absolute inset-0 z-10 transition-opacity duration-500 ${animationState === 'exiting' ? 'opacity-0' : 'opacity-100'}`} style={{ pointerEvents: animationState === 'exiting' ? 'none' : 'auto' }}><IntroAnimation onSkip={skipAnimation} /></div>
+                    <div className={`absolute inset-0 z-10 pointer-events-none transition-opacity duration-500 ${animationState === 'exiting' ? 'opacity-0' : 'opacity-100'}`}><IntroAnimation onSkip={skipAnimation} /></div>
                 )}
                 <canvas ref={canvasRef} className="w-full h-full block" />
                 
                 {/* Timer Zone Marker */}
-                <div className="absolute top-[260px] left-0 right-0 pointer-events-none flex justify-between px-0 opacity-40 z-0">
+                <div className="absolute top-[32%] left-0 right-0 pointer-events-none flex justify-between px-0 opacity-40 z-0">
                     <div className="flex items-center">
                         <div className="w-4 h-[2px] bg-gray-400 dark:bg-gray-500 rounded-r-full"></div>
                         <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-2 rotate-90 origin-left translate-y-6">Timer</span>
@@ -1686,6 +1731,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                                 <textarea
                                     value={obj.text || ''}
                                     onChange={(e) => updateSmartObject(obj.id, { text: e.target.value })}
+                                    onPointerDown={(e) => e.stopPropagation()}
                                     rows={Math.max(1, (obj.text || '').split('\n').length)}
                                     className="bg-transparent border-none outline-none text-center w-full resize-none overflow-hidden"
                                     style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: `${obj.fontSize || 36}px`, lineHeight: '1.2' }}
@@ -1695,6 +1741,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                                 <textarea
                                     value={obj.text || ''}
                                     onChange={(e) => updateSmartObject(obj.id, { text: e.target.value })}
+                                    onPointerDown={(e) => e.stopPropagation()}
                                     rows={Math.max(1, (obj.text || '').split('\n').length)}
                                     className="bg-transparent border-none outline-none text-center w-full relative z-10 resize-none overflow-hidden"
                                     style={{ color: obj.color, fontFamily: 'Kalam, cursive', fontSize: `${obj.fontSize || 28}px`, lineHeight: '1.2' }}
@@ -1738,35 +1785,77 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 })}
             </div>
             
-            <div className={`absolute bottom-0 left-0 right-0 z-20 p-6 flex flex-col gap-4 items-center transition-all duration-500 ${!controlsVisible ? 'opacity-0 translate-y-10 pointer-events-none' : 'opacity-100 translate-y-0'} pointer-events-none`}>
-                
-                <div className="flex justify-center gap-3 pointer-events-auto bg-black/20 backdrop-blur-sm p-2 rounded-full mb-2">
-                    {effectiveColors.map(color => (
-                        <button
-                            key={color.hex}
-                            onClick={() => setDrawingColor(color.hex)}
-                            className={`w-10 h-10 rounded-full border-2 transition-transform hover:scale-110 shadow-md ${drawingColor === color.hex ? 'border-white scale-110 shadow-lg' : 'border-transparent'}`}
-                            style={{ backgroundColor: color.hex }}
-                            title={color.label}
-                            aria-label={`Välj färg ${color.label}`}
-                        />
-                    ))}
-                </div>
+            {/* Right Side Control Panel */}
+            <div 
+                className={`absolute right-4 top-1/2 -translate-y-1/2 z-50 transition-all duration-500 pointer-events-auto ${!controlsVisible ? 'opacity-0 translate-x-10 pointer-events-none' : 'opacity-100 translate-x-0'}`}
+                onClick={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                onMouseMove={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+            >
+                <div className="flex flex-col items-center gap-4 py-3">
+                    {/* 1. Hamburger Menu */}
+                    <div className="relative">
+                        <button 
+                            onClick={() => setIsMenuOpen(!isMenuOpen)} 
+                            className={`p-3 rounded-xl transition-colors ${isMenuOpen ? 'bg-gray-700 text-white' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}`}
+                            title="Meny"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                            </svg>
+                        </button>
+                        
+                        {isMenuOpen && (
+                            <div className="absolute top-0 right-full mr-4 w-56 bg-gray-800/95 backdrop-blur-md shadow-2xl rounded-xl border border-gray-700 py-2 flex flex-col pointer-events-auto">
+                                <button onClick={() => { setIsCoachNotesModalOpen(true); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors rounded-t-xl">Anteckningar</button>
+                                <button onClick={() => { handleSaveNote(); setIsMenuOpen(false); }} disabled={(history.length === 0 && smartObjects.length === 0) || saveState !== 'idle'} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    {saveState === 'saving' ? 'Sparar...' : saveState === 'saved' ? 'Sparad!' : 'Spara & Arkivera'}
+                                </button>
+                                <button onClick={() => { handleBeautifyDrawing(); setIsMenuOpen(false); }} disabled={history.length === 0} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    {isBeautifying ? 'Trollar...' : 'Snygga till'}
+                                </button>
+                                <button onClick={() => { handleInterpretAsWorkout(); setIsMenuOpen(false); }} disabled={(history.length === 0 && smartObjects.length === 0 && !activeCoachNote?.imageUrl)} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                                    {isInterpretingWorkout ? 'Tolkar...' : 'Skapa Pass'}
+                                </button>
+                                <button onClick={() => { handleToggleTimer(); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                                    {timerBlock ? 'Stoppa Timer' : 'Timer'}
+                                </button>
+                                {lastDrawnBlock && (
+                                    <button onClick={() => { setBlockForCircuit(lastDrawnBlock); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors">Justera</button>
+                                )}
+                                <button onClick={() => { setIsInfoModalVisible(true); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors border-t border-gray-700 mt-2 rounded-b-xl">Om AI Whiteboard</button>
+                            </div>
+                        )}
+                    </div>
 
-                <div className="flex flex-wrap justify-center gap-4 pointer-events-auto">
-                    <button onClick={handleUndo} disabled={history.length === 0 || animationState !== 'finished'} className="bg-gray-600/90 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg transition-colors backdrop-blur-sm shadow-lg">Ångra</button>
-                    <button onClick={clearCanvas} disabled={animationState !== 'finished'} className="bg-gray-600/90 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg backdrop-blur-sm shadow-lg">Rensa</button>
-                    
-                    <button onClick={handleBeautifyDrawing} disabled={history.length === 0 || animationState !== 'finished'} className="bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">
-                        {isBeautifying ? 'Trollar...' : '🪄 Snygga till'}
-                    </button>
+                    {/* 2. Undo & Clear */}
+                    <div className="flex flex-col gap-2">
+                        <button onClick={handleUndo} disabled={history.length === 0} className="p-3 text-gray-300 hover:bg-gray-700 hover:text-white rounded-xl disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Ångra">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+                            </svg>
+                        </button>
+                        <button onClick={clearCanvas} className="p-3 text-gray-300 hover:bg-red-500/20 hover:text-red-400 rounded-xl transition-colors" title="Rensa">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                        </button>
+                    </div>
 
-                    <button onClick={handleSaveNote} disabled={(history.length === 0 && smartObjects.length === 0) || saveState !== 'idle' || animationState !== 'finished'} className="bg-primary/90 hover:brightness-95 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">{saveState === 'saving' ? 'Sparar...' : saveState === 'saved' ? '✔️ Sparad!' : '💾 Spara & Arkivera'}</button>
-                    <button onClick={handleInterpretAsWorkout} disabled={(history.length === 0 && smartObjects.length === 0) || animationState !== 'finished'} className="bg-purple-600/90 hover:bg-purple-500 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">{isInterpretingWorkout ? 'Tolkar...' : '✍️ Skapa Pass'}</button>
-                    <button onClick={handleToggleTimer} disabled={animationState !== 'finished'} className="bg-blue-600/90 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">{timerBlock ? 'Stoppa Timer' : 'Timer'}</button>
-                    {lastDrawnBlock && animationState === 'finished' && (
-                        <button onClick={() => setBlockForCircuit(lastDrawnBlock)} className="bg-indigo-600/90 hover:bg-indigo-500 text-white font-bold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 backdrop-blur-sm shadow-lg">✏️ Justera</button>
-                    )}
+                    {/* 3. Colors */}
+                    <div className="flex flex-col gap-3 py-1 mt-2">
+                        {effectiveColors.map(color => (
+                            <button
+                                key={color.hex}
+                                onClick={() => setDrawingColor(color.hex)}
+                                className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 shadow-sm ${drawingColor === color.hex ? 'border-white scale-125 shadow-md ring-2 ring-white/20' : 'border-transparent'}`}
+                                style={{ backgroundColor: color.hex }}
+                                title={color.label}
+                                aria-label={`Välj färg ${color.label}`}
+                            />
+                        ))}
+                    </div>
                 </div>
             </div>
 
@@ -1790,13 +1879,233 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 </div>
             )}
 
+            {/* ERROR MODAL */}
+            {parseError && (
+                <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md flex flex-col items-center justify-center z-50 p-4 text-center animate-fade-in">
+                    <div className="bg-gray-800 p-8 rounded-2xl max-w-lg border border-gray-700 shadow-2xl relative">
+                        <button onClick={() => setParseError(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
+                        <div className="text-red-400 text-5xl mb-4">⚠️</div>
+                        <h2 className="text-2xl font-bold text-white mb-4">Ett fel uppstod</h2>
+                        <p className="text-gray-300 font-medium mb-6">{parseError}</p>
+                        <button onClick={() => setParseError(null)} className="bg-primary px-6 py-3 rounded-xl font-bold text-white hover:bg-primary/90 w-full transition-colors">Förstått</button>
+                    </div>
+                </div>
+            )}
+
             {interpretedWorkout && !showBlockSelector && !blockForCircuit && <WorkoutActionChoiceModal workout={interpretedWorkout} onGoToBuilder={handleGoToBuilder} onDrawCircuit={() => { if (interpretedWorkout.blocks.length > 1) setShowBlockSelector(true); else setBlockForCircuit(interpretedWorkout.blocks[0]); }} onCancel={() => setInterpretedWorkout(null)} />}
             {interpretedWorkout && showBlockSelector && <BlockSelectionModal workout={interpretedWorkout} onSelect={(idx) => { setBlockForCircuit(interpretedWorkout.blocks[idx]); setShowBlockSelector(false); }} onCancel={() => setShowBlockSelector(false)} />}
             {blockForCircuit && <CircuitReorderModal block={blockForCircuit} onConfirm={drawCircuitOnCanvas} onCancel={() => setBlockForCircuit(null)} />}
-            {isArchiveVisible && <NoteArchiveModal notes={savedNotes} onClose={() => setIsArchiveVisible(false)} onDelete={handleDeleteNoteAction} onUpdate={handleUpdateNoteAction} onLoad={handleLoadNote} />}
             {isInfoModalVisible && <IdeaBoardInfoModal onClose={() => setIsInfoModalVisible(false)} />}
             {isTimerSetupVisible && <IdeaBoardTimerSetupModal onStart={handleStartTimerSetup} onClose={() => setIsTimerSetupVisible(false)} block={lastDrawnBlock || { exercises: [] } as any} />}
             {completionInfo && <WorkoutCompleteModal isOpen={!!completionInfo} onClose={() => { setCompletionInfo(null); handleCloseTimer(); }} workout={completionInfo.workout} isFinalBlock={completionInfo.isFinal} blockTag={completionInfo.blockTag} finishTime={completionInfo.finishTime} organizationId={selectedOrganization?.id || ''} />}
+
+            {/* Draggable Active Image Note */}
+            {activeCoachNote?.imageUrl && (
+                <div className="fixed inset-0 pointer-events-none z-40 overflow-hidden">
+                    <DraggableImage 
+                        src={activeCoachNote.imageUrl} 
+                        alt={activeCoachNote.title} 
+                        initialPosition={{ x: 100, y: 100 }}
+                        onClose={() => setActiveCoachNote(null)}
+                    />
+                </div>
+            )}
+
+            {/* Combined Notes & Archive Modal */}
+            <Modal isOpen={isCoachNotesModalOpen} onClose={() => setIsCoachNotesModalOpen(false)} title="Anteckningar" size="4xl">
+                <div className="flex gap-4 mb-4 border-b border-gray-200 dark:border-gray-800 pb-2">
+                    <button 
+                        onClick={() => setActiveNotesTab('coach')}
+                        className={`pb-2 px-4 font-bold text-sm sm:text-base transition-colors relative ${activeNotesTab === 'coach' ? 'text-primary' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                    >
+                        Anteckningar
+                        {activeNotesTab === 'coach' && <div className="absolute bottom-[-9px] left-0 right-0 h-1 bg-primary rounded-t-full" />}
+                    </button>
+                    <button 
+                        onClick={() => setActiveNotesTab('idea')}
+                        className={`pb-2 px-4 font-bold text-sm sm:text-base transition-colors relative ${activeNotesTab === 'idea' ? 'text-primary' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                    >
+                        Arkiv ({savedNotes.length})
+                        {activeNotesTab === 'idea' && <div className="absolute bottom-[-9px] left-0 right-0 h-1 bg-primary rounded-t-full" />}
+                    </button>
+                </div>
+
+                <div className="space-y-4 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                    {activeNotesTab === 'coach' ? (
+                        (() => {
+                            const activeCoachNotes = coachNotes.filter(n => n.isFavorite || (Date.now() - n.createdAt) <= 14 * 24 * 60 * 60 * 1000);
+                            
+                            if (activeCoachNotes.length === 0) {
+                                return <p className="text-gray-500 text-center py-12">Inga anteckningar hittades för denna studio.</p>;
+                            }
+
+                            const uniqueCoaches = Array.from(new Map(activeCoachNotes.map(n => [n.createdBy, { id: n.createdBy, name: n.creatorName, photo: n.creatorPhotoUrl }])).values());
+
+                            if (!selectedCoachFilter) {
+                                return (
+                                    <div>
+                                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Välj vems anteckningar du vill se</h3>
+                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 p-2">
+                                            {uniqueCoaches.map((coach: any) => {
+                                                const coachNoteCount = activeCoachNotes.filter(n => n.createdBy === coach.id).length;
+                                                return (
+                                                    <button 
+                                                        key={coach.id}
+                                                        onClick={() => setSelectedCoachFilter(coach.id)}
+                                                        className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-center hover:border-primary transition-colors flex flex-col items-center gap-3 shadow-sm"
+                                                    >
+                                                        {coach.photo ? (
+                                                            <img src={coach.photo} alt={coach.name} className="w-16 h-16 rounded-full object-cover" referrerPolicy="no-referrer" />
+                                                        ) : (
+                                                            <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xl">
+                                                                {coach.name.charAt(0)}
+                                                            </div>
+                                                        )}
+                                                        <div>
+                                                            <h4 className="font-bold text-gray-900 dark:text-white line-clamp-1">{coach.name}</h4>
+                                                            <p className="text-xs text-gray-500">{coachNoteCount} anteckning{coachNoteCount !== 1 ? 'ar' : ''}</p>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            const filteredNotes = activeCoachNotes.filter(n => n.createdBy === selectedCoachFilter);
+                            const coachName = uniqueCoaches?.find((c: any) => c.id === selectedCoachFilter)?.name || 'Användaren';
+
+                            return (
+                                <div>
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <button 
+                                            onClick={() => setSelectedCoachFilter(null)}
+                                            className="p-1 px-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-lg text-sm font-bold transition-colors flex items-center gap-1"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+                                            Översikt
+                                        </button>
+                                        <h3 className="text-lg font-bold text-gray-900 dark:text-white ml-2">{coachName}s anteckningar</h3>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-2">
+                                        {filteredNotes.map(note => (
+                                            <button 
+                                                key={note.id}
+                                                onClick={() => {
+                                                    handleSelectCoachNote(note);
+                                                    setIsCoachNotesModalOpen(false);
+                                                }}
+                                                className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-left hover:border-primary transition-colors flex flex-col group h-full shadow-sm"
+                                            >
+                                                <div className="flex items-center gap-3 mb-3 shrink-0">
+                                                    {note.creatorPhotoUrl ? (
+                                                        <img src={note.creatorPhotoUrl} alt="" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
+                                                    ) : (
+                                                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
+                                                            {note.creatorName.charAt(0)}
+                                                        </div>
+                                                    )}
+                                                    <div>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400 leading-tight">{note.creatorName}</p>
+                                                        <h4 className="font-bold text-gray-900 dark:text-white line-clamp-1">{note.title}</h4>
+                                                    </div>
+                                                </div>
+                                                
+                                                {note.imageUrl ? (
+                                                    <div className="w-full h-32 bg-gray-200 dark:bg-gray-900 rounded-lg overflow-hidden shrink-0">
+                                                        <img src={note.imageUrl} alt="" className="w-full h-full object-cover" />
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-full flex-grow bg-gray-100 dark:bg-gray-900 rounded-lg p-3 overflow-hidden">
+                                                        <p className="text-xs text-gray-600 dark:text-gray-300 font-serif line-clamp-6">{note.text}</p>
+                                                    </div>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })()
+                    ) : (
+                        savedNotes.length === 0 ? (
+                            <p className="text-gray-400 text-center py-12">Arkivet är tomt.</p>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-2">
+                                {savedNotes.map(note => (
+                                    <div key={note.id} className="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm flex flex-col gap-3">
+                                        <div 
+                                            className="w-full h-40 bg-gray-200 dark:bg-gray-900 rounded-lg overflow-hidden shrink-0 relative group cursor-pointer"
+                                            onClick={() => setFullscreenImage(note.imageUrl)}
+                                            title="Klicka för att förstora"
+                                        >
+                                            <img src={note.imageUrl} alt="Handskriven anteckning" className="w-full h-full object-contain transition-transform group-hover:scale-[1.02]" />
+                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg pointer-events-none">
+                                                <span className="text-white font-bold tracking-widest uppercase text-sm">Förstora bild</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col flex-grow">
+                                            <p className="text-xs text-gray-500 mb-2">{new Date(note.timestamp).toLocaleString('sv-SE')}</p>
+                                            {note.text && (
+                                                <pre className="flex-grow whitespace-pre-wrap font-sans bg-gray-100 dark:bg-gray-900 p-3 rounded-lg text-gray-800 dark:text-gray-200 text-xs mb-3 custom-scrollbar overflow-y-auto max-h-24">
+                                                    {note.text}
+                                                </pre>
+                                            )}
+                                            <div className="flex gap-2 mt-auto flex-wrap">
+                                                <button onClick={() => {
+                                                    handleLoadNote(note);
+                                                    setIsCoachNotesModalOpen(false);
+                                                }} className="bg-primary/90 hover:bg-primary text-white text-xs font-bold py-2 px-3 rounded-lg transition-colors flex-1">
+                                                    Ladda till tavlan
+                                                </button>
+                                                {note.text ? (
+                                                    <button onClick={() => {
+                                                        if (note.text) navigator.clipboard.writeText(note.text);
+                                                    }} className="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-gray-200 text-xs font-bold py-2 px-3 rounded-lg transition-colors flex-1">
+                                                        Kopiera text
+                                                    </button>
+                                                ) : null}
+                                                <button onClick={() => handleDeleteNoteAction(note.id)} className="bg-red-100 dark:bg-red-900/30 hover:bg-red-200 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 text-xs font-bold py-2 px-3 rounded-lg transition-colors shrink-0">
+                                                    Ta bort
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )
+                    )}
+                </div>
+            </Modal>
+
+            {/* Fullscreen Image Preview */}
+            {typeof window !== 'undefined' && createPortal(
+                <AnimatePresence>
+                    {fullscreenImage && (
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[999999] bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
+                            onClick={() => setFullscreenImage(null)}
+                        >
+                            <button 
+                                className="absolute top-6 right-6 bg-white/10 hover:bg-white/20 text-white rounded-full p-3 transition-colors"
+                                onClick={(e) => { e.stopPropagation(); setFullscreenImage(null); }}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                            <img 
+                                src={fullscreenImage} 
+                                alt="Förstorad" 
+                                className="max-w-full max-h-full object-contain"
+                                onClick={(e) => e.stopPropagation()} 
+                            />
+                        </motion.div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
         </div>
     );
 };

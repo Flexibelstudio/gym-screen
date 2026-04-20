@@ -593,7 +593,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
     return (
         <div className="w-full h-full flex flex-col bg-gray-50 dark:bg-black">
             {/* Top Navigation */}
-            <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 px-6 py-4 flex items-center justify-between shadow-sm flex-shrink-0">
+            <div className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 pl-6 pr-16 sm:pr-24 py-4 flex items-center justify-between shadow-sm flex-shrink-0">
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
                     <img src="/favicon.png" alt="Logo" className="w-8 h-8 object-contain" />
                     <span className="hidden sm:inline">Systemadmin</span>

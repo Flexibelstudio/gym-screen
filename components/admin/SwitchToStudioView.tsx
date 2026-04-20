@@ -11,7 +11,14 @@ export const SwitchToStudioView: React.FC<SwitchToStudioViewProps> = ({ organiza
     return (
         <div className="mt-12 bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Växla till Skärmvy</h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">Växla till skärmvy. Du återvänder hit via "För Coacher"-menyn.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Växla till skärmvy.</p>
+
+            <div className="bg-yellow-50 dark:bg-yellow-900/30 border border-yellow-200 dark:border-yellow-800/50 p-4 rounded-xl mb-6 shadow-sm">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200 leading-relaxed">
+                    <span className="font-bold">⚠️ Varning:</span> Att öppna skärmvyn här kan störa eller avbryta ett pågående träningspass. Klicka bara här när det inte pågår pass på gymmets fysiska skärm!
+                </p>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {organization.studios.map(studio => (
                     <button

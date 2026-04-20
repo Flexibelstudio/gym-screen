@@ -329,6 +329,51 @@ export async function chatWithAICoach(
     };
 }
 
+export interface NotesChatResponse {
+    replyText: string;
+}
+
+export async function chatWithNotesAssistant(
+    chatHistory: { role: 'user' | 'assistant', content: string }[], 
+    userMessage: string
+): Promise<NotesChatResponse> {
+    const aiNotesChatSchema = {
+        type: Type.OBJECT,
+        required: ['replyText'],
+        properties: {
+            replyText: { type: Type.STRING }
+        }
+    };
+
+    const formattedHistory = chatHistory.map(msg => `${msg.role === 'user' ? 'Användare' : 'Coach'}: ${msg.content}`).join('\n');
+    const PROMPT = `Du är en kreativ och expert-coachande AI ("AI-Coachen") för ett gym. Användaren skriver i sin "Anteckningar"-sektion för att spåna idéer, skapa nya pass eller få tips.
+Hjälp dem genom att ge tydliga, roliga och välstrukturerade förslag på träningspass eller övningar.
+
+VIKTIGA REGLER KRING FORMATERING:
+1. Ta ALDRIG med uppvärmning, nedvarvning eller stretch om inte användaren uttryckligen ber om det. Det gäller alltid.
+2. Presentera alltid passet/upplägget som enkla raka listor utan krångel och brödtext. Exempel:
+   3 varv:
+   10 knäböj
+   10 situps
+   ELLER
+   30/15 i 10 min:
+   Kb svingar
+   Goblet squats
+3. ANVÄND ALDRIG NÅGON Markdown (till exempel inga **fetstil** eller *kursiv*). Systemet stöder inte Markdown, använd bara helt vanlig platt text med tydliga radbrytningar. Du kan använda emojis.
+
+Returnera ett JSON-objekt enligt schemat.
+
+Tidigare historik:
+${formattedHistory}
+
+Användarens nya meddelande:
+${userMessage}
+`;
+    
+    const data = await _callGeminiJSON<any>(TEXT_MODEL, PROMPT, aiNotesChatSchema);
+    return { replyText: data.replyText };
+}
+
 export async function parseWorkoutFromText(text: string, availableExercises: string[] = []): Promise<Workout> {
     const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.TEXT_INTERPRETER_PROMPT(text, availableExercises), workoutSchema);
     // Tolkad text från coachen bör inte vara ett "medlemsutkast" som raderas
@@ -337,10 +382,16 @@ export async function parseWorkoutFromText(text: string, availableExercises: str
 
 export async function parseWorkoutFromImage(base64Image: string, additionalText?: string, isDraft: boolean = false, availableExercises: string[] = []): Promise<Workout> {
     const ai = getAIClient();
+    
+    // Ensure we strip the data:image/...;base64, prefix if it exists
+    const cleanBase64 = base64Image.includes('base64,') 
+        ? base64Image.split('base64,')[1] 
+        : base64Image;
+
     const response = await ai.models.generateContent({
         model: VISION_MODEL,
         contents: [
-            { inlineData: { mimeType: 'image/png', data: base64Image } },
+            { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
             { text: Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises) }
         ],
         config: {
@@ -507,12 +558,15 @@ const transformInsightContent = (data: any): InsightContent => {
 export async function generateMemberInsights(
     logs: WorkoutLog[], 
     title: string, 
-    exercises: string[]
+    exercises: string[],
+    aiProgressionPrompt?: string,
+    specificHistory?: Record<string, { weight: number, reps: string }>
 ): Promise<MemberInsightResponse> {
     const logStr = JSON.stringify(logs.slice(0, 5));
+    const specificHistoryStr = specificHistory && Object.keys(specificHistory).length > 0 ? JSON.stringify(specificHistory) : undefined;
     const data = await _callGeminiJSON<any>(
         TEXT_MODEL, 
-        Prompts.MEMBER_INSIGHTS_PROMPT(title, exercises, logStr), 
+        Prompts.MEMBER_INSIGHTS_PROMPT(title, exercises, logStr, specificHistoryStr, aiProgressionPrompt), 
         fullMemberInsightSchema
     );
     
@@ -573,11 +627,32 @@ export async function generateBusinessActions(logs: WorkoutLog[]): Promise<strin
 }
 
 export async function generateWorkoutDiploma(logData: any): Promise<WorkoutDiploma> {
-    let stats = `Distans: ${logData.totalDistance}km, Kcal: ${logData.totalCalories}`;
+    let stats = `Distans: ${logData.totalDistance || 0}km, Kcal: ${logData.totalCalories || 0}`;
     if (logData.benchmarkValue !== undefined) {
         stats += `, Benchmark-resultat: ${logData.benchmarkValue}`;
     }
     const pbText = logData.newPBs?.map((pb: any) => `${pb.exerciseName} (+${pb.diff}kg)`).join(', ') || 'Inga nya PB.';
-    const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.DIPLOMA_GENERATOR_PROMPT(logData.workoutTitle, pbText, stats, logData.aiProgressionPrompt), diplomaSchema);
+    
+    // Bygg en sammanfattning av vilka övningar som faktiskt kördes
+    let exerciseSummary = "Inga specifika övningar hittades.";
+    if (logData.exerciseResults && logData.exerciseResults.length > 0) {
+        exerciseSummary = logData.exerciseResults.map((ex: any) => {
+            let details = [];
+            if (ex.sets) details.push(`${ex.sets} set`);
+            if (ex.reps) details.push(`${ex.reps} reps`);
+            if (ex.weight) details.push(`${ex.weight}kg`);
+            if (ex.distance) details.push(`${ex.distance}m`);
+            if (ex.time) {
+                const m = Math.floor(ex.time / 60);
+                const s = ex.time % 60;
+                details.push(m > 0 ? `${m}m ${s}s` : `${s}s`);
+            }
+            return `${ex.exerciseName}: ${details.join(', ')}`;
+        }).join(" | ");
+    } else if (logData.comment) {
+        exerciseSummary = `Användarkommentar: ${logData.comment}`;
+    }
+
+    const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.DIPLOMA_GENERATOR_PROMPT(logData.workoutTitle, pbText, stats, exerciseSummary, logData.aiProgressionPrompt), diplomaSchema);
     return { ...data, newPBs: logData.newPBs };
 }

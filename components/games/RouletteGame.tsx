@@ -396,10 +396,10 @@ export const RouletteGame: React.FC<RouletteGameProps> = ({ onBack }) => {
                                                 onFocus={() => setFocusedSliceIndex(index)}
                                                 onBlur={() => setTimeout(() => setFocusedSliceIndex(null), 200)}
                                                 placeholder={`Alternativ ${index + 1}`}
-                                                className="w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all text-sm"
+                                                className="relative z-10 w-full px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:text-gray-900 dark:focus:text-white focus:ring-2 focus:ring-primary focus:bg-white dark:focus:bg-gray-900 outline-none transition-all text-sm"
                                             />
                                             {focusedSliceIndex === index && slice.length > 0 && (
-                                                <div className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl max-h-48 overflow-y-auto">
+                                                <div className="absolute z-50 left-0 top-full w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl max-h-48 overflow-y-auto">
                                                     {MOCK_EXERCISE_BANK
                                                         .filter(ex => ex.name.toLowerCase().includes(slice.toLowerCase()))
                                                         .slice(0, 5)

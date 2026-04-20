@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Organization, Workout, UserData, BenchmarkDefinition } from '../../types';
 import { DumbbellIcon, BuildingIcon, UsersIcon, SpeakerphoneIcon, SparklesIcon, CopyIcon, PencilIcon, TrashIcon, ShuffleIcon, SearchIcon, ChevronLeftIcon, ChevronRightIcon, ChevronUpIcon, ChevronDownIcon, TrophyIcon, EyeIcon } from '../icons';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -254,14 +255,14 @@ const PassProgramModule: React.FC<{
             <div className="text-center max-w-2xl mx-auto mb-10">
                 <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white mb-3">Pass & Program</h2>
                 <p className="text-gray-500 dark:text-gray-400 text-lg">
-                    Skapa, hantera och publicera träningspass. Använd AI för att snabbt generera nya pass eller tolka dina anteckningar.
+                    Skapa, hantera och publicera träningspass. Använd AI för att snabbt generera nya pass.
                 </p>
                 <button onClick={onManageBenchmarks} className="mt-6 text-sm font-bold text-primary hover:underline flex items-center justify-center gap-2 mx-auto">
                     <TrophyIcon className="w-4 h-4" /> Hantera Benchmarks
                 </button>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
                 <button onClick={() => onNavigate('create')} className="group bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:border-primary/50 hover:shadow-md transition-all text-left">
                     <div className="w-12 h-12 bg-primary/10 text-primary rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                         <DumbbellIcon className="w-6 h-6" />
@@ -270,20 +271,16 @@ const PassProgramModule: React.FC<{
                     <p className="text-sm text-gray-500 dark:text-gray-400">Bygg ett pass från grunden med vår passbyggare.</p>
                 </button>
 
-                <button onClick={() => onNavigate('generate')} className="group bg-gradient-to-br from-purple-50 to-white dark:from-purple-900/20 dark:to-gray-800 p-8 rounded-2xl shadow-sm border border-purple-100 dark:border-purple-900/30 hover:border-purple-300 hover:shadow-md transition-all text-left">
-                    <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                        <SparklesIcon className="w-6 h-6" />
+                <button onClick={() => onNavigate('generate')} className="group bg-gradient-to-br from-purple-50 to-white dark:from-purple-900/20 dark:to-gray-800 p-8 rounded-2xl shadow-sm border border-purple-100 dark:border-purple-900/30 hover:border-purple-300 hover:shadow-md transition-all text-left flex border border-primary">
+                    <div>
+                        <div className="w-12 h-12 bg-purple-100 text-purple-600 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                            <SparklesIcon className="w-6 h-6" />
+                        </div>
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Skapa med AI</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                            Låt AI:n generera ett pass från dina önskemål, text, bild, youtube-länk eller anteckning.
+                        </p>
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Skapa med AI</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Låt AI:n generera ett komplett pass baserat på dina önskemål.</p>
-                </button>
-
-                <button onClick={() => onNavigate('parse')} className="group bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:border-primary/50 hover:shadow-md transition-all text-left">
-                    <div className="w-12 h-12 bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 rounded-xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                        <p className="font-bold text-xl">Aa</p>
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Tolka från text</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Klistra in anteckningar och låt systemet strukturera upp det.</p>
                 </button>
 
                 <button onClick={() => onNavigate('manage')} className="group bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 hover:border-primary/50 hover:shadow-md transition-all text-left">
@@ -608,113 +605,131 @@ const ManageWorkoutsView: React.FC<{
                         onClose={() => setPreviewWorkout(null)}
                     />
                 )}
-                {publishConfirmWorkoutId && (
-                    <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
-                        <motion.div 
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl"
-                        >
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Publicera pass</h3>
-                            <p className="text-gray-600 dark:text-gray-300 mb-6">
-                                Vill du skicka en pushnotis till medlemmarna om att passet är publicerat?
-                            </p>
-                            <div className="flex flex-col gap-3">
-                                <button 
-                                    onClick={() => {
-                                        onTogglePublish(publishConfirmWorkoutId, true, false);
-                                        setPublishConfirmWorkoutId(null);
-                                    }}
-                                    className="w-full py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-colors"
-                                >
-                                    Ja, skicka notis
-                                </button>
-                                <button 
-                                    onClick={() => {
-                                        onTogglePublish(publishConfirmWorkoutId, true, true);
-                                        setPublishConfirmWorkoutId(null);
-                                    }}
-                                    className="w-full py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-                                >
-                                    Nej, publicera i tysthet
-                                </button>
-                                <button 
-                                    onClick={() => setPublishConfirmWorkoutId(null)}
-                                    className="w-full py-3 text-gray-500 font-medium hover:text-gray-700 dark:hover:text-gray-300 transition-colors mt-2"
-                                >
-                                    Avbryt
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-                {deleteConfirmWorkoutId && (
-                    <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
-                        <motion.div 
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl"
-                        >
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Ta bort pass</h3>
-                            <p className="text-gray-600 dark:text-gray-300 mb-6">
-                                Är du säker på att du vill ta bort detta pass? Detta kan inte ångras.
-                            </p>
-                            <div className="flex justify-end gap-3">
-                                <button 
-                                    onClick={() => setDeleteConfirmWorkoutId(null)}
-                                    className="px-5 py-2.5 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
-                                >
-                                    Avbryt
-                                </button>
-                                <button 
-                                    onClick={() => {
-                                        onDelete(deleteConfirmWorkoutId);
-                                        setDeleteConfirmWorkoutId(null);
-                                    }}
-                                    className="px-5 py-2.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors"
-                                >
-                                    Ta bort
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
-                {copyConfirmWorkoutId && (
-                    <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
-                        <motion.div 
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl"
-                        >
-                            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Spara som mall</h3>
-                            <p className="text-gray-600 dark:text-gray-300 mb-6">
-                                Vill du skapa en permanent kopia av detta pass i biblioteket? Originalet ligger kvar som utkast.
-                            </p>
-                            <div className="flex justify-end gap-3">
-                                <button 
-                                    onClick={() => setCopyConfirmWorkoutId(null)}
-                                    className="px-5 py-2.5 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
-                                >
-                                    Avbryt
-                                </button>
-                                <button 
-                                    onClick={() => {
-                                        const workout = workouts.find(w => w.id === copyConfirmWorkoutId);
-                                        if (workout) onCopyToLibrary(workout);
-                                        setCopyConfirmWorkoutId(null);
-                                    }}
-                                    className="px-5 py-2.5 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600 transition-colors"
-                                >
-                                    Spara som mall
-                                </button>
-                            </div>
-                        </motion.div>
-                    </div>
-                )}
             </AnimatePresence>
+
+            {createPortal(
+                <AnimatePresence>
+                    {publishConfirmWorkoutId && (
+                        <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
+                            <motion.div 
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl"
+                            >
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Publicera pass</h3>
+                                <p className="text-gray-600 dark:text-gray-300 mb-6">
+                                    Vill du skicka en pushnotis till medlemmarna om att passet är publicerat?
+                                </p>
+                                <div className="flex flex-col gap-3">
+                                    <button 
+                                        onClick={() => {
+                                            onTogglePublish(publishConfirmWorkoutId, true, false);
+                                            setPublishConfirmWorkoutId(null);
+                                        }}
+                                        className="w-full py-3 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-colors"
+                                    >
+                                        Ja, skicka notis
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            onTogglePublish(publishConfirmWorkoutId, true, true);
+                                            setPublishConfirmWorkoutId(null);
+                                        }}
+                                        className="w-full py-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                                    >
+                                        Nej, publicera i tysthet
+                                    </button>
+                                    <button 
+                                        onClick={() => setPublishConfirmWorkoutId(null)}
+                                        className="w-full py-3 text-gray-500 font-medium hover:text-gray-700 dark:hover:text-gray-300 transition-colors mt-2"
+                                    >
+                                        Avbryt
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
+
+            {createPortal(
+                <AnimatePresence>
+                    {deleteConfirmWorkoutId && (
+                        <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
+                            <motion.div 
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl"
+                            >
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Ta bort pass</h3>
+                                <p className="text-gray-600 dark:text-gray-300 mb-6">
+                                    Är du säker på att du vill ta bort detta pass? Detta kan inte ångras.
+                                </p>
+                                <div className="flex justify-end gap-3">
+                                    <button 
+                                        onClick={() => setDeleteConfirmWorkoutId(null)}
+                                        className="px-5 py-2.5 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                                    >
+                                        Avbryt
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            onDelete(deleteConfirmWorkoutId);
+                                            setDeleteConfirmWorkoutId(null);
+                                        }}
+                                        className="px-5 py-2.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors"
+                                    >
+                                        Ta bort
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
+
+            {createPortal(
+                <AnimatePresence>
+                    {copyConfirmWorkoutId && (
+                        <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
+                            <motion.div 
+                                initial={{ opacity: 0, scale: 0.95 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl"
+                            >
+                                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Spara som mall</h3>
+                                <p className="text-gray-600 dark:text-gray-300 mb-6">
+                                    Vill du skapa en permanent kopia av detta pass i biblioteket? Originalet ligger kvar som utkast.
+                                </p>
+                                <div className="flex justify-end gap-3">
+                                    <button 
+                                        onClick={() => setCopyConfirmWorkoutId(null)}
+                                        className="px-5 py-2.5 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                                    >
+                                        Avbryt
+                                    </button>
+                                    <button 
+                                        onClick={() => {
+                                            const workout = workouts.find(w => w.id === copyConfirmWorkoutId);
+                                            if (workout) onCopyToLibrary(workout);
+                                            setCopyConfirmWorkoutId(null);
+                                        }}
+                                        className="px-5 py-2.5 bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600 transition-colors"
+                                    >
+                                        Spara som mall
+                                    </button>
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
         </div>
     );
 };
@@ -830,6 +845,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
                     sessionRole="organizationadmin"
                     isNewDraft={isNewDraft}
                     organization={organization}
+                    isAdminView={true}
                     setCustomBackHandler={setCustomBackHandler}
                 />
             </div>

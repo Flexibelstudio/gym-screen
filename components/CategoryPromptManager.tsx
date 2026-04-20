@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { CustomCategoryWithPrompt } from '../types';
-import { ICON_OPTIONS, getIconComponent } from './icons';
+import { ICON_OPTIONS, getIconComponent, ChevronUpIcon, ChevronDownIcon } from './icons';
 
 interface CategoryPromptManagerProps {
     categories: CustomCategoryWithPrompt[];
@@ -50,12 +50,23 @@ export const CategoryPromptManager: React.FC<CategoryPromptManagerProps> = ({ ca
         }
     };
 
+    const handleMoveCategory = (index: number, direction: 'up' | 'down') => {
+        const newCats = [...categories];
+        if (direction === 'up' && index > 0) {
+            [newCats[index], newCats[index - 1]] = [newCats[index - 1], newCats[index]];
+            onCategoriesChange(newCats);
+        } else if (direction === 'down' && index < newCats.length - 1) {
+            [newCats[index], newCats[index + 1]] = [newCats[index + 1], newCats[index]];
+            onCategoriesChange(newCats);
+        }
+    };
+
     return (
         <div className="space-y-4">
             <p className="text-sm text-gray-600 dark:text-gray-400">
-                Dessa passkategorier visas som knappar på hemskärmen och i AI-passbyggaren.
+                Dessa passkategorier visas som knappar på hemskärmen och i AI-passbyggaren. Sorterningen här är även sorteringen de visas i.
             </p>
-            {categories.map(cat => {
+            {categories.map((cat, index) => {
                 const isExpanded = !!expandedPrompts[cat.id];
                 const isEditing = editingState.hasOwnProperty(cat.id);
                 const CurrentIcon = getIconComponent(cat.icon || 'dumbbell');
@@ -65,6 +76,24 @@ export const CategoryPromptManager: React.FC<CategoryPromptManagerProps> = ({ ca
                     <div key={cat.id} className="bg-slate-200/50 dark:bg-black/50 p-4 rounded-lg border border-slate-300 dark:border-gray-600">
                         <div className="flex justify-between items-center gap-4">
                             <div className="flex items-center gap-3 flex-grow">
+                                <div className="flex flex-col gap-1 items-center justify-center mr-2">
+                                    <button
+                                        onClick={() => handleMoveCategory(index, 'up')}
+                                        disabled={index === 0 || isSaving}
+                                        className="p-1 text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                        title="Flytta upp"
+                                    >
+                                        <ChevronUpIcon className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => handleMoveCategory(index, 'down')}
+                                        disabled={index === categories.length - 1 || isSaving}
+                                        className="p-1 text-gray-400 hover:text-gray-900 dark:hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                                        title="Flytta ner"
+                                    >
+                                        <ChevronDownIcon className="w-4 h-4" />
+                                    </button>
+                                </div>
                                 <button 
                                     onClick={() => setIconPickerOpen(isPickingIcon ? null : cat.id)}
                                     className="w-10 h-10 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center text-gray-700 dark:text-gray-200 shadow-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border border-gray-200 dark:border-gray-600"

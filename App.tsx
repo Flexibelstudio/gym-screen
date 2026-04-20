@@ -14,7 +14,7 @@ import { WelcomePaywall } from './components/WelcomePaywall';
 import PendingCoachScreen from './components/PendingCoachScreen';
 
 // --- Services ---
-import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages } from './services/firebaseService';
+import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages, activateMemberSubscriptionLocally } from './services/firebaseService';
 import { Toast } from './components/ui/ToastNotification';
 
 // --- Utils ---
@@ -320,7 +320,13 @@ const App: React.FC = () => {
           return () => clearInterval(intervalId);
       }, [isStudioMode, selectedOrganization, selectedStudio]);
 
-  const [customBackHandler, setCustomBackHandler] = useState<(() => void) | null>(null);
+  const [customBackHandlerState, setCustomBackHandlerState] = useState<(() => void) | null>(null);
+  const customBackHandlerRef = useRef<(() => void) | null>(null);
+
+  const setCustomBackHandler = useCallback((handler: (() => void) | null) => {
+      customBackHandlerRef.current = handler;
+      setCustomBackHandlerState(handler ? () => handler : null);
+  }, []);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
   useEffect(() => {
@@ -444,6 +450,25 @@ const App: React.FC = () => {
   useEffect(() => {
       const params = new URLSearchParams(window.location.search);
       const logPayload = params.get('log');
+      const inviteCode = params.get('invite');
+      const coachCode = params.get('coach');
+      const successParam = params.get('success');
+      const typeParam = params.get('type');
+      
+      if (inviteCode || coachCode) {
+          setShowLogin(true);
+      }
+
+      // Optimistic update for member subscription success
+      if (successParam === 'true' && typeParam === 'member' && userData?.uid) {
+          console.log("Stripe checkout success! Optimistically activating subscription...");
+          // Uppdatera doc lokalt så vi släpps igenom betalväggen snabbt
+          activateMemberSubscriptionLocally(userData.uid).then(() => {
+              // Rensa sen bort url params så vi slipper checka varje gång
+              window.history.replaceState({}, document.title, window.location.pathname);
+          });
+      }
+
       if (logPayload) {
           try {
               const decoded = JSON.parse(atob(logPayload));
@@ -454,7 +479,7 @@ const App: React.FC = () => {
               console.error("Failed to parse QR payload from URL", e);
           }
       }
-  }, []);
+  }, [userData?.uid]);
 
   const pagesThatPreventScreensaver: Page[] = [
       Page.Timer, 
@@ -532,8 +557,8 @@ const App: React.FC = () => {
 
 
   const handleBack = useCallback(() => {
-    if (customBackHandler) {
-      customBackHandler();
+    if (customBackHandlerRef.current) {
+      customBackHandlerRef.current();
       return;
     }
 
@@ -588,7 +613,7 @@ const App: React.FC = () => {
     }
     
     setHistory(newHistory);
-  }, [history, role, isImpersonating, customBackHandler, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock]);
+  }, [history, role, isImpersonating, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock]);
 
   const handleMemberProfileRequest = () => {
       if (isStudioMode) {
@@ -675,6 +700,9 @@ const App: React.FC = () => {
                     controllerName: 'Touch Screen'
                 });
             }
+            navigateReplace(Page.WorkoutDetail);
+        } else if (isEditingNewDraft) {
+            setIsEditingNewDraft(false);
             navigateReplace(Page.WorkoutDetail);
         } else {
             handleBack();
@@ -1215,7 +1243,8 @@ const App: React.FC = () => {
   };
 
   const isFullScreenPage = page === Page.Timer || page === Page.RepsOnly || page === Page.IdeaBoard || page === Page.RemoteControl;
-  const paddingClass = isFullScreenPage ? '' : 'p-4 sm:p-6 lg:p-8';
+  const isAdminDashboardMode = page === Page.SuperAdmin || page === Page.SystemOwner;
+  const paddingClass = (isFullScreenPage || isAdminDashboardMode) ? '' : 'p-4 sm:p-6 lg:p-8';
   
   const isAdminOrCoach = role === 'systemowner' || role === 'organizationadmin' || role === 'coach';
   const isMemberFacingPage = [Page.Home, Page.WorkoutDetail, Page.SavedWorkouts, Page.MemberProfile, Page.WorkoutList, Page.WorkoutGamesHub].includes(page);
@@ -1336,13 +1365,14 @@ const App: React.FC = () => {
             onMemberProfileRequest={handleMemberProfileRequest} 
             onEditProfileRequest={handleEditProfileRequest}
             isStudioMode={isStudioMode}
-            hasCustomBack={!!customBackHandler}
+            hasCustomBack={!!customBackHandlerState}
+            navigateTo={navigateTo}
           />
        </div>
 
       <div className="flex flex-col items-center flex-1 min-h-0 relative">
           <main 
-            className={`flex-1 min-h-0 w-full ${isFullScreenPage ? 'block relative' : `flex flex-col items-center ${page === Page.Home || page === Page.MemberProfile ? 'justify-start' : 'justify-center'}`}`}
+            className={`flex-1 min-h-0 w-full ${isFullScreenPage || isAdminDashboardMode ? 'block relative' : `flex flex-col items-center ${page === Page.Home || page === Page.MemberProfile || page === Page.CoachNotes ? 'justify-start' : 'justify-center'}`}`}
           >
             {showPendingCoach ? (
                 <PendingCoachScreen onLogout={signOut} />
@@ -1372,6 +1402,7 @@ const App: React.FC = () => {
                 activeCustomPage={activeCustomPage}
                 customPageToEdit={customPageToEdit}
                 activeRaceId={activeRaceId}
+                isEditingNewDraft={isEditingNewDraft}
                 racePrepState={racePrepState}
                 followMeShowImage={followMeShowImage}
                 mobileLogData={null}

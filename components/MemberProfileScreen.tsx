@@ -61,18 +61,18 @@ const ResumeWorkoutBanner: React.FC<{
         <div className="absolute top-0 right-0 w-40 h-40 bg-white/20 rounded-full blur-3xl -mr-20 -mt-20 animate-pulse"></div>
         <div className="absolute bottom-0 left-0 w-24 h-24 bg-orange-600/10 rounded-full blur-2xl -ml-10 -mb-10"></div>
         
-        <div className="relative z-10 flex flex-col sm:flex-row items-center justify-between gap-5">
-            <div className="flex items-center gap-4 text-center sm:text-left">
+        <div className="relative z-10 flex flex-wrap md:flex-nowrap items-center justify-between gap-5">
+            <div className="flex items-center gap-4 text-left flex-1 min-w-[250px]">
                 <div className="w-14 h-14 bg-orange-950/10 rounded-2xl flex items-center justify-center shadow-inner shrink-0 border border-orange-950/5">
                     <ClockIcon className="w-7 h-7 text-orange-900 animate-pulse" />
                 </div>
-                <div>
+                <div className="min-w-0 flex-1">
                     <h4 className="text-[10px] font-black uppercase tracking-[0.25em] text-orange-900/60 mb-0.5">Du har ett pågående pass</h4>
-                    <p className="text-xl font-black leading-tight truncate max-w-[220px] sm:max-w-md text-orange-950 drop-shadow-sm">{workoutTitle}</p>
+                    <p className="text-xl font-black leading-tight line-clamp-2 break-words text-orange-950 drop-shadow-sm">{workoutTitle}</p>
                 </div>
             </div>
             
-            <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="flex items-center gap-3 w-full sm:w-auto shrink-0 justify-end">
                 <button 
                     onClick={onDismiss}
                     className="flex-1 sm:flex-none px-5 py-3 rounded-xl text-xs font-black bg-orange-950/10 hover:bg-orange-950/20 transition-colors uppercase tracking-widest text-orange-900"
@@ -119,9 +119,11 @@ const calculateWeeklyStreak = (logs: WorkoutLog[]) => {
 };
 
 const getLevelInfo = (count: number) => {
-    const level = Math.floor(count / 10) + 1;
-    const progressToNext = (count % 10) * 10;
-    return { level, progressToNext };
+    const workoutsPerLevel = 10;
+    const level = Math.floor(count / workoutsPerLevel) + 1;
+    const workoutsInCurrentLevel = count % workoutsPerLevel;
+    const progressToNext = (workoutsInCurrentLevel / workoutsPerLevel) * 100;
+    return { level, progressToNext, workoutsInCurrentLevel, workoutsPerLevel };
 };
 
 const getAthleteArchetype = (logs: WorkoutLog[]) => {
@@ -705,7 +707,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     }, [userData.goals]);
 
     const archetype = useMemo(() => getAthleteArchetype(logs), [logs]);
-    const { level, progressToNext } = useMemo(() => getLevelInfo(logs.length), [logs]);
+    const { level, progressToNext, workoutsInCurrentLevel, workoutsPerLevel } = useMemo(() => getLevelInfo(logs.length), [logs]);
 
     const handleResumeWorkout = () => {
         if (activeSession && functions.handleLogWorkoutRequest) {
@@ -911,7 +913,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-800">
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Nivå {level}</span>
-                            <span className="text-xs font-bold text-gray-400">{progressToNext.toFixed(0)}% till nästa</span>
+                            <span className="text-xs font-bold text-gray-400">
+                                {workoutsInCurrentLevel} av {workoutsPerLevel} pass till nivå {level + 1}
+                            </span>
                         </div>
                         <div className="w-full h-3 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                             <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${progressToNext}%` }}></div>

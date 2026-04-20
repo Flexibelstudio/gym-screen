@@ -81,7 +81,7 @@ const SavedWorkoutsScreen: React.FC<SavedWorkoutsScreenProps> = ({ workouts, onS
                             {/* Content */}
                             <div className="flex-grow mb-6">
                                 {workout.coachTips ? (
-                                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 leading-relaxed">
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3 leading-relaxed whitespace-pre-wrap">
                                         {workout.coachTips}
                                     </p>
                                 ) : (

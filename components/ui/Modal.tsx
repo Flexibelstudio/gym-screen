@@ -37,7 +37,7 @@ export const Modal: React.FC<ModalProps> = ({ isOpen, onClose, title, children, 
         <AnimatePresence>
             {isOpen && (
                 <motion.div
-                    className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-[10000] p-4"
+                    className="fixed inset-0 bg-black/40 backdrop-blur-md flex items-center justify-center z-[99999] p-4"
                     onClick={onClose}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}

@@ -8,10 +8,11 @@ import { useAuth } from '../context/AuthContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
 import { EditableField } from './workout-builder/EditableField';
 import { ExerciseBankPanel, ExercisePreviewModal } from './workout-builder/ExerciseBankPanel';
+import { createPortal } from 'react-dom';
 import { AICoachSidebar } from './workout-builder/AICoachPanel';
 import { EditableBlockCard } from './workout-builder/EditableBlockCard';
 import { analyzeCurrentWorkout } from '../services/geminiService';
-import { ToggleSwitch, DumbbellIcon, SparklesIcon, TrophyIcon, CheckIcon } from './icons';
+import { ToggleSwitch, DumbbellIcon, SparklesIcon, TrophyIcon, CheckIcon, ChevronLeftIcon } from './icons';
 import { Toast } from './ui/ToastNotification';
 import {
   DndContext,
@@ -220,10 +221,11 @@ interface WorkoutBuilderScreenProps {
   sessionRole: UserRole;
   isNewDraft?: boolean;
   organization?: Organization; // Needed for benchmarks
+  isAdminView?: boolean;
   setCustomBackHandler?: (handler: (() => void) | null) => void;
 }
 
-export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ initialWorkout, onSave, onCancel, focusedBlockId: initialFocusedBlockId, studioConfig, sessionRole, isNewDraft = false, organization, setCustomBackHandler }) => {
+export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ initialWorkout, onSave, onCancel, focusedBlockId: initialFocusedBlockId, studioConfig, sessionRole, isNewDraft = false, organization, isAdminView = false, setCustomBackHandler }) => {
   const { selectedOrganization } = useStudio();
   const { userData } = useAuth();
   const [workout, setWorkout] = useState<Workout>(() => initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
@@ -546,6 +548,8 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
       });
   }, []);
 
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
+
   const isDirty = useMemo(() => {
     if (isNewDraft && initialWorkout) {
         return true;
@@ -566,28 +570,48 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
   }, [workout, isSingleBlockMode, initialFocusedBlockId]);
 
 
-  const handleCancel = () => {
+  const handleCancelRef = useRef(() => {
     if (isDirty) {
-      if (window.confirm('Du har osparade ändringar. Är du säker på att du vill lämna?')) {
-        onCancel();
-      }
+      setShowUnsavedWarning(true);
     } else {
+      if (setCustomBackHandler) setCustomBackHandler(null);
       onCancel();
     }
+  });
+
+  useEffect(() => {
+    handleCancelRef.current = () => {
+      if (isDirty) {
+        setShowUnsavedWarning(true);
+      } else {
+        if (setCustomBackHandler) setCustomBackHandler(null);
+        onCancel();
+      }
+    };
+  }, [isDirty, onCancel, setCustomBackHandler]);
+
+  const handleCancel = () => {
+    handleCancelRef.current();
   };
 
   useEffect(() => {
     if (setCustomBackHandler) {
-      setCustomBackHandler(() => handleCancel);
+      setCustomBackHandler(() => handleCancelRef.current());
     }
     return () => {
       if (setCustomBackHandler) {
         setCustomBackHandler(null);
       }
     };
-  }, [setCustomBackHandler, isDirty, onCancel]);
+  }, [setCustomBackHandler]);
 
   const handleSave = async () => {
+    if (!isDirty && !isNewDraft) {
+      if (setCustomBackHandler) setCustomBackHandler(null);
+      onCancel();
+      return;
+    }
+
     const finalWorkout = { ...workout };
 
     if (isBenchmark) {
@@ -637,6 +661,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
             timestamp: Date.now()
         });
     }
+    if (setCustomBackHandler) setCustomBackHandler(null);
     onSave(finalWorkout);
   };
   
@@ -798,21 +823,23 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                       isTextarea
                   />
                   
-                  <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
-                      <label className="text-xs font-black text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-1 block flex items-center gap-2">
-                          <SparklesIcon className="w-4 h-4" /> AI Progressionsregel
-                      </label>
-                      <p className="text-sm text-purple-800/70 dark:text-purple-300/70 mb-3">
-                          Skriv en instruktion till AI:n om hur passet ska utvecklas nästa gång. T.ex: "Öka vikten med 2.5kg på knäböjen", eller "Om man når 10 reps ska man höja".
-                      </p>
-                      <textarea
-                          value={workout.aiProgressionPrompt || ''}
-                          onChange={e => handleUpdateWorkoutDetail('aiProgressionPrompt', e.target.value)}
-                          placeholder="Din instruktion till AI:n..."
-                          className="w-full bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-700 rounded-md p-3 text-base text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-y"
-                          rows={3}
-                      />
-                  </div>
+                  {isAdminView && (
+                      <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+                          <label className="text-xs font-black text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-1 block flex items-center gap-2">
+                              <SparklesIcon className="w-4 h-4" /> AI Progressionsregel
+                          </label>
+                          <p className="text-sm text-purple-800/70 dark:text-purple-300/70 mb-3">
+                              Skriv en instruktion till AI:n om hur passet ska utvecklas nästa gång. T.ex: "Öka vikten med 2.5kg på knäböjen", eller "Om man når 10 reps ska man höja".
+                          </p>
+                          <textarea
+                              value={workout.aiProgressionPrompt || ''}
+                              onChange={e => handleUpdateWorkoutDetail('aiProgressionPrompt', e.target.value)}
+                              placeholder="Din instruktion till AI:n..."
+                              className="w-full bg-white dark:bg-gray-800 border border-purple-200 dark:border-purple-700 rounded-md p-3 text-base text-gray-800 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-y"
+                              rows={3}
+                          />
+                      </div>
+                  )}
                   
                   {sessionRole !== 'member' && (
                     <div className="pt-4 border-t border-gray-200 dark:border-gray-700 grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -835,26 +862,22 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                             <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400">Inställningar för medlemmar</h4>
                             <div className="space-y-3">
                                 
-                                {workout.blocks.some(b => b.exercises?.some(e => e.loggingEnabled)) && (
-                                    <>
-                                        <ToggleSwitch 
-                                            label="Visa på skärm" 
-                                            checked={workout.showInStudio !== false} 
-                                            onChange={(val) => handleUpdateWorkoutDetail('showInStudio', val)} 
-                                        />
-                                        <ToggleSwitch 
-                                            label="Visa i medlemsapp" 
-                                            checked={
-                                                (studioConfig.customCategories.find(c => c.name === workout.category)?.isLocked) 
-                                                ? false 
-                                                : workout.showInApp !== false
-                                            } 
-                                            onChange={(val) => handleUpdateWorkoutDetail('showInApp', val)} 
-                                            disabled={studioConfig.customCategories.find(c => c.name === workout.category)?.isLocked}
-                                            description={studioConfig.customCategories.find(c => c.name === workout.category)?.isLocked ? "Låsta kategorier visas inte i appen." : undefined}
-                                        />
-                                    </>
-                                )}
+                                <ToggleSwitch 
+                                    label="Visa på skärm" 
+                                    checked={workout.showInStudio !== false} 
+                                    onChange={(val) => handleUpdateWorkoutDetail('showInStudio', val)} 
+                                />
+                                <ToggleSwitch 
+                                    label="Visa i medlemsapp" 
+                                    checked={
+                                        (studioConfig.customCategories.find(c => c.name === workout.category)?.isLocked) 
+                                        ? false 
+                                        : workout.showInApp !== false
+                                    } 
+                                    onChange={(val) => handleUpdateWorkoutDetail('showInApp', val)} 
+                                    disabled={studioConfig.customCategories.find(c => c.name === workout.category)?.isLocked}
+                                    description={studioConfig.customCategories.find(c => c.name === workout.category)?.isLocked ? "Låsta kategorier visas inte i appen." : undefined}
+                                />
 
                                 <div className="pt-2 border-t border-gray-200 dark:border-gray-700 mt-2">
                                     <div className="flex items-center gap-2 mb-2">
@@ -979,7 +1002,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
         
         <div className="mt-8 flex justify-end gap-4 pb-12 pt-4 border-t border-gray-200 dark:border-gray-700">
             <button onClick={handleCancel} className="bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-700 dark:text-white font-bold py-3 px-8 rounded-xl transition-colors">Avbryt</button>
-            <button onClick={handleSave} className="bg-primary hover:brightness-110 text-white font-bold py-3 px-8 rounded-xl transition-colors shadow-lg" disabled={!isDirty}>
+            <button onClick={handleSave} className="bg-primary hover:brightness-110 text-white font-bold py-3 px-8 rounded-xl transition-colors shadow-lg">
               Spara Pass
             </button>
         </div>
@@ -1062,6 +1085,36 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
           </div>
         ) : null}
       </DragOverlay>
+
+      {showUnsavedWarning && createPortal(
+          <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Osparade ändringar</h3>
+                  <p className="text-gray-600 dark:text-gray-300 mb-6">
+                      Du har gjort ändringar i passet som inte är sparade. Är du säker på att du vill lämna utan att spara?
+                  </p>
+                  <div className="flex justify-end gap-3">
+                      <button 
+                          onClick={() => setShowUnsavedWarning(false)}
+                          className="px-5 py-2.5 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                      >
+                          Avbryt
+                      </button>
+                      <button 
+                          onClick={() => {
+                              setShowUnsavedWarning(false);
+                              if (setCustomBackHandler) setCustomBackHandler(null);
+                              setTimeout(() => onCancel(), 0);
+                          }}
+                          className="px-5 py-2.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors"
+                      >
+                          Lämna utan att spara
+                      </button>
+                  </div>
+              </div>
+          </div>,
+          document.body
+      )}
     </DndContext>
   );
 };

@@ -317,7 +317,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                                     ? isLogButtonLocked 
                                         ? 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 cursor-not-allowed opacity-70' 
                                         : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-500 hover:border-gray-400'
-                                    : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-300 cursor-not-allowed'
+                                    : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 cursor-not-allowed border-dashed'
                             }`}
                             title={
                                 !isBanked 
@@ -329,6 +329,11 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                         >
                              {isLogButtonLocked && isBanked ? (
                                 <LockClosedIcon className="w-3.5 h-3.5 text-current" />
+                            ) : !isBanked ? (
+                                <>
+                                    <ChartBarIcon className="w-3.5 h-3.5 text-current opacity-50" />
+                                    <span className="opacity-70">Spara först</span>
+                                </>
                             ) : (
                                 <ChartBarIcon className={`w-3.5 h-3.5 ${exercise.loggingEnabled ? 'text-white' : 'text-current'}`} />
                             )}
@@ -704,7 +709,7 @@ export const EditableBlockCard: React.FC<EditableBlockCardProps> = ({
             <div className="bg-primary/5 dark:bg-primary/10 p-5 rounded-3xl flex justify-between items-center border border-primary/20">
                 <div>
                     <p className="text-[10px] font-black text-primary/60 uppercase tracking-widest mb-1">Vald Timer</p>
-                    <p className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">{block.settings.mode}</p>
+                    <p className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">{settingsText}</p>
                 </div>
                 <button onClick={onEditSettings} className="bg-primary text-white font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-xl shadow-lg shadow-primary/20 active:scale-95 transition-all">Anpassa klockan</button>
             </div>

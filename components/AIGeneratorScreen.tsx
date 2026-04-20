@@ -1,12 +1,15 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { SparklesIcon, DumbbellIcon, DocumentTextIcon, CloseIcon, VideoIcon, InformationCircleIcon } from './icons';
 import { generateWorkout, parseWorkoutFromText, parseWorkoutFromImage, parseWorkoutFromYoutube } from '../services/geminiService';
-import { resolveAndCreateExercises, getOrganizationExerciseBank } from '../services/firebaseService';
-import { Workout, WorkoutBlock, Exercise, StudioConfig, CustomCategoryWithPrompt } from '../types';
+import { resolveAndCreateExercises, getOrganizationExerciseBank, listenToCoachNotes } from '../services/firebaseService';
+import { Workout, WorkoutBlock, Exercise, StudioConfig, CustomCategoryWithPrompt, CoachNote } from '../types';
 import { useStudio } from '../context/StudioContext';
 import { useAuth } from '../context/AuthContext';
 import { resizeImage } from '../utils/imageUtils';
+import { Modal } from './ui/Modal';
 
 // --- LOKALA KOMPONENTER FÖR ATT UNDVIKA KRASCH ---
 
@@ -51,11 +54,46 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
     const [error, setError] = useState<string | null>(null);
     const [generatedWorkout, setGeneratedWorkout] = useState<Workout | null>(null);
     
+    // Notes Import State
+    const [coachNotes, setCoachNotes] = useState<CoachNote[]>([]);
+    const [isNotesModalOpen, setIsNotesModalOpen] = useState(false);
+    
     // Image Handling State
     const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const dropZoneRef = useRef<HTMLDivElement>(null);
     const [isDragging, setIsDragging] = useState(false);
+
+    // Fetch coach notes
+    useEffect(() => {
+        if (!selectedOrganization?.id) return;
+        const unsubscribe = listenToCoachNotes(selectedOrganization.id, (notes) => {
+            setCoachNotes(notes);
+        });
+        return () => unsubscribe();
+    }, [selectedOrganization?.id]);
+
+    const handleImportNote = async (note: CoachNote) => {
+        setIsNotesModalOpen(false);
+        if (note.text) {
+            setPrompt(note.text);
+        }
+        if (note.imageUrl) {
+            setActiveTab('parse'); // Auto-switch to parse tab to show the image
+            setIsProcessing(true);
+            try {
+                const { fetchImageAsBase64 } = await import('../utils/imageFetch');
+                const base64DataUrl = await fetchImageAsBase64(note.imageUrl);
+                setSelectedImage(base64DataUrl);
+                setIsProcessing(false);
+            } catch (err) {
+                console.error("Failed to load note image", err);
+                setError("Kunde inte hämta bilden (CORS).");
+                setIsProcessing(false);
+            }
+        }
+    };
 
     // Sync state if prop changes
     useEffect(() => {
@@ -247,27 +285,36 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
             <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-xl relative overflow-hidden transition-colors">
                 
                 {/* Tabs */}
-                <div className="flex gap-4 mb-6 border-b border-gray-200 dark:border-gray-800 pb-4 overflow-x-auto scrollbar-hide">
+                <div className="flex flex-wrap gap-2 sm:gap-4 mb-6 border-b border-gray-200 dark:border-gray-800 pb-4">
                     <button 
                         onClick={() => setActiveTab('generate')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-bold whitespace-nowrap ${activeTab === 'generate' ? 'bg-purple-600 text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors font-bold whitespace-nowrap ${activeTab === 'generate' ? 'bg-purple-600 text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                     >
                         <SparklesIcon className="w-5 h-5" />
                         Skapa nytt
                     </button>
                     <button 
                         onClick={() => setActiveTab('parse')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-bold whitespace-nowrap ${activeTab === 'parse' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors font-bold whitespace-nowrap ${activeTab === 'parse' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                     >
                         <DocumentTextIcon className="w-5 h-5" />
                         Tolka text/bild
                     </button>
                     <button 
                         onClick={() => setActiveTab('youtube')}
-                        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-bold whitespace-nowrap ${activeTab === 'youtube' ? 'bg-red-600 text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                        className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors font-bold whitespace-nowrap ${activeTab === 'youtube' ? 'bg-red-600 text-white' : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'}`}
                     >
                         <VideoIcon className="w-5 h-5" />
                         YouTube-länk
+                    </button>
+
+                    <div className="w-full sm:w-px h-px sm:h-auto bg-gray-200 dark:bg-gray-700 sm:mx-1 my-2 sm:my-0"></div>
+
+                    <button 
+                        onClick={(e) => { e.preventDefault(); setIsNotesModalOpen(true); }}
+                        className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg transition-colors font-bold whitespace-nowrap text-indigo-600 bg-indigo-50 hover:bg-indigo-100 dark:text-indigo-400 dark:bg-indigo-900/30 dark:hover:bg-indigo-900/50"
+                    >
+                        📝 Hämta anteckning
                     </button>
                 </div>
 
@@ -354,11 +401,18 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                         />
                         
                         {selectedImage ? (
-                            <div className="relative w-full h-48 group" onClick={(e) => e.stopPropagation()}>
-                                <img src={selectedImage} alt="Uppladdad" className="w-full h-full object-contain rounded-lg" />
+                            <div 
+                                className="relative w-full h-48 group cursor-pointer" 
+                                onClick={(e) => { e.stopPropagation(); setFullscreenImage(selectedImage); }}
+                                title="Klicka för att förstora"
+                            >
+                                <img src={selectedImage} alt="Uppladdad" className="w-full h-full object-contain rounded-lg transition-transform" />
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg pointer-events-none">
+                                    <span className="text-white font-bold tracking-widest uppercase text-sm">Förstora bild</span>
+                                </div>
                                 <button 
-                                    onClick={() => { setSelectedImage(null); if(fileInputRef.current) fileInputRef.current.value = ''; }}
-                                    className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition-colors"
+                                    onClick={(e) => { e.stopPropagation(); setSelectedImage(null); if(fileInputRef.current) fileInputRef.current.value = ''; }}
+                                    className="absolute top-2 right-2 bg-red-600 text-white p-2 rounded-full shadow-lg hover:bg-red-700 transition-colors z-10"
                                     title="Ta bort bild"
                                 >
                                     <CloseIcon className="w-4 h-4" />
@@ -412,17 +466,19 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                         <span className="text-xs text-gray-500 italic">Jag hittar automatiskt övningar, reps och tider.</span>
                     )}
                     
-                    <button
-                        onClick={handleAction}
-                        disabled={isProcessing || (activeTab === 'generate' && !selectedCategory && !prompt.trim()) || (activeTab === 'parse' && !prompt.trim() && !selectedImage) || (activeTab === 'youtube' && !youtubeUrl.trim())}
-                        className={`
-                            ${activeTab === 'generate' ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500' : activeTab === 'youtube' ? 'bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500'}
-                            text-white font-bold py-3 px-8 rounded-xl shadow-lg transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 w-full sm:w-auto justify-center
-                        `}
-                    >
-                        {activeTab === 'generate' ? <SparklesIcon className="w-5 h-5" /> : activeTab === 'youtube' ? <VideoIcon className="w-5 h-5" /> : <DocumentTextIcon className="w-5 h-5" />}
-                        {activeTab === 'generate' ? 'Skapa Pass med AI' : activeTab === 'youtube' ? 'Analysera Video' : (selectedImage ? 'Tolka Bild' : 'Tolka Text')}
-                    </button>
+                    <div className="flex gap-3 w-full sm:w-auto">
+                        <button
+                            onClick={handleAction}
+                            disabled={isProcessing || (activeTab === 'generate' && !selectedCategory && !prompt.trim()) || (activeTab === 'parse' && !prompt.trim() && !selectedImage) || (activeTab === 'youtube' && !youtubeUrl.trim())}
+                            className={`
+                                ${activeTab === 'generate' ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500' : activeTab === 'youtube' ? 'bg-gradient-to-r from-red-600 to-red-800 hover:from-red-500 hover:to-red-700' : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500'}
+                                text-white font-bold py-3 px-6 sm:px-8 rounded-xl shadow-lg transition-all transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 flex-grow sm:flex-grow-0 justify-center
+                            `}
+                        >
+                            {activeTab === 'generate' ? <SparklesIcon className="w-5 h-5" /> : activeTab === 'youtube' ? <VideoIcon className="w-5 h-5" /> : <DocumentTextIcon className="w-5 h-5" />}
+                            {activeTab === 'generate' ? 'Skapa Pass med AI' : activeTab === 'youtube' ? 'Analysera Video' : (selectedImage ? 'Tolka Bild' : 'Tolka Text')}
+                        </button>
+                    </div>
                 </div>
                 
                 {error && (
@@ -496,6 +552,76 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
                         ))}
                     </div>
                 </div>
+            )}
+            
+            {/* Modal for importing notes (AIGenerator) */}
+            <Modal isOpen={isNotesModalOpen} onClose={() => setIsNotesModalOpen(false)} title="Välj Anteckning" size="4xl">
+                {coachNotes.length === 0 ? (
+                    <p className="text-gray-500 text-center py-12">Inga anteckningar hittades.</p>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 p-2 max-h-[60vh] overflow-y-auto">
+                        {coachNotes.map(note => (
+                            <button 
+                                key={note.id}
+                                onClick={() => handleImportNote(note)}
+                                className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-left hover:border-primary transition-colors flex flex-col group h-full shadow-sm"
+                            >
+                                <div className="flex items-center gap-3 mb-3 shrink-0">
+                                    {note.creatorPhotoUrl ? (
+                                        <img src={note.creatorPhotoUrl} alt="" className="w-8 h-8 rounded-full" referrerPolicy="no-referrer" />
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs">
+                                            {note.creatorName.charAt(0)}
+                                        </div>
+                                    )}
+                                    <div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 leading-tight">{note.creatorName}</p>
+                                        <h4 className="font-bold text-gray-900 dark:text-white line-clamp-1">{note.title}</h4>
+                                    </div>
+                                </div>
+                                
+                                {note.imageUrl ? (
+                                    <div className="w-full h-32 bg-gray-200 dark:bg-gray-900 rounded-lg overflow-hidden shrink-0">
+                                        <img src={note.imageUrl} alt="" className="w-full h-full object-cover" />
+                                    </div>
+                                ) : (
+                                    <div className="w-full flex-grow bg-gray-100 dark:bg-gray-900 rounded-lg p-3 overflow-hidden">
+                                        <p className="text-xs text-gray-600 dark:text-gray-300 font-serif line-clamp-6">{note.text}</p>
+                                    </div>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </Modal>
+
+            {/* Fullscreen Image Preview */}
+            {typeof window !== 'undefined' && createPortal(
+                <AnimatePresence>
+                    {fullscreenImage && (
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[999999] bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
+                            onClick={() => setFullscreenImage(null)}
+                        >
+                            <button 
+                                className="absolute top-6 right-6 bg-white/10 hover:bg-white/20 text-white rounded-full p-3 transition-colors"
+                                onClick={(e) => { e.stopPropagation(); setFullscreenImage(null); }}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                            <img 
+                                src={fullscreenImage} 
+                                alt="Förstorad" 
+                                className="max-w-full max-h-full object-contain"
+                                onClick={(e) => e.stopPropagation()} 
+                            />
+                        </motion.div>
+                    )}
+                </AnimatePresence>,
+                document.body
             )}
         </div>
     );

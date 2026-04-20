@@ -43,7 +43,8 @@ const MenuCard: React.FC<{
     isBlurred?: boolean;
     isSparkling?: boolean;
     isLocked?: boolean;
-}> = ({ title, subTitle, onClick, icon, delay = 0, isActive = false, isBlurred = false, isSparkling = false, isLocked = false }) => {
+    hideTitle?: boolean;
+}> = ({ title, subTitle, onClick, icon, delay = 0, isActive = false, isBlurred = false, isSparkling = false, isLocked = false, hideTitle = false }) => {
     const variants = {
         initial: { opacity: 0, y: 20, scale: 1, filter: "blur(0px)" },
         enter: { 
@@ -107,16 +108,20 @@ const MenuCard: React.FC<{
                     )}
                 </div>
                 <div className="min-w-0 w-full">
-                    <h3 
-                        className="text-base sm:text-lg md:text-xl lg:text-2xl font-black leading-tight drop-shadow-md tracking-tight uppercase break-words line-clamp-3"
-                        style={{ wordBreak: 'break-word', hyphens: 'auto' }}
-                    >
-                        {title}
-                    </h3>
-                    {subTitle && (
-                        <p className="text-[10px] md:text-xs font-bold text-white/80 mt-1 uppercase tracking-widest truncate">
-                            {subTitle}
-                        </p>
+                    {!hideTitle && (
+                        <>
+                            <h3 
+                                className="text-base sm:text-lg md:text-xl lg:text-2xl font-black leading-tight drop-shadow-md tracking-tight uppercase break-words line-clamp-3"
+                                style={{ wordBreak: 'break-word', hyphens: 'auto' }}
+                            >
+                                {title}
+                            </h3>
+                            {subTitle && (
+                                <p className="text-[10px] md:text-xs font-bold text-white/80 mt-1 uppercase tracking-widest truncate">
+                                    {subTitle}
+                                </p>
+                            )}
+                        </>
                     )}
                 </div>
             </div>
@@ -194,7 +199,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   }, []);
   
   const menuItems = useMemo(() => {
-    const items: (MenuItem & { passkategori?: Passkategori, icon?: React.ReactNode, isLocked?: boolean })[] = [];
+    const items: (MenuItem & { passkategori?: Passkategori, icon?: React.ReactNode, isLocked?: boolean, hideTitle?: boolean })[] = [];
     studioConfig.customCategories.forEach((category) => {
         items.push({ 
             title: category.name, 
@@ -212,10 +217,10 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         });
     });
     if (studioConfig.enableHyrox) items.push({ title: 'HYROX', action: () => navigateTo(Page.Hyrox), icon: <HyroxIcon /> });
-    if (studioConfig.enableWorkoutGames) items.push({ title: 'Träningslekar', subTitle: 'Smart Play', action: () => navigateTo(Page.WorkoutGamesHub), icon: <SparklesIcon className="w-8 h-8" /> });
-    if (studioConfig.enableNotes) items.push({ title: 'Idé-tavlan', subTitle: 'Rita & Skissa', action: () => navigateTo(Page.IdeaBoard), icon: <PencilIcon className="w-8 h-8" /> });
-    items.push({ title: 'Timer', subTitle: 'Intervall', action: () => navigateTo(Page.FreestandingTimer), icon: <TimerIcon /> });
-    items.push({ title: 'Övriga pass', subTitle: 'Favoriter & Utkast', action: () => navigateTo(Page.SavedWorkouts), icon: <StarIcon className="w-8 h-8" filled={false} /> });
+    if (studioConfig.enableWorkoutGames) items.push({ title: 'Träningslekar', action: () => navigateTo(Page.WorkoutGamesHub), icon: <SparklesIcon className="w-8 h-8" /> });
+    if (studioConfig.enableNotes) items.push({ title: 'AI White-board', action: () => navigateTo(Page.IdeaBoard), icon: <PencilIcon className="w-8 h-8" /> });
+    if (studioConfig.enableTimer !== false) items.push({ title: 'Timer', subTitle: 'Intervall', action: () => navigateTo(Page.FreestandingTimer), icon: <TimerIcon /> });
+    if (studioConfig.enableOtherWorkouts !== false) items.push({ title: 'Övriga pass', action: () => navigateTo(Page.SavedWorkouts), icon: <StarIcon className="w-8 h-8" filled={false} /> });
     return items;
   }, [studioConfig, navigateTo, onSelectPasskategori]);
 
@@ -295,6 +300,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                             key={item.title}
                             title={item.title}
                             subTitle={item.subTitle}
+                            hideTitle={item.hideTitle}
                             onClick={() => handleItemClick(index, item.action)}
                             icon={item.icon}
                             delay={0.1 + (index * 0.03)}

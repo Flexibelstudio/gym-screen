@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise } from '../types';
 import { ToggleSwitch, PencilIcon, ChartBarIcon, SparklesIcon, ChevronUpIcon, ChevronDownIcon, TrashIcon, BuildingIcon, PlusIcon, LockClosedIcon } from './icons';
 import { TimerSetupModal } from './TimerSetupModal';
 import { getExerciseBank, getOrganizationExerciseBank, saveExerciseToBank } from '../services/firebaseService';
-import { interpretHandwriting, generateExerciseDescription } from '../services/geminiService';
+import { generateExerciseDescription } from '../services/geminiService';
 import { useStudio } from '../context/StudioContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,150 +20,6 @@ const parseExerciseLine = (line: string): { reps: string; name: string } => {
     }
     return { reps: '', name: trimmedLine };
 };
-
-// --- Handwriting Modal ---
-interface HandwritingInputModalProps {
-    onClose: () => void;
-    onComplete: (text: string) => void;
-}
-
-const HandwritingInputModal: React.FC<HandwritingInputModalProps> = ({ onClose, onComplete }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [history, setHistory] = useState<ImageData[]>([]);
-    const historyRef = useRef(history);
-    historyRef.current = history;
-    const isDrawing = useRef(false);
-    const points = useRef<{x: number, y: number}[]>([]);
-
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
-        
-        const setupCanvas = () => {
-            const dpr = window.devicePixelRatio || 1;
-            const rect = canvas.getBoundingClientRect(); 
-            if(rect.width === 0 || rect.height === 0) return;
-            canvas.width = Math.round(rect.width * dpr);
-            canvas.height = Math.round(rect.height * dpr);
-            ctx.strokeStyle = '#FFFFFF';
-            ctx.lineWidth = 3 * dpr;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-        };
-
-        setupCanvas();
-
-        const getPointerPos = (e: PointerEvent) => {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
-        };
-
-        const startDrawing = (e: PointerEvent) => {
-            e.preventDefault();
-            isDrawing.current = true;
-            points.current = [getPointerPos(e)];
-        };
-
-        const draw = (e: PointerEvent) => {
-            if (!isDrawing.current) return;
-            e.preventDefault();
-            const pos = getPointerPos(e);
-            points.current.push(pos);
-            if (points.current.length < 3) return;
-            const p1 = points.current[points.current.length - 3];
-            const p2 = points.current[points.current.length - 2];
-            const p3 = points.current[points.current.length - 1];
-            const mid1 = { x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 };
-            const mid2 = { x: (p2.y + p3.x) / 2, y: (p2.y + p3.y) / 2 };
-            ctx.beginPath(); ctx.moveTo(mid1.x, mid1.y); ctx.quadraticCurveTo(p2.x, p2.y, mid2.x, mid2.y); ctx.stroke();
-        };
-
-        const stopDrawing = () => {
-            if (!isDrawing.current) return;
-            isDrawing.current = false;
-            setHistory(prev => [...prev, ctx.getImageData(0, 0, canvas.width, canvas.height)]);
-            points.current = [];
-        };
-
-        canvas.addEventListener('pointerdown', startDrawing);
-        canvas.addEventListener('pointermove', draw);
-        canvas.addEventListener('pointerup', stopDrawing);
-        canvas.addEventListener('pointerleave', stopDrawing);
-        return () => {
-            canvas.removeEventListener('pointerdown', startDrawing);
-            canvas.removeEventListener('pointermove', draw);
-            canvas.removeEventListener('pointerup', stopDrawing);
-            canvas.removeEventListener('pointerleave', stopDrawing);
-        };
-    }, []);
-
-    const handleInterpret = async () => {
-        if (!canvasRef.current) return;
-        setIsLoading(true);
-        try {
-            const dataUrl = canvasRef.current.toDataURL('image/png');
-            const base64Image = dataUrl.split(',')[1];
-            const text = await interpretHandwriting(base64Image);
-            onComplete(text);
-        } catch(e) {
-            alert(e instanceof Error ? e.message : 'Ett okänt fel inträffade.');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-    
-    const handleUndo = () => {
-        const canvas = canvasRef.current;
-        const ctx = canvas?.getContext('2d');
-        if (!canvas || !ctx) return;
-
-        const newHistory = history.slice(0, -1);
-        setHistory(newHistory);
-        
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        if (newHistory.length > 0) {
-            ctx.putImageData(newHistory[newHistory.length - 1], 0, 0);
-        }
-    };
-    
-    const clearCanvas = () => {
-        const canvas = canvasRef.current;
-        if (canvas) {
-            const ctx = canvas.getContext('2d');
-            ctx?.clearRect(0, 0, canvas.width, canvas.height);
-        }
-        setHistory([]);
-    };
-    
-    return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-fade-in" onClick={onClose}>
-            <div className="bg-gray-800 rounded-xl p-4 sm:p-6 w-full max-w-2xl text-white shadow-2xl border border-gray-700 flex flex-col" onClick={e => e.stopPropagation()}>
-                <h2 className="text-xl font-bold mb-4">Skriv med fingret</h2>
-                <div className="w-full aspect-[2/1] bg-gray-900 rounded-lg overflow-hidden" style={{ touchAction: 'none' }}>
-                    <canvas ref={canvasRef} className="w-full h-full" />
-                </div>
-                {isLoading && (
-                     <div className="absolute inset-0 bg-gray-800/70 flex flex-col items-center justify-center">
-                        <p className="text-lg font-semibold">Tolkar handstil...</p>
-                    </div>
-                )}
-                <div className="mt-4 grid grid-cols-4 gap-2 sm:gap-4">
-                    <button onClick={handleUndo} disabled={history.length === 0} className="bg-gray-600 hover:bg-gray-500 font-bold py-3 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">Ångra</button>
-                    <button onClick={clearCanvas} className="bg-gray-600 hover:bg-gray-500 font-bold py-3 rounded-lg">Rensa</button>
-                    <button onClick={onClose} className="bg-gray-600 hover:bg-gray-500 font-bold py-3 rounded-lg">Avbryt</button>
-                    <button onClick={handleInterpret} className="bg-primary hover:brightness-95 font-bold py-3 rounded-lg">Tolka</button>
-                </div>
-            </div>
-        </div>
-    );
-};
-
 
 // --- Helper functions to create new items ---
 const createNewWorkout = (): Workout => ({
@@ -228,7 +85,6 @@ interface ExerciseItemProps {
     exercise: Exercise;
     onUpdate: (id: string, updatedValues: Partial<Exercise>) => void;
     onRemove: (id: string) => void;
-    onOpenHandwriting: () => void;
     exerciseBank: BankExercise[];
     organizationId: string;
     index: number;
@@ -237,7 +93,7 @@ interface ExerciseItemProps {
     enableWorkoutLogging?: boolean;
     onShowToast: (message: string) => void;
 }
-const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, onOpenHandwriting, exerciseBank, index, total, onMove, enableWorkoutLogging, onShowToast }) => {
+const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemove, exerciseBank, index, total, onMove, enableWorkoutLogging, onShowToast }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearchVisible, setIsSearchVisible] = useState(false);
     const searchContainerRef = useRef<HTMLDivElement>(null);
@@ -405,6 +261,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                     
                     <button 
                         onClick={handleToggleLogging}
+                        disabled={!isBanked}
                         className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all border font-black text-[10px] uppercase tracking-wider transform active:scale-95 ${
                             exercise.loggingEnabled 
                             ? 'bg-green-500 border-green-600 text-white shadow-lg' 
@@ -412,7 +269,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                                 ? isLogButtonLocked
                                     ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400 cursor-not-allowed opacity-70'
                                     : 'bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-600 text-gray-400 hover:border-gray-400'
-                                : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-300 cursor-not-allowed'
+                                : 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-400 cursor-not-allowed border-dashed'
                         }`}
                         title={
                             !isBanked 
@@ -424,14 +281,17 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
                     >
                         {isLogButtonLocked && isBanked ? (
                             <LockClosedIcon className="w-3.5 h-3.5 text-current" />
+                        ) : !isBanked ? (
+                            <>
+                                <ChartBarIcon className="w-4 h-4 text-current opacity-50" />
+                                <span className="hidden sm:inline opacity-70">Spara först</span>
+                            </>
                         ) : (
-                            <ChartBarIcon className={`w-4 h-4 ${exercise.loggingEnabled ? 'text-white' : 'text-current'}`} />
+                            <>
+                                <ChartBarIcon className={`w-4 h-4 ${exercise.loggingEnabled ? 'text-white' : 'text-current'}`} />
+                                <span className="hidden sm:inline">{exercise.loggingEnabled ? 'Loggas' : 'Loggas ej'}</span>
+                            </>
                         )}
-                        <span className="hidden sm:inline">{exercise.loggingEnabled ? 'Loggas' : 'Loggas ej'}</span>
-                    </button>
-
-                    <button onClick={onOpenHandwriting} className="text-gray-400 hover:text-primary p-2" title="Skriv för hand">
-                        <PencilIcon className="w-5 h-5" />
                     </button>
 
                     <button onClick={() => onRemove(exercise.id)} className="text-red-500 p-2" title="Ta bort">
@@ -498,12 +358,11 @@ interface BlockCardProps {
     onUpdate: (updatedBlock: WorkoutBlock) => void;
     onRemove: () => void;
     onEditSettings: () => void;
-    onOpenHandwriting: (cb: (text: string) => void) => void;
     exerciseBank: BankExercise[];
     enableWorkoutLogging?: boolean;
     onShowToast: (message: string) => void;
 }
-const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpdate, onRemove, onEditSettings, onOpenHandwriting, exerciseBank, enableWorkoutLogging, onShowToast }) => {
+const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpdate, onRemove, onEditSettings, exerciseBank, enableWorkoutLogging, onShowToast }) => {
     const handleFieldChange = (field: keyof WorkoutBlock, value: any) => {
         const updated = { ...block, [field]: value };
         if (field === 'title' && typeof value === 'string') {
@@ -543,6 +402,30 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
         });
         onUpdate({ ...block, exercises: updatedExercises });
     };
+
+    const settingsText = useMemo(() => {
+        const { mode, workTime, restTime, rounds, specifiedLaps, specifiedIntervalsPerLap } = block.settings;
+        if (mode === TimerMode.NoTimer) return "Ingen timer";
+        if (mode === TimerMode.Stopwatch) return "Stoppur";
+        
+        const formatTime = (t: number) => {
+            const m = Math.floor(t / 60);
+            const s = t % 60;
+            const mPart = m > 0 ? `${m}m` : '';
+            const sPart = s > 0 ? `${s}s` : '';
+            return `${mPart} ${sPart}`.trim() || '0s';
+        }
+
+        if (mode === TimerMode.AMRAP || mode === TimerMode.TimeCap) return `${mode}: ${formatTime(workTime)}`;
+        if (mode === TimerMode.EMOM) return `EMOM: ${rounds} min`;
+
+        let displayString = `${mode}: ${rounds}x`;
+        if (specifiedLaps && specifiedIntervalsPerLap) {
+            displayString = `${mode}: ${specifiedLaps} varv x ${specifiedIntervalsPerLap} intervaller`;
+        }
+
+        return `${displayString} (${formatTime(workTime)} / ${formatTime(restTime)})`;
+    }, [block.settings]);
 
     const inputBaseClasses = "appearance-none !bg-white dark:!bg-gray-900 !text-gray-900 dark:!text-white border border-gray-100 dark:border-gray-800 rounded-2xl p-4 focus:ring-2 focus:ring-primary focus:outline-none transition-all font-black placeholder-gray-300 dark:placeholder-gray-600 shadow-inner";
     const isLastBlock = index === totalBlocks;
@@ -668,7 +551,7 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
             <div className="bg-primary/5 dark:bg-primary/10 p-5 rounded-3xl flex justify-between items-center border border-primary/20">
                 <div>
                     <p className="text-[10px] font-black text-primary/60 uppercase tracking-widest mb-1">Vald Timer</p>
-                    <p className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">{block.settings.mode}</p>
+                    <p className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight">{settingsText}</p>
                 </div>
                 <button onClick={onEditSettings} className="bg-primary text-white font-black text-[10px] uppercase tracking-widest px-6 py-3 rounded-xl shadow-lg shadow-primary/20 active:scale-95 transition-all">Anpassa klockan</button>
             </div>
@@ -689,7 +572,6 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
                         key={ex.id} exercise={ex} 
                         onUpdate={(id, vals) => onUpdate({ ...block, exercises: block.exercises.map(e => e.id === id ? { ...e, ...vals } : e) })} 
                         onRemove={id => onUpdate({ ...block, exercises: block.exercises.filter(e => e.id !== id) })} 
-                        onOpenHandwriting={() => onOpenHandwriting(t => { const p = parseExerciseLine(t); onUpdate({ ...block, exercises: block.exercises.map(e => e.id === ex.id ? { ...e, name: p.name, reps: p.reps } : e) }) })} 
                         exerciseBank={exerciseBank} index={i} total={block.exercises.length} onMove={dir => moveEx(i, dir)} organizationId=""
                         enableWorkoutLogging={enableWorkoutLogging}
                         onShowToast={onShowToast}
@@ -707,13 +589,13 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
 };
 
 // --- Main Component ---
-export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | null; onSave: (w: Workout) => void; onCancel: () => void; setCustomBackHandler?: (handler: (() => void) | null) => void }> = ({ initialWorkout, onSave, onCancel, setCustomBackHandler }) => {
+export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | null; onSave: (w: Workout) => void; onCancel: () => void; isNewDraft?: boolean; setCustomBackHandler?: (handler: (() => void) | null) => void }> = ({ initialWorkout, onSave, onCancel, isNewDraft, setCustomBackHandler }) => {
     const { selectedOrganization, studioConfig } = useStudio();
     const [workout, setWorkout] = useState<Workout>(() => initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
     const [initialSnapshot, setInitialSnapshot] = useState<string>('');
     const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
-    const [handwritingCb, setHandwritingCb] = useState<((t: string) => void) | null>(null);
     const [exerciseBank, setExerciseBank] = useState<BankExercise[]>([]);
+    const [showUnsavedWarning, setShowUnsavedWarning] = useState(false);
     
     useEffect(() => {
         setInitialSnapshot(JSON.stringify(workout));
@@ -723,30 +605,40 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
         return JSON.stringify(workout) !== initialSnapshot;
     }, [workout, initialSnapshot]);
 
-    const handleCancel = () => {
+    const handleCancelRef = useRef(() => {
         if (isDirty) {
-            if (window.confirm('Du har osparade ändringar. Är du säker på att du vill lämna?')) {
-                onCancel();
-            }
+            setShowUnsavedWarning(true);
         } else {
+            if (setCustomBackHandler) setCustomBackHandler(null);
             onCancel();
         }
+    });
+
+    useEffect(() => {
+        handleCancelRef.current = () => {
+            if (isDirty) {
+                setShowUnsavedWarning(true);
+            } else {
+                if (setCustomBackHandler) setCustomBackHandler(null);
+                onCancel();
+            }
+        };
+    }, [isDirty, onCancel, setCustomBackHandler]);
+
+    const handleCancel = () => {
+        handleCancelRef.current();
     };
 
     useEffect(() => {
         if (setCustomBackHandler) {
-            if (isDirty) {
-                setCustomBackHandler(() => handleCancel);
-            } else {
-                setCustomBackHandler(null);
-            }
+            setCustomBackHandler(() => handleCancelRef.current());
         }
         return () => {
             if (setCustomBackHandler) {
                 setCustomBackHandler(null);
             }
         };
-    }, [setCustomBackHandler, isDirty, onCancel]);
+    }, [setCustomBackHandler]);
     
     // Toast state
     const [toast, setToast] = useState<{ message: string, visible: boolean }>({ message: '', visible: false });
@@ -785,7 +677,13 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
     }, [selectedOrganization]);
 
     const handleSave = () => {
+        if (!isDirty && !isNewDraft) {
+            if (setCustomBackHandler) setCustomBackHandler(null);
+            onCancel();
+            return;
+        }
         if (!workout.title.trim()) { alert("Passet måste ha ett namn."); return; }
+        if (setCustomBackHandler) setCustomBackHandler(null);
         onSave({ ...workout, organizationId: selectedOrganization?.id || '' });
     };
     
@@ -898,7 +796,6 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                                 onUpdate={handleUpdateBlock} 
                                 onRemove={() => handleRemoveBlock(block.id)} 
                                 onEditSettings={() => setEditingBlockId(block.id)} 
-                                onOpenHandwriting={(cb) => setHandwritingCb(() => cb)} 
                                 exerciseBank={exerciseBank} 
                                 enableWorkoutLogging={studioConfig.enableWorkoutLogging}
                                 onShowToast={(msg) => setToast({ message: msg, visible: true })}
@@ -931,11 +828,34 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                 />
             )}
 
-            {handwritingCb && (
-                <HandwritingInputModal 
-                    onClose={() => setHandwritingCb(null)} 
-                    onComplete={t => { handwritingCb(t); setHandwritingCb(null); }} 
-                />
+            {showUnsavedWarning && createPortal(
+                <div className="fixed inset-0 z-[300] bg-black/50 flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Osparade ändringar</h3>
+                        <p className="text-gray-600 dark:text-gray-300 mb-6">
+                            Du har gjort ändringar i passet som inte är sparade. Är du säker på att du vill lämna utan att spara?
+                        </p>
+                        <div className="flex justify-end gap-3">
+                            <button 
+                                onClick={() => setShowUnsavedWarning(false)}
+                                className="px-5 py-2.5 text-gray-600 dark:text-gray-300 font-medium hover:bg-gray-100 dark:hover:bg-gray-700 rounded-xl transition-colors"
+                            >
+                                Avbryt
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    setShowUnsavedWarning(false);
+                                    if (setCustomBackHandler) setCustomBackHandler(null);
+                                    setTimeout(() => onCancel(), 0);
+                                }}
+                                className="px-5 py-2.5 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-colors"
+                            >
+                                Lämna utan att spara
+                            </button>
+                        </div>
+                    </div>
+                </div>,
+                document.body
             )}
         </div>
     );

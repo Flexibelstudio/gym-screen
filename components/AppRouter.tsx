@@ -18,6 +18,7 @@ import { MemberManagementScreen } from './MemberManagementScreen';
 import { AdminAnalyticsScreen } from './AdminAnalyticsScreen';
 import { MemberProfileScreen } from './MemberProfileScreen';
 import { CoachScreen } from './CoachScreen';
+import { CoachNotesScreen } from './CoachNotesScreen';
 import { SuperAdminScreen } from './SuperAdminScreen';
 import { SystemOwnerScreen } from './SystemOwnerScreen';
 import { CustomContentScreen } from './CustomContentScreen';
@@ -49,6 +50,7 @@ interface AppRouterProps {
     activeCustomPage: CustomPage | null;
     customPageToEdit: CustomPage | null;
     activeRaceId: string | null;
+    isEditingNewDraft: boolean;
     racePrepState: { groups: StartGroup[]; interval: number } | null;
     followMeShowImage: boolean;
     mobileLogData: { workoutId: string, organizationId: string } | null;
@@ -231,7 +233,6 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 isAutoTransition={isAutoTransition}
                 // Pass command to TimerScreen
                 remoteCommand={remoteCommand}
-                selectedStudio={selectedStudio}
             />;
 
         case Page.FreestandingTimer:
@@ -257,6 +258,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 studioConfig={studioConfig}
                 sessionRole={role}
                 setCustomBackHandler={functions.setCustomBackHandler}
+                isNewDraft={props.isEditingNewDraft}
             />;
 
         case Page.SimpleWorkoutBuilder:
@@ -264,12 +266,14 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 initialWorkout={activeWorkout} 
                 onSave={onSaveWorkout} 
                 onCancel={handleBack}
+                isNewDraft={props.isEditingNewDraft}
                 setCustomBackHandler={functions.setCustomBackHandler}
             />;
 
         case Page.Coach:
             return <CoachScreen 
                 role={role} 
+                isStudioMode={isStudioMode}
                 navigateTo={navigateTo}
                 onSelectCustomPage={functions.handleSelectCustomPage}
                 isImpersonating={isImpersonating}
@@ -277,6 +281,9 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onAdminLogin={functions.handleCoachAccessRequest}
                 onMemberProfileRequest={functions.handleMemberProfileRequest}
             />;
+
+        case Page.CoachNotes:
+            return <CoachNotesScreen onBack={handleBack} />;
 
         case Page.IdeaBoard:
             return <NotesScreen 
@@ -388,7 +395,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onTogglePublish={onTogglePublish}
                 onDuplicateWorkout={onDuplicateWorkout}
                 onSelectMember={() => {}}
-                onBack={functions.handleGoToSystemOwner}
+                onBack={handleBack}
                 onGoToSystemOwner={functions.handleGoToSystemOwner}
                 initialTab={preferredAdminTab}
                 setCustomBackHandler={functions.setCustomBackHandler}

@@ -19,7 +19,7 @@ export const WORKOUT_GENERATOR_PROMPT = (userPrompt: string, availableExercises:
 Skapa ett strukturerat träningspass baserat på: "${userPrompt}".
 
 INSTRUKTIONER FÖR STRUKTUR:
-1. Skapa 1-3 block beroende på passets längd och typ.
+1. Skapa 1-3 block beroende på passets längd och typ. Ta ALDRIG med uppvärmning eller nedvarvning om användaren inte specifikt bett om det.
 2. Använd logiska timerinställningar (t.ex. AMRAP för flås, Intervall för styrka).
 3. Ge blocken tydliga namn som "Pulsfest" eller "Styrka: Pressar".
 4. Om ett antal övningar nämns i instruktionen, skapa exakt så många unika övningar.
@@ -81,7 +81,7 @@ TILLGÄNGLIGA ÖVNINGAR I BANKEN (CRITICAL: ANVÄND EXAKT DESSA NAMN I FÖRSTA H
 ${availableExercises.join(', ')}
 
 INSTRUKTIONER:
-1. Svara på användarens meddelande i fältet 'replyText'. Var peppande, kortfattad och professionell.
+1. Svara på användarens meddelande i fältet 'replyText'. Var peppande, kortfattad och professionell. Ta ALDRIG med uppvärmning, nedvarvning eller generera Markdown om användaren inte specifikt frågar om det. Håll formatet som en ren lista.
 2. Om användaren UTTRYCKLIGEN ber dig att ÄNDRA passet (t.ex. "byt ut X mot Y", "lägg till Z", "gör om till AMRAP"):
    - Sätt 'didModifyWorkout' till true.
    - Gör ändringarna och returnera det kompletta, uppdaterade passet i fältet 'updatedWorkout'.
@@ -103,7 +103,7 @@ LOGIK FÖR EXTRAHERING/GENERERING:
 
 STRIKTA REGLER FÖR STRUKTUR:
 1. SMARTA BLOCK: Identifiera varianter (Rx/Int/Beg) och slå ihop till ett block med instruktioner i 'setupDescription'.
-2. COACH TIPS: All kringtext om strategi läggs i 'coachTips'.
+2. COACH TIPS: All kringtext om strategi läggs i 'coachTips'. Ta ALDRIG med uppvärmning eller nedvarvning.
 3. STEGAR: Förklara ladders/stegar tydligt i 'setupDescription'.
 
 ${availableExercises.length > 0 ? `
@@ -131,7 +131,7 @@ INTENT RECOGNITION:
 STRIKTA LOGIKREGLER:
 1. SMARTA BLOCK: Slå ihop nivåer (Rx/Int/Beg) till ett block.
 2. FULLSTÄNDIGHET: Lämna aldrig en array tom om användaren bett om ett pass.
-3. KVALITET: Övningarna ska vara funktionella och säkra.
+3. KVALITET: Övningarna ska vara funktionella och säkra. Ta ALDRIG med uppvärmning eller nedvarvning i genererade pass om de inte uttryckligen skissats eller betts om.
 
 Var kreativ om det behövs (vid korta instruktioner), men exakt om det finns en tydlig lista.
 
@@ -153,24 +153,26 @@ Skriv en minimalistisk instruktion (max 20 ord) i imperativ form för övningen:
 Beskriv endast rörelsen, inga hälsofördelar eller adjektiv.
 `;
 
-export const MEMBER_INSIGHTS_PROMPT = (title: string, exercises: string[], logs: string) => {
+export const MEMBER_INSIGHTS_PROMPT = (title: string, exercises: string[], logs: string, specificHistory?: string, aiProgressionPrompt?: string) => {
     return `
     Skapa en komplett Pre-Game Strategy inför passet: "${title}".
     Övningar: ${exercises.join(', ')}
-    Historik: ${logs}
+    Generell Historik (senaste pass): ${logs}
+    ${specificHistory ? `Specifik historik för just dessa övningar (Ditt senaste resultat på dessa: vikt/reps): ${specificHistory}` : ''}
+    ${aiProgressionPrompt ? `\nCOACHENS PROGRESSIONSREGEL FÖR DETTA PASS: "${aiProgressionPrompt}"\n-> VIKTIGT: Följ och integrera precis denna regel från coachen i dina rekommendationer ("Smart Load" och strategi) för dagens pass!\n` : ''}
 
     Ditt uppdrag är att generera TRE OLIKA strategier baserat på hur medlemmen känner sig idag.
 
     SCENARIO 1: 🔥 PIGG & STARK (ATTACK MODE)
-    Strategi: Uppmuntra till att slå PB eller öka volymen. Föreslå tyngre vikter.
+    Strategi: Uppmuntra till att slå PB eller öka volymen. Föreslå tyngre vikter utifrån historik och coachregel.
     Tonläge: Utmanande och aggressivt peppande. "Idag är dagen!"
 
     SCENARIO 2: 🙂 NEUTRAL (MAINTENANCE MODE)
-    Strategi: Fokus på konsistens och flyt. Standardvikter baserat på historik.
+    Strategi: Fokus på konsistens och flyt. Standardvikter baserat på historik och coachregel.
     Tonläge: Stabilt och professionellt. "Keep building the base."
 
     SCENARIO 3: 🤕 SLITEN/SKADAD (REHAB MODE)
-    Strategi: Fokus på rörlighet, teknik och att genomföra passet lugnt. Föreslå lättare vikter eller skalade övningar.
+    Strategi: Fokus på rörlighet, teknik och att genomföra passet lugnt. Föreslå lättare vikter eller skalade övningar (ignorera höjningskrav i coachregeln här).
     Tonläge: Omtänksamt och lugnande. "Kvalitet före kvantitet."
 
     VIKTIGT: Returnera ett JSON-objekt med nycklarna "good", "neutral", och "bad", där varje nyckel innehåller 'readiness', 'strategy', 'suggestions' (array) och 'scaling' (array).
@@ -186,14 +188,18 @@ Bedöm styrkor, förbättringsområden och ge konkreta "actions" till coachen.
 Poängsätt Styrka, Kondition och Frekvens (0-100).
 `;
 
-export const DIPLOMA_GENERATOR_PROMPT = (title: string, pbText: string, stats: string, aiProgressionPrompt?: string) => `
+export const DIPLOMA_GENERATOR_PROMPT = (title: string, pbText: string, stats: string, exerciseSummary: string, aiProgressionPrompt?: string) => `
 Skapa ett diplom för passet: "${title}".
 REKORD: ${pbText}
 STATS: ${stats}
+GENOMFÖRDA ÖVNINGAR: ${exerciseSummary}
 
 ${aiProgressionPrompt ? `COACHENS INSTRUKTIONER TILL DIG (AI): ${aiProgressionPrompt}\nFölj dessa instruktioner noggrant när du formulerar din feedback och pepp.` : ''}
 
-Fokusera på att hylla framstegen. 'imagePrompt' ska vara en beskrivning på engelska för en abstrakt, 3D-renderad medalj/ikon.
+Fokusera på att hylla insatsen baserat på de faktiska övningarna och siffrorna! 
+VIKTIGT: Din 'achievement' (huvudtexten) MÅSTE vara KORT, KAXIG och PUNCHIG (max 10-15 ord). Undvik långt filosofiskt flum. Nämna gärna en specifik övning de körde (t.ex. "Sjukt starkt jobbat med hela 50 burpees idag!").
+
+Du ska välja EXAKT EN (1) passande EMOJI för detta pass som 'imagePrompt' (t.ex. "🔥", "🦍", "🏆", "🚀", "🥵", "💦"). Skriv INGEN annan text för imagePrompt.
 `;
 
 export const ADMIN_ANALYTICS_CHAT_PROMPT = (question: string, logSummary: string) => `

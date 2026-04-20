@@ -53,7 +53,24 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                 <section>
                     <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Funktioner & Moduler</h4>
                     <div className="space-y-4">
-                        {/* ... Existing toggles ... */}
+                        <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                            <ToggleSwitch 
+                                label="Fristående Timer" 
+                                checked={config.enableTimer !== false} // Default true
+                                onChange={(checked) => handleUpdateConfigField('enableTimer', checked)} 
+                            />
+                            <p className="text-xs text-gray-500 mt-2 pl-2">Aktiverar den fristående timern på startsidan.</p>
+                        </div>
+
+                        <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                            <ToggleSwitch 
+                                label="Övriga Pass" 
+                                checked={config.enableOtherWorkouts !== false} // Default true
+                                onChange={(checked) => handleUpdateConfigField('enableOtherWorkouts', checked)} 
+                            />
+                            <p className="text-xs text-gray-500 mt-2 pl-2">Visar knappen för "Övriga Pass" på startsidan.</p>
+                        </div>
+
                         <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <ToggleSwitch 
                                 label="Träningslekar (Smart Play)" 
@@ -135,7 +152,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                         )}
 
                         <div className="bg-gray-5 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
-                            <ToggleSwitch label="Idé-tavlan (Whiteboard)" checked={!!config.enableNotes} onChange={(checked) => handleUpdateConfigField('enableNotes', checked)} />
+                            <ToggleSwitch label="AI Whiteboard" checked={!!config.enableNotes} onChange={(checked) => handleUpdateConfigField('enableNotes', checked)} />
                             <p className="text-xs text-gray-500 mt-2 pl-2">Digital rityta för att skissa pass och idéer.</p>
                         </div>
                         <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">

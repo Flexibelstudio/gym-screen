@@ -66,8 +66,8 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 Senaste pass (max 15 st):
                 ${JSON.stringify(recentLogs, null, 2)}
                 
-                Personbästa (PR):
-                ${personalBests.length > 0 ? personalBests.join('\n') : 'Inga PR loggade ännu.'}
+                Personbästa (PB):
+                ${personalBests.length > 0 ? personalBests.join('\n') : 'Inga PB loggade ännu.'}
                 
                 Fysiska begränsningar/mål: ${userData?.goals || 'Inga specifika angivna.'}
                 `;
@@ -94,7 +94,7 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             - Använd inte emojis i överflöd, max 1-2 per svar.
 
             UPPDRAG: COACH ASSISTENT (Integrerad med medlemsdatabasen)
-            Du har tillgång till medlemmens träningshistorik, personbästa (PR) och profil.
+            Du har tillgång till medlemmens träningshistorik, personbästa (PB) och profil.
 
             Logik för personifiering:
             - Söka först: Innan ett svar genereras, utgå från medlemmens historik och relevanta värden.
@@ -273,7 +273,7 @@ export const ScanButton: React.FC<ScanButtonProps> = ({ onScan, onLogWorkout, on
                             <div className="bg-gray-100 dark:bg-gray-700 p-2 rounded-full text-gray-600 dark:text-gray-300">
                                 <DumbbellIcon className="w-5 h-5" />
                             </div>
-                            <span className="font-bold text-sm whitespace-nowrap">Logga Annan Aktivitet</span>
+                            <span className="font-bold text-sm whitespace-nowrap">Logga Egen Aktivitet</span>
                         </button>
                     </>
                 )}

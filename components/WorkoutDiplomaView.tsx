@@ -28,7 +28,7 @@ const Confetti = React.memo(() => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 overflow-hidden pointer-events-none z-[12500]" 
+            className="fixed inset-0 overflow-hidden pointer-events-none z-[100001]" 
             aria-hidden="true"
         >
             {particles.map(p => (
@@ -54,7 +54,9 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
     const achievement = diploma.achievement || diploma.comparison || "";
     const footer = diploma.footer || "";
     const studioName = selectedOrganization?.name || "SmartCoach";
-    const icon = diploma.imagePrompt || "🏆"; 
+    
+    // Safely parse icon: Fallback if AI gave a long description instead of a single emoji
+    const icon = (diploma.imagePrompt && diploma.imagePrompt.length <= 15) ? diploma.imagePrompt : "🏆"; 
 
     const iconSizeClass = pbCount > 5 
         ? "text-6xl sm:text-7xl mb-1" 
@@ -67,7 +69,7 @@ export const WorkoutDiplomaView: React.FC<WorkoutDiplomaViewProps> = ({ diploma,
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[12000] bg-slate-50/40 dark:bg-black/60 backdrop-blur-md flex items-center justify-center p-4 sm:p-10"
+            className="fixed inset-0 z-[100000] bg-slate-50/40 dark:bg-black/60 backdrop-blur-md flex items-center justify-center p-4 sm:p-10"
             onClick={onClose}
         >
             <AnimatePresence>

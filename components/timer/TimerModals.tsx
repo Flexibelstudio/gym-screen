@@ -13,7 +13,7 @@ export const PauseOverlay: React.FC<{
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-white/60 dark:bg-black/60 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center"
+            className="fixed inset-0 z-[9999] bg-white/60 dark:bg-black/60 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center pointer-events-auto"
         >
             <motion.h2 
                 initial={{ scale: 0.9, y: -20 }}

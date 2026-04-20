@@ -65,7 +65,7 @@ import {
   BankExercise, SuggestedExercise, WorkoutResult, CompanyDetails, 
   SmartScreenPricing, HyroxRace, SeasonalThemeSetting, MemberGoals, 
   WorkoutLog, CheckInEvent, Member, UserRole, PersonalBest, StudioEvent,
-  CustomPage, AdminActivity, BenchmarkDefinition, RemoteSessionState, Studio, GalleryImage, Lead
+  CustomPage, AdminActivity, BenchmarkDefinition, RemoteSessionState, Studio, GalleryImage, Lead, CoachNote
 } from '../types';
 import { MOCK_ORGANIZATIONS, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_MEMBERS, MOCK_SMART_SCREEN_PRICING } from '../data/mockData';
 
@@ -620,7 +620,7 @@ export const listenToMemberLogs = (memberId: string, onUpdate: (logs: WorkoutLog
         onUpdate([]);
         return () => {};
     }
-    const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"), limit(50));
+    const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"));
     return onSnapshot(q, (snap) => {
         onUpdate(snap.docs.map(d => d.data() as WorkoutLog));
     }, (err) => console.error("listenToMemberLogs failed", err));
@@ -641,7 +641,7 @@ export const listenToCommunityLogs = (orgId: string, onUpdate: (logs: WorkoutLog
 export const getMemberLogs = async (memberId: string): Promise<WorkoutLog[]> => {
     if (isOffline || !db || !memberId) return []; 
     try {
-        const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"), limit(50));
+        const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"));
         const snap = await getDocs(q);
         return snap.docs.map(d => d.data() as WorkoutLog);
     } catch (e) { return []; }
@@ -757,6 +757,73 @@ export const listenToWeeklyPBs = (orgId: string, onUpdate: (events: StudioEvent[
     }, (error) => {
         console.error("Error listening to weekly PBs:", error);
     });
+};
+
+// --- COACH NOTES ---
+
+export const saveCoachNote = async (noteData: Omit<CoachNote, 'id' | 'createdAt'>): Promise<CoachNote | null> => {
+    if (isOffline || !db) return null;
+    try {
+        const ref = doc(collection(db, 'coachNotes'));
+        const newNote: any = {
+            ...noteData,
+            id: ref.id,
+            createdAt: Date.now()
+        };
+        // Clean up undefined fields
+        Object.keys(newNote).forEach(key => newNote[key] === undefined && delete newNote[key]);
+        
+        await setDoc(ref, newNote);
+        return newNote as CoachNote;
+    } catch (e) {
+        console.error("saveCoachNote failed", e);
+        return null;
+    }
+};
+
+export const updateCoachNote = async (noteId: string, updates: Partial<Omit<CoachNote, 'id' | 'createdAt'>>): Promise<void> => {
+    if (isOffline || !db || !noteId) return;
+    try {
+        const cleanedUpdates: any = { ...updates };
+        // Clean up undefined fields
+        Object.keys(cleanedUpdates).forEach(key => cleanedUpdates[key] === undefined && delete cleanedUpdates[key]);
+        
+        await updateDoc(doc(db, 'coachNotes', noteId), cleanedUpdates);
+    } catch (e) {
+        console.error("updateCoachNote failed", e);
+    }
+};
+
+export const listenToCoachNotes = (orgId: string, onUpdate: (notes: CoachNote[]) => void) => {
+    if (isOffline || !db || !orgId) {
+        onUpdate([]);
+        return () => {};
+    }
+    const q = query(
+        collection(db, 'coachNotes'),
+        where('organizationId', '==', orgId),
+        orderBy('createdAt', 'desc')
+    );
+    return onSnapshot(q, (snap) => {
+        onUpdate(snap.docs.map(d => d.data() as CoachNote));
+    }, (err) => console.error("listenToCoachNotes failed", err));
+};
+
+export const toggleCoachNoteFavorite = async (noteId: string, isFavorite: boolean) => {
+    if (isOffline || !db || !noteId) return;
+    try {
+        await updateDoc(doc(db, 'coachNotes', noteId), { isFavorite });
+    } catch (e) { console.error("toggleCoachNoteFavorite failed", e); }
+};
+
+export const deleteCoachNote = async (noteId: string, imageUrl?: string) => {
+    if (isOffline || !db || !noteId) return;
+    try {
+        if (imageUrl) {
+            await deleteImageByUrl(imageUrl);
+        }
+        await deleteDoc(doc(db, 'coachNotes', noteId));
+    } catch (e) { console.error("deleteCoachNote failed", e); }
 };
 
 export const getOrganizations = async (): Promise<Organization[]> => {
@@ -968,6 +1035,7 @@ export const getFreshCategoryWorkouts = async (orgId: string, category: string):
     try {
         const q = query(
           collection(db, 'workouts'), 
+          where("organizationId", "==", orgId),
           where("category", "==", category),
           where("isPublished", "==", true),
           where("isMemberDraft", "==", false)
@@ -985,8 +1053,7 @@ export const getFreshCategoryWorkouts = async (orgId: string, category: string):
                     }));
                 }
                 return data;
-            })
-            .filter(w => w.organizationId === orgId || w.organizationId === "" || w.organizationId === null);
+            });
     } catch (error) {
         console.error("Error fetching fresh category workouts:", error);
         return [];
@@ -998,11 +1065,7 @@ export const getWorkoutsForOrganization = async (orgId: string): Promise<Workout
     try {
         const q = query(
           collection(db, 'workouts'), 
-          or(
-            where("organizationId", "==", orgId),
-            where("organizationId", "==", ""),
-            where("organizationId", "==", null)
-          )
+          where("organizationId", "==", orgId)
         );
         const snap = await getDocs(q);
         return snap.docs.map(d => {
@@ -1031,11 +1094,7 @@ export const subscribeToWorkoutsForOrganization = (orgId: string, onUpdate: (wor
     
     const q = query(
       collection(db, 'workouts'), 
-      or(
-        where("organizationId", "==", orgId),
-        where("organizationId", "==", ""),
-        where("organizationId", "==", null)
-      )
+      where("organizationId", "==", orgId)
     );
 
     return onSnapshot(q, (snap) => {
@@ -1079,11 +1138,16 @@ export const getWorkoutById = async (id: string): Promise<Workout | null> => {
     }
 };
 
-export const saveWorkout = async (w: Workout) => {
-    if (isOffline || !db || !w.id) return;
+export const saveWorkout = async (w: Workout): Promise<Workout> => {
+    if (isOffline || !db || !w.id) return w;
     try {
         await setDoc(doc(db, 'workouts', w.id), sanitizeData(w), { merge: true });
-    } catch (e) { console.error("saveWorkout failed", e); }
+        return w;
+    } catch (e) { 
+        console.error("saveWorkout failed", e); 
+        // Throw the error so the caller knows it failed
+        throw e;
+    }
 };
 
 export const deleteWorkout = async (id: string) => {
@@ -1649,3 +1713,51 @@ export const updateLeadStatus = async (id: string, status: Lead['status']): Prom
         console.error("Error updating lead status:", error);
     }
 };
+
+export const saveCustomProgram = async (userId: string, program: Workout): Promise<void> => {
+    if (isOffline || !db) return;
+    try {
+        const docRef = doc(db, `users/${userId}/customPrograms`, program.id);
+        await setDoc(docRef, sanitizeData(program));
+        window.dispatchEvent(new Event('customProgramsUpdated'));
+    } catch (e) {
+        console.error("saveCustomProgram failed", e);
+        throw e;
+    }
+};
+
+export const fetchCustomPrograms = async (userId: string): Promise<Workout[]> => {
+    if (isOffline || !db || !userId) return [];
+    try {
+        const q = query(collection(db, `users/${userId}/customPrograms`), orderBy("createdAt", "desc"));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => doc.data() as Workout);
+    } catch (e) {
+        console.error("fetchCustomPrograms failed", e);
+        return [];
+    }
+};
+
+export const deleteCustomProgram = async (userId: string, programId: string): Promise<void> => {
+    if (isOffline || !db) return;
+    try {
+        await deleteDoc(doc(db, `users/${userId}/customPrograms`, programId));
+        window.dispatchEvent(new Event('customProgramsUpdated'));
+    } catch (e) {
+        console.error("deleteCustomProgram failed", e);
+        throw e;
+    }
+};
+
+export const activateMemberSubscriptionLocally = async (userId: string): Promise<void> => {
+    if (isOffline || !db) return;
+    try {
+        await updateDoc(doc(db, 'users', userId), {
+            subscriptionStatus: 'active'
+        });
+    } catch (e) {
+        console.error("Optimistic subscription activation failed", e);
+    }
+};
+
+

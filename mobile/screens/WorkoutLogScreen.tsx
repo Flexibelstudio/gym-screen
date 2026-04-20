@@ -7,7 +7,9 @@ import { useWorkout } from '../../context/WorkoutContext';
 import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, ChartBarIcon, HistoryIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
 import { calculate1RM } from '../../utils/workoutUtils';
-import { ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition } from '../../types';
+import { ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition, BankExercise, Workout } from '../../types';
+import { MOCK_EXERCISE_BANK } from '../../data/mockData';
+import { saveCustomProgram, fetchCustomPrograms } from '../../services/firebaseService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../../components/WorkoutCompleteModal';
 import { useStudio } from '../../context/StudioContext';
@@ -252,24 +254,24 @@ const PreGameView: React.FC<{
     onStart: () => void;
     onCancel: () => void;
     onFeelingChange: (feeling: 'good' | 'neutral' | 'bad') => void;
-    currentFeeling: 'good' | 'neutral' | 'bad';
+    currentFeeling: 'good' | 'neutral' | 'bad' | null;
 }> = ({ workoutTitle, insights, onStart, onCancel, onFeelingChange, currentFeeling }) => {
     
-    const activeContent = insights[currentFeeling];
+    const activeContent = currentFeeling ? insights[currentFeeling] : null;
     const displayStrategy = activeContent?.strategy || activeContent?.readiness?.message || "Laddar strategi...";
     
-    let themeClass = "from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-gray-800";
+    let themeClass = "from-indigo-50 dark:from-indigo-900/20";
     
     if (currentFeeling === 'good') {
-        themeClass = "from-orange-50 to-red-50 dark:from-orange-900/20 dark:to-red-900/20";
+        themeClass = "from-orange-100 dark:from-orange-900/20";
     } else if (currentFeeling === 'bad') {
-        themeClass = "from-blue-50 to-green-50 dark:from-blue-900/20 dark:to-green-900/20";
+        themeClass = "from-blue-100 dark:from-blue-900/20";
     }
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white relative overflow-hidden animate-fade-in">
             {/* Background Gradient */}
-            <div className={`absolute top-0 left-0 right-0 h-1/2 bg-gradient-to-b ${themeClass} to-transparent z-0 transition-colors duration-500 pointer-events-none`}></div>
+            <div className={`absolute inset-0 bg-gradient-to-b ${themeClass} via-white/50 dark:via-gray-900/50 to-white dark:to-gray-900 z-0 transition-colors duration-500 pointer-events-none`}></div>
             
             {/* Scrollable Content Area */}
             <div className="relative z-10 flex-1 overflow-y-auto p-6 scrollbar-hide">
@@ -290,60 +292,65 @@ const PreGameView: React.FC<{
                             <button 
                                 key={f} 
                                 onClick={() => onFeelingChange(f as any)} 
-                                className={`p-4 rounded-2xl border-2 transition-all ${currentFeeling === f ? 'bg-white dark:bg-gray-800 border-primary scale-110 shadow-lg z-10' : 'bg-white/50 dark:bg-gray-800/50 border-transparent hover:bg-white dark:hover:bg-gray-800'}`}
+                                className={`p-4 rounded-2xl border-2 transition-all ${currentFeeling === f ? 'bg-white dark:bg-gray-800 border-primary scale-110 shadow-lg z-10' : 'bg-white/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800'}`}
                             >
                                 <span className="text-2xl block">{f === 'good' ? '🔥' : f === 'bad' ? '🤕' : '🙂'}</span>
                             </button>
                         ))}
                     </div>
+                    {!currentFeeling && (
+                        <p className="text-center text-sm text-gray-400 dark:text-gray-500 mt-4 animate-pulse">Klicka på en emoji för att få din strategi</p>
+                    )}
                 </div>
 
-                <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-xl mb-6 transition-all">
-                    <div className="flex items-start gap-4 mb-6">
-                        <div className={`w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-lg ${currentFeeling === 'good' ? 'from-orange-500 to-red-600' : currentFeeling === 'bad' ? 'from-green-500 to-blue-600' : 'from-indigo-500 to-purple-600'}`}>
-                            <SparklesIcon className="w-6 h-6 text-white" />
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Dagens Fokus</h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium italic">"{displayStrategy}"</p>
-                        </div>
-                    </div>
-                    
-                    <div className="space-y-4">
-                        {activeContent?.suggestions && Object.keys(activeContent.suggestions).length > 0 && (
-                            <div className={`p-4 rounded-2xl border ${currentFeeling === 'good' ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800/30' : 'bg-gray-50 dark:bg-gray-900/30 border-gray-100 dark:border-gray-700'}`}>
-                                <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}>
-                                    {currentFeeling === 'good' && <FireIcon className="w-4 h-4" />}
-                                    Smart Load (Förslag)
-                                </h4>
-                                <div className="space-y-2">
-                                    {Object.entries(activeContent.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
-                                        <div key={exercise} className="flex justify-between items-center bg-white dark:bg-black/20 p-2.5 rounded-lg border border-gray-100 dark:border-white/5">
-                                            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{exercise}</span>
-                                            <span className={`text-sm font-bold ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-primary'}`}>{suggestion}</span>
-                                        </div>
-                                    ))}
-                                </div>
+                {currentFeeling && (
+                    <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-xl mb-6 transition-all animate-fade-in">
+                        <div className="flex items-start gap-4 mb-6">
+                            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-lg ${currentFeeling === 'good' ? 'from-orange-500 to-red-600' : currentFeeling === 'bad' ? 'from-green-500 to-blue-600' : 'from-indigo-500 to-purple-600'}`}>
+                                <SparklesIcon className="w-6 h-6 text-white" />
                             </div>
-                        )}
+                            <div>
+                                <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-1">Dagens Fokus</h3>
+                                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed font-medium italic">"{displayStrategy}"</p>
+                            </div>
+                        </div>
                         
-                        {activeContent?.scaling && Object.keys(activeContent.scaling).length > 0 && (
-                            <div className="mt-4">
-                                <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
-                                    <LightningIcon className="w-3 h-3" /> Alternativ / Skalning
-                                </h4>
-                                <div className="space-y-2">
-                                    {Object.entries(activeContent.scaling).map(([exercise, alternative]) => (
-                                        <div key={exercise} className="bg-white/50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
-                                            <div className="text-xs text-gray-500 line-through mb-0.5">{exercise}</div>
-                                            <div className="text-sm font-bold text-gray-900 dark:text-white">👉 {alternative}</div>
-                                        </div>
-                                    ))}
+                        <div className="space-y-4">
+                            {activeContent?.suggestions && Object.keys(activeContent.suggestions).length > 0 && (
+                                <div className={`p-4 rounded-2xl border ${currentFeeling === 'good' ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800/30' : 'bg-gray-50 dark:bg-gray-900/30 border-gray-100 dark:border-gray-700'}`}>
+                                    <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}>
+                                        {currentFeeling === 'good' && <FireIcon className="w-4 h-4" />}
+                                        Smart Load (Dina resultatmål)
+                                    </h4>
+                                    <div className="space-y-2">
+                                        {Object.entries(activeContent.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
+                                            <div key={exercise} className="flex justify-between items-center bg-white dark:bg-black/20 p-2.5 rounded-lg border border-gray-100 dark:border-white/5">
+                                                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{exercise}</span>
+                                                <span className={`text-sm font-bold ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-primary'}`}>{suggestion}</span>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                            
+                            {activeContent?.scaling && Object.keys(activeContent.scaling).length > 0 && (
+                                <div className="mt-4">
+                                    <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                        <LightningIcon className="w-3 h-3" /> Alternativ / Skalning
+                                    </h4>
+                                    <div className="space-y-2">
+                                        {Object.entries(activeContent.scaling).map(([exercise, alternative]) => (
+                                            <div key={exercise} className="bg-white/50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
+                                                <div className="text-xs text-gray-500 line-through mb-0.5">{exercise}</div>
+                                                <div className="text-sm font-bold text-gray-900 dark:text-white">👉 {alternative}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* --- START BUTTON IN SCROLL FLOW --- */}
                 <div className="mt-8 pb-12">
@@ -371,12 +378,13 @@ const ExerciseLogCard: React.FC<{
   name: string;
   result: LocalExerciseResult;
   onUpdate: (updates: Partial<LocalExerciseResult>) => void;
+  onRemove?: () => void;
   aiSuggestion?: string; // Koncept 1: Coach Whisper
   scaling?: string;      // Koncept 1: Alternativ
   lastPerformance?: { weight: number, reps: string } | null;
   isLastInGroup?: boolean;
   onAddGroupSet?: () => void;
-}> = ({ name, result, onUpdate, aiSuggestion, scaling, lastPerformance, isLastInGroup, onAddGroupSet }) => {
+}> = ({ name, result, onUpdate, onRemove, aiSuggestion, scaling, lastPerformance, isLastInGroup, onAddGroupSet }) => {
     
     const trackingFields = result.trackingFields || ['reps', 'weight'];
     const showReps = trackingFields.includes('reps');
@@ -423,6 +431,17 @@ const ExerciseLogCard: React.FC<{
     };
 
     const [showTip, setShowTip] = useState(false);
+    const [isEditingFields, setIsEditingFields] = useState(false);
+
+    const toggleField = (field: 'reps' | 'weight' | 'time' | 'distance' | 'kcal') => {
+        const current = [...trackingFields];
+        const has = current.includes(field);
+        if (has) {
+            onUpdate({ trackingFields: current.filter(f => f !== field) });
+        } else {
+            onUpdate({ trackingFields: [...current, field] });
+        }
+    };
 
     return (
         <div className={`bg-white dark:bg-gray-900 rounded-2xl p-4 mb-3 border shadow-sm transition-all ${result.groupColor ? `border-l-4 ${borderColorClass} border-y-gray-100 border-r-gray-100 dark:border-y-gray-800 dark:border-r-gray-800` : 'border-gray-100 dark:border-gray-800'}`}>
@@ -440,7 +459,52 @@ const ExerciseLogCard: React.FC<{
                             </p>
                         )}
                     </div>
+                    {/* Gear / Edit / Delete buttons */}
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => setIsEditingFields(!isEditingFields)}
+                            className={`p-2 rounded-xl transition-colors ${isEditingFields ? 'bg-primary/10 text-primary' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </button>
+                        {onRemove && (
+                            <button 
+                                onClick={onRemove}
+                                className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                            </button>
+                        )}
+                    </div>
                 </div>
+
+                {isEditingFields && (
+                    <div className="flex flex-wrap gap-2 mt-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
+                        <div className="w-full text-[10px] font-black uppercase tracking-widest text-gray-500 mb-1">Välj fält att logga</div>
+                        {[
+                            { id: 'reps', label: 'Reps' },
+                            { id: 'weight', label: 'Vikt' },
+                            { id: 'time', label: 'Tid' },
+                            { id: 'distance', label: 'Distans' },
+                            { id: 'kcal', label: 'Kcal' },
+                        ].map(f => (
+                            <button
+                                key={f.id}
+                                onClick={() => toggleField(f.id as any)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                    trackingFields.includes(f.id as any) 
+                                        ? 'bg-primary text-white shadow-sm' 
+                                        : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
+                                }`}
+                            >
+                                {f.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
 
                 {/* Koncept 1: Coach Whisper & Scaling */}
                 {(aiSuggestion || scaling) && (
@@ -580,11 +644,51 @@ const ExerciseLogCard: React.FC<{
 };
 
 const CustomActivityForm: React.FC<{
-  activityName: string; duration: string; distance: string; calories: string; onUpdate: (field: string, value: string) => void; isQuickMode?: boolean;
-}> = ({ activityName, duration, distance, calories, onUpdate, isQuickMode }) => {
+  activityName: string; duration: string; distance: string; calories: string; onUpdate: (field: string, value: string) => void; isQuickMode?: boolean; hasExercises?: boolean;
+}> = ({ activityName, duration, distance, calories, onUpdate, isQuickMode, hasExercises }) => {
+    const [isExpanded, setIsExpanded] = useState(!hasExercises);
+
+    useEffect(() => {
+        setIsExpanded(!hasExercises);
+    }, [hasExercises]);
+
+    if (hasExercises && !isExpanded) {
+        return (
+            <div className="py-2 animate-fade-in">
+                <button 
+                    onClick={() => setIsExpanded(true)}
+                    className="w-full bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm p-4 rounded-3xl flex items-center justify-between text-left transition-all active:scale-95"
+                >
+                    <div>
+                        <h3 className="text-sm font-black text-gray-800 dark:text-gray-200 uppercase tracking-widest">Generell Aktivitet</h3>
+                        <p className="text-xs text-gray-500 font-medium mt-1">
+                            Frivilligt: Ange namn, konditionstid eller distans för passet
+                        </p>
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-400">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+                </button>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6 py-2 animate-fade-in">
-            <div className="bg-white dark:bg-gray-900 p-5 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
+            <div className="bg-white dark:bg-gray-900 p-5 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm relative">
+                {hasExercises && (
+                    <button 
+                        onClick={() => setIsExpanded(false)}
+                        className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors"
+                    >
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                    </button>
+                )}
+                
                 {!isQuickMode && (
                     <>
                         <h3 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-4">Vanliga aktiviteter</h3>
@@ -596,8 +700,14 @@ const CustomActivityForm: React.FC<{
                     </>
                 )}
                 <div className={`mt-4 space-y-5 ${isQuickMode ? 'mt-0' : 'mt-8'}`}>
-                    <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Aktivitet *</label><input value={activityName} onChange={(e) => onUpdate('name', e.target.value)} placeholder="T.ex. Powerwalk" disabled={isQuickMode} className={`w-full text-xl font-black text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 ${isQuickMode ? 'opacity-70' : ''}`} /></div>
-                    <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Tid (min:sek) *</label><TimeInput value={duration} onChange={(val) => onUpdate('duration', val)} placeholder="60" className="w-full" /></div>
+                    <div>
+                        <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Aktivitet {!hasExercises && '*'}</label>
+                        <input value={activityName} onChange={(e) => onUpdate('name', e.target.value)} placeholder={hasExercises ? "T.ex. Funktionellt (Frivilligt)" : "T.ex. Powerwalk"} disabled={isQuickMode} className={`w-full text-xl font-black text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 ${isQuickMode ? 'opacity-70' : ''}`} />
+                    </div>
+                    <div>
+                        <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Tid (min:sek) {!hasExercises && '*'}</label>
+                        <TimeInput value={duration} onChange={(val) => onUpdate('duration', val)} placeholder="60" className="w-full" />
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Kcal</label><input type="number" value={calories} onChange={(e) => onUpdate('calories', e.target.value)} placeholder="T.ex. 350" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
                         <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Distans (km)</label><input type="number" value={distance} onChange={(e) => onUpdate('distance', e.target.value)} placeholder="T.ex. 5.3" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
@@ -668,9 +778,13 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
   const [allLogs, setAllLogs] = useState<WorkoutLog[]>([]);
   const [viewMode, setViewMode] = useState<'pre-game' | 'logging'>(isManualMode ? 'logging' : 'pre-game');
-  const [dailyFeeling, setDailyFeeling] = useState<'good' | 'neutral' | 'bad'>('neutral');
+  const [dailyFeeling, setDailyFeeling] = useState<'good' | 'neutral' | 'bad' | null>(null);
   const [customActivity, setCustomActivity] = useState({ name: '', duration: '', distance: '', calories: '' });
   const [sessionStats, setSessionStats] = useState({ distance: '', calories: '', time: '', rounds: '' });
+  const [showExerciseSearch, setShowExerciseSearch] = useState(false);
+  const [exerciseSearchTerm, setExerciseSearchTerm] = useState('');
+  const [saveAsProgram, setSaveAsProgram] = useState(false);
+  const [programName, setProgramName] = useState('');
 
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
@@ -710,6 +824,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const isFormValid = useMemo(() => {
       if (isSubmitting) return false;
       if (isManualMode) {
+          if (saveAsProgram && programName.trim().length === 0) return false;
+          if (exerciseResults.length > 0) return true;
           return customActivity.name.trim() !== '' && customActivity.duration.trim() !== '';
       }
 
@@ -720,7 +836,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
       const totalSets = exerciseResults.reduce((acc, ex) => acc + ex.setDetails.length, 0);
       return totalSets > 0 && uncheckedSetsCount === 0;
-  }, [isSubmitting, isManualMode, customActivity, exerciseResults, uncheckedSetsCount, benchmarkDefinition, sessionStats]);
+  }, [isSubmitting, isManualMode, customActivity, exerciseResults, uncheckedSetsCount, benchmarkDefinition, sessionStats, saveAsProgram, programName]);
   
   // --- WAKE LOCK LOGIC ---
   const wakeLockRef = useRef<any>(null);
@@ -780,14 +896,19 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
         // Reset state for new workout
         setAiInsights(null);
         setViewMode('pre-game');
-        setDailyFeeling('neutral');
+        setDailyFeeling(null);
         
         try {
             const orgWorkouts = await getWorkoutsForOrganization(oId);
             let foundWorkout = orgWorkouts.find(w => w.id === wId);
             
             if (!foundWorkout) {
-                 foundWorkout = contextWorkouts.find(w => w.id === wId);
+                 foundWorkout = contextWorkouts.find((w: any) => w.id === wId);
+            }
+
+            if (!foundWorkout && wId.startsWith('custom-')) {
+                 const customPrograms = await fetchCustomPrograms(userId);
+                 foundWorkout = customPrograms.find(w => w.id === wId);
             }
             
             if (foundWorkout) {
@@ -874,7 +995,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                         const exerciseNames = exercises.map(e => e.exerciseName);
                         if (exerciseNames.length > 0) {
                             // Fetch complete insights immediately (good/neutral/bad)
-                            const insights = await generateMemberInsights(logs, foundWorkout.title, exerciseNames);
+                            const insights = await generateMemberInsights(logs, foundWorkout.title, exerciseNames, foundWorkout.aiProgressionPrompt, historyMap);
                             setAiInsights(insights);
                         } else {
                             setViewMode('logging');
@@ -923,6 +1044,23 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
     if (onClose) onClose(isSuccess, diploma as any);
     else if (navigation) navigation.goBack();
   };
+
+  const handleAddManualExercise = (exerciseName: string) => {
+      if (!exerciseName.trim()) return;
+      const newEx: LocalExerciseResult = {
+          exerciseId: 'manual-' + Date.now(),
+          exerciseName: exerciseName.trim(),
+          blockId: 'manual-block',
+          blockTitle: 'Valda övningar',
+          trackingFields: ['weight', 'reps'],
+          setDetails: [{ weight: '', reps: '', completed: false }]
+      };
+      setExerciseResults(prev => [...prev, newEx]);
+      setShowExerciseSearch(false);
+      setExerciseSearchTerm('');
+  };
+
+  const filteredBank = MOCK_EXERCISE_BANK.filter(ex => ex.name.toLowerCase().includes(exerciseSearchTerm.toLowerCase()));
 
   const handleCustomActivityUpdate = (field: string, value: string) => {
     setCustomActivity(prev => ({ ...prev, [field]: value }));
@@ -976,7 +1114,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
           
           let totalVolume = 0;
           
-          const exerciseResultsToSave = isQuickOrManual ? [] : exerciseResults.map(r => {
+          const exerciseResultsToSave = exerciseResults.map(r => {
               const validWeights = r.setDetails.map(s => parseFloat(s.weight)).filter(n => !isNaN(n));
               const maxWeight = validWeights.length > 0 ? Math.max(...validWeights) : null;
               
@@ -1002,6 +1140,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               return {
                   exerciseId: r.exerciseId,
                   exerciseName: r.exerciseName,
+                  trackingFields: r.trackingFields,
                   setDetails: r.setDetails.map(s => ({
                       weight: parseFloat(s.weight) || null,
                       reps: s.reps || null,
@@ -1024,7 +1163,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               memberId: userId,
               organizationId: oId,
               workoutId: isManualMode ? 'manual' : (wId || 'unknown'),
-              workoutTitle: isQuickOrManual ? customActivity.name : (workout?.title || 'Träningspass'),
+              workoutTitle: isQuickOrManual ? (customActivity.name || 'Eget Pass') : (workout?.title || 'Träningspass'),
               date: logDateMs,
               source: isManualMode ? 'manual' : 'qr_scan',
               rpe: logData.rpe,
@@ -1033,37 +1172,56 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               comment: logData.comment || '',
               exerciseResults: exerciseResultsToSave,
               benchmarkId: benchmarkDefinition?.id,
+              totalVolume: totalVolume > 0 ? totalVolume : undefined,
           };
 
+          finalLogRaw.durationMinutes = parseFloat(isQuickOrManual ? customActivity.duration : sessionStats.time) || 0;
+          finalLogRaw.totalDistance = parseFloat(isQuickOrManual ? customActivity.distance : sessionStats.distance) || 0;
+          finalLogRaw.totalCalories = parseInt(isQuickOrManual ? customActivity.calories : sessionStats.calories) || 0;
+          
           if (isQuickOrManual) {
-              finalLogRaw.activityType = isManualMode ? 'custom_activity' : 'gym_workout';
-              finalLogRaw.durationMinutes = parseFloat(customActivity.duration) || 0;
-              finalLogRaw.totalDistance = parseFloat(customActivity.distance) || 0;
-              finalLogRaw.totalCalories = parseInt(customActivity.calories) || 0;
+              finalLogRaw.activityType = 'custom_activity';
               
-              const finalLog = cleanForFirestore(finalLogRaw);
-              await saveWorkoutLog(finalLog);
-              localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
-              setShowCelebration(true);
-          } else {
-              finalLogRaw.durationMinutes = parseFloat(sessionStats.time) || 0;
-              finalLogRaw.totalDistance = parseFloat(sessionStats.distance) || 0;
-              finalLogRaw.totalCalories = parseInt(sessionStats.calories) || 0;
-              
-              if (benchmarkDefinition) {
-                  if (benchmarkDefinition.type === 'time') {
-                      finalLogRaw.benchmarkValue = (parseFloat(sessionStats.time) || 0) * 60;
-                  } else if (benchmarkDefinition.type === 'reps') {
-                      finalLogRaw.benchmarkValue = parseFloat(sessionStats.rounds) || 0;
-                  } else if (benchmarkDefinition.type === 'weight') {
-                      finalLogRaw.benchmarkValue = totalVolume;
-                  }
+              if (saveAsProgram && programName.trim().length > 0) {
+                  const newWorkout: Workout = {
+                      id: 'custom-' + Date.now(),
+                      title: programName.trim(),
+                      category: 'Mina sparade program',
+                      isPublished: true,
+                      createdAt: Date.now(),
+                      organizationId: oId, // Fallback if needed, but handled by read rules
+                      blocks: [{
+                          id: 'manual-block',
+                          title: 'Valda övningar',
+                          tag: 'Custom',
+                          followMe: false,
+                          settings: { rounds: 1, mode: "Stoppur" as any },
+                          exercises: exerciseResultsToSave.map((r: any) => ({ 
+                              id: r.exerciseId, 
+                              name: r.exerciseName,
+                              trackingFields: r.trackingFields,
+                              loggingEnabled: true 
+                          }))
+                      }]
+                  };
+                  await saveCustomProgram(userId, newWorkout);
               }
+          }
 
-              setSaveStatus('Letar efter nya rekord...');
-              const { log: savedLog, newRecords } = await saveWorkoutLog(cleanForFirestore(finalLogRaw));
+          if (benchmarkDefinition && !isQuickOrManual) {
+              if (benchmarkDefinition.type === 'time') {
+                  finalLogRaw.benchmarkValue = (parseFloat(sessionStats.time) || 0) * 60;
+              } else if (benchmarkDefinition.type === 'reps') {
+                  finalLogRaw.benchmarkValue = parseFloat(sessionStats.rounds) || 0;
+              } else if (benchmarkDefinition.type === 'weight') {
+                  finalLogRaw.benchmarkValue = totalVolume;
+              }
+          }
 
-              if (benchmarkDefinition && finalLogRaw.benchmarkValue !== undefined) {
+          setSaveStatus(isQuickOrManual ? 'Sparar...' : 'Letar efter nya rekord...');
+          const { log: savedLog, newRecords } = await saveWorkoutLog(cleanForFirestore(finalLogRaw));
+
+          if (benchmarkDefinition && finalLogRaw.benchmarkValue !== undefined && !isQuickOrManual) {
                   let isBenchmarkPB = false;
                   let benchmarkDiff = 0;
                   if (prevBenchmarkBest === undefined) {
@@ -1197,8 +1355,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               }
 
               localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
-              handleCancel(true, diplomaData);
-          }
+              handleCancel(true, diplomaData || undefined);
 
       } catch (err) {
           console.error(err);
@@ -1245,7 +1402,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   }
 
   // --- KONCEPT 2: MISSION BANNER (Sticky Header) ---
-  const activeInsight = aiInsights?.[dailyFeeling];
+  const activeInsight = dailyFeeling ? aiInsights?.[dailyFeeling] : undefined;
   const missionTitle = dailyFeeling === 'good' ? 'Attack Mode' : dailyFeeling === 'bad' ? 'Rehab Mode' : 'Maintenance Mode';
 
   return (
@@ -1316,14 +1473,14 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               </div>
 
               {/* MISSION BANNER (KONCEPT 2) */}
-              {!isManualMode && activeInsight && (
+              {!isManualMode && activeInsight && dailyFeeling && (
                   <MissionHeader 
                       strategy={activeInsight.strategy || activeInsight.readiness.message} 
                       feeling={dailyFeeling} 
                   />
               )}
               
-              {isManualMode ? (
+              {isManualMode && (
                   <CustomActivityForm 
                       activityName={customActivity.name}
                       duration={customActivity.duration}
@@ -1331,10 +1488,30 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                       calories={customActivity.calories}
                       onUpdate={handleCustomActivityUpdate}
                       isQuickMode={false}
+                      hasExercises={exerciseResults.length > 0}
                   />
-              ) : (
+              )}
+
+              {isManualMode && (
+                  <div className="mt-8 mb-4 flex flex-col gap-4">
+                      <div className="flex items-center justify-between">
+                          <h3 className="text-base font-black uppercase tracking-widest text-gray-800 dark:text-gray-200">
+                              {exerciseResults.length > 0 ? 'Dina övningar' : 'Valfria övningar'}
+                          </h3>
+                          <button 
+                              onClick={() => setShowExerciseSearch(true)}
+                              className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-primary rounded-full text-xs font-bold flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition uppercase tracking-wider"
+                          >
+                              <PlusIcon className="w-4 h-4" />
+                              Lägg till övning
+                          </button>
+                      </div>
+                  </div>
+              )}
+
+              {(!isManualMode || exerciseResults.length > 0) && (
                   <>
-                    {exerciseResults.length === 0 && (
+                    {!isManualMode && exerciseResults.length === 0 && (
                         <div className="bg-white dark:bg-gray-900 p-6 rounded-3xl border border-dashed border-gray-200 dark:border-gray-800 text-center mb-8">
                             <p className="text-gray-500 text-sm">Inga övningar i detta pass är markerade för specifik loggning. Du kan fortfarande ange distans, kcal och skriva en kommentar nedan.</p>
                         </div>
@@ -1346,7 +1523,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
                         return (
                             <React.Fragment key={result.exerciseId}>
-                                {isNewBlock && (
+                                {isNewBlock && !isManualMode && (
                                     <div className="mt-8 mb-4 flex items-center gap-3">
                                         <div className="h-5 w-1.5 bg-primary rounded-full shadow-sm"></div>
                                         <h3 className="text-base font-black uppercase tracking-widest text-gray-800 dark:text-gray-200">
@@ -1358,8 +1535,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                     name={result.exerciseName}
                                     result={result}
                                     onUpdate={(updates) => handleUpdateResult(index, updates)}
-                                    aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} // Koncept 1: Coach Whisper
-                                    scaling={activeInsight?.scaling?.[result.exerciseName]} // Koncept 1: Scaling
+                                    onRemove={isManualMode ? () => setExerciseResults(prev => prev.filter((_, i) => i !== index)) : undefined}
+                                    aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
+                                    scaling={activeInsight?.scaling?.[result.exerciseName]} 
                                     lastPerformance={history[result.exerciseName]} 
                                     isLastInGroup={isLastInGroup}
                                     onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
@@ -1368,69 +1546,99 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                         );
                     })}
 
-                    <div className="mt-8 mb-6 bg-white dark:bg-gray-900 p-5 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'time' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
-                                    Tid (min:sek)
-                                    {benchmarkDefinition?.type === 'time' && prevBenchmarkBest && (
-                                        <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'time')}</span>
-                                    )}
-                                </label>
-                                <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'time' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
-                                    <TimeInput
-                                        value={sessionStats.time}
-                                        onChange={(val) => setSessionStats(prev => ({ ...prev, time: val }))}
-                                        placeholder={benchmarkDefinition?.type === 'time' ? "45" : "-"}
-                                        className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                        compact={true}
-                                    />
+                    {!isManualMode && (
+                        <div className="mt-8 mb-6 bg-white dark:bg-gray-900 p-5 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'time' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                                        Tid (min:sek)
+                                        {benchmarkDefinition?.type === 'time' && prevBenchmarkBest && (
+                                            <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'time')}</span>
+                                        )}
+                                    </label>
+                                    <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'time' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
+                                        <TimeInput
+                                            value={sessionStats.time}
+                                            onChange={(val) => setSessionStats(prev => ({ ...prev, time: val }))}
+                                            placeholder={benchmarkDefinition?.type === 'time' ? "45" : "-"}
+                                            className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                            compact={true}
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'reps' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
-                                    Varv / Reps
-                                    {benchmarkDefinition?.type === 'reps' && prevBenchmarkBest && (
-                                        <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'reps')}</span>
-                                    )}
-                                </label>
-                                <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'reps' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
-                                    <input 
-                                        type="number"
-                                        value={sessionStats.rounds}
-                                        onChange={(e) => setSessionStats(prev => ({ ...prev, rounds: e.target.value }))}
-                                        placeholder={benchmarkDefinition?.type === 'reps' ? "T.ex. 5" : "-"}
-                                        className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                    />
+                                <div>
+                                    <label className={`block text-[10px] font-black uppercase tracking-widest mb-2 flex justify-between ${benchmarkDefinition?.type === 'reps' ? 'text-yellow-600 dark:text-yellow-500' : 'text-gray-400 dark:text-gray-500'}`}>
+                                        Varv / Reps
+                                        {benchmarkDefinition?.type === 'reps' && prevBenchmarkBest && (
+                                            <span className="text-[9px] bg-yellow-100 dark:bg-yellow-900/30 px-1.5 py-0.5 rounded">PB: {formatPrev(prevBenchmarkBest, 'reps')}</span>
+                                        )}
+                                    </label>
+                                    <div className={`bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border transition-colors ${benchmarkDefinition?.type === 'reps' ? 'border-yellow-400 dark:border-yellow-600 ring-2 ring-yellow-400/20' : 'border-gray-100 dark:border-gray-700'}`}>
+                                        <input 
+                                            type="number"
+                                            value={sessionStats.rounds}
+                                            onChange={(e) => setSessionStats(prev => ({ ...prev, rounds: e.target.value }))}
+                                            placeholder={benchmarkDefinition?.type === 'reps' ? "T.ex. 5" : "-"}
+                                            className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">kcal</label>
-                                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                    <input 
-                                        type="number"
-                                        value={sessionStats.calories}
-                                        onChange={(e) => setSessionStats(prev => ({ ...prev, calories: e.target.value }))}
-                                        placeholder="T.ex. 350"
-                                        className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                    />
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">kcal</label>
+                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                        <input 
+                                            type="number"
+                                            value={sessionStats.calories}
+                                            onChange={(e) => setSessionStats(prev => ({ ...prev, calories: e.target.value }))}
+                                            placeholder="T.ex. 350"
+                                            className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                            <div>
-                                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">km</label>
-                                <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                    <input 
-                                        type="number"
-                                        value={sessionStats.distance}
-                                        onChange={(e) => setSessionStats(prev => ({ ...prev, distance: e.target.value }))}
-                                        placeholder="T.ex. 5.3"
-                                        className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
-                                    />
+                                <div>
+                                    <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">km</label>
+                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
+                                        <input 
+                                            type="number"
+                                            value={sessionStats.distance}
+                                            onChange={(e) => setSessionStats(prev => ({ ...prev, distance: e.target.value }))}
+                                            placeholder="T.ex. 3.5"
+                                            className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
+                    )}
                   </>
+              )}
+
+              {isManualMode && exerciseResults.length > 0 && (
+                  <div className="mt-6 p-5 bg-white dark:bg-gray-900 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm flex flex-col gap-4">
+                      <div className="flex items-center gap-3">
+                          <input 
+                              type="checkbox" 
+                              checked={saveAsProgram}
+                              onChange={(e) => setSaveAsProgram(e.target.checked)}
+                              id="saveAsProgram"
+                              className="w-5 h-5 rounded border-gray-300 text-primary focus:ring-primary"
+                          />
+                          <label htmlFor="saveAsProgram" className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                              Spara som nytt program
+                          </label>
+                      </div>
+                      {saveAsProgram && (
+                          <div className="animate-fade-in">
+                              <input 
+                                  type="text"
+                                  value={programName}
+                                  onChange={(e) => setProgramName(e.target.value)}
+                                  placeholder="T.ex. Axlar & Rygg"
+                                  className="w-full bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white px-4 py-3 rounded-xl border border-gray-200 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-primary transition-all font-medium placeholder-gray-400"
+                              />
+                          </div>
+                      )}
+                  </div>
               )}
 
               <PostWorkoutForm 
@@ -1488,6 +1696,71 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               </div>
           </div>
       </div>
+{showExerciseSearch && (
+          <Modal isOpen={showExerciseSearch} onClose={() => setShowExerciseSearch(false)} size="lg">
+              <div className="flex flex-col items-center w-full h-[85vh]">
+                  <div className="w-full flex items-center justify-between mb-4 mt-2 sm:mb-8 sm:mt-0 cursor-pointer" onClick={() => setShowExerciseSearch(false)}>
+                      <h2 className="text-xl font-black uppercase tracking-widest text-gray-900 dark:text-white">Lägg till övning</h2>
+                      <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700 transition">
+                          <CloseIcon className="w-5 h-5 text-gray-500" />
+                      </div>
+                  </div>
+                  
+                  <div className="w-full relative mb-6">
+                      <input 
+                          type="text" 
+                          placeholder="Sök i övningsbanken eller skriv egen..." 
+                          value={exerciseSearchTerm}
+                          onChange={(e) => setExerciseSearchTerm(e.target.value)}
+                          className="w-full bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-[2rem] py-4 px-6 font-bold focus:outline-none focus:ring-2 focus:ring-primary border border-gray-200 dark:border-gray-700"
+                      />
+                  </div>
+
+                  <div className="w-full flex-1 overflow-y-auto scrollbar-hide space-y-2 pb-10">
+                      {exerciseSearchTerm.length > 0 && !filteredBank.some(ex => ex.name.toLowerCase() === exerciseSearchTerm.toLowerCase()) && (
+                          <div 
+                              onClick={() => handleAddManualExercise(exerciseSearchTerm)}
+                              className="p-4 rounded-2xl border-2 border-dashed border-primary hover:bg-primary/5 transition flex items-center gap-3 cursor-pointer mb-4"
+                          >
+                              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
+                                  <PlusIcon className="w-5 h-5" />
+                              </div>
+                              <div className="flex-1">
+                                  <div className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">Skapa Egen:</div>
+                                  <div className="font-medium text-gray-600 dark:text-gray-300">"{exerciseSearchTerm}"</div>
+                              </div>
+                          </div>
+                      )}
+                      
+                      {filteredBank.map(ex => (
+                          <div 
+                              key={ex.id}
+                              onClick={() => handleAddManualExercise(ex.name)}
+                              className="p-4 bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm hover:shadow-md transition flex items-center gap-4 cursor-pointer"
+                          >
+                              <div className="w-12 h-12 rounded-xl bg-gray-50 dark:bg-gray-800 flex items-center justify-center text-gray-500 font-black text-lg">
+                                  {ex.name.charAt(0)}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                  <h4 className="font-bold text-gray-900 dark:text-white truncate">{ex.name}</h4>
+                                  <div className="flex items-center gap-2 mt-1">
+                                      <span className="text-[10px] font-black uppercase tracking-widest text-primary px-2 py-0.5 bg-primary/10 rounded">
+                                          {ex.muscleGroup}
+                                      </span>
+                                  </div>
+                              </div>
+                              <PlusIcon className="w-5 h-5 text-gray-400" />
+                          </div>
+                      ))}
+                      {filteredBank.length === 0 && exerciseSearchTerm.length === 0 && (
+                          <div className="text-center py-10">
+                              <p className="text-gray-500 font-medium">Sök för att hitta övningar.</p>
+                          </div>
+                      )}
+                  </div>
+              </div>
+          </Modal>
+      )}
     </div>
   );
-}
+};

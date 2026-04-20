@@ -54,7 +54,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     // Kolla URL-parametrar vid start
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
-        const invite = params.get('invite');
+        const invite = params.get('invite') || params.get('coach');
         if (invite) {
             setInviteCode(invite.toUpperCase());
             setView('register');

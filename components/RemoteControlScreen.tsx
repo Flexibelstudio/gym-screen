@@ -822,7 +822,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                         }
                                     }}
                                     icon={<PencilIcon className="w-8 h-8" />}
-                                    label="Idétavlan"
+                                    label="AI Whiteboard"
                                 />
                             )}
 
@@ -845,7 +845,7 @@ export const RemoteControlScreen: React.FC<{ onBack: () => void }> = ({ onBack }
                                     <div className="bg-gray-800 p-6 rounded-3xl border border-gray-700">
                                         <span className="text-xs font-bold text-primary uppercase tracking-widest mb-1 block">{selectedWorkout.category}</span>
                                         <h1 className="text-3xl font-black mb-4 leading-tight">{selectedWorkout.title}</h1>
-                                        <p className="text-gray-400 text-sm leading-relaxed mb-6">{selectedWorkout.coachTips || "Inga noteringar."}</p>
+                                        <p className="text-gray-400 text-sm leading-relaxed mb-6 whitespace-pre-wrap">{selectedWorkout.coachTips || "Inga noteringar."}</p>
                                         
                                         <div className="space-y-3">
                                             {selectedWorkout.blocks.map((block, i) => (
