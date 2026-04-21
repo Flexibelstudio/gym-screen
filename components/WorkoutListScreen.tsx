@@ -95,7 +95,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                         setSelectedWorkoutHistory(workout);
                     }
                 }}
-                className={`cursor-pointer group relative overflow-hidden rounded-[2.5rem] p-8 transition-all bg-[#0f141e] border-2 border-gray-800 hover:border-gray-700 shadow-xl flex flex-col`}
+                className={`cursor-pointer group relative overflow-hidden rounded-[2.5rem] p-8 transition-all bg-white dark:bg-[#0f141e] border-2 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 shadow-xl flex flex-col`}
                 style={{ touchAction: 'manipulation' }}
             >
                 {/* Decorative Background */}
@@ -104,7 +104,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                 <div className="relative z-10 flex-grow flex flex-col">
                     <div className="flex justify-between items-start mb-6 w-full">
                         <div className="flex items-center gap-2 flex-1 pr-2">
-                             <h3 className="text-xl font-bold text-white leading-tight">
+                             <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">
                                  {workout.title || 'Namnlöst pass'}
                              </h3>
                         </div>
@@ -115,72 +115,92 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                         e.stopPropagation();
                                         setProgramToDelete(workout);
                                     }}
-                                    className="p-2 bg-gray-800/80 backdrop-blur-sm text-gray-500 hover:text-red-400 hover:bg-red-900/40 rounded-full transition-colors z-40 cursor-pointer border border-gray-700 hover:scale-105 active:scale-95"
+                                    className="p-2 bg-gray-100 dark:bg-gray-800/80 backdrop-blur-sm text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-full transition-colors z-40 cursor-pointer border border-gray-200 dark:border-gray-700 hover:scale-105 active:scale-95"
                                     aria-label="Radera pass"
                                 >
                                     <TrashIcon className="w-4 h-4" />
                                 </button>
                             )}
                             {workout.benchmarkId && (
-                                <div className="bg-yellow-900/30 text-yellow-400 px-2.5 py-2.5 rounded-xl border border-yellow-500/20 shadow-sm">
+                                <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 px-2.5 py-2.5 rounded-xl border border-yellow-300/30 dark:border-yellow-500/20 shadow-sm">
                                     <TrophyIcon className="w-5 h-5" />
                                 </div>
                             )}
                         </div>
                     </div>
                     
-                    {attempts > 0 ? (
-                        <div className="flex flex-col justify-end mt-4">
-                            {pbVolume && pbVolume > 0 ? (
-                                <p className="text-[2.5rem] leading-none font-black text-white tracking-tight">
-                                    {pbVolume.toLocaleString('sv-SE')} <span className="text-lg text-gray-500 font-bold ml-1">kg</span>
+                    {!isStudioMode ? (
+                        attempts > 0 ? (
+                            <div className="flex flex-col justify-end mt-4">
+                                {pbVolume && pbVolume > 0 ? (
+                                    <p className="text-[2.5rem] leading-none font-black text-gray-900 dark:text-white tracking-tight">
+                                        {pbVolume.toLocaleString('sv-SE')} <span className="text-lg text-gray-500 font-bold ml-1">kg</span>
+                                    </p>
+                                ) : (
+                                    <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tight mb-1">Genomfört</p>
+                                )}
+                                <p className="text-[11px] text-gray-500 mt-4 uppercase tracking-widest font-black flex items-center gap-2">
+                                    {latestDate} • {attempts} FÖRSÖK 
                                 </p>
-                            ) : (
-                                <p className="text-3xl font-black text-white tracking-tight mb-1">Genomfört</p>
-                            )}
-                            <p className="text-[11px] text-gray-500 mt-4 uppercase tracking-widest font-black flex items-center gap-2">
-                                {latestDate} • {attempts} FÖRSÖK 
-                            </p>
-                        </div>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col justify-end mt-4">
+                                 <p className="text-[2.5rem] leading-none font-black text-gray-300 dark:text-gray-700 tracking-tight">
+                                     -
+                                 </p>
+                                 <p className="text-[11px] text-gray-400 dark:text-gray-600 mt-4 uppercase tracking-widest font-black">
+                                     INGA FÖRSÖK ÄN
+                                 </p>
+                            </div>
+                        )
                     ) : (
-                        <div className="flex flex-col justify-end mt-4">
-                             <p className="text-[2.5rem] leading-none font-black text-gray-700 tracking-tight">
-                                 -
-                             </p>
-                             <p className="text-[11px] text-gray-600 mt-4 uppercase tracking-widest font-black">
-                                 INGA FÖRSÖK ÄN
+                        <div className="flex flex-col justify-end mt-4 flex-grow">
+                             <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-4 uppercase tracking-widest font-black">
+                                 KLICKA FÖR ATT VÄLJA
                              </p>
                         </div>
                     )}
 
-                    {!isStudioMode && (
-                        <div className="flex gap-2 w-full mt-8 relative z-20">
+                    <div className="flex gap-2 w-full mt-8 relative z-20">
+                         {isStudioMode ? (
                              <button
                                  onClick={(e) => {
                                      e.stopPropagation();
                                      onSelectWorkout(workout, 'view');
                                  }}
-                                 className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-colors shadow-sm"
+                                 className="w-full mt-auto py-3 px-4 rounded-xl font-bold bg-primary hover:bg-teal-400 text-black shadow-lg transition-transform hover:scale-105 active:scale-95 text-sm uppercase tracking-widest"
                              >
-                                 Visa
+                                 Kör Pass
                              </button>
-                             {isLoggable && (
+                         ) : (
+                             <>
                                  <button
                                      onClick={(e) => {
                                          e.stopPropagation();
-                                         onSelectWorkout(workout, 'log');
+                                         onSelectWorkout(workout, 'view');
                                      }}
-                                     className="flex-1 py-3 bg-primary text-white hover:bg-primary/90 rounded-2xl text-xs font-black uppercase tracking-widest transition-colors shadow-sm"
+                                     className="flex-1 py-3 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-800 dark:text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-colors shadow-sm"
                                  >
-                                     Logga
+                                     Visa
                                  </button>
-                             )}
-                        </div>
-                    )}
+                                 {isLoggable && (
+                                     <button
+                                         onClick={(e) => {
+                                             e.stopPropagation();
+                                             onSelectWorkout(workout, 'log');
+                                         }}
+                                         className="flex-1 py-3 bg-primary text-white hover:bg-primary/90 rounded-2xl text-xs font-black uppercase tracking-widest transition-colors shadow-sm"
+                                     >
+                                         Logga
+                                     </button>
+                                 )}
+                             </>
+                         )}
+                    </div>
                 </div>
                 
                 <div className="absolute bottom-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none z-0">
-                    <DumbbellIcon className="w-20 h-20 text-white" />
+                    <DumbbellIcon className="w-20 h-20 text-black dark:text-white" />
                 </div>
             </div>
         );
