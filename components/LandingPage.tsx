@@ -130,20 +130,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                             transition={{ duration: 0.6 }}
                         >
                             <span className="inline-block py-1 px-3 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-bold uppercase tracking-widest mb-6">
-                                Det kompletta operativsystemet för gym
+                                SÅ ENKELT ATT ALLA KAN ANVÄNDA DET
                             </span>
                             <h1 className="text-5xl lg:text-7xl font-black tracking-tight leading-none mb-6">
-                                Förvandla din <br />
+                                Rita. Låt AI <br />
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-teal-200">
-                                    Digitala Yta.
+                                    göra resten.
                                 </span>
                             </h1>
                             <p className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
-                                SmartStudio är allt-i-ett-plattformen för gym och studios. Hantera infoskärmar, skapa AI-drivna träningspass och kör professionella timers – allt från en plats.
+                                Att digitalisera gymmet behöver inte betyda krångliga menyer. Vår världsunika AI-Whiteboard låter dig rita upp passet för hand. Vi tolkar texten, sätter upp din timer och visar passet snyggt för dina medlemmar.
                             </p>
                             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                                 <button onClick={onRegisterGymClick || onLoginClick} className="bg-primary hover:bg-teal-400 text-black text-lg px-8 py-4 rounded-full font-bold transition-all transform hover:scale-105 shadow-[0_0_20px_-5px_rgba(20,184,166,0.5)]">
-                                    Starta din studio
+                                    Byt ut din whiteboard idag
                                 </button>
                                 <button 
                                     onClick={() => setIsDemoModalOpen(true)}
