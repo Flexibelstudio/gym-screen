@@ -1121,11 +1121,11 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             const ctx = canvas.getContext('2d');
             if (ctx) {
                 const dpr = window.devicePixelRatio || 1;
+                ctx.globalCompositeOperation = 'source-over';
                 if (isEraserActive) {
-                    ctx.globalCompositeOperation = 'destination-out';
-                    ctx.lineWidth = 15 * dpr; // Make eraser thicker
+                    ctx.strokeStyle = '#030712'; // Match the canvas background color
+                    ctx.lineWidth = 30 * dpr; // Make eraser thicker
                 } else {
-                    ctx.globalCompositeOperation = 'source-over';
                     ctx.strokeStyle = drawingColor;
                     ctx.lineWidth = 4 * dpr; // Reset to normal size
                 }
