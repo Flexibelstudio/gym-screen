@@ -130,50 +130,32 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                     </div>
                     
                     {!isStudioMode ? (
-                        attempts > 0 ? (
-                            <div className="flex flex-col justify-end mt-4">
-                                {pbVolume && pbVolume > 0 ? (
-                                    <p className="text-[2.5rem] leading-none font-black text-gray-900 dark:text-white tracking-tight">
-                                        {pbVolume.toLocaleString('sv-SE')} <span className="text-lg text-gray-500 font-bold ml-1">kg</span>
+                        <>
+                            {attempts > 0 ? (
+                                <div className="flex flex-col justify-end mt-4">
+                                    {pbVolume && pbVolume > 0 ? (
+                                        <p className="text-[2.5rem] leading-none font-black text-gray-900 dark:text-white tracking-tight">
+                                            {pbVolume.toLocaleString('sv-SE')} <span className="text-lg text-gray-500 font-bold ml-1">kg</span>
+                                        </p>
+                                    ) : (
+                                        <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tight mb-1">Genomfört</p>
+                                    )}
+                                    <p className="text-[11px] text-gray-500 mt-4 uppercase tracking-widest font-black flex items-center gap-2">
+                                        {latestDate} • {attempts} FÖRSÖK 
                                     </p>
-                                ) : (
-                                    <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tight mb-1">Genomfört</p>
-                                )}
-                                <p className="text-[11px] text-gray-500 mt-4 uppercase tracking-widest font-black flex items-center gap-2">
-                                    {latestDate} • {attempts} FÖRSÖK 
-                                </p>
-                            </div>
-                        ) : (
-                            <div className="flex flex-col justify-end mt-4">
-                                 <p className="text-[2.5rem] leading-none font-black text-gray-300 dark:text-gray-700 tracking-tight">
-                                     -
-                                 </p>
-                                 <p className="text-[11px] text-gray-400 dark:text-gray-600 mt-4 uppercase tracking-widest font-black">
-                                     INGA FÖRSÖK ÄN
-                                 </p>
-                            </div>
-                        )
-                    ) : (
-                        <div className="flex flex-col justify-end mt-4 flex-grow">
-                             <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-4 uppercase tracking-widest font-black">
-                                 KLICKA FÖR ATT VÄLJA
-                             </p>
-                        </div>
-                    )}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col justify-end mt-4">
+                                     <p className="text-[2.5rem] leading-none font-black text-gray-300 dark:text-gray-700 tracking-tight">
+                                         -
+                                     </p>
+                                     <p className="text-[11px] text-gray-400 dark:text-gray-600 mt-4 uppercase tracking-widest font-black">
+                                         INGA FÖRSÖK ÄN
+                                     </p>
+                                </div>
+                            )}
 
-                    <div className="flex gap-2 w-full mt-8 relative z-20">
-                         {isStudioMode ? (
-                             <button
-                                 onClick={(e) => {
-                                     e.stopPropagation();
-                                     onSelectWorkout(workout, 'view');
-                                 }}
-                                 className="w-full mt-auto py-3 px-4 rounded-xl font-bold bg-primary hover:bg-teal-400 text-black shadow-lg transition-transform hover:scale-105 active:scale-95 text-sm uppercase tracking-widest"
-                             >
-                                 Kör Pass
-                             </button>
-                         ) : (
-                             <>
+                            <div className="flex gap-2 w-full mt-8 relative z-20">
                                  <button
                                      onClick={(e) => {
                                          e.stopPropagation();
@@ -194,9 +176,23 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                          Logga
                                      </button>
                                  )}
-                             </>
-                         )}
-                    </div>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="flex flex-col justify-end mt-auto flex-grow pt-8">
+                             <div className="flex items-center gap-3">
+                                 <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center text-gray-400 dark:text-gray-500">
+                                     <ClockIcon className="w-4 h-4 mb-0.5" />
+                                 </div>
+                                 <div>
+                                     <p className="text-[10px] font-black uppercase tracking-widest text-gray-500 mb-0.5">Längd</p>
+                                     <p className="text-sm font-bold text-gray-900 dark:text-gray-300">
+                                         ~{workout.blocks ? workout.blocks.length * 10 : 0} min
+                                     </p>
+                                 </div>
+                             </div>
+                        </div>
+                    )}
                 </div>
                 
                 <div className="absolute bottom-0 right-0 p-6 opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none z-0">
