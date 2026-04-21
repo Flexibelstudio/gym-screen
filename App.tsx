@@ -493,13 +493,15 @@ const App: React.FC = () => {
 
   const resetInactivityTimer = useCallback(() => {
       if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
-      if (studioConfig.enableScreensaver && !pagesThatPreventScreensaver.includes(page)) {
+      if (isStudioMode && studioConfig.enableScreensaver && !pagesThatPreventScreensaver.includes(page)) {
           const timeoutMinutes = studioConfig.screensaverTimeoutMinutes || 15;
           inactivityTimerRef.current = window.setTimeout(() => {
               setIsScreensaverActive(true);
           }, timeoutMinutes * 60 * 1000);
+      } else {
+          if (isScreensaverActive) setIsScreensaverActive(false);
       }
-  }, [studioConfig.enableScreensaver, studioConfig.screensaverTimeoutMinutes, page]);
+  }, [isStudioMode, studioConfig.enableScreensaver, studioConfig.screensaverTimeoutMinutes, page, isScreensaverActive]);
 
   const handleUserActivity = useCallback(() => {
       if (isScreensaverActive) setIsScreensaverActive(false);
