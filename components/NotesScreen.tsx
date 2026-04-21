@@ -1193,7 +1193,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             canvas.removeEventListener('pointerup', stopDrawing);
             canvas.removeEventListener('pointerleave', stopDrawing);
         };
-    }, [animationState, lastDrawnBlock, drawingColor]); 
+    }, [animationState, lastDrawnBlock, drawingColor, isEraserActive]); 
 
     const clearCanvas = () => { 
         const canvas = canvasRef.current;
