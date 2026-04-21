@@ -133,9 +133,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLoginClick, onRegist
                                 SÅ ENKELT ATT ALLA KAN ANVÄNDA DET
                             </span>
                             <h1 className="text-5xl lg:text-7xl font-black tracking-tight leading-none mb-6">
-                                Rita. Låt AI <br />
+                                Skriv, klistra in en anteckning eller ladda upp en bild. <br />
                                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-teal-200">
-                                    göra resten.
+                                    Låt AI göra resten.
                                 </span>
                             </h1>
                             <p className="text-xl text-gray-400 mb-8 max-w-2xl mx-auto lg:mx-0 leading-relaxed">
