@@ -67,7 +67,7 @@ export const OneRepMaxModal: React.FC<{ onClose: () => void }> = ({ onClose }) =
                             <h4 className="font-bold text-gray-900 dark:text-white mb-3 text-sm uppercase tracking-wider">Procenttabell</h4>
                             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                                 {percentages.map(pct => (
-                                    <div key={pct} className={`p-2 rounded-lg text-center ${pct === 100 ? 'bg-gray-800 text-white col-span-3 sm:col-span-4' : 'bg-gray-100 dark:bg-gray-800'}`}>
+                                    <div key={pct} className={`p-2 rounded-lg text-center ${pct === 100 ? 'bg-gray-800 dark:bg-gray-700 text-white col-span-3 sm:col-span-4' : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'}`}>
                                         <span className="block text-[10px] font-bold opacity-60">{pct}%</span>
                                         <span className="block font-black text-lg">{Math.round((estimated1RM * pct) / 100)} kg</span>
                                     </div>

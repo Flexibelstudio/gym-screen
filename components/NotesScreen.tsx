@@ -821,6 +821,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const [isInfoModalVisible, setIsInfoModalVisible] = useState(false);
     
     const [drawingColor, setDrawingColor] = useState<string>('#FFFFFF');
+    const [isEraserActive, setIsEraserActive] = useState<boolean>(false);
     
     const [activeNoteId, setActiveNoteId] = useState<string | null>(null);
     const [animationState, setAnimationState] = useState<'intro' | 'exiting' | 'finished'>(initialWorkoutToDraw ? 'finished' : 'intro');
@@ -1119,7 +1120,15 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             
             const ctx = canvas.getContext('2d');
             if (ctx) {
-                ctx.strokeStyle = drawingColor;
+                const dpr = window.devicePixelRatio || 1;
+                ctx.globalCompositeOperation = 'source-over';
+                if (isEraserActive) {
+                    ctx.strokeStyle = '#030712'; // Match the canvas background color
+                    ctx.lineWidth = 30 * dpr; // Make eraser thicker
+                } else {
+                    ctx.strokeStyle = drawingColor;
+                    ctx.lineWidth = 4 * dpr; // Reset to normal size
+                }
             }
         };
 
@@ -1184,7 +1193,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             canvas.removeEventListener('pointerup', stopDrawing);
             canvas.removeEventListener('pointerleave', stopDrawing);
         };
-    }, [animationState, lastDrawnBlock, drawingColor]); 
+    }, [animationState, lastDrawnBlock, drawingColor, isEraserActive]); 
 
     const clearCanvas = () => { 
         const canvas = canvasRef.current;
@@ -1829,12 +1838,21 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         )}
                     </div>
 
-                    {/* 2. Undo & Clear */}
+                    {/* 2. Undo & Clear & Eraser */}
                     <div className="flex flex-col gap-2">
                         <button onClick={handleUndo} disabled={history.length === 0} className="p-3 text-gray-300 hover:bg-gray-700 hover:text-white rounded-xl disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Ångra">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
                             </svg>
+                        </button>
+                        <button 
+                            onClick={() => setIsEraserActive(!isEraserActive)} 
+                            className={`p-3 rounded-xl transition-colors ${isEraserActive ? 'bg-primary/20 text-primary ring-2 ring-primary/50' : 'text-gray-300 hover:bg-gray-700 hover:text-white'}`}
+                            title="Suddgummi"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
+  <path fillRule="evenodd" d="M2.515 10.674a1.875 1.875 0 0 0 0 2.652L8.89 19.7c.352.351.829.549 1.326.549H19.5a3 3 0 0 0 3-3V15a3 3 0 0 0-3-3h-1.66l-5.632-5.632a1.875 1.875 0 0 0-2.652 0l-6.041 6.041ZM17.84 15h1.66a1.5 1.5 0 0 1 1.5 1.5v2.25a1.5 1.5 0 0 1-1.5 1.5h-9.284l6.124-6.124ZM9.37 18.17l-5.63-5.631a.375.375 0 0 1 0-.53l5.63-5.631a.375.375 0 0 1 .531 0l5.631 5.631-6.162 6.162Z" clipRule="evenodd" />
+</svg>
                         </button>
                         <button onClick={clearCanvas} className="p-3 text-gray-300 hover:bg-red-500/20 hover:text-red-400 rounded-xl transition-colors" title="Rensa">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
@@ -1848,7 +1866,10 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         {effectiveColors.map(color => (
                             <button
                                 key={color.hex}
-                                onClick={() => setDrawingColor(color.hex)}
+                                onClick={() => {
+                                    setDrawingColor(color.hex);
+                                    setIsEraserActive(false);
+                                }}
                                 className={`w-8 h-8 rounded-full border-2 transition-transform hover:scale-110 shadow-sm ${drawingColor === color.hex ? 'border-white scale-125 shadow-md ring-2 ring-white/20' : 'border-transparent'}`}
                                 style={{ backgroundColor: color.hex }}
                                 title={color.label}
