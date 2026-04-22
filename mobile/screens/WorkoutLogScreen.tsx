@@ -186,7 +186,6 @@ const getFunComparison = (totalWeight: number) => {
     return { count: formattedCount, name: bestMatch.name, single: bestMatch.singular, weight: bestMatch.weight, emoji: bestMatch.emoji };
 };
 
-const COMMON_ACTIVITIES = ["Funktionell Träning", "HIIT", "Löpning", "Promenad", "Workout", "Yoga", "Cykling", "Simning", "Racketsport", "Vardagsmotion"];
 const KROPPSKANSLA_TAGS = ["Pigg", "Stark", "Seg", "Stel", "Ont", "Stressad", "Bra musik", "Bra pepp", "Grymt pass"];
 const RPE_LEVELS = [
     { range: '1-2', label: 'Mycket lätt', desc: 'Du kan sjunga eller prata helt obehindrat.', color: 'bg-emerald-500' },
@@ -644,9 +643,10 @@ const ExerciseLogCard: React.FC<{
 };
 
 const CustomActivityForm: React.FC<{
-  activityName: string; duration: string; distance: string; calories: string; onUpdate: (field: string, value: string) => void; isQuickMode?: boolean; hasExercises?: boolean;
-}> = ({ activityName, duration, distance, calories, onUpdate, isQuickMode, hasExercises }) => {
+  activityName: string; duration: string; distance: string; calories: string; onUpdate: (field: string, value: string) => void; isQuickMode?: boolean; hasExercises?: boolean; organizationConfig?: any;
+}> = ({ activityName, duration, distance, calories, onUpdate, isQuickMode, hasExercises, organizationConfig }) => {
     const [isExpanded, setIsExpanded] = useState(!hasExercises);
+    const commonActivities = organizationConfig?.commonActivities || ["Funktionell Träning", "HIIT", "Löpning", "Promenad", "Workout", "Yoga", "Cykling", "Simning", "Racketsport", "Vardagsmotion", "Styrketräning"];
 
     useEffect(() => {
         setIsExpanded(!hasExercises);
@@ -693,7 +693,7 @@ const CustomActivityForm: React.FC<{
                     <>
                         <h3 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-4">Vanliga aktiviteter</h3>
                         <div className="flex flex-wrap gap-2">
-                            {COMMON_ACTIVITIES.map(act => (
+                            {commonActivities.map((act: string) => (
                                 <button key={act} onClick={() => onUpdate('name', act)} className={`px-4 py-2.5 rounded-xl text-xs font-bold border-2 transition-all active:scale-95 ${activityName === act ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' : 'bg-gray-5 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'}`}>{act}</button>
                             ))}
                         </div>
@@ -1489,6 +1489,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                       onUpdate={handleCustomActivityUpdate}
                       isQuickMode={false}
                       hasExercises={exerciseResults.length > 0}
+                      organizationConfig={selectedOrganization?.globalConfig}
                   />
               )}
 

@@ -194,6 +194,7 @@ export interface StudioConfig {
   seasonalTheme?: ThemeOption;
   soundProfile?: TimerSoundProfile; 
   navigationControlPosition?: 'top' | 'bottom'; // NYTT: Position för navigationsknappar
+  commonActivities?: string[]; // NYTT: Vanliga aktiviteter i loggningen
   aiSettings?: {
       tone?: string;
       instructions?: string;

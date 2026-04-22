@@ -121,9 +121,9 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                             <div className="ml-8 p-4 bg-white dark:bg-black/20 rounded-xl border border-blue-100 dark:border-blue-900/30 animate-fade-in">
                                 <h4 className="font-bold text-sm text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                                     <SparklesIcon className="w-4 h-4 text-purple-500" />
-                                    AI-Coach Inställningar
+                                    AI-Coach & Loggning
                                 </h4>
-                                <div className="space-y-4">
+                                <div className="space-y-6">
                                     <div>
                                         <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Systeminstruktioner</label>
                                         <textarea 
@@ -146,6 +146,58 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                                             <option value="strict">Sträng & Militärisk</option>
                                             <option value="sales">Säljande & Serviceinriktad</option>
                                         </select>
+                                    </div>
+
+                                    <div className="pt-4 border-t border-blue-100 dark:border-blue-900/30">
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Pass för egen loggning (Vanliga val)</label>
+                                        <p className="text-xs text-gray-400 mb-3">Dessa aktiviteter visas som snabbval när medlemmen loggar egenträning.</p>
+                                        
+                                        <div className="flex flex-wrap gap-2 mb-3">
+                                            {(config.commonActivities || ["Funktionell Träning", "HIIT", "Löpning", "Promenad", "Workout", "Yoga", "Cykling", "Simning", "Racketsport", "Vardagsmotion", "Styrketräning"]).map((act, i) => (
+                                                <div key={i} className="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-sm border border-gray-200 dark:border-gray-700">
+                                                    <span className="text-gray-700 dark:text-gray-300">{act}</span>
+                                                    <button onClick={() => {
+                                                        const curr = config.commonActivities || ["Funktionell Träning", "HIIT", "Löpning", "Promenad", "Workout", "Yoga", "Cykling", "Simning", "Racketsport", "Vardagsmotion", "Styrketräning"];
+                                                        handleUpdateConfigField('commonActivities', curr.filter((_, idx) => idx !== i));
+                                                    }} className="text-gray-400 hover:text-red-500 ml-1.5 font-bold transition-colors">
+                                                        &times;
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        
+                                        <div className="flex gap-2">
+                                            <input 
+                                                id="new-activity-input" 
+                                                type="text" 
+                                                placeholder="T.ex. Padel" 
+                                                className="flex-1 p-2 text-sm rounded bg-gray-5 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none" 
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const target = e.currentTarget;
+                                                        const val = target.value.trim();
+                                                        if (val) {
+                                                            const curr = config.commonActivities || ["Funktionell Träning", "HIIT", "Löpning", "Promenad", "Workout", "Yoga", "Cykling", "Simning", "Racketsport", "Vardagsmotion", "Styrketräning"];
+                                                            if (!curr.includes(val)) handleUpdateConfigField('commonActivities', [...curr, val]);
+                                                            target.value = '';
+                                                        }
+                                                    }
+                                                }}
+                                            />
+                                            <button onClick={() => {
+                                                const input = document.getElementById('new-activity-input') as HTMLInputElement;
+                                                if (!input) return;
+                                                const val = input.value.trim();
+                                                if (val) {
+                                                    const curr = config.commonActivities || ["Funktionell Träning", "HIIT", "Löpning", "Promenad", "Workout", "Yoga", "Cykling", "Simning", "Racketsport", "Vardagsmotion", "Styrketräning"];
+                                                    if (!curr.includes(val)) handleUpdateConfigField('commonActivities', [...curr, val]);
+                                                    input.value = '';
+                                                }
+                                            }} className="bg-primary hover:brightness-110 transition-all text-white text-sm px-4 py-2 rounded-md font-bold">
+                                                Lägg till
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
