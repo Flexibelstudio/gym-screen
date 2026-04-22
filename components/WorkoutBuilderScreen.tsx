@@ -878,6 +878,12 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                     disabled={studioConfig.customCategories.find(c => c.name === workout.category)?.isLocked}
                                     description={studioConfig.customCategories.find(c => c.name === workout.category)?.isLocked ? "Låsta kategorier visas inte i appen." : undefined}
                                 />
+                                <ToggleSwitch 
+                                    label="Använd Pre-game & Dagsform" 
+                                    checked={workout.usePreGame !== false} 
+                                    onChange={(val) => handleUpdateWorkoutDetail('usePreGame', val)} 
+                                    description="Låter medlemmen svara på dagsform och få en peppande strategi innan passet startar. Om avstängd kommer medlemmen direkt in till passets loggningslista."
+                                />
 
                                 <div className="pt-2 border-t border-gray-200 dark:border-gray-700 mt-2">
                                     <div className="flex items-center gap-2 mb-2">

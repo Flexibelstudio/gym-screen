@@ -153,6 +153,7 @@ export interface Workout {
   benchmarkId?: string; // NYTT: Koppling till ett Benchmark
   showInStudio?: boolean; // NYTT: Visa på skärm
   showInApp?: boolean; // NYTT: Visa i medlemsapp
+  usePreGame?: boolean; // Tända/Släcka pre-game vy i appen
   aiProgressionPrompt?: string; // NYTT: Prompt för AI-progression
 }
 

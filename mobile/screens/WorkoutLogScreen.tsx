@@ -1085,18 +1085,22 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                 setHistory(historyMap);
 
                 if (!skipInsights) {
-                    try {
-                        const exerciseNames = exercises.map(e => e.exerciseName);
-                        if (exerciseNames.length > 0) {
-                            // Fetch complete insights immediately (good/neutral/bad)
-                            const insights = await generateMemberInsights(logs, foundWorkout.title, exerciseNames, foundWorkout.aiProgressionPrompt, historyMap);
-                            setAiInsights(insights);
-                        } else {
+                    if (foundWorkout.usePreGame === false) {
+                        setViewMode('logging');
+                    } else {
+                        try {
+                            const exerciseNames = exercises.map(e => e.exerciseName);
+                            if (exerciseNames.length > 0) {
+                                // Fetch complete insights immediately (good/neutral/bad)
+                                const insights = await generateMemberInsights(logs, foundWorkout.title, exerciseNames, foundWorkout.aiProgressionPrompt, historyMap);
+                                setAiInsights(insights);
+                            } else {
+                                setViewMode('logging');
+                            }
+                        } catch (err) { 
+                            console.log("AI Insight Error", err); 
                             setViewMode('logging');
                         }
-                    } catch (err) { 
-                        console.log("AI Insight Error", err); 
-                        setViewMode('logging');
                     }
                 }
             }
