@@ -538,6 +538,7 @@ export interface WorkoutLog {
     benchmarkValue?: number; // NYTT: Resultatet (tid i sekunder, antal reps, eller vikt)
     showOnLeaderboard?: boolean; // NYTT: För att dölja i flöden och topplistor
     totalVolume?: number; // NYTT: Total vikt x reps under passet
+    inStudio?: boolean; // NYTT: Indikerar om träningspasset genomfördes på plats på gymmet
 }
 
 export interface CheckInEvent {

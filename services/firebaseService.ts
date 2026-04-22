@@ -557,7 +557,7 @@ export const getLeaderboardData = async (orgId: string): Promise<{ memberId: str
         );
         
         const snap = await getDocs(q);
-        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false);
+        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
         
         // Aggregate by memberId
         const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
@@ -603,7 +603,7 @@ export const listenToLeaderboardData = (orgId: string, onUpdate: (data: { member
     );
     
     return onSnapshot(q, (snap) => {
-        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false);
+        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
         
         // Aggregate by memberId
         const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
@@ -647,7 +647,7 @@ export const listenToCommunityLogs = (orgId: string, onUpdate: (logs: WorkoutLog
     }
     const q = query(collection(db, 'workoutLogs'), where("organizationId", "==", orgId), orderBy("date", "desc"), limit(20));
     return onSnapshot(q, (snap) => {
-        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false);
+        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
         onUpdate(logs);
     }, (err) => console.error("listenToCommunityLogs failed", err));
 };
@@ -1773,3 +1773,5 @@ export const activateMemberSubscriptionLocally = async (userId: string): Promise
         console.error("Optimistic subscription activation failed", e);
     }
 };
+
+

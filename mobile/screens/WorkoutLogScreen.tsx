@@ -876,6 +876,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [exerciseSearchTerm, setExerciseSearchTerm] = useState('');
   const [saveAsProgram, setSaveAsProgram] = useState(false);
   const [programName, setProgramName] = useState('');
+  const [inStudio, setInStudio] = useState(!isManualMode);
 
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
@@ -1271,6 +1272,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               exerciseResults: exerciseResultsToSave,
               benchmarkId: benchmarkDefinition?.id,
               totalVolume: totalVolume > 0 ? totalVolume : undefined,
+              inStudio: inStudio,
           };
 
           finalLogRaw.durationMinutes = parseFloat(isQuickOrManual ? customActivity.duration : sessionStats.time) || 0;
@@ -1766,6 +1768,15 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               />
 
               <div className="mt-12 space-y-4 pb-12">
+                  <div className="flex items-center gap-3 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-4 rounded-xl shadow-sm mb-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors" onClick={() => setInStudio(!inStudio)}>
+                      <div className={`w-6 h-6 rounded-md flex items-center justify-center border transition-colors ${inStudio ? 'bg-primary border-primary' : 'bg-transparent border-gray-300 dark:border-gray-600'}`}>
+                          {inStudio && <CheckIcon className="w-4 h-4 text-white" />}
+                      </div>
+                      <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
+                          {`Jag tränade på ${selectedOrganization?.name || 'gymmet'}`}
+                      </span>
+                  </div>
+
                   {!isFormValid && !isManualMode && uncheckedSetsCount > 0 && (
                       <div className="text-center animate-fade-in">
                           <p className="text-orange-600 dark:text-orange-400 text-xs font-black uppercase tracking-widest mb-1 flex items-center justify-center gap-1">
