@@ -35,7 +35,8 @@ import {
   deleteField,
   serverTimestamp,
   Firestore,
-  runTransaction
+  runTransaction,
+  enableMultiTabIndexedDbPersistence
 } from 'firebase/firestore';
 import { 
   getStorage, 
@@ -89,6 +90,19 @@ if (!isOffline) {
         app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
         auth = getAuth(app);
         db = getFirestore(app);
+        
+        try {
+            enableMultiTabIndexedDbPersistence(db).catch((err) => {
+                if (err.code == 'failed-precondition') {
+                    console.warn('Multiple tabs open, persistence can only be enabled in one tab at a a time.');
+                } else if (err.code == 'unimplemented') {
+                    console.warn('The current browser does not support all of the features required to enable persistence.');
+                }
+            });
+        } catch (e) {
+            console.warn("Could not enable persistence immediately", e);
+        }
+
         storage = getStorage(app);
         functions = getFunctions(app, 'us-central1');
         
@@ -1759,5 +1773,3 @@ export const activateMemberSubscriptionLocally = async (userId: string): Promise
         console.error("Optimistic subscription activation failed", e);
     }
 };
-
-
