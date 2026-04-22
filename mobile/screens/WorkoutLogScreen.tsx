@@ -866,7 +866,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
   const [showCelebration, setShowCelebration] = useState(false);
-  const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  const getLocalDateString = (d: Date) => {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const [logDate, setLogDate] = useState(getLocalDateString(new Date()));
   const [allLogs, setAllLogs] = useState<WorkoutLog[]>([]);
   const [viewMode, setViewMode] = useState<'pre-game' | 'logging'>(isManualMode ? 'logging' : 'pre-game');
   const [dailyFeeling, setDailyFeeling] = useState<'good' | 'neutral' | 'bad' | null>(null);
@@ -1200,7 +1204,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
           const isQuickOrManual = isManualMode;
           
           const now = new Date();
-          const selectedDate = new Date(logDate);
+          const dateParts = logDate.split('-');
+          const selectedDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
           const isToday = selectedDate.toDateString() === now.toDateString();
           
           let logDateMs: number;

@@ -11,6 +11,11 @@ export const ActivityCalendar: React.FC<ActivityCalendarProps> = ({ logs, onDayC
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
 
+    // Helper to get local date string YYYY-MM-DD
+    const getLocalDateString = (d: Date) => {
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+
     // Get days in month
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
@@ -20,19 +25,19 @@ export const ActivityCalendar: React.FC<ActivityCalendarProps> = ({ logs, onDayC
 
     const days = Array.from({ length: daysInMonth }, (_, i) => {
         const date = new Date(currentYear, currentMonth, i + 1);
-        const dateString = date.toISOString().split('T')[0];
+        const dateString = getLocalDateString(date);
         
         // Find logs for this day
         const dayLogs = logs.filter(log => {
             const logDate = new Date(log.date);
-            return logDate.toISOString().split('T')[0] === dateString;
+            return getLocalDateString(logDate) === dateString;
         });
 
         return {
             date,
             dayNumber: i + 1,
             logs: dayLogs,
-            isToday: dateString === today.toISOString().split('T')[0]
+            isToday: dateString === getLocalDateString(today)
         };
     });
 
