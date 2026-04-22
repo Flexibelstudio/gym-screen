@@ -4,7 +4,7 @@ import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage,
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage, getExerciseDagsformAdvice, ExerciseDagsformAdvice } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
-import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, ChartBarIcon, HistoryIcon } from '../../components/icons'; 
+import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, ChartBarIcon, HistoryIcon, CalculatorIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
 import { calculate1RM } from '../../utils/workoutUtils';
 import { ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition, BankExercise, Workout } from '../../types';
@@ -383,7 +383,8 @@ const ExerciseLogCard: React.FC<{
   lastPerformance?: { weight: number, reps: string } | null;
   isLastInGroup?: boolean;
   onAddGroupSet?: () => void;
-}> = ({ name, result, onUpdate, onRemove, aiSuggestion, scaling, lastPerformance, isLastInGroup, onAddGroupSet }) => {
+  onOpenCalculator?: (context: { exerciseName: string, current1RM?: number }) => void;
+}> = ({ name, result, onUpdate, onRemove, aiSuggestion, scaling, lastPerformance, isLastInGroup, onAddGroupSet, onOpenCalculator }) => {
     
     const trackingFields = result.trackingFields || ['reps', 'weight'];
     const showReps = trackingFields.includes('reps');
@@ -460,6 +461,17 @@ const ExerciseLogCard: React.FC<{
                     </div>
                     {/* Gear / Edit / Delete buttons */}
                     <div className="flex items-center gap-2">
+                        {onOpenCalculator && (
+                            <button 
+                                onClick={() => {
+                                    const estimatedOneRM = lastPerformance ? calculate1RM(lastPerformance.weight, lastPerformance.reps) : undefined;
+                                    onOpenCalculator({ exerciseName: name, current1RM: estimatedOneRM || undefined });
+                                }}
+                                className="p-2 rounded-xl transition-colors bg-gray-50 dark:bg-gray-800 text-primary hover:bg-primary/20 dark:hover:bg-primary/20"
+                            >
+                                <CalculatorIcon className="w-5 h-5" />
+                            </button>
+                        )}
                         <button 
                             onClick={() => setIsEditingFields(!isEditingFields)}
                             className={`p-2 rounded-xl transition-colors ${isEditingFields ? 'bg-primary/10 text-primary' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
@@ -759,6 +771,85 @@ const cleanForFirestore = (obj: any): any => {
   return result;
 };
 
+const OneRMCalculatorModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    context: { exerciseName?: string, current1RM?: number } | null;
+}> = ({ isOpen, onClose, context }) => {
+    const [calcWeight, setCalcWeight] = useState<string>('');
+    const [calcReps, setCalcReps] = useState<string>('');
+    
+    useEffect(() => {
+        if (isOpen) {
+            setCalcWeight('');
+            setCalcReps('');
+        }
+    }, [isOpen]);
+
+    let calculated1RM = null;
+    if (calcWeight && calcReps) {
+        calculated1RM = calculate1RM(calcWeight, calcReps);
+    } else if (context?.current1RM) {
+        calculated1RM = context.current1RM;
+    }
+
+    const percentages = [60, 65, 70, 75, 80, 85, 90, 95];
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title={context?.exerciseName ? `1RM: ${context.exerciseName}` : "1RM Kalkylator"} size="sm">
+            <div className="space-y-6">
+                {(context?.exerciseName && context?.current1RM && !calcWeight) ? (
+                    <div className="bg-primary/10 border border-primary/20 p-4 rounded-2xl text-center">
+                        <p className="text-[10px] text-primary font-black uppercase tracking-widest mb-1">Uppskattat 1RM</p>
+                        <p className="text-4xl font-black text-gray-900 dark:text-white">{context.current1RM} <span className="text-lg opacity-50">kg</span></p>
+                    </div>
+                ) : null}
+
+                <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 text-center">Räkna ut (nytt) 1RM</p>
+                    <div className="flex gap-4">
+                        <div className="flex-1">
+                            <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Vikt (kg)</label>
+                            <input type="number" inputMode="decimal" value={calcWeight} onChange={e => setCalcWeight(e.target.value)} className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-black text-lg p-3 rounded-xl border border-gray-200 dark:border-gray-700 outline-none focus:border-primary text-center transition-colors" placeholder="Ex. 100" />
+                        </div>
+                        <div className="flex-1">
+                            <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Reps (max 10)</label>
+                            <input type="number" inputMode="numeric" value={calcReps} onChange={e => setCalcReps(e.target.value)} className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-black text-lg p-3 rounded-xl border border-gray-200 dark:border-gray-700 outline-none focus:border-primary text-center transition-colors" placeholder="Ex. 5" />
+                        </div>
+                    </div>
+                    {calcWeight && calcReps && calculated1RM && (
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 p-4 rounded-xl text-center shadow-lg">
+                            <p className="text-[10px] uppercase font-black tracking-widest opacity-70 mb-0.5">Ditt nya 1RM</p>
+                            <p className="text-3xl font-black">{calculated1RM} <span className="text-sm opacity-70">kg</span></p>
+                        </motion.div>
+                    )}
+                </div>
+
+                {calculated1RM && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1 text-center">Procent av 1RM</p>
+                        <div className="grid grid-cols-2 gap-2">
+                            {percentages.map(p => {
+                                const weight = Math.round((calculated1RM as number) * (p / 100) * 2) / 2;
+                                return (
+                                    <div key={p} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-3 rounded-xl flex justify-between items-center shadow-sm">
+                                        <span className="text-sm font-black text-gray-400">{p}%</span>
+                                        <span className="text-base font-bold text-gray-900 dark:text-white">{weight} kg</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </motion.div>
+                )}
+                
+                <div className="pt-2">
+                    <button onClick={onClose} className="w-full py-4 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition">Stäng kalkylator</button>
+                </div>
+            </div>
+        </Modal>
+    );
+};
+
 export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigation, route, workouts: contextWorkouts = [] }: any) => {
   const { currentUser } = useAuth();
   const { selectedOrganization } = useStudio();
@@ -788,6 +879,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
+  
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [calculatorContext, setCalculatorContext] = useState<{ exerciseName?: string, current1RM?: number } | null>(null);
   
   const uncheckedSetsCount = useMemo(() => {
       if (isManualMode) return 0;
@@ -1440,6 +1534,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
         )}
       </AnimatePresence>
 
+      <OneRMCalculatorModal 
+          isOpen={showCalculator} 
+          onClose={() => setShowCalculator(false)} 
+          context={calculatorContext} 
+      />
+
       <div className="bg-white dark:bg-gray-900 p-6 px-8 flex-shrink-0 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shadow-sm z-10">
         <div className="flex-1 min-w-0 pr-4">
             <div className="flex items-center gap-3 mb-1">
@@ -1451,6 +1551,16 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Registrera dina resultat</p>
         </div>
         <div className="flex items-center gap-2">
+            <button 
+                onClick={() => {
+                    setCalculatorContext(null);
+                    setShowCalculator(true);
+                }} 
+                className="p-3 bg-primary/10 dark:bg-primary/20 rounded-full hover:bg-primary/20 dark:hover:bg-primary/30 transition-all flex-shrink-0 shadow-sm active:scale-90" 
+                disabled={isSubmitting}
+            >
+                <CalculatorIcon className="w-6 h-6 text-primary" />
+            </button>
             <button onClick={() => handleCancel(false)} className="p-3 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all flex-shrink-0 shadow-sm active:scale-90" disabled={isSubmitting}>
                 <CloseIcon className="w-6 h-6 text-gray-500 dark:text-gray-400" />
             </button>
@@ -1542,6 +1652,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                     lastPerformance={history[result.exerciseName]} 
                                     isLastInGroup={isLastInGroup}
                                     onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
+                                    onOpenCalculator={(ctx) => {
+                                        setCalculatorContext(ctx);
+                                        setShowCalculator(true);
+                                    }}
                                 />
                             </React.Fragment>
                         );
