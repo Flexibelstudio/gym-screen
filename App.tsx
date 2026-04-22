@@ -1328,6 +1328,15 @@ const App: React.FC = () => {
 
   return (
     <div className={`bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
+       {isOffline && (
+            <div className="bg-red-500 text-white text-xs font-bold uppercase tracking-widest py-2 px-4 flex justify-center items-center gap-2 fixed top-0 w-full z-[10000] shadow-md">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3l18 18"></path>
+                </svg>
+                Du är offline - allt du loggar sparas lokalt
+            </div>
+       )}
        <SeasonalOverlay page={page} />
        
        <Toast 
