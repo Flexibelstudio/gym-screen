@@ -7,6 +7,7 @@ import { TimerSetupModal } from './TimerSetupModal';
 import { getExerciseBank, getOrganizationExerciseBank, saveExerciseToBank } from '../services/firebaseService';
 import { generateExerciseDescription } from '../services/geminiService';
 import { useStudio } from '../context/StudioContext';
+import { useAuth } from '../context/AuthContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toast } from './ui/ToastNotification';
@@ -591,6 +592,7 @@ const BlockCard: React.FC<BlockCardProps> = ({ block, index, totalBlocks, onUpda
 // --- Main Component ---
 export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | null; onSave: (w: Workout) => void; onCancel: () => void; isNewDraft?: boolean; setCustomBackHandler?: (handler: (() => void) | null) => void }> = ({ initialWorkout, onSave, onCancel, isNewDraft, setCustomBackHandler }) => {
     const { selectedOrganization, studioConfig } = useStudio();
+    const { isStudioMode } = useAuth();
     const [workout, setWorkout] = useState<Workout>(() => initialWorkout ? JSON.parse(JSON.stringify(initialWorkout)) : createNewWorkout());
     const [initialSnapshot, setInitialSnapshot] = useState<string>('');
     const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
@@ -745,7 +747,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
         <div className="w-full h-full flex flex-col animate-fade-in bg-gray-50 dark:bg-black">
             <Toast isVisible={toast.visible} message={toast.message} onClose={() => setToast({ ...toast, visible: false })} />
             <div ref={scrollContainerRef} className="flex-grow overflow-y-auto px-4 pb-40 pt-6 custom-scrollbar scroll-smooth">
-                <div className="max-w-2xl mx-auto space-y-10">
+                <div className={`${isStudioMode ? 'max-w-4xl' : 'max-w-2xl'} w-full mx-auto space-y-10 transition-all duration-300`}>
                     
                     {/* Header Card */}
                     <div className="bg-primary/10 p-8 rounded-[3rem] border border-primary/20 shadow-sm relative overflow-hidden">
@@ -814,7 +816,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
 
             {/* Bottom Actions */}
             <div className="fixed bottom-0 left-0 right-0 z-[200] bg-white/80 dark:bg-black/80 backdrop-blur-xl border-t border-gray-100 dark:border-gray-800 p-6">
-                <div className="max-w-2xl mx-auto flex gap-4">
+                <div className={`${isStudioMode ? 'max-w-4xl' : 'max-w-2xl'} w-full mx-auto flex gap-4 transition-all duration-300`}>
                     <button onClick={handleCancel} className="flex-1 bg-gray-100 dark:bg-gray-800 text-gray-500 py-5 rounded-[2rem] font-black uppercase tracking-widest text-xs shadow-lg active:scale-95 transition-all">Avbryt</button>
                     <button onClick={handleSave} className="flex-[2] bg-primary text-white py-5 rounded-[2rem] font-black shadow-2xl shadow-primary/30 uppercase tracking-widest text-lg transform hover:-translate-y-1 active:scale-95 transition-all">Spara Pass 🚀</button>
                 </div>
