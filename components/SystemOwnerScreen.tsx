@@ -183,6 +183,25 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
                             </div>
                         </div>
                         <div className="bg-white dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-gray-700 flex flex-col justify-between">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-1">Import</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <ToggleSwitch 
+                                    label="Tillåt statistik-import"
+                                    checked={org.allowStatsImport || false}
+                                    onChange={async (checked) => {
+                                        try {
+                                            const { updateOrganizationAllowStatsImport } = await import('../services/firebaseService');
+                                            await updateOrganizationAllowStatsImport(org.id, checked);
+                                        } catch (err) {
+                                            console.error("Failed to update allowStatsImport", err);
+                                            alert("Misslyckades att uppdatera inställning.");
+                                        }
+                                    }}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="bg-white dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-gray-700 flex flex-col justify-between">
                             <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-1">Bjud på appen</p>
                             <div className="flex items-center gap-2 mt-1">
                                 <ToggleSwitch 

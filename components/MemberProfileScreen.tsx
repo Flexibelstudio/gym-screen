@@ -672,18 +672,25 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     };
 
     const stats = useMemo(() => {
-        const totalWorkouts = logs.length;
+        let totalWorkouts = logs.length + (userData.importedWorkoutCount || 0);
         const now = new Date();
         const thisMonth = logs.filter(l => {
             const date = new Date(l.date);
             return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
         }).length;
-        const weeklyStreak = calculateWeeklyStreak(logs);
+        
+        let weeklyStreak = calculateWeeklyStreak(logs);
+        if (userData.importedStreakWeeks) {
+            if (weeklyStreak > 0 || logs.length === 0) {
+                 weeklyStreak += userData.importedStreakWeeks;
+            }
+        }
+        
         const currentWeekKey = getYearWeek(now);
         const thisWeek = logs.filter(l => getYearWeek(new Date(l.date)) === currentWeekKey).length;
         const hasTrainedThisWeek = thisWeek > 0;
         return { totalWorkouts, thisMonth, weeklyStreak, hasTrainedThisWeek, thisWeek };
-    }, [logs]);
+    }, [logs, userData.importedWorkoutCount, userData.importedStreakWeeks]);
 
     const daysLeft = useMemo(() => {
         if (!userData.goals?.targetDate) return null;
@@ -707,7 +714,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     }, [userData.goals]);
 
     const archetype = useMemo(() => getAthleteArchetype(logs), [logs]);
-    const { level, progressToNext, workoutsInCurrentLevel, workoutsPerLevel } = useMemo(() => getLevelInfo(logs.length), [logs]);
+    const { level, progressToNext, workoutsInCurrentLevel, workoutsPerLevel } = useMemo(() => getLevelInfo(stats.totalWorkouts), [stats.totalWorkouts]);
 
     const handleResumeWorkout = () => {
         if (activeSession && functions.handleLogWorkoutRequest) {

@@ -14,8 +14,9 @@ const DisplayPostForm: React.FC<{
     onSave: (post: DisplayPost) => void;
     onCancel: () => void;
     studios: Studio[];
+    locations?: OrgLocation[];
     organizationId: string;
-}> = ({ post, onSave, onCancel, studios, organizationId }) => {
+}> = ({ post, onSave, onCancel, studios, locations = [], organizationId }) => {
     const [formData, setFormData] = useState<DisplayPost>(post);
 
     const handleInputChange = (field: keyof DisplayPost, value: any) => {
@@ -76,9 +77,13 @@ const DisplayPostForm: React.FC<{
                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">Synlighet</label>
                 <div className="bg-slate-200 dark:bg-gray-900/50 p-4 rounded-lg space-y-2">
                     <CheckboxField label="Alla skärmar" checked={formData.visibleInStudios.includes('all')} onChange={checked => handleStudioVisibilityChange('all', checked)} />
-                    {studios.map(studio => (
-                        <CheckboxField key={studio.id} label={studio.name} checked={formData.visibleInStudios.includes('all') || formData.visibleInStudios.includes(studio.id)} onChange={checked => handleStudioVisibilityChange(studio.id, checked)} />
-                    ))}
+                    {studios.map(studio => {
+                        const location = locations.find(l => l.id === studio.locationId);
+                        const labelText = location ? `${studio.name} (${location.name})` : studio.name;
+                        return (
+                            <CheckboxField key={studio.id} label={labelText} checked={formData.visibleInStudios.includes('all') || formData.visibleInStudios.includes(studio.id)} onChange={checked => handleStudioVisibilityChange(studio.id, checked)} />
+                        );
+                    })}
                 </div>
             </div>
 
@@ -95,8 +100,9 @@ const DisplayPostEditor: React.FC<{
     onSaveWindow: (window: DisplayWindow) => void,
     onBack: () => void,
     studios: Studio[],
+    locations?: OrgLocation[],
     organizationId: string
-}> = ({ windowData, onSaveWindow, onBack, studios, organizationId }) => {
+}> = ({ windowData, onSaveWindow, onBack, studios, locations = [], organizationId }) => {
     const [localWindow, setLocalWindow] = useState(windowData);
     const [editingPost, setEditingPost] = useState<DisplayPost | null>(null);
 
@@ -131,7 +137,7 @@ const DisplayPostEditor: React.FC<{
     };
     
     if (editingPost) {
-        return <DisplayPostForm post={editingPost} onSave={handleSavePost} onCancel={() => setEditingPost(null)} studios={studios} organizationId={organizationId} />;
+        return <DisplayPostForm post={editingPost} onSave={handleSavePost} onCancel={() => setEditingPost(null)} studios={studios} locations={locations} organizationId={organizationId} />;
     }
 
     return (
@@ -219,6 +225,7 @@ export const SkyltfonsterContent: React.FC<SkyltfonsterContentProps> = ({ organi
                     onSaveWindow={handleWindowChange}
                     onBack={() => setEditingWindow(null)}
                     studios={organization.studios}
+                    locations={organization.locations}
                     organizationId={organization.id}
                 />
             </div>

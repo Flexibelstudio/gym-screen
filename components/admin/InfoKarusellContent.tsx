@@ -16,8 +16,9 @@ const InfoMessageEditor: React.FC<{
     onSave: (message: InfoMessage) => void,
     onCancel: () => void,
     studios: Studio[],
+    locations?: OrgLocation[],
     organizationId: string
-}> = ({ initialMessage, onSave, onCancel, studios, organizationId }) => {
+}> = ({ initialMessage, onSave, onCancel, studios, locations = [], organizationId }) => {
     const [formData, setFormData] = useState<InfoMessage>(initialMessage);
     const [customAiPrompt, setCustomAiPrompt] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -149,9 +150,13 @@ const InfoMessageEditor: React.FC<{
                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">Vilka skärmar ska se detta?</label>
                 <div className="flex flex-wrap gap-3">
                     <CheckboxField label="Alla skärmar" checked={formData.visibleInStudios.includes('all')} onChange={checked => handleStudioVisibilityChange('all', checked)} />
-                    {studios.map(studio => (
-                        <CheckboxField key={studio.id} label={studio.name} checked={formData.visibleInStudios.includes('all') || formData.visibleInStudios.includes(studio.id)} onChange={checked => handleStudioVisibilityChange(studio.id, checked)} />
-                    ))}
+                    {studios.map(studio => {
+                        const location = locations.find(l => l.id === studio.locationId);
+                        const labelText = location ? `${studio.name} (${location.name})` : studio.name;
+                        return (
+                            <CheckboxField key={studio.id} label={labelText} checked={formData.visibleInStudios.includes('all') || formData.visibleInStudios.includes(studio.id)} onChange={checked => handleStudioVisibilityChange(studio.id, checked)} />
+                        );
+                    })}
                 </div>
             </div>
             
@@ -437,7 +442,8 @@ export const InfoKarusellContent: React.FC<InfoKarusellContentProps> = ({ organi
                     onSave={handleSaveMessage}
                     onCancel={() => setEditingMessage(null)}
                     studios={organization.studios}
-                    organization={organization}
+                    locations={organization.locations}
+                    organizationId={organization.id}
                 />
             )}
         </div>

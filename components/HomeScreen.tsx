@@ -165,7 +165,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
     studioLoading = false
 }) => {
   const { selectedOrganization, selectedStudio } = useStudio();
-  const { isStudioMode } = useAuth();
+  const { isStudioMode, currentUser, reloadCurrentUser } = useAuth();
   const [welcomeMessage, setWelcomeMessage] = useState({ title: "Hej på er!", subtitle: "Redo att köra?" });
   const [currentTime, setCurrentTime] = useState(new Date());
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -181,6 +181,31 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [pendingCategory, setPendingCategory] = useState<string | null>(null);
   const [passwordInput, setPasswordInput] = useState("");
   const [passwordError, setPasswordError] = useState(false);
+
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importCount, setImportCount] = useState<number | ''>('');
+  const [importStreak, setImportStreak] = useState<number | ''>('');
+  const [isImporting, setIsImporting] = useState(false);
+
+  const showImportBanner = selectedOrganization?.allowStatsImport && currentUser && !currentUser.hasImportedStats && !isStudioMode && currentUser.role !== 'systemowner';
+
+  const handleImportStats = async () => {
+    if (!currentUser || typeof importCount !== 'number' || typeof importStreak !== 'number') return;
+    setIsImporting(true);
+    try {
+        const { updateUserImportedStats } = await import('../services/firebaseService');
+        await updateUserImportedStats(currentUser.uid, importCount, importStreak);
+        if (reloadCurrentUser) {
+            await reloadCurrentUser();
+        }
+        setShowImportModal(false);
+    } catch (e) {
+        console.error("Failed to import stats", e);
+        alert("Ett fel uppstod.")
+    } finally {
+        setIsImporting(false);
+    }
+  };
 
   useEffect(() => {
     const updateGreeting = () => {
@@ -270,6 +295,21 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         
         <div className="w-full max-w-[1800px] mx-auto px-6 sm:px-10 flex flex-col flex-1 min-h-0 overflow-y-auto custom-scrollbar">
             
+            {showImportBanner && (
+                <div 
+                    onClick={() => setShowImportModal(true)}
+                    className="mt-6 mb-2 bg-gradient-to-r from-primary/10 to-transparent border border-primary/20 rounded-2xl p-4 flex items-center justify-between cursor-pointer hover:bg-primary/20 transition-colors shadow-sm"
+                >
+                    <div className="flex items-center gap-4">
+                        <div className="text-3xl">👋</div>
+                        <div>
+                            <h3 className="font-bold text-gray-900 dark:text-white text-base">Välkommen från Träningslogg!</h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-300">Klicka här för att flytta med dina tidigare pass och din streak.</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Header Section */}
             <div className="flex flex-shrink-0 justify-between items-start mb-6 w-full pt-4">
                 <div className="flex flex-col gap-3">
@@ -472,6 +512,52 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 </div>
             )}
         </AnimatePresence>
+
+        <Modal isOpen={showImportModal} onClose={() => setShowImportModal(false)} title="Importera Historik" size="md">
+            <div className="space-y-4">
+                <p className="text-gray-600 dark:text-gray-300 text-sm">
+                    Fyll i hur många pass du gjort totalt och din nuvarande streak för att föra över din statistik.
+                </p>
+                
+                <div>
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Totalt antal tidigare pass</label>
+                    <input 
+                        type="number"
+                        min="0"
+                        value={importCount}
+                        onChange={e => setImportCount(e.target.value === '' ? '' : Number(e.target.value))}
+                        className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white"
+                        placeholder="T.ex. 120"
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1">Nuvarande streak (veckor)</label>
+                    <input 
+                        type="number"
+                        min="0"
+                        value={importStreak}
+                        onChange={e => setImportStreak(e.target.value === '' ? '' : Number(e.target.value))}
+                        className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white"
+                        placeholder="T.ex. 5"
+                    />
+                </div>
+                <div className="pt-4 flex justify-end gap-3">
+                    <button 
+                        onClick={() => setShowImportModal(false)}
+                        className="px-6 py-2 rounded-xl text-gray-500 font-bold hover:bg-gray-100 dark:hover:bg-gray-800"
+                    >
+                        Avbryt
+                    </button>
+                    <button 
+                        onClick={handleImportStats}
+                        disabled={isImporting || typeof importCount !== 'number' || typeof importStreak !== 'number'}
+                        className="px-6 py-2 rounded-xl bg-primary text-white font-bold disabled:opacity-50"
+                    >
+                        {isImporting ? 'Sparar...' : 'Spara statistik'}
+                    </button>
+                </div>
+            </div>
+        </Modal>
     </>
   );
 };

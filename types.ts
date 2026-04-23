@@ -297,6 +297,7 @@ export interface Organization {
   name: string;
   subdomain: string;
   status: 'active' | 'archived';
+  allowStatsImport?: boolean; // Toggles self-service import for members
   logoUrlLight?: string;
   logoUrlDark?: string;
   faviconUrl?: string;
@@ -401,6 +402,9 @@ export interface UserData {
   adminRole?: 'superadmin' | 'admin';
   organizationId?: string;
   locationId?: string; // NYTT: Medlemmens primära ort/anläggning
+  hasImportedStats?: boolean; // Har de importerat?
+  importedWorkoutCount?: number; // Totalt antal importerade pass
+  importedStreakWeeks?: number; // Antal importerade veckor i aktuell streak
   firstName?: string;
   lastName?: string;
   photoUrl?: string;

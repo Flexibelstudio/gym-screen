@@ -13,7 +13,7 @@ interface StudiosContentProps {
 }
 
 export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, onEditStudioConfig, onCreateStudio, onDeleteStudio }) => {
-    const { signOut } = useAuth();
+    const {  } = useAuth();
     const [newStudioName, setNewStudioName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
 
@@ -47,16 +47,6 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
         
         if (window.confirm(message)) {
             onDeleteStudio(organization.id, studioId);
-        }
-    };
-
-    const handleActivateDevice = (studio: Studio) => {
-        if (window.confirm(`Vill du aktivera denna enhet som "${studio.name}"? Du kommer att loggas ut och skärmen låses till denna studio.`)) {
-            localStorage.setItem('ny-screen-selected-org', JSON.stringify({ id: organization.id, name: organization.name }));
-            localStorage.setItem('ny-screen-pending-studio-id', studio.id);
-            signOut().then(() => {
-                window.location.reload();
-            });
         }
     };
 
@@ -102,9 +92,6 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
                             )}
                         </div>
                         <div className="flex flex-wrap gap-2 w-full xl:w-auto justify-end">
-                            <button onClick={() => handleActivateDevice(studio)} className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm shadow-sm flex items-center gap-2">
-                                <span className="text-lg">📱</span> Aktivera denna enhet
-                            </button>
                             <button onClick={() => onEditStudioConfig(studio)} className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm">Inställningar</button>
                             <button onClick={() => handleDelete(studio.id, studio.name)} className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-semibold py-2 px-4 rounded-lg transition-colors text-sm border border-red-100 dark:border-red-900/30">Ta bort</button>
                         </div>

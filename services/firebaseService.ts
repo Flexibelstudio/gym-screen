@@ -263,6 +263,15 @@ export const updateUserGoals = async (uid: string, goals: MemberGoals) => {
     await updateDoc(doc(db, 'users', uid), { goals: sanitizeData(goals) });
 };
 
+export const updateUserImportedStats = async (uid: string, importedWorkoutCount: number, importedStreakWeeks: number) => {
+    if (isOffline || !db || !uid) return;
+    await updateDoc(doc(db, 'users', uid), {
+        importedWorkoutCount,
+        importedStreakWeeks,
+        hasImportedStats: true
+    });
+};
+
 export const updateUserProfile = async (uid: string, data: Partial<UserData>) => {
     if (isOffline || !db || !uid) return;
     await updateDoc(doc(db, 'users', uid), sanitizeData(data));
@@ -966,6 +975,12 @@ export const updateOrganization = async (id: string, name: string, subdomain: st
 export const updateOrganizationFreeForMembers = async (id: string, freeForMembers: boolean) => {
     if(isOffline || !db || !id) return;
     await updateDoc(doc(db, 'organizations', id), { freeForMembers });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationAllowStatsImport = async (id: string, allowStatsImport: boolean) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { allowStatsImport });
     return getOrganizationById(id);
 };
 
