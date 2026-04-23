@@ -1447,18 +1447,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                   }
               }
 
-              if (diplomaData && diplomaData.imagePrompt) {
-                  setSaveStatus('Genererar medaljbild...');
-                  try {
-                      const base64Image = await generateImage(diplomaData.imagePrompt);
-                      if (base64Image) {
-                          setSaveStatus('Färdigställer diplom...');
-                          const storagePath = `users/${userId}/diplomas/log_${Date.now()}.jpg`;
-                          diplomaData.imageUrl = await uploadImage(storagePath, base64Image);
-                      }
-                  } catch (e) { console.warn(e); }
-              }
-
               if (diplomaData) {
                   await updateWorkoutLog(savedLog.id, { diploma: diplomaData });
               }
