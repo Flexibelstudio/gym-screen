@@ -35,7 +35,8 @@ import {
   deleteField,
   serverTimestamp,
   Firestore,
-  runTransaction
+  runTransaction,
+  enableMultiTabIndexedDbPersistence
 } from 'firebase/firestore';
 import { 
   getStorage, 
@@ -89,6 +90,19 @@ if (!isOffline) {
         app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
         auth = getAuth(app);
         db = getFirestore(app);
+        
+        try {
+            enableMultiTabIndexedDbPersistence(db).catch((err) => {
+                if (err.code == 'failed-precondition') {
+                    console.warn('Multiple tabs open, persistence can only be enabled in one tab at a a time.');
+                } else if (err.code == 'unimplemented') {
+                    console.warn('The current browser does not support all of the features required to enable persistence.');
+                }
+            });
+        } catch (e) {
+            console.warn("Could not enable persistence immediately", e);
+        }
+
         storage = getStorage(app);
         functions = getFunctions(app, 'us-central1');
         
@@ -543,7 +557,7 @@ export const getLeaderboardData = async (orgId: string): Promise<{ memberId: str
         );
         
         const snap = await getDocs(q);
-        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false);
+        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
         
         // Aggregate by memberId
         const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
@@ -589,7 +603,7 @@ export const listenToLeaderboardData = (orgId: string, onUpdate: (data: { member
     );
     
     return onSnapshot(q, (snap) => {
-        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false);
+        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
         
         // Aggregate by memberId
         const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
@@ -633,7 +647,7 @@ export const listenToCommunityLogs = (orgId: string, onUpdate: (logs: WorkoutLog
     }
     const q = query(collection(db, 'workoutLogs'), where("organizationId", "==", orgId), orderBy("date", "desc"), limit(20));
     return onSnapshot(q, (snap) => {
-        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false);
+        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
         onUpdate(logs);
     }, (err) => console.error("listenToCommunityLogs failed", err));
 };

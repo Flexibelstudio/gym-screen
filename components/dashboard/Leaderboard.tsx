@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { listenToLeaderboardData, getMembers } from '../../services/firebaseService';
 import { TrophyIcon, FireIcon, ChartBarIcon } from '@heroicons/react/24/solid';
+import { useStudio } from '../../context/StudioContext';
 
 interface LeaderboardProps {
     organizationId: string;
 }
 
 export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
+    const { selectedOrganization } = useStudio();
     const [leaderboard, setLeaderboard] = useState<{ memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'workouts' | 'pbs'>('workouts');
@@ -83,6 +85,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                     <FireIcon className="w-4 h-4" /> PB
                 </button>
             </div>
+            
+            <p className="text-[10px] text-center text-gray-400 dark:text-gray-500 mb-3 uppercase tracking-wider font-bold">
+                Endast pass utförda på {selectedOrganization?.name || 'plats'} räknas
+            </p>
             
             {displayData.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">

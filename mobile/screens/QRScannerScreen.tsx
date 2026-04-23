@@ -70,6 +70,7 @@ export default function QRScannerScreen() {
       navigation.replace('WorkoutLog', {
         workoutId: payload.wid,
         organizationId: payload.oid,
+        source: 'qr_scan'
       });
 
     } catch (error) {

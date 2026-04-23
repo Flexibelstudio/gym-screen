@@ -4,7 +4,7 @@ import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage,
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage, getExerciseDagsformAdvice, ExerciseDagsformAdvice } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
-import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, ChartBarIcon, HistoryIcon } from '../../components/icons'; 
+import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, ChartBarIcon, HistoryIcon, CalculatorIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
 import { calculate1RM } from '../../utils/workoutUtils';
 import { ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition, BankExercise, Workout } from '../../types';
@@ -186,7 +186,6 @@ const getFunComparison = (totalWeight: number) => {
     return { count: formattedCount, name: bestMatch.name, single: bestMatch.singular, weight: bestMatch.weight, emoji: bestMatch.emoji };
 };
 
-const COMMON_ACTIVITIES = ["Funktionell Träning", "HIIT", "Löpning", "Promenad", "Workout", "Yoga", "Cykling", "Simning", "Racketsport", "Vardagsmotion"];
 const KROPPSKANSLA_TAGS = ["Pigg", "Stark", "Seg", "Stel", "Ont", "Stressad", "Bra musik", "Bra pepp", "Grymt pass"];
 const RPE_LEVELS = [
     { range: '1-2', label: 'Mycket lätt', desc: 'Du kan sjunga eller prata helt obehindrat.', color: 'bg-emerald-500' },
@@ -384,7 +383,8 @@ const ExerciseLogCard: React.FC<{
   lastPerformance?: { weight: number, reps: string } | null;
   isLastInGroup?: boolean;
   onAddGroupSet?: () => void;
-}> = ({ name, result, onUpdate, onRemove, aiSuggestion, scaling, lastPerformance, isLastInGroup, onAddGroupSet }) => {
+  onOpenCalculator?: (context: { exerciseName: string, current1RM?: number }) => void;
+}> = ({ name, result, onUpdate, onRemove, aiSuggestion, scaling, lastPerformance, isLastInGroup, onAddGroupSet, onOpenCalculator }) => {
     
     const trackingFields = result.trackingFields || ['reps', 'weight'];
     const showReps = trackingFields.includes('reps');
@@ -461,6 +461,17 @@ const ExerciseLogCard: React.FC<{
                     </div>
                     {/* Gear / Edit / Delete buttons */}
                     <div className="flex items-center gap-2">
+                        {onOpenCalculator && (
+                            <button 
+                                onClick={() => {
+                                    const estimatedOneRM = lastPerformance ? calculate1RM(lastPerformance.weight, lastPerformance.reps) : undefined;
+                                    onOpenCalculator({ exerciseName: name, current1RM: estimatedOneRM || undefined });
+                                }}
+                                className="p-2 rounded-xl transition-colors bg-gray-50 dark:bg-gray-800 text-primary hover:bg-primary/20 dark:hover:bg-primary/20"
+                            >
+                                <CalculatorIcon className="w-5 h-5" />
+                            </button>
+                        )}
                         <button 
                             onClick={() => setIsEditingFields(!isEditingFields)}
                             className={`p-2 rounded-xl transition-colors ${isEditingFields ? 'bg-primary/10 text-primary' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
@@ -644,9 +655,10 @@ const ExerciseLogCard: React.FC<{
 };
 
 const CustomActivityForm: React.FC<{
-  activityName: string; duration: string; distance: string; calories: string; onUpdate: (field: string, value: string) => void; isQuickMode?: boolean; hasExercises?: boolean;
-}> = ({ activityName, duration, distance, calories, onUpdate, isQuickMode, hasExercises }) => {
+  activityName: string; duration: string; distance: string; calories: string; onUpdate: (field: string, value: string) => void; isQuickMode?: boolean; hasExercises?: boolean; organizationConfig?: any;
+}> = ({ activityName, duration, distance, calories, onUpdate, isQuickMode, hasExercises, organizationConfig }) => {
     const [isExpanded, setIsExpanded] = useState(!hasExercises);
+    const commonActivities = organizationConfig?.commonActivities || ["Funktionell Träning", "HIIT", "Löpning", "Promenad", "Workout", "Yoga", "Cykling", "Simning", "Racketsport", "Vardagsmotion", "Styrketräning"];
 
     useEffect(() => {
         setIsExpanded(!hasExercises);
@@ -693,7 +705,7 @@ const CustomActivityForm: React.FC<{
                     <>
                         <h3 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-4">Vanliga aktiviteter</h3>
                         <div className="flex flex-wrap gap-2">
-                            {COMMON_ACTIVITIES.map(act => (
+                            {commonActivities.map((act: string) => (
                                 <button key={act} onClick={() => onUpdate('name', act)} className={`px-4 py-2.5 rounded-xl text-xs font-bold border-2 transition-all active:scale-95 ${activityName === act ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' : 'bg-gray-5 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'}`}>{act}</button>
                             ))}
                         </div>
@@ -759,7 +771,86 @@ const cleanForFirestore = (obj: any): any => {
   return result;
 };
 
-export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigation, route, workouts: contextWorkouts = [] }: any) => {
+const OneRMCalculatorModal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    context: { exerciseName?: string, current1RM?: number } | null;
+}> = ({ isOpen, onClose, context }) => {
+    const [calcWeight, setCalcWeight] = useState<string>('');
+    const [calcReps, setCalcReps] = useState<string>('');
+    
+    useEffect(() => {
+        if (isOpen) {
+            setCalcWeight('');
+            setCalcReps('');
+        }
+    }, [isOpen]);
+
+    let calculated1RM = null;
+    if (calcWeight && calcReps) {
+        calculated1RM = calculate1RM(calcWeight, calcReps);
+    } else if (context?.current1RM) {
+        calculated1RM = context.current1RM;
+    }
+
+    const percentages = [60, 65, 70, 75, 80, 85, 90, 95];
+
+    return (
+        <Modal isOpen={isOpen} onClose={onClose} title={context?.exerciseName ? `1RM: ${context.exerciseName}` : "1RM Kalkylator"} size="sm">
+            <div className="space-y-6">
+                {(context?.exerciseName && context?.current1RM && !calcWeight) ? (
+                    <div className="bg-primary/10 border border-primary/20 p-4 rounded-2xl text-center">
+                        <p className="text-[10px] text-primary font-black uppercase tracking-widest mb-1">Uppskattat 1RM</p>
+                        <p className="text-4xl font-black text-gray-900 dark:text-white">{context.current1RM} <span className="text-lg opacity-50">kg</span></p>
+                    </div>
+                ) : null}
+
+                <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700">
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 text-center">Räkna ut (nytt) 1RM</p>
+                    <div className="flex gap-4">
+                        <div className="flex-1">
+                            <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Vikt (kg)</label>
+                            <input type="number" inputMode="decimal" value={calcWeight} onChange={e => setCalcWeight(e.target.value)} className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-black text-lg p-3 rounded-xl border border-gray-200 dark:border-gray-700 outline-none focus:border-primary text-center transition-colors" placeholder="Ex. 100" />
+                        </div>
+                        <div className="flex-1">
+                            <label className="block text-[10px] uppercase font-bold text-gray-400 mb-1 ml-1">Reps (max 10)</label>
+                            <input type="number" inputMode="numeric" value={calcReps} onChange={e => setCalcReps(e.target.value)} className="w-full bg-white dark:bg-gray-900 text-gray-900 dark:text-white font-black text-lg p-3 rounded-xl border border-gray-200 dark:border-gray-700 outline-none focus:border-primary text-center transition-colors" placeholder="Ex. 5" />
+                        </div>
+                    </div>
+                    {calcWeight && calcReps && calculated1RM && (
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-4 bg-gray-900 dark:bg-white text-white dark:text-gray-900 p-4 rounded-xl text-center shadow-lg">
+                            <p className="text-[10px] uppercase font-black tracking-widest opacity-70 mb-0.5">Ditt nya 1RM</p>
+                            <p className="text-3xl font-black">{calculated1RM} <span className="text-sm opacity-70">kg</span></p>
+                        </motion.div>
+                    )}
+                </div>
+
+                {calculated1RM && (
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2 ml-1 text-center">Procent av 1RM</p>
+                        <div className="grid grid-cols-2 gap-2">
+                            {percentages.map(p => {
+                                const weight = Math.round((calculated1RM as number) * (p / 100) * 2) / 2;
+                                return (
+                                    <div key={p} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-3 rounded-xl flex justify-between items-center shadow-sm">
+                                        <span className="text-sm font-black text-gray-400">{p}%</span>
+                                        <span className="text-base font-bold text-gray-900 dark:text-white">{weight} kg</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </motion.div>
+                )}
+                
+                <div className="pt-2">
+                    <button onClick={onClose} className="w-full py-4 rounded-xl bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-200 dark:hover:bg-gray-700 transition">Stäng kalkylator</button>
+                </div>
+            </div>
+        </Modal>
+    );
+};
+
+export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, navigation, route, workouts: contextWorkouts = [] }: any) => {
   const { currentUser } = useAuth();
   const { selectedOrganization } = useStudio();
   const userId = currentUser?.uid || "offline_member_uid"; 
@@ -775,7 +866,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
   const [showCelebration, setShowCelebration] = useState(false);
-  const [logDate, setLogDate] = useState(new Date().toISOString().split('T')[0]);
+  
+  const getLocalDateString = (d: Date) => {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const [logDate, setLogDate] = useState(getLocalDateString(new Date()));
   const [allLogs, setAllLogs] = useState<WorkoutLog[]>([]);
   const [viewMode, setViewMode] = useState<'pre-game' | 'logging'>(isManualMode ? 'logging' : 'pre-game');
   const [dailyFeeling, setDailyFeeling] = useState<'good' | 'neutral' | 'bad' | null>(null);
@@ -785,9 +880,15 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [exerciseSearchTerm, setExerciseSearchTerm] = useState('');
   const [saveAsProgram, setSaveAsProgram] = useState(false);
   const [programName, setProgramName] = useState('');
+  
+  const scanSource = source || route?.params?.source;
+  const [inStudio, setInStudio] = useState<boolean | null>(scanSource === 'qr_scan' ? true : null);
 
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
+  
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [calculatorContext, setCalculatorContext] = useState<{ exerciseName?: string, current1RM?: number } | null>(null);
   
   const uncheckedSetsCount = useMemo(() => {
       if (isManualMode) return 0;
@@ -823,6 +924,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
   const isFormValid = useMemo(() => {
       if (isSubmitting) return false;
+      if (inStudio === null) return false;
+
       if (isManualMode) {
           if (saveAsProgram && programName.trim().length === 0) return false;
           if (exerciseResults.length > 0) return true;
@@ -836,7 +939,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
       const totalSets = exerciseResults.reduce((acc, ex) => acc + ex.setDetails.length, 0);
       return totalSets > 0 && uncheckedSetsCount === 0;
-  }, [isSubmitting, isManualMode, customActivity, exerciseResults, uncheckedSetsCount, benchmarkDefinition, sessionStats, saveAsProgram, programName]);
+  }, [isSubmitting, isManualMode, customActivity, exerciseResults, uncheckedSetsCount, benchmarkDefinition, sessionStats, saveAsProgram, programName, inStudio]);
   
   // --- WAKE LOCK LOGIC ---
   const wakeLockRef = useRef<any>(null);
@@ -991,18 +1094,22 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                 setHistory(historyMap);
 
                 if (!skipInsights) {
-                    try {
-                        const exerciseNames = exercises.map(e => e.exerciseName);
-                        if (exerciseNames.length > 0) {
-                            // Fetch complete insights immediately (good/neutral/bad)
-                            const insights = await generateMemberInsights(logs, foundWorkout.title, exerciseNames, foundWorkout.aiProgressionPrompt, historyMap);
-                            setAiInsights(insights);
-                        } else {
+                    if (foundWorkout.usePreGame === false) {
+                        setViewMode('logging');
+                    } else {
+                        try {
+                            const exerciseNames = exercises.map(e => e.exerciseName);
+                            if (exerciseNames.length > 0) {
+                                // Fetch complete insights immediately (good/neutral/bad)
+                                const insights = await generateMemberInsights(logs, foundWorkout.title, exerciseNames, foundWorkout.aiProgressionPrompt, historyMap);
+                                setAiInsights(insights);
+                            } else {
+                                setViewMode('logging');
+                            }
+                        } catch (err) { 
+                            console.log("AI Insight Error", err); 
                             setViewMode('logging');
                         }
-                    } catch (err) { 
-                        console.log("AI Insight Error", err); 
-                        setViewMode('logging');
                     }
                 }
             }
@@ -1101,7 +1208,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
           const isQuickOrManual = isManualMode;
           
           const now = new Date();
-          const selectedDate = new Date(logDate);
+          const dateParts = logDate.split('-');
+          const selectedDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
           const isToday = selectedDate.toDateString() === now.toDateString();
           
           let logDateMs: number;
@@ -1173,6 +1281,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               exerciseResults: exerciseResultsToSave,
               benchmarkId: benchmarkDefinition?.id,
               totalVolume: totalVolume > 0 ? totalVolume : undefined,
+              inStudio: inStudio,
           };
 
           finalLogRaw.durationMinutes = parseFloat(isQuickOrManual ? customActivity.duration : sessionStats.time) || 0;
@@ -1440,6 +1549,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
         )}
       </AnimatePresence>
 
+      <OneRMCalculatorModal 
+          isOpen={showCalculator} 
+          onClose={() => setShowCalculator(false)} 
+          context={calculatorContext} 
+      />
+
       <div className="bg-white dark:bg-gray-900 p-6 px-8 flex-shrink-0 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between shadow-sm z-10">
         <div className="flex-1 min-w-0 pr-4">
             <div className="flex items-center gap-3 mb-1">
@@ -1451,6 +1566,16 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Registrera dina resultat</p>
         </div>
         <div className="flex items-center gap-2">
+            <button 
+                onClick={() => {
+                    setCalculatorContext(null);
+                    setShowCalculator(true);
+                }} 
+                className="p-3 bg-primary/10 dark:bg-primary/20 rounded-full hover:bg-primary/20 dark:hover:bg-primary/30 transition-all flex-shrink-0 shadow-sm active:scale-90" 
+                disabled={isSubmitting}
+            >
+                <CalculatorIcon className="w-6 h-6 text-primary" />
+            </button>
             <button onClick={() => handleCancel(false)} className="p-3 bg-gray-100 dark:bg-gray-800 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-all flex-shrink-0 shadow-sm active:scale-90" disabled={isSubmitting}>
                 <CloseIcon className="w-6 h-6 text-gray-500 dark:text-gray-400" />
             </button>
@@ -1489,6 +1614,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                       onUpdate={handleCustomActivityUpdate}
                       isQuickMode={false}
                       hasExercises={exerciseResults.length > 0}
+                      organizationConfig={selectedOrganization?.globalConfig}
                   />
               )}
 
@@ -1541,6 +1667,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
                                     lastPerformance={history[result.exerciseName]} 
                                     isLastInGroup={isLastInGroup}
                                     onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
+                                    onOpenCalculator={(ctx) => {
+                                        setCalculatorContext(ctx);
+                                        setShowCalculator(true);
+                                    }}
                                 />
                             </React.Fragment>
                         );
@@ -1647,6 +1777,24 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               />
 
               <div className="mt-12 space-y-4 pb-12">
+                  <div className="mb-6 space-y-3">
+                      <h3 className="text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest px-1 text-center">Var genomfördes passet?</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                          <button
+                              onClick={() => setInStudio(true)}
+                              className={`py-4 px-3 rounded-2xl border-2 font-bold text-sm transition-all ${inStudio === true ? 'border-primary bg-primary/10 text-primary' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                          >
+                              {selectedOrganization?.name || 'På Gymmet'}
+                          </button>
+                          <button
+                              onClick={() => setInStudio(false)}
+                              className={`py-4 px-3 rounded-2xl border-2 font-bold text-sm transition-all ${inStudio === false ? 'border-primary bg-primary/10 text-primary' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                          >
+                              Annan plats
+                          </button>
+                      </div>
+                  </div>
+
                   {!isFormValid && !isManualMode && uncheckedSetsCount > 0 && (
                       <div className="text-center animate-fade-in">
                           <p className="text-orange-600 dark:text-orange-400 text-xs font-black uppercase tracking-widest mb-1 flex items-center justify-center gap-1">

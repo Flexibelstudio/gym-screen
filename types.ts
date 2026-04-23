@@ -153,6 +153,7 @@ export interface Workout {
   benchmarkId?: string; // NYTT: Koppling till ett Benchmark
   showInStudio?: boolean; // NYTT: Visa på skärm
   showInApp?: boolean; // NYTT: Visa i medlemsapp
+  usePreGame?: boolean; // Tända/Släcka pre-game vy i appen
   aiProgressionPrompt?: string; // NYTT: Prompt för AI-progression
 }
 
@@ -194,6 +195,7 @@ export interface StudioConfig {
   seasonalTheme?: ThemeOption;
   soundProfile?: TimerSoundProfile; 
   navigationControlPosition?: 'top' | 'bottom'; // NYTT: Position för navigationsknappar
+  commonActivities?: string[]; // NYTT: Vanliga aktiviteter i loggningen
   aiSettings?: {
       tone?: string;
       instructions?: string;
@@ -536,6 +538,7 @@ export interface WorkoutLog {
     benchmarkValue?: number; // NYTT: Resultatet (tid i sekunder, antal reps, eller vikt)
     showOnLeaderboard?: boolean; // NYTT: För att dölja i flöden och topplistor
     totalVolume?: number; // NYTT: Total vikt x reps under passet
+    inStudio?: boolean; // NYTT: Indikerar om träningspasset genomfördes på plats på gymmet
 }
 
 export interface CheckInEvent {

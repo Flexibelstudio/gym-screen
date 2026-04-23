@@ -155,15 +155,28 @@ const sanitizeWorkoutWithBank = (currentWorkout: Workout, currentBank: BankExerc
     
     const newBlocks = currentWorkout.blocks.map(block => {
         const newExercises = block.exercises.map(ex => {
-            if (ex.isFromBank && !bankIds.has(ex.id)) {
-                hasChanges = true;
-                // Downgrade to Ad-hoc: Generate new ID to break links to deleted bank items
-                return { 
-                    ...ex, 
-                    id: `ex-orphaned-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                    isFromBank: false, 
-                    loggingEnabled: false 
-                };
+            if (!bankIds.has(ex.id)) {
+                // Try to auto-match by name first
+                const match = currentBank.find(b => b.name.toLowerCase().trim() === ex.name.toLowerCase().trim());
+                if (match) {
+                    hasChanges = true;
+                    return {
+                        ...ex,
+                        id: match.id,
+                        isFromBank: true,
+                        // Retain existing logging enabled status or default to false
+                        loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
+                    };
+                } else if (ex.isFromBank) {
+                    hasChanges = true;
+                    // Downgrade to Ad-hoc: Generate new ID to break links to deleted bank items
+                    return { 
+                        ...ex, 
+                        id: `ex-orphaned-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                        isFromBank: false, 
+                        loggingEnabled: false 
+                    };
+                }
             }
             return ex;
         });
@@ -877,6 +890,12 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                                     onChange={(val) => handleUpdateWorkoutDetail('showInApp', val)} 
                                     disabled={studioConfig.customCategories.find(c => c.name === workout.category)?.isLocked}
                                     description={studioConfig.customCategories.find(c => c.name === workout.category)?.isLocked ? "Låsta kategorier visas inte i appen." : undefined}
+                                />
+                                <ToggleSwitch 
+                                    label="Använd Pre-game & Dagsform" 
+                                    checked={workout.usePreGame !== false} 
+                                    onChange={(val) => handleUpdateWorkoutDetail('usePreGame', val)} 
+                                    description="Låter medlemmen svara på dagsform och få en peppande strategi innan passet startar. Om avstängd kommer medlemmen direkt in till passets loggningslista."
                                 />
 
                                 <div className="pt-2 border-t border-gray-200 dark:border-gray-700 mt-2">
