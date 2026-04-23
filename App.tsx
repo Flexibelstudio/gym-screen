@@ -386,7 +386,7 @@ const App: React.FC = () => {
   const [isRegisteringHyroxTime, setIsRegisteringHyroxTime] = useState(false);
   const [aiGeneratorInitialTab, setAiGeneratorInitialTab] = useState<'generate' | 'parse' | 'manage' | 'create'>('create');
   
-  const [mobileLogData, setMobileLogData] = useState<{workoutId: string, organizationId: string} | null>(null);
+  const [mobileLogData, setMobileLogData] = useState<{workoutId: string, organizationId: string, source?: 'qr_scan' | 'manual'} | null>(null);
   const [mobileViewData, setMobileViewData] = useState<Workout | null>(null); 
   const [isSearchWorkoutOpen, setIsSearchWorkoutOpen] = useState(false);
   const [showLogCancelModal, setShowLogCancelModal] = useState(false);
@@ -473,7 +473,7 @@ const App: React.FC = () => {
           try {
               const decoded = JSON.parse(atob(logPayload));
               if (decoded.wid && decoded.oid) {
-                  setMobileLogData({ workoutId: decoded.wid, organizationId: decoded.oid });
+                  setMobileLogData({ workoutId: decoded.wid, organizationId: decoded.oid, source: 'qr_scan' });
               }
           } catch (e) {
               console.error("Failed to parse QR payload from URL", e);
@@ -981,7 +981,7 @@ const App: React.FC = () => {
   const handleLogWorkoutRequest = (workoutId: string, orgId: string) => {
     setIsSearchWorkoutOpen(false);
     setMobileViewData(null); 
-    setMobileLogData({ workoutId, organizationId: orgId });
+    setMobileLogData({ workoutId, organizationId: orgId, source: 'manual' });
   };
 
   const handleCancelLog = (isSuccess?: boolean, diploma?: WorkoutDiploma) => {

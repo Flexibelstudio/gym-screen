@@ -880,7 +880,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [exerciseSearchTerm, setExerciseSearchTerm] = useState('');
   const [saveAsProgram, setSaveAsProgram] = useState(false);
   const [programName, setProgramName] = useState('');
-  const [inStudio, setInStudio] = useState<boolean | null>(!isManualMode ? true : null);
+  
+  const scanSource = route?.params?.source;
+  const [inStudio, setInStudio] = useState<boolean | null>(scanSource === 'qr_scan' ? true : null);
 
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);

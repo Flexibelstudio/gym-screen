@@ -84,6 +84,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                 </button>
             </div>
             
+            <p className="text-[10px] text-center text-gray-400 dark:text-gray-500 mb-3 uppercase tracking-wider font-bold">
+                Endast pass utförda på plats räknas
+            </p>
+            
             {displayData.length === 0 ? (
                 <p className="text-sm text-gray-500 text-center py-4">
                     {activeTab === 'workouts' ? 'Inga pass loggade denna vecka än.' : 'Inga personbästan satta denna vecka än.'}
