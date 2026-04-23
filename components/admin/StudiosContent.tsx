@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Organization, Studio } from '../../types';
 import { useAuth } from '../../context/AuthContext';
+import { updateOrganizationStudios } from '../../services/firebaseService';
 
 interface StudiosContentProps {
     organization: Organization;
@@ -51,16 +52,21 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
 
     const handleActivateDevice = (studio: Studio) => {
         if (window.confirm(`Vill du aktivera denna enhet som "${studio.name}"? Du kommer att loggas ut och skärmen låses till denna studio.`)) {
-            // 1. Save Org Provisioning
             localStorage.setItem('ny-screen-selected-org', JSON.stringify({ id: organization.id, name: organization.name }));
-            
-            // 2. Save Pending Studio ID (to be picked up by the new anonymous user)
             localStorage.setItem('ny-screen-pending-studio-id', studio.id);
-            
-            // 3. Sign out. The app will reload/refresh, AuthContext will see provisions, and auto-login anonymously.
             signOut().then(() => {
                 window.location.reload();
             });
+        }
+    };
+
+    const handleLocationChange = async (studioId: string, locationId: string) => {
+        const updatedStudios = organization.studios.map(s => s.id === studioId ? { ...s, locationId } : s);
+        try {
+            await updateOrganizationStudios(organization.id, updatedStudios);
+        } catch (error) {
+            console.error("Failed to update studio location", error);
+            alert("Kunde inte uppdatera plats för skärmen.");
         }
     };
 
@@ -79,6 +85,21 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
                                 {studio.name[0].toUpperCase()}
                             </div>
                             <p className="font-bold text-lg text-gray-900 dark:text-white truncate">{studio.name}</p>
+                            
+                            {(organization.locations && organization.locations.length > 0) && (
+                                <div className="ml-4 flex items-center gap-2">
+                                    <select 
+                                        value={studio.locationId || ''} 
+                                        onChange={(e) => handleLocationChange(studio.id, e.target.value)}
+                                        className="bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white text-sm py-1.5 px-3 rounded-lg border-0 focus:ring-2 focus:ring-primary appearance-none cursor-pointer"
+                                    >
+                                        <option value="">-- Välj Ort/Anläggning --</option>
+                                        {organization.locations.map(loc => (
+                                            <option key={loc.id} value={loc.id}>{loc.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                         </div>
                         <div className="flex flex-wrap gap-2 w-full xl:w-auto justify-end">
                             <button onClick={() => handleActivateDevice(studio)} className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm shadow-sm flex items-center gap-2">

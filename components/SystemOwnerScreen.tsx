@@ -184,22 +184,20 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
                         </div>
                         <div className="bg-white dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-gray-700 flex flex-col justify-between">
                             <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-1">Bjud på appen</p>
-                            <label className="flex items-center gap-2 mt-1 cursor-pointer">
-                                <input 
-                                    type="checkbox"
+                            <div className="flex items-center gap-2 mt-1">
+                                <ToggleSwitch 
+                                    label="Medlemmar gratis"
                                     checked={org.freeForMembers || false}
-                                    onChange={async (e) => {
+                                    onChange={async (checked) => {
                                         try {
                                             const { updateOrganizationFreeForMembers } = await import('../services/firebaseService');
-                                            await updateOrganizationFreeForMembers(org.id, e.target.checked);
+                                            await updateOrganizationFreeForMembers(org.id, checked);
                                         } catch (err) {
                                             console.error("Failed to update freeForMembers", err);
                                         }
                                     }}
-                                    className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 h-4 w-4"
                                 />
-                                <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Medlemmar gratis</span>
-                            </label>
+                            </div>
                         </div>
                     </div>
                 </div>

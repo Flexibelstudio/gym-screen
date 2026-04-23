@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { registerMemberWithCode } from '../services/firebaseService';
+import { registerMemberWithCode, getOrganizationLocationsByCode } from '../services/firebaseService';
 import { resizeImage } from '../utils/imageUtils';
 import { CloseIcon, EyeIcon, EyeOffIcon } from './icons';
 import { motion } from 'framer-motion';
 import { UserTermsModal } from './UserTermsModal';
 import { PrivacyPolicyModal } from './PrivacyPolicyModal';
+import { OrgLocation } from '../types';
 
 interface LoginScreenProps {
     onClose?: () => void;
@@ -46,6 +47,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     const [birthDate, setBirthDate] = useState('');
     const [gender, setGender] = useState('prefer_not_to_say');
     const [profileImage, setProfileImage] = useState<string | null>(null); 
+    const [availableLocations, setAvailableLocations] = useState<OrgLocation[]>([]);
+    const [selectedLocationId, setSelectedLocationId] = useState<string>('');
 
     const [regError, setRegError] = useState<string | null>(null);
     const [regLoading, setRegLoading] = useState(false);
@@ -61,6 +64,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
             window.history.replaceState({}, document.title, window.location.pathname);
         }
     }, []);
+
+    useEffect(() => {
+        if (inviteCode.length === 6 && registerType === 'member') {
+            getOrganizationLocationsByCode(inviteCode).then(locs => {
+                setAvailableLocations(locs);
+                if (locs.length > 0) setSelectedLocationId(locs[0].id);
+            });
+        } else {
+            setAvailableLocations([]);
+            setSelectedLocationId('');
+        }
+    }, [inviteCode, registerType]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -137,7 +152,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     lastName: lastName.trim(),
                     birthDate: birthDate || undefined,
                     gender: gender as any,
-                    photoBase64: profileImage
+                    photoBase64: profileImage,
+                    locationId: selectedLocationId || undefined
                 }
             );
             if (onClose) onClose();
@@ -420,6 +436,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                         maxLength={6}
                     />
                 </div>
+
+                {availableLocations.length > 0 && registerType === 'member' && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                        <label className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">Välj Anläggning / Ort</label>
+                        <select
+                            value={selectedLocationId}
+                            onChange={(e) => setSelectedLocationId(e.target.value)}
+                            required
+                            className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition appearance-none"
+                        >
+                            {availableLocations.map(loc => (
+                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                            ))}
+                        </select>
+                    </motion.div>
+                )}
+
                 <div>
                     <label htmlFor="reg-email" className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">E-post</label>
                     <input

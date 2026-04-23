@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
-import { Organization } from '../../types';
+import { Organization, OrgLocation } from '../../types';
 import { InputField, ImageUploaderForBanner } from './AdminShared';
+import { updateOrganizationLocations } from '../../services/firebaseService';
 
 interface VarumarkeContentProps {
     organization: Organization;
@@ -20,6 +21,8 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({
     const [logoDark, setLogoDark] = useState(organization.logoUrlDark || '');
     const [favicon, setFavicon] = useState(organization.faviconUrl || '');
     const [primaryColor, setPrimaryColor] = useState(organization.primaryColor || '#14b8a6');
+    const [locations, setLocations] = useState<OrgLocation[]>(organization.locations || []);
+    const [newLocationName, setNewLocationName] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
     const isDirty = 
@@ -27,7 +30,8 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({
         logoLight !== (organization.logoUrlLight || '') ||
         logoDark !== (organization.logoUrlDark || '') ||
         favicon !== (organization.faviconUrl || '') ||
-        primaryColor !== (organization.primaryColor || '#14b8a6');
+        primaryColor !== (organization.primaryColor || '#14b8a6') ||
+        JSON.stringify(locations) !== JSON.stringify(organization.locations || []);
 
     const handleSave = async () => {
         setIsSaving(true);
@@ -36,7 +40,8 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({
                 onUpdatePasswords(organization.id, passwords),
                 onUpdateLogos(organization.id, { light: logoLight, dark: logoDark }),
                 onUpdateFavicon(organization.id, favicon),
-                onUpdatePrimaryColor(organization.id, primaryColor)
+                onUpdatePrimaryColor(organization.id, primaryColor),
+                updateOrganizationLocations(organization.id, locations)
             ]);
             onShowToast("Ändringar sparade!");
         } catch (error) {
@@ -44,6 +49,21 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const handleAddLocation = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newLocationName.trim()) return;
+        const newLocation: OrgLocation = {
+            id: Date.now().toString(),
+            name: newLocationName.trim()
+        };
+        setLocations([...locations, newLocation]);
+        setNewLocationName('');
+    };
+
+    const handleRemoveLocation = (idToRemove: string) => {
+        setLocations(locations.filter(loc => loc.id !== idToRemove));
     };
 
     return (
@@ -63,6 +83,50 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({
             </div>
             
             <div className="p-6 sm:p-8 space-y-8">
+                {/* Flera Orter / Anläggningar */}
+                <section>
+                    <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Orter & Anläggningar</h4>
+                    <div className="bg-gray-50 dark:bg-gray-900/30 p-6 rounded-xl border border-gray-100 dark:border-gray-700">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                            Om ni har verksamhet på flera geografiska platser kan ni lägga till dem här. Medlemmar får då välja sin primära anläggning, och ni kan koppla specifika skärmar till rätt ort.
+                        </p>
+                        
+                        {locations.length > 0 && (
+                            <div className="space-y-2 mb-6">
+                                {locations.map(loc => (
+                                    <div key={loc.id} className="flex items-center justify-between bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
+                                        <span className="font-semibold text-gray-900 dark:text-white">{loc.name}</span>
+                                        <button 
+                                            onClick={() => handleRemoveLocation(loc.id)}
+                                            className="text-red-500 hover:text-red-700 p-1"
+                                            title="Ta bort"
+                                        >
+                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        <form onSubmit={handleAddLocation} className="flex gap-2">
+                            <input 
+                                type="text"
+                                value={newLocationName}
+                                onChange={e => setNewLocationName(e.target.value)}
+                                placeholder="T.ex. Stockholm Söder"
+                                className="flex-1 bg-white dark:bg-black p-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none transition text-sm"
+                            />
+                            <button 
+                                type="submit"
+                                disabled={!newLocationName.trim()}
+                                className="bg-gray-800 dark:bg-gray-700 hover:bg-gray-700 dark:hover:bg-gray-600 text-white font-semibold py-3 px-6 rounded-xl disabled:opacity-50 transition-colors text-sm"
+                            >
+                                Lägg till
+                            </button>
+                        </form>
+                    </div>
+                </section>
+
                 {/* Passwords */}
                 <section>
                     <h4 className="text-sm font-bold uppercase tracking-wider text-gray-400 mb-4">Lösenord</h4>

@@ -66,7 +66,7 @@ import {
   BankExercise, SuggestedExercise, WorkoutResult, CompanyDetails, 
   SmartScreenPricing, HyroxRace, SeasonalThemeSetting, MemberGoals, 
   WorkoutLog, CheckInEvent, Member, UserRole, PersonalBest, StudioEvent,
-  CustomPage, AdminActivity, BenchmarkDefinition, RemoteSessionState, Studio, GalleryImage, Lead, CoachNote
+  CustomPage, AdminActivity, BenchmarkDefinition, RemoteSessionState, Studio, GalleryImage, Lead, CoachNote, OrgLocation
 } from '../types';
 import { MOCK_ORGANIZATIONS, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_MEMBERS, MOCK_SMART_SCREEN_PRICING } from '../data/mockData';
 
@@ -344,6 +344,27 @@ export const approveCoach = async (uid: string) => {
 export const updateMemberEndDate = async (uid: string, date: string | null) => {
     if (isOffline || !db || !uid) return;
     await updateDoc(doc(db, 'users', uid), { endDate: date });
+};
+
+export const getOrganizationLocationsByCode = async (code: string) => {
+    if (isOffline || !db) return [];
+    try {
+        const upperCode = code.toUpperCase();
+        let q = query(collection(db, 'organizations'), where('inviteCode', '==', upperCode));
+        let snap = await getDocs(q);
+        
+        if (snap.empty) {
+            q = query(collection(db, 'organizations'), where('coachCode', '==', upperCode));
+            snap = await getDocs(q);
+        }
+        
+        if (snap.empty) return [];
+        
+        const data = snap.docs[0].data();
+        return data.locations || [];
+    } catch(e) {
+        return [];
+    }
 };
 
 export const registerMemberWithCode = async (email: string, pass: string, code: string, additionalData?: any) => {
@@ -966,6 +987,18 @@ export const updateOrganizationFavicon = async (id: string, faviconUrl: string) 
 export const updateOrganizationPrimaryColor = async (id: string, color: string) => {
     if(isOffline || !db || !id) return;
     await updateDoc(doc(db, 'organizations', id), { primaryColor: color });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationLocations = async (id: string, locations: OrgLocation[]) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { locations: sanitizeData(locations) });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationStudios = async (id: string, studios: Studio[]) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { studios: sanitizeData(studios) });
     return getOrganizationById(id);
 };
 

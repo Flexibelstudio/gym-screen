@@ -230,6 +230,7 @@ export interface Studio {
   createdAt?: number;
   configOverrides?: Partial<StudioConfig>;
   remoteState?: RemoteSessionState; // NYTT: Fält för fjärrstyrning
+  locationId?: string; // NYTT: Vilken ort/anläggning skärmen tillhör
 }
 
 export interface CompanyDetails {
@@ -286,6 +287,11 @@ export interface DisplayWindow {
     posts: DisplayPost[];
 }
 
+export interface OrgLocation {
+  id: string;
+  name: string;
+}
+
 export interface Organization {
   id: string;
   name: string;
@@ -300,6 +306,7 @@ export interface Organization {
   };
   globalConfig: StudioConfig;
   studios: Studio[];
+  locations?: OrgLocation[]; // NYTT: Flera orter/anläggningar
   customPages?: CustomPage[];
   infoCarousel?: InfoCarousel;
   displayWindows?: DisplayWindow[];
@@ -393,6 +400,7 @@ export interface UserData {
   status?: 'active' | 'inactive' | 'pending_coach';
   adminRole?: 'superadmin' | 'admin';
   organizationId?: string;
+  locationId?: string; // NYTT: Medlemmens primära ort/anläggning
   firstName?: string;
   lastName?: string;
   photoUrl?: string;
