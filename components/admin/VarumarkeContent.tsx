@@ -94,11 +94,20 @@ export const VarumarkeContent: React.FC<VarumarkeContentProps> = ({
                         {locations.length > 0 && (
                             <div className="space-y-2 mb-6">
                                 {locations.map(loc => (
-                                    <div key={loc.id} className="flex items-center justify-between bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-600">
-                                        <span className="font-semibold text-gray-900 dark:text-white">{loc.name}</span>
+                                    <div key={loc.id} className="flex items-center justify-between bg-white dark:bg-gray-800 p-2 rounded-lg border border-gray-200 dark:border-gray-600 focus-within:ring-2 focus-within:border-primary focus-within:ring-primary/20">
+                                        <input
+                                            type="text"
+                                            value={loc.name}
+                                            onChange={(e) => {
+                                                const updated = locations.map(l => l.id === loc.id ? { ...l, name: e.target.value } : l);
+                                                setLocations(updated);
+                                                setIsDirty(true);
+                                            }}
+                                            className="font-semibold text-gray-900 dark:text-white bg-transparent outline-none flex-1 px-2"
+                                        />
                                         <button 
                                             onClick={() => handleRemoveLocation(loc.id)}
-                                            className="text-red-500 hover:text-red-700 p-1"
+                                            className="text-gray-400 hover:text-red-500 p-2 transition-colors"
                                             title="Ta bort"
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
