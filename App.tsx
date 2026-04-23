@@ -978,10 +978,10 @@ const App: React.FC = () => {
     setIsPasswordModalOpen(false);
   }
 
-  const handleLogWorkoutRequest = (workoutId: string, orgId: string) => {
+  const handleLogWorkoutRequest = (workoutId: string, orgId: string, source: 'qr_scan' | 'manual' = 'manual') => {
     setIsSearchWorkoutOpen(false);
     setMobileViewData(null); 
-    setMobileLogData({ workoutId, organizationId: orgId, source: 'manual' });
+    setMobileLogData({ workoutId, organizationId: orgId, source });
   };
 
   const handleCancelLog = (isSuccess?: boolean, diploma?: WorkoutDiploma) => {
@@ -1019,7 +1019,7 @@ const App: React.FC = () => {
               payload = JSON.parse(data);
           }
           if (payload && payload.wid && payload.oid) {
-              handleLogWorkoutRequest(payload.wid, payload.oid);
+              handleLogWorkoutRequest(payload.wid, payload.oid, 'qr_scan');
               setIsScannerOpen(false);
           }
       } catch (e) {
