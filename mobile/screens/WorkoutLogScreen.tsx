@@ -880,7 +880,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [exerciseSearchTerm, setExerciseSearchTerm] = useState('');
   const [saveAsProgram, setSaveAsProgram] = useState(false);
   const [programName, setProgramName] = useState('');
-  const [inStudio, setInStudio] = useState(!isManualMode);
+  const [inStudio, setInStudio] = useState<boolean | null>(!isManualMode ? true : null);
 
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
@@ -922,6 +922,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
   const isFormValid = useMemo(() => {
       if (isSubmitting) return false;
+      if (inStudio === null) return false;
+
       if (isManualMode) {
           if (saveAsProgram && programName.trim().length === 0) return false;
           if (exerciseResults.length > 0) return true;
@@ -935,7 +937,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
 
       const totalSets = exerciseResults.reduce((acc, ex) => acc + ex.setDetails.length, 0);
       return totalSets > 0 && uncheckedSetsCount === 0;
-  }, [isSubmitting, isManualMode, customActivity, exerciseResults, uncheckedSetsCount, benchmarkDefinition, sessionStats, saveAsProgram, programName]);
+  }, [isSubmitting, isManualMode, customActivity, exerciseResults, uncheckedSetsCount, benchmarkDefinition, sessionStats, saveAsProgram, programName, inStudio]);
   
   // --- WAKE LOCK LOGIC ---
   const wakeLockRef = useRef<any>(null);
@@ -1773,13 +1775,22 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
               />
 
               <div className="mt-12 space-y-4 pb-12">
-                  <div className="flex items-center gap-3 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-4 rounded-xl shadow-sm mb-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors" onClick={() => setInStudio(!inStudio)}>
-                      <div className={`w-6 h-6 rounded-md flex items-center justify-center border transition-colors ${inStudio ? 'bg-primary border-primary' : 'bg-transparent border-gray-300 dark:border-gray-600'}`}>
-                          {inStudio && <CheckIcon className="w-4 h-4 text-white" />}
+                  <div className="mb-6 space-y-3">
+                      <h3 className="text-xs font-black text-gray-500 dark:text-gray-400 uppercase tracking-widest px-1 text-center">Var genomfördes passet?</h3>
+                      <div className="grid grid-cols-2 gap-3">
+                          <button
+                              onClick={() => setInStudio(true)}
+                              className={`py-4 px-3 rounded-2xl border-2 font-bold text-sm transition-all ${inStudio === true ? 'border-primary bg-primary/10 text-primary' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                          >
+                              {selectedOrganization?.name || 'På Gymmet'}
+                          </button>
+                          <button
+                              onClick={() => setInStudio(false)}
+                              className={`py-4 px-3 rounded-2xl border-2 font-bold text-sm transition-all ${inStudio === false ? 'border-primary bg-primary/10 text-primary' : 'border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                          >
+                              Annan plats
+                          </button>
                       </div>
-                      <span className="text-sm font-bold text-gray-700 dark:text-gray-300">
-                          {`Jag tränade på ${selectedOrganization?.name || 'gymmet'}`}
-                      </span>
                   </div>
 
                   {!isFormValid && !isManualMode && uncheckedSetsCount > 0 && (
