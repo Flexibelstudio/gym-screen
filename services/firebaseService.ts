@@ -456,6 +456,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 newLog.memberPhotoUrl = userData.photoUrl || null;
                 showOnLeaderboard = userData.showOnLeaderboard !== false;
                 newLog.showOnLeaderboard = showOnLeaderboard;
+                newLog.locationId = userData.locationId || null;
             }
         } catch (e) { console.warn("Failed to enrich log", e); }
     }
@@ -528,6 +529,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                     id: eventRef.id,
                     type: 'pb',
                     organizationId: logData.organizationId,
+                    locationId: newLog.locationId, // NYTT: Skicka med orten
                     timestamp: Date.now(),
                     data: { 
                         memberId: logData.memberId,
@@ -937,6 +939,7 @@ export const createOrganization = async (name: string, subdomain: string): Promi
     const newOrg: Organization = { 
         id, name, subdomain, passwords: { coach: '1234' }, studios: [], customPages: [], status: 'active',
         inviteCode: generateInviteCode(),
+        locations: [{ id: `loc_${Date.now()}`, name: name }],
         globalConfig: { customCategories: [{ id: '1', name: 'Standard', prompt: '' }] } 
     };
     await setDoc(doc(db, 'organizations', id), newOrg);

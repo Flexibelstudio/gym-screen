@@ -322,7 +322,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         transition={{ delay: 0.6 }}
                         className="h-full"
                     >
-                        <CommunityFeed onExpand={() => setExpandedList('feed')} />
+                        <CommunityFeed onExpand={() => setExpandedList('feed')} locationId={currentUser?.locationId} />
                     </motion.div>
 
                     <motion.div 
@@ -331,7 +331,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                         transition={{ delay: 0.7 }}
                         className="h-full"
                     >
-                        <WeeklyPBList onExpand={() => setExpandedList('pb')} />
+                        <WeeklyPBList onExpand={() => setExpandedList('pb')} locationId={currentUser?.locationId} />
                     </motion.div>
                 </div>
             )}
@@ -369,9 +369,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
                         <div className="flex-grow overflow-hidden p-6">
                             {expandedList === 'feed' ? (
-                                <CommunityFeed isExpanded />
+                                <CommunityFeed isExpanded locationId={currentUser?.locationId} />
                             ) : (
-                                <WeeklyPBList isExpanded />
+                                <WeeklyPBList isExpanded locationId={currentUser?.locationId} />
                             )}
                         </div>
                     </motion.div>

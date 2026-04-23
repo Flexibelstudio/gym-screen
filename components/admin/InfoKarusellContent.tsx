@@ -297,7 +297,12 @@ export const InfoKarusellContent: React.FC<InfoKarusellContentProps> = ({ organi
         const getVisibilityLabel = (ids: string[]) => {
             if (ids.includes('all')) return 'Alla skärmar';
             if (ids.length === 0) return 'Ingen skärm vald';
-            const names = ids.map(id => organization.studios.find(s => s.id === id)?.name).filter(Boolean);
+            const names = ids.map(id => {
+                const studio = organization.studios.find(s => s.id === id);
+                if (!studio) return null;
+                const locName = organization.locations?.find(l => l.id === studio.locationId)?.name;
+                return locName ? `${studio.name} (${locName})` : studio.name;
+            }).filter(Boolean);
             if (names.length === 0) return 'Okända skärmar';
             if (names.length <= 2) return names.join(', ');
             return `${names[0]}, ${names[1]} +${names.length - 2}`;
@@ -432,7 +437,7 @@ export const InfoKarusellContent: React.FC<InfoKarusellContentProps> = ({ organi
                     onSave={handleSaveMessage}
                     onCancel={() => setEditingMessage(null)}
                     studios={organization.studios}
-                    organizationId={organization.id}
+                    organization={organization}
                 />
             )}
         </div>

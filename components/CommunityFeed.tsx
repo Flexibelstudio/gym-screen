@@ -30,9 +30,10 @@ const getFeelingIcon = (feeling: string | null) => {
 interface CommunityFeedProps {
     onExpand?: () => void;
     isExpanded?: boolean;
+    locationId?: string; // NYTT: Filtrering per ort
 }
 
-export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpanded = false }) => {
+export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpanded = false, locationId }) => {
     const { selectedOrganization } = useStudio();
     const [logs, setLogs] = useState<WorkoutLog[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -41,11 +42,18 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
         if (!selectedOrganization) return;
         setIsLoading(true);
         const unsubscribe = listenToCommunityLogs(selectedOrganization.id, (newLogs) => {
-            setLogs(newLogs.slice(0, 50)); 
+            let filteredLogs = newLogs;
+            if (locationId) {
+                // Keep logs that are explicitly belonging to this location, 
+                // OR fallback behavior: if no locationId set on the log, consider keeping it for now? 
+                // Wait, "bara för medlemmar kopplade till samma ort".
+                filteredLogs = newLogs.filter(log => log.locationId === locationId);
+            }
+            setLogs(filteredLogs.slice(0, 50)); 
             setIsLoading(false);
         });
         return () => unsubscribe();
-    }, [selectedOrganization]);
+    }, [selectedOrganization, locationId]);
 
     const [, setTick] = useState(0);
     useEffect(() => {

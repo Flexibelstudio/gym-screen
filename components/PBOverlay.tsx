@@ -96,6 +96,13 @@ export const PBOverlay: React.FC = () => {
         const unsubscribe = listenForStudioEvents(selectedOrganization.id, (event) => {
             const now = Date.now();
 
+            // 0. Location-spärr: Endast events för denna skärms ort (eller om eventet saknar ort)
+            if (selectedStudio?.locationId && event.locationId) {
+                if (event.locationId !== selectedStudio.locationId) {
+                    return; // Skip if it belongs to another location
+                }
+            }
+
             // 1. Historik-spärr: Skedde detta innan vi öppnade sidan? Ignorera.
             // (Vi lägger på 1 sekunds marginal för säkerhets skull)
             if (event.timestamp < (mountTime.current - 1000)) {

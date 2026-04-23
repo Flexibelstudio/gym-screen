@@ -5,9 +5,10 @@ import { useStudio } from '../../context/StudioContext';
 
 interface LeaderboardProps {
     organizationId: string;
+    locationId?: string;
 }
 
-export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
+export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId, locationId }) => {
     const { selectedOrganization } = useStudio();
     const [leaderboard, setLeaderboard] = useState<{ memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]>([]);
     const [loading, setLoading] = useState(true);
@@ -23,13 +24,16 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
             try {
                 const members = await getMembers(organizationId);
                 
-                // Filter out members who opted out
-                const optedOutMemberIds = new Set(
-                    members.filter(m => m.showOnLeaderboard === false).map(m => m.uid)
+                // Filter out members who opted out AND who are not in the same location (if locationId is set)
+                const excludedMemberIds = new Set(
+                    members.filter(m => 
+                        m.showOnLeaderboard === false || 
+                        (locationId && m.locationId !== locationId)
+                    ).map(m => m.uid)
                 );
 
                 unsubscribeLeaderboard = listenToLeaderboardData(organizationId, (data) => {
-                    const filteredData = data.filter(d => !optedOutMemberIds.has(d.memberId));
+                    const filteredData = data.filter(d => !excludedMemberIds.has(d.memberId));
                     setLeaderboard(filteredData);
                     setLoading(false);
                 });
@@ -87,7 +91,9 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
             </div>
             
             <p className="text-[10px] text-center text-gray-400 dark:text-gray-500 mb-3 uppercase tracking-wider font-bold">
-                Endast pass utförda på {selectedOrganization?.name || 'plats'} räknas
+                {locationId 
+                    ? `Visar resultat för ${selectedOrganization?.locations?.find(l => l.id === locationId)?.name || 'din anläggning'}` 
+                    : `Endast pass utförda på ${selectedOrganization?.name || 'plats'} räknas`}
             </p>
             
             {displayData.length === 0 ? (

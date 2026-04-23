@@ -9,9 +9,10 @@ import { TrophyIcon, DumbbellIcon } from './icons';
 interface WeeklyPBListProps {
     onExpand?: () => void;
     isExpanded?: boolean;
+    locationId?: string; // NYTT: Filtrering per ort
 }
 
-export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded = false }) => {
+export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded = false, locationId }) => {
     const { selectedOrganization } = useStudio();
     const [events, setEvents] = useState<StudioEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -20,11 +21,15 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
         if (!selectedOrganization) return;
         setIsLoading(true);
         const unsubscribe = listenToWeeklyPBs(selectedOrganization.id, (newEvents) => {
-            setEvents(newEvents.slice(0, 50)); 
+            let filteredEvents = newEvents;
+            if (locationId) {
+                filteredEvents = newEvents.filter(e => e.locationId === locationId);
+            }
+            setEvents(filteredEvents.slice(0, 50)); 
             setIsLoading(false);
         });
         return () => unsubscribe();
-    }, [selectedOrganization]);
+    }, [selectedOrganization, locationId]);
 
     const formatEventTime = (timestamp: number) => {
         const date = new Date(timestamp);

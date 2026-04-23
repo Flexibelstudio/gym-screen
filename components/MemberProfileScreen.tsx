@@ -956,7 +956,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     />
 
                     {userData.organizationId && (
-                        <Leaderboard organizationId={userData.organizationId} />
+                        <Leaderboard organizationId={userData.organizationId} locationId={userData.locationId} />
                     )}
                 </div>
             )}

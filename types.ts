@@ -548,6 +548,7 @@ export interface WorkoutLog {
     showOnLeaderboard?: boolean; // NYTT: För att dölja i flöden och topplistor
     totalVolume?: number; // NYTT: Total vikt x reps under passet
     inStudio?: boolean; // NYTT: Indikerar om träningspasset genomfördes på plats på gymmet
+    locationId?: string; // NYTT: Medlemmens hemmaklubb vid loggningen
 }
 
 export interface CheckInEvent {
@@ -558,12 +559,14 @@ export interface CheckInEvent {
     timestamp: number;
     organizationId: string;
     streak: number;
+    locationId?: string; // NYTT: Filtrering per anläggning
 }
 
 export interface StudioEvent {
     id: string;
     type: 'pb' | 'pb_batch';
     organizationId: string;
+    locationId?: string; // NYTT: Filtrering per anläggning
     timestamp: number;
     data: {
         userName: string;

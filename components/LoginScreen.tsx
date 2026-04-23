@@ -67,7 +67,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     }, []);
 
     useEffect(() => {
-        if (inviteCode.length === 6 && registerType === 'member') {
+        if (inviteCode.length === 6) {
             getOrganizationLocationsByCode(inviteCode).then(locs => {
                 setAvailableLocations(locs);
                 if (locs.length === 1) {
@@ -444,7 +444,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     />
                 </div>
 
-                {availableLocations.length > 1 && registerType === 'member' && (
+                {availableLocations.length > 1 && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="relative z-50">
                         <label className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">Välj Anläggning / Ort</label>
                         <button
