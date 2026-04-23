@@ -317,6 +317,7 @@ export interface Organization {
   lastBilledMonth?: string; 
   lastBilledDate?: number;
   freeCoachAccounts?: number; // NYTT: Antal gratis coach-konton
+  freeForMembers?: boolean; // Toggles bypassing the paywall for members
   stripeConnectAccountId?: string;
   stripeConnectSetupComplete?: boolean;
   

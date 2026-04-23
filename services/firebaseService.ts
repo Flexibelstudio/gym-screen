@@ -939,6 +939,12 @@ export const updateOrganization = async (id: string, name: string, subdomain: st
     return getOrganizationById(id);
 };
 
+export const updateOrganizationFreeForMembers = async (id: string, freeForMembers: boolean) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { freeForMembers });
+    return getOrganizationById(id);
+};
+
 export const updateOrganizationPasswords = async (id: string, passwords: Organization['passwords']) => {
     if(isOffline || !db || !id) return;
     await updateDoc(doc(db, 'organizations', id), { passwords });

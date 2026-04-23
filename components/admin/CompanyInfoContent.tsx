@@ -12,6 +12,7 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
 
              <div className="space-y-8">
                  {/* Economy & Billing */}
+                 {!organization.freeForMembers && (
                  <div>
                      <div className="bg-white dark:bg-gray-900 p-6 rounded-lg border border-slate-200 dark:border-gray-700 space-y-4">
                              <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-800 pb-4">
@@ -168,9 +169,10 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
                                      </div>
                                  )}
                              </div>
-                         </div>
                      </div>
                  </div>
+                 )}
+             </div>
          </div>
     );
 };
