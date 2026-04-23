@@ -1,21 +1,8 @@
 import React, { useState } from 'react';
 import { Organization } from '../../types';
-import { updateOrganizationFreeForMembers } from '../../services/firebaseService';
 
 export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: () => void }> = ({ organization, onEdit }) => {
     const [isConnectingStripe, setIsConnectingStripe] = useState(false);
-    const [isToggling, setIsToggling] = useState(false);
-
-    const handleToggleFreeMembers = async () => {
-        setIsToggling(true);
-        try {
-            await updateOrganizationFreeForMembers(organization.id, !organization.freeForMembers);
-        } catch (e) {
-            console.error("Failed to toggle free members", e);
-        } finally {
-            setIsToggling(false);
-        }
-    };
 
     return (
          <div className="bg-slate-50 dark:bg-gray-800/50 p-6 rounded-xl border border-slate-200 dark:border-gray-700">
@@ -24,29 +11,10 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
              </div>
 
              <div className="space-y-8">
-                 {/* Bjud på medlemskap toggle */}
-                 <div className="bg-white dark:bg-gray-900 p-6 rounded-lg border border-slate-200 dark:border-gray-700">
-                     <div className="flex items-center justify-between">
-                         <div>
-                             <h4 className="font-bold text-gray-900 dark:text-white text-lg">Gymmet bjuder på medlemskapet</h4>
-                             <p className="text-sm text-gray-500 max-w-md mt-1">
-                                 Aktivt läge innebär att era medlemmar inte betalar något i appen. Ni behöver då heller inte koppla något utbetalningskonto via Stripe.
-                             </p>
-                         </div>
-                         <button 
-                            onClick={handleToggleFreeMembers}
-                            disabled={isToggling}
-                            className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors ${organization.freeForMembers ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'} disabled:opacity-50`}
-                         >
-                            <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${organization.freeForMembers ? 'translate-x-8' : 'translate-x-1'}`} />
-                         </button>
-                     </div>
-                 </div>
-
                  {/* Economy & Billing */}
-                 {!organization.freeForMembers && (
                  <div>
                      <div className="bg-white dark:bg-gray-900 p-6 rounded-lg border border-slate-200 dark:border-gray-700 space-y-4">
+                             {!organization.freeForMembers && (
                              <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-800 pb-4">
                                  <div>
                                      <p className="font-bold text-gray-900 dark:text-white">Medlemspris i appen</p>
@@ -57,6 +25,7 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
                                      <p className="text-sm font-semibold text-green-600 dark:text-green-400">Er intäkt: 20 kr/mån (minus kortavgift)</p>
                                  </div>
                              </div>
+                             )}
                              
                              <div className="flex justify-between items-center pt-2">
                                  <div>
@@ -71,9 +40,11 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
                                  </div>
                              </div>
                              
+                             {!organization.freeForMembers && (
                              <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm text-blue-800 dark:text-blue-300">
                                  <p><strong>Information om utbetalningar:</strong> Utbetalning av er intäkt (20 kr per aktiv betalande medlem minus Stripes kortavgifter) hanteras automatiskt via Stripe. Ni behöver koppla ett Stripe-konto nedan för att kunna ta emot betalningar.</p>
                              </div>
+                             )}
 
                              <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
                                  <h5 className="font-bold text-gray-900 dark:text-white mb-2">SmartStudio Licens</h5>
@@ -111,10 +82,11 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
                                  </div>
                              </div>
 
-                             <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
-                                 <h5 className="font-bold text-gray-900 dark:text-white mb-2">Stripe-konto för utbetalningar</h5>
-                                 {organization.stripeConnectAccountId ? (
-                                     <div className={`flex items-center justify-between p-4 rounded-lg border ${organization.stripeConnectSetupComplete ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'}`}>
+                             {!organization.freeForMembers && (
+                                 <div className="mt-6 pt-6 border-t border-gray-100 dark:border-gray-800">
+                                     <h5 className="font-bold text-gray-900 dark:text-white mb-2">Stripe-konto för utbetalningar</h5>
+                                     {organization.stripeConnectAccountId ? (
+                                         <div className={`flex items-center justify-between p-4 rounded-lg border ${organization.stripeConnectSetupComplete ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800'}`}>
                                          <div className="flex items-center gap-3">
                                              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${organization.stripeConnectSetupComplete ? 'bg-green-100 dark:bg-green-800 text-green-600 dark:text-green-400' : 'bg-yellow-100 dark:bg-yellow-800 text-yellow-600 dark:text-yellow-400'}`}>
                                                  {organization.stripeConnectSetupComplete ? (
@@ -201,9 +173,9 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
                                      </div>
                                  )}
                              </div>
+                             )}
                      </div>
                  </div>
-                 )}
              </div>
          </div>
     );
