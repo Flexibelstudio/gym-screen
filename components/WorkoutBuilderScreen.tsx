@@ -155,15 +155,28 @@ const sanitizeWorkoutWithBank = (currentWorkout: Workout, currentBank: BankExerc
     
     const newBlocks = currentWorkout.blocks.map(block => {
         const newExercises = block.exercises.map(ex => {
-            if (ex.isFromBank && !bankIds.has(ex.id)) {
-                hasChanges = true;
-                // Downgrade to Ad-hoc: Generate new ID to break links to deleted bank items
-                return { 
-                    ...ex, 
-                    id: `ex-orphaned-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                    isFromBank: false, 
-                    loggingEnabled: false 
-                };
+            if (!bankIds.has(ex.id)) {
+                // Try to auto-match by name first
+                const match = currentBank.find(b => b.name.toLowerCase().trim() === ex.name.toLowerCase().trim());
+                if (match) {
+                    hasChanges = true;
+                    return {
+                        ...ex,
+                        id: match.id,
+                        isFromBank: true,
+                        // Retain existing logging enabled status or default to false
+                        loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
+                    };
+                } else if (ex.isFromBank) {
+                    hasChanges = true;
+                    // Downgrade to Ad-hoc: Generate new ID to break links to deleted bank items
+                    return { 
+                        ...ex, 
+                        id: `ex-orphaned-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                        isFromBank: false, 
+                        loggingEnabled: false 
+                    };
+                }
             }
             return ex;
         });

@@ -161,6 +161,7 @@ const ExerciseItem: React.FC<ExerciseItemProps> = ({ exercise, onUpdate, onRemov
 
     const handleSelectExercise = (bankExercise: BankExercise) => {
         onUpdate(exercise.id, {
+            id: bankExercise.id,
             name: bankExercise.name,
             description: bankExercise.description,
             imageUrl: bankExercise.imageUrl,
@@ -649,20 +650,34 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
         if (selectedOrganization) {
             getOrganizationExerciseBank(selectedOrganization.id).then(bank => {
                 setExerciseBank(bank);
-                // CLEANUP: If workout has exercises linked to deleted bank items, downgrade them AND change ID.
+                // CLEANUP & REPAIR: If workout has exercises linked to deleted bank items, downgrade them.
+                // ALSO, if exercises match a bank item by name, auto-link them.
                 setWorkout(prev => {
                     const bankIds = new Set(bank.map(b => b.id));
                     let hasChanges = false;
                     const newBlocks = prev.blocks.map(block => {
                         const newExercises = block.exercises.map(ex => {
-                            if (ex.isFromBank && !bankIds.has(ex.id)) {
-                                hasChanges = true;
-                                return { 
-                                    ...ex, 
-                                    id: `ex-orphaned-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                                    isFromBank: false, 
-                                    loggingEnabled: false 
-                                };
+                            if (!bankIds.has(ex.id)) {
+                                // Missing ID - try auto-matching by name
+                                const match = bank.find(b => b.name.toLowerCase().trim() === ex.name.toLowerCase().trim());
+                                if (match) {
+                                    hasChanges = true;
+                                    return {
+                                        ...ex,
+                                        id: match.id,
+                                        isFromBank: true,
+                                        // Om den redan var satt till loggingEnabled = true behåll den, annars default false
+                                        loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
+                                    };
+                                } else if (ex.isFromBank) {
+                                    hasChanges = true;
+                                    return { 
+                                        ...ex, 
+                                        id: `ex-orphaned-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                                        isFromBank: false, 
+                                        loggingEnabled: false 
+                                    };
+                                }
                             }
                             return ex;
                         });
