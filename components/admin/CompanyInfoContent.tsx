@@ -1,8 +1,21 @@
 import React, { useState } from 'react';
 import { Organization } from '../../types';
+import { updateOrganizationFreeForMembers } from '../../services/firebaseService';
 
 export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: () => void }> = ({ organization, onEdit }) => {
     const [isConnectingStripe, setIsConnectingStripe] = useState(false);
+    const [isToggling, setIsToggling] = useState(false);
+
+    const handleToggleFreeMembers = async () => {
+        setIsToggling(true);
+        try {
+            await updateOrganizationFreeForMembers(organization.id, !organization.freeForMembers);
+        } catch (e) {
+            console.error("Failed to toggle free members", e);
+        } finally {
+            setIsToggling(false);
+        }
+    };
 
     return (
          <div className="bg-slate-50 dark:bg-gray-800/50 p-6 rounded-xl border border-slate-200 dark:border-gray-700">
@@ -11,6 +24,25 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
              </div>
 
              <div className="space-y-8">
+                 {/* Bjud på medlemskap toggle */}
+                 <div className="bg-white dark:bg-gray-900 p-6 rounded-lg border border-slate-200 dark:border-gray-700">
+                     <div className="flex items-center justify-between">
+                         <div>
+                             <h4 className="font-bold text-gray-900 dark:text-white text-lg">Gymmet bjuder på medlemskapet</h4>
+                             <p className="text-sm text-gray-500 max-w-md mt-1">
+                                 Aktivt läge innebär att era medlemmar inte betalar något i appen. Ni behöver då heller inte koppla något utbetalningskonto via Stripe.
+                             </p>
+                         </div>
+                         <button 
+                            onClick={handleToggleFreeMembers}
+                            disabled={isToggling}
+                            className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors ${organization.freeForMembers ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'} disabled:opacity-50`}
+                         >
+                            <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${organization.freeForMembers ? 'translate-x-8' : 'translate-x-1'}`} />
+                         </button>
+                     </div>
+                 </div>
+
                  {/* Economy & Billing */}
                  {!organization.freeForMembers && (
                  <div>
