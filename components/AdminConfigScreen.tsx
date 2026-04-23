@@ -469,35 +469,40 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                             <p>✅ <strong>För medlemmar:</strong> Logga resultat, se progression och få AI-feedback.</p>
                             <p>✅ <strong>För gymmet:</strong> Ökad retention, data och automatisk merförsäljning.</p>
                         </div>
-                         {/* ... costs ... */}
-                         <div className="space-y-4">
-                            <div className="flex justify-between items-center p-3 rounded-lg bg-gray-100 dark:bg-gray-800">
-                                <span className="font-medium">Licenskostnad</span>
-                                <span className="font-bold">{baseCost} kr / mån</span>
-                            </div>
-                            <div className="flex justify-between items-center p-3 rounded-lg border-2 border-primary/20 bg-white dark:bg-gray-800">
-                                <span className="font-bold text-primary">Pris till kund</span>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xl font-bold">{customerPrice}</span>
-                                    <span>kr/mån</span>
+                        
+                        {!organization.freeForMembers && (
+                            <>
+                                {/* ... costs ... */}
+                                <div className="space-y-4">
+                                    <div className="flex justify-between items-center p-3 rounded-lg bg-gray-100 dark:bg-gray-800">
+                                        <span className="font-medium">Licenskostnad</span>
+                                        <span className="font-bold">{baseCost} kr / mån</span>
+                                    </div>
+                                    <div className="flex justify-between items-center p-3 rounded-lg border-2 border-primary/20 bg-white dark:bg-gray-800">
+                                        <span className="font-bold text-primary">Pris till kund</span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xl font-bold">{customerPrice}</span>
+                                            <span>kr/mån</span>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
-                        </div>
 
-                        <div className="bg-green-100 dark:bg-green-900/30 p-4 rounded-xl text-center">
-                            <p className="text-xs font-bold text-green-700 dark:text-green-400 uppercase">Din potentiella vinst</p>
-                            <p className="text-3xl font-black text-green-600 dark:text-green-400">
-                                {Math.max(0, customerPrice - baseCost) * 100 * 12} kr <span className="text-base font-medium opacity-70">/ år</span>
-                            </p>
-                            <p className="text-xs text-green-700/70 dark:text-green-400/70 mt-1">(vid 100 medlemmar)</p>
-                        </div>
+                                <div className="bg-green-100 dark:bg-green-900/30 p-4 rounded-xl text-center">
+                                    <p className="text-xs font-bold text-green-700 dark:text-green-400 uppercase">Din potentiella vinst</p>
+                                    <p className="text-3xl font-black text-green-600 dark:text-green-400">
+                                        {Math.max(0, customerPrice - baseCost) * 100 * 12} kr <span className="text-base font-medium opacity-70">/ år</span>
+                                    </p>
+                                    <p className="text-xs text-green-700/70 dark:text-green-400/70 mt-1">(vid 100 medlemmar)</p>
+                                </div>
+                            </>
+                        )}
                     </div>
                     
                     <div className="p-4 border-t border-gray-200 dark:border-gray-800 flex gap-3">
                         <button onClick={() => setShowPricingModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">Avbryt</button>
                         <button 
                             onClick={async () => {
-                                if (!organization.stripeConnectSetupComplete) {
+                                if (!organization.stripeConnectSetupComplete && !organization.freeForMembers) {
                                     setIsConnectingStripe(true);
                                     try {
                                         const apiUrl = import.meta.env.VITE_API_URL;
@@ -539,7 +544,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                                     </svg>
                                     Laddar...
                                 </>
-                            ) : (!organization.stripeConnectSetupComplete ? 'Koppla Stripe & Aktivera' : 'Godkänn & Aktivera')}
+                            ) : (organization.freeForMembers ? 'Aktivera Passloggning' : (!organization.stripeConnectSetupComplete ? 'Koppla Stripe & Aktivera' : 'Godkänn & Aktivera'))}
                         </button>
                     </div>
                 </div>
