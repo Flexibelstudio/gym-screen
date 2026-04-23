@@ -850,7 +850,7 @@ const OneRMCalculatorModal: React.FC<{
     );
 };
 
-export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigation, route, workouts: contextWorkouts = [] }: any) => {
+export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, navigation, route, workouts: contextWorkouts = [] }: any) => {
   const { currentUser } = useAuth();
   const { selectedOrganization } = useStudio();
   const userId = currentUser?.uid || "offline_member_uid"; 
@@ -881,7 +881,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, onClose, navigatio
   const [saveAsProgram, setSaveAsProgram] = useState(false);
   const [programName, setProgramName] = useState('');
   
-  const scanSource = route?.params?.source;
+  const scanSource = source || route?.params?.source;
   const [inStudio, setInStudio] = useState<boolean | null>(scanSource === 'qr_scan' ? true : null);
 
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 

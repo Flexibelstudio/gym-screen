@@ -1574,6 +1574,7 @@ const App: React.FC = () => {
                           <WorkoutLogScreen 
                               workoutId={mobileLogData.workoutId} 
                               organizationId={mobileLogData.organizationId} 
+                              source={mobileLogData.source}
                               onClose={handleCancelLog}
                           />
                       </div>
