@@ -16,9 +16,8 @@ const InfoMessageEditor: React.FC<{
     onSave: (message: InfoMessage) => void,
     onCancel: () => void,
     studios: Studio[],
-    locations?: OrgLocation[],
     organizationId: string
-}> = ({ initialMessage, onSave, onCancel, studios, locations = [], organizationId }) => {
+}> = ({ initialMessage, onSave, onCancel, studios, organizationId }) => {
     const [formData, setFormData] = useState<InfoMessage>(initialMessage);
     const [customAiPrompt, setCustomAiPrompt] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -150,13 +149,9 @@ const InfoMessageEditor: React.FC<{
                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">Vilka skärmar ska se detta?</label>
                 <div className="flex flex-wrap gap-3">
                     <CheckboxField label="Alla skärmar" checked={formData.visibleInStudios.includes('all')} onChange={checked => handleStudioVisibilityChange('all', checked)} />
-                    {studios.map(studio => {
-                        const location = locations.find(l => l.id === studio.locationId);
-                        const labelText = location ? `${studio.name} (${location.name})` : studio.name;
-                        return (
-                            <CheckboxField key={studio.id} label={labelText} checked={formData.visibleInStudios.includes('all') || formData.visibleInStudios.includes(studio.id)} onChange={checked => handleStudioVisibilityChange(studio.id, checked)} />
-                        );
-                    })}
+                    {studios.map(studio => (
+                        <CheckboxField key={studio.id} label={studio.name} checked={formData.visibleInStudios.includes('all') || formData.visibleInStudios.includes(studio.id)} onChange={checked => handleStudioVisibilityChange(studio.id, checked)} />
+                    ))}
                 </div>
             </div>
             
@@ -302,12 +297,7 @@ export const InfoKarusellContent: React.FC<InfoKarusellContentProps> = ({ organi
         const getVisibilityLabel = (ids: string[]) => {
             if (ids.includes('all')) return 'Alla skärmar';
             if (ids.length === 0) return 'Ingen skärm vald';
-            const names = ids.map(id => {
-                const studio = organization.studios.find(s => s.id === id);
-                if (!studio) return null;
-                const locName = organization.locations?.find(l => l.id === studio.locationId)?.name;
-                return locName ? `${studio.name} (${locName})` : studio.name;
-            }).filter(Boolean);
+            const names = ids.map(id => organization.studios.find(s => s.id === id)?.name).filter(Boolean);
             if (names.length === 0) return 'Okända skärmar';
             if (names.length <= 2) return names.join(', ');
             return `${names[0]}, ${names[1]} +${names.length - 2}`;
@@ -442,7 +432,6 @@ export const InfoKarusellContent: React.FC<InfoKarusellContentProps> = ({ organi
                     onSave={handleSaveMessage}
                     onCancel={() => setEditingMessage(null)}
                     studios={organization.studios}
-                    locations={organization.locations}
                     organizationId={organization.id}
                 />
             )}

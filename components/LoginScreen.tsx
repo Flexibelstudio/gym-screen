@@ -1,12 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { registerMemberWithCode, getOrganizationLocationsByCode } from '../services/firebaseService';
+import { registerMemberWithCode } from '../services/firebaseService';
 import { resizeImage } from '../utils/imageUtils';
 import { CloseIcon, EyeIcon, EyeOffIcon } from './icons';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { UserTermsModal } from './UserTermsModal';
 import { PrivacyPolicyModal } from './PrivacyPolicyModal';
-import { OrgLocation } from '../types';
 
 interface LoginScreenProps {
     onClose?: () => void;
@@ -20,7 +19,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     // UI States for Modals
     const [showTerms, setShowTerms] = useState(false);
     const [showPrivacy, setShowPrivacy] = useState(false);
-    const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
     
     // Login state
     const [email, setEmail] = useState('');
@@ -48,8 +46,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     const [birthDate, setBirthDate] = useState('');
     const [gender, setGender] = useState('prefer_not_to_say');
     const [profileImage, setProfileImage] = useState<string | null>(null); 
-    const [availableLocations, setAvailableLocations] = useState<OrgLocation[]>([]);
-    const [selectedLocationId, setSelectedLocationId] = useState<string>('');
 
     const [regError, setRegError] = useState<string | null>(null);
     const [regLoading, setRegLoading] = useState(false);
@@ -65,24 +61,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
             window.history.replaceState({}, document.title, window.location.pathname);
         }
     }, []);
-
-    useEffect(() => {
-        if (inviteCode.length === 6) {
-            getOrganizationLocationsByCode(inviteCode).then(locs => {
-                setAvailableLocations(locs);
-                if (locs.length === 1) {
-                    setSelectedLocationId(locs[0].id);
-                } else if (locs.length > 0 && !selectedLocationId) {
-                    // Optional fallback, don't strictly auto-select if there are multiple.
-                    // Actually, let's select the first one so it's not null, but they have to change it if they want.
-                    setSelectedLocationId(locs[0].id);
-                }
-            });
-        } else {
-            setAvailableLocations([]);
-            setSelectedLocationId('');
-        }
-    }, [inviteCode, registerType]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -159,8 +137,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     lastName: lastName.trim(),
                     birthDate: birthDate || undefined,
                     gender: gender as any,
-                    photoBase64: profileImage,
-                    locationId: selectedLocationId || undefined
+                    photoBase64: profileImage
                 }
             );
             if (onClose) onClose();
@@ -443,48 +420,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                         maxLength={6}
                     />
                 </div>
-
-                {availableLocations.length > 1 && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="relative z-50">
-                        <label className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">Välj Anläggning / Ort</label>
-                        <button
-                            type="button"
-                            onClick={() => setIsLocationDropdownOpen(!isLocationDropdownOpen)}
-                            className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition flex items-center justify-between"
-                        >
-                            <span className="font-medium">
-                                {availableLocations.find(l => l.id === selectedLocationId)?.name || 'Välj...'}
-                            </span>
-                            <svg className={`w-5 h-5 transition-transform duration-200 text-gray-400 ${isLocationDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </button>
-
-                        <AnimatePresence>
-                            {isLocationDropdownOpen && (
-                                <motion.div
-                                    initial={{ opacity: 0, y: -10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -10 }}
-                                    className="absolute w-full mt-2 bg-gray-900 border border-gray-700 rounded-xl overflow-hidden shadow-2xl z-[100]"
-                                >
-                                    {availableLocations.map(loc => (
-                                        <button
-                                            key={loc.id}
-                                            type="button"
-                                            onClick={() => {
-                                                setSelectedLocationId(loc.id);
-                                                setIsLocationDropdownOpen(false);
-                                            }}
-                                            className={`w-full text-left px-5 py-4 transition-colors border-b last:border-b-0 border-gray-800 ${selectedLocationId === loc.id ? 'bg-primary/20 text-primary font-bold' : 'text-gray-300 hover:bg-gray-800'}`}
-                                        >
-                                            {loc.name}
-                                        </button>
-                                    ))}
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
-                    </motion.div>
-                )}
-
                 <div>
                     <label htmlFor="reg-email" className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">E-post</label>
                     <input

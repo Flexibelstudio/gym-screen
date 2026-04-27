@@ -73,8 +73,7 @@ export const PricingModal: React.FC<{
     onConfirm: () => void;
     isProcessing: boolean;
     hasStripeAccount?: boolean;
-    freeForMembers?: boolean;
-}> = ({ isOpen, onClose, onConfirm, isProcessing, hasStripeAccount, freeForMembers }) => {
+}> = ({ isOpen, onClose, onConfirm, isProcessing, hasStripeAccount }) => {
     const [baseCost, setBaseCost] = useState(19);
     const customerPrice = 39;
 
@@ -121,41 +120,39 @@ export const PricingModal: React.FC<{
                         </div>
                     </div>
 
-                    {!freeForMembers && (
-                        <div className="space-y-4 border-t border-gray-100 dark:border-gray-700 pt-6">
-                            <h4 className="font-bold text-gray-900 dark:text-white text-center mb-4">Räkna på din vinst</h4>
-                            
-                            <div className="flex flex-col md:flex-row gap-6 items-center justify-center">
-                                <div className="flex-1 w-full p-4 bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-                                    <span className="block text-xs font-bold text-gray-500 uppercase mb-1">Vår avgift (Licens)</span>
-                                    <div className="text-2xl font-mono font-bold text-gray-700 dark:text-gray-300">
-                                        {baseCost} <span className="text-sm font-normal">kr/mån</span>
-                                    </div>
-                                </div>
-
-                                <div className="text-gray-400 font-bold text-xl">+</div>
-
-                                <div className="flex-1 w-full p-4 bg-white dark:bg-gray-700 rounded-xl border-2 border-primary/30 shadow-sm">
-                                    <span className="block text-xs font-bold text-primary uppercase mb-1">Pris till kund</span>
-                                    <div className="text-2xl font-mono font-bold text-gray-900 dark:text-white">
-                                        {customerPrice} <span className="text-sm font-medium text-gray-500">kr/mån</span>
-                                    </div>
+                    <div className="space-y-4 border-t border-gray-100 dark:border-gray-700 pt-6">
+                        <h4 className="font-bold text-gray-900 dark:text-white text-center mb-4">Räkna på din vinst</h4>
+                        
+                        <div className="flex flex-col md:flex-row gap-6 items-center justify-center">
+                            <div className="flex-1 w-full p-4 bg-gray-100 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                                <span className="block text-xs font-bold text-gray-500 uppercase mb-1">Vår avgift (Licens)</span>
+                                <div className="text-2xl font-mono font-bold text-gray-700 dark:text-gray-300">
+                                    {baseCost} <span className="text-sm font-normal">kr/mån</span>
                                 </div>
                             </div>
 
-                            <div className="bg-green-100 dark:bg-green-900/30 p-6 rounded-2xl text-center border border-green-200 dark:border-green-800 mt-4">
-                                <p className="text-xs font-bold text-green-800 dark:text-green-300 uppercase tracking-widest mb-2">
-                                    Din potentiella extra intäkt
-                                </p>
-                                <div className="text-5xl font-black text-green-700 dark:text-green-400 tracking-tight">
-                                    {(Math.max(0, customerPrice - baseCost) * 100 * 12).toLocaleString()} kr
+                            <div className="text-gray-400 font-bold text-xl">+</div>
+
+                            <div className="flex-1 w-full p-4 bg-white dark:bg-gray-700 rounded-xl border-2 border-primary/30 shadow-sm">
+                                <span className="block text-xs font-bold text-primary uppercase mb-1">Pris till kund</span>
+                                <div className="text-2xl font-mono font-bold text-gray-900 dark:text-white">
+                                    {customerPrice} <span className="text-sm font-medium text-gray-500">kr/mån</span>
                                 </div>
-                                <p className="text-sm text-green-800 dark:text-green-300 mt-2 font-medium opacity-80">
-                                    per år (vid 100 anslutna medlemmar)
-                                </p>
                             </div>
                         </div>
-                    )}
+
+                        <div className="bg-green-100 dark:bg-green-900/30 p-6 rounded-2xl text-center border border-green-200 dark:border-green-800 mt-4">
+                            <p className="text-xs font-bold text-green-800 dark:text-green-300 uppercase tracking-widest mb-2">
+                                Din potentiella extra intäkt
+                            </p>
+                            <div className="text-5xl font-black text-green-700 dark:text-green-400 tracking-tight">
+                                {(Math.max(0, customerPrice - baseCost) * 100 * 12).toLocaleString()} kr
+                            </div>
+                            <p className="text-sm text-green-800 dark:text-green-300 mt-2 font-medium opacity-80">
+                                per år (vid 100 anslutna medlemmar)
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="p-4 bg-gray-50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-gray-700 flex gap-4">
@@ -171,7 +168,7 @@ export const PricingModal: React.FC<{
                                 </svg>
                                 Laddar...
                             </>
-                        ) : (freeForMembers ? 'Aktivera Passloggning' : (!hasStripeAccount ? 'Koppla Stripe & Aktivera' : 'Aktivera Passloggning'))}
+                        ) : (!hasStripeAccount ? 'Koppla Stripe & Aktivera' : 'Aktivera Passloggning')}
                     </button>
                 </div>
             </div>

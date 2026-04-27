@@ -1,1834 +1,1714 @@
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma, RemoteSessionState, TimerStatus } from './types';
 
+import { useStudio } from './context/StudioContext';
+import { useAuth } from './context/AuthContext';
+import { useWorkout } from './context/WorkoutContext';
 
-// ... (imports remain the same)
-import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { 
-  getAuth, 
-  signInWithEmailAndPassword, 
-  signInAnonymously, 
-  signOut as firebaseSignOut, 
-  onAuthStateChanged, 
-  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
-  reauthenticateWithCredential,
-  createUserWithEmailAndPassword,
-  EmailAuthProvider,
-  Auth,
-  User
-} from 'firebase/auth';
-import { 
-  getFirestore, 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  getDocsFromServer,
-  setDoc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  or,
-  orderBy, 
-  limit, 
-  onSnapshot, 
-  writeBatch, 
-  deleteField,
-  serverTimestamp,
-  Firestore,
-  runTransaction,
-  enableMultiTabIndexedDbPersistence
-} from 'firebase/firestore';
-import { 
-  getStorage, 
-  ref, 
-  uploadBytes, 
-  getDownloadURL, 
-  deleteObject, 
-  FirebaseStorage 
-} from 'firebase/storage';
-import { 
-  getFunctions, 
-  httpsCallable 
-} from 'firebase/functions';
-import { getMessaging, getToken, Messaging, onMessage } from 'firebase/messaging';
+// --- ROUTER ---
+import { AppRouter } from './components/AppRouter';
 
-export const listenToForegroundMessages = (callback: (payload: any) => void) => {
-    if (isOffline || !messaging) return () => {};
-    return onMessage(messaging, (payload) => {
-        console.log('Message received. ', payload);
-        callback(payload);
+// --- PAYWALL ---
+import { PaywallScreen } from './components/PaywallScreen'; 
+import { WelcomePaywall } from './components/WelcomePaywall'; 
+import PendingCoachScreen from './components/PendingCoachScreen';
+
+// --- Services ---
+import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages, activateMemberSubscriptionLocally } from './services/firebaseService';
+import { Toast } from './components/ui/ToastNotification';
+
+// --- Utils ---
+import { deepCopyAndPrepareAsNew } from './utils/workoutUtils';
+
+// --- Components ---
+import { WorkoutCompleteModal } from './components/WorkoutCompleteModal';
+import { PasswordModal } from './components/PasswordModal';
+import { ReAuthModal } from './components/ReAuthModal';
+import { StudioSelectionScreen } from './components/StudioSelectionScreen';
+import { StudioConfigModal } from './components/AdminConfigScreen';
+import { LoginScreen } from './components/LoginScreen';
+import { RegisterGymScreen } from './components/RegisterGymScreen'; 
+import { LandingPage } from './components/LandingPage';
+import { DeveloperToolbar } from './components/DeveloperToolbar';
+import { InfoCarouselBanner } from './components/InfoCarouselBanner';
+import { TermsOfServiceModal } from './components/TermsOfServiceModal';
+import { SupportChat } from './components/SupportChat';
+import { Screensaver } from './components/common/Screensaver';
+import { ImagePreviewModal } from './components/ui/ImagePreviewModal';
+import { Header } from './components/layout/Header';
+import { SeasonalOverlay } from './components/common/SeasonalOverlay';
+import { SpotlightOverlay } from './components/SpotlightOverlay';
+import { PBOverlay } from './components/PBOverlay'; 
+import { ScanButton } from './components/ScanButton';
+import { WorkoutLogScreen } from './mobile/screens/WorkoutLogScreen';
+import { WorkoutListScreen } from './components/WorkoutListScreen';
+import { WebQRScanner } from './components/WebQRScanner';
+import { RemoteControlScreen } from './components/RemoteControlScreen';
+import { motion, AnimatePresence } from 'framer-motion';
+import WorkoutDetailScreen, { WorkoutPresentationModal } from './components/WorkoutDetailScreen';
+import { CloseIcon, PencilIcon } from './components/icons';
+import { WorkoutDiplomaView } from './components/WorkoutDiplomaView';
+
+// --- Modals ---
+import { CancelConfirmationModal } from './components/modals/CancelConfirmationModal';
+import { BirthDatePromptModal } from './components/modals/BirthDatePromptModal';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
+
+const THEME_STORAGE_KEY = 'flexibel-screen-theme';
+
+const App: React.FC = () => {
+  const { 
+    selectedStudio, selectStudio, setAllStudios,
+    selectedOrganization, selectOrganization, allOrganizations, setAllOrganizations,
+    studioConfig, studioLoading
+  } = useStudio();
+  const { role, userData, isStudioMode, signOut, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, currentUser, authLoading } = useAuth();
+  const { workouts, activeWorkout, setActiveWorkout, saveWorkout, deleteWorkout } = useWorkout();
+  
+  const [sessionRole, setSessionRole] = useState<UserRole>(role);
+  const [showLogin, setShowLogin] = useState(false);
+  const [showRegisterGym, setShowRegisterGym] = useState(false); 
+  const [minSplashTimeElapsed, setMinSplashTimeElapsed] = useState(false);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMinSplashTimeElapsed(true);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
+  
+  const [history, setHistory] = useState<Page[]>(() => {
+      if (isStudioMode) return [Page.Home];
+      if (role === 'systemowner') return [Page.SystemOwner];
+      if (role === 'organizationadmin') return [Page.SuperAdmin];
+      if (role === 'coach') return [Page.Coach];
+      return [Page.MemberProfile];
+  });
+
+  const page = history[history.length - 1];
+
+  // Scrolla alltid till toppen när vi byter sida
+  useEffect(() => {
+      const timer = setTimeout(() => {
+          window.scrollTo({ top: 0, left: 0, behavior: 'instant' as ScrollBehavior });
+      }, 10);
+      return () => clearTimeout(timer);
+  }, [page]);
+
+  const showWelcomePaywall = useMemo(() => {
+      if (!currentUser || role !== 'organizationadmin' || isStudioMode) return false;
+      return selectedOrganization?.systemFeePaid === false;
+  }, [role, selectedOrganization?.systemFeePaid, isStudioMode, currentUser]);
+
+  const hasActiveSubscription = useMemo(() => {
+      if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
+      if (userData?.subscriptionStatus === 'active') return true;
+      return false;
+  }, [role, userData?.subscriptionStatus]);
+
+  const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription && !showWelcomePaywall;
+  const showPendingCoach = currentUser && !isStudioMode && userData?.status === 'pending_coach';
+  const isGlobalLoading = authLoading || studioLoading || (currentUser && !userData && !isStudioMode);
+  
+  const isOrgMismatch = useMemo(() => {
+      if (!currentUser || !userData?.organizationId || !selectedOrganization) return false;
+      if (role === 'systemowner') return false;
+      return userData.organizationId !== selectedOrganization.id;
+  }, [userData?.organizationId, selectedOrganization?.id, currentUser, role]);
+
+  // NEW: Ref to track if we have performed the initial cleanup of remote state
+  const hasCleanedUpRef = useRef(false);
+  const [isReadyToListen, setIsReadyToListen] = useState(false);
+  const [pushToast, setPushToast] = useState<{ message: string, isVisible: boolean }>({ message: '', isVisible: false });
+
+  // Push notification foreground listener
+  useEffect(() => {
+    if (isOffline) return;
+    const unsubscribe = listenToForegroundMessages((payload) => {
+      const title = payload.notification?.title || 'Ny notis';
+      const body = payload.notification?.body || '';
+      setPushToast({ message: `${title}: ${body}`, isVisible: true });
     });
-};
+    return () => unsubscribe();
+  }, []);
 
-import { firebaseConfig } from './firebaseConfig';
-import { 
-  Organization, UserData, Workout, InfoCarousel, 
-  BankExercise, SuggestedExercise, WorkoutResult, CompanyDetails, 
-  SmartScreenPricing, HyroxRace, SeasonalThemeSetting, MemberGoals, 
-  WorkoutLog, CheckInEvent, Member, UserRole, PersonalBest, StudioEvent,
-  CustomPage, AdminActivity, BenchmarkDefinition, RemoteSessionState, Studio, GalleryImage, Lead, CoachNote, OrgLocation
-} from '../types';
-import { MOCK_ORGANIZATIONS, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_MEMBERS, MOCK_SMART_SCREEN_PRICING } from '../data/mockData';
+  useEffect(() => {
+    if (!authLoading && !isStudioMode && currentUser) {
+      const isAtInitialPage = history.length === 1;
+      const currentPage = history[history.length - 1];
 
-// --- INITIALISERING ---
-const hasFirebaseConfig = !!(
-    (import.meta as any).env?.VITE_FIREBASE_API_KEY || 
-    (process as any).env?.VITE_FIREBASE_API_KEY
-);
+      if (role === 'systemowner' && currentPage !== Page.SystemOwner && isAtInitialPage) {
+        setHistory([Page.SystemOwner]);
+      } else if (role === 'organizationadmin' && currentPage !== Page.SuperAdmin && isAtInitialPage) {
+        setHistory([Page.SuperAdmin]);
+      } else if (role === 'coach' && currentPage !== Page.Coach && isAtInitialPage) {
+        setHistory([Page.Coach]);
+      } else if (role === 'member' && currentPage !== Page.MemberProfile && isAtInitialPage) {
+        setHistory([Page.MemberProfile]);
+      }
+    }
+  }, [role, authLoading, isStudioMode, history, currentUser]);
 
-export const isOffline = !hasFirebaseConfig;
+  const [remoteCommand, setRemoteCommand] = useState<{ type: string, timestamp: number } | null>(null);
+  const [activeBlock, setActiveBlock] = useState<WorkoutBlock | null>(null);
+  const lastLocalNavigationRef = useRef<number>(0);
+  const pageEntryTimestampRef = useRef<number>(Date.now());
 
-let app: FirebaseApp | null = null;
-export let auth: Auth | null = null;
-export let db: Firestore | null = null;
-export let storage: FirebaseStorage | null = null;
-export let messaging: Messaging | null = null;
-let functions: any = null;
+  const navigateTo = useCallback((targetPage: Page, options?: { activeWorkoutId?: string | null, activeBlockId?: string | null }) => {
+    if (isStudioMode && selectedOrganization && selectedStudio) {
+         let view: RemoteSessionState['view'] = 'menu';
+         
+         if (targetPage === Page.Timer || targetPage === Page.RepsOnly) {
+             view = 'timer';
+         } else if (targetPage === Page.WorkoutDetail) {
+             view = 'preview';
+         } else if (targetPage === Page.Home) {
+             view = 'idle';
+         }
+         
+         lastLocalNavigationRef.current = Date.now();
 
-if (!isOffline) {
-    try {
-        app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-        auth = getAuth(app);
-        db = getFirestore(app);
-        
-        try {
-            enableMultiTabIndexedDbPersistence(db).catch((err) => {
-                if (err.code == 'failed-precondition') {
-                    console.warn('Multiple tabs open, persistence can only be enabled in one tab at a a time.');
-                } else if (err.code == 'unimplemented') {
-                    console.warn('The current browser does not support all of the features required to enable persistence.');
-                }
-            });
-        } catch (e) {
-            console.warn("Could not enable persistence immediately", e);
+         updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+             view,
+             activeWorkoutId: options?.activeWorkoutId !== undefined ? options.activeWorkoutId : (activeWorkout?.id || null),
+             activeBlockId: options?.activeBlockId !== undefined ? options.activeBlockId : (activeBlock?.id || null),
+             lastUpdate: Date.now(),
+             controllerName: 'Touch Screen'
+         });
+    }
+    setHistory(prev => {
+        if (prev[prev.length - 1] === targetPage) return prev;
+        return [...prev, targetPage];
+    });
+  }, [isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock]);
+
+  const navigateReplace = useCallback((page: Page) => {
+    lastLocalNavigationRef.current = Date.now();
+    setHistory(prev => {
+        const newHistory = prev.slice(0, -1);
+        if (newHistory.length > 0 && newHistory[newHistory.length - 1] === page) {
+            return newHistory;
         }
+        newHistory.push(page);
+        return newHistory;
+    });
+  }, []);
 
-        storage = getStorage(app);
-        functions = getFunctions(app, 'us-central1');
+  // --- STUDIO RESET LOGIC (Emergency Brake) ---
+  // If the page is reloaded in Studio Mode, clear the remote state.
+  useEffect(() => {
+      const clearRemoteStateOnMount = async () => {
+          if (isStudioMode && selectedOrganization && selectedStudio && !hasCleanedUpRef.current) {
+               hasCleanedUpRef.current = true;
+               await updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
+               // We wait for the snapshot to reflect the null state before listening
+          } else if (!isStudioMode) {
+               setIsReadyToListen(true);
+          }
+      };
+      
+      if (!studioLoading) {
+          clearRemoteStateOnMount();
+      }
+  }, [isStudioMode, selectedOrganization?.id, selectedStudio?.id, studioLoading]);
+
+  useEffect(() => {
+      if (isStudioMode && hasCleanedUpRef.current && !isReadyToListen && selectedStudio && !selectedStudio.remoteState) {
+          setIsReadyToListen(true);
+      }
+  }, [isStudioMode, isReadyToListen, selectedStudio?.remoteState]);
+
+      // STUDIO RECEIVER LOGIC (TV Mode)
+      useEffect(() => {
+          if (!isStudioMode || !selectedOrganization || !selectedStudio || !isReadyToListen) return;
+    
+          const remote = selectedStudio.remoteState;
+          
+          if (remote) {
+              if (remote.command && remote.commandTimestamp) {
+                  if (remote.commandTimestamp > pageEntryTimestampRef.current) {
+                      setRemoteCommand(prev => {
+                          if (!prev || prev.timestamp !== remote.commandTimestamp) {
+                              return { type: remote.command!, timestamp: remote.commandTimestamp! };
+                          }
+                          return prev;
+                      });
+                  }
+              }
+
+              const isRecentLocalNav = Date.now() - lastLocalNavigationRef.current < 3000;
+
+              if (!isRecentLocalNav) {
+                  if (remote.view === 'idle') {
+                      if (page !== Page.Home) {
+                          navigateReplace(Page.Home);
+                          setActiveWorkout(null);
+                      }
+                  } else if (remote.activeWorkoutId) {
+                      // PRIORITY: If we have customWorkoutData in remote state, use that!
+                      // This ensures that 5 second adjustments are visible on all screens.
+                      const workoutToLoad = (remote as any).customWorkoutData || workouts.find(w => w.id === remote.activeWorkoutId);
+                      
+                      const loadAndNavigate = (workout: Workout) => {
+                          // Deep compare or ID check to prevent re-renders
+                          if (activeWorkout?.id !== workout.id || JSON.stringify(activeWorkout) !== JSON.stringify(workout)) {
+                              setActiveWorkout(workout);
+                          }
+    
+                          if (remote.view === 'preview') {
+                              if (page !== Page.WorkoutDetail) {
+                                  navigateReplace(Page.WorkoutDetail);
+                              }
+                          } else if (remote.view === 'timer' && remote.activeBlockId) {
+                              const blockToStart = workout.blocks.find(b => b.id === remote.activeBlockId);
+                              if (blockToStart) {
+                                  if (activeBlock?.id !== blockToStart.id || JSON.stringify(activeBlock) !== JSON.stringify(blockToStart)) {
+                                      setActiveBlock(blockToStart);
+                                  }
+                                  const targetPage = blockToStart.settings.mode === TimerMode.NoTimer ? Page.RepsOnly : Page.Timer;
+                                  if (page !== targetPage) {
+                                      navigateReplace(targetPage);
+                                  }
+                              }
+                          }
+                      };
+
+                      if (workoutToLoad) {
+                          loadAndNavigate(workoutToLoad);
+                      } else {
+                          getWorkoutById(remote.activeWorkoutId).then(fetchedWorkout => {
+                              if (fetchedWorkout) {
+                                  loadAndNavigate(fetchedWorkout);
+                              }
+                          });
+                      }
+                  }
+              }
+          }
+      }, [isStudioMode, selectedOrganization, selectedStudio, workouts, page, activeWorkout, activeBlock, navigateReplace, setActiveWorkout, isReadyToListen]);
+
+      // AUTO-CLEAR STALE SESSIONS (5 minutes)
+      useEffect(() => {
+          if (!isStudioMode || !selectedOrganization || !selectedStudio) return;
+
+          const checkStaleSession = () => {
+              const remote = selectedStudio.remoteState;
+              if (!remote) return;
+
+              // Don't clear if it's actively running, resting, or preparing
+              if (remote.status === TimerStatus.Running || 
+                  remote.status === TimerStatus.Preparing || 
+                  remote.status === TimerStatus.Resting) {
+                  return;
+              }
+
+              // Only clear if there's an active workout or we are not in idle view
+              if (remote.view === 'idle' && !remote.activeWorkoutId) return;
+
+              const lastActivity = remote.commandTimestamp || remote.lastUpdate || 0;
+              const timeSinceActivity = Date.now() - lastActivity;
+
+              if (timeSinceActivity > 5 * 60 * 1000) {
+                  console.log('Session stale for > 5 mins, auto-clearing...');
+                  updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
+              }
+          };
+
+          const intervalId = setInterval(checkStaleSession, 60000); // Check every minute
+          checkStaleSession(); // Check immediately on mount/update
+
+          return () => clearInterval(intervalId);
+      }, [isStudioMode, selectedOrganization, selectedStudio]);
+
+  const [customBackHandlerState, setCustomBackHandlerState] = useState<(() => void) | null>(null);
+  const customBackHandlerRef = useRef<(() => void) | null>(null);
+
+  const setCustomBackHandler = useCallback((handler: (() => void) | null) => {
+      customBackHandlerRef.current = handler;
+      setCustomBackHandlerState(handler ? () => handler : null);
+  }, []);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get('connect') === 'success' && userData?.organizationId) {
+          const checkStatus = async () => {
+              try {
+                  const apiUrl = import.meta.env.VITE_API_URL;
+                  await fetch(`${apiUrl}/check-connect-status`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ organizationId: userData.organizationId })
+                  });
+                  // Clean up URL
+                  window.history.replaceState({}, document.title, window.location.pathname);
+              } catch (e) {
+                  console.error("Failed to check connect status", e);
+              }
+          };
+          checkStatus();
+      }
+  }, [userData?.organizationId]);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    pageEntryTimestampRef.current = Date.now();
+  }, [page]);
+
+  const [activePasskategori, setActivePasskategori] = useState<string | null>(null);
+  const [isPickingForLog, setIsPickingForLog] = useState(false);
+  const [activeCustomPage, setActiveCustomPage] = useState<CustomPage | null>(null);
+  const [racePrepState, setRacePrepState] = useState<{ groups: StartGroup[]; interval: number } | null>(null);
+  const [activeRaceId, setActiveRaceId] = useState<string | null>(null);
+  const [isEditingNewDraft, setIsEditingNewDraft] = useState(false);
+  const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
+  const [customPageToEdit, setCustomPageToEdit] = useState<CustomPage | null>(null);
+  const [studioToEditConfig, setStudioToEditConfig] = useState<Studio | null>(null);
+  const [completionInfo, setCompletionInfo] = useState<{ workout: Workout, isFinal: boolean, blockTag?: string, finishTime?: number } | null>(null);
+  const [preferredAdminTab, setPreferredAdminTab] = useState<string>('dashboard');
+  const [isAutoTransition, setIsAutoTransition] = useState(false);
+  
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [isReAuthModalOpen, setIsReAuthModalOpen] = useState(false);
+  const [reAuthPurpose, setReAuthPurpose] = useState<'admin' | 'profile'>('admin');
+
+  const [isRegisteringHyroxTime, setIsRegisteringHyroxTime] = useState(false);
+  const [aiGeneratorInitialTab, setAiGeneratorInitialTab] = useState<'generate' | 'parse' | 'manage' | 'create'>('create');
+  
+  const [mobileLogData, setMobileLogData] = useState<{workoutId: string, organizationId: string, source?: 'qr_scan' | 'manual'} | null>(null);
+  const [mobileViewData, setMobileViewData] = useState<Workout | null>(null); 
+  const [isSearchWorkoutOpen, setIsSearchWorkoutOpen] = useState(false);
+  const [showLogCancelModal, setShowLogCancelModal] = useState(false);
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [activeDiploma, setActiveDiploma] = useState<WorkoutDiploma | null>(null);
+  const [showBirthDatePrompt, setShowBirthDatePrompt] = useState(false);
+
+  useEffect(() => {
+      if (userData && !userData.birthDate && !isStudioMode) {
+          setShowBirthDatePrompt(true);
+      } else {
+          setShowBirthDatePrompt(false);
+      }
+  }, [userData, isStudioMode]);
+
+  useEffect(() => {
+      if (mobileLogData || mobileViewData || isSearchWorkoutOpen || isScannerOpen || activeDiploma) {
+          document.body.style.overflow = 'hidden';
+      } else {
+          document.body.style.overflow = '';
+      }
+      return () => { document.body.style.overflow = ''; };
+  }, [mobileLogData, mobileViewData, isSearchWorkoutOpen, isScannerOpen, activeDiploma]);
+
+  const [theme, setTheme] = useState(() => {
+    const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
+    if (savedTheme === 'light' || savedTheme === 'dark') return savedTheme;
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) return 'light';
+    return 'dark';
+  });
+
+  const [isTimerHeaderVisible, setIsTimerHeaderVisible] = useState(true);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [isScreensaverActive, setIsScreensaverActive] = useState(false);
+  const [isBackButtonHidden, setIsBackButtonHidden] = useState(false);
+  const [followMeShowImage, setFollowMeShowImage] = useState(true);
+  const inactivityTimerRef = useRef<number | null>(null);
+  const [profileEditTrigger, setProfileEditTrigger] = useState(0);
+
+  useEffect(() => {
+    const faviconUrl = selectedOrganization?.faviconUrl;
+    if (faviconUrl) {
+      let link = document.querySelector("link[rel~='icon']") as HTMLLinkElement | null;
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.getElementsByTagName('head')[0].appendChild(link);
+      }
+      link.href = faviconUrl;
+
+      let appleLink: HTMLLinkElement | null = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement | null;
+      if (!appleLink) {
+        appleLink = document.createElement('link');
+        appleLink.rel = 'apple-touch-icon';
+        document.getElementsByTagName('head')[0].appendChild(appleLink);
+      }
+      appleLink.href = faviconUrl;
+    }
+  }, [selectedOrganization?.faviconUrl]);
+
+  useEffect(() => {
+      const params = new URLSearchParams(window.location.search);
+      const logPayload = params.get('log');
+      const inviteCode = params.get('invite');
+      const coachCode = params.get('coach');
+      const successParam = params.get('success');
+      const typeParam = params.get('type');
+      
+      if (inviteCode || coachCode) {
+          setShowLogin(true);
+      }
+
+      // Optimistic update for member subscription success
+      if (successParam === 'true' && typeParam === 'member' && userData?.uid) {
+          console.log("Stripe checkout success! Optimistically activating subscription...");
+          // Uppdatera doc lokalt så vi släpps igenom betalväggen snabbt
+          activateMemberSubscriptionLocally(userData.uid).then(() => {
+              // Rensa sen bort url params så vi slipper checka varje gång
+              window.history.replaceState({}, document.title, window.location.pathname);
+          });
+      }
+
+      if (logPayload) {
+          try {
+              const decoded = JSON.parse(atob(logPayload));
+              if (decoded.wid && decoded.oid) {
+                  setMobileLogData({ workoutId: decoded.wid, organizationId: decoded.oid, source: 'qr_scan' });
+              }
+          } catch (e) {
+              console.error("Failed to parse QR payload from URL", e);
+          }
+      }
+  }, [userData?.uid]);
+
+  const pagesThatPreventScreensaver: Page[] = [
+      Page.Timer, 
+      Page.RepsOnly, 
+      Page.IdeaBoard, 
+      Page.MemberProfile, 
+      Page.MemberRegistry, 
+      Page.MobileLog,
+      Page.RemoteControl 
+  ];
+
+  const resetInactivityTimer = useCallback(() => {
+      if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current);
+      if (isStudioMode && studioConfig.enableScreensaver && !pagesThatPreventScreensaver.includes(page)) {
+          const timeoutMinutes = studioConfig.screensaverTimeoutMinutes || 15;
+          inactivityTimerRef.current = window.setTimeout(() => {
+              setIsScreensaverActive(true);
+          }, timeoutMinutes * 60 * 1000);
+      } else {
+          if (isScreensaverActive) setIsScreensaverActive(false);
+      }
+  }, [isStudioMode, studioConfig.enableScreensaver, studioConfig.screensaverTimeoutMinutes, page, isScreensaverActive]);
+
+  const handleUserActivity = useCallback(() => {
+      if (isScreensaverActive) setIsScreensaverActive(false);
+      resetInactivityTimer();
+  }, [isScreensaverActive, resetInactivityTimer]);
+
+  useEffect(() => {
+      resetInactivityTimer();
+      return () => { if (inactivityTimerRef.current) clearTimeout(inactivityTimerRef.current); };
+  }, [resetInactivityTimer, page]);
+
+  useEffect(() => {
+      const events: (keyof WindowEventMap)[] = ['mousemove', 'mousedown', 'touchstart', 'keydown', 'scroll'];
+      events.forEach(event => window.addEventListener(event, handleUserActivity));
+      return () => { events.forEach(event => window.removeEventListener(event, handleUserActivity)); };
+  }, [handleUserActivity]);
+
+  const activeInfoMessages = useMemo((): InfoMessage[] => {
+    const infoCarousel = selectedOrganization?.infoCarousel;
+    if (!infoCarousel?.isEnabled || !selectedStudio || !infoCarousel.messages) return [];
+    const now = new Date();
+    return infoCarousel.messages.filter(msg => {
+        const isStudioMatch = msg.visibleInStudios.includes('all') || msg.visibleInStudios.includes(selectedStudio.id);
+        if (!isStudioMatch) return false;
+        if (msg.startDate && new Date(msg.startDate) > now) return false;
+        if (msg.endDate && new Date(msg.endDate) < now) return false;
+        return true;
+    }).sort((a, b) => a.internalTitle.localeCompare(b.internalTitle));
+  }, [selectedOrganization, selectedStudio]);
+
+  const isInfoBannerVisible = (page === Page.Home || isScreensaverActive) && activeInfoMessages.length > 0;
+
+  useEffect(() => {
+    setSessionRole(role);
+  }, [role]);
+
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+  };
+  
+  useEffect(() => {
+    localStorage.setItem(THEME_STORAGE_KEY, theme);
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(theme);
+  }, [theme]);
+  
+  useEffect(() => {
+    const root = document.documentElement;
+    const primaryColor = selectedOrganization?.primaryColor;
+    if (primaryColor) root.style.setProperty('--color-primary', primaryColor);
+    else root.style.removeProperty('--color-primary');
+  }, [selectedOrganization]);
+
+
+
+  const handleBack = useCallback(() => {
+    if (customBackHandlerRef.current) {
+      customBackHandlerRef.current();
+      return;
+    }
+
+    if (history.length <= 1) return;
+
+    const currentPage = history[history.length - 1];
+    const newHistory = history.slice(0, -1);
+    const targetPage = newHistory[newHistory.length - 1];
+    
+    if (currentPage === Page.Coach && role === 'member') {
+        setSessionRole('member');
+    }
+    
+    if (currentPage === Page.IdeaBoard) setActiveWorkout(null);
+
+    if (currentPage === Page.WorkoutList && isPickingForLog) {
+        setIsPickingForLog(false);
+    }
+    
+    // Clear active block if we are leaving the timer
+    let nextActiveBlockId = activeBlock?.id || null;
+    if (targetPage === Page.WorkoutDetail || targetPage === Page.Home || targetPage === Page.Coach || targetPage === Page.SuperAdmin) {
+        setActiveBlock(null);
+        nextActiveBlockId = null;
+    }
+    
+    if (targetPage === Page.Home || targetPage === Page.Coach || targetPage === Page.SuperAdmin) {
+        setActiveWorkout(null);
+    }
+    
+    if (isStudioMode && selectedOrganization && selectedStudio) {
+         let view: RemoteSessionState['view'] = 'menu';
+         
+         if (targetPage === Page.Timer || targetPage === Page.RepsOnly) {
+             view = 'timer';
+         } else if (targetPage === Page.WorkoutDetail) {
+             view = 'preview';
+         } else if (targetPage === Page.Home) {
+             view = 'idle';
+         }
+         
+         setRemoteCommand(null);
+         lastLocalNavigationRef.current = Date.now();
+
+         updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+             view,
+             activeWorkoutId: (targetPage === Page.Home || targetPage === Page.Coach || targetPage === Page.SuperAdmin) ? null : (activeWorkout?.id || null),
+             activeBlockId: nextActiveBlockId,
+             lastUpdate: Date.now(),
+             controllerName: 'Touch Screen'
+         });
+    }
+    
+    setHistory(newHistory);
+  }, [history, role, isImpersonating, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock]);
+
+  const handleMemberProfileRequest = () => {
+      if (isStudioMode) {
+          setReAuthPurpose('profile');
+          setIsReAuthModalOpen(true);
+      } else {
+          setProfileEditTrigger(0); 
+          if (page !== Page.MemberProfile) {
+              navigateTo(Page.MemberProfile);
+          }
+      }
+  };
+
+  const handleEditProfileRequest = () => {
+      if (isStudioMode) {
+          setReAuthPurpose('profile');
+          setIsReAuthModalOpen(true);
+      } else {
+          setProfileEditTrigger(Date.now());
+          if (page !== Page.MemberProfile) {
+              navigateTo(Page.MemberProfile);
+          }
+      }
+  };
+
+  const handleReturnToAdminRequest = () => {
+      if (currentUser?.isAnonymous) {
+          signOut();
+      } else {
+          setReAuthPurpose('admin');
+          setIsReAuthModalOpen(true);
+      }
+  };
+
+  const handleCreateNewWorkout = () => {
+    setActiveWorkout(null);
+    setFocusedBlockId(null);
+    setIsEditingNewDraft(true);
+    if (sessionRole === 'member') navigateTo(Page.SimpleWorkoutBuilder);
+    else navigateTo(Page.WorkoutBuilder);
+  };
+
+  const handleEditWorkout = (workout: Workout, blockId?: string) => {
+    setActiveWorkout(workout);
+    setFocusedBlockId(blockId || null);
+    setIsEditingNewDraft(false);
+    if (sessionRole === 'member') navigateTo(Page.SimpleWorkoutBuilder);
+    else navigateTo(Page.WorkoutBuilder);
+  };
+
+  const handleAdjustWorkout = (workoutToAdjust: Workout) => {
+    const newDraft = deepCopyAndPrepareAsNew(workoutToAdjust);
+    newDraft.title = `Justering: ${workoutToAdjust.title}`;
+    newDraft.isMemberDraft = true;
+    newDraft.isPublished = false;
+    if (!newDraft.organizationId && selectedOrganization) {
+        newDraft.organizationId = selectedOrganization.id;
+    }
+    setActiveWorkout(newDraft);
+    setIsEditingNewDraft(true);
+    navigateTo(Page.SimpleWorkoutBuilder);
+  };
+
+  const handleSaveAndNavigate = async (workout: Workout, startFirstBlock?: boolean) => {
+    const isMemberRole = sessionRole === 'member' || isStudioMode;
+    const workoutToSave = { 
+        ...workout, 
+        isMemberDraft: workout.isMemberDraft ?? isMemberRole 
+    };
+    const savedWorkout = await saveWorkout(workoutToSave);
+    
+    if (startFirstBlock && savedWorkout.blocks.length > 0) {
+        handleStartBlock(savedWorkout.blocks[0], savedWorkout);
+    } else {
+        setActiveWorkout(savedWorkout);
         
-        // Messaging is only supported in browsers that support the required APIs
-        if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-            messaging = getMessaging(app);
+        if (isStudioMode) {
+            if (selectedOrganization && selectedStudio) {
+                updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+                    view: 'preview',
+                    activeWorkoutId: savedWorkout.id,
+                    activeBlockId: null,
+                    lastUpdate: Date.now(),
+                    controllerName: 'Touch Screen'
+                });
+            }
+            navigateReplace(Page.WorkoutDetail);
+        } else if (isEditingNewDraft) {
+            setIsEditingNewDraft(false);
+            navigateReplace(Page.WorkoutDetail);
+        } else {
+            handleBack();
+            setPreferredAdminTab('pass-program');
+        }
+    }
+  };
+
+  const handleSaveOnly = async (workout: Workout) => {
+      const isMemberRole = sessionRole === 'member' || isStudioMode;
+      return await saveWorkout({ 
+          ...workout, 
+          isMemberDraft: workout.isMemberDraft ?? isMemberRole 
+      });
+  };
+  
+  const handleTogglePublishStatus = async (workoutId: string, isPublished: boolean, silentPublish?: boolean) => {
+    const workoutToToggle = workouts.find(w => w.id === workoutId);
+    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isPublished, silentPublish });
+  };
+
+  const handleToggleFavoriteStatus = async (workoutId: string) => {
+    const workoutToToggle = workouts.find(w => w.id === workoutId);
+    if (workoutToToggle) await saveWorkout({ ...workoutToToggle, isFavorite: !workoutToToggle.isFavorite });
+  };
+
+  const handleDeleteWorkout = async (workoutId: string) => {
+    await deleteWorkout(workoutId);
+    if (activeWorkout?.id === workoutId && page === Page.WorkoutDetail) {
+      handleBack();
+    }
+  };
+  
+  const handleStartBlock = (block: WorkoutBlock, workoutContext: Workout) => {
+    const isSavedWorkout = workouts.some(w => w.id === workoutContext.id);
+
+    pageEntryTimestampRef.current = Date.now();
+    setIsAutoTransition(false); 
+
+    if (isStudioMode && selectedOrganization && selectedStudio && isSavedWorkout) {
+        setRemoteCommand(null);
+        setActiveWorkout(workoutContext);
+        setActiveBlock(block);
+        const targetPage = block.settings.mode === TimerMode.NoTimer ? Page.RepsOnly : Page.Timer;
+        navigateTo(targetPage, { activeWorkoutId: workoutContext.id, activeBlockId: block.id });
+        return;
+    }
+    setActiveWorkout(workoutContext);
+    setActiveBlock(block);
+    if (block.settings.mode === TimerMode.NoTimer) navigateTo(Page.RepsOnly);
+    else navigateTo(Page.Timer);
+  };
+
+  const handleStartFreestandingTimer = (block: WorkoutBlock) => {
+    setIsAutoTransition(false);
+    if (!selectedOrganization) return alert("Kan inte starta timer: ingen organisation är vald.");
+    const tempWorkout: Workout = {
+        id: `freestanding-workout-${Date.now()}`,
+        title: block.title,
+        coachTips: '',
+        blocks: [block],
+        category: 'Ej kategoriserad',
+        isPublished: false,
+        organizationId: selectedOrganization.id,
+        createdAt: Date.now() 
+    };
+
+    pageEntryTimestampRef.current = Date.now();
+    setRemoteCommand(null);
+
+    setIsAutoTransition(false); 
+    setActiveWorkout(tempWorkout);
+    setActiveBlock(block);
+    if (block.settings.mode === TimerMode.NoTimer) navigateTo(Page.RepsOnly, { activeWorkoutId: tempWorkout.id, activeBlockId: block.id });
+    else navigateTo(Page.Timer, { activeWorkoutId: tempWorkout.id, activeBlockId: block.id });
+  };
+
+  const handleSelectWorkout = (workout: Workout, action: 'view' | 'log' = 'view') => {
+    if (isStudioMode) {
+        setActiveWorkout(workout);
+        navigateTo(Page.WorkoutDetail, { activeWorkoutId: workout.id });
+        return;
+    }
+
+    if (action === 'view') {
+        setMobileViewData(workout);
+        return;
+    }
+
+    if (isSearchWorkoutOpen && selectedOrganization) {
+        handleLogWorkoutRequest(workout.id, selectedOrganization.id);
+        return;
+    }
+
+    if (isPickingForLog && selectedOrganization) {
+        handleLogWorkoutRequest(workout.id, selectedOrganization.id);
+        return;
+    }
+
+    if (action === 'log' && selectedOrganization) {
+        handleLogWorkoutRequest(workout.id, selectedOrganization.id);
+        return;
+    }
+
+    setActiveWorkout(workout);
+    if ((workout.id.startsWith('hyrox-full-race') || workout.id.startsWith('custom-race')) && workout.blocks.length > 0) {
+      handleStartBlock(workout.blocks[0], workout);
+    } else {
+      navigateTo(Page.WorkoutDetail);
+    }
+  };
+
+  const handleStartRace = (workout: Workout) => {
+    if (workout.blocks.length > 0) handleStartBlock(workout.blocks[0], workout);
+  };
+  
+  const handleDuplicateWorkout = (workoutToCopy: Workout) => {
+    const newDraft = deepCopyAndPrepareAsNew(workoutToCopy);
+    setActiveWorkout(newDraft);
+    setIsEditingNewDraft(true);
+    navigateTo(Page.WorkoutBuilder);
+  };
+
+  const handleSelectPasskategori = (passkategori: Passkategori) => {
+    let categoryWorkouts = workouts.filter(w => w.category === passkategori && w.isPublished && !w.isMemberDraft);
+    
+    if (categoryWorkouts.length === 1 && !isPickingForLog) {
+        if (isStudioMode) {
+            handleSelectWorkout(categoryWorkouts[0]);
+            return;
+        } else {
+             handleSelectWorkout(categoryWorkouts[0], 'view');
+             return;
+        }
+    }
+
+    if (!isStudioMode) {
+        if (isPickingForLog) {
+             setIsPickingForLog(true);
+        }
+    }
+    
+    setActivePasskategori(passkategori);
+    navigateTo(Page.WorkoutList);
+  };
+  
+  const handleCoachAccessRequest = () => {
+    if (sessionRole === 'member') setIsPasswordModalOpen(true);
+    else navigateTo(Page.Coach);
+  };
+  
+  const handleSelectCustomPage = (page: CustomPage) => {
+    setActiveCustomPage(page);
+    navigateTo(Page.CustomContent);
+  };
+
+  const handleGeneratedWorkout = (newWorkout: Workout) => {
+    setActiveWorkout(newWorkout);
+    setFocusedBlockId(null);
+    setIsEditingNewDraft(true);
+    navigateTo(Page.WorkoutBuilder);
+  }
+  
+  const handleWorkoutInterpretedFromNote = (workout: Workout) => {
+    const workoutWithOrg = { 
+        ...workout, 
+        organizationId: selectedOrganization?.id || '',
+        isMemberDraft: true 
+    };
+    setActiveWorkout(workoutWithOrg); 
+    setIsEditingNewDraft(true);
+    navigateTo(Page.SimpleWorkoutBuilder);
+  };
+  
+  const handleReturnToGroupPrep = useCallback(() => {
+    if (activeWorkout && (activeWorkout.id.startsWith('hyrox-full-race') || activeWorkout.id.startsWith('custom-race'))) {
+        setRacePrepState({
+            groups: activeWorkout.startGroups || [],
+            interval: activeWorkout.startIntervalMinutes || 2,
+        });
+        handleBack();
+    }
+  }, [activeWorkout, handleBack]);
+
+  const handleTimerFinish = useCallback((finishData: { isNatural?: boolean; time?: number, raceId?: string }) => {
+    const { isNatural = false, time, raceId } = finishData;
+
+    if (raceId) {
+        setIsBackButtonHidden(false);
+        setActiveRaceId(raceId);
+        navigateReplace(Page.HyroxRaceDetail);
+        return;
+    }
+
+    if (completionInfo) return; 
+    
+    if (!isNatural) {
+      handleBack();
+      return;
+    }
+
+    if (activeWorkout && activeBlock && activeBlock.autoAdvance) {
+        const blockIndex = activeWorkout.blocks.findIndex(b => b.id === activeBlock.id);
+        const nextBlockInWorkout = activeWorkout.blocks[blockIndex + 1];
+        if (nextBlockInWorkout) {
+            setIsAutoTransition(true);
+            pageEntryTimestampRef.current = Date.now();
+            lastLocalNavigationRef.current = Date.now(); 
+            
+            if (isStudioMode && selectedOrganization && selectedStudio) {
+                setRemoteCommand(null);
+                updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
+                    activeWorkoutId: activeWorkout.id,
+                    view: 'timer',
+                    activeBlockId: nextBlockInWorkout.id,
+                    lastUpdate: Date.now(),
+                    controllerName: 'Auto-Advance'
+                });
+            }
+            
+            setActiveBlock(nextBlockInWorkout);
+            return;
+        }
+    }
+
+    if (activeWorkout && activeBlock) {
+        const blockIndex = activeWorkout.blocks.findIndex(b => b.id === activeBlock.id);
+        const isLastBlock = blockIndex === activeWorkout.blocks.length - 1;
+        setCompletionInfo({ workout: activeWorkout, isFinal: isLastBlock, blockTag: activeBlock.tag, finishTime: time });
+    } else if (activeWorkout) {
+        setCompletionInfo({ workout: activeWorkout, isFinal: true, blockTag: activeWorkout.blocks[0]?.tag, finishTime: time });
+    }
+  }, [completionInfo, handleBack, activeWorkout, activeBlock, isStudioMode, navigateReplace, selectedOrganization, selectedStudio, workouts]);
+
+  const handleCloseWorkoutCompleteModal = () => {
+    if (!completionInfo) return;
+
+    const isFinalBlock = completionInfo.isFinal;
+    const workoutId = completionInfo.workout.id;
+    const isFreestanding = workoutId.startsWith('freestanding-workout-') || 
+                           workoutId.startsWith('fs-workout-');
+
+    setCompletionInfo(null);
+    setRemoteCommand(null);
+
+    if (isFreestanding) {
+        setActiveWorkout(null);
+        setActiveBlock(null);
+        handleBack();
+        return;
+    }
+
+    setActiveBlock(null);
+
+    if (isFinalBlock) {
+      if (page === Page.Timer || page === Page.RepsOnly) {
+          navigateReplace(Page.WorkoutDetail);
+      } else if (history.length > 1) {
+          handleBack();
+      }
+    } else {
+      if (page === Page.Timer || page === Page.RepsOnly) {
+          navigateReplace(Page.WorkoutDetail);
+      } else {
+          handleBack();
+      }
+    }
+  };
+
+  const handleClosePasswordModal = () => {
+    setIsPasswordModalOpen(false);
+  }
+
+  const handleLogWorkoutRequest = (workoutId: string, orgId: string, source: 'qr_scan' | 'manual' = 'manual') => {
+    setIsSearchWorkoutOpen(false);
+    setMobileViewData(null); 
+    setMobileLogData({ workoutId, organizationId: orgId, source });
+  };
+
+  const handleCancelLog = (isSuccess?: boolean, diploma?: WorkoutDiploma) => {
+      if (isSuccess === true) {
+          setMobileLogData(null);
+          window.history.replaceState({}, document.title, window.location.pathname);
+          if (diploma) {
+              setActiveDiploma(diploma);
+          }
+      } else {
+          setShowLogCancelModal(true);
+      }
+  };
+
+  const confirmCancelLog = () => {
+      localStorage.removeItem('smart-skarm-active-log');
+      setMobileLogData(null);
+      setShowLogCancelModal(false);
+      window.history.replaceState({}, document.title, window.location.pathname);
+  };
+
+  const closeCancelModal = () => {
+      setShowLogCancelModal(false);
+  };
+
+  const handleScanCode = (data: string | null) => {
+      if (!data) return;
+      try {
+          let payload: any;
+          if (data.includes('log=')) {
+              const parts = data.split('log=');
+              const base64 = parts[1].split('&')[0];
+              payload = JSON.parse(atob(base64));
+          } else {
+              payload = JSON.parse(data);
+          }
+          if (payload && payload.wid && payload.oid) {
+              handleLogWorkoutRequest(payload.wid, payload.oid, 'qr_scan');
+              setIsScannerOpen(false);
+          }
+      } catch (e) {
+          console.error("Failed to parse scanned code", e);
+      }
+  };
+
+  const handleSaveStudioConfig = async (organizationId: string, studioId: string, newConfigOverrides: Partial<StudioConfig>) => {
+    try {
+      const updatedStudio = await updateStudioConfig(organizationId, studioId, newConfigOverrides);
+      selectStudio(updatedStudio); 
+      setAllStudios(prev => prev.map(s => s.id === studioId ? updatedStudio : s));
+      setStudioToEditConfig(null);
+    } catch (error) {
+      console.error("Failed to save studio config:", error);
+      alert("Kunde inte spara konfigurationen.");
+    }
+  };
+
+  const handleEditStudioConfig = (studio: Studio) => setStudioToEditConfig(studio);
+
+  const handleSaveGlobalConfig = async (organizationId: string, newConfig: StudioConfig) => {
+      try {
+          await updateGlobalConfig(organizationId, newConfig);
+          const updatedOrg = { ...selectedOrganization!, globalConfig: newConfig };
+          selectOrganization(updatedOrg);
+          setAllOrganizations(prev => prev.map(o => o.id === organizationId ? updatedOrg : o));
+      } catch (error) {
+           console.error("Failed to save global config:", error);
+           alert("Kunde inte spara global konfiguration.");
+      }
+  };
+
+  const handleCreateStudio = async (organizationId: string, name: string) => {
+      try {
+          const newStudio = await createStudio(organizationId, name);
+          const newOrgs = allOrganizations.length > 0 ? allOrganizations.map(o => o.id === organizationId ? { ...o, studios: [...o.studios, newStudio] } : o) : [];
+          setAllOrganizations(newOrgs);
+          const updatedOrg = newOrgs.find(o => o.id === organizationId);
+          if (updatedOrg) selectOrganization(updatedOrg);
+      } catch (error) {
+          console.error("Failed to create studio:", error);
+          alert("Kunde inte skapa studio.");
+      }
+  };
+
+    const handleUpdateStudio = async (organizationId: string, studioId: string, name: string) => {
+        try {
+            await updateStudio(organizationId, studioId, name);
+            const newOrgs = allOrganizations.map(o => {
+                if (o.id === organizationId) {
+                    return { ...o, studios: o.studios.map(s => s.id === studioId ? { ...s, name } : s) };
+                }
+                return o;
+            });
+            setAllOrganizations(newOrgs);
+            const updatedOrg = newOrgs.find(o => o.id === organizationId);
+            if (updatedOrg) selectOrganization(updatedOrg);
+        } catch (error) {
+            console.error("Failed to update studio:", error);
+            alert("Kunde inte uppdatera studion.");
+        }
+    };
+
+    const handleDeleteStudio = async (organizationId: string, studioId: string) => {
+        try {
+            await deleteStudio(organizationId, studioId);
+            const newOrgs = allOrganizations.map(o => {
+                if (o.id === organizationId) {
+                    return { ...o, studios: o.studios.filter(s => s.id !== studioId) };
+                }
+                return o;
+            });
+            setAllOrganizations(newOrgs);
+            const updatedOrg = newOrgs.find(o => o.id === organizationId);
+            if (updatedOrg) selectOrganization(updatedOrg);
+        } catch (error) {
+            console.error("Failed to delete studio:", error);
+            alert("Kunde inte ta bort studion.");
+        }
+    };
+
+  const handleCreateOrganization = async (name: string, subdomain: string) => {
+    try {
+        const newOrg = await createOrganization(name, subdomain);
+        setAllOrganizations(prev => [...prev, newOrg]);
+    } catch (error) {
+        console.error("Failed to create organization:", error);
+        alert(`Kunde inte skapa organisation: ${error instanceof Error ? error.message : "Okänt fel"}`);
+    }
+  };
+  
+  const handleUpdateOrganization = async (organizationId: string, name: string, subdomain: string, inviteCode?: string, coachCode?: string, maxFreeCoaches?: number) => {
+    try {
+        const updatedOrg = await updateOrganization(organizationId, name, subdomain, inviteCode, coachCode, maxFreeCoaches);
+        setAllOrganizations(prev => prev.map(o => (o.id === organizationId ? updatedOrg : o)));
+        if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
+    } catch (error) {
+        console.error("Failed to update organization:", error);
+        throw error;
+    }
+  };
+
+  const handleDeleteOrganization = async (organizationId: string) => {
+    try {
+        await deleteOrganization(organizationId);
+        setAllOrganizations(prev => prev.filter(o => o.id !== organizationId));
+        if (selectedOrganization?.id === organizationId) {
+            selectOrganization(null);
+            setHistory([Page.SystemOwner]);
         }
     } catch (error) {
-        console.error("CRITICAL: Firebase init failed.", error);
+        console.error("Failed to delete organization:", error);
+        alert("Kunde inte ta bort organisationen.");
     }
+  };
+  
+  const handleUpdateOrganizationPasswords = async (organizationId: string, passwords: Organization['passwords']) => {
+    try {
+        const updatedOrg = await updateOrganizationPasswords(organizationId, passwords);
+        setAllOrganizations(prev => prev.map(o => (o.id === organizationId ? updatedOrg : o)));
+        if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
+    } catch (error) {
+        console.error("Failed to update passwords:", error);
+        throw error;
+    }
+  };
+
+  const handleUpdateOrganizationLogos = async (organizationId: string, logos: { light: string; dark: string }) => {
+    try {
+        const updatedOrg = await updateOrganizationLogos(organizationId, logos);
+        setAllOrganizations(prev => prev.map(o => (o.id === organizationId ? updatedOrg : o)));
+        if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
+    } catch (error) {
+        console.error("Failed to update logos:", error);
+        throw error;
+    }
+  };
+
+  const handleUpdateOrganizationFavicon = async (organizationId: string, faviconUrl: string) => {
+    try {
+        const updatedOrg = await updateOrganizationFavicon(organizationId, faviconUrl);
+        setAllOrganizations(prev => prev.map(o => (o.id === organizationId ? updatedOrg : o)));
+        if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
+    } catch (error) {
+        console.error("Failed to update favicon:", error);
+        throw error;
+    }
+  };
+
+  const handleUpdateOrganizationPrimaryColor = async (organizationId: string, color: string) => {
+    try {
+        const updatedOrg = await updateOrganizationPrimaryColor(organizationId, color);
+        setAllOrganizations(prev => prev.map(o => (o.id === organizationId ? updatedOrg : o)));
+        if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
+    } catch (error) {
+        console.error("Failed to update primary color:", error);
+        throw error;
+    }
+  };
+
+  const handleUpdateOrganizationCustomPages = async (organizationId: string, customPages: CustomPage[]) => {
+    try {
+        const updatedOrg = await updateOrganizationCustomPages(organizationId, customPages);
+        setAllOrganizations(prev => prev.map(o => o.id === organizationId ? updatedOrg : o));
+        if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
+    } catch (error) {
+        console.error("Failed to update custom pages:", error);
+    }
+  };
+
+    const handleUpdateOrganizationInfoCarousel = async (organizationId: string, infoCarousel: InfoCarousel) => {
+        try {
+            const updatedOrg = await updateOrganizationInfoCarousel(organizationId, infoCarousel);
+            setAllOrganizations(prev => prev.map(o => o.id === organizationId ? updatedOrg : o));
+            if (selectedOrganization?.id === organizationId) selectOrganization(updatedOrg);
+        } catch (error) {
+            console.error("Failed to update info carousel:", error);
+            throw error;
+        }
+    };
+    
+    const handleEditCustomPage = (page: CustomPage | null) => {
+        setCustomPageToEdit(page);
+        navigateTo(Page.CustomPageEditor);
+    };
+
+    const handleSaveCustomPage = async (pageData: CustomPage) => {
+        if (!selectedOrganization) return;
+        const isNew = !selectedOrganization.customPages?.some(p => p.id === pageData.id);
+        const updatedPages = isNew
+            ? [...(selectedOrganization.customPages || []), pageData]
+            : (selectedOrganization.customPages || []).map(p => p.id === pageData.id ? pageData : p);
+        
+        await handleUpdateOrganizationCustomPages(selectedOrganization.id, updatedPages);
+        handleBack();
+    };
+    
+    const handleDeleteCustomPage = async (pageId: string) => {
+        if (!selectedOrganization) return;
+        if (window.confirm("Är du säker på att du vill ta bort denna infosida?")) {
+            const updatedPages = (selectedOrganization.customPages || []).filter(p => p.id !== pageId);
+            await handleUpdateOrganizationCustomPages(selectedOrganization.id, updatedPages);
+        }
+    };
+
+
+  const handleSelectOrganization = (organization: Organization) => {
+      selectOrganization(organization);
+      navigateTo(Page.SuperAdmin);
+  };
+
+  const handleSwitchToStudioView = (studio: Studio) => {
+    if (selectedOrganization) selectOrganization(selectedOrganization);
+    selectStudio(studio);
+    startImpersonation({ role: 'member', isStudioMode: true });
+    setHistory([Page.Home]);
+  };
+
+  const handleSelectRace = (raceId: string) => {
+    setActiveRaceId(raceId);
+    navigateTo(Page.HyroxRaceDetail);
+  };
+
+  const isFullScreenPage = page === Page.Timer || page === Page.RepsOnly || page === Page.IdeaBoard || page === Page.RemoteControl;
+  const isAdminDashboardMode = page === Page.SuperAdmin || page === Page.SystemOwner;
+  const paddingClass = (isFullScreenPage || isAdminDashboardMode) ? '' : 'p-4 sm:p-6 lg:p-8';
+  
+  const isAdminOrCoach = role === 'systemowner' || role === 'organizationadmin' || role === 'coach';
+  const isMemberFacingPage = [Page.Home, Page.WorkoutDetail, Page.SavedWorkouts, Page.MemberProfile, Page.WorkoutList, Page.WorkoutGamesHub].includes(page);
+  const isAdminFacingPage = [Page.Coach, Page.SuperAdmin, Page.SystemOwner, Page.AdminAnalytics, Page.MemberRegistry].includes(page);
+
+  const showSupportChat = !isStudioMode && isAdminOrCoach && isAdminFacingPage;
+  const showScanButton = ((!isStudioMode && isMemberFacingPage) || (page === Page.MemberProfile)) && studioConfig.enableWorkoutLogging;
+
+  const isAnyModalOpen = !!(mobileLogData || mobileViewData || isSearchWorkoutOpen || isScannerOpen || activeDiploma);
+  
+  if (page === Page.RemoteControl) {
+      return (
+          <RemoteControlScreen onBack={handleBack} />
+      );
+  }
+  
+  const showSplashScreen = isGlobalLoading || !minSplashTimeElapsed;
+
+  if (showSplashScreen) {
+    return (
+        <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
+            <motion.img 
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.5 }}
+                src="/favicon.png" 
+                alt="SmartStudio" 
+                className="w-32 h-32 rounded-3xl shadow-lg" 
+            />
+        </div>
+    );
+  }
+  
+  if (!authLoading && !currentUser && !isStudioMode) {
+      if (showRegisterGym) {
+          return <RegisterGymScreen onCancel={() => setShowRegisterGym(false)} />;
+      }
+      if (showLogin) {
+          return <LoginScreen onClose={() => setShowLogin(false)} onRegisterGym={() => setShowRegisterGym(true)} />;
+      }
+      return <LandingPage onLoginClick={() => setShowLogin(true)} onRegisterGymClick={() => setShowRegisterGym(true)} />;
+  }
+
+  if (currentUser && !userData && !isStudioMode && !authLoading) {
+    return (
+        <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
+            <img src="/favicon.png" alt="SmartStudio" className="w-20 h-20 mb-6 rounded-2xl shadow-sm" />
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Förbereder ditt konto...</h2>
+            <p className="text-gray-500 mt-2">Detta tar bara några sekunder.</p>
+            <div className="flex flex-col gap-4 mt-8">
+                <button onClick={() => signOut()} className="text-primary font-bold hover:underline">Logga ut och försök igen</button>
+                <button 
+                    onClick={async () => {
+                        try {
+                            await currentUser.delete();
+                            window.location.reload();
+                        } catch (e) {
+                            console.error('Kunde inte radera kontot:', e);
+                            signOut();
+                        }
+                    }} 
+                    className="text-gray-500 dark:text-gray-400 text-sm hover:underline transition-colors"
+                >
+                    Radera detta ofullständiga konto och börja om
+                </button>
+            </div>
+        </div>
+    );
+  }
+
+  if (isOrgMismatch && !isStudioMode) {
+      return (
+        <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
+            <img src="/favicon.png" alt="SmartStudio" className="w-20 h-20 mb-6 rounded-2xl shadow-sm" />
+            <p className="text-gray-500 font-bold uppercase tracking-widest text-sm">Hämtar organisation...</p>
+        </div>
+      );
+  }
+
+  return (
+    <div className={`bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
+       {isOffline && (
+            <div className="bg-red-500 text-white text-xs font-bold uppercase tracking-widest py-2 px-4 flex justify-center items-center gap-2 fixed top-0 w-full z-[10000] shadow-md">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 3l18 18"></path>
+                </svg>
+                Du är offline - allt du loggar sparas lokalt
+            </div>
+       )}
+       <SeasonalOverlay page={page} />
+       
+       <Toast 
+         message={pushToast.message} 
+         isVisible={pushToast.isVisible} 
+         onClose={() => setPushToast(prev => ({ ...prev, isVisible: false }))} 
+         duration={5000} 
+         type="info" 
+       />
+
+       {isOffline && (
+        <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-black text-center p-2 font-semibold z-[1001]">
+            Du är offline. Viss funktionalitet kan vara begränsad och ändringar sparas lokalt.
+        </div>
+       )}
+       
+       <DeveloperToolbar />
+       
+       {isStudioMode && <SpotlightOverlay />} 
+       {isStudioMode && <PBOverlay />}
+
+       <div className={(isAnyModalOpen || showPaywall || showWelcomePaywall || showPendingCoach || !(page === Page.Timer || !isFullScreenPage)) ? 'hidden' : 'contents'}>
+           <Header 
+            page={page} 
+            onBack={handleBack} 
+            theme={theme}
+            toggleTheme={toggleTheme}
+            isVisible={isTimerHeaderVisible}
+            activeCustomPageTitle={page === Page.CustomContent ? activeCustomPage?.title : undefined}
+            onSignOut={isStudioMode ? undefined : signOut}
+            role={role}
+            historyLength={history.length}
+            showClock={isStudioMode && (page === Page.WorkoutDetail)}
+            hideBackButton={isBackButtonHidden}
+            onCoachAccessRequest={handleCoachAccessRequest}
+            showCoachButton={isStudioMode}
+            onMemberProfileRequest={handleMemberProfileRequest} 
+            onEditProfileRequest={handleEditProfileRequest}
+            isStudioMode={isStudioMode}
+            hasCustomBack={!!customBackHandlerState}
+            navigateTo={navigateTo}
+          />
+       </div>
+
+      <div className="flex flex-col items-center flex-1 min-h-0 relative">
+          <main 
+            className={`flex-1 min-h-0 w-full ${isFullScreenPage || isAdminDashboardMode ? 'block relative' : `flex flex-col items-center ${page === Page.Home || page === Page.MemberProfile || page === Page.CoachNotes ? 'justify-start' : 'justify-center'}`}`}
+          >
+            {showPendingCoach ? (
+                <PendingCoachScreen onLogout={signOut} />
+            ) : showWelcomePaywall ? (
+                <WelcomePaywall onLogout={signOut} userData={userData} />
+            ) : showPaywall ? (
+              <PaywallScreen onLogout={signOut} userData={userData} />
+            ) : (
+              <AppRouter 
+                page={page}
+                navigateTo={navigateTo}
+                handleBack={handleBack}
+                role={sessionRole}
+                userData={userData}
+                studioConfig={studioConfig}
+                selectedOrganization={selectedOrganization}
+                allOrganizations={allOrganizations}
+                isStudioMode={isStudioMode}
+                isImpersonating={isImpersonating}
+                theme={theme}
+                
+                workouts={workouts}
+                activeWorkout={activeWorkout}
+                activeBlock={activeBlock}
+                
+                passkategoriFilter={activePasskategori}
+                activeCustomPage={activeCustomPage}
+                customPageToEdit={customPageToEdit}
+                activeRaceId={activeRaceId}
+                isEditingNewDraft={isEditingNewDraft}
+                racePrepState={racePrepState}
+                followMeShowImage={followMeShowImage}
+                mobileLogData={null}
+                
+                preferredAdminTab={preferredAdminTab}
+                profileEditTrigger={profileEditTrigger}
+                isAutoTransition={isAutoTransition}
+
+                onSelectWorkout={handleSelectWorkout}
+                onSelectPasskategori={handleSelectPasskategori}
+                onCreateNewWorkout={handleCreateNewWorkout}
+                onStartBlock={handleStartBlock}
+                onEditWorkout={handleEditWorkout}
+                onDeleteWorkout={handleDeleteWorkout}
+                onSaveWorkout={handleSaveAndNavigate}
+                onSaveWorkoutNoNav={handleSaveOnly}
+                onTogglePublish={handleTogglePublishStatus}
+                onToggleFavorite={handleToggleFavoriteStatus}
+                onDuplicateWorkout={handleDuplicateWorkout}
+                onTimerFinish={handleTimerFinish}
+                
+                remoteCommand={remoteCommand}
+                
+                functions={{
+                    selectOrganization: handleSelectOrganization,
+                    createOrganization: handleCreateOrganization,
+                    deleteOrganization: handleDeleteOrganization,
+                    saveGlobalConfig: handleSaveGlobalConfig,
+                    createStudio: handleCreateStudio,
+                    updateStudio: updateStudio,
+                    deleteStudio: deleteStudio,
+                    updatePasswords: updateOrganizationPasswords,
+                    updateLogos: updateOrganizationLogos,
+                    updateFavicon: updateOrganizationFavicon,
+                    updatePrimaryColor: updateOrganizationPrimaryColor,
+                    updateOrganization: handleUpdateOrganization,
+                    updateCustomPages: updateOrganizationCustomPages,
+                    updateInfoCarousel: updateOrganizationInfoCarousel,
+                    
+                    saveCustomPage: handleSaveCustomPage,
+                    deleteCustomPage: handleDeleteCustomPage,
+                    editCustomPage: handleEditCustomPage,
+                    
+                    editStudioConfig: handleEditStudioConfig,
+                    switchToStudioView: handleSwitchToStudioView,
+                    
+                    handleCoachAccessRequest: handleCoachAccessRequest,
+                    handleReturnToAdmin: handleReturnToAdminRequest, 
+                    handleGoToSystemOwner: () => setHistory([Page.SystemOwner]),
+                    setShowImage: (url) => setPreviewImageUrl(url),
+                    setTimerHeaderVisible: setIsTimerHeaderVisible,
+                    setBackButtonHidden: setIsBackButtonHidden,
+                    setRacePrepState: setRacePrepState,
+                    setCompletionInfo: setCompletionInfo,
+                    setRegisteringHyroxTime: setIsRegisteringHyroxTime,
+                    setFollowMeShowImage: setFollowMeShowImage,
+                    
+                    handleGeneratedWorkout: handleGeneratedWorkout,
+                    handleWorkoutInterpreted: handleWorkoutInterpretedFromNote,
+                    handleAdjustWorkout: handleAdjustWorkout,
+                    setAiGeneratorInitialTab: setAiGeneratorInitialTab,
+                    setCustomBackHandler: setCustomBackHandler,
+                    
+                    handleStartFreestandingTimer: handleStartFreestandingTimer,
+                    handleStartRace: handleStartRace,
+                    handleSelectRace: handleSelectRace,
+                    handleReturnToGroupPrep: handleReturnToGroupPrep,
+                    handleSelectCustomPage: handleSelectCustomPage,
+                    
+                    handleMemberProfileRequest: handleMemberProfileRequest,
+                    handleEditProfileRequest: handleEditProfileRequest,
+                    handleLogWorkoutRequest: handleLogWorkoutRequest
+                }}
+              />
+            )}
+            
+            {remoteCommand && (
+                <div style={{ display: 'none' }} data-command={remoteCommand.type} data-timestamp={remoteCommand.timestamp} />
+            )}
+          </main>
+          
+          {isInfoBannerVisible && !isScreensaverActive && (
+              // hidden md:block (osynlig på mobil), fast höjd h-[512px] på resten.
+              <div className="hidden md:block flex-shrink-0 w-full h-[512px] relative z-[40]">
+                  <InfoCarouselBanner 
+                    messages={activeInfoMessages} 
+                    className="relative !h-full" 
+                    forceDark={false} 
+                  />
+              </div>
+          )}
+      </div>
+      
+      <AnimatePresence>
+          {isSearchWorkoutOpen && (
+              <>
+                  <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9990]"
+                      onClick={() => setIsSearchWorkoutOpen(false)}
+                  />
+                  <motion.div 
+                      initial={{ y: '100%', opacity: 0 }}
+                      animate={{ y: '0%', opacity: 1 }}
+                      exit={{ y: '100%', opacity: 0 }}
+                      transition={{ type: 'spring', damping: 25, stiffness: 400 }}
+                      className="fixed inset-x-0 top-[5vh] bottom-[5vh] z-[10000] px-1 pointer-events-none"
+                  >
+                      <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] h-full max-w-2xl mx-auto shadow-2xl overflow-hidden flex flex-col pointer-events-auto">
+                          <div className="flex-grow overflow-y-auto pt-6">
+                            <WorkoutListScreen 
+                                onSelectWorkout={handleSelectWorkout}
+                            />
+                          </div>
+                          <div className="p-6 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 flex-shrink-0">
+                                <button 
+                                    onClick={() => setIsSearchWorkoutOpen(false)}
+                                    className="w-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 font-bold py-4 rounded-2xl transition-all active:scale-95"
+                                >
+                                    STÄNG
+                                </button>
+                          </div>
+                      </div>
+                  </motion.div>
+              </>
+          )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+          {mobileViewData && (
+              <WorkoutPresentationModal
+                  workout={mobileViewData}
+                  onClose={() => setMobileViewData(null)}
+              />
+          )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+          {mobileLogData && !showPaywall && !showPendingCoach && (
+              <>
+                  <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[10030]"
+                      onClick={() => handleCancelLog(false)}
+                  />
+                  <motion.div 
+                      initial={{ y: '100%', opacity: 0 }}
+                      animate={{ y: '0%', opacity: 1 }}
+                      exit={{ y: '100%', opacity: 0 }}
+                      transition={{ type: 'spring', damping: 25, stiffness: 400 }}
+                      className="fixed inset-x-0 top-[5vh] bottom-[5vh] z-[10040] px-1 pointer-events-none"
+                  >
+                      <div className="bg-white dark:bg-gray-900 rounded-[2.5rem] h-full max-w-2xl mx-auto shadow-2xl overflow-hidden flex flex-col pointer-events-auto">
+                          <WorkoutLogScreen 
+                              workoutId={mobileLogData.workoutId} 
+                              organizationId={mobileLogData.organizationId} 
+                              source={mobileLogData.source}
+                              onClose={handleCancelLog}
+                          />
+                      </div>
+                  </motion.div>
+              </>
+          )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+          {activeDiploma && (
+              <WorkoutDiplomaView 
+                diploma={activeDiploma} 
+                onClose={() => setActiveDiploma(null)} 
+              />
+          )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+          {isScannerOpen && (
+            <WebQRScanner 
+                onScan={handleScanCode}
+                onClose={() => setIsScannerOpen(false)}
+            />
+          )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+          {showLogCancelModal && (
+              <CancelConfirmationModal 
+                  onConfirm={confirmCancelLog} 
+                  onCancel={closeCancelModal} 
+              />
+          )}
+      </AnimatePresence>
+
+      {completionInfo && (
+          <WorkoutCompleteModal
+              isOpen={!!completionInfo}
+              onClose={isRegisteringHyroxTime ? () => { setIsRegisteringHyroxTime(false); setCompletionInfo(null); } : handleCloseWorkoutCompleteModal}
+              workout={completionInfo.workout}
+              isFinalBlock={completionInfo.isFinal}
+              blockTag={completionInfo.blockTag}
+              finishTime={completionInfo.finishTime}
+              organizationId={selectedOrganization?.id}
+              isRegistration={isRegisteringHyroxTime}
+          />
+      )}
+      
+      {isPasswordModalOpen && (
+        <PasswordModal
+          coachPassword={selectedOrganization?.passwords.coach}
+          onClose={handleClosePasswordModal}
+          onLogout={signOut}
+          onSuccess={() => {
+            setIsPasswordModalOpen(false);
+            setSessionRole('coach');
+            navigateTo(Page.Coach);
+          }}
+        />
+      )}
+      
+      {isReAuthModalOpen && (
+        <ReAuthModal
+            onClose={() => setIsReAuthModalOpen(false)}
+            onSuccess={() => {
+                setIsReAuthModalOpen(false);
+                if (reAuthPurpose === 'admin') {
+                    stopImpersonation();
+                    setHistory([Page.SuperAdmin]);
+                } else {
+                    setProfileEditTrigger(Date.now());
+                    if (page !== Page.MemberProfile) {
+                        navigateTo(Page.MemberProfile);
+                    }
+                }
+            }}
+        />
+      )}
+       
+       {previewImageUrl && <ImagePreviewModal imageUrl={previewImageUrl} onClose={() => setPreviewImageUrl(null)} />}
+       
+       {studioToEditConfig && selectedOrganization && (
+        <StudioConfigModal
+            isOpen={!!studioToEditConfig}
+            onClose={() => setStudioToEditConfig(null)}
+            studio={studioToEditConfig}
+            organization={selectedOrganization}
+            onSave={handleSaveStudioConfig}
+        />
+       )}
+        {isScreensaverActive && (
+            <>
+                <Screensaver 
+                    logoUrl={selectedOrganization?.logoUrlDark || selectedOrganization?.logoUrlLight}
+                    bottomOffset={isInfoBannerVisible ? (window.innerWidth >= 768 ? 512 : 0) : 0}
+                />
+                {isInfoBannerVisible && (
+                    <div className="hidden md:block fixed bottom-0 left-0 right-0 h-[512px] z-[1001]">
+                        <InfoCarouselBanner 
+                            messages={activeInfoMessages} 
+                            className="relative !h-full" 
+                            forceDark={true} 
+                        />
+                    </div>
+                )}
+            </>
+        )}
+       {showTerms && <TermsOfServiceModal onAccept={acceptTerms} />}
+       
+       {showSupportChat && <SupportChat />}
+
+       {userData && showBirthDatePrompt && (
+           <BirthDatePromptModal 
+               isOpen={showBirthDatePrompt} 
+               onClose={() => setShowBirthDatePrompt(false)} 
+               userData={userData} 
+           />
+       )}
+
+       {showScanButton && !showPaywall && !showWelcomePaywall && !showPendingCoach && !mobileLogData && !mobileViewData && !isSearchWorkoutOpen && !isScannerOpen && (
+          <div className="fixed bottom-6 right-6 z-[50]">
+              <ScanButton 
+                onScan={() => setIsScannerOpen(true)} 
+                onLogWorkout={handleLogWorkoutRequest}
+                onSearch={() => {
+                    setIsSearchWorkoutOpen(true);
+                }} 
+              />
+          </div>
+       )}
+
+       <PWAInstallPrompt />
+    </div>
+  );
 }
 
-// ... (Rest of auth and helper functions remain unchanged)
-const sanitizeData = <T>(data: T): T => JSON.parse(JSON.stringify(data));
-
-const generateInviteCode = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let result = '';
-    for (let i = 0; i < 6; i++) {
-        result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
-};
-
-const getPBId = (name: string) => name.toLowerCase().trim().replace(/[^\w]/g, '_');
-
-const normalizeString = (str: string) => str.toLowerCase().trim().replace(/[^\w\såäöÅÄÖ]/g, '');
-
-// ... (Previous exports like saveAdminActivity, getAdminActivities etc. remain unchanged)
-export const saveAdminActivity = async (activity: Omit<AdminActivity, 'id'>) => {
-    if (isOffline || !db) return;
-    try {
-        const ref = doc(collection(db, 'admin_activity'));
-        await setDoc(ref, {
-            ...sanitizeData(activity),
-            id: ref.id
-        });
-    } catch (e) {
-        console.error("Failed to save admin activity:", e);
-    }
-};
-
-export const getAdminActivities = async (orgId: string, limitCount = 100): Promise<AdminActivity[]> => {
-    if (isOffline || !db || !orgId) return [];
-    try {
-        const q = query(
-            collection(db, 'admin_activity'), 
-            where('organizationId', '==', orgId),
-            orderBy('timestamp', 'desc'),
-            limit(limitCount)
-        );
-        const snap = await getDocs(q);
-        return snap.docs.map(d => d.data() as AdminActivity);
-    } catch (e) {
-        console.error("getAdminActivities failed", e);
-        return [];
-    }
-};
-
-export const listenToAdminActivities = (orgId: string, onUpdate: (activities: AdminActivity[]) => void) => {
-    if (isOffline || !db || !orgId) return () => {};
-    const q = query(
-        collection(db, 'admin_activity'), 
-        where('organizationId', '==', orgId),
-        orderBy('timestamp', 'desc'),
-        limit(100)
-    );
-    return onSnapshot(q, (snap) => {
-        onUpdate(snap.docs.map(d => d.data() as AdminActivity));
-    });
-};
-
-export const onAuthChange = (callback: (user: User | null) => void) => {
-    if (isOffline || !auth) return () => {}; 
-    return onAuthStateChanged(auth, callback);
-};
-
-export const signIn = async (email: string, password: string): Promise<User> => {
-    if (isOffline || !auth) throw new Error("Appen är i offline-läge.");
-    try {
-        const credential = await signInWithEmailAndPassword(auth, email, password);
-        return credential.user;
-    } catch (error) {
-        console.error("SignIn failed:", error);
-        throw error;
-    }
-};
-
-export const signInAsStudio = async (): Promise<User> => {
-    if (isOffline || !auth) return { uid: 'offline_studio_uid', isAnonymous: true } as User;
-    try {
-        const credential = await signInAnonymously(auth);
-        return credential.user;
-    } catch (error) {
-        console.error("Anonymous sign-in failed:", error);
-        throw error;
-    }
-};
-
-export const signOut = (): Promise<void> => (isOffline || !auth) ? Promise.resolve() : firebaseSignOut(auth);
-
-export const sendPasswordResetEmail = (email: string) => (isOffline || !auth) ? Promise.resolve() : firebaseSendPasswordResetEmail(auth, email);
-
-export const reauthenticateUser = async (user: User, password: string) => {
-  if (isOffline || !auth || !user.email) return;
-  const credential = EmailAuthProvider.credential(user.email, password);
-  return await reauthenticateWithCredential(user, credential);
-};
-
-export const updateUserTermsAccepted = async (uid: string) => {
-    if (isOffline || !db || !uid) return;
-    try {
-        await updateDoc(doc(db, 'users', uid), { termsAcceptedAt: Date.now() });
-    } catch (e) { console.error("Terms update failed", e); }
-};
-
-export const getMembers = async (orgId: string): Promise<Member[]> => {
-    if (isOffline || !db || !orgId) return MOCK_MEMBERS;
-    try {
-        const q = query(collection(db, 'users'), where('organizationId', '==', orgId));
-        const snap = await getDocs(q);
-        return snap.docs.map(d => ({ ...d.data(), uid: d.id, id: d.id }) as Member);
-    } catch (e) { console.error("getMembers failed", e); return []; }
-};
-
-export const getAdminsForOrganization = async (orgId: string): Promise<UserData[]> => {
-    if (isOffline || !db || !orgId) return [MOCK_ORG_ADMIN];
-    try {
-        const q = query(collection(db, 'users'), where('organizationId', '==', orgId), where('role', '==', 'organizationadmin'));
-        const snap = await getDocs(q);
-        return snap.docs.map(d => ({ ...d.data(), uid: d.id }) as UserData);
-    } catch (e) { return []; }
-};
-
-export const getCoachesForOrganization = async (orgId: string): Promise<UserData[]> => {
-    if (isOffline || !db || !orgId) return [];
-    try {
-        const q = query(collection(db, 'users'), where('organizationId', '==', orgId), where('role', '==', 'coach'));
-        const snap = await getDocs(q);
-        return snap.docs.map(d => ({ ...d.data(), uid: d.id }) as UserData);
-    } catch (e) { return []; }
-};
-
-export const listenToMembers = (orgId: string, onUpdate: (members: Member[]) => void) => {
-    if (isOffline || !db || !orgId) {
-        onUpdate(MOCK_MEMBERS);
-        return () => {};
-    }
-    const q = query(collection(db, 'users'), where('organizationId', '==', orgId));
-    return onSnapshot(q, (snap) => {
-        const members = snap.docs.map(d => ({ ...d.data(), uid: d.id, id: d.id }) as Member);
-        onUpdate(members);
-    }, (err) => console.error("listenToMembers failed", err));
-};
-
-export const updateUserGoals = async (uid: string, goals: MemberGoals) => {
-    if (isOffline || !db || !uid) return;
-    await updateDoc(doc(db, 'users', uid), { goals: sanitizeData(goals) });
-};
-
-export const updateUserImportedStats = async (uid: string, importedWorkoutCount: number, importedStreakWeeks: number) => {
-    if (isOffline || !db || !uid) return;
-    await updateDoc(doc(db, 'users', uid), {
-        importedWorkoutCount,
-        importedStreakWeeks,
-        hasImportedStats: true
-    });
-};
-
-export const updateUserProfile = async (uid: string, data: Partial<UserData>) => {
-    if (isOffline || !db || !uid) return;
-    await updateDoc(doc(db, 'users', uid), sanitizeData(data));
-    
-    // If showOnLeaderboard preference changed, update recent workout logs so they disappear/appear immediately
-    if (data.showOnLeaderboard !== undefined) {
-        try {
-            const now = new Date();
-            const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1)));
-            startOfWeek.setHours(0, 0, 0, 0);
-            
-            const q = query(
-                collection(db, 'workoutLogs'),
-                where("memberId", "==", uid),
-                where("date", ">=", startOfWeek.getTime() - 7 * 24 * 60 * 60 * 1000) // Go back an extra week just in case
-            );
-            const snap = await getDocs(q);
-            const batch = writeBatch(db);
-            snap.docs.forEach(d => {
-                batch.update(d.ref, { showOnLeaderboard: data.showOnLeaderboard });
-            });
-            await batch.commit();
-        } catch (e) {
-            console.error("Failed to update recent logs visibility", e);
-        }
-    }
-};
-
-export const requestPushNotificationPermission = async (uid: string): Promise<string | null> => {
-    if (isOffline || !messaging || !db || !uid) return null;
-    try {
-        const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-            // Get the token
-            const token = await getToken(messaging, {
-                // VAPID key is optional if configured in Firebase Console, but recommended.
-                // We'll let Firebase use the default sender ID from config.
-            });
-            
-            if (token) {
-                // Save token to user profile
-                await updateDoc(doc(db, 'users', uid), {
-                    fcmToken: token,
-                    pushNotificationsEnabled: true
-                });
-                return token;
-            }
-        }
-        return null;
-    } catch (error) {
-        console.error('Error requesting push notification permission:', error);
-        return null;
-    }
-};
-
-export const updateUserRoleCloud = async (targetUid: string, newRole: UserRole) => {
-    if (isOffline || !functions) throw new Error("Offline eller systemet ej redo.");
-    try {
-        const func = httpsCallable(functions, 'flexUpdateUserRole');
-        const result = await func({ targetUid, newRole });
-        return result.data;
-    } catch (err: any) {
-        console.error("Cloud function error:", err);
-        throw new Error(err.message || "Ett fel uppstod vid rollbyte.");
-    }
-};
-
-export const approveCoach = async (uid: string) => {
-    if (isOffline || !db || !uid) return;
-    const approveCoachFn = httpsCallable(functions, 'flexApproveCoach');
-    try {
-        await approveCoachFn({ targetUid: uid });
-    } catch (err: any) {
-        console.error("Cloud function error:", err);
-        throw new Error(err.message || "Ett fel uppstod vid godkännande av coach.");
-    }
-};
-
-export const updateMemberEndDate = async (uid: string, date: string | null) => {
-    if (isOffline || !db || !uid) return;
-    await updateDoc(doc(db, 'users', uid), { endDate: date });
-};
-
-export const getOrganizationLocationsByCode = async (code: string) => {
-    if (isOffline || !db) return [];
-    try {
-        const upperCode = code.toUpperCase();
-        let q = query(collection(db, 'organizations'), where('inviteCode', '==', upperCode));
-        let snap = await getDocs(q);
-        
-        if (snap.empty) {
-            q = query(collection(db, 'organizations'), where('coachCode', '==', upperCode));
-            snap = await getDocs(q);
-        }
-        
-        if (snap.empty) return [];
-        
-        const data = snap.docs[0].data();
-        return data.locations || [];
-    } catch(e) {
-        return [];
-    }
-};
-
-export const registerMemberWithCode = async (email: string, pass: string, code: string, additionalData?: any) => {
-    if (isOffline || !db || !auth) throw new Error("Systemet är i offline-läge.");
-
-    const upperCode = code.toUpperCase();
-    
-    // Check for member code first
-    let q = query(collection(db, 'organizations'), where('inviteCode', '==', upperCode));
-    let snap = await getDocs(q);
-    
-    let isCoach = false;
-    
-    // If not found, check for coach code
-    if (snap.empty) {
-        q = query(collection(db, 'organizations'), where('coachCode', '==', upperCode));
-        snap = await getDocs(q);
-        if (snap.empty) {
-            throw new Error("Ogiltig inbjudningskod.");
-        }
-        isCoach = true;
-    }
-    
-    const organizationId = snap.docs[0].id;
-
-    const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
-    const user = userCredential.user;
-
-    const userData = {
-        uid: user.uid,
-        email: email,
-        role: isCoach ? 'coach' : 'member',
-        status: isCoach ? 'pending_coach' : 'active',
-        organizationId: organizationId,
-        firstName: additionalData?.firstName || '',
-        lastName: additionalData?.lastName || '',
-        age: additionalData?.age || null,
-        birthDate: additionalData?.birthDate || null,
-        gender: additionalData?.gender || 'prefer_not_to_say',
-        isTrainingMember: !isCoach,
-        createdAt: serverTimestamp(),
-        termsAcceptedAt: Date.now() 
-    };
-    
-    await setDoc(doc(db, 'users', user.uid), userData);
-    return user;
-};
-
-import { calculate1RM } from '../utils/workoutUtils';
-
-export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecords: { exerciseName: string, weight: number, diff: number, reps?: number, calculated1RM?: number }[] }> => {
-    if (isOffline || !db || !logData.organizationId) {
-        return { log: logData, newRecords: [] };
-    }
-    
-    const newLogRef = doc(collection(db, 'workoutLogs'));
-    const newLog = { id: newLogRef.id, ...logData };
-    const newRecords: { exerciseName: string; weight: number; diff: number; reps?: number; calculated1RM?: number }[] = [];
-
-    if (logData.workoutId && logData.workoutId !== 'manual' && !logData.benchmarkId) {
-        try {
-            const wSnap = await getDoc(doc(db, 'workouts', logData.workoutId));
-            if (wSnap.exists()) {
-                const wData = wSnap.data() as Workout;
-                if (wData.aiProgressionPrompt) {
-                    newLog.aiProgressionPrompt = wData.aiProgressionPrompt;
-                }
-                if (wData.benchmarkId) {
-                    newLog.benchmarkId = wData.benchmarkId;
-                    if (newLog.durationMinutes) {
-                        newLog.benchmarkValue = newLog.durationMinutes * 60;
-                    } else if (newLog.exerciseResults && newLog.exerciseResults.length > 0) {
-                         const maxWeight = Math.max(...newLog.exerciseResults.map((ex: any) => ex.weight || 0));
-                         if (maxWeight > 0) newLog.benchmarkValue = maxWeight;
-                    }
-                }
-            }
-        } catch (e) {}
-    }
-
-    let showOnLeaderboard = true;
-
-    if (logData.memberId) {
-        try {
-            const userSnap = await getDoc(doc(db, 'users', logData.memberId));
-            if (userSnap.exists()) {
-                const userData = userSnap.data();
-                newLog.memberName = `${userData.firstName || 'Medlem'} ${userData.lastName ? userData.lastName[0] + '.' : ''}`.trim();
-                newLog.memberPhotoUrl = userData.photoUrl || null;
-                showOnLeaderboard = userData.showOnLeaderboard !== false;
-                newLog.showOnLeaderboard = showOnLeaderboard;
-                newLog.locationId = userData.locationId || null;
-            }
-        } catch (e) { console.warn("Failed to enrich log", e); }
-    }
-
-    const batch = writeBatch(db);
-
-    if (logData.memberId && logData.exerciseResults) {
-        try {
-            const pbCollectionRef = collection(db, 'users', logData.memberId, 'personalBests');
-            const currentPBsSnap = await getDocs(pbCollectionRef);
-            const currentPBs: Record<string, any> = {};
-            currentPBsSnap.forEach(d => currentPBs[d.id] = d.data());
-
-            for (const exResult of logData.exerciseResults) {
-                let bestSet: { weight: number, reps: number, oneRm: number } | null = null;
-                
-                if (exResult.setDetails) {
-                    exResult.setDetails.forEach((s: any) => {
-                        const w = parseFloat(s.weight);
-                        const r = parseFloat(s.reps);
-                        if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0 && r <= 10) {
-                            const oneRm = calculate1RM(w, r);
-                            if (oneRm && (!bestSet || oneRm > bestSet.oneRm)) {
-                                bestSet = { weight: w, reps: r, oneRm };
-                            }
-                        }
-                    });
-                } else if (exResult.weight && exResult.reps) {
-                    const w = parseFloat(exResult.weight);
-                    const r = parseFloat(exResult.reps);
-                    if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0 && r <= 10) {
-                        const oneRm = calculate1RM(w, r);
-                        if (oneRm) {
-                            bestSet = { weight: w, reps: r, oneRm };
-                        }
-                    }
-                }
-
-                if (bestSet && exResult.exerciseName) {
-                    const pbId = getPBId(exResult.exerciseName);
-                    // Fallback to weight if calculated1RM is missing for older records
-                    const existingPBOneRm = currentPBs[pbId]?.calculated1RM || currentPBs[pbId]?.weight || 0; 
-
-                    if (bestSet.oneRm > existingPBOneRm) {
-                        const pbData: PersonalBest = { 
-                            id: pbId, 
-                            exerciseName: exResult.exerciseName.trim(), 
-                            weight: bestSet.weight, 
-                            reps: bestSet.reps,
-                            calculated1RM: bestSet.oneRm,
-                            date: Date.now() 
-                        };
-                        batch.set(doc(db, 'users', logData.memberId, 'personalBests', pbId), pbData);
-                        
-                        newRecords.push({
-                            exerciseName: exResult.exerciseName.trim(),
-                            weight: bestSet.weight, // Keep actual weight for UI
-                            reps: bestSet.reps,
-                            calculated1RM: bestSet.oneRm,
-                            diff: parseFloat((bestSet.oneRm - existingPBOneRm).toFixed(2))
-                        });
-                    }
-                }
-            }
-
-            if (newRecords.length > 0 && showOnLeaderboard) {
-                newLog.newPBs = newRecords;
-                const eventRef = doc(collection(db, 'studio_events'));
-                const eventData: StudioEvent = {
-                    id: eventRef.id,
-                    type: 'pb',
-                    organizationId: logData.organizationId,
-                    locationId: newLog.locationId, // NYTT: Skicka med orten
-                    timestamp: Date.now(),
-                    data: { 
-                        memberId: logData.memberId,
-                        userName: newLog.memberName || 'En medlem', 
-                        userPhotoUrl: newLog.memberPhotoUrl || null, 
-                        records: newRecords
-                    }
-                };
-                batch.set(eventRef, eventData);
-            }
-        } catch (e) { console.error("PB calculation failed", e); }
-    }
-
-    batch.set(newLogRef, newLog);
-    await batch.commit();
-
-    return { log: newLog, newRecords };
-};
-
-export const updateWorkoutLog = async (logId: string, updates: Partial<WorkoutLog>) => {
-    if (isOffline || !db || !logId) return;
-    try {
-        await updateDoc(doc(db, 'workoutLogs', logId), sanitizeData(updates));
-    } catch (e) { console.error("updateWorkoutLog failed", e); }
-};
-
-export const deleteWorkoutLog = async (logId: string) => {
-    if (isOffline || !db || !logId) return;
-    try {
-        await deleteDoc(doc(db, 'workoutLogs', logId));
-    } catch (e) { console.error("deleteWorkoutLog failed", e); }
-};
-
-export const getLeaderboardData = async (orgId: string): Promise<{ memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]> => {
-    if (isOffline || !db || !orgId) return [];
-    try {
-        // Get start of current week (Monday)
-        const now = new Date();
-        const day = now.getDay();
-        const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
-        const startOfWeek = new Date(now.setDate(diff));
-        startOfWeek.setHours(0, 0, 0, 0);
-
-        const q = query(
-            collection(db, 'workoutLogs'), 
-            where("organizationId", "==", orgId),
-            where("date", ">=", startOfWeek.getTime())
-        );
-        
-        const snap = await getDocs(q);
-        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
-        
-        // Aggregate by memberId
-        const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
-        
-        logs.forEach(log => {
-            if (!memberStats[log.memberId]) {
-                memberStats[log.memberId] = { count: 0, pbs: 0, name: log.memberName || 'Okänd', photoUrl: log.memberPhotoUrl || '' };
-            }
-            memberStats[log.memberId].count += 1;
-            if (log.newPBs && log.newPBs.length > 0) {
-                memberStats[log.memberId].pbs += log.newPBs.length;
-            }
-        });
-
-        // Convert to array and sort by count
-        return Object.entries(memberStats)
-            .map(([memberId, stats]) => ({ memberId, ...stats }))
-            .sort((a, b) => b.count - a.count);
-
-    } catch (e) {
-        console.error("getLeaderboardData failed", e);
-        return [];
-    }
-};
-
-export const listenToLeaderboardData = (orgId: string, onUpdate: (data: { memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]) => void) => {
-    if (isOffline || !db || !orgId) {
-        onUpdate([]);
-        return () => {};
-    }
-    
-    // Get start of current week (Monday)
-    const now = new Date();
-    const day = now.getDay();
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
-    const startOfWeek = new Date(now.setDate(diff));
-    startOfWeek.setHours(0, 0, 0, 0);
-
-    const q = query(
-        collection(db, 'workoutLogs'), 
-        where("organizationId", "==", orgId),
-        where("date", ">=", startOfWeek.getTime())
-    );
-    
-    return onSnapshot(q, (snap) => {
-        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
-        
-        // Aggregate by memberId
-        const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
-        
-        logs.forEach(log => {
-            if (!memberStats[log.memberId]) {
-                memberStats[log.memberId] = { count: 0, pbs: 0, name: log.memberName || 'Okänd', photoUrl: log.memberPhotoUrl || '' };
-            }
-            memberStats[log.memberId].count += 1;
-            if (log.newPBs && log.newPBs.length > 0) {
-                memberStats[log.memberId].pbs += log.newPBs.length;
-            }
-        });
-
-        // Convert to array and sort by count
-        const data = Object.entries(memberStats)
-            .map(([memberId, stats]) => ({ memberId, ...stats }))
-            .sort((a, b) => b.count - a.count);
-            
-        onUpdate(data);
-    }, (error) => {
-        console.error("listenToLeaderboardData failed", error);
-    });
-};
-
-export const listenToMemberLogs = (memberId: string, onUpdate: (logs: WorkoutLog[]) => void) => {
-    if (isOffline || !db || !memberId) {
-        onUpdate([]);
-        return () => {};
-    }
-    const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"));
-    return onSnapshot(q, (snap) => {
-        onUpdate(snap.docs.map(d => d.data() as WorkoutLog));
-    }, (err) => console.error("listenToMemberLogs failed", err));
-};
-
-export const listenToCommunityLogs = (orgId: string, onUpdate: (logs: WorkoutLog[]) => void) => {
-    if (isOffline || !db || !orgId) {
-        onUpdate([]);
-        return () => {};
-    }
-    const q = query(collection(db, 'workoutLogs'), where("organizationId", "==", orgId), orderBy("date", "desc"), limit(20));
-    return onSnapshot(q, (snap) => {
-        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
-        onUpdate(logs);
-    }, (err) => console.error("listenToCommunityLogs failed", err));
-};
-
-export const getMemberLogs = async (memberId: string): Promise<WorkoutLog[]> => {
-    if (isOffline || !db || !memberId) return []; 
-    try {
-        const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"));
-        const snap = await getDocs(q);
-        return snap.docs.map(d => d.data() as WorkoutLog);
-    } catch (e) { return []; }
-};
-
-export const getOrganizationLogs = async (orgId: string, limitCount: number = 100): Promise<WorkoutLog[]> => {
-    if (isOffline || !db || !orgId) return [];
-    try {
-        const q = query(collection(db, 'workoutLogs'), where("organizationId", "==", orgId), orderBy("date", "desc"), limit(limitCount));
-        const snap = await getDocs(q);
-        return snap.docs.map(d => d.data() as WorkoutLog);
-    } catch (e) { return []; }
-};
-
-export const getMemberDataForAI = async (memberId: string): Promise<{ logs: WorkoutLog[], pbs: PersonalBest[] }> => {
-    if (isOffline || !db || !memberId) return { logs: [], pbs: [] };
-
-    try {
-        // Fetch last 15 workout logs
-        const logsQuery = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"), limit(15));
-        const logsSnap = await getDocs(logsQuery);
-        const logs = logsSnap.docs.map(d => d.data() as WorkoutLog);
-
-        // Fetch all personal bests
-        const pbsSnap = await getDocs(collection(db, 'users', memberId, 'personalBests'));
-        const pbs = pbsSnap.docs.map(d => d.data() as PersonalBest);
-
-        return { logs, pbs };
-    } catch (error) {
-        console.error("Error fetching member data for AI:", error);
-        return { logs: [], pbs: [] };
-    }
-};
-
-export const listenToPersonalBests = (userId: string, onUpdate: (pbs: PersonalBest[]) => void, onError?: (err: any) => void) => {
-    if (isOffline || !db || !userId) {
-        onUpdate([]);
-        return () => {};
-    }
-    return onSnapshot(collection(db, 'users', userId, 'personalBests'), (snap) => {
-        onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() }) as PersonalBest));
-    }, (err) => {
-        console.error("listenToPersonalBests failed", err);
-        if (onError) onError(err);
-    });
-};
-
-export const updatePersonalBest = async (userId: string, exerciseName: string, weight: number) => {
-    if (isOffline || !db || !userId) return;
-    const pbId = getPBId(exerciseName);
-    try {
-        await setDoc(doc(db, 'users', userId, 'personalBests', pbId), { id: pbId, exerciseName: exerciseName.trim(), weight, date: Date.now() });
-    } catch (e) { console.error("updatePersonalBest failed", e); }
-};
-
-export const listenForStudioEvents = (orgId: string, callback: (event: StudioEvent) => void) => {
-    if (isOffline || !db || !orgId) return () => {};
-    
-    // VIKTIGT: Vi tar bort 'where timestamp > ...' från databasfrågan eftersom det kräver 
-    // ett sammansatt index som kan krångla. Istället hämtar vi de 20 SENASTE händelserna
-    // och filtrerar bort gamla events (äldre än 5 min) här i koden istället.
-    // Detta gör lyssnaren mycket snabbare och mer pålitlig.
-
-    const q = query(
-        collection(db, 'studio_events'), 
-        where('organizationId', '==', orgId), 
-        orderBy('timestamp', 'desc'), // Hämta nyaste först
-        limit(20)
-    );
-
-    return onSnapshot(q, (snapshot) => {
-        // Eftersom vi sorterar 'desc' (nyast först), kommer snapshot.docChanges() 
-        // leverera de nyaste eventen. Vi itererar igenom dem.
-        
-        // Vi samlar upp ändringarna och reverserar dem så att om vi får en batch 
-        // (t.ex. vid start), så processar vi dem i kronologisk ordning (äldst till nyast)
-        // för att kön ska kännas naturlig om flera kom in precis samtidigt.
-        const changes = snapshot.docChanges();
-        
-        // Loopa baklänges eller reversera för att hantera ordningen om det behövs, 
-        // men för realtidshändelser kommer de en och en.
-        changes.forEach((change) => {
-            if (change.type === 'added') {
-                const data = change.doc.data() as StudioEvent;
-                
-                // CLIENT-SIDE FILTERING:
-                // Är eventet skapat för mer än 10 minuter sedan? Ignorera det.
-                // Vi har en striktare spärr i PBOverlay (5 min), men detta sparar prestanda.
-                const timeDiff = Date.now() - data.timestamp;
-                if (timeDiff < 10 * 60 * 1000) { 
-                    callback(data);
-                }
-            }
-        });
-    });
-};
-
-export const listenToWeeklyPBs = (orgId: string, onUpdate: (events: StudioEvent[]) => void) => {
-    if (isOffline || !db || !orgId) { onUpdate([]); return () => {}; }
-    
-    // Vi tar bort tidsbegränsningen för att visa de senaste 20 rekorden oavsett när de sattes.
-    // Vi filtrerar på 'type' i minnet för att undvika index-fel i Firestore.
-    const q = query(
-        collection(db, 'studio_events'), 
-        where('organizationId', '==', orgId), 
-        orderBy('timestamp', 'desc'), 
-        limit(50)
-    );
-    return onSnapshot(q, (snap) => {
-        const allEvents = snap.docs.map(d => d.data() as StudioEvent);
-        const pbEvents = allEvents.filter(e => e.type === 'pb' || e.type === 'pb_batch');
-        onUpdate(pbEvents.slice(0, 20));
-    }, (error) => {
-        console.error("Error listening to weekly PBs:", error);
-    });
-};
-
-// --- COACH NOTES ---
-
-export const saveCoachNote = async (noteData: Omit<CoachNote, 'id' | 'createdAt'>): Promise<CoachNote | null> => {
-    if (isOffline || !db) return null;
-    try {
-        const ref = doc(collection(db, 'coachNotes'));
-        const newNote: any = {
-            ...noteData,
-            id: ref.id,
-            createdAt: Date.now()
-        };
-        // Clean up undefined fields
-        Object.keys(newNote).forEach(key => newNote[key] === undefined && delete newNote[key]);
-        
-        await setDoc(ref, newNote);
-        return newNote as CoachNote;
-    } catch (e) {
-        console.error("saveCoachNote failed", e);
-        return null;
-    }
-};
-
-export const updateCoachNote = async (noteId: string, updates: Partial<Omit<CoachNote, 'id' | 'createdAt'>>): Promise<void> => {
-    if (isOffline || !db || !noteId) return;
-    try {
-        const cleanedUpdates: any = { ...updates };
-        // Clean up undefined fields
-        Object.keys(cleanedUpdates).forEach(key => cleanedUpdates[key] === undefined && delete cleanedUpdates[key]);
-        
-        await updateDoc(doc(db, 'coachNotes', noteId), cleanedUpdates);
-    } catch (e) {
-        console.error("updateCoachNote failed", e);
-    }
-};
-
-export const listenToCoachNotes = (orgId: string, onUpdate: (notes: CoachNote[]) => void) => {
-    if (isOffline || !db || !orgId) {
-        onUpdate([]);
-        return () => {};
-    }
-    const q = query(
-        collection(db, 'coachNotes'),
-        where('organizationId', '==', orgId),
-        orderBy('createdAt', 'desc')
-    );
-    return onSnapshot(q, (snap) => {
-        onUpdate(snap.docs.map(d => d.data() as CoachNote));
-    }, (err) => console.error("listenToCoachNotes failed", err));
-};
-
-export const toggleCoachNoteFavorite = async (noteId: string, isFavorite: boolean) => {
-    if (isOffline || !db || !noteId) return;
-    try {
-        await updateDoc(doc(db, 'coachNotes', noteId), { isFavorite });
-    } catch (e) { console.error("toggleCoachNoteFavorite failed", e); }
-};
-
-export const deleteCoachNote = async (noteId: string, imageUrl?: string) => {
-    if (isOffline || !db || !noteId) return;
-    try {
-        if (imageUrl) {
-            await deleteImageByUrl(imageUrl);
-        }
-        await deleteDoc(doc(db, 'coachNotes', noteId));
-    } catch (e) { console.error("deleteCoachNote failed", e); }
-};
-
-export const getOrganizations = async (): Promise<Organization[]> => {
-    if (isOffline || !db) return MOCK_ORGANIZATIONS;
-    try {
-        const snap = await getDocs(collection(db, 'organizations'));
-        return snap.docs.map(d => {
-            const data = { id: d.id, ...d.data() } as Organization;
-            if (!data.studios) data.studios = [];
-            return data;
-        });
-    } catch (e) { return []; }
-};
-
-export const getOrganizationById = async (id: string): Promise<Organization | null> => {
-    if (isOffline || !db || !id) return MOCK_ORGANIZATIONS.find(o => o.id === id) || null;
-    try {
-        const snap = await getDoc(doc(db, 'organizations', id));
-        if (!snap.exists()) return null;
-        const data = { id: snap.id, ...snap.data() } as Organization;
-        if (!data.studios) data.studios = [];
-        return data;
-    } catch (e) { return null; }
-};
-
-export const listenToOrganizationChanges = (id: string, onUpdate: (org: Organization) => void) => {
-    if (isOffline || !db || !id) return () => {}; 
-    return onSnapshot(doc(db, 'organizations', id), (snap) => {
-        if (snap.exists()) {
-            const data = { id: snap.id, ...snap.data() } as Organization;
-            if (!data.studios) data.studios = [];
-            onUpdate(data);
-        }
-    }, (err) => console.error("listenToOrganizationChanges failed", err));
-};
-
-// NYTT: Funktion för att uppdatera remote-state för en studio
-export const updateStudioRemoteState = async (orgId: string, studioId: string, state: RemoteSessionState | null) => {
-    if (isOffline || !db || !orgId || !studioId) return;
-    try {
-        const orgRef = doc(db, 'organizations', orgId);
-        await runTransaction(db, async (transaction) => {
-            const orgSnap = await transaction.get(orgRef);
-            if (!orgSnap.exists()) {
-                throw new Error("Organization does not exist!");
-            }
-            
-            const orgData = orgSnap.data() as Organization;
-            const updatedStudios = orgData.studios.map(studio => {
-                if (studio.id === studioId) {
-                    if (state === null) {
-                        const { remoteState, ...rest } = studio;
-                        return rest;
-                    }
-                    return { 
-                        ...studio, 
-                        remoteState: {
-                            ...(studio.remoteState || {}),
-                            ...state
-                        } 
-                    };
-                }
-                return studio;
-            });
-            
-            transaction.update(orgRef, { studios: updatedStudios });
-        });
-    } catch (e) {
-        console.error("Failed to update remote state:", e);
-    }
-};
-
-export const createOrganization = async (name: string, subdomain: string): Promise<Organization> => {
-    if(isOffline || !db) throw new Error("Offline");
-    const id = `org_${subdomain}_${Date.now()}`;
-    const newOrg: Organization = { 
-        id, name, subdomain, passwords: { coach: '1234' }, studios: [], customPages: [], status: 'active',
-        inviteCode: generateInviteCode(),
-        locations: [{ id: `loc_${Date.now()}`, name: name }],
-        globalConfig: { customCategories: [{ id: '1', name: 'Standard', prompt: '' }] } 
-    };
-    await setDoc(doc(db, 'organizations', id), newOrg);
-    return newOrg;
-};
-
-// ... (updateOrganization functions)
-export const updateOrganizationName = async (id: string, name: string) => {
-    if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { name });
-    return getOrganizationById(id);
-};
-
-export const updateOrganization = async (id: string, name: string, subdomain: string, inviteCode?: string, coachCode?: string, maxFreeCoaches?: number) => {
-    if(isOffline || !db || !id) return;
-    const updateData: any = { name, subdomain };
-    if (inviteCode) updateData.inviteCode = inviteCode.toUpperCase();
-    if (coachCode) updateData.coachCode = coachCode.toUpperCase();
-    if (maxFreeCoaches !== undefined) updateData.maxFreeCoaches = maxFreeCoaches;
-    await updateDoc(doc(db, 'organizations', id), updateData);
-    return getOrganizationById(id);
-};
-
-export const updateOrganizationFreeForMembers = async (id: string, freeForMembers: boolean) => {
-    if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { freeForMembers });
-    return getOrganizationById(id);
-};
-
-export const updateOrganizationAllowStatsImport = async (id: string, allowStatsImport: boolean) => {
-    if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { allowStatsImport });
-    return getOrganizationById(id);
-};
-
-export const updateOrganizationPasswords = async (id: string, passwords: Organization['passwords']) => {
-    if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { passwords });
-    return getOrganizationById(id);
-};
-
-export const updateOrganizationLogos = async (id: string, logos: { light: string; dark: string }) => {
-    if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { logoUrlLight: logos.light, logoUrlDark: logos.dark });
-    return getOrganizationById(id);
-};
-
-export const updateOrganizationFavicon = async (id: string, faviconUrl: string) => {
-    if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { faviconUrl });
-    return getOrganizationById(id);
-};
-
-export const updateOrganizationPrimaryColor = async (id: string, color: string) => {
-    if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { primaryColor: color });
-    return getOrganizationById(id);
-};
-
-export const updateOrganizationLocations = async (id: string, locations: OrgLocation[]) => {
-    if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { locations: sanitizeData(locations) });
-    return getOrganizationById(id);
-};
-
-export const updateOrganizationStudios = async (id: string, studios: Studio[]) => {
-    if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { studios: sanitizeData(studios) });
-    return getOrganizationById(id);
-};
-
-export const updateOrganizationCustomPages = async (id: string, customPages: CustomPage[]) => {
-    if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { customPages: sanitizeData(customPages) });
-    return getOrganizationById(id);
-};
-
-export const updateOrganizationInfoCarousel = async (id: string, infoCarousel: InfoCarousel) => {
-    if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { infoCarousel: sanitizeData(infoCarousel) });
-    return getOrganizationById(id);
-};
-
-export const updateOrganizationCompanyDetails = async (id: string, details: CompanyDetails) => {
-    if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { companyDetails: sanitizeData(details) });
-    return getOrganizationById(id);
-};
-
-export const updateOrganizationDiscount = async (id: string, discount: { type: 'percentage' | 'fixed', value: number }) => {
-    if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { discountType: discount.type, discountValue: discount.value });
-    return getOrganizationById(id);
-};
-
-export const updateOrganizationFreeCoaches = async (id: string, count: number) => {
-    if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { freeCoachAccounts: count });
-    return getOrganizationById(id);
-};
-
-export const undoLastBilling = async (id: string) => {
-    if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { lastBilledMonth: deleteField(), lastBilledDate: deleteField() });
-    return getOrganizationById(id);
-};
-
-export const updateGlobalConfig = async (id: string, config: any) => {
-    if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { globalConfig: sanitizeData(config) });
-};
-
-export const updateOrganizationBenchmarks = async (id: string, benchmarks: BenchmarkDefinition[]) => {
-    if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { benchmarkDefinitions: sanitizeData(benchmarks) });
-    return getOrganizationById(id);
-};
-
-export const createStudio = async (orgId: string, name: string) => {
-    if(isOffline || !db || !orgId) return { id: 'off', name };
-    const org = await getOrganizationById(orgId);
-    if (!org) throw new Error("Organisationen hittades inte.");
-    const studio = { id: `st_${Date.now()}`, name, createdAt: Date.now(), configOverrides: {} };
-    await updateDoc(doc(db, 'organizations', orgId), { studios: [...org.studios, studio] });
-    return studio;
-};
-
-export const updateStudio = async (orgId: string, studioId: string, name: string) => {
-    if(isOffline || !db || !orgId) return;
-    const org = await getOrganizationById(orgId);
-    if (!org) throw new Error("Organisationen hittades inte.");
-    const studios = org.studios.map(s => s.id === studioId ? { ...s, name } : s);
-    await updateDoc(doc(db, 'organizations', orgId), { studios });
-};
-
-export const deleteStudio = async (orgId: string, studioId: string) => {
-    if(isOffline || !db || !orgId) return;
-    const org = await getOrganizationById(orgId);
-    if (!org) throw new Error("Organisationen hittades inte.");
-    const studios = org.studios.filter(s => s.id !== studioId);
-    await updateDoc(doc(db, 'organizations', orgId), { studios });
-};
-
-export const updateStudioConfig = async (orgId: string, studioId: string, overrides: any) => {
-    if(isOffline || !db || !orgId) return {} as Studio;
-    const org = await getOrganizationById(orgId);
-    if (!org) throw new Error("Organisationen hittades inte.");
-    const studios = org.studios.map(s => s.id === studioId ? { ...s, configOverrides: sanitizeData(overrides) } : s);
-    await updateDoc(doc(db, 'organizations', orgId), { studios });
-    return studios.find(s => s.id === studioId) as Studio;
-};
-
-export const getFreshCategoryWorkouts = async (orgId: string, category: string): Promise<Workout[]> => {
-    if (isOffline || !db || !orgId) return [];
-    try {
-        const q = query(
-          collection(db, 'workouts'), 
-          where("organizationId", "==", orgId),
-          where("category", "==", category),
-          where("isPublished", "==", true),
-          where("isMemberDraft", "==", false)
-        );
-        const snap = await getDocsFromServer(q);
-        
-        return snap.docs
-            .map(d => {
-                const data = d.data() as Workout;
-                if (!data.blocks) data.blocks = [];
-                else {
-                    data.blocks = data.blocks.map(block => ({
-                        ...block,
-                        exercises: block.exercises || []
-                    }));
-                }
-                return data;
-            });
-    } catch (error) {
-        console.error("Error fetching fresh category workouts:", error);
-        return [];
-    }
-};
-
-export const getWorkoutsForOrganization = async (orgId: string): Promise<Workout[]> => {
-    if (isOffline || !db || !orgId) return [];
-    try {
-        const q = query(
-          collection(db, 'workouts'), 
-          where("organizationId", "==", orgId)
-        );
-        const snap = await getDocs(q);
-        return snap.docs.map(d => {
-            const data = d.data() as Workout;
-            if (!data.blocks) {
-                data.blocks = [];
-            } else {
-                data.blocks = data.blocks.map(block => ({
-                    ...block,
-                    exercises: block.exercises || []
-                }));
-            }
-            return data;
-        }).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
-    } catch (e) { 
-        console.error("getWorkoutsForOrganization failed", e);
-        return []; 
-    }
-};
-
-export const subscribeToWorkoutsForOrganization = (orgId: string, onUpdate: (workouts: Workout[]) => void, onError: (error: Error) => void) => {
-    if (isOffline || !db || !orgId) {
-        onUpdate([]);
-        return () => {};
-    }
-    
-    const q = query(
-      collection(db, 'workouts'), 
-      where("organizationId", "==", orgId)
-    );
-
-    return onSnapshot(q, (snap) => {
-        const workouts = snap.docs.map(d => {
-            const data = d.data() as Workout;
-            if (!data.blocks) {
-                data.blocks = [];
-            } else {
-                data.blocks = data.blocks.map(block => ({
-                    ...block,
-                    exercises: block.exercises || []
-                }));
-            }
-            return data;
-        }).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
-        onUpdate(workouts);
-    }, (error) => {
-        console.error("subscribeToWorkoutsForOrganization failed", error);
-        onError(error);
-    });
-};
-
-export const getWorkoutById = async (id: string): Promise<Workout | null> => {
-    if (isOffline || !db || !id) return null;
-    try {
-        const snap = await getDoc(doc(db, 'workouts', id));
-        if (!snap.exists()) return null;
-        const data = snap.data() as Workout;
-        if (!data.blocks) {
-            data.blocks = [];
-        } else {
-            data.blocks = data.blocks.map(block => ({
-                ...block,
-                exercises: block.exercises || []
-            }));
-        }
-        return data;
-    } catch (e) {
-        console.error("getWorkoutById failed", e);
-        return null;
-    }
-};
-
-export const saveWorkout = async (w: Workout): Promise<Workout> => {
-    if (isOffline || !db || !w.id) return w;
-    try {
-        await setDoc(doc(db, 'workouts', w.id), sanitizeData(w), { merge: true });
-        return w;
-    } catch (e) { 
-        console.error("saveWorkout failed", e); 
-        // Throw the error so the caller knows it failed
-        throw e;
-    }
-};
-
-export const deleteWorkout = async (id: string) => {
-    if (isOffline || !db || !id) return;
-    try {
-        await deleteDoc(doc(db, 'workouts', id));
-    } catch (e) { console.error("deleteWorkout failed", e); }
-};
-
-export const getExerciseBank = async (): Promise<BankExercise[]> => {
-    if (isOffline || !db) return MOCK_EXERCISE_BANK;
-    try {
-        const snap = await getDocs(query(collection(db, 'exerciseBank'), orderBy('name')));
-        return snap.docs.map(d => d.data() as BankExercise);
-    } catch (e) { return MOCK_EXERCISE_BANK; }
-};
-
-export const getOrganizationExerciseBank = async (orgId: string): Promise<BankExercise[]> => {
-    if (isOffline || !db || !orgId) return MOCK_EXERCISE_BANK;
-    try {
-        // 1. Fetch Global Bank
-        const globalSnap = await getDocs(query(collection(db, 'exerciseBank'), orderBy('name')));
-        const globalBank = globalSnap.docs.map(d => d.data() as BankExercise);
-
-        // 2. Fetch Custom Bank
-        const customQ = query(collection(db, 'custom_exercises'), where('organizationId', '==', orgId));
-        const customSnap = await getDocs(customQ);
-        const customBank = customSnap.docs.map(d => d.data() as BankExercise);
-
-        return [...globalBank, ...customBank].sort((a, b) => a.name.localeCompare(b.name, 'sv'));
-    } catch (e) { return MOCK_EXERCISE_BANK; }
-};
-
-// Resolver Function (The logic engine)
-export const resolveAndCreateExercises = async (orgId: string, workout: Workout, createMissing: boolean = false): Promise<Workout> => {
-    if (isOffline || !db) return workout; // Safety
-
-    // 1. Get combined banks
-    const combinedBank = await getOrganizationExerciseBank(orgId);
-    const bankMap = new Map(combinedBank.map(b => [b.id, b])); // Create Map for O(1) lookup
-    const newlyCreatedCache: Record<string, BankExercise> = {};
-
-    // 2. Helper for matching
-    const findMatch = (name: string) => {
-        const nName = normalizeString(name);
-        
-        // Try exact normalized match first
-        let match = combinedBank.find(b => normalizeString(b.name) === nName);
-        if(match) return match;
-
-        // Try "contains" match (reversed)
-        match = combinedBank.find(b => normalizeString(b.name).includes(nName));
-        
-        if (!match) {
-             match = combinedBank.find(b => nName.includes(normalizeString(b.name)));
-        }
-
-        return match;
-    };
-
-    // 3. Process blocks
-    const resolvedBlocks = await Promise.all(workout.blocks.map(async (block) => {
-        const resolvedExercises = await Promise.all(block.exercises.map(async (ex) => {
-            // Case 1: It claims to be from the bank
-            if (ex.isFromBank) {
-                // If it claims to be from bank, we MUST verify the ID exists.
-                // If it doesn't exist (deleted), we downgrade it to ad-hoc.
-                if (bankMap.has(ex.id)) {
-                    // Valid link. Optionally sync details? 
-                    const bankEx = bankMap.get(ex.id);
-                    return {
-                        ...ex,
-                        imageUrl: bankEx?.imageUrl || ex.imageUrl, // Sync image
-                        description: bankEx?.description || ex.description, // Optional: Sync desc
-                        // Keep the existing loggingEnabled state, or default to false if undefined
-                        loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
-                    };
-                } else {
-                    // INVALID LINK (Deleted from bank). Downgrade to Ad-hoc.
-                    return {
-                        ...ex,
-                        isFromBank: false,
-                        loggingEnabled: false,
-                        // Keep existing name/reps/desc as they are in the workout
-                    };
-                }
-            }
-
-            // Case 2: Ad-hoc (Try to match by name or create new)
-            const match = findMatch(ex.name);
-
-            if (match) {
-                return {
-                    ...ex,
-                    id: match.id, // THE MAGIC: Link to Master ID
-                    originalBankId: match.id, // Helper for history tracking
-                    description: ex.description || match.description, 
-                    imageUrl: match.imageUrl || ex.imageUrl,
-                    isFromBank: true,
-                    loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
-                };
-            }
-
-            // If no match found, and we are NOT allowed to create missing exercises (e.g. Ad-hoc/AI)
-            // Just return the exercise as-is but ensure logging is disabled to keep data clean
-            if (!createMissing) {
-                return {
-                    ...ex,
-                    isFromBank: false,
-                    loggingEnabled: false
-                };
-            }
-
-            // Check cache for duplicates in same workout session
-            const nName = normalizeString(ex.name);
-            if (newlyCreatedCache[nName]) {
-                const cached = newlyCreatedCache[nName];
-                return { 
-                    ...ex, 
-                    id: cached.id, 
-                    originalBankId: cached.id,
-                    isFromBank: true, 
-                    loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
-                };
-            }
-
-            // Create new Custom Exercise
-            const newId = `custom_${orgId}_${Date.now()}_${Math.floor(Math.random()*1000)}`;
-            const newBankEx: BankExercise = {
-                id: newId,
-                name: ex.name, // Use the provided name
-                description: ex.description || '',
-                tags: [], 
-                organizationId: orgId
-            };
-
-            // Add to Firestore
-            await setDoc(doc(db, 'custom_exercises', newId), newBankEx);
-
-            // Add to cache
-            newlyCreatedCache[nName] = newBankEx;
-            
-            return {
-                ...ex,
-                id: newId,
-                originalBankId: newId,
-                isFromBank: true,
-                loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
-            };
-        }));
-
-        return { ...block, exercises: resolvedExercises };
-    }));
-
-    return { ...workout, blocks: resolvedBlocks };
-};
-
-export const saveExerciseToBank = async (ex: BankExercise) => {
-    if (isOffline || !db || !ex.id) return;
-    try {
-        // Om övningen har ett organizationId eller ID:t börjar på 'custom_', spara i custom_exercises
-        const collectionName = ex.organizationId || ex.id.startsWith('custom_') 
-            ? 'custom_exercises' 
-            : 'exerciseBank';
-            
-        await setDoc(doc(db, collectionName, ex.id), sanitizeData(ex), { merge: true });
-    } catch (e) { console.error("saveExerciseToBank failed", e); }
-};
-
-export const deleteExerciseFromBank = async (id: string) => {
-    if (isOffline || !db || !id) return;
-    try {
-        // Check if it's a custom exercise based on ID prefix
-        const collectionName = id.startsWith('custom_') ? 'custom_exercises' : 'exerciseBank';
-        await deleteDoc(doc(db, collectionName, id));
-    } catch (e) { console.error("deleteExerciseFromBank failed", e); }
-};
-
-export const mergeExercises = async (sourceId: string, targetId: string) => {
-    if (isOffline || !db) return;
-    try {
-        let targetEx: BankExercise | null = null;
-        let sourceEx: BankExercise | null = null;
-        
-        const globalTargetSnap = await getDoc(doc(db, 'exerciseBank', targetId));
-        if (globalTargetSnap.exists()) targetEx = globalTargetSnap.data() as BankExercise;
-        else {
-            const customTargetSnap = await getDoc(doc(db, 'custom_exercises', targetId));
-            if (customTargetSnap.exists()) targetEx = customTargetSnap.data() as BankExercise;
-        }
-
-        const globalSourceSnap = await getDoc(doc(db, 'exerciseBank', sourceId));
-        if (globalSourceSnap.exists()) sourceEx = globalSourceSnap.data() as BankExercise;
-        else {
-            const customSourceSnap = await getDoc(doc(db, 'custom_exercises', sourceId));
-            if (customSourceSnap.exists()) sourceEx = customSourceSnap.data() as BankExercise;
-        }
-
-        if (!targetEx || !sourceEx) {
-            throw new Error("Kunde inte hitta båda övningarna för sammanslagning.");
-        }
-
-        // Hitta alla pass som använder source-övningen
-        const workoutsSnap = await getDocs(collection(db, 'workouts'));
-        const batch = writeBatch(db);
-        let updateCount = 0;
-
-        workoutsSnap.forEach(docSnap => {
-            const workout = docSnap.data() as Workout;
-            let modified = false;
-
-            if (workout.blocks) {
-                workout.blocks.forEach(block => {
-                    if (block.exercises) {
-                        block.exercises.forEach(ex => {
-                            if (ex.id === sourceId || ex.name === sourceEx!.name) {
-                                ex.id = targetId;
-                                ex.name = targetEx!.name;
-                                ex.isFromBank = true;
-                                modified = true;
-                            }
-                        });
-                    }
-                });
-            }
-
-            if (modified) {
-                batch.update(docSnap.ref, { blocks: workout.blocks });
-                updateCount++;
-            }
-        });
-
-        if (updateCount > 0) {
-            await batch.commit();
-            console.log(`Uppdaterade ${updateCount} pass.`);
-        }
-
-        // Ta bort source-övningen
-        await deleteExerciseFromBank(sourceId);
-
-    } catch (e) {
-        console.error("mergeExercises failed", e);
-        throw e;
-    }
-};
-
-export const updateExerciseImageOverride = async (orgId: string, exerciseId: string, imageUrl: string | null) => {
-    if (isOffline || !db || !orgId) return;
-    try {
-        const orgRef = doc(db, 'organizations', orgId);
-        if (imageUrl) {
-            await updateDoc(orgRef, { [`exerciseOverrides.${exerciseId}`]: { imageUrl } });
-        } else {
-            await updateDoc(orgRef, { [`exerciseOverrides.${exerciseId}`]: deleteField() });
-        }
-        return getOrganizationById(orgId);
-    } catch (e) { console.error("updateExerciseImageOverride failed", e); }
-};
-
-// ... (Rest of the file remains same: billing, images, hyrox, checkins etc.)
-export const getSmartScreenPricing = async () => {
-    if (isOffline || !db) return MOCK_SMART_SCREEN_PRICING;
-    try {
-        const snap = await getDoc(doc(db, 'system', 'pricing'));
-        return snap.exists() ? snap.data() as SmartScreenPricing : MOCK_SMART_SCREEN_PRICING;
-    } catch (e) { return MOCK_SMART_SCREEN_PRICING; }
-};
-
-export const updateSmartScreenPricing = async (pricing: SmartScreenPricing) => {
-    if (isOffline || !db) return;
-    try {
-        await setDoc(doc(db, 'system', 'pricing'), sanitizeData(pricing));
-    } catch (e) { console.error("updateSmartScreenPricing failed", e); }
-};
-
-export const updateOrganizationBilledStatus = async (id: string, month: string) => {
-    if(isOffline || !db || !id) return;
-    try {
-        await updateDoc(doc(db, 'organizations', id), { lastBilledMonth: month, lastBilledDate: Date.now() });
-        return getOrganizationById(id);
-    } catch (e) { console.error("updateOrganizationBilledStatus failed", e); }
-};
-
-export const uploadImage = async (path: string, image: File | string): Promise<string> => {
-    if (typeof image === 'string' && !image.startsWith('data:image')) return image;
-    if (isOffline || !storage) return "";
-    try {
-        const blob = typeof image === 'string' ? await (await fetch(image)).blob() : image;
-        const snap = await uploadBytes(ref(storage, path), blob);
-        return getDownloadURL(snap.ref);
-    } catch (e) { console.error("uploadImage failed", e); return ""; }
-};
-
-export const deleteImageByUrl = async (url: string): Promise<void> => {
-    if (isOffline || !storage || !url || !url.includes('firebasestorage')) return;
-    try { await deleteObject(ref(storage, url)); } catch (e) {}
-};
-
-export const getSeasonalThemes = async () => {
-    if (isOffline || !db) return [];
-    try {
-        const snap = await getDoc(doc(db, 'system', 'seasonalThemes'));
-        return snap.exists() ? (snap.data() as any).themes : [];
-    } catch (e) { return []; }
-};
-
-export const updateSeasonalThemes = async (themes: SeasonalThemeSetting[]) => {
-    if (isOffline || !db) return;
-    try {
-        await setDoc(doc(db, 'system', 'seasonalThemes'), { themes: sanitizeData(themes) }, { merge: true });
-    } catch (e) { console.error("updateSeasonalThemes failed", e); }
-};
-
-export const archiveOrganization = async (id: string) => {
-    if (isOffline || !db || !id) return;
-    try {
-        await updateDoc(doc(db, 'organizations', id), { status: 'archived' });
-    } catch (e) { console.error("archiveOrganization failed", e); }
-};
-
-export const restoreOrganization = async (id: string) => {
-    if (isOffline || !db || !id) return;
-    try {
-        await updateDoc(doc(db, 'organizations', id), { status: 'active' });
-    } catch (e) { console.error("restoreOrganization failed", e); }
-};
-
-export const deleteOrganizationPermanently = async (id: string) => {
-    if (isOffline || !db || !id) return;
-    try {
-        await deleteDoc(doc(db, 'organizations', id));
-    } catch (e) { console.error("deleteOrganizationPermanently failed", e); }
-};
-
-export const updateOrganizationActivity = async (id: string): Promise<void> => {
-    if (isOffline || !db || !id) return;
-    try { await updateDoc(doc(db, 'organizations', id), { lastActiveAt: Date.now() }); } catch(e){}
-};
-
-export const saveRace = async (data: any, orgId: string) => {
-    if(isOffline || !db || !orgId) return { id: 'off' };
-    try {
-        let raceRef;
-        if (data.id && !data.id.startsWith('race-')) { // If it's a real firebase ID
-             raceRef = doc(db, 'races', data.id);
-        } else if (data.id && data.id.startsWith('race-')) {
-             // It's a temporary ID generated by the client, we should create a new doc but maybe keep the ID?
-             // Actually, doc(collection(db, 'races')) generates a random ID. Let's just use the provided ID if it exists.
-             raceRef = doc(db, 'races', data.id);
-        } else {
-             raceRef = doc(collection(db, 'races'));
-        }
-        
-        const race = { ...sanitizeData(data), id: raceRef.id, organizationId: orgId };
-        if (!race.createdAt) race.createdAt = Date.now();
-        
-        await setDoc(raceRef, race, { merge: true });
-        return race;
-    } catch (e) { console.error("saveRace failed", e); throw e; }
-};
-
-export const deleteRace = async (raceId: string) => {
-    if (isOffline || !db || !raceId) return;
-    try {
-        await deleteDoc(doc(db, 'races', raceId));
-    } catch (e) {
-        console.error("deleteRace failed", e);
-        throw e;
-    }
-};
-
-export const getPastRaces = async (orgId: string) => {
-    if (isOffline || !db || !orgId) return [];
-    try {
-        const q = query(collection(db, 'races'), where("organizationId", "==", orgId));
-        const snap = await getDocs(q);
-        return snap.docs.map(d => d.data() as HyroxRace).sort((a,b) => b.createdAt - a.createdAt);
-    } catch (e) { return []; }
-};
-
-export const getRace = async (id: string) => {
-    if (isOffline || !db || !id) return null;
-    try {
-        const snap = await getDoc(doc(db, 'races', id));
-        return snap.exists() ? snap.data() as HyroxRace : null;
-    } catch (e) { return null; }
-};
-
-export const saveWorkoutResult = async (result: WorkoutResult) => {
-    if (isOffline || !db) return;
-    try {
-        await setDoc(doc(db, 'workout_results', result.id), sanitizeData(result));
-    } catch (e) { console.error("saveWorkoutResult failed", e); }
-};
-
-export const getWorkoutResults = async (workoutId: string, orgId: string): Promise<WorkoutResult[]> => {
-    if (isOffline || !db || !workoutId) return [];
-    try {
-        const q = query(collection(db, 'workout_results'), where('workoutId', '==', workoutId), where('organizationId', '==', orgId), orderBy('finishTime', 'asc'));
-        const snap = await getDocs(q);
-        return snap.docs.map(d => d.data() as WorkoutResult);
-    } catch (e) { return []; }
-};
-
-export const sendCheckIn = async (orgId: string, userEmail: string) => {
-    if (isOffline || !db || !orgId) return;
-    try {
-        const checkInRef = doc(collection(db, 'active_checkins'));
-        const event: CheckInEvent = {
-            id: checkInRef.id,
-            userId: userEmail,
-            firstName: userEmail.split('@')[0],
-            lastName: '',
-            timestamp: Date.now(),
-            organizationId: orgId,
-            streak: Math.floor(Math.random() * 20) + 1
-        };
-        await setDoc(checkInRef, event);
-    } catch (e) { console.error("sendCheckIn failed", e); }
-};
-
-export const listenForCheckIns = (orgId: string, callback: (event: CheckInEvent) => void) => {
-    if (isOffline || !db || !orgId) return () => {};
-    const q = query(collection(db, 'active_checkins'), where('organizationId', '==', orgId), orderBy('timestamp', 'desc'), limit(1));
-    return onSnapshot(q, (snapshot) => {
-        snapshot.docChanges().forEach((change) => {
-            if (change.type === 'added') {
-                const data = change.doc.data() as CheckInEvent;
-                if (Date.now() - data.timestamp < 10000) callback(data);
-            }
-        });
-    }, (err) => console.error("listenForCheckIns failed", err));
-};
-
-export const getSuggestedExercises = async () => {
-    if (isOffline || !db) return [];
-    try {
-        const snap = await getDocs(collection(db, 'exerciseSuggestions'));
-        return snap.docs.map(d => ({ ...d.data(), id: d.id }) as SuggestedExercise);
-    } catch (e) { return []; }
-};
-
-export const approveExerciseSuggestion = async (s: SuggestedExercise) => {
-    try {
-        const bankEx: BankExercise = { id: s.id, name: s.name, description: s.description, imageUrl: s.imageUrl, tags: s.tags };
-        await saveExerciseToBank(bankEx);
-        await deleteExerciseSuggestion(s.id);
-    } catch (e) { console.error("approveExerciseSuggestion failed", e); }
-};
-
-export const deleteExerciseSuggestion = async (id: string) => {
-    if (isOffline || !db) return;
-    try {
-        await deleteDoc(doc(db, 'exerciseSuggestions', id));
-    } catch (e) { console.error("deleteExerciseSuggestion failed", e); }
-};
-
-export const updateExerciseSuggestion = async (s: SuggestedExercise) => {
-    if (isOffline || !db) return;
-    try {
-        await setDoc(doc(db, 'exerciseSuggestions', s.id), s, { merge: true });
-    } catch (e) { console.error("updateExerciseSuggestion failed", e); }
-};
-
-// --- GALLERY IMAGES ---
-export const getGalleryImages = async (): Promise<GalleryImage[]> => {
-    if (isOffline || !db) return [];
-    try {
-        const q = query(collection(db, 'system_gallery'), orderBy('createdAt', 'desc'));
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GalleryImage));
-    } catch (error) {
-        console.error("Error getting gallery images:", error);
-        return [];
-    }
-};
-
-export const addGalleryImage = async (file: File, gymName: string): Promise<GalleryImage | null> => {
-    if (isOffline || !db || !storage) return null;
-    try {
-        const storageRef = ref(storage, `gallery/${Date.now()}_${file.name}`);
-        await uploadBytes(storageRef, file);
-        const imageUrl = await getDownloadURL(storageRef);
-        
-        const newDocRef = doc(collection(db, 'system_gallery'));
-        const newImage: GalleryImage = {
-            id: newDocRef.id,
-            imageUrl,
-            gymName,
-            createdAt: Date.now()
-        };
-        await setDoc(newDocRef, newImage);
-        return newImage;
-    } catch (error) {
-        console.error("Error adding gallery image:", error);
-        return null;
-    }
-};
-
-export const removeGalleryImage = async (id: string, imageUrl: string): Promise<void> => {
-    if (isOffline || !db || !storage) return;
-    try {
-        await deleteDoc(doc(db, 'system_gallery', id));
-        if (imageUrl) {
-            const imageRef = ref(storage, imageUrl);
-            await deleteObject(imageRef).catch(e => console.log("Image might already be deleted or not found", e));
-        }
-    } catch (error) {
-        console.error("Error removing gallery image:", error);
-    }
-};
-
-// --- LEADS ---
-export const createLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'status'>): Promise<boolean> => {
-    if (isOffline || !db) return false;
-    try {
-        const newDocRef = doc(collection(db, 'leads'));
-        const newLead: Lead = {
-            id: newDocRef.id,
-            ...leadData,
-            status: 'new',
-            createdAt: Date.now()
-        };
-        
-        // Vi sparar leadet först. Om detta misslyckas kastas ett fel och vi returnerar false.
-        await setDoc(newDocRef, newLead);
-
-        // Vi försöker skriva till mail-samlingen, men vi bryr oss inte om det misslyckas 
-        // (t.ex. pga saknade regler innan Trigger Email är uppsatt).
-        // Vi använder .catch() direkt på Promise:t istället för try/catch för att vara helt säkra på att det inte bubblar upp.
-        setDoc(doc(collection(db, 'mail')), {
-            to: 'hej@smartstudio.se',
-            message: {
-                subject: `Ny förfrågan från ${leadData.gymName}`,
-                text: `Ny förfrågan från landningssidan:\n\nNamn: ${leadData.name}\nE-post: ${leadData.email}\nGym: ${leadData.gymName}\nTelefon: ${leadData.phone || '-'}\nMeddelande: ${leadData.message || '-'}`
-            }
-        }).catch(e => console.log("Mail notification skipped (expected if Trigger Email is not set up):", e.message));
-
-        return true;
-    } catch (error) {
-        console.error("Error creating lead:", error);
-        return false;
-    }
-};
-
-export const getLeads = async (): Promise<Lead[]> => {
-    if (isOffline || !db) return [];
-    try {
-        const q = query(collection(db, 'leads'), orderBy('createdAt', 'desc'));
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Lead));
-    } catch (error) {
-        console.error("Error getting leads:", error);
-        return [];
-    }
-};
-
-export const updateLeadStatus = async (id: string, status: Lead['status']): Promise<void> => {
-    if (isOffline || !db) return;
-    try {
-        await updateDoc(doc(db, 'leads', id), { status });
-    } catch (error) {
-        console.error("Error updating lead status:", error);
-    }
-};
-
-export const saveCustomProgram = async (userId: string, program: Workout): Promise<void> => {
-    if (isOffline || !db) return;
-    try {
-        const docRef = doc(db, `users/${userId}/customPrograms`, program.id);
-        await setDoc(docRef, sanitizeData(program));
-        window.dispatchEvent(new Event('customProgramsUpdated'));
-    } catch (e) {
-        console.error("saveCustomProgram failed", e);
-        throw e;
-    }
-};
-
-export const fetchCustomPrograms = async (userId: string): Promise<Workout[]> => {
-    if (isOffline || !db || !userId) return [];
-    try {
-        const q = query(collection(db, `users/${userId}/customPrograms`), orderBy("createdAt", "desc"));
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => doc.data() as Workout);
-    } catch (e) {
-        console.error("fetchCustomPrograms failed", e);
-        return [];
-    }
-};
-
-export const deleteCustomProgram = async (userId: string, programId: string): Promise<void> => {
-    if (isOffline || !db) return;
-    try {
-        await deleteDoc(doc(db, `users/${userId}/customPrograms`, programId));
-        window.dispatchEvent(new Event('customProgramsUpdated'));
-    } catch (e) {
-        console.error("deleteCustomProgram failed", e);
-        throw e;
-    }
-};
-
-export const activateMemberSubscriptionLocally = async (userId: string): Promise<void> => {
-    if (isOffline || !db) return;
-    try {
-        await updateDoc(doc(db, 'users', userId), {
-            subscriptionStatus: 'active'
-        });
-    } catch (e) {
-        console.error("Optimistic subscription activation failed", e);
-    }
-};
-
-
+export default App;

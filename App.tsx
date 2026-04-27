@@ -102,10 +102,9 @@ const App: React.FC = () => {
 
   const hasActiveSubscription = useMemo(() => {
       if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
-      if (selectedOrganization?.freeForMembers) return true; // Bypass paywall if free for members
       if (userData?.subscriptionStatus === 'active') return true;
       return false;
-  }, [role, userData?.subscriptionStatus, selectedOrganization?.freeForMembers]);
+  }, [role, userData?.subscriptionStatus]);
 
   const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription && !showWelcomePaywall;
   const showPendingCoach = currentUser && !isStudioMode && userData?.status === 'pending_coach';

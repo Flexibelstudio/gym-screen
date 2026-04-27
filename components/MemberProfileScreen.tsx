@@ -672,25 +672,18 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     };
 
     const stats = useMemo(() => {
-        let totalWorkouts = logs.length + (userData.importedWorkoutCount || 0);
+        const totalWorkouts = logs.length;
         const now = new Date();
         const thisMonth = logs.filter(l => {
             const date = new Date(l.date);
             return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
         }).length;
-        
-        let weeklyStreak = calculateWeeklyStreak(logs);
-        if (userData.importedStreakWeeks) {
-            if (weeklyStreak > 0 || logs.length === 0) {
-                 weeklyStreak += userData.importedStreakWeeks;
-            }
-        }
-        
+        const weeklyStreak = calculateWeeklyStreak(logs);
         const currentWeekKey = getYearWeek(now);
         const thisWeek = logs.filter(l => getYearWeek(new Date(l.date)) === currentWeekKey).length;
         const hasTrainedThisWeek = thisWeek > 0;
         return { totalWorkouts, thisMonth, weeklyStreak, hasTrainedThisWeek, thisWeek };
-    }, [logs, userData.importedWorkoutCount, userData.importedStreakWeeks]);
+    }, [logs]);
 
     const daysLeft = useMemo(() => {
         if (!userData.goals?.targetDate) return null;
@@ -714,7 +707,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     }, [userData.goals]);
 
     const archetype = useMemo(() => getAthleteArchetype(logs), [logs]);
-    const { level, progressToNext, workoutsInCurrentLevel, workoutsPerLevel } = useMemo(() => getLevelInfo(stats.totalWorkouts), [stats.totalWorkouts]);
+    const { level, progressToNext, workoutsInCurrentLevel, workoutsPerLevel } = useMemo(() => getLevelInfo(logs.length), [logs]);
 
     const handleResumeWorkout = () => {
         if (activeSession && functions.handleLogWorkoutRequest) {
@@ -963,7 +956,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     />
 
                     {userData.organizationId && (
-                        <Leaderboard organizationId={userData.organizationId} locationId={userData.locationId} />
+                        <Leaderboard organizationId={userData.organizationId} />
                     )}
                 </div>
             )}

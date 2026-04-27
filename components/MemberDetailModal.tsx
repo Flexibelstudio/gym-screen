@@ -5,7 +5,6 @@ import { getMemberLogs } from '../services/firebaseService';
 import { analyzeMemberProgress, MemberProgressAnalysis } from '../services/geminiService';
 import { motion } from 'framer-motion';
 import { ChartBarIcon, SparklesIcon, InformationCircleIcon, DumbbellIcon, FireIcon } from './icons';
-import { useStudio } from '../context/StudioContext';
 
 interface MemberDetailModalProps {
     visible: boolean;
@@ -109,33 +108,11 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
         }
     }, [visible, member]);
 
-    const { selectedOrganization } = useStudio();
-    
-    // Calculate total streak including imported stats if valid
-    const streak = useMemo(() => {
-        let currentStreak = calculateWeeklyStreak(recentLogs);
-        // Add imported streak if the active streak is still alive, OR if they just imported it and haven't lost it yet. 
-        // For simplicity: if they have an imported streak, just add it. If they lose the core streak (it drops to 0), 
-        // then the imported streak is technically lost too. But wait: importedStreakWeeks is just added.
-        // If currentStreak > 0, it means they are currently active. If currentStreak === 0 but they HAVE logs, it means they broke it.
-        // If they have NO logs, but imported stats recently, the imported streak is their streak.
-        if (member.importedStreakWeeks) {
-            if (currentStreak > 0 || recentLogs.length === 0) {
-                 currentStreak += member.importedStreakWeeks;
-            }
-        }
-        return currentStreak;
-    }, [recentLogs, member.importedStreakWeeks]);
+    const streak = useMemo(() => calculateWeeklyStreak(recentLogs), [recentLogs]);
 
     if (!visible) return null;
 
     const smart = member.goals?.smartCriteria;
-    
-    const locationName = member.locationId 
-        ? selectedOrganization?.locations?.find(l => l.id === member.locationId)?.name 
-        : null;
-
-    const totalPassCount = recentLogs.length + (member.importedWorkoutCount || 0);
 
     return (
         <Modal isOpen={visible} onClose={onClose} title={`${member.firstName} ${member.lastName}`} size="lg">
@@ -152,10 +129,9 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                         </div>
                         <div>
                             <p className="text-sm text-gray-500 dark:text-gray-400">{member.email}</p>
-                            <div className="flex flex-wrap gap-2 mt-2">
-                                {member.role === 'coach' && <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider">Coach</span>}
-                                {member.isTrainingMember && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider">Medlem</span>}
-                                {locationName && <span className="bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider flex items-center gap-1"><span className="text-[10px]">📍</span> {locationName}</span>}
+                            <div className="flex gap-2 mt-2">
+                                {member.role === 'coach' && <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-bold">Coach</span>}
+                                {member.isTrainingMember && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">Medlem</span>}
                             </div>
                         </div>
                     </div>
@@ -306,7 +282,7 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                 <div className="mt-8">
                     <div className="flex items-center justify-between mb-4">
                         <h4 className="font-black text-gray-400 uppercase tracking-widest text-[10px]">Senaste aktivitet</h4>
-                        <span className="text-[10px] font-bold text-gray-300 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded uppercase">{totalPassCount} pass totalt</span>
+                        <span className="text-[10px] font-bold text-gray-300 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded uppercase">{recentLogs.length} pass totalt</span>
                     </div>
                     
                     <div className="space-y-3">

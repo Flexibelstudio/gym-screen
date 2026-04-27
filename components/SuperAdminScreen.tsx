@@ -243,7 +243,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
         setIsSavingConfig(true);
         let isRedirecting = false;
         try {
-            if (!organization.stripeConnectSetupComplete && !organization.freeForMembers) {
+            if (!organization.stripeConnectSetupComplete) {
                 // Skapa connect-konto och skicka vidare
                 const apiUrl = import.meta.env.VITE_API_URL;
                 const res = await fetch(`${apiUrl}/create-connect-account`, {
@@ -594,7 +594,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                 </main>
             </div>
             {showOnboardingModal && (<CompanyDetailsOnboardingModal isOpen={showOnboardingModal} initialDetails={organization.companyDetails} onSave={handleUpdateCompanyDetails} onSkip={handleSkipOnboarding} />)}
-            <PricingModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} onConfirm={handleEnablePaidFeatures} isProcessing={isSavingConfig} hasStripeAccount={!!organization.stripeConnectSetupComplete} freeForMembers={organization.freeForMembers} />
+            <PricingModal isOpen={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} onConfirm={handleEnablePaidFeatures} isProcessing={isSavingConfig} hasStripeAccount={!!organization.stripeConnectSetupComplete} />
             {posterToPrint && (
                 <PrintablePoster
                     title={posterToPrint === 'member' ? 'Skapa konto för att logga din träning och sätta mål' : 'Skapa coachkonto för att hantera medlemmar'}

@@ -230,7 +230,6 @@ export interface Studio {
   createdAt?: number;
   configOverrides?: Partial<StudioConfig>;
   remoteState?: RemoteSessionState; // NYTT: Fält för fjärrstyrning
-  locationId?: string; // NYTT: Vilken ort/anläggning skärmen tillhör
 }
 
 export interface CompanyDetails {
@@ -287,17 +286,11 @@ export interface DisplayWindow {
     posts: DisplayPost[];
 }
 
-export interface OrgLocation {
-  id: string;
-  name: string;
-}
-
 export interface Organization {
   id: string;
   name: string;
   subdomain: string;
   status: 'active' | 'archived';
-  allowStatsImport?: boolean; // Toggles self-service import for members
   logoUrlLight?: string;
   logoUrlDark?: string;
   faviconUrl?: string;
@@ -307,7 +300,6 @@ export interface Organization {
   };
   globalConfig: StudioConfig;
   studios: Studio[];
-  locations?: OrgLocation[]; // NYTT: Flera orter/anläggningar
   customPages?: CustomPage[];
   infoCarousel?: InfoCarousel;
   displayWindows?: DisplayWindow[];
@@ -325,7 +317,6 @@ export interface Organization {
   lastBilledMonth?: string; 
   lastBilledDate?: number;
   freeCoachAccounts?: number; // NYTT: Antal gratis coach-konton
-  freeForMembers?: boolean; // Toggles bypassing the paywall for members
   stripeConnectAccountId?: string;
   stripeConnectSetupComplete?: boolean;
   
@@ -401,10 +392,6 @@ export interface UserData {
   status?: 'active' | 'inactive' | 'pending_coach';
   adminRole?: 'superadmin' | 'admin';
   organizationId?: string;
-  locationId?: string; // NYTT: Medlemmens primära ort/anläggning
-  hasImportedStats?: boolean; // Har de importerat?
-  importedWorkoutCount?: number; // Totalt antal importerade pass
-  importedStreakWeeks?: number; // Antal importerade veckor i aktuell streak
   firstName?: string;
   lastName?: string;
   photoUrl?: string;
@@ -552,7 +539,6 @@ export interface WorkoutLog {
     showOnLeaderboard?: boolean; // NYTT: För att dölja i flöden och topplistor
     totalVolume?: number; // NYTT: Total vikt x reps under passet
     inStudio?: boolean; // NYTT: Indikerar om träningspasset genomfördes på plats på gymmet
-    locationId?: string; // NYTT: Medlemmens hemmaklubb vid loggningen
 }
 
 export interface CheckInEvent {
@@ -563,14 +549,12 @@ export interface CheckInEvent {
     timestamp: number;
     organizationId: string;
     streak: number;
-    locationId?: string; // NYTT: Filtrering per anläggning
 }
 
 export interface StudioEvent {
     id: string;
     type: 'pb' | 'pb_batch';
     organizationId: string;
-    locationId?: string; // NYTT: Filtrering per anläggning
     timestamp: number;
     data: {
         userName: string;
