@@ -100,6 +100,8 @@ const App: React.FC = () => {
       return selectedOrganization?.systemFeePaid === false;
   }, [role, selectedOrganization?.systemFeePaid, isStudioMode, currentUser]);
 
+  const [optimisticSubActive, setOptimisticSubActive] = useState(false);
+
   const hasActiveSubscription = useMemo(() => {
       if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
       if (userData?.subscriptionStatus === 'active' || optimisticSubActive) return true;
@@ -120,7 +122,6 @@ const App: React.FC = () => {
   const hasCleanedUpRef = useRef(false);
   const [isReadyToListen, setIsReadyToListen] = useState(false);
   const [pushToast, setPushToast] = useState<{ message: string, isVisible: boolean }>({ message: '', isVisible: false });
-  const [optimisticSubActive, setOptimisticSubActive] = useState(false);
 
   // Push notification foreground listener
   useEffect(() => {
