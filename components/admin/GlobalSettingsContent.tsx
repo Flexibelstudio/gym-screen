@@ -108,7 +108,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                                 </button>
                             </div>
                             <p className="text-xs text-gray-500 mt-2 pl-2">
-                                <strong className="text-purple-600 dark:text-purple-400">Early Access:</strong> Låser upp medlemsappen, träningsdagbok, AI-coach och medlemsregister.
+                                Låser upp medlemsappen, träningsdagbok, AI-coach och medlemsregister.
                             </p>
                             {!config.enableWorkoutLogging && (
                                 <button onClick={onTriggerUpgrade} className="text-xs text-blue-600 dark:text-blue-400 font-bold mt-2 pl-2 hover:underline">

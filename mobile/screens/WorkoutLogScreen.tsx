@@ -1549,7 +1549,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                 <h1 className="text-2xl font-black text-gray-900 dark:text-white leading-tight truncate">
                     {isManualMode ? 'Logga Aktivitet' : workout?.title}
                 </h1>
-                <span className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md">BETA</span>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Registrera dina resultat</p>
         </div>
