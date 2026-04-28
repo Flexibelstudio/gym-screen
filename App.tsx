@@ -14,7 +14,7 @@ import { WelcomePaywall } from './components/WelcomePaywall';
 import PendingCoachScreen from './components/PendingCoachScreen';
 
 // --- Services ---
-import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages, activateMemberSubscriptionLocally } from './services/firebaseService';
+import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages } from './services/firebaseService';
 import { Toast } from './components/ui/ToastNotification';
 
 // --- Utils ---
@@ -102,9 +102,9 @@ const App: React.FC = () => {
 
   const hasActiveSubscription = useMemo(() => {
       if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
-      if (userData?.subscriptionStatus === 'active') return true;
+      if (userData?.subscriptionStatus === 'active' || optimisticSubActive) return true;
       return false;
-  }, [role, userData?.subscriptionStatus]);
+  }, [role, userData?.subscriptionStatus, optimisticSubActive]);
 
   const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription && !showWelcomePaywall;
   const showPendingCoach = currentUser && !isStudioMode && userData?.status === 'pending_coach';
@@ -120,6 +120,7 @@ const App: React.FC = () => {
   const hasCleanedUpRef = useRef(false);
   const [isReadyToListen, setIsReadyToListen] = useState(false);
   const [pushToast, setPushToast] = useState<{ message: string, isVisible: boolean }>({ message: '', isVisible: false });
+  const [optimisticSubActive, setOptimisticSubActive] = useState(false);
 
   // Push notification foreground listener
   useEffect(() => {
@@ -461,12 +462,9 @@ const App: React.FC = () => {
 
       // Optimistic update for member subscription success
       if (successParam === 'true' && typeParam === 'member' && userData?.uid) {
-          console.log("Stripe checkout success! Optimistically activating subscription...");
-          // Uppdatera doc lokalt så vi släpps igenom betalväggen snabbt
-          activateMemberSubscriptionLocally(userData.uid).then(() => {
-              // Rensa sen bort url params så vi slipper checka varje gång
-              window.history.replaceState({}, document.title, window.location.pathname);
-          });
+          console.log("Stripe checkout success! Waiting for webhook to process...");
+          setOptimisticSubActive(true);
+          window.history.replaceState({}, document.title, window.location.pathname);
       }
 
       if (logPayload) {
