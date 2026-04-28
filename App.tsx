@@ -100,7 +100,9 @@ const App: React.FC = () => {
       return selectedOrganization?.systemFeePaid === false;
   }, [role, selectedOrganization?.systemFeePaid, isStudioMode, currentUser]);
 
-  const [optimisticSubActive, setOptimisticSubActive] = useState(false);
+  const [optimisticSubActive, setOptimisticSubActive] = useState(() => {
+      return sessionStorage.getItem('optimisticSubActive') === 'true';
+  });
 
   const hasActiveSubscription = useMemo(() => {
       if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
@@ -465,6 +467,7 @@ const App: React.FC = () => {
       if (successParam === 'true' && typeParam === 'member' && userData?.uid) {
           console.log("Stripe checkout success! Waiting for webhook to process...");
           setOptimisticSubActive(true);
+          sessionStorage.setItem('optimisticSubActive', 'true');
           window.history.replaceState({}, document.title, window.location.pathname);
       }
 
