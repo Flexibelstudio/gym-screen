@@ -1192,7 +1192,10 @@ export const getOrganizationExerciseBank = async (orgId: string): Promise<BankEx
         const customBank = customSnap.docs.map(d => d.data() as BankExercise);
 
         return [...globalBank, ...customBank].sort((a, b) => a.name.localeCompare(b.name, 'sv'));
-    } catch (e) { return MOCK_EXERCISE_BANK; }
+    } catch (e) { 
+        console.error("Failed to fetch custom exercises", e);
+        return MOCK_EXERCISE_BANK; 
+    }
 };
 
 // Resolver Function (The logic engine)

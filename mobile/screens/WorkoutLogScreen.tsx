@@ -1010,33 +1010,39 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                  foundWorkout = contextWorkouts.find((w: any) => w.id === wId);
             }
 
-            if (!foundWorkout && wId.startsWith('custom-')) {
+            if (!foundWorkout && wId && wId.startsWith('custom-')) {
                  const customPrograms = await fetchCustomPrograms(userId);
                  foundWorkout = customPrograms.find(w => w.id === wId);
             }
             
+            // Fetch stuff independently of workout
+            const logs = await getMemberLogs(userId);
+            setAllLogs(logs);
+
+            const bank = await getOrganizationExerciseBank(oId);
+            setExerciseBank(bank);
+
+            const savedSessionRaw = localStorage.getItem(ACTIVE_LOG_STORAGE_KEY);
+            let loadedResults: LocalExerciseResult[] | null = null;
+            let loadedLogData: LogData | null = null;
+            let loadedSessionStats: any = null;
+            let loadedCustomActivity: any = null;
+            let skipInsights = false;
+
+            if (savedSessionRaw) {
+                const saved = JSON.parse(savedSessionRaw);
+                if (saved.workoutId === (wId || 'manual') && saved.memberId === userId) {
+                    loadedResults = saved.exerciseResults;
+                    loadedLogData = saved.logData;
+                    loadedSessionStats = saved.sessionStats;
+                    loadedCustomActivity = saved.customActivity;
+                    setViewMode('logging');
+                    skipInsights = true;
+                }
+            }
+
             if (foundWorkout) {
                 setWorkout(foundWorkout as unknown as WorkoutData);
-
-                // Check for saved session in localStorage
-                const savedSessionRaw = localStorage.getItem(ACTIVE_LOG_STORAGE_KEY);
-                let loadedResults: LocalExerciseResult[] | null = null;
-                let loadedLogData: LogData | null = null;
-                let loadedSessionStats: any = null;
-                let loadedCustomActivity: any = null;
-                let skipInsights = false;
-
-                if (savedSessionRaw) {
-                    const saved = JSON.parse(savedSessionRaw);
-                    if (saved.workoutId === wId && saved.memberId === userId) {
-                        loadedResults = saved.exerciseResults;
-                        loadedLogData = saved.logData;
-                        loadedSessionStats = saved.sessionStats;
-                        loadedCustomActivity = saved.customActivity;
-                        setViewMode('logging');
-                        skipInsights = true;
-                    }
-                }
 
                 const exercises: LocalExerciseResult[] = [];
 
@@ -1072,12 +1078,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                     });
                 }
                 if (loadedCustomActivity) setCustomActivity(loadedCustomActivity);
-
-                const logs = await getMemberLogs(userId);
-                setAllLogs(logs);
-
-                const bank = await getOrganizationExerciseBank(oId);
-                setExerciseBank(bank);
 
                 const historyMap: Record<string, { weight: number, reps: string }> = {};
                 
@@ -1117,6 +1117,33 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                         }
                     }
                 }
+            } else {
+                 if (loadedResults) setExerciseResults(loadedResults);
+                 if (loadedLogData) setLogData(loadedLogData);
+                 if (loadedSessionStats) {
+                     setSessionStats({
+                         distance: loadedSessionStats.distance || '',
+                         calories: loadedSessionStats.calories || '',
+                         time: loadedSessionStats.time || '',
+                         rounds: loadedSessionStats.rounds || ''
+                     });
+                 }
+                 if (loadedCustomActivity) setCustomActivity(loadedCustomActivity);
+                 
+                 // Compute history for loaded manual mode results
+                 if (loadedResults) {
+                     const historyMap: Record<string, { weight: number, reps: string }> = {};
+                     loadedResults.forEach(currentEx => {
+                         const match = logs.find(log => log.exerciseResults?.some(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase()));
+                         if (match) {
+                             const exMatch = match.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase());
+                             if (exMatch && exMatch.weight) {
+                                  historyMap[currentEx.exerciseName] = { weight: Number(exMatch.weight), reps: exMatch.reps?.toString() || '0' };
+                             }
+                         }
+                     });
+                     setHistory(historyMap);
+                 }
             }
         } catch (error) { console.error(error); }
         finally { setLoading(false); }
