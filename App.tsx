@@ -50,7 +50,6 @@ import { CloseIcon, PencilIcon } from './components/icons';
 import { WorkoutDiplomaView } from './components/WorkoutDiplomaView';
 
 // --- Modals ---
-import { CancelConfirmationModal } from './components/modals/CancelConfirmationModal';
 import { BirthDatePromptModal } from './components/modals/BirthDatePromptModal';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
@@ -393,7 +392,6 @@ const App: React.FC = () => {
   const [mobileLogData, setMobileLogData] = useState<{workoutId: string, organizationId: string, source?: 'qr_scan' | 'manual'} | null>(null);
   const [mobileViewData, setMobileViewData] = useState<Workout | null>(null); 
   const [isSearchWorkoutOpen, setIsSearchWorkoutOpen] = useState(false);
-  const [showLogCancelModal, setShowLogCancelModal] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [activeDiploma, setActiveDiploma] = useState<WorkoutDiploma | null>(null);
   const [showBirthDatePrompt, setShowBirthDatePrompt] = useState(false);
@@ -987,26 +985,11 @@ const App: React.FC = () => {
   };
 
   const handleCancelLog = (isSuccess?: boolean, diploma?: WorkoutDiploma) => {
-      if (isSuccess === true) {
-          setMobileLogData(null);
-          window.history.replaceState({}, document.title, window.location.pathname);
-          if (diploma) {
-              setActiveDiploma(diploma);
-          }
-      } else {
-          setShowLogCancelModal(true);
-      }
-  };
-
-  const confirmCancelLog = () => {
-      localStorage.removeItem('smart-skarm-active-log');
       setMobileLogData(null);
-      setShowLogCancelModal(false);
       window.history.replaceState({}, document.title, window.location.pathname);
-  };
-
-  const closeCancelModal = () => {
-      setShowLogCancelModal(false);
+      if (isSuccess === true && diploma) {
+          setActiveDiploma(diploma);
+      }
   };
 
   const handleScanCode = (data: string | null) => {
@@ -1600,15 +1583,6 @@ const App: React.FC = () => {
                 onScan={handleScanCode}
                 onClose={() => setIsScannerOpen(false)}
             />
-          )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-          {showLogCancelModal && (
-              <CancelConfirmationModal 
-                  onConfirm={confirmCancelLog} 
-                  onCancel={closeCancelModal} 
-              />
           )}
       </AnimatePresence>
 
