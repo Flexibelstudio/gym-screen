@@ -92,7 +92,7 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                         <div className="bg-gray-50 dark:bg-gray-900/50 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
                             <div className="flex items-center gap-2">
                                 <ToggleSwitch 
-                                    label="Medlemsupplevelse & Loggning (BETA)" 
+                                    label="Medlemsupplevelse & Loggning" 
                                     checked={!!config.enableWorkoutLogging} 
                                     onChange={(checked) => {
                                         if (checked) onTriggerUpgrade();

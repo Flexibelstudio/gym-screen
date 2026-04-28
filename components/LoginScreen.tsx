@@ -316,17 +316,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     </button>
                 </div>
 
-                {registerType === 'member' && (
-                    <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-4 mb-6 text-left">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="bg-purple-500/20 text-purple-300 text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded">BETA</span>
-                            <h3 className="text-sm font-bold text-purple-100">Early Access</h3>
-                        </div>
-                        <p className="text-xs text-purple-200/70 leading-relaxed">
-                            Bli en av de första att testa vår nya medlemsapp! Logga pass, följ din utveckling och sätt personliga mål.
-                        </p>
-                    </div>
-                )}
+
 
                 <div className="flex flex-col items-center mb-4">
                     <div 
@@ -384,10 +374,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     <div>
                         <label className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">Födelsedatum</label>
                         <input
-                            type="date"
+                            type="tel"
+                            placeholder="ÅÅÅÅ-MM-DD"
+                            maxLength={10}
                             value={birthDate}
-                            onChange={(e) => setBirthDate(e.target.value)}
-                            className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition [color-scheme:dark]"
+                            onChange={(e) => {
+                                let v = e.target.value.replace(/\D/g, '');
+                                if (v.length > 8) v = v.slice(0, 8);
+                                if (v.length > 6) {
+                                    v = `${v.slice(0, 4)}-${v.slice(4, 6)}-${v.slice(6)}`;
+                                } else if (v.length > 4) {
+                                    v = `${v.slice(0, 4)}-${v.slice(4)}`;
+                                }
+                                setBirthDate(v);
+                            }}
+                            className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition font-bold tracking-widest"
                         />
                     </div>
                     <div>
