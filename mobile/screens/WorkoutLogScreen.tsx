@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog } from '../../services/firebaseService';
+import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog, getOrganizationExerciseBank } from '../../services/firebaseService';
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage, getExerciseDagsformAdvice, ExerciseDagsformAdvice } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
@@ -886,6 +886,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
 
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
+  const [exerciseBank, setExerciseBank] = useState<BankExercise[]>(MOCK_EXERCISE_BANK);
   
   const [showCalculator, setShowCalculator] = useState(false);
   const [calculatorContext, setCalculatorContext] = useState<{ exerciseName?: string, current1RM?: number } | null>(null);
@@ -1074,6 +1075,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
 
                 const logs = await getMemberLogs(userId);
                 setAllLogs(logs);
+
+                const bank = await getOrganizationExerciseBank(oId);
+                setExerciseBank(bank);
+
                 const historyMap: Record<string, { weight: number, reps: string }> = {};
                 
                 exercises.forEach(currentEx => {
@@ -1162,12 +1167,24 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
           trackingFields: ['weight', 'reps'],
           setDetails: [{ weight: '', reps: '', completed: false }]
       };
+
+      const match = allLogs.find(log => log.exerciseResults?.some(logEx => logEx.exerciseName.toLowerCase() === exerciseName.trim().toLowerCase()));
+      if (match) {
+          const exMatch = match.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === exerciseName.trim().toLowerCase());
+          if (exMatch && exMatch.weight) {
+              setHistory(prev => ({
+                  ...prev,
+                  [exerciseName.trim()]: { weight: Number(exMatch.weight), reps: exMatch.reps?.toString() || '0' }
+              }));
+          }
+      }
+
       setExerciseResults(prev => [...prev, newEx]);
       setShowExerciseSearch(false);
       setExerciseSearchTerm('');
   };
 
-  const filteredBank = MOCK_EXERCISE_BANK.filter(ex => ex.name.toLowerCase().includes(exerciseSearchTerm.toLowerCase()));
+  const filteredBank = exerciseBank.filter(ex => ex.name.toLowerCase().includes(exerciseSearchTerm.toLowerCase()));
 
   const handleCustomActivityUpdate = (field: string, value: string) => {
     setCustomActivity(prev => ({ ...prev, [field]: value }));
