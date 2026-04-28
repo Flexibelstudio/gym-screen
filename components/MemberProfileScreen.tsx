@@ -10,9 +10,6 @@ import { MyStrengthScreen } from './MyStrengthScreen';
 import { WorkoutDiplomaView } from './WorkoutDiplomaView';
 import { useStudio } from '../context/StudioContext';
 
-// --- NY IMPORT AV ER PAYWALL SCREEN ---
-import { PaywallScreen } from './PaywallScreen';
-
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
 
@@ -557,14 +554,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         setBirthDate(v);
     };
 
-    // --- STRIPE PAYWALL LOGIC ---
-    const hasActiveSubscription = 
-        userData.role === 'systemowner' || 
-        userData.role === 'organizationadmin' || 
-        userData.role === 'coach' || 
-        userData.subscriptionStatus === 'active' || 
-        userData.subscriptionStatus === 'trialing';
-
     useEffect(() => {
         if (profileEditTrigger > 0) setIsEditing(true);
     }, [profileEditTrigger]);
@@ -818,22 +807,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     return (
         <div className="w-full max-w-4xl mx-auto px-1 sm:px-6 pt-2 pb-24 animate-fade-in">
             
-            {/* --- BETALVÄGG OCH LOGIK START --- */}
-            {!hasActiveSubscription && (
-                <PaywallScreen 
-                    userData={userData}
-                    onLogout={() => {
-                        if (functions && functions.handleLogout) {
-                            functions.handleLogout();
-                        } else {
-                            // En fallback om funktionen saknas
-                            window.location.reload();
-                        }
-                    }} 
-                />
-            )}
-            {/* --- BETALVÄGG SLUT --- */}
-
             {/* 1. Resume Workout Banner */}
             {activeSession && (
                 <ResumeWorkoutBanner 

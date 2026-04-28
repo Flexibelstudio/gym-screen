@@ -47,9 +47,7 @@ export const PaywallScreen: React.FC<{ onLogout: () => void, userData?: any }> =
                 animate={{ opacity: 1, y: 0 }}
                 className="max-w-md w-full bg-gray-900 border border-gray-800 rounded-[2.5rem] p-10 shadow-2xl"
             >
-                <div className="inline-block bg-purple-500/20 text-purple-300 text-xs font-black uppercase tracking-widest px-3 py-1 rounded-full mb-4">
-                    Early Access / Beta
-                </div>
+
                 <h2 className="text-3xl font-black text-white mb-4">Aktivera Medlemskap</h2>
                 <p className="text-gray-400 mb-8">
                     Få full tillgång till den nya medlemsappen med passloggning, statistik och personliga mål för endast <strong>39 kr/mån</strong>.

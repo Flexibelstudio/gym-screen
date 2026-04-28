@@ -197,23 +197,29 @@ const exerciseBankSchema = {
 // --- CORE HANDLERS ---
 
 async function _callGeminiJSON<T>(modelName: string, prompt: string, schema: any, useSearch: boolean = false): Promise<T> {
-    const ai = getAIClient();
-    const config: any = {
-        systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,
-        responseMimeType: "application/json",
-        responseSchema: schema,
-    };
+    try {
+        const ai = getAIClient();
+        const config: any = {
+            systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,
+            responseMimeType: "application/json",
+            responseSchema: schema,
+        };
 
-    if (useSearch) {
-        config.tools = [{ googleSearch: {} }];
+        if (useSearch) {
+            config.tools = [{ googleSearch: {} }];
+        }
+
+        const response = await ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+            config: config,
+        });
+        return JSON.parse(response.text.trim()) as T;
+    } catch (error) {
+        // Detta döljer det fula felmeddelandet för kunden
+        console.error("AI Service Error:", error);
+        throw new Error("Just nu genomgår vi ett planerat underhåll av AI-tjänsten. Vänligen försök igen om en liten stund.");
     }
-
-    const response = await ai.models.generateContent({
-        model: modelName,
-        contents: prompt,
-        config: config,
-    });
-    return JSON.parse(response.text.trim()) as T;
 }
 
 const transformWorkout = (data: any, orgId: string, isDraft: boolean = false): Workout => ({

@@ -1192,7 +1192,10 @@ export const getOrganizationExerciseBank = async (orgId: string): Promise<BankEx
         const customBank = customSnap.docs.map(d => d.data() as BankExercise);
 
         return [...globalBank, ...customBank].sort((a, b) => a.name.localeCompare(b.name, 'sv'));
-    } catch (e) { return MOCK_EXERCISE_BANK; }
+    } catch (e) { 
+        console.error("Failed to fetch custom exercises", e);
+        return MOCK_EXERCISE_BANK; 
+    }
 };
 
 // Resolver Function (The logic engine)
@@ -1760,17 +1763,6 @@ export const deleteCustomProgram = async (userId: string, programId: string): Pr
     } catch (e) {
         console.error("deleteCustomProgram failed", e);
         throw e;
-    }
-};
-
-export const activateMemberSubscriptionLocally = async (userId: string): Promise<void> => {
-    if (isOffline || !db) return;
-    try {
-        await updateDoc(doc(db, 'users', userId), {
-            subscriptionStatus: 'active'
-        });
-    } catch (e) {
-        console.error("Optimistic subscription activation failed", e);
     }
 };
 

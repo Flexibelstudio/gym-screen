@@ -6,7 +6,7 @@ import { useStudio } from '../context/StudioContext';
 import { SearchIcon, DumbbellIcon, ClockIcon, TrashIcon, TrophyIcon, CloseIcon } from './icons';
 import { useAuth } from '../context/AuthContext';
 import { fetchCustomPrograms, deleteCustomProgram, getMemberLogs } from '../services/firebaseService';
-import { WorkoutDetailScreen } from './WorkoutDetailScreen';
+import WorkoutDetailScreen from './WorkoutDetailScreen';
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Modal } from './ui/Modal';
 
@@ -95,9 +95,9 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                         <h3 className="text-2xl font-black text-primary leading-tight mb-4">
                             {workout.title || 'Namnlöst pass'}
                         </h3>
-                        {(workout.coachTips || workout.description) && (
+                        {workout.coachTips && (
                             <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-4 leading-relaxed font-medium">
-                                {workout.coachTips || workout.description}
+                                {workout.coachTips}
                             </p>
                         )}
                     </div>

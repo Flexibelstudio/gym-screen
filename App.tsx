@@ -14,7 +14,7 @@ import { WelcomePaywall } from './components/WelcomePaywall';
 import PendingCoachScreen from './components/PendingCoachScreen';
 
 // --- Services ---
-import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages, activateMemberSubscriptionLocally } from './services/firebaseService';
+import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages } from './services/firebaseService';
 import { Toast } from './components/ui/ToastNotification';
 
 // --- Utils ---
@@ -50,7 +50,6 @@ import { CloseIcon, PencilIcon } from './components/icons';
 import { WorkoutDiplomaView } from './components/WorkoutDiplomaView';
 
 // --- Modals ---
-import { CancelConfirmationModal } from './components/modals/CancelConfirmationModal';
 import { BirthDatePromptModal } from './components/modals/BirthDatePromptModal';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
@@ -100,11 +99,15 @@ const App: React.FC = () => {
       return selectedOrganization?.systemFeePaid === false;
   }, [role, selectedOrganization?.systemFeePaid, isStudioMode, currentUser]);
 
+  const [optimisticSubActive, setOptimisticSubActive] = useState(() => {
+      return sessionStorage.getItem('optimisticSubActive') === 'true';
+  });
+
   const hasActiveSubscription = useMemo(() => {
       if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
-      if (userData?.subscriptionStatus === 'active') return true;
+      if (userData?.subscriptionStatus === 'active' || optimisticSubActive) return true;
       return false;
-  }, [role, userData?.subscriptionStatus]);
+  }, [role, userData?.subscriptionStatus, optimisticSubActive]);
 
   const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription && !showWelcomePaywall;
   const showPendingCoach = currentUser && !isStudioMode && userData?.status === 'pending_coach';
@@ -389,7 +392,6 @@ const App: React.FC = () => {
   const [mobileLogData, setMobileLogData] = useState<{workoutId: string, organizationId: string, source?: 'qr_scan' | 'manual'} | null>(null);
   const [mobileViewData, setMobileViewData] = useState<Workout | null>(null); 
   const [isSearchWorkoutOpen, setIsSearchWorkoutOpen] = useState(false);
-  const [showLogCancelModal, setShowLogCancelModal] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [activeDiploma, setActiveDiploma] = useState<WorkoutDiploma | null>(null);
   const [showBirthDatePrompt, setShowBirthDatePrompt] = useState(false);
@@ -461,12 +463,10 @@ const App: React.FC = () => {
 
       // Optimistic update for member subscription success
       if (successParam === 'true' && typeParam === 'member' && userData?.uid) {
-          console.log("Stripe checkout success! Optimistically activating subscription...");
-          // Uppdatera doc lokalt så vi släpps igenom betalväggen snabbt
-          activateMemberSubscriptionLocally(userData.uid).then(() => {
-              // Rensa sen bort url params så vi slipper checka varje gång
-              window.history.replaceState({}, document.title, window.location.pathname);
-          });
+          console.log("Stripe checkout success! Waiting for webhook to process...");
+          setOptimisticSubActive(true);
+          sessionStorage.setItem('optimisticSubActive', 'true');
+          window.history.replaceState({}, document.title, window.location.pathname);
       }
 
       if (logPayload) {
@@ -985,26 +985,11 @@ const App: React.FC = () => {
   };
 
   const handleCancelLog = (isSuccess?: boolean, diploma?: WorkoutDiploma) => {
-      if (isSuccess === true) {
-          setMobileLogData(null);
-          window.history.replaceState({}, document.title, window.location.pathname);
-          if (diploma) {
-              setActiveDiploma(diploma);
-          }
-      } else {
-          setShowLogCancelModal(true);
-      }
-  };
-
-  const confirmCancelLog = () => {
-      localStorage.removeItem('smart-skarm-active-log');
       setMobileLogData(null);
-      setShowLogCancelModal(false);
       window.history.replaceState({}, document.title, window.location.pathname);
-  };
-
-  const closeCancelModal = () => {
-      setShowLogCancelModal(false);
+      if (isSuccess === true && diploma) {
+          setActiveDiploma(diploma);
+      }
   };
 
   const handleScanCode = (data: string | null) => {
@@ -1598,15 +1583,6 @@ const App: React.FC = () => {
                 onScan={handleScanCode}
                 onClose={() => setIsScannerOpen(false)}
             />
-          )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-          {showLogCancelModal && (
-              <CancelConfirmationModal 
-                  onConfirm={confirmCancelLog} 
-                  onCancel={closeCancelModal} 
-              />
           )}
       </AnimatePresence>
 

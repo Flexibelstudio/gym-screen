@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog } from '../../services/firebaseService';
+import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog, getOrganizationExerciseBank } from '../../services/firebaseService';
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage, getExerciseDagsformAdvice, ExerciseDagsformAdvice } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
@@ -858,6 +858,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const isManualMode = passedWId === 'MANUAL_ENTRY';
   const wId = isManualMode ? undefined : passedWId;
   const oId = organizationId || route?.params?.organizationId;
+  const finalOrgId = oId || selectedOrganization?.id;
 
   const [loading, setLoading] = useState(true);
   const [workout, setWorkout] = useState<WorkoutData | null>(null);
@@ -886,6 +887,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
 
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
   const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
+  const [exerciseBank, setExerciseBank] = useState<BankExercise[]>(MOCK_EXERCISE_BANK);
   
   const [showCalculator, setShowCalculator] = useState(false);
   const [calculatorContext, setCalculatorContext] = useState<{ exerciseName?: string, current1RM?: number } | null>(null);
@@ -990,10 +992,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
 
   // --- LOAD INITIAL DATA ---
   useEffect(() => {
-    if (!oId) { setLoading(false); return; }
-    if (isManualMode) { setLoading(false); return; }
-    if (!wId) { setLoading(false); return; }
-    if (workout?.id === wId) return; // Already initialized for this workout
+    if (!finalOrgId) { setLoading(false); return; }
+    if (!isManualMode && !wId) { setLoading(false); return; }
+    if (!isManualMode && workout?.id === wId) return; // Already initialized for this workout
 
     const init = async () => {
         // Reset state for new workout
@@ -1002,40 +1003,50 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
         setDailyFeeling(null);
         
         try {
-            const orgWorkouts = await getWorkoutsForOrganization(oId);
-            let foundWorkout = orgWorkouts.find(w => w.id === wId);
+            let foundWorkout: any = null;
+
+            if (!isManualMode) {
+                const orgWorkouts = await getWorkoutsForOrganization(finalOrgId);
+                foundWorkout = orgWorkouts.find(w => w.id === wId);
+                
+                if (!foundWorkout) {
+                     foundWorkout = contextWorkouts.find((w: any) => w.id === wId);
+                }
+
+                if (!foundWorkout && wId && wId.startsWith('custom-')) {
+                     const customPrograms = await fetchCustomPrograms(userId);
+                     foundWorkout = customPrograms.find(w => w.id === wId);
+                }
+            }
             
-            if (!foundWorkout) {
-                 foundWorkout = contextWorkouts.find((w: any) => w.id === wId);
+            // Fetch stuff independently of workout
+            const logs = await getMemberLogs(userId);
+            setAllLogs(logs);
+
+            const bank = await getOrganizationExerciseBank(finalOrgId);
+            setExerciseBank(bank);
+
+            const savedSessionRaw = localStorage.getItem(ACTIVE_LOG_STORAGE_KEY);
+            let loadedResults: LocalExerciseResult[] | null = null;
+            let loadedLogData: LogData | null = null;
+            let loadedSessionStats: any = null;
+            let loadedCustomActivity: any = null;
+            let skipInsights = false;
+
+            if (savedSessionRaw) {
+                const saved = JSON.parse(savedSessionRaw);
+                if (saved.workoutId === (wId || 'manual') && saved.memberId === userId) {
+                    loadedResults = saved.exerciseResults;
+                    loadedLogData = saved.logData;
+                    loadedSessionStats = saved.sessionStats;
+                    loadedCustomActivity = saved.customActivity;
+                    setViewMode('logging');
+                    skipInsights = true;
+                }
             }
 
-            if (!foundWorkout && wId.startsWith('custom-')) {
-                 const customPrograms = await fetchCustomPrograms(userId);
-                 foundWorkout = customPrograms.find(w => w.id === wId);
-            }
-            
             if (foundWorkout) {
                 setWorkout(foundWorkout as unknown as WorkoutData);
-
-                // Check for saved session in localStorage
-                const savedSessionRaw = localStorage.getItem(ACTIVE_LOG_STORAGE_KEY);
-                let loadedResults: LocalExerciseResult[] | null = null;
-                let loadedLogData: LogData | null = null;
-                let loadedSessionStats: any = null;
-                let loadedCustomActivity: any = null;
-                let skipInsights = false;
-
-                if (savedSessionRaw) {
-                    const saved = JSON.parse(savedSessionRaw);
-                    if (saved.workoutId === wId && saved.memberId === userId) {
-                        loadedResults = saved.exerciseResults;
-                        loadedLogData = saved.logData;
-                        loadedSessionStats = saved.sessionStats;
-                        loadedCustomActivity = saved.customActivity;
-                        setViewMode('logging');
-                        skipInsights = true;
-                    }
-                }
 
                 const exercises: LocalExerciseResult[] = [];
 
@@ -1072,8 +1083,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                 }
                 if (loadedCustomActivity) setCustomActivity(loadedCustomActivity);
 
-                const logs = await getMemberLogs(userId);
-                setAllLogs(logs);
                 const historyMap: Record<string, { weight: number, reps: string }> = {};
                 
                 exercises.forEach(currentEx => {
@@ -1112,13 +1121,40 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                         }
                     }
                 }
+            } else {
+                 if (loadedResults) setExerciseResults(loadedResults);
+                 if (loadedLogData) setLogData(loadedLogData);
+                 if (loadedSessionStats) {
+                     setSessionStats({
+                         distance: loadedSessionStats.distance || '',
+                         calories: loadedSessionStats.calories || '',
+                         time: loadedSessionStats.time || '',
+                         rounds: loadedSessionStats.rounds || ''
+                     });
+                 }
+                 if (loadedCustomActivity) setCustomActivity(loadedCustomActivity);
+                 
+                 // Compute history for loaded manual mode results
+                 if (loadedResults) {
+                     const historyMap: Record<string, { weight: number, reps: string }> = {};
+                     loadedResults.forEach(currentEx => {
+                         const match = logs.find(log => log.exerciseResults?.some(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase()));
+                         if (match) {
+                             const exMatch = match.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase());
+                             if (exMatch && exMatch.weight) {
+                                  historyMap[currentEx.exerciseName] = { weight: Number(exMatch.weight), reps: exMatch.reps?.toString() || '0' };
+                             }
+                         }
+                     });
+                     setHistory(historyMap);
+                 }
             }
         } catch (error) { console.error(error); }
         finally { setLoading(false); }
     };
     
     init();
-  }, [wId, oId, userId, isManualMode, contextWorkouts]);
+  }, [wId, finalOrgId, userId, isManualMode, contextWorkouts]);
 
   const handleFeelingChange = (feeling: 'good' | 'neutral' | 'bad') => {
       setDailyFeeling(feeling);
@@ -1132,7 +1168,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
     const sessionData = {
         workoutId: wId || 'manual',
         workoutTitle: workout?.title || 'Träningspass',
-        organizationId: oId,
+        organizationId: finalOrgId,
         memberId: userId,
         exerciseResults,
         logData,
@@ -1142,7 +1178,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
     };
 
     localStorage.setItem(ACTIVE_LOG_STORAGE_KEY, JSON.stringify(sessionData));
-  }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, userId, wId, oId, isManualMode, workout]);
+  }, [exerciseResults, logData, sessionStats, customActivity, loading, isSubmitting, userId, wId, finalOrgId, isManualMode, workout]);
 
   const handleCancel = (isSuccess = false, diploma: WorkoutDiploma | null = null) => {
     if (isSuccess) {
@@ -1162,12 +1198,24 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
           trackingFields: ['weight', 'reps'],
           setDetails: [{ weight: '', reps: '', completed: false }]
       };
+
+      const match = allLogs.find(log => log.exerciseResults?.some(logEx => logEx.exerciseName.toLowerCase() === exerciseName.trim().toLowerCase()));
+      if (match) {
+          const exMatch = match.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === exerciseName.trim().toLowerCase());
+          if (exMatch && exMatch.weight) {
+              setHistory(prev => ({
+                  ...prev,
+                  [exerciseName.trim()]: { weight: Number(exMatch.weight), reps: exMatch.reps?.toString() || '0' }
+              }));
+          }
+      }
+
       setExerciseResults(prev => [...prev, newEx]);
       setShowExerciseSearch(false);
       setExerciseSearchTerm('');
   };
 
-  const filteredBank = MOCK_EXERCISE_BANK.filter(ex => ex.name.toLowerCase().includes(exerciseSearchTerm.toLowerCase()));
+  const filteredBank = exerciseBank.filter(ex => ex.name.toLowerCase().includes(exerciseSearchTerm.toLowerCase()));
 
   const handleCustomActivityUpdate = (field: string, value: string) => {
     setCustomActivity(prev => ({ ...prev, [field]: value }));
@@ -1199,7 +1247,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   };
 
   const handleSubmit = async () => {
-      if (!isFormValid || !oId) return;
+      if (!isFormValid || !finalOrgId) return;
 
       setIsSubmitting(true);
       setSaveStatus('Registrerar passet...');
@@ -1269,7 +1317,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
 
           const finalLogRaw: any = {
               memberId: userId,
-              organizationId: oId,
+              organizationId: finalOrgId,
               workoutId: isManualMode ? 'manual' : (wId || 'unknown'),
               workoutTitle: isQuickOrManual ? (customActivity.name || 'Eget Pass') : (workout?.title || 'Träningspass'),
               date: logDateMs,
@@ -1298,7 +1346,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                       category: 'Mina sparade program',
                       isPublished: true,
                       createdAt: Date.now(),
-                      organizationId: oId, // Fallback if needed, but handled by read rules
+                      organizationId: finalOrgId, // Fallback if needed, but handled by read rules
                       blocks: [{
                           id: 'manual-block',
                           title: 'Valda övningar',
@@ -1447,18 +1495,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                   }
               }
 
-              if (diplomaData && diplomaData.imagePrompt) {
-                  setSaveStatus('Genererar medaljbild...');
-                  try {
-                      const base64Image = await generateImage(diplomaData.imagePrompt);
-                      if (base64Image) {
-                          setSaveStatus('Färdigställer diplom...');
-                          const storagePath = `users/${userId}/diplomas/log_${Date.now()}.jpg`;
-                          diplomaData.imageUrl = await uploadImage(storagePath, base64Image);
-                      }
-                  } catch (e) { console.warn(e); }
-              }
-
               if (diplomaData) {
                   await updateWorkoutLog(savedLog.id, { diploma: diplomaData });
               }
@@ -1561,7 +1597,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                 <h1 className="text-2xl font-black text-gray-900 dark:text-white leading-tight truncate">
                     {isManualMode ? 'Logga Aktivitet' : workout?.title}
                 </h1>
-                <span className="bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md">BETA</span>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 font-medium">Registrera dina resultat</p>
         </div>

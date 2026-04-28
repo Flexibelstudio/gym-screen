@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Member, WorkoutLog, SmartGoalDetail } from '../types';
 import { Modal } from './ui/Modal';
 import { getMemberLogs } from '../services/firebaseService';
