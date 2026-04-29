@@ -410,7 +410,6 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onDeleteOrganization={functions.deleteOrganization as any}
             />;
 
-        case Page.Home:
         case Page.StudioSelection:
             return <StudioSelectionScreen onStudioSelected={() => {}} />;
 

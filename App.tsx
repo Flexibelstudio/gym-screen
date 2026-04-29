@@ -1311,6 +1311,30 @@ const App: React.FC = () => {
       );
   }
 
+  // --- DIN NYA FALLBACK-SPÄRR FÖR SKÄRMAR ---
+  const savedOrgId = localStorage.getItem('ny-screen-selected-org');
+  const isAmnesiaScreen = isStudioMode && !savedOrgId;
+
+  if (isAmnesiaScreen) {
+      return (
+          <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
+              <img src="/favicon.png" alt="SmartStudio" className="w-24 h-24 mb-6 rounded-2xl shadow-lg opacity-50" />
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Skärmens koppling saknas</h2>
+              <p className="text-gray-500 max-w-md mx-auto mb-8 text-lg">
+                  Webbläsarens historik har rensats och skärmen vet inte längre vilket gym den tillhör. 
+                  Vänligen logga ut för att ställa in skärmen på nytt.
+              </p>
+              <button 
+                  onClick={() => signOut()} 
+                  className="px-8 py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl text-lg shadow-xl transition-all"
+              >
+                  Logga ut och ställ in på nytt
+              </button>
+          </div>
+      );
+  }
+  // --- SLUT PÅ SPÄRR ---
+
   return (
     <div className={`bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
        {isOffline && (
