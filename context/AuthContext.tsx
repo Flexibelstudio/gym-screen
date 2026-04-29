@@ -131,8 +131,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const handleSignOut = useCallback(async () => {
-        // Sätt flaggan i sessionStorage (försvinner när fliken stängs, men bryter loopen nu)
-        sessionStorage.setItem(MANUAL_SIGNOUT_FLAG, 'true');
+        // Ändra till localStorage för att vara säker på Samsung-skärmar
+        localStorage.setItem(MANUAL_SIGNOUT_FLAG, 'true'); 
         
         localStorage.removeItem(IMPERSONATION_KEY);
         setImpersonationState(null);
@@ -193,11 +193,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             return { role: simulatedRole, isStudioMode: !!simulatedStudioMode };
         }
         if (impersonationState) return impersonationState;
+        
+        // ÄNDRING: Om vi laddar, returnera en neutral status istället för att gissa
+        if (authLoading) return { role: 'member' as UserRole, isStudioMode: false };
+
         if (!currentUser) return { role: 'member' as UserRole, isStudioMode: false };
         if (currentUser.isAnonymous) return { role: 'member' as UserRole, isStudioMode: true };
+        
+        // Här hämtas den riktiga rollen från Firestore
         if (userData) return { role: userData.role as UserRole, isStudioMode: false };
+        
         return { role: 'member' as UserRole, isStudioMode: false };
-    }, [currentUser, userData, impersonationState, simulatedRole, simulatedStudioMode]);
+    }, [currentUser, userData, impersonationState, simulatedRole, simulatedStudioMode, authLoading]);
 
     const value = useMemo(() => ({
         currentUser, userData, role, isStudioMode, authLoading,
