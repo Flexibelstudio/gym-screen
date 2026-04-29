@@ -67,7 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (user) {
                 // Om vi lyckas logga in, rensa utloggningsflaggan
-                sessionStorage.removeItem(MANUAL_SIGNOUT_FLAG);
+                localStorage.removeItem(MANUAL_SIGNOUT_FLAG);
                 setCurrentUser(user);
                 if (!user.isAnonymous && db) {
                     const timeoutId = setTimeout(() => {
@@ -94,7 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     setAuthLoading(false);
                 }
             } else {
-                const isManualSignOut = sessionStorage.getItem(MANUAL_SIGNOUT_FLAG) === 'true';
+                const isManualSignOut = localStorage.getItem(MANUAL_SIGNOUT_FLAG) === 'true';
                 const isDeviceLocked = localStorage.getItem(DEVICE_LOCKED_KEY) === 'true';
                 
                 // Endast auto-inloggning om användaren INTE valt att logga ut manuellt
@@ -121,12 +121,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const handleSignIn = useCallback(async (email: string, password: string) => {
         setAuthLoading(true);
-        sessionStorage.removeItem(MANUAL_SIGNOUT_FLAG);
+        localStorage.removeItem(MANUAL_SIGNOUT_FLAG);
         try { await signIn(email, password); } catch (e) { setAuthLoading(false); throw e; }
     }, []);
     
     const handleSignInAsStudio = useCallback(async () => {
-        sessionStorage.removeItem(MANUAL_SIGNOUT_FLAG);
+        localStorage.removeItem(MANUAL_SIGNOUT_FLAG);
         await signInAsStudio();
     }, []);
 
@@ -147,7 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem(DEVICE_LOCKED_KEY);
         localStorage.removeItem(LOCAL_STORAGE_ORG_KEY);
         // Vid nollställning vill vi definitivt inte loggas in automatiskt igen
-        sessionStorage.setItem(MANUAL_SIGNOUT_FLAG, 'true');
+        localStorage.setItem(MANUAL_SIGNOUT_FLAG, 'true');
     }, []);
 
     const startImpersonation = useCallback((impersonation: { role: UserRole, isStudioMode: boolean }) => {
@@ -194,17 +194,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         if (impersonationState) return impersonationState;
         
-        // ÄNDRING: Om vi laddar, returnera en neutral status istället för att gissa
-        if (authLoading) return { role: 'member' as UserRole, isStudioMode: false };
+        // VIKTIGT: Här ska INGEN "if (authLoading)" finnas. 
 
         if (!currentUser) return { role: 'member' as UserRole, isStudioMode: false };
         if (currentUser.isAnonymous) return { role: 'member' as UserRole, isStudioMode: true };
         
-        // Här hämtas den riktiga rollen från Firestore
+        // Om userData finns (laddats klart), använd den rollen
         if (userData) return { role: userData.role as UserRole, isStudioMode: false };
         
+        // Annars kör vi på en säker standard tills userData hunnit ikapp
         return { role: 'member' as UserRole, isStudioMode: false };
-    }, [currentUser, userData, impersonationState, simulatedRole, simulatedStudioMode, authLoading]);
+    }, [currentUser, userData, impersonationState, simulatedRole, simulatedStudioMode]);
 
     const value = useMemo(() => ({
         currentUser, userData, role, isStudioMode, authLoading,
