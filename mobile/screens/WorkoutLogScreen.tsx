@@ -1352,7 +1352,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                           title: 'Valda övningar',
                           tag: 'Custom',
                           followMe: false,
-                          settings: { rounds: 1, mode: "Stoppur" as any },
+                          settings: { rounds: 1, mode: "Stoppur" as any, workTime: 0, restTime: 0, prepareTime: 0 },
                           exercises: exerciseResultsToSave.map((r: any) => ({ 
                               id: r.exerciseId, 
                               name: r.exerciseName,
