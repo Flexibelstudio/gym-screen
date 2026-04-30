@@ -950,7 +950,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
     try {
       if ('wakeLock' in navigator) {
         wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
-        console.log('Wake Lock is active!');
       }
     } catch (err: any) {
       console.error(`Wake Lock error: ${err.name}, ${err.message}`);
@@ -962,7 +961,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       try {
         await wakeLockRef.current.release();
         wakeLockRef.current = null;
-        console.log('Wake Lock released manually');
       } catch (err) {
         console.error('Failed to release Wake Lock', err);
       }
@@ -1091,12 +1089,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                     
                     if (match) {
                         const exMatch = match.exerciseResults?.find(logEx => isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId));
-                        if (exMatch && exMatch.weight) {
+                        if (exMatch) {
                             let reps = '0';
                             if (exMatch.reps) {
                                 reps = exMatch.reps.toString();
                             }
-                            historyMap[currentEx.exerciseName] = { weight: exMatch.weight, reps };
+                            historyMap[currentEx.exerciseName] = { weight: exMatch.weight || 0, reps };
                         }
                     }
                 });
@@ -1142,9 +1140,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                          const match = logs.find(log => log.exerciseResults?.some(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase()));
                          if (match) {
                              const exMatch = match.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase());
-                             if (exMatch && exMatch.weight) {
-                                  historyMap[currentEx.exerciseName] = { weight: Number(exMatch.weight), reps: exMatch.reps?.toString() || '0' };
-                             }
+                              if (exMatch) {
+                                   historyMap[currentEx.exerciseName] = { weight: Number(exMatch.weight || 0), reps: exMatch.reps?.toString() || '0' };
+                              }
                          }
                      });
                      setHistory(historyMap);
@@ -1219,10 +1217,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       const match = allLogs.find(log => log.exerciseResults?.some(logEx => logEx.exerciseName.toLowerCase() === exerciseName.trim().toLowerCase()));
       if (match) {
           const exMatch = match.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === exerciseName.trim().toLowerCase());
-          if (exMatch && exMatch.weight) {
+          if (exMatch) {
               setHistory(prev => ({
                   ...prev,
-                  [exerciseName.trim()]: { weight: Number(exMatch.weight), reps: exMatch.reps?.toString() || '0' }
+                  [exerciseName.trim()]: { weight: Number(exMatch.weight || 0), reps: exMatch.reps?.toString() || '0' }
               }));
           }
       }
