@@ -1109,6 +1109,13 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                 exercises.forEach(currentEx => {
                     const match = logs.find(log => log.exerciseResults?.some(logEx => isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId)));
                     
+                    let mostRecentNote: string | undefined = undefined;
+                    const logWithNote = logs.find(log => log.exerciseResults?.some(logEx => isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId) && logEx.note));
+                    if (logWithNote) {
+                        const exWithNote = logWithNote.exerciseResults?.find(logEx => isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId) && logEx.note);
+                        if (exWithNote) mostRecentNote = exWithNote.note;
+                    }
+
                     if (match) {
                         const exMatch = match.exerciseResults?.find(logEx => isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId));
                         if (exMatch) {
@@ -1134,7 +1141,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                 maxReps = exMatch.reps?.toString() || '0';
                             }
                             
-                            historyMap[currentEx.exerciseName] = { weight: maxWeight, reps: maxReps, note: exMatch.note };
+                            historyMap[currentEx.exerciseName] = { weight: maxWeight, reps: maxReps, note: mostRecentNote };
                         }
                     }
                 });
@@ -1178,6 +1185,14 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                      const historyMap: Record<string, { weight: number, reps: string, note?: string }> = {};
                      loadedResults.forEach(currentEx => {
                          const match = logs.find(log => log.exerciseResults?.some(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase()));
+
+                         let mostRecentNote: string | undefined = undefined;
+                         const logWithNote = logs.find(log => log.exerciseResults?.some(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase() && logEx.note));
+                         if (logWithNote) {
+                             const exWithNote = logWithNote.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase() && logEx.note);
+                             if (exWithNote) mostRecentNote = exWithNote.note;
+                         }
+
                          if (match) {
                              const exMatch = match.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase());
                               if (exMatch) {
@@ -1201,7 +1216,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                       maxWeight = parseFloat(exMatch.weight) || 0;
                                       maxReps = exMatch.reps?.toString() || '0';
                                   }
-                                  historyMap[currentEx.exerciseName] = { weight: maxWeight, reps: maxReps, note: exMatch.note };
+                                  historyMap[currentEx.exerciseName] = { weight: maxWeight, reps: maxReps, note: mostRecentNote };
                               }
                          }
                      });
@@ -1275,6 +1290,14 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       };
 
       const match = allLogs.find(log => log.exerciseResults?.some(logEx => logEx.exerciseName.toLowerCase() === exerciseName.trim().toLowerCase()));
+      
+      let mostRecentNote: string | undefined = undefined;
+      const logWithNote = allLogs.find(log => log.exerciseResults?.some(logEx => logEx.exerciseName.toLowerCase() === exerciseName.trim().toLowerCase() && logEx.note));
+      if (logWithNote) {
+          const exWithNote = logWithNote.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === exerciseName.trim().toLowerCase() && logEx.note);
+          if (exWithNote) mostRecentNote = exWithNote.note;
+      }
+
       if (match) {
           const exMatch = match.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === exerciseName.trim().toLowerCase());
           if (exMatch) {
@@ -1300,7 +1323,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
               }
               setHistory(prev => ({
                   ...prev,
-                  [exerciseName.trim()]: { weight: maxWeight, reps: maxReps, note: exMatch.note }
+                  [exerciseName.trim()]: { weight: maxWeight, reps: maxReps, note: mostRecentNote }
               }));
           }
       }
@@ -1406,7 +1429,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                   distance: totalDistance > 0 ? totalDistance : null,
                   kcal: totalKcal > 0 ? totalKcal : null,
                   blockId: r.blockId,
-                  coachAdvice: r.coachAdvice
+                  coachAdvice: r.coachAdvice,
+                  note: r.note
               };
           });
 
