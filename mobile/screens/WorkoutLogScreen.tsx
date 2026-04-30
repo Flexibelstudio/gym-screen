@@ -37,6 +37,7 @@ interface LocalExerciseResult {
   blockId: string;
   blockTitle: string;
   coachAdvice?: string;
+  note?: string;
   trackingFields?: ('time' | 'distance' | 'kcal' | 'reps' | 'weight')[];
   groupId?: string;
   groupColor?: string;
@@ -380,7 +381,7 @@ const ExerciseLogCard: React.FC<{
   onRemove?: () => void;
   aiSuggestion?: string; // Koncept 1: Coach Whisper
   scaling?: string;      // Koncept 1: Alternativ
-  lastPerformance?: { weight: number, reps: string } | null;
+  lastPerformance?: { weight: number, reps: string, note?: string } | null;
   isLastInGroup?: boolean;
   onAddGroupSet?: () => void;
   onOpenCalculator?: (context: { exerciseName: string, current1RM?: number }) => void;
@@ -650,6 +651,25 @@ const ExerciseLogCard: React.FC<{
                             <PlusIcon className="w-3 h-3" /> Lägg till set för gruppen
                         </button>
                     )}
+                </div>
+                
+                {/* Anteckningar för övningen */}
+                <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
+                    {lastPerformance?.note && (
+                        <div className="mb-3 bg-blue-50/50 dark:bg-blue-900/10 p-3 rounded-xl border border-blue-100/50 dark:border-blue-800/30">
+                            <span className="block text-[9px] font-black uppercase tracking-widest text-blue-500/70 dark:text-blue-400/70 mb-1">Anteckning från förra passet:</span>
+                            <p className="text-xs text-blue-900/80 dark:text-blue-200/80 italic leading-relaxed">
+                                "{lastPerformance.note}"
+                            </p>
+                        </div>
+                    )}
+                    <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-1 mb-2">Din anteckning</label>
+                    <textarea 
+                        value={result.note || ''} 
+                        onChange={(e) => onUpdate({ note: e.target.value })}
+                        placeholder="Lägg till en kommentar..."
+                        className="w-full bg-gray-50/50 dark:bg-gray-800/50 text-xs text-gray-900 dark:text-gray-100 p-3 rounded-xl border border-gray-100 dark:border-gray-800 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all resize-none min-h-[60px]"
+                    />
                 </div>
             </div>
         </div>
@@ -1084,7 +1104,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                 }
                 if (loadedCustomActivity) setCustomActivity(loadedCustomActivity);
 
-                const historyMap: Record<string, { weight: number, reps: string }> = {};
+                const historyMap: Record<string, { weight: number, reps: string, note?: string }> = {};
                 
                 exercises.forEach(currentEx => {
                     const match = logs.find(log => log.exerciseResults?.some(logEx => isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId)));
@@ -1114,7 +1134,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                 maxReps = exMatch.reps?.toString() || '0';
                             }
                             
-                            historyMap[currentEx.exerciseName] = { weight: maxWeight, reps: maxReps };
+                            historyMap[currentEx.exerciseName] = { weight: maxWeight, reps: maxReps, note: exMatch.note };
                         }
                     }
                 });
@@ -1155,7 +1175,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                  
                  // Compute history for loaded manual mode results
                  if (loadedResults) {
-                     const historyMap: Record<string, { weight: number, reps: string }> = {};
+                     const historyMap: Record<string, { weight: number, reps: string, note?: string }> = {};
                      loadedResults.forEach(currentEx => {
                          const match = logs.find(log => log.exerciseResults?.some(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase()));
                          if (match) {
@@ -1181,7 +1201,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                       maxWeight = parseFloat(exMatch.weight) || 0;
                                       maxReps = exMatch.reps?.toString() || '0';
                                   }
-                                  historyMap[currentEx.exerciseName] = { weight: maxWeight, reps: maxReps };
+                                  historyMap[currentEx.exerciseName] = { weight: maxWeight, reps: maxReps, note: exMatch.note };
                               }
                          }
                      });
@@ -1280,7 +1300,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
               }
               setHistory(prev => ({
                   ...prev,
-                  [exerciseName.trim()]: { weight: maxWeight, reps: maxReps }
+                  [exerciseName.trim()]: { weight: maxWeight, reps: maxReps, note: exMatch.note }
               }));
           }
       }

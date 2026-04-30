@@ -509,6 +509,7 @@ export interface ExerciseResult {
     time?: number | null;
     blockId?: string;
     coachAdvice?: string; // NYTT: Sparar AI-rådet direkt på övningen
+    note?: string; // Användarens anteckning för denna övning
 }
 
 export type MemberFeeling = 'good' | 'neutral' | 'bad';
