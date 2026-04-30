@@ -162,13 +162,21 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
                                         <div className="text-right">
                                             <div className="flex items-baseline justify-end gap-1">
                                                 <span className="font-black text-xl text-primary">
-                                                    {pb.reps ? `${pb.reps} x ${pb.weight}` : pb.weight}
+                                                    {pb.weight > 0 
+                                                        ? (pb.reps ? <>{pb.reps} <span className="text-base text-primary/70 font-bold mx-0.5">×</span> {pb.weight}</> : pb.weight)
+                                                        : pb.reps}
                                                 </span>
-                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">kg</span>
+                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-0.5">{pb.weight > 0 ? 'kg' : 'reps'}</span>
                                             </div>
-                                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-right">
-                                                {pb.calculated1RM ? `1RM: ${pb.calculated1RM} kg` : '1RM'}
-                                            </div>
+                                            {pb.calculated1RM ? (
+                                                <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-right">
+                                                    1RM: {pb.calculated1RM} kg
+                                                </div>
+                                            ) : (pb.weight > 0 ? (
+                                                <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-right">
+                                                    1RM
+                                                </div>
+                                            ) : null)}
                                         </div>
                                         <div className="text-gray-400 ml-1">
                                             {isExpanded ? <ChevronUpIcon className="w-5 h-5" /> : <ChevronDownIcon className="w-5 h-5" />}
