@@ -451,7 +451,9 @@ const ExerciseLogCard: React.FC<{
                         <h4 className="font-bold text-gray-900 dark:text-white text-base truncate">{name}</h4>
                         {lastPerformance ? (
                             <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-0.5">
-                                Senast: <span className="text-gray-600 dark:text-gray-300">{lastPerformance.reps} x {lastPerformance.weight}kg</span>
+                                Senast: <span className="text-gray-600 dark:text-gray-300">
+                                    {lastPerformance.weight > 0 ? `${lastPerformance.reps} x ${lastPerformance.weight}kg` : `${lastPerformance.reps} reps`}
+                                </span>
                             </p>
                         ) : (
                             <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mt-0.5">
@@ -1090,11 +1092,29 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                     if (match) {
                         const exMatch = match.exerciseResults?.find(logEx => isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId));
                         if (exMatch) {
-                            let reps = '0';
-                            if (exMatch.reps) {
-                                reps = exMatch.reps.toString();
+                            let maxWeight = 0;
+                            let maxReps = '0';
+                            
+                            if (exMatch.setDetails && exMatch.setDetails.length > 0) {
+                                let bestSet = exMatch.setDetails.reduce((prev: any, current: any) => {
+                                    const prevW = parseFloat(prev.weight) || 0;
+                                    const currW = parseFloat(current.weight) || 0;
+                                    if (currW > prevW) return current;
+                                    if (currW === prevW) {
+                                        const prevR = parseFloat(prev.reps) || 0;
+                                        const currR = parseFloat(current.reps) || 0;
+                                        return currR > prevR ? current : prev;
+                                    }
+                                    return prev;
+                                }, exMatch.setDetails[0]);
+                                maxWeight = parseFloat(bestSet.weight) || 0;
+                                maxReps = bestSet.reps?.toString() || '0';
+                            } else {
+                                maxWeight = parseFloat(exMatch.weight) || 0;
+                                maxReps = exMatch.reps?.toString() || '0';
                             }
-                            historyMap[currentEx.exerciseName] = { weight: exMatch.weight || 0, reps };
+                            
+                            historyMap[currentEx.exerciseName] = { weight: maxWeight, reps: maxReps };
                         }
                     }
                 });
@@ -1141,7 +1161,27 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                          if (match) {
                              const exMatch = match.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase());
                               if (exMatch) {
-                                   historyMap[currentEx.exerciseName] = { weight: Number(exMatch.weight || 0), reps: exMatch.reps?.toString() || '0' };
+                                  let maxWeight = 0;
+                                  let maxReps = '0';
+                                  if (exMatch.setDetails && exMatch.setDetails.length > 0) {
+                                      let bestSet = exMatch.setDetails.reduce((prev: any, current: any) => {
+                                          const prevW = parseFloat(prev.weight) || 0;
+                                          const currW = parseFloat(current.weight) || 0;
+                                          if (currW > prevW) return current;
+                                          if (currW === prevW) {
+                                              const prevR = parseFloat(prev.reps) || 0;
+                                              const currR = parseFloat(current.reps) || 0;
+                                              return currR > prevR ? current : prev;
+                                          }
+                                          return prev;
+                                      }, exMatch.setDetails[0]);
+                                      maxWeight = parseFloat(bestSet.weight) || 0;
+                                      maxReps = bestSet.reps?.toString() || '0';
+                                  } else {
+                                      maxWeight = parseFloat(exMatch.weight) || 0;
+                                      maxReps = exMatch.reps?.toString() || '0';
+                                  }
+                                  historyMap[currentEx.exerciseName] = { weight: maxWeight, reps: maxReps };
                               }
                          }
                      });
@@ -1218,9 +1258,29 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       if (match) {
           const exMatch = match.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === exerciseName.trim().toLowerCase());
           if (exMatch) {
+              let maxWeight = 0;
+              let maxReps = '0';
+              if (exMatch.setDetails && exMatch.setDetails.length > 0) {
+                  let bestSet = exMatch.setDetails.reduce((prev: any, current: any) => {
+                      const prevW = parseFloat(prev.weight) || 0;
+                      const currW = parseFloat(current.weight) || 0;
+                      if (currW > prevW) return current;
+                      if (currW === prevW) {
+                          const prevR = parseFloat(prev.reps) || 0;
+                          const currR = parseFloat(current.reps) || 0;
+                          return currR > prevR ? current : prev;
+                      }
+                      return prev;
+                  }, exMatch.setDetails[0]);
+                  maxWeight = parseFloat(bestSet.weight) || 0;
+                  maxReps = bestSet.reps?.toString() || '0';
+              } else {
+                  maxWeight = parseFloat(exMatch.weight) || 0;
+                  maxReps = exMatch.reps?.toString() || '0';
+              }
               setHistory(prev => ({
                   ...prev,
-                  [exerciseName.trim()]: { weight: Number(exMatch.weight || 0), reps: exMatch.reps?.toString() || '0' }
+                  [exerciseName.trim()]: { weight: maxWeight, reps: maxReps }
               }));
           }
       }
