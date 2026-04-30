@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog, getOrganizationExerciseBank } from '../../services/firebaseService';
+import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog, getOrganizationExerciseBank, getMemberCustomExercises, addMemberCustomExercise, deleteMemberCustomExercise } from '../../services/firebaseService';
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage, getExerciseDagsformAdvice, ExerciseDagsformAdvice } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
@@ -1024,7 +1024,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
             setAllLogs(logs);
 
             const bank = await getOrganizationExerciseBank(finalOrgId);
-            setExerciseBank(bank);
+            const userCustomExercises = await getMemberCustomExercises(userId);
+            setExerciseBank([...bank, ...userCustomExercises].sort((a, b) => a.name.localeCompare(b.name, 'sv')));
 
             const savedSessionRaw = localStorage.getItem(ACTIVE_LOG_STORAGE_KEY);
             let loadedResults: LocalExerciseResult[] | null = null;
@@ -1188,10 +1189,26 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
     else if (navigation) navigation.goBack();
   };
 
-  const handleAddManualExercise = (exerciseName: string) => {
+  const handleAddManualExercise = async (exerciseName: string) => {
       if (!exerciseName.trim()) return;
+
+      const existingInBank = exerciseBank.find(ex => ex.name.toLowerCase() === exerciseName.trim().toLowerCase());
+      let newExerciseId = 'manual-' + Date.now();
+      
+      if (!existingInBank && userId) {
+          try {
+              const savedEx = await addMemberCustomExercise(userId, exerciseName.trim());
+              setExerciseBank(prev => [...prev, savedEx].sort((a, b) => a.name.localeCompare(b.name, 'sv')));
+              newExerciseId = savedEx.id;
+          } catch (e) {
+              console.error("Failed to add custom exercise", e);
+          }
+      } else if (existingInBank) {
+          newExerciseId = existingInBank.id;
+      }
+
       const newEx: LocalExerciseResult = {
-          exerciseId: 'manual-' + Date.now(),
+          exerciseId: newExerciseId,
           exerciseName: exerciseName.trim(),
           blockId: 'manual-block',
           blockTitle: 'Valda övningar',
@@ -1927,12 +1944,22 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                               <div className="flex-1 min-w-0">
                                   <h4 className="font-bold text-gray-900 dark:text-white truncate">{ex.name}</h4>
                                   <div className="flex items-center gap-2 mt-1">
-                                      <span className="text-[10px] font-black uppercase tracking-widest text-primary px-2 py-0.5 bg-primary/10 rounded">
-                                          {ex.muscleGroup}
+                                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${ex.category === 'Custom Egen' ? 'text-orange-600 bg-orange-100 dark:bg-orange-900/30' : 'text-primary bg-primary/10'}`}>
+                                          {ex.category === 'Custom Egen' ? 'Egen' : ex.category}
                                       </span>
                                   </div>
                               </div>
-                              <PlusIcon className="w-5 h-5 text-gray-400" />
+                              {ex.category === 'Custom Egen' ? (
+                                  <button onClick={(e) => {
+                                      e.stopPropagation();
+                                      deleteMemberCustomExercise(userId, ex.id);
+                                      setExerciseBank(prev => prev.filter(b => b.id !== ex.id));
+                                  }} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
+                                      <TrashIcon className="w-5 h-5" />
+                                  </button>
+                              ) : (
+                                  <PlusIcon className="w-5 h-5 text-gray-400" />
+                              )}
                           </div>
                       ))}
                       {filteredBank.length === 0 && exerciseSearchTerm.length === 0 && (

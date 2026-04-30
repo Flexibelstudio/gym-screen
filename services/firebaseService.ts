@@ -1179,6 +1179,48 @@ export const getExerciseBank = async (): Promise<BankExercise[]> => {
     } catch (e) { return MOCK_EXERCISE_BANK; }
 };
 
+export const getMemberCustomExercises = async (userId: string): Promise<BankExercise[]> => {
+    if (isOffline || !db || !userId) return [];
+    try {
+        const snap = await getDocs(query(collection(db, 'users', userId, 'customExercises')));
+        return snap.docs.map(d => {
+            const data = d.data() as BankExercise;
+            return {
+                ...data,
+                name: data.name // Keep original name
+            };
+        });
+    } catch (e) { 
+        console.error("Failed to fetch member custom exercises", e);
+        return []; 
+    }
+};
+
+export const addMemberCustomExercise = async (userId: string, exerciseName: string): Promise<BankExercise> => {
+    if (!db) throw new Error("DB ej tillgänglig");
+    
+    // We shouldn't use organizationId for member custom, we just let it be a personal custom collection
+    const exercisesRef = collection(db, 'users', userId, 'customExercises');
+    const newDocRef = doc(exercisesRef); // Generate auto id
+    
+    const newExercise: BankExercise = {
+        id: newDocRef.id,
+        name: exerciseName,
+        category: 'Custom Egen',
+        trackingFields: ['weight', 'reps', 'duration', 'distance', 'heartRate', 'calories'],
+        description: 'Egen skapad övning.',
+        videoLinks: []
+    };
+
+    await setDoc(newDocRef, newExercise);
+    return newExercise;
+};
+
+export const deleteMemberCustomExercise = async (userId: string, exerciseId: string): Promise<void> => {
+    if (!db) throw new Error("DB ej tillgänglig");
+    await deleteDoc(doc(db, 'users', userId, 'customExercises', exerciseId));
+};
+
 export const getOrganizationExerciseBank = async (orgId: string): Promise<BankExercise[]> => {
     if (isOffline || !db || !orgId) return MOCK_EXERCISE_BANK;
     try {
