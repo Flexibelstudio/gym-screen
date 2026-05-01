@@ -865,15 +865,10 @@ const OneRMCalculatorModal: React.FC<{
                                         disabled={!context?.onSelectWeight}
                                         className={`p-3 rounded-xl flex justify-between items-center transition-all ${context?.onSelectWeight ? 'bg-primary/5 border border-primary/20 hover:bg-primary/10 active:scale-[0.98]' : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm'}`}
                                     >
-                                        <div className="flex items-center gap-3">
+                                        <div className="flex items-center justify-between w-full">
                                             <span className={`text-sm font-black ${context?.onSelectWeight ? 'text-primary' : 'text-gray-400'}`}>{p}%</span>
                                             <span className="text-lg font-black text-gray-900 dark:text-white">{weight} <span className="text-xs opacity-50">kg</span></span>
                                         </div>
-                                        {context?.onSelectWeight && (
-                                            <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center shadow-sm">
-                                                <PlusIcon className="w-4 h-4" />
-                                            </div>
-                                        )}
                                     </button>
                                 );
                             })}

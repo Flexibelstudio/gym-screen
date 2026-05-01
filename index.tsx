@@ -6,6 +6,7 @@ import { StudioProvider } from './context/StudioContext';
 import { AuthProvider } from './context/AuthContext';
 import { WorkoutProvider } from './context/WorkoutContext';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
+import { ConfirmProvider } from './components/ConfirmContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -19,7 +20,9 @@ root.render(
       <AuthProvider>
         <StudioProvider>
           <WorkoutProvider>
-            <App />
+            <ConfirmProvider>
+              <App />
+            </ConfirmProvider>
           </WorkoutProvider>
         </StudioProvider>
       </AuthProvider>

@@ -4,6 +4,7 @@ import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, Wor
 import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog, requestPushNotificationPermission, auth } from '../services/firebaseService';
 import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon, HistoryIcon, FlagIcon, StarIcon, ChevronRightIcon } from './icons';
 import { Modal } from './ui/Modal';
+import { useConfirm } from './ConfirmContext';
 import { resizeImage } from '../utils/imageUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MyStrengthScreen } from './MyStrengthScreen';
@@ -439,9 +440,18 @@ const GoalsEditModal: React.FC<{ currentGoals?: MemberGoals, onSave: (goals: Mem
 
 const LogDetailModal: React.FC<{ log: WorkoutLog, onClose: () => void, onUpdate: (id: string, data: Partial<WorkoutLog>) => void, onDelete: (id: string) => void, onViewDiploma?: (diploma: WorkoutDiploma) => void }> = ({ log, onClose, onUpdate, onDelete, onViewDiploma }) => {
     const [isEditing, setIsEditing] = useState(false);
+    const confirm = useConfirm();
     const [comment, setComment] = useState(log.comment || '');
     const handleSave = () => { onUpdate(log.id, { comment }); setIsEditing(false); };
-    const handleDelete = () => { if(confirm("Är du säker på att du vill ta bort detta pass?")) { onDelete(log.id); onClose(); } };
+    const handleDelete = async () => {
+        const isConfirmed = await confirm({
+            title: "Ta bort pass?",
+            message: "Är du säker på att du vill ta bort detta pass? Detta går inte att ångra.",
+            confirmText: "Ta bort",
+            confirmColor: "red"
+        });
+        if(isConfirmed) { onDelete(log.id); onClose(); }
+    };
     const isCustomActivity = log.activityType === 'custom_activity' || (!log.exerciseResults || log.exerciseResults.length === 0);
     return (
         <Modal isOpen={true} onClose={onClose} title={log.workoutTitle} size="lg">
@@ -516,6 +526,7 @@ const PushNotificationSettings: React.FC = () => {
 export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userData, onBack, profileEditTrigger, navigateTo, functions, studioConfig }) => {
     const { selectedOrganization } = useStudio();
     const isNewUser = !userData.firstName || !userData.organizationId;
+    const confirm = useConfirm();
     
     const [logs, setLogs] = useState<WorkoutLog[]>([]);
     const [loading, setLoading] = useState(false);
@@ -705,8 +716,14 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         }
     };
 
-    const handleDismissResume = () => {
-        if (confirm("Är du säker på att du vill kasta det sparade passet? All data du fyllt i kommer att försvinna.")) {
+    const handleDismissResume = async () => {
+        const isConfirmed = await confirm({
+            title: "Släng sparad data?",
+            message: "Är du säker på att du vill kasta det sparade passet? All data du fyllt i kommer att försvinna.",
+            confirmText: "Släng passet",
+            confirmColor: "red"
+        });
+        if (isConfirmed) {
             localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
             setActiveSession(null);
         }
