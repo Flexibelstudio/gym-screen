@@ -863,10 +863,17 @@ const OneRMCalculatorModal: React.FC<{
                                             }
                                         }}
                                         disabled={!context?.onSelectWeight}
-                                        className={`bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-3 rounded-xl flex justify-between items-center shadow-sm transition-colors ${context?.onSelectWeight ? 'hover:bg-primary/10 hover:border-primary/30 active:scale-95' : ''}`}
+                                        className={`p-3 rounded-xl flex justify-between items-center transition-all ${context?.onSelectWeight ? 'bg-primary/5 border border-primary/20 hover:bg-primary/10 active:scale-[0.98]' : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm'}`}
                                     >
-                                        <span className="text-sm font-black text-gray-400">{p}%</span>
-                                        <span className="text-base font-bold text-gray-900 dark:text-white">{weight} kg</span>
+                                        <div className="flex items-center gap-3">
+                                            <span className={`text-sm font-black ${context?.onSelectWeight ? 'text-primary' : 'text-gray-400'}`}>{p}%</span>
+                                            <span className="text-lg font-black text-gray-900 dark:text-white">{weight} <span className="text-xs opacity-50">kg</span></span>
+                                        </div>
+                                        {context?.onSelectWeight && (
+                                            <div className="w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center shadow-sm">
+                                                <PlusIcon className="w-4 h-4" />
+                                            </div>
+                                        )}
                                     </button>
                                 );
                             })}
