@@ -2,6 +2,7 @@
 import React from 'react';
 import { Workout } from '../types';
 import { StarIcon, PencilIcon, InformationCircleIcon, ClockIcon, PlayIcon, TrashIcon } from './icons';
+import { useConfirm } from './ConfirmContext';
 
 interface SavedWorkoutsScreenProps {
     workouts: Workout[];
@@ -14,6 +15,7 @@ interface SavedWorkoutsScreenProps {
 }
 
 const SavedWorkoutsScreen: React.FC<SavedWorkoutsScreenProps> = ({ workouts, onSelectWorkout, onEditWorkout, onDeleteWorkout, onToggleFavorite, onCreateNewWorkout, isStudioMode }) => {
+    const { confirm } = useConfirm();
 
     const displayWorkouts = workouts.filter(w => !w.id.startsWith('temp-') && !w.id.startsWith('fs-workout-temp-'));
 
@@ -119,8 +121,14 @@ const SavedWorkoutsScreen: React.FC<SavedWorkoutsScreenProps> = ({ workouts, onS
 
                                 {!isStudioMode && (
                                     <button
-                                        onClick={() => {
-                                            if (window.confirm(`Är du säker på att du vill ta bort passet "${workout.title}"? Detta kan inte ångras.`)) {
+                                        onClick={async () => {
+                                            const isConfirmed = await confirm({
+                                                title: "Ta bort pass?",
+                                                message: `Är du säker på att du vill ta bort passet "${workout.title}"? Detta kan inte ångras.`,
+                                                confirmText: "Ta bort",
+                                                confirmColor: "red"
+                                            });
+                                            if (isConfirmed) {
                                                 onDeleteWorkout(workout.id);
                                             }
                                         }}

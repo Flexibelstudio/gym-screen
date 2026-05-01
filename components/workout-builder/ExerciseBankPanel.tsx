@@ -2,13 +2,15 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { BankExercise, Exercise, Organization } from '../../types';
 import { useStudio } from '../../context/StudioContext';
-import { DumbbellIcon, TrashIcon } from '../icons';
+import { DumbbellIcon, TrashIcon, PencilIcon, CheckIcon, CloseIcon } from '../icons';
 import { useDraggable } from '@dnd-kit/core';
+import { useConfirm } from '../ConfirmContext';
 
 interface ExerciseBankPanelProps {
     bank: BankExercise[];
     onPreviewExercise: (exercise: BankExercise) => void;
-    onDeleteExercise?: (exercise: BankExercise) => Promise<void>; // New prop
+    onDeleteExercise?: (exercise: BankExercise) => Promise<void>;
+    onEditExercise?: (exercise: BankExercise, newName: string) => Promise<void>;
     isLoading: boolean;
 }
 
@@ -16,8 +18,12 @@ const DraggableBankExercise: React.FC<{
     exercise: BankExercise;
     onPreview: (ex: BankExercise) => void;
     onDelete?: (e: React.MouseEvent, ex: BankExercise) => void;
-}> = ({ exercise, onPreview, onDelete }) => {
+    onEdit?: (ex: BankExercise, newName: string) => Promise<void>;
+}> = ({ exercise, onPreview, onDelete, onEdit }) => {
     const isCustom = exercise.organizationId || exercise.id.startsWith('custom_');
+    const [isEditing, setIsEditing] = useState(false);
+    const [editName, setEditName] = useState(exercise.name);
+    const [isSaving, setIsSaving] = useState(false);
     
     const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
         id: `bank-${exercise.id}`,
@@ -31,8 +37,61 @@ const DraggableBankExercise: React.FC<{
                 id: exercise.id, // Keep the bank ID
                 loggingEnabled: true
             }
-        }
+        },
+        disabled: isEditing,
     });
+
+    const handleSave = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!editName.trim() || editName.trim() === exercise.name || !onEdit) {
+            setIsEditing(false);
+            setEditName(exercise.name);
+            return;
+        }
+        setIsSaving(true);
+        await onEdit(exercise, editName.trim());
+        setIsSaving(false);
+        setIsEditing(false);
+    };
+
+    if (isEditing) {
+        return (
+            <div className="bg-white dark:bg-gray-900/70 rounded-md p-2 flex items-center gap-2 border border-primary/50">
+                <input 
+                    type="text" 
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                    className="flex-grow bg-white dark:bg-black p-1.5 rounded border border-gray-300 dark:border-gray-600 text-sm font-semibold text-gray-900 dark:text-white outline-none focus:border-primary"
+                    autoFocus
+                    onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleSave(e as any);
+                        if (e.key === 'Escape') {
+                            setIsEditing(false);
+                            setEditName(exercise.name);
+                        }
+                    }}
+                />
+                <button 
+                    onClick={handleSave} 
+                    disabled={isSaving}
+                    className="p-1.5 text-primary hover:bg-primary/10 rounded transition-colors disabled:opacity-50"
+                >
+                    <CheckIcon className="w-4 h-4" />
+                </button>
+                <button 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setIsEditing(false);
+                        setEditName(exercise.name);
+                    }} 
+                    disabled={isSaving}
+                    className="p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                >
+                    <CloseIcon className="w-4 h-4" />
+                </button>
+            </div>
+        );
+    }
 
     return (
         <div 
@@ -44,7 +103,7 @@ const DraggableBankExercise: React.FC<{
             <div 
                 className="flex-grow min-w-0 flex items-center gap-3"
                 onClick={(e) => {
-                    if (!isDragging) {
+                    if (!isDragging && !isEditing) {
                         onPreview(exercise);
                     }
                 }}
@@ -64,26 +123,42 @@ const DraggableBankExercise: React.FC<{
                 </div>
             </div>
             
-            {isCustom && onDelete && (
-                <button
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(e, exercise);
-                    }}
-                    className="p-2 text-gray-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
-                    title="Ta bort egen övning"
-                >
-                    <TrashIcon className="w-4 h-4" />
-                </button>
-            )}
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                {isCustom && onEdit && (
+                    <button
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setIsEditing(true);
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-primary transition-colors focus:opacity-100"
+                        title="Redigera namn"
+                    >
+                        <PencilIcon className="w-4 h-4" />
+                    </button>
+                )}
+                {isCustom && onDelete && (
+                    <button
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onDelete(e, exercise);
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-red-500 transition-colors focus:opacity-100"
+                        title="Ta bort egen övning"
+                    >
+                        <TrashIcon className="w-4 h-4" />
+                    </button>
+                )}
+            </div>
         </div>
     );
-};
+}
 
-export const ExerciseBankPanel: React.FC<ExerciseBankPanelProps> = ({ bank, onPreviewExercise, onDeleteExercise, isLoading }) => {
+export const ExerciseBankPanel: React.FC<ExerciseBankPanelProps> = ({ bank, onPreviewExercise, onDeleteExercise, onEditExercise, isLoading }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const { selectedOrganization } = useStudio();
+    const { confirm } = useConfirm();
     
     // We use the 'bank' prop directly now, no local state needed for the list itself if parent manages it.
     // However, for filtering performance or immediate feedback if parent doesn't update fast enough, we can just rely on props.
@@ -91,7 +166,13 @@ export const ExerciseBankPanel: React.FC<ExerciseBankPanelProps> = ({ bank, onPr
     const handleDeleteClick = async (e: React.MouseEvent, exercise: BankExercise) => {
         e.stopPropagation();
         if (onDeleteExercise) {
-            if (window.confirm(`Vill du ta bort "${exercise.name}" från din lokala övningsbank?`)) {
+            const isConfirmed = await confirm({
+                title: 'Ta bort övning?',
+                message: `Vill du ta bort "${exercise.name}" från din lokala övningsbank?`,
+                confirmText: 'Ta bort',
+                confirmColor: 'red'
+            });
+            if (isConfirmed) {
                 await onDeleteExercise(exercise);
             }
         }
@@ -129,6 +210,7 @@ export const ExerciseBankPanel: React.FC<ExerciseBankPanelProps> = ({ bank, onPr
                             exercise={ex} 
                             onPreview={onPreviewExercise} 
                             onDelete={onDeleteExercise ? handleDeleteClick : undefined} 
+                            onEdit={onEditExercise}
                         />
                     ))
                 )}

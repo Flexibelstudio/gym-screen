@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, StudioConfig, UserRole, BankExercise, Organization, BenchmarkDefinition } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
-import { getExerciseBank, getOrganizationExerciseBank, deleteImageByUrl, saveAdminActivity, updateOrganizationBenchmarks, deleteExerciseFromBank } from '../services/firebaseService';
+import { getExerciseBank, getOrganizationExerciseBank, deleteImageByUrl, saveAdminActivity, updateOrganizationBenchmarks, deleteExerciseFromBank, saveExerciseToBank } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
 import { useAuth } from '../context/AuthContext';
 import { parseSettingsFromTitle } from '../hooks/useWorkoutTimer';
@@ -553,6 +553,32 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
       }
   }, [exerciseBank]);
 
+  const handleEditExerciseInBank = useCallback(async (exercise: BankExercise, newName: string) => {
+      try {
+          const updatedExercise = { ...exercise, name: newName };
+          await saveExerciseToBank(updatedExercise);
+          
+          // 1. Update bank state instantly
+          const newBank = exerciseBank.map(ex => ex.id === exercise.id ? updatedExercise : ex);
+          setExerciseBank(newBank);
+          
+          // 2. We don't automatically rename it in existing workout blocks right now, 
+          // because it might disrupt the user, but we could if we wanted to.
+          setWorkout(prev => {
+              const newWorkout = { ...prev };
+              newWorkout.blocks = newWorkout.blocks.map(block => ({
+                  ...block,
+                  exercises: block.exercises.map(ex => ex.id === exercise.id ? { ...ex, name: newName } : ex)
+              }));
+              return newWorkout;
+          });
+          
+      } catch (error) {
+          console.error("Failed to edit exercise:", error);
+          alert("Kunde inte uppdatera övningen.");
+      }
+  }, [exerciseBank]);
+
   const handleExerciseSavedToBank = useCallback((newExercise: BankExercise) => {
       setExerciseBank(prev => {
           // Check if already exists to avoid duplicates
@@ -1004,6 +1030,7 @@ export const WorkoutBuilderScreen: React.FC<WorkoutBuilderScreenProps> = ({ init
                             bank={exerciseBank}
                             onPreviewExercise={setPreviewExercise}
                             onDeleteExercise={handleDeleteExerciseFromBank}
+                            onEditExercise={handleEditExerciseInBank}
                             isLoading={isBankLoading}
                         />
                     )}
