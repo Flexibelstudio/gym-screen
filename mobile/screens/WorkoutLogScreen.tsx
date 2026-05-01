@@ -796,7 +796,7 @@ const cleanForFirestore = (obj: any): any => {
 const OneRMCalculatorModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
-    context: { exerciseName?: string, current1RM?: number } | null;
+    context: { exerciseName?: string, current1RM?: number, onSelectWeight?: (w: number) => void } | null;
 }> = ({ isOpen, onClose, context }) => {
     const [calcWeight, setCalcWeight] = useState<string>('');
     const [calcReps, setCalcReps] = useState<string>('');
@@ -854,10 +854,20 @@ const OneRMCalculatorModal: React.FC<{
                             {percentages.map(p => {
                                 const weight = Math.round((calculated1RM as number) * (p / 100) * 2) / 2;
                                 return (
-                                    <div key={p} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-3 rounded-xl flex justify-between items-center shadow-sm">
+                                    <button 
+                                        key={p} 
+                                        onClick={() => {
+                                            if (context?.onSelectWeight) {
+                                                context.onSelectWeight(weight);
+                                                onClose();
+                                            }
+                                        }}
+                                        disabled={!context?.onSelectWeight}
+                                        className={`bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-3 rounded-xl flex justify-between items-center shadow-sm transition-colors ${context?.onSelectWeight ? 'hover:bg-primary/10 hover:border-primary/30 active:scale-95' : ''}`}
+                                    >
                                         <span className="text-sm font-black text-gray-400">{p}%</span>
                                         <span className="text-base font-bold text-gray-900 dark:text-white">{weight} kg</span>
-                                    </div>
+                                    </button>
                                 );
                             })}
                         </div>
@@ -912,7 +922,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [exerciseBank, setExerciseBank] = useState<BankExercise[]>(MOCK_EXERCISE_BANK);
   
   const [showCalculator, setShowCalculator] = useState(false);
-  const [calculatorContext, setCalculatorContext] = useState<{ exerciseName?: string, current1RM?: number } | null>(null);
+  const [calculatorContext, setCalculatorContext] = useState<{ exerciseName?: string, current1RM?: number, onSelectWeight?: (w: number) => void } | null>(null);
   
   const uncheckedSetsCount = useMemo(() => {
       if (isManualMode) return 0;
@@ -1822,7 +1832,28 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                     isLastInGroup={isLastInGroup}
                                     onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
                                     onOpenCalculator={(ctx) => {
-                                        setCalculatorContext(ctx);
+                                        setCalculatorContext({
+                                            ...ctx,
+                                            onSelectWeight: (weight: number) => {
+                                                setExerciseResults(prev => {
+                                                    const newResults = [...prev];
+                                                    const res = {...newResults[index]};
+                                                    res.setDetails = res.setDetails.map(s => ({...s}));
+                                                    
+                                                    // Find first uncompleted set
+                                                    let targetIdx = res.setDetails.findIndex(s => !s.completed);
+                                                    if (targetIdx === -1) {
+                                                        // if all completed, just use the last one
+                                                        targetIdx = res.setDetails.length - 1;
+                                                    }
+                                                    if (targetIdx !== -1) {
+                                                        res.setDetails[targetIdx].weight = weight.toString();
+                                                    }
+                                                    newResults[index] = res;
+                                                    return newResults;
+                                                });
+                                            }
+                                        });
                                         setShowCalculator(true);
                                     }}
                                 />
