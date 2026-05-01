@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog, getOrganizationExerciseBank, getMemberCustomExercises, addMemberCustomExercise, deleteMemberCustomExercise } from '../../services/firebaseService';
+import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog, getOrganizationExerciseBank, getMemberCustomExercises, addMemberCustomExercise, deleteMemberCustomExercise, updateMemberCustomExercise } from '../../services/firebaseService';
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage, getExerciseDagsformAdvice, ExerciseDagsformAdvice } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
@@ -2085,13 +2085,35 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                   </div>
                               </div>
                               {ex.category === 'Custom Egen' ? (
-                                  <button onClick={(e) => {
-                                      e.stopPropagation();
-                                      deleteMemberCustomExercise(userId, ex.id);
-                                      setExerciseBank(prev => prev.filter(b => b.id !== ex.id));
-                                  }} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors">
-                                      <TrashIcon className="w-5 h-5" />
-                                  </button>
+                                  <div className="flex items-center gap-1">
+                                      <button onClick={async (e) => {
+                                          e.stopPropagation();
+                                          const newName = window.prompt("Byt namn på övning:", ex.name);
+                                          if (newName && newName.trim() !== "" && newName !== ex.name) {
+                                              const trimmedName = newName.trim();
+                                              try {
+                                                await updateMemberCustomExercise(userId, ex.id, trimmedName);
+                                                setExerciseBank(prev => prev.map(b => b.id === ex.id ? { ...b, name: trimmedName } : b));
+                                              } catch (error) {
+                                                  console.error("Fel vid uppdatering av namn:", error);
+                                                  window.alert("Kunde inte byta namn, försök igen.");
+                                              }
+                                          }
+                                      }} className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" title="Ändra namn">
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                          </svg>
+                                      </button>
+                                      <button onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (window.confirm(`Är du säker på att du vill ta bort "${ex.name}"?`)) {
+                                              deleteMemberCustomExercise(userId, ex.id);
+                                              setExerciseBank(prev => prev.filter(b => b.id !== ex.id));
+                                          }
+                                      }} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Ta bort">
+                                          <TrashIcon className="w-5 h-5" />
+                                      </button>
+                                  </div>
                               ) : (
                                   <PlusIcon className="w-5 h-5 text-gray-400" />
                               )}

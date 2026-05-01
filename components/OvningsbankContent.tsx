@@ -5,7 +5,6 @@ import { generateExerciseSuggestions } from '../services/geminiService';
 // FIX: Safer import for react-window to handle both Vite and CDN environments
 import * as ReactWindow from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
-import { useConfirm } from './ConfirmContext';
 
 // Handle potential import issues with react-window in different environments
 // This looks for Named export, Default export with property, or the module itself
@@ -98,7 +97,6 @@ interface MergeModalProps {
 const MergeModal: React.FC<MergeModalProps> = ({ sourceExercise, bank, onMerge, onClose }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [isMerging, setIsMerging] = useState(false);
-    const { confirm } = useConfirm();
     
     const filteredBank = useMemo(() => {
         const lower = searchTerm.toLowerCase();
@@ -109,14 +107,7 @@ const MergeModal: React.FC<MergeModalProps> = ({ sourceExercise, bank, onMerge, 
     }, [bank, searchTerm, sourceExercise.id]);
 
     const handleMerge = async (targetId: string) => {
-        const isConfirmed = await confirm({
-            title: "Slå ihop övningar?",
-            message: `Är du säker? Detta kommer att radera "${sourceExercise.name}" och ersätta den med den valda övningen i alla pass. Detta kan inte ångras.`,
-            confirmText: "Slå ihop",
-            confirmColor: "red"
-        });
-
-        if (isConfirmed) {
+        if (window.confirm(`Är du säker? Detta kommer att radera "${sourceExercise.name}" och ersätta den med den valda övningen i alla pass. Detta kan inte ångras.`)) {
             setIsMerging(true);
             try {
                 await onMerge(sourceExercise.id, targetId);
@@ -180,7 +171,6 @@ export const OvningsbankContent: React.FC = () => {
     const [suggestions, setSuggestions] = useState<Partial<BankExercise>[]>([]);
     const [suggestionPrompt, setSuggestionPrompt] = useState('');
     const [isSuggesting, setIsSuggesting] = useState(false);
-    const { confirm } = useConfirm();
     
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
@@ -217,13 +207,7 @@ export const OvningsbankContent: React.FC = () => {
     };
 
     const handleDelete = async (exercise: BankExercise) => {
-        const isConfirmed = await confirm({
-            title: "Ta bort övning?",
-            message: `Är du säker på att du vill ta bort övningen "${exercise.name}"?`,
-            confirmText: "Ta bort",
-            confirmColor: "red"
-        });
-        if (isConfirmed) {
+        if (window.confirm(`Är du säker på att du vill ta bort övningen "${exercise.name}"?`)) {
             await deleteExerciseFromBank(exercise.id);
             await fetchBank();
         }

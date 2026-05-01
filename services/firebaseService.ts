@@ -1246,6 +1246,13 @@ export const deleteMemberCustomExercise = async (userId: string, exerciseId: str
     await deleteDoc(doc(db, 'users', userId, 'customExercises', exerciseId));
 };
 
+export const updateMemberCustomExercise = async (userId: string, exerciseId: string, newName: string): Promise<void> => {
+    if (!db) throw new Error("DB ej tillgänglig");
+    await updateDoc(doc(db, 'users', userId, 'customExercises', exerciseId), {
+        name: newName
+    });
+};
+
 export const getOrganizationExerciseBank = async (orgId: string): Promise<BankExercise[]> => {
     if (isOffline || !db || !orgId) return MOCK_EXERCISE_BANK;
     try {
