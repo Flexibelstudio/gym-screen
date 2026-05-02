@@ -1114,13 +1114,30 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 }}
                                 className="w-full text-left bg-gray-50 dark:bg-gray-800 p-4 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-between group"
                             >
-                                <div>
-                                    <h4 className="font-bold text-gray-900 dark:text-white mb-1">{log.workoutTitle || 'Pass'}</h4>
-                                    <p className="text-xs text-gray-500">
-                                        {new Date(log.date).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
-                                    </p>
+                                <div className="flex-1 w-full relative">
+                                    <h4 className="font-bold text-gray-900 dark:text-white mb-2">{log.workoutTitle || 'Pass'}</h4>
+                                    
+                                    {log.exerciseResults && log.exerciseResults.length > 0 && (
+                                        <div className="space-y-1 mb-6 text-sm text-gray-600 dark:text-gray-400 pr-8">
+                                            {log.exerciseResults.slice(0, 4).map((ex, i) => (
+                                                <div key={i} className="truncate">
+                                                    {ex.sets > 0 ? `${ex.sets}x ` : ''}{ex.exerciseName}
+                                                </div>
+                                            ))}
+                                            {log.exerciseResults.length > 4 && (
+                                                <div className="text-xs text-gray-400 italic mt-1">och {log.exerciseResults.length - 4} till...</div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-between items-center text-xs text-gray-500">
+                                        <span>{new Date(log.date).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}</span>
+                                        {log.durationMinutes ? (
+                                            <span className="font-medium">{log.durationMinutes} min</span>
+                                        ) : null}
+                                    </div>
                                 </div>
-                                <div className="w-8 h-8 rounded-full bg-white dark:bg-gray-900 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors shadow-sm">
+                                <div className="ml-4 w-8 h-8 flex-shrink-0 rounded-full bg-white dark:bg-gray-900 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors shadow-sm self-start mt-1">
                                     <ChevronRightIcon className="w-4 h-4" />
                                 </div>
                             </button>
