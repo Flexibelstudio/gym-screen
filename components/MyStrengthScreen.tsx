@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PersonalBest, WorkoutLog } from '../types';
-import { listenToPersonalBests, updatePersonalBest, db } from '../services/firebaseService';
+import { listenToPersonalBests, updatePersonalBest, resetPersonalBest, db } from '../services/firebaseService';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { TrophyIcon, PencilIcon, SaveIcon, DumbbellIcon, CalculatorIcon, CloseIcon, ChevronDownIcon, ChevronUpIcon } from './icons';
+import { TrophyIcon, PencilIcon, SaveIcon, DumbbellIcon, CalculatorIcon, CloseIcon, ChevronDownIcon, ChevronUpIcon, TrashIcon } from './icons';
 import { OneRepMaxModal } from './OneRepMaxModal';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { calculate1RM } from '../utils/workoutUtils';
@@ -154,6 +154,14 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
         }
     };
 
+    const handleReset = async (exerciseName: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!userData?.uid) return;
+        if (window.confirm(`Är du säker på att du vill nollställa 1RM för ${exerciseName}?\n\nDin historik sparas, men det aktuella personbästat visas som 0 tills du loggar ett nytt resultat.`)) {
+            await resetPersonalBest(userData.uid, exerciseName);
+        }
+    };
+
     return (
         <div className="w-full animate-fade-in">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -211,23 +219,31 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
                                 <div className="flex items-center gap-3">
                                     <div className="flex items-center gap-2">
                                         <div className="text-right">
-                                            <div className="flex items-baseline justify-end gap-1">
-                                                <span className="font-black text-xl text-primary">
-                                                    {pb.weight > 0 
-                                                        ? (pb.reps ? <>{pb.reps} <span className="text-base text-primary/70 font-bold mx-0.5">×</span> {pb.weight}</> : pb.weight)
-                                                        : pb.reps}
-                                                </span>
-                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-0.5">{pb.weight > 0 ? 'kg' : 'reps'}</span>
-                                            </div>
-                                            {pb.calculated1RM ? (
-                                                <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-right">
-                                                    1RM: {pb.calculated1RM} kg
+                                            {pb.weight === 0 && pb.reps === 0 ? (
+                                                <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-right mt-1">
+                                                    Nollställt
                                                 </div>
-                                            ) : (pb.weight > 0 ? (
-                                                <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-right">
-                                                    1RM
-                                                </div>
-                                            ) : null)}
+                                            ) : (
+                                                <>
+                                                    <div className="flex items-baseline justify-end gap-1">
+                                                        <span className="font-black text-xl text-primary">
+                                                            {pb.weight > 0 
+                                                                ? (pb.reps ? <>{pb.reps} <span className="text-base text-primary/70 font-bold mx-0.5">×</span> {pb.weight}</> : pb.weight)
+                                                                : pb.reps}
+                                                        </span>
+                                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest pl-0.5">{pb.weight > 0 ? 'kg' : 'reps'}</span>
+                                                    </div>
+                                                    {pb.calculated1RM ? (
+                                                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-right">
+                                                            1RM: {pb.calculated1RM} kg
+                                                        </div>
+                                                    ) : (pb.weight > 0 ? (
+                                                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest text-right">
+                                                            1RM
+                                                        </div>
+                                                    ) : null)}
+                                                </>
+                                            )}
                                         </div>
                                         <div className="text-gray-400 ml-1">
                                             {isExpanded ? <ChevronUpIcon className="w-5 h-5" /> : <ChevronDownIcon className="w-5 h-5" />}
@@ -247,7 +263,16 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
                                         </div>
                                     )}
 
-                                    <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">1RM Historik</h4>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <h4 className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">1RM Historik</h4>
+                                        <button 
+                                            onClick={(e) => handleReset(pb.exerciseName, e)}
+                                            className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium px-2 py-1 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 rounded-lg transition-colors"
+                                        >
+                                            <TrashIcon className="w-3.5 h-3.5" />
+                                            <span>Nollställ 1RM</span>
+                                        </button>
+                                    </div>
                                     
                                     {hasHistory ? (
                                         <div className="h-48 w-full">

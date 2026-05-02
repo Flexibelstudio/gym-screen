@@ -736,6 +736,21 @@ export const updatePersonalBest = async (userId: string, exerciseName: string, w
     } catch (e) { console.error("updatePersonalBest failed", e); }
 };
 
+export const resetPersonalBest = async (userId: string, exerciseName: string) => {
+    if (isOffline || !db || !userId) return;
+    const pbId = getPBId(exerciseName);
+    try {
+        await setDoc(doc(db, 'users', userId, 'personalBests', pbId), { 
+            id: pbId, 
+            exerciseName: exerciseName.trim(), 
+            weight: 0, 
+            reps: 0,
+            calculated1RM: 0,
+            date: Date.now() 
+        });
+    } catch (e) { console.error("resetPersonalBest failed", e); }
+};
+
 export const listenForStudioEvents = (orgId: string, callback: (event: StudioEvent) => void) => {
     if (isOffline || !db || !orgId) return () => {};
     
