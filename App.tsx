@@ -375,6 +375,7 @@ const App: React.FC = () => {
   const [racePrepState, setRacePrepState] = useState<{ groups: StartGroup[]; interval: number } | null>(null);
   const [activeRaceId, setActiveRaceId] = useState<string | null>(null);
   const [isEditingNewDraft, setIsEditingNewDraft] = useState(false);
+  const [returnToAdminOnSave, setReturnToAdminOnSave] = useState(false);
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const [customPageToEdit, setCustomPageToEdit] = useState<CustomPage | null>(null);
   const [studioToEditConfig, setStudioToEditConfig] = useState<Studio | null>(null);
@@ -705,7 +706,13 @@ const App: React.FC = () => {
             navigateReplace(Page.WorkoutDetail);
         } else if (isEditingNewDraft) {
             setIsEditingNewDraft(false);
-            navigateReplace(Page.WorkoutDetail);
+            if (returnToAdminOnSave) {
+                setReturnToAdminOnSave(false);
+                handleBack();
+                setPreferredAdminTab('pass-program');
+            } else {
+                navigateReplace(Page.WorkoutDetail);
+            }
         } else {
             handleBack();
             setPreferredAdminTab('pass-program');
@@ -821,7 +828,8 @@ const App: React.FC = () => {
     if (workout.blocks.length > 0) handleStartBlock(workout.blocks[0], workout);
   };
   
-  const handleDuplicateWorkout = (workoutToCopy: Workout) => {
+  const handleDuplicateWorkout = (workoutToCopy: Workout, origin?: string) => {
+    if (origin === 'admin') setReturnToAdminOnSave(true);
     const newDraft = deepCopyAndPrepareAsNew(workoutToCopy);
     setActiveWorkout(newDraft);
     setIsEditingNewDraft(true);

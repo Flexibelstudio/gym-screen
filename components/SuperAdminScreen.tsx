@@ -77,7 +77,7 @@ interface SuperAdminScreenProps {
     onSaveWorkout: (workout: Workout) => Promise<Workout>;
     onDeleteWorkout: (workoutId: string) => Promise<void>;
     onTogglePublish: (workoutId: string, isPublished: boolean) => void;
-    onDuplicateWorkout: (workout: Workout) => void;
+    onDuplicateWorkout: (workout: Workout, origin?: string) => void;
     onSelectMember: (memberId: string) => void;
     onBack?: () => void;
     onGoToSystemOwner?: () => void;
