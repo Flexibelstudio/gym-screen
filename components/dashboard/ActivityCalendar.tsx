@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useState } from 'react';
 import { WorkoutLog } from '../../types';
 
 interface ActivityCalendarProps {
@@ -7,9 +7,13 @@ interface ActivityCalendarProps {
 }
 
 export const ActivityCalendar: React.FC<ActivityCalendarProps> = ({ logs, onDayClick }) => {
+    const [viewDate, setViewDate] = useState(new Date());
     const today = new Date();
-    const currentMonth = today.getMonth();
-    const currentYear = today.getFullYear();
+    const currentMonth = viewDate.getMonth();
+    const currentYear = viewDate.getFullYear();
+
+    const handlePrevMonth = () => setViewDate(new Date(currentYear, currentMonth - 1, 1));
+    const handleNextMonth = () => setViewDate(new Date(currentYear, currentMonth + 1, 1));
 
     // Helper to get local date string YYYY-MM-DD
     const getLocalDateString = (d: Date) => {
@@ -46,9 +50,21 @@ export const ActivityCalendar: React.FC<ActivityCalendarProps> = ({ logs, onDayC
     return (
         <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-800">
             <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-black text-gray-900 dark:text-white">
+                <h3 className="text-xl font-black text-gray-900 dark:text-white capitalize">
                     {monthNames[currentMonth]} {currentYear}
                 </h3>
+                <div className="flex items-center gap-2">
+                    <button onClick={handlePrevMonth} className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                    </button>
+                    <button onClick={handleNextMonth} className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors">
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    </button>
+                </div>
             </div>
 
             <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2">
