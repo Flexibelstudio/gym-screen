@@ -3,9 +3,9 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Workout, WorkoutLog } from '../types';
 import { useWorkout } from '../context/WorkoutContext';
 import { useStudio } from '../context/StudioContext';
-import { SearchIcon, DumbbellIcon, ClockIcon, TrashIcon, TrophyIcon, CloseIcon } from './icons';
+import { SearchIcon, DumbbellIcon, ClockIcon, TrashIcon, TrophyIcon, CloseIcon, ToggleSwitch } from './icons';
 import { useAuth } from '../context/AuthContext';
-import { fetchCustomPrograms, deleteCustomProgram, getMemberLogs } from '../services/firebaseService';
+import { fetchCustomPrograms, deleteCustomProgram, getMemberLogs, updateUserProfile } from '../services/firebaseService';
 import WorkoutDetailScreen from './WorkoutDetailScreen';
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Modal } from './ui/Modal';
@@ -17,7 +17,7 @@ interface WorkoutListScreenProps {
 
 export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkategori, onSelectWorkout }) => {
     const { workouts } = useWorkout();
-    const { isStudioMode, currentUser } = useAuth();
+    const { isStudioMode, currentUser, userData } = useAuth();
     const { studioConfig } = useStudio();
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<'alla' | 'mina'>('alla');
@@ -246,18 +246,34 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                 </div>
             )}
 
-            {/* Sökfält */}
-            <div className="relative max-w-xl mx-auto mb-12">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <SearchIcon className="h-6 w-6 text-gray-400" />
+            {/* Sökfält & Inställningar */}
+            <div className="relative max-w-xl mx-auto mb-12 space-y-4">
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <SearchIcon className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Sök på passets namn..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="block w-full pl-12 pr-4 py-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-xl transition-all text-lg"
+                    />
                 </div>
-                <input
-                    type="text"
-                    placeholder="Sök på passets namn..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="block w-full pl-12 pr-4 py-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-xl transition-all text-lg"
-                />
+                
+                {activeTab === 'mina' && !isStudioMode && currentUser?.uid && userData && (
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+                        <ToggleSwitch
+                            label="Använd Pre-game på mina pass"
+                            description="Få en dagsforms-koll innan passet startar. Om avstängt går du direkt till dina pass."
+                            checked={userData.usePreGameForCustomWorkouts !== false}
+                            onChange={(val) => {
+                                updateUserProfile(currentUser.uid, { usePreGameForCustomWorkouts: val })
+                                    .catch(err => console.error("Error saving preference:", err));
+                            }}
+                        />
+                    </div>
+                )}
             </div>
 
             {filteredWorkouts.length > 0 ? (

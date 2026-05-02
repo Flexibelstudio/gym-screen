@@ -408,6 +408,7 @@ export interface UserData {
   // Dashboard & Gamification
   weeklyGoal?: number;
   showOnLeaderboard?: boolean;
+  usePreGameForCustomWorkouts?: boolean;
 }
 
 export interface SmartGoalDetail {

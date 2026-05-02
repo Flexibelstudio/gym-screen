@@ -800,16 +800,7 @@ export const SimpleWorkoutBuilderScreen: React.FC<{ initialWorkout: Workout | nu
                                     className={`${inputBaseClasses} w-full text-lg h-24 resize-none !bg-white dark:!bg-gray-900 border-purple-200 dark:border-purple-900 focus:border-purple-500 focus:ring-purple-500`} 
                                     rows={2}
                                 />
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-2 mb-6">Denna text skickas till AI:n när en medlem loggar passet och ber om feedback.</p>
-
-                                <div className="pt-6 border-t border-primary/20">
-                                    <ToggleSwitch 
-                                        label="Använd Pre-game & Dagsform" 
-                                        checked={workout.usePreGame !== false} 
-                                        onChange={(val) => setWorkout({ ...workout, usePreGame: val })} 
-                                        description="Få en strategi innan passet startar. Om avstängd kommer du direkt till loggningen."
-                                    />
-                                </div>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 ml-2">Denna text skickas till AI:n när en medlem loggar passet och ber om feedback.</p>
                             </div>
                         </div>
                     </div>

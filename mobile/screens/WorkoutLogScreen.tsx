@@ -886,7 +886,7 @@ const OneRMCalculatorModal: React.FC<{
 };
 
 export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, navigation, route, workouts: contextWorkouts = [] }: any) => {
-  const { currentUser } = useAuth();
+  const { currentUser, userData } = useAuth();
   const { selectedOrganization } = useStudio();
   const userId = currentUser?.uid || "offline_member_uid"; 
   const passedWId = workoutId || route?.params?.workoutId;
@@ -1165,7 +1165,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                 setHistory(historyMap);
 
                 if (!skipInsights) {
-                    if (foundWorkout.usePreGame === false) {
+                    const isCustomWorkout = foundWorkout.id?.startsWith('custom-') || false;
+                    const preGameDisabledByGlobalSetting = isCustomWorkout && userData?.usePreGameForCustomWorkouts === false;
+                    
+                    if (foundWorkout.usePreGame === false || preGameDisabledByGlobalSetting) {
                         setViewMode('logging');
                     } else {
                         try {
