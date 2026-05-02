@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useWorkout } from '../../context/WorkoutContext'; 
 import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, ChartBarIcon, HistoryIcon, CalculatorIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { calculate1RM } from '../../utils/workoutUtils';
 import { ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition, BankExercise, Workout } from '../../types';
 import { MOCK_EXERCISE_BANK } from '../../data/mockData';
@@ -925,6 +926,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   
   const [showCalculator, setShowCalculator] = useState(false);
   const [calculatorContext, setCalculatorContext] = useState<{ exerciseName?: string, current1RM?: number, onSelectWeight?: (w: number) => void } | null>(null);
+  const [exerciseToEdit, setExerciseToEdit] = useState<BankExercise | null>(null);
+  const [editExerciseName, setEditExerciseName] = useState("");
+  const [exerciseToDelete, setExerciseToDelete] = useState<BankExercise | null>(null);
   
   const uncheckedSetsCount = useMemo(() => {
       if (isManualMode) return 0;
@@ -2086,19 +2090,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                               </div>
                               {ex.category === 'Custom Egen' ? (
                                   <div className="flex items-center gap-1">
-                                      <button onClick={async (e) => {
+                                      <button onClick={(e) => {
                                           e.stopPropagation();
-                                          const newName = window.prompt("Byt namn på övning:", ex.name);
-                                          if (newName && newName.trim() !== "" && newName !== ex.name) {
-                                              const trimmedName = newName.trim();
-                                              try {
-                                                await updateMemberCustomExercise(userId, ex.id, trimmedName);
-                                                setExerciseBank(prev => prev.map(b => b.id === ex.id ? { ...b, name: trimmedName } : b));
-                                              } catch (error) {
-                                                  console.error("Fel vid uppdatering av namn:", error);
-                                                  window.alert("Kunde inte byta namn, försök igen.");
-                                              }
-                                          }
+                                          setEditExerciseName(ex.name);
+                                          setExerciseToEdit(ex);
                                       }} className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" title="Ändra namn">
                                           <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -2106,10 +2101,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                       </button>
                                       <button onClick={(e) => {
                                           e.stopPropagation();
-                                          if (window.confirm(`Är du säker på att du vill ta bort "${ex.name}"?`)) {
-                                              deleteMemberCustomExercise(userId, ex.id);
-                                              setExerciseBank(prev => prev.filter(b => b.id !== ex.id));
-                                          }
+                                          setExerciseToDelete(ex);
                                       }} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Ta bort">
                                           <TrashIcon className="w-5 h-5" />
                                       </button>
@@ -2125,6 +2117,70 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                           </div>
                       )}
                   </div>
+              </div>
+          </Modal>
+      )}
+
+      {exerciseToDelete && (
+          <ConfirmModal
+              isOpen={!!exerciseToDelete}
+              onClose={() => setExerciseToDelete(null)}
+              onConfirm={async () => {
+                  if (!userId) return;
+                  const id = exerciseToDelete.id;
+                  await deleteMemberCustomExercise(userId, id);
+                  setExerciseBank(prev => prev.filter(b => b.id !== id));
+                  setExerciseToDelete(null);
+              }}
+              title="Ta bort övning"
+              message={`Är du säker på att du vill ta bort "${exerciseToDelete.name}"?`}
+              confirmText="Ta bort"
+              cancelText="Avbryt"
+              confirmColor="red"
+          />
+      )}
+
+      {exerciseToEdit && (
+          <Modal 
+              isOpen={!!exerciseToEdit} 
+              onClose={() => setExerciseToEdit(null)} 
+              title="Byt namn på övning" 
+              size="sm"
+              footer={
+                  <div className="flex gap-2 justify-end w-full">
+                      <button onClick={() => setExerciseToEdit(null)} className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                          Avbryt
+                      </button>
+                      <button 
+                          onClick={async () => {
+                              if (!userId) return;
+                              const newName = editExerciseName.trim();
+                              if (newName !== "" && newName !== exerciseToEdit.name) {
+                                  try {
+                                      await updateMemberCustomExercise(userId, exerciseToEdit.id, newName);
+                                      setExerciseBank(prev => prev.map(b => b.id === exerciseToEdit.id ? { ...b, name: newName } : b));
+                                  } catch (error) {
+                                      console.error("Fel vid uppdatering av namn:", error);
+                                  }
+                              }
+                              setExerciseToEdit(null);
+                          }} 
+                          className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+                      >
+                          Spara
+                      </button>
+                  </div>
+              }
+          >
+              <div className="p-4 pt-2">
+                  <input 
+                      type="text" 
+                      value={editExerciseName}
+                      onChange={(e) => setEditExerciseName(e.target.value)}
+                      placeholder="Övningens namn"
+                      autoFocus
+                      className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-gray-900 dark:text-gray-100"
+                  />
               </div>
           </Modal>
       )}
