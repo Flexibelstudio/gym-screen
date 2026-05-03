@@ -25,6 +25,7 @@ interface HeaderProps {
     isStudioMode?: boolean;
     hasCustomBack?: boolean;
     navigateTo?: (page: Page) => void;
+    hasBackgroundImage?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -45,7 +46,8 @@ export const Header: React.FC<HeaderProps> = ({
     onEditProfileRequest,
     isStudioMode,
     hasCustomBack = false,
-    navigateTo
+    navigateTo,
+    hasBackgroundImage = false
 }) => {
   const { selectedOrganization, studioConfig, studioLoading } = useStudio();
   const { userData, stopImpersonation } = useAuth();
@@ -200,7 +202,11 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="relative" ref={dropdownRef}>
               <button
                   onClick={(e) => { e.stopPropagation(); setIsDropdownOpen(!isDropdownOpen); }}
-                  className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-700 dark:text-gray-200 hover:ring-2 hover:ring-primary transition-all shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700"
+                  className={`w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center text-gray-700 dark:text-gray-200 hover:ring-2 hover:ring-primary transition-all overflow-hidden ${
+                      hasBackgroundImage 
+                          ? 'shadow-[0_0_15px_rgba(0,0,0,0.5)] border-0 bg-white/20 dark:bg-black/30 backdrop-blur-sm' 
+                          : 'shadow-sm bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
+                  }`}
               >
                   {userData?.photoUrl ? (
                       <img src={userData.photoUrl} alt="Profil" className="w-full h-full object-cover" />

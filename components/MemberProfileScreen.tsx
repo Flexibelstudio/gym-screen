@@ -884,7 +884,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
             {/* --- FLIKAR I HEADER --- */}
             {document.getElementById('member-header-tabs') && createPortal(
-                <div className="flex gap-2 sm:gap-4">
+                <div className="flex gap-2 sm:gap-4 transition-all" style={{ filter: userData.backgroundImageUrl ? 'drop-shadow(0px 2px 4px rgba(0,0,0,0.4))' : 'none' }}>
                     {[
                         { id: 'overview', label: 'Översikt', icon: ChartBarIcon },
                         { id: 'goals', label: 'Mål', icon: Target },
@@ -897,7 +897,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             className={`p-2 sm:p-2.5 rounded-full transition-all ${
                                 activeTab === tab.id 
                                 ? 'bg-primary/20 text-primary shadow-sm' 
-                                : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
+                                : `text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 ${userData.backgroundImageUrl ? 'text-white/80 hover:text-white' : ''}`
                             }`}
                             title={tab.label}
                         >
