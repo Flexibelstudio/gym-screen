@@ -7,6 +7,7 @@ import { TrophyIcon, PencilIcon, SaveIcon, DumbbellIcon, CalculatorIcon, CloseIc
 import { OneRepMaxModal } from './OneRepMaxModal';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { calculate1RM } from '../utils/workoutUtils';
+import { useConfirm } from './ConfirmContext';
 
 export interface MyStrengthScreenProps {
     userData: any;
@@ -20,6 +21,7 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
     const [isLoading, setIsLoading] = useState(true);
     const [showCalculator, setShowCalculator] = useState(false);
     const [expandedExercise, setExpandedExercise] = useState<string | null>(null);
+    const confirm = useConfirm();
 
     useEffect(() => {
         if (!userData?.uid) return;
@@ -157,7 +159,16 @@ export const MyStrengthScreen: React.FC<MyStrengthScreenProps> = ({ userData, lo
     const handleReset = async (exerciseName: string, e: React.MouseEvent) => {
         e.stopPropagation();
         if (!userData?.uid) return;
-        if (window.confirm(`Är du säker på att du vill nollställa 1RM för ${exerciseName}?\n\nDin historik sparas, men det aktuella personbästat visas som 0 tills du loggar ett nytt resultat.`)) {
+        
+        const isConfirmed = await confirm({
+            title: `Nollställ 1RM för ${exerciseName}?`,
+            message: "Din historik sparas, men det aktuella personbästat visas som 0 tills du loggar ett nytt resultat.",
+            confirmText: "Nollställ",
+            cancelText: "Avbryt",
+            confirmColor: "red"
+        });
+
+        if (isConfirmed) {
             await resetPersonalBest(userData.uid, exerciseName);
         }
     };
