@@ -549,10 +549,12 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [birthDate, setBirthDate] = useState(userData.birthDate || '');
     const [gender, setGender] = useState(userData.gender || 'prefer_not_to_say');
     const [photoUrl, setPhotoUrl] = useState(userData.photoUrl || '');
+    const [backgroundImageUrl, setBackgroundImageUrl] = useState(userData.backgroundImageUrl || '');
     const [weeklyGoal, setWeeklyGoal] = useState(userData.weeklyGoal || 3);
     const [showOnLeaderboard, setShowOnLeaderboard] = useState(userData.showOnLeaderboard !== false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const bgFileInputRef = useRef<HTMLInputElement>(null);
 
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         let v = e.target.value.replace(/\D/g, '');
@@ -623,6 +625,23 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             await updateUserProfile(userData.uid, { photoUrl: url });
         } catch (err) {
             alert("Kunde inte spara bilden.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleBgFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setIsSaving(true);
+        try {
+            const resized = await resizeImage(file, 1200, 1600, 0.8);
+            const path = `users/${userData.uid}/bg_${Date.now()}.jpg`;
+            const url = await uploadImage(path, resized);
+            setBackgroundImageUrl(url);
+            await updateUserProfile(userData.uid, { backgroundImageUrl: url });
+        } catch (err) {
+            alert("Kunde inte spara bakgrundsbilden.");
         } finally {
             setIsSaving(false);
         }
@@ -758,6 +777,36 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
                     </div>
 
+                    {/* Bakgrundsbild */}
+                    <div className="flex flex-col items-center gap-4">
+                        <div 
+                            className="w-full h-32 sm:h-48 rounded-2xl bg-gray-100 dark:bg-gray-800 border-4 border-white dark:border-gray-900 shadow-xl flex items-center justify-center overflow-hidden cursor-pointer relative group"
+                            onClick={() => bgFileInputRef.current?.click()}
+                        >
+                            {backgroundImageUrl ? <img src={backgroundImageUrl} className="w-full h-full object-cover" /> : <div className="flex flex-col items-center text-gray-400"><span className="text-sm font-bold uppercase tracking-widest mb-1">Bakgrundsbild</span><span className="text-xs">Klicka för att ladda upp</span></div>}
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <span className="text-white text-xs font-black uppercase tracking-widest">Ändra bakgrundsbild</span>
+                            </div>
+                            {isSaving && <div className="absolute inset-0 bg-white/50 dark:bg-black/50 flex items-center justify-center"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div></div>}
+                        </div>
+                        <input type="file" ref={bgFileInputRef} onChange={handleBgFileChange} accept="image/*" className="hidden" />
+                        {backgroundImageUrl && (
+                            <button 
+                                onClick={async () => {
+                                    if(window.confirm('Vill du ta bort bakgrundsbilden?')) {
+                                        setIsSaving(true);
+                                        setBackgroundImageUrl('');
+                                        await updateUserProfile(userData.uid, { backgroundImageUrl: '' });
+                                        setIsSaving(false);
+                                    }
+                                }}
+                                className="text-xs text-red-500 hover:text-red-700 font-bold uppercase tracking-widest transition-colors"
+                            >
+                                Ta bort bakgrundsbild
+                            </button>
+                        )}
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Förnamn</label>
@@ -822,7 +871,13 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     }
 
     return (
-        <div className="w-full max-w-4xl mx-auto px-1 sm:px-6 pt-2 pb-24 animate-fade-in">
+        <div className="w-full max-w-4xl mx-auto px-1 sm:px-6 pt-2 pb-24 animate-fade-in relative z-0">
+            {userData.backgroundImageUrl && (
+                <div className="fixed inset-0 z-[-1]">
+                    <img src={userData.backgroundImageUrl} alt="Background" className="w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-white/20 dark:bg-black/20 pointer-events-none mix-blend-normal"></div>
+                </div>
+            )}
             
             {/* 1. Resume Workout Banner */}
             {activeSession && (
