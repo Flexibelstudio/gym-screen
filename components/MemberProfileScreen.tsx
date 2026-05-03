@@ -872,12 +872,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
     return (
         <div className="w-full max-w-4xl mx-auto px-1 sm:px-6 pt-2 pb-24 animate-fade-in relative z-0">
-            {userData.backgroundImageUrl && (
-                <div className="fixed inset-0 z-[-1]">
-                    <img src={userData.backgroundImageUrl} alt="Background" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-white/20 dark:bg-black/20 pointer-events-none mix-blend-normal"></div>
-                </div>
-            )}
             
             {/* 1. Resume Workout Banner */}
             {activeSession && (

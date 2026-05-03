@@ -1343,8 +1343,16 @@ const App: React.FC = () => {
   }
   // --- SLUT PÅ SPÄRR ---
 
+  const showUserBackground = page === Page.MemberProfile && !!userData?.backgroundImageUrl;
+
   return (
-    <div className={`bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
+    <div className={`${showUserBackground ? 'bg-transparent' : 'bg-white dark:bg-black'} text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
+        {showUserBackground && (
+            <div className="fixed inset-0 z-[-1]">
+                <img src={userData.backgroundImageUrl} alt="Background" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-white/20 dark:bg-black/20 pointer-events-none mix-blend-normal"></div>
+            </div>
+        )}
        {isOffline && (
             <div className="bg-red-500 text-white text-xs font-bold uppercase tracking-widest py-2 px-4 flex justify-center items-center gap-2 fixed top-0 w-full z-[10000] shadow-md">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
