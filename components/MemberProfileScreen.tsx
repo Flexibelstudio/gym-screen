@@ -754,6 +754,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     if (isEditing) {
         return (
             <div className="w-full max-w-2xl mx-auto px-6 py-12 animate-fade-in pb-32">
+                <div className="fixed inset-0 bg-white dark:bg-black z-[-1]"></div>
                 <div className="flex justify-between items-center mb-10">
                     <h2 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Redigera profil</h2>
                     {!isNewUser && (
@@ -785,7 +786,18 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             className="w-full h-32 sm:h-48 rounded-2xl bg-gray-100 dark:bg-gray-800 border-4 border-white dark:border-gray-900 shadow-xl flex items-center justify-center overflow-hidden cursor-pointer relative group"
                             onClick={() => bgFileInputRef.current?.click()}
                         >
-                            {backgroundImageUrl ? <img src={backgroundImageUrl} className="w-full h-full object-cover" /> : <div className="flex flex-col items-center text-gray-400"><span className="text-sm font-bold uppercase tracking-widest mb-1">Bakgrundsbild</span><span className="text-xs">Klicka för att ladda upp</span></div>}
+                            {backgroundImageUrl ? (
+                                <>
+                                    <img src={backgroundImageUrl} className="w-full h-full object-cover" />
+                                    <div className="absolute inset-0 block dark:hidden mix-blend-normal pointer-events-none" style={{ backgroundColor: `rgba(255,255,255,${backgroundOverlayOpacity / 100})` }}></div>
+                                    <div className="absolute inset-0 hidden dark:block mix-blend-normal pointer-events-none" style={{ backgroundColor: `rgba(0,0,0,${backgroundOverlayOpacity / 100})` }}></div>
+                                </>
+                            ) : (
+                                <div className="flex flex-col items-center text-gray-400">
+                                    <span className="text-sm font-bold uppercase tracking-widest mb-1">Bakgrundsbild</span>
+                                    <span className="text-xs">Klicka för att ladda upp</span>
+                                </div>
+                            )}
                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                                 <span className="text-white text-xs font-black uppercase tracking-widest">Ändra bakgrundsbild</span>
                             </div>

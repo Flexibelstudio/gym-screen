@@ -1357,7 +1357,7 @@ const App: React.FC = () => {
                 ></div>
                 {/* Mjuk gradient i överkant för att säkra ikonernas läsbarhet, också kopplad till opaciteten (minst viss procent för att alltid säkra ikoner) */}
                 <div 
-                    className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-white to-transparent dark:from-black dark:to-transparent pointer-events-none mix-blend-multiply dark:mix-blend-normal"
+                    className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-white to-transparent dark:from-black dark:to-transparent pointer-events-none mix-blend-normal"
                     style={{ opacity: Math.max(0.6, backgroundOverlayOpacity / 100) }}
                 ></div>
             </div>
