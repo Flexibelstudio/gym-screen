@@ -1591,7 +1591,6 @@ const App: React.FC = () => {
                   onClose={() => setIsCoachPreviewOpen(false)}
                   workouts={workouts}
                   onPreviewWorkout={(workout) => {
-                      setIsCoachPreviewOpen(false);
                       setMobileViewData(workout);
                   }}
               />
