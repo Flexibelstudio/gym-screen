@@ -1137,7 +1137,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                     onClick={async () => {
                                         try {
                                             await updateUserProfile(userData.uid, { weeklyGoal: Number(weeklyGoal) });
-                                            alert("Veckomål sparat!");
+                                            // alert("Veckomål sparat!"); removed as per user request to not have system popup
                                         } catch (e) {
                                             console.error(e);
                                             alert("Kunde inte spara veckomål.");
