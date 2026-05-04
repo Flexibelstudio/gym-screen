@@ -754,7 +754,14 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     if (isEditing) {
         return (
             <div className="w-full max-w-2xl mx-auto px-6 py-12 animate-fade-in pb-32">
-                <div className="fixed inset-0 bg-white dark:bg-black z-[-1]"></div>
+                <style>{`
+                    #user-background-layer { display: none !important; }
+                    #app-root-container { background-color: #ffffff !important; }
+                    @media (prefers-color-scheme: dark) {
+                        html, body, #app-root-container { background-color: #000000 !important; }
+                    }
+                    :root.dark body, :root.dark #app-root-container { background-color: #000000 !important; }
+                `}</style>
                 <div className="flex justify-between items-center mb-10">
                     <h2 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Redigera profil</h2>
                     {!isNewUser && (

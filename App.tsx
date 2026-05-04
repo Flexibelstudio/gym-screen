@@ -1347,9 +1347,9 @@ const App: React.FC = () => {
   const backgroundOverlayOpacity = userData?.backgroundOverlayOpacity ?? 20;
 
   return (
-    <div className={`${showUserBackground ? 'bg-transparent' : 'bg-white dark:bg-black'} text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
+    <div id="app-root-container" className={`${showUserBackground ? 'bg-transparent' : 'bg-white dark:bg-black'} text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
         {showUserBackground && (
-            <div className="fixed inset-0 z-[-1]">
+            <div id="user-background-layer" className="fixed inset-0 z-[-1]">
                 <img src={userData.backgroundImageUrl} alt="Background" className="w-full h-full object-cover" />
                 <div 
                     className="absolute inset-0 pointer-events-none mix-blend-normal" 
