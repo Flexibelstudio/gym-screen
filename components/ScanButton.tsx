@@ -183,7 +183,7 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                                 {msg.role === 'user' ? (
                                     msg.text
                                 ) : (
-                                    <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-0 [&>p:not(:last-child)]:mb-2 [&_strong]:font-bold [&_strong]:text-inherit">
+                                    <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-0 [&>p:not(:last-child)]:mb-2 [&_strong]:font-bold [&_strong]:text-inherit [&_em]:font-bold [&_em]:text-inherit [&_em]:not-italic">
                                         <Markdown>{msg.text}</Markdown>
                                     </div>
                                 )}

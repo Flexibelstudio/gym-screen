@@ -552,6 +552,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [backgroundImageUrl, setBackgroundImageUrl] = useState(userData.backgroundImageUrl || '');
     const [backgroundOverlayOpacity, setBackgroundOverlayOpacity] = useState(userData.backgroundOverlayOpacity ?? 20);
     const [weeklyGoal, setWeeklyGoal] = useState(userData.weeklyGoal || 3);
+    const [showGoalSaved, setShowGoalSaved] = useState(false);
     const [showOnLeaderboard, setShowOnLeaderboard] = useState(userData.showOnLeaderboard !== false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -1137,7 +1138,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                     onClick={async () => {
                                         try {
                                             await updateUserProfile(userData.uid, { weeklyGoal: Number(weeklyGoal) });
-                                            // alert("Veckomål sparat!"); removed as per user request to not have system popup
+                                            setShowGoalSaved(true);
+                                            setTimeout(() => setShowGoalSaved(false), 3000);
                                         } catch (e) {
                                             console.error(e);
                                             alert("Kunde inte spara veckomål.");
@@ -1145,7 +1147,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                     }}
                                     className="px-6 py-3 bg-primary text-white font-bold rounded-xl hover:brightness-110 transition-colors shadow-sm"
                                 >
-                                    Spara
+                                    {showGoalSaved ? 'Sparat!' : 'Spara'}
                                 </button>
                             </div>
                         </div>
