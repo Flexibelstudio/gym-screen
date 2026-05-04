@@ -1350,7 +1350,7 @@ const App: React.FC = () => {
         {showUserBackground && (
             <div className="fixed inset-0 z-[-1]">
                 <img src={userData.backgroundImageUrl} alt="Background" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-white/20 dark:bg-black/20 pointer-events-none mix-blend-normal"></div>
+                <div className="absolute inset-0 bg-white/30 dark:bg-black/30 pointer-events-none mix-blend-normal"></div>
                 {/* Mjuk gradient i överkant för att säkra ikonernas läsbarhet */}
                 <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-white/60 to-transparent dark:from-black/60 dark:to-transparent pointer-events-none mix-blend-multiply dark:mix-blend-normal"></div>
             </div>
