@@ -19,6 +19,7 @@ interface HeaderProps {
     showClock?: boolean;
     hideBackButton?: boolean;
     onCoachAccessRequest?: () => void;
+    onPreviewWorkoutsRequest?: () => void;
     showCoachButton?: boolean;
     onMemberProfileRequest?: () => void;
     onEditProfileRequest?: () => void;
@@ -40,7 +41,8 @@ export const Header: React.FC<HeaderProps> = ({
     historyLength, 
     showClock, 
     hideBackButton = false, 
-    onCoachAccessRequest, 
+    onCoachAccessRequest,
+    onPreviewWorkoutsRequest,
     showCoachButton,
     onMemberProfileRequest,
     onEditProfileRequest,
@@ -271,6 +273,18 @@ export const Header: React.FC<HeaderProps> = ({
                                       className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
                                   >
                                       <SettingsIcon className="w-4 h-4" /> Admin
+                                  </button>
+                              )}
+
+                              {onPreviewWorkoutsRequest && (
+                                  <button 
+                                      onClick={() => { setIsDropdownOpen(false); onPreviewWorkoutsRequest(); }} 
+                                      className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
+                                  >
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                                      </svg>
+                                      Kolla in pass
                                   </button>
                               )}
 

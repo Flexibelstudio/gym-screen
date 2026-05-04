@@ -110,7 +110,12 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
     
     useEffect(() => {
         if (initialTab) {
-            setActiveTab(initialTab as AdminTab);
+            if (initialTab === 'manage') {
+                setActiveTab('pass-program');
+                setPassProgramSubView('manage');
+            } else {
+                setActiveTab(initialTab as AdminTab);
+            }
         }
     }, [initialTab]);
 

@@ -52,6 +52,7 @@ import { WorkoutDiplomaView } from './components/WorkoutDiplomaView';
 // --- Modals ---
 import { BirthDatePromptModal } from './components/modals/BirthDatePromptModal';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
+import { CoachWorkoutPreviewModal } from './components/CoachWorkoutPreviewModal';
 
 const THEME_STORAGE_KEY = 'flexibel-screen-theme';
 
@@ -393,6 +394,7 @@ const App: React.FC = () => {
   const [mobileLogData, setMobileLogData] = useState<{workoutId: string, organizationId: string, source?: 'qr_scan' | 'manual'} | null>(null);
   const [mobileViewData, setMobileViewData] = useState<Workout | null>(null); 
   const [isSearchWorkoutOpen, setIsSearchWorkoutOpen] = useState(false);
+  const [isCoachPreviewOpen, setIsCoachPreviewOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [activeDiploma, setActiveDiploma] = useState<WorkoutDiploma | null>(null);
   const [showBirthDatePrompt, setShowBirthDatePrompt] = useState(false);
@@ -406,13 +408,13 @@ const App: React.FC = () => {
   }, [userData, isStudioMode]);
 
   useEffect(() => {
-      if (mobileLogData || mobileViewData || isSearchWorkoutOpen || isScannerOpen || activeDiploma) {
+      if (mobileLogData || mobileViewData || isSearchWorkoutOpen || isCoachPreviewOpen || isScannerOpen || activeDiploma) {
           document.body.style.overflow = 'hidden';
       } else {
           document.body.style.overflow = '';
       }
       return () => { document.body.style.overflow = ''; };
-  }, [mobileLogData, mobileViewData, isSearchWorkoutOpen, isScannerOpen, activeDiploma]);
+  }, [mobileLogData, mobileViewData, isSearchWorkoutOpen, isCoachPreviewOpen, isScannerOpen, activeDiploma]);
 
   const [theme, setTheme] = useState(() => {
     const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
@@ -864,6 +866,10 @@ const App: React.FC = () => {
     else navigateTo(Page.Coach);
   };
   
+  const handlePreviewWorkoutsRequest = () => {
+    setIsCoachPreviewOpen(true);
+  };
+
   const handleSelectCustomPage = (page: CustomPage) => {
     setActiveCustomPage(page);
     navigateTo(Page.CustomContent);
@@ -1407,6 +1413,7 @@ const App: React.FC = () => {
             showClock={isStudioMode && (page === Page.WorkoutDetail)}
             hideBackButton={isBackButtonHidden}
             onCoachAccessRequest={handleCoachAccessRequest}
+            onPreviewWorkoutsRequest={isAdminOrCoach ? handlePreviewWorkoutsRequest : undefined}
             showCoachButton={isStudioMode}
             onMemberProfileRequest={handleMemberProfileRequest} 
             onEditProfileRequest={handleEditProfileRequest}
@@ -1576,6 +1583,18 @@ const App: React.FC = () => {
                       </div>
                   </motion.div>
               </>
+          )}
+
+          {isCoachPreviewOpen && (
+              <CoachWorkoutPreviewModal 
+                  isOpen={isCoachPreviewOpen}
+                  onClose={() => setIsCoachPreviewOpen(false)}
+                  workouts={workouts}
+                  onPreviewWorkout={(workout) => {
+                      setIsCoachPreviewOpen(false);
+                      setMobileViewData(workout);
+                  }}
+              />
           )}
       </AnimatePresence>
 
