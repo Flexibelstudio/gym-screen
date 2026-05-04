@@ -965,7 +965,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             <div className="absolute -right-2 -bottom-2 text-white opacity-20 transform -rotate-12 transition-transform group-hover:scale-110">
                                 <ChartBarIcon className="w-16 h-16" />
                             </div>
-                            <span className="block text-[10px] font-black text-white/80 uppercase tracking-widest mb-1 relative z-10">Månad</span>
+                            <span className="block text-[10px] font-black text-white/80 uppercase tracking-widest mb-1 relative z-10">{new Date().toLocaleString('sv-SE', { month: 'long' })}</span>
                             <p className="text-3xl sm:text-4xl font-black text-white leading-none tracking-tight relative z-10">{stats.thisMonth}</p>
                         </div>
 
