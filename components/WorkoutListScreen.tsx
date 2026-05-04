@@ -130,16 +130,16 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                 onClick={() => {
                     setSelectedWorkoutHistory(workout);
                 }}
-                className={`cursor-pointer group relative overflow-hidden rounded-[2.5rem] p-8 transition-all bg-white dark:bg-[#0f141e] border-2 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 shadow-xl flex flex-col`}
+                className={`cursor-pointer group relative overflow-hidden rounded-3xl p-5 sm:p-6 transition-all bg-white dark:bg-[#0f141e] border-2 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 shadow-xl flex flex-col`}
                 style={{ touchAction: 'manipulation' }}
             >
                 {/* Decorative Background */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
 
                 <div className="relative z-10 flex-grow flex flex-col">
-                    <div className="flex justify-between items-start mb-6 w-full">
+                    <div className="flex justify-between items-start mb-4 w-full">
                         <div className="flex items-center gap-2 flex-1 pr-2">
-                             <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">
+                             <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-tight">
                                  {workout.title || 'Namnlöst pass'}
                              </h3>
                         </div>
@@ -150,15 +150,15 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                         e.stopPropagation();
                                         setProgramToDelete(workout);
                                     }}
-                                    className="p-2 bg-gray-100 dark:bg-gray-800/80 backdrop-blur-sm text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-full transition-colors z-40 cursor-pointer border border-gray-200 dark:border-gray-700 hover:scale-105 active:scale-95"
+                                    className="p-1.5 bg-gray-100 dark:bg-gray-800/80 backdrop-blur-sm text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-full transition-colors z-40 cursor-pointer border border-gray-200 dark:border-gray-700 hover:scale-105 active:scale-95"
                                     aria-label="Radera pass"
                                 >
                                     <TrashIcon className="w-4 h-4" />
                                 </button>
                             )}
                             {workout.benchmarkId && (
-                                <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 px-2.5 py-2.5 rounded-xl border border-yellow-300/30 dark:border-yellow-500/20 shadow-sm">
-                                    <TrophyIcon className="w-5 h-5" />
+                                <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 px-2 py-2 rounded-xl border border-yellow-300/30 dark:border-yellow-500/20 shadow-sm">
+                                    <TrophyIcon className="w-4 h-4" />
                                 </div>
                             )}
                         </div>
@@ -166,36 +166,36 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                     
                     <>
                         {attempts > 0 ? (
-                            <div className="flex flex-col justify-end mt-4">
+                            <div className="flex flex-col justify-end mt-2">
                                 {pbVolume && pbVolume > 0 ? (
-                                    <p className="text-[2.5rem] leading-none font-black text-gray-900 dark:text-white tracking-tight">
-                                        {pbVolume.toLocaleString('sv-SE')} <span className="text-lg text-gray-500 font-bold ml-1">kg</span>
+                                    <p className="text-3xl sm:text-4xl leading-none font-black text-gray-900 dark:text-white tracking-tight">
+                                        {pbVolume.toLocaleString('sv-SE')} <span className="text-base text-gray-500 font-bold ml-1">kg</span>
                                     </p>
                                 ) : (
-                                    <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tight mb-1">Genomfört</p>
+                                    <p className="text-2xl sm:text-3xl font-black text-gray-900 dark:text-white tracking-tight mb-1">Genomfört</p>
                                 )}
-                                <p className="text-[11px] text-gray-500 mt-4 uppercase tracking-widest font-black flex items-center gap-2">
+                                <p className="text-[10px] text-gray-500 mt-2 uppercase tracking-widest font-black flex items-center gap-2">
                                     {latestDate} • {attempts} FÖRSÖK 
                                 </p>
                             </div>
                         ) : (
-                            <div className="flex flex-col justify-end mt-4">
-                                 <p className="text-[2.5rem] leading-none font-black text-gray-300 dark:text-gray-700 tracking-tight">
+                            <div className="flex flex-col justify-end mt-2">
+                                 <p className="text-3xl sm:text-4xl leading-none font-black text-gray-300 dark:text-gray-700 tracking-tight">
                                      -
                                  </p>
-                                 <p className="text-[11px] text-gray-400 dark:text-gray-600 mt-4 uppercase tracking-widest font-black">
+                                 <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-2 uppercase tracking-widest font-black">
                                      INGA FÖRSÖK ÄN
                                  </p>
                             </div>
                         )}
 
-                        <div className="flex gap-2 w-full mt-8 relative z-20">
+                        <div className="flex gap-2 w-full mt-5 relative z-20">
                              <button
                                  onClick={(e) => {
                                      e.stopPropagation();
                                      onSelectWorkout(workout, 'view');
                                  }}
-                                 className="flex-1 py-3 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-800 dark:text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-colors shadow-sm"
+                                 className="flex-1 py-2.5 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-800 dark:text-white rounded-xl text-xs font-black uppercase tracking-widest transition-colors shadow-sm"
                              >
                                  Visa
                              </button>
@@ -205,7 +205,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                          e.stopPropagation();
                                          onSelectWorkout(workout, 'log');
                                      }}
-                                     className="flex-1 py-3 bg-primary text-white hover:bg-primary/90 rounded-2xl text-xs font-black uppercase tracking-widest transition-colors shadow-sm"
+                                     className="flex-1 py-2.5 bg-primary text-white hover:bg-primary/90 rounded-xl text-xs font-black uppercase tracking-widest transition-colors shadow-sm"
                                  >
                                      Logga
                                  </button>
@@ -222,18 +222,18 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
     };
 
     return (
-        <div className="w-full max-w-5xl mx-auto px-6 pb-12 animate-fade-in">
+        <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 pb-12 animate-fade-in">
             {!passkategori && (
                 <div className="text-center mb-6">
-                    <h1 className="text-5xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
+                    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
                         Välj Träningspass
                     </h1>
-                    <div className="h-1.5 w-24 bg-primary mx-auto rounded-full mb-8"></div>
+                    <div className="h-1 lg:h-1.5 w-16 lg:w-24 bg-primary mx-auto rounded-full mb-6"></div>
                     
-                    <div className="flex items-center justify-center gap-2 mb-8">
+                    <div className="flex items-center justify-center gap-2 mb-6 w-full max-w-sm mx-auto">
                         <button
                             onClick={() => setActiveTab('alla')}
-                            className={`px-6 py-2.5 rounded-full font-black uppercase tracking-widest text-sm transition-all ${
+                            className={`flex-1 py-2.5 px-2 rounded-full font-black uppercase tracking-widest text-xs sm:text-sm transition-all ${
                                 activeTab === 'alla'
                                     ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg'
                                     : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
@@ -243,7 +243,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                         </button>
                         <button
                             onClick={() => setActiveTab('mina')}
-                            className={`px-6 py-2.5 rounded-full font-black uppercase tracking-widest text-sm transition-all ${
+                            className={`flex-1 py-2.5 px-2 rounded-full font-black uppercase tracking-widest text-xs sm:text-sm transition-all ${
                                 activeTab === 'mina'
                                     ? 'bg-primary text-white shadow-lg shadow-primary/20'
                                     : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
@@ -256,25 +256,25 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
             )}
 
             {/* Sökfält & Inställningar */}
-            <div className="relative max-w-xl mx-auto mb-12 space-y-4">
+            <div className="relative max-w-xl mx-auto mb-8 space-y-4">
                 <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                        <SearchIcon className="h-6 w-6 text-gray-400" />
+                        <SearchIcon className="h-5 w-5 text-gray-400" />
                     </div>
                     <input
                         type="text"
                         placeholder="Sök på passets namn..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="block w-full pl-12 pr-4 py-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-xl transition-all text-lg"
+                        className="block w-full pl-11 pr-4 py-3 sm:py-4 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary/20 focus:border-primary shadow-md transition-all text-base"
                     />
                 </div>
                 
                 {activeTab === 'alla' && !isStudioMode && studioConfig?.customCategories && studioConfig.customCategories.length > 0 && (
-                    <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 pt-2 snap-x px-1">
+                    <div className="flex flex-wrap gap-2 pb-2 pt-2 px-1">
                         <button
                             onClick={() => setSelectedCategory(null)}
-                            className={`snap-start whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all flex items-center gap-2 flex-shrink-0 border
+                            className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5 border
                                 ${!selectedCategory 
                                     ? 'bg-primary text-white border-primary shadow-md' 
                                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
@@ -285,14 +285,14 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                             <button
                                 key={cat.id || cat.name}
                                 onClick={() => {
-                                    if (cat.isLocked) {
+                                    if (cat.isLocked && cat.name !== selectedCategory) {
                                         setPendingCategory(cat.name);
                                         setShowPasswordModal(true);
                                     } else {
                                         setSelectedCategory(cat.name);
                                     }
                                 }}
-                                className={`snap-start whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all flex items-center gap-2 flex-shrink-0 border
+                                className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full font-bold text-xs sm:text-sm transition-all flex items-center gap-1.5 border
                                     ${selectedCategory === cat.name 
                                         ? 'bg-primary text-white border-primary shadow-md' 
                                         : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
