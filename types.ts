@@ -401,6 +401,8 @@ export interface UserData {
   birthDate?: string;
   gender?: string;
   goals?: MemberGoals;
+  backgroundImageUrl?: string;
+  backgroundOverlayOpacity?: number; // 0 to 100
   
   // Subscription / Payment fields
   subscriptionStatus?: 'active' | 'inactive' | 'trialing' | 'past_due' | 'canceled';

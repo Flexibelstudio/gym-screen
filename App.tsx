@@ -1344,15 +1344,22 @@ const App: React.FC = () => {
   // --- SLUT PÅ SPÄRR ---
 
   const showUserBackground = page === Page.MemberProfile && !!userData?.backgroundImageUrl;
+  const backgroundOverlayOpacity = userData?.backgroundOverlayOpacity ?? 20;
 
   return (
     <div className={`${showUserBackground ? 'bg-transparent' : 'bg-white dark:bg-black'} text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
         {showUserBackground && (
             <div className="fixed inset-0 z-[-1]">
                 <img src={userData.backgroundImageUrl} alt="Background" className="w-full h-full object-cover" />
-                <div className="absolute inset-0 bg-white/50 dark:bg-black/50 pointer-events-none mix-blend-normal"></div>
-                {/* Mjuk gradient i överkant för att säkra ikonernas läsbarhet */}
-                <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-white/60 to-transparent dark:from-black/60 dark:to-transparent pointer-events-none mix-blend-multiply dark:mix-blend-normal"></div>
+                <div 
+                    className="absolute inset-0 pointer-events-none mix-blend-normal" 
+                    style={{ backgroundColor: theme === 'dark' ? `rgba(0,0,0,${backgroundOverlayOpacity / 100})` : `rgba(255,255,255,${backgroundOverlayOpacity / 100})` }}
+                ></div>
+                {/* Mjuk gradient i överkant för att säkra ikonernas läsbarhet, också kopplad till opaciteten (minst viss procent för att alltid säkra ikoner) */}
+                <div 
+                    className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-white to-transparent dark:from-black dark:to-transparent pointer-events-none mix-blend-multiply dark:mix-blend-normal"
+                    style={{ opacity: Math.max(0.6, backgroundOverlayOpacity / 100) }}
+                ></div>
             </div>
         )}
        {isOffline && (

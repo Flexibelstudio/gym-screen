@@ -550,6 +550,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [gender, setGender] = useState(userData.gender || 'prefer_not_to_say');
     const [photoUrl, setPhotoUrl] = useState(userData.photoUrl || '');
     const [backgroundImageUrl, setBackgroundImageUrl] = useState(userData.backgroundImageUrl || '');
+    const [backgroundOverlayOpacity, setBackgroundOverlayOpacity] = useState(userData.backgroundOverlayOpacity ?? 20);
     const [weeklyGoal, setWeeklyGoal] = useState(userData.weeklyGoal || 3);
     const [showOnLeaderboard, setShowOnLeaderboard] = useState(userData.showOnLeaderboard !== false);
 
@@ -660,7 +661,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 birthDate: birthDate || undefined,
                 gender: gender as any,
                 weeklyGoal: Number(weeklyGoal),
-                showOnLeaderboard
+                showOnLeaderboard,
+                backgroundOverlayOpacity: Number(backgroundOverlayOpacity)
             });
             setIsEditing(false);
         } catch (error) {
@@ -791,19 +793,36 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         </div>
                         <input type="file" ref={bgFileInputRef} onChange={handleBgFileChange} accept="image/*" className="hidden" />
                         {backgroundImageUrl && (
-                            <button 
-                                onClick={async () => {
-                                    if(window.confirm('Vill du ta bort bakgrundsbilden?')) {
-                                        setIsSaving(true);
-                                        setBackgroundImageUrl('');
-                                        await updateUserProfile(userData.uid, { backgroundImageUrl: '' });
-                                        setIsSaving(false);
-                                    }
-                                }}
-                                className="text-xs text-red-500 hover:text-red-700 font-bold uppercase tracking-widest transition-colors"
-                            >
-                                Ta bort bakgrundsbild
-                            </button>
+                            <div className="flex flex-col items-center gap-4 w-full">
+                                <div className="w-full max-w-xs space-y-2">
+                                    <label className="flex justify-between text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">
+                                        <span>Dämpning av bakgrund</span>
+                                        <span>{backgroundOverlayOpacity}%</span>
+                                    </label>
+                                    <input 
+                                        type="range" 
+                                        min="0" 
+                                        max="100" 
+                                        value={backgroundOverlayOpacity} 
+                                        onChange={(e) => setBackgroundOverlayOpacity(Number(e.target.value))}
+                                        className="w-full accent-primary"
+                                    />
+                                    <p className="text-xs text-gray-500 text-center">Justerar hur mycket bilden skuggas för att öka kontrasten för meny och text.</p>
+                                </div>
+                                <button 
+                                    onClick={async () => {
+                                        if(window.confirm('Vill du ta bort bakgrundsbilden?')) {
+                                            setIsSaving(true);
+                                            setBackgroundImageUrl('');
+                                            await updateUserProfile(userData.uid, { backgroundImageUrl: '' });
+                                            setIsSaving(false);
+                                        }
+                                    }}
+                                    className="text-xs text-red-500 hover:text-red-700 font-bold uppercase tracking-widest transition-colors"
+                                >
+                                    Ta bort bakgrundsbild
+                                </button>
+                            </div>
                         )}
                     </div>
 
