@@ -3,12 +3,13 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Workout, WorkoutLog } from '../types';
 import { useWorkout } from '../context/WorkoutContext';
 import { useStudio } from '../context/StudioContext';
-import { SearchIcon, DumbbellIcon, ClockIcon, TrashIcon, TrophyIcon, CloseIcon, ToggleSwitch } from './icons';
+import { SearchIcon, DumbbellIcon, ClockIcon, TrashIcon, TrophyIcon, CloseIcon, ToggleSwitch, LockIcon } from './icons';
 import { useAuth } from '../context/AuthContext';
 import { fetchCustomPrograms, deleteCustomProgram, getMemberLogs, updateUserProfile } from '../services/firebaseService';
 import WorkoutDetailScreen from './WorkoutDetailScreen';
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Modal } from './ui/Modal';
+import { PasswordModal } from './PasswordModal';
 
 interface WorkoutListScreenProps {
     passkategori?: string;
@@ -18,12 +19,19 @@ interface WorkoutListScreenProps {
 export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkategori, onSelectWorkout }) => {
     const { workouts } = useWorkout();
     const { isStudioMode, currentUser, userData } = useAuth();
-    const { studioConfig } = useStudio();
+    const { studioConfig, selectedOrganization } = useStudio();
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<'alla' | 'mina'>('alla');
     const [customPrograms, setCustomPrograms] = useState<Workout[]>([]);
     const [programToDelete, setProgramToDelete] = useState<Workout | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    
+    // Category filter state
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(passkategori || null);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [pendingCategory, setPendingCategory] = useState<string | null>(null);
+    const [passwordInput, setPasswordInput] = useState("");
+    const [passwordError, setPasswordError] = useState(false);
     
     // Member Logs for PBs
     const [memberLogs, setMemberLogs] = useState<WorkoutLog[]>([]);
@@ -52,10 +60,10 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
     }, [currentUser?.uid, activeTab]);
 
     const filteredWorkouts = useMemo(() => {
-        const sourceWorkouts = (!passkategori && activeTab === 'mina') ? customPrograms : workouts;
+        const sourceWorkouts = (!selectedCategory && activeTab === 'mina') ? customPrograms : workouts;
 
         return sourceWorkouts.filter(w => {
-            const matchesCategory = !passkategori || w.category === passkategori;
+            const matchesCategory = !selectedCategory || w.category === selectedCategory;
             const matchesSearch = (w.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                                 (w.coachTips && (w.coachTips || '').toLowerCase().includes(searchTerm.toLowerCase()));
             
@@ -69,13 +77,14 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                     if (w.showInStudio === false) return false;
                 } else {
                     if (w.showInApp === false) return false;
-                    if (isCategoryLocked) return false;
+                    // Dölj låsta kategorier om de inte är den valda kategorin
+                    if (isCategoryLocked && w.category !== selectedCategory) return false;
                 }
             }
 
             return w.isPublished && matchesCategory && matchesSearch;
         });
-    }, [workouts, customPrograms, passkategori, searchTerm, isStudioMode, studioConfig, activeTab]);
+    }, [workouts, customPrograms, selectedCategory, searchTerm, isStudioMode, studioConfig, activeTab]);
     
     const renderWorkoutCard = (workout: Workout, isLoggable: boolean) => {
         if (isStudioMode) {
@@ -260,6 +269,40 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                         className="block w-full pl-12 pr-4 py-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-xl transition-all text-lg"
                     />
                 </div>
+                
+                {activeTab === 'alla' && !isStudioMode && studioConfig?.customCategories && studioConfig.customCategories.length > 0 && (
+                    <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 pt-2 snap-x px-1">
+                        <button
+                            onClick={() => setSelectedCategory(null)}
+                            className={`snap-start whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all flex items-center gap-2 flex-shrink-0 border
+                                ${!selectedCategory 
+                                    ? 'bg-primary text-white border-primary shadow-md' 
+                                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                        >
+                            Alla
+                        </button>
+                        {studioConfig.customCategories.map(cat => (
+                            <button
+                                key={cat.id || cat.name}
+                                onClick={() => {
+                                    if (cat.isLocked) {
+                                        setPendingCategory(cat.name);
+                                        setShowPasswordModal(true);
+                                    } else {
+                                        setSelectedCategory(cat.name);
+                                    }
+                                }}
+                                className={`snap-start whitespace-nowrap px-4 py-2 rounded-full font-bold text-sm transition-all flex items-center gap-2 flex-shrink-0 border
+                                    ${selectedCategory === cat.name 
+                                        ? 'bg-primary text-white border-primary shadow-md' 
+                                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                            >
+                                {cat.name}
+                                {cat.isLocked && <LockIcon className="w-3 h-3 opacity-70" />}
+                            </button>
+                        ))}
+                    </div>
+                )}
                 
                 {activeTab === 'mina' && !isStudioMode && currentUser?.uid && userData && (
                     <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
@@ -486,6 +529,19 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                         </div>
                     </div>
                 </Modal>
+            )}
+
+            {showPasswordModal && (
+                <PasswordModal
+                    coachPassword={selectedOrganization?.passwords.coach}
+                    onClose={() => setShowPasswordModal(false)}
+                    onSuccess={() => {
+                        setShowPasswordModal(false);
+                        if (pendingCategory) {
+                            setSelectedCategory(pendingCategory);
+                        }
+                    }}
+                />
             )}
         </div>
     );
