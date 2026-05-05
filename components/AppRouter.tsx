@@ -82,7 +82,7 @@ interface AppRouterProps {
         deleteOrganization: (organizationId: string) => Promise<void>;
         saveGlobalConfig: (organizationId: string, newConfig: StudioConfig) => Promise<void>;
         createStudio: (organizationId: string, name: string) => Promise<void>;
-        updateStudio: (organizationId: string, studioId: string, name: string) => Promise<void>;
+        updateStudio: (organizationId: string, studioId: string, name: string, locationId?: string) => Promise<void>;
         deleteStudio: (organizationId: string, studioId: string) => Promise<void>;
         updatePasswords: (organizationId: string, passwords: Organization['passwords']) => Promise<void>;
         updateLogos: (organizationId: string, logos: { light: string; dark: string }) => Promise<void>;

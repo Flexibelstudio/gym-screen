@@ -1468,6 +1468,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
               benchmarkId: benchmarkDefinition?.id,
               totalVolume: totalVolume > 0 ? totalVolume : undefined,
               inStudio: inStudio,
+              locationId: userData?.locationId,
           };
 
           finalLogRaw.durationMinutes = parseFloat(isQuickOrManual ? customActivity.duration : sessionStats.time) || 0;

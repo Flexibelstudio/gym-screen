@@ -7,7 +7,7 @@ interface StudiosContentProps {
     organization: Organization;
     onEditStudioConfig: (studio: Studio) => void;
     onCreateStudio: (organizationId: string, name: string) => Promise<void>;
-    onUpdateStudio: (organizationId: string, studioId: string, name: string) => Promise<void>;
+    onUpdateStudio: (organizationId: string, studioId: string, name: string, locationId?: string) => Promise<void>;
     onDeleteStudio: (organizationId: string, studioId: string) => Promise<void>;
 }
 
@@ -78,7 +78,21 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
                             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold flex-shrink-0">
                                 {studio.name[0].toUpperCase()}
                             </div>
-                            <p className="font-bold text-lg text-gray-900 dark:text-white truncate">{studio.name}</p>
+                            <div>
+                                <p className="font-bold text-lg text-gray-900 dark:text-white truncate">{studio.name}</p>
+                                {organization.locations && organization.locations.length > 0 && (
+                                    <select
+                                        value={studio.locationId || ''}
+                                        onChange={(e) => onUpdateStudio(organization.id, studio.id, studio.name, e.target.value || undefined)}
+                                        className="mt-1 text-sm bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-primary/50"
+                                    >
+                                        <option value="">-- Välj ort/studio för skärmen --</option>
+                                        {organization.locations.map(loc => (
+                                            <option key={loc.id} value={loc.id}>{loc.name}</option>
+                                        ))}
+                                    </select>
+                                )}
+                            </div>
                         </div>
                         <div className="flex flex-wrap gap-2 w-full xl:w-auto justify-end">
                             <button onClick={() => handleActivateDevice(studio)} className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm shadow-sm flex items-center gap-2">

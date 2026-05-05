@@ -555,6 +555,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                     id: eventRef.id,
                     type: 'pb',
                     organizationId: logData.organizationId,
+                    locationId: logData.locationId, 
                     timestamp: Date.now(),
                     data: { 
                         userName: newLog.memberName || 'En medlem', 
@@ -630,7 +631,7 @@ export const getLeaderboardData = async (orgId: string): Promise<{ memberId: str
     }
 };
 
-export const listenToLeaderboardData = (orgId: string, onUpdate: (data: { memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]) => void) => {
+export const listenToLeaderboardData = (orgId: string, locationId: string | 'all' | undefined, onUpdate: (data: { memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]) => void) => {
     if (isOffline || !db || !orgId) {
         onUpdate([]);
         return () => {};
@@ -650,7 +651,14 @@ export const listenToLeaderboardData = (orgId: string, onUpdate: (data: { member
     );
     
     return onSnapshot(q, (snap) => {
-        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
+        const logs = snap.docs.map(d => d.data() as WorkoutLog)
+            .filter(log => log.showOnLeaderboard !== false && log.inStudio !== false)
+            .filter(log => {
+                if (locationId && locationId !== 'all') {
+                    return log.locationId === locationId;
+                }
+                return true;
+            });
         
         // Aggregate by memberId
         const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
@@ -1074,11 +1082,11 @@ export const createStudio = async (orgId: string, name: string) => {
     return studio;
 };
 
-export const updateStudio = async (orgId: string, studioId: string, name: string) => {
+export const updateStudio = async (orgId: string, studioId: string, name: string, locationId?: string) => {
     if(isOffline || !db || !orgId) return;
     const org = await getOrganizationById(orgId);
     if (!org) throw new Error("Organisationen hittades inte.");
-    const studios = org.studios.map(s => s.id === studioId ? { ...s, name } : s);
+    const studios = org.studios.map(s => s.id === studioId ? { ...s, name, locationId: locationId !== undefined ? locationId : s.locationId } : s);
     await updateDoc(doc(db, 'organizations', orgId), { studios });
 };
 

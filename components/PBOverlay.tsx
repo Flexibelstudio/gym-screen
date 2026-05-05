@@ -95,6 +95,15 @@ export const PBOverlay: React.FC = () => {
 
         const unsubscribe = listenForStudioEvents(selectedOrganization.id, (event) => {
             const now = Date.now();
+            
+            // Nytt: Om skärmen är låst till en specifik ort (locationId), och händelsen
+            // också har ett locationId, ska vi bara visa händelsen om det matchar.
+            // Om skärmen saknar ort får den alla händelser i hela organisationen.
+            if (selectedStudio?.locationId && event.locationId) {
+                if (selectedStudio.locationId !== event.locationId) {
+                    return; // Ignore - from another location
+                }
+            }
 
             // 1. Historik-spärr: Skedde detta innan vi öppnade sidan? Ignorera.
             // (Vi lägger på 1 sekunds marginal för säkerhets skull)

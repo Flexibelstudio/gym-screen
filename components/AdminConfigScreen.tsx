@@ -393,7 +393,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                         </div>
 
                         <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
-                            {renderToggle('checkInImageEnabled', "Visa incheckningsbild", "QR-kod för incheckning.")}
+                            {renderToggle('checkInImageEnabled', "Visa QR-kod på skärm", "Visar en QR-kod på displayen så medlemmar snabbt kan logga sitt pass.")}
 
                             {(overrides.checkInImageEnabled ?? effectiveConfig.checkInImageEnabled) && (
                                 <div className="mt-4 ml-14 animate-fade-in">

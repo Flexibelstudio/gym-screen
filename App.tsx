@@ -864,12 +864,12 @@ const App: React.FC = () => {
       }
   };
 
-    const handleUpdateStudio = async (organizationId: string, studioId: string, name: string) => {
+    const handleUpdateStudio = async (organizationId: string, studioId: string, name: string, locationId?: string) => {
         try {
-            await updateStudio(organizationId, studioId, name);
+            await updateStudio(organizationId, studioId, name, locationId);
             const newOrgs = allOrganizations.map(o => {
                 if (o.id === organizationId) {
-                    return { ...o, studios: o.studios.map(s => s.id === studioId ? { ...s, name } : s) };
+                    return { ...o, studios: o.studios.map(s => s.id === studioId ? { ...s, name, locationId: locationId !== undefined ? locationId : s.locationId } : s) };
                 }
                 return o;
             });
