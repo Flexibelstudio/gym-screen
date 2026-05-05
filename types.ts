@@ -392,6 +392,7 @@ export interface UserData {
   status?: 'active' | 'inactive' | 'pending_coach';
   adminRole?: 'superadmin' | 'admin';
   organizationId?: string;
+  studioId?: string;
   firstName?: string;
   lastName?: string;
   photoUrl?: string;

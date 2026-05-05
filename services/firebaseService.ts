@@ -378,6 +378,7 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
         role: isCoach ? 'coach' : 'member',
         status: isCoach ? 'pending_coach' : 'active',
         organizationId: organizationId,
+        studioId: additionalData?.studioId || undefined,
         firstName: additionalData?.firstName || '',
         lastName: additionalData?.lastName || '',
         age: additionalData?.age || null,

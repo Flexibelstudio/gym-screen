@@ -107,6 +107,7 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
+  const [studioFilter, setStudioFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [toast, setToast] = useState<{ message: string, visible: boolean }>({ message: '', visible: false });
 
@@ -142,7 +143,7 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
 
   useEffect(() => {
       setCurrentPage(1);
-  }, [searchTerm, roleFilter]);
+  }, [searchTerm, roleFilter, studioFilter]);
 
   const filteredMembers = useMemo(() => {
       return members.filter(m => {
@@ -156,9 +157,17 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
           else if (roleFilter === 'coach') matchesRole = m.role === 'coach';
           else if (roleFilter === 'admin') matchesRole = m.role === 'organizationadmin' || m.role === 'systemowner';
 
-          return matchesSearch && matchesRole;
+          let matchesStudio = true;
+          // Coach kan bara se de i sin egen studio (om de har en studio)
+          if (currentUserRole === 'coach' && currentUser?.studioId) {
+              matchesStudio = m.studioId === currentUser.studioId;
+          } else if (studioFilter !== 'all') {
+              matchesStudio = m.studioId === studioFilter;
+          }
+
+          return matchesSearch && matchesRole && matchesStudio;
       });
-  }, [members, searchTerm, roleFilter]);
+  }, [members, searchTerm, roleFilter, studioFilter]);
 
   const totalPages = Math.ceil(filteredMembers.length / ITEMS_PER_PAGE);
   const paginatedMembers = useMemo(() => {
@@ -241,8 +250,12 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
   const coachCode = selectedOrganization?.coachCode;
   
   const baseUrl = window.location.origin;
-  const qrUrl = inviteCode ? `${baseUrl}/?invite=${inviteCode}` : '';
-  const coachQrUrl = coachCode ? `${baseUrl}/?invite=${coachCode}` : '';
+  const qrUrl = inviteCode 
+      ? (studioFilter !== 'all' ? `${baseUrl}/?invite=${inviteCode}&studio=${studioFilter}` : `${baseUrl}/?invite=${inviteCode}`) 
+      : '';
+  const coachQrUrl = coachCode 
+      ? (studioFilter !== 'all' ? `${baseUrl}/?invite=${coachCode}&studio=${studioFilter}` : `${baseUrl}/?invite=${coachCode}`) 
+      : '';
 
   if (isLoading) {
       return (
@@ -341,28 +354,47 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
       )}
 
       <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-          <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full lg:w-auto overflow-x-auto scrollbar-hide">
-              {[
-                  { id: 'all', label: 'Alla', count: stats.all },
-                  { id: 'training', label: 'Medlemmar', count: stats.training },
-                  { id: 'coach', label: 'Coacher', count: stats.coaches },
-                  { id: 'admin', label: 'Admins', count: stats.admins }
-              ].map(f => (
-                  <button
-                    key={f.id}
-                    onClick={() => setRoleFilter(f.id as RoleFilter)}
-                    className={`flex-1 lg:flex-none px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
-                        roleFilter === f.id 
-                        ? 'bg-white dark:bg-gray-700 text-primary shadow-md' 
-                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                  >
-                      {f.label} ({f.count})
-                  </button>
-              ))}
+          <div className="flex flex-col lg:flex-row gap-4 w-full">
+              <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full lg:w-auto overflow-x-auto scrollbar-hide">
+                  {[
+                      { id: 'all', label: 'Alla', count: stats.all },
+                      { id: 'training', label: 'Medlemmar', count: stats.training },
+                      { id: 'coach', label: 'Coacher', count: stats.coaches },
+                      { id: 'admin', label: 'Admins', count: stats.admins }
+                  ].map(f => (
+                      <button
+                        key={f.id}
+                        onClick={() => setRoleFilter(f.id as RoleFilter)}
+                        className={`flex-1 lg:flex-none px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                            roleFilter === f.id 
+                            ? 'bg-white dark:bg-gray-700 text-primary shadow-md' 
+                            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        }`}
+                      >
+                          {f.label} ({f.count})
+                      </button>
+                  ))}
+              </div>
+
+              {selectedOrganization && selectedOrganization.studios && selectedOrganization.studios.length > 0 && currentUserRole !== 'coach' && (
+                  <div className="flex items-center min-w-[200px]">
+                      <select
+                          value={studioFilter}
+                          onChange={(e) => setStudioFilter(e.target.value)}
+                          className="w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-sm px-4 py-3 text-sm font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                      >
+                          <option value="all">Alla Orter/Studios</option>
+                          {selectedOrganization.studios.map(studio => (
+                              <option key={studio.id} value={studio.id}>
+                                  {studio.name}
+                              </option>
+                          ))}
+                      </select>
+                  </div>
+              )}
           </div>
           
-          <div className="relative w-full lg:max-w-md">
+          <div className="relative w-full lg:max-w-md shrink-0">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <SearchIcon className="h-5 w-5 text-gray-400" />
               </div>
@@ -386,7 +418,7 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                   Prova att ändra din sökning eller filter.
               </p>
               <button 
-                onClick={() => { setSearchTerm(''); setRoleFilter('all'); }}
+                onClick={() => { setSearchTerm(''); setRoleFilter('all'); setStudioFilter('all'); }}
                 className="text-primary font-bold hover:underline"
               >
                   Nollställ filter
@@ -676,7 +708,7 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
           <PrintablePoster 
               title={posterToPrint === 'member' ? "Skapa konto för att logga din träning och sätta mål" : "Skapa ett Coachinlogg!"}
               code={posterToPrint === 'member' ? (inviteCode || '') : (coachCode || '')}
-              url={`${baseUrl}/?invite=${posterToPrint === 'member' ? inviteCode : coachCode}`}
+              url={posterToPrint === 'member' ? qrUrl : coachQrUrl}
               organizationName={selectedOrganization.name}
           />
       )}
