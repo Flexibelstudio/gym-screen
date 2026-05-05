@@ -12,7 +12,7 @@ interface StudiosContentProps {
     onSwitchToStudioView: (studio: Studio) => void;
 }
 
-export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, onEditStudioConfig, onCreateStudio, onDeleteStudio, onSwitchToStudioView }) => {
+export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, onEditStudioConfig, onCreateStudio, onUpdateStudio, onDeleteStudio, onSwitchToStudioView }) => {
     const { signOut } = useAuth();
     const [newStudioName, setNewStudioName] = useState('');
     const [isCreating, setIsCreating] = useState(false);

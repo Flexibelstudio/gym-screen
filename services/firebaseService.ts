@@ -36,7 +36,9 @@ import {
   serverTimestamp,
   Firestore,
   runTransaction,
-  enableMultiTabIndexedDbPersistence
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
 } from 'firebase/firestore';
 import { 
   getStorage, 
@@ -87,20 +89,21 @@ let functions: any = null;
 
 if (!isOffline) {
     try {
-        app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+        const isNewApp = !getApps().length;
+        app = isNewApp ? initializeApp(firebaseConfig) : getApp();
         auth = getAuth(app);
-        db = getFirestore(app);
         
         try {
-            enableMultiTabIndexedDbPersistence(db).catch((err) => {
-                if (err.code == 'failed-precondition') {
-                    console.warn('Multiple tabs open, persistence can only be enabled in one tab at a a time.');
-                } else if (err.code == 'unimplemented') {
-                    console.warn('The current browser does not support all of the features required to enable persistence.');
-                }
-            });
+            if (isNewApp) {
+                db = initializeFirestore(app, {
+                    localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
+                });
+            } else {
+                db = getFirestore(app);
+            }
         } catch (e) {
-            console.warn("Could not enable persistence immediately", e);
+            console.warn("Could not enable persistence immediately, falling back to default.", e);
+            db = getFirestore(app);
         }
 
         storage = getStorage(app);
