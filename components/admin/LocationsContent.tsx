@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Organization, Location } from '../../types';
 import { updateOrganizationLocations } from '../../services/firebaseService';
 import { CopyIcon, QrCodeIcon, SparklesIcon } from '../icons';
@@ -25,6 +25,25 @@ export const LocationsContent: React.FC<LocationsContentProps> = ({ organization
     
     const [toast, setToast] = useState<{message: string, visible: boolean}>({ message: '', visible: false });
     const [posterToPrint, setPosterToPrint] = useState<{type: 'member'|'coach', loc: Location} | null>(null);
+
+    useEffect(() => {
+        // Om organisationen saknar locations, skapa en default-studio
+        if (locations.length === 0) {
+            setIsSaving(true);
+            const defaultLocation: Location = {
+                id: `loc_${Date.now()}`,
+                name: organization.name || 'Huvudstudio',
+                createdAt: Date.now(),
+                inviteCode: organization.inviteCode || generateInviteCode(),
+                coachCode: organization.coachCode || generateInviteCode()
+            };
+            const updatedLocations = [defaultLocation];
+            updateOrganizationLocations(organization.id, updatedLocations)
+                .then(() => setLocations(updatedLocations))
+                .catch(console.error)
+                .finally(() => setIsSaving(false));
+        }
+    }, [organization.id, organization.name, organization.inviteCode, organization.coachCode, locations.length]);
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -108,7 +127,7 @@ export const LocationsContent: React.FC<LocationsContentProps> = ({ organization
             {toast.visible && <Toast message={toast.message} onClose={() => setToast({ ...toast, visible: false })} />}
             <div className="p-6 sm:p-8 border-b border-gray-100 dark:border-gray-700">
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Studios / Orter</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Lägg till orter för att generera unika QR-koder så att medlemmar registreras direkt på rätt ort.</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">Lägg till dina olika studios och bjud in team & medlemmar till respektive studio. För att bjuda in och använda loggningen för medlemmar måste Passloggning först aktiveras i inställningarna.</p>
             </div>
             
              <div className="p-6 sm:p-8 space-y-6 bg-gray-50/50 dark:bg-gray-900/20">
@@ -138,7 +157,13 @@ export const LocationsContent: React.FC<LocationsContentProps> = ({ organization
                                     </button>
                                 ) : (
                                     <div className="flex flex-col sm:flex-row gap-4 w-full xl:w-auto">
-                                        <div className="bg-[#1e232d] rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center border border-slate-700/50 shadow-lg relative overflow-hidden w-full sm:min-w-[280px]">
+                                        <div className={`bg-[#1e232d] rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center border border-slate-700/50 shadow-lg relative overflow-hidden w-full sm:min-w-[280px] ${!organization.globalConfig?.enableWorkoutLogging ? 'opacity-50 grayscale' : ''}`}>
+                                            {!organization.globalConfig?.enableWorkoutLogging && (
+                                                <div 
+                                                    className="absolute inset-0 z-20 cursor-pointer" 
+                                                    onClick={() => alert("Aktivera Passloggning i Globala Inställningar först för att låsa upp medlemsinbjudningar på studios.")}
+                                                />
+                                            )}
                                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Medlemskod</span>
                                             <div className="border border-white/20 rounded-2xl px-6 py-3 sm:px-8 sm:py-4 mb-6 bg-[#141820]">
                                                 <span className="text-3xl sm:text-4xl font-black font-mono tracking-[0.15em] text-[#39ff14]">{loc.inviteCode}</span>
@@ -146,6 +171,7 @@ export const LocationsContent: React.FC<LocationsContentProps> = ({ organization
                                             <div className="flex items-center gap-4">
                                                 <button 
                                                     onClick={() => {
+                                                        if (!organization.globalConfig?.enableWorkoutLogging) return;
                                                         navigator.clipboard.writeText(loc.inviteCode || '');
                                                         setToast({ message: "Medlemskod kopierad!", visible: true });
                                                     }}
@@ -155,7 +181,10 @@ export const LocationsContent: React.FC<LocationsContentProps> = ({ organization
                                                 </button>
                                                 <span className="text-gray-600">|</span>
                                                 <button 
-                                                    onClick={() => handlePrint('member', loc)}
+                                                    onClick={() => {
+                                                        if (!organization.globalConfig?.enableWorkoutLogging) return;
+                                                        handlePrint('member', loc);
+                                                    }}
                                                     className="text-[10px] font-black text-gray-400 hover:text-white uppercase tracking-widest transition-colors flex items-center"
                                                 >
                                                     <QrCodeIcon className="w-3 h-3 mr-2" /> Skriv ut poster

@@ -941,9 +941,21 @@ export const listenToOrganizationChanges = (id: string, onUpdate: (org: Organiza
 export const createOrganization = async (name: string, subdomain: string): Promise<Organization> => {
     if(isOffline || !db) throw new Error("Offline");
     const id = `org_${subdomain}_${Date.now()}`;
+    const initialInviteCode = generateInviteCode();
+    const initialCoachCode = generateInviteCode();
+    
+    const defaultLocation = {
+        id: `loc_${Date.now()}`,
+        name: name,
+        createdAt: Date.now(),
+        inviteCode: initialInviteCode,
+        coachCode: initialCoachCode
+    };
+
     const newOrg: Organization = { 
-        id, name, subdomain, passwords: { coach: '1234' }, studios: [], customPages: [], status: 'active',
-        inviteCode: generateInviteCode(),
+        id, name, subdomain, passwords: { coach: '1234' }, studios: [], locations: [defaultLocation], customPages: [], status: 'active',
+        inviteCode: initialInviteCode,
+        coachCode: initialCoachCode,
         globalConfig: { customCategories: [{ id: '1', name: 'Standard', prompt: '' }] } 
     };
     await setDoc(doc(db, 'organizations', id), newOrg);
