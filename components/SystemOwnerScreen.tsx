@@ -174,6 +174,7 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
                             <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-1">Event & Tävlingar</p>
                             <div className="flex items-center gap-2 mt-1">
                                 <ToggleSwitch 
+                                    label="Events-modul"
                                     checked={enableEventsModule} 
                                     onChange={() => setEnableEventsModule(!enableEventsModule)} 
                                 />

@@ -378,7 +378,7 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
         role: isCoach ? 'coach' : 'member',
         status: isCoach ? 'pending_coach' : 'active',
         organizationId: organizationId,
-        studioId: additionalData?.studioId || undefined,
+        locationId: additionalData?.locationId || undefined,
         firstName: additionalData?.firstName || '',
         lastName: additionalData?.lastName || '',
         age: additionalData?.age || null,
@@ -535,7 +535,6 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                     organizationId: logData.organizationId,
                     timestamp: Date.now(),
                     data: { 
-                        memberId: logData.memberId,
                         userName: newLog.memberName || 'En medlem', 
                         userPhotoUrl: newLog.memberPhotoUrl || null, 
                         records: newRecords
@@ -1010,6 +1009,11 @@ export const updateOrganizationCustomPages = async (id: string, customPages: Cus
     return getOrganizationById(id);
 };
 
+export const updateOrganizationLocations = async (id: string, locations: any[]) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { locations: sanitizeData(locations) });
+};
+
 export const updateOrganizationInfoCarousel = async (id: string, infoCarousel: InfoCarousel) => {
     if(isOffline || !db || !id) return;
     await updateDoc(doc(db, 'organizations', id), { infoCarousel: sanitizeData(infoCarousel) });
@@ -1247,10 +1251,8 @@ export const addMemberCustomExercise = async (userId: string, exerciseName: stri
     const newExercise: BankExercise = {
         id: newDocRef.id,
         name: exerciseName,
-        category: 'Custom Egen',
-        trackingFields: ['weight', 'reps', 'duration', 'distance', 'heartRate', 'calories'],
+        tags: ['Custom Egen'],
         description: 'Egen skapad övning.',
-        videoLinks: []
     };
 
     await setDoc(newDocRef, newExercise);

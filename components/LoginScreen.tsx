@@ -50,18 +50,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     const [regError, setRegError] = useState<string | null>(null);
     const [regLoading, setRegLoading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const [invitedStudioId, setInvitedStudioId] = useState<string | null>(null);
+    const [invitedLocationId, setInvitedLocationId] = useState<string | null>(null);
 
     // Kolla URL-parametrar vid start
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const invite = params.get('invite') || params.get('coach');
-        const studio = params.get('studio');
+        const locationParam = params.get('location');
         if (invite) {
             setInviteCode(invite.toUpperCase());
             setView('register');
-            if (studio) {
-                setInvitedStudioId(studio);
+            if (locationParam) {
+                setInvitedLocationId(locationParam);
             }
             window.history.replaceState({}, document.title, window.location.pathname);
         }
@@ -143,7 +143,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     birthDate: birthDate || undefined,
                     gender: gender as any,
                     photoBase64: profileImage,
-                    studioId: invitedStudioId || undefined
+                    locationId: invitedLocationId || undefined
                 }
             );
             if (onClose) onClose();

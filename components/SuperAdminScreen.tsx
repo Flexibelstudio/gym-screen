@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { StudioConfig, Studio, Organization, CustomPage, UserData, UserRole, InfoCarousel, DisplayWindow, Workout, CompanyDetails } from '../types';
-import { HomeIcon, DocumentTextIcon, SpeakerphoneIcon, UsersIcon, DumbbellIcon, BriefcaseIcon, BuildingIcon, SettingsIcon, ChartBarIcon, CopyIcon, CloseIcon, SparklesIcon, HistoryIcon, QrCodeIcon, FlagIcon, ChevronLeftIcon } from './icons';
+import { HomeIcon, DocumentTextIcon, SpeakerphoneIcon, UsersIcon, DumbbellIcon, BriefcaseIcon, BuildingIcon, SettingsIcon, ChartBarIcon, CopyIcon, CloseIcon, SparklesIcon, HistoryIcon, QrCodeIcon, FlagIcon, ChevronLeftIcon, MapIcon } from './icons';
 import { getAdminsForOrganization, getCoachesForOrganization, saveAdminActivity } from '../services/firebaseService';
 import { OvningsbankContent } from './OvningsbankContent';
 import { PrintablePoster } from './PrintablePoster';
@@ -10,6 +10,7 @@ import { CompanyDetailsOnboardingModal } from './CompanyDetailsOnboardingModal';
 import { Toast } from './ui/ToastNotification';
 import { DashboardContent, PassProgramContent } from './admin/DashboardContent';
 import { StudiosContent } from './admin/StudiosContent';
+import { LocationsContent } from './admin/LocationsContent';
 import { InfosidorContent } from './admin/InfosidorContent';
 import { InfoKarusellContent } from './admin/InfoKarusellContent';
 import { VarumarkeContent } from './admin/VarumarkeContent';
@@ -47,6 +48,7 @@ const generateInviteCode = () => {
 type AdminTab = 
     'dashboard' | 
     'pass-program' | 'infosidor' | 'info-karusell' | 'medlemmar' |
+    'orter' |
     'globala-installningar' | 'studios' | 'varumarke' | 'company-info' |
     'ovningsbank' | 'analytics' | 'activity-log' | 'events';
 
@@ -316,7 +318,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
 
     const handleQuickGenerate = async (prompt: string) => {
         try {
-            const generatedWorkout = await generateWorkout(prompt, workouts);
+            const generatedWorkout = await generateWorkout(prompt, [], workouts);
             setWorkoutToEdit(generatedWorkout);
             setIsNewDraft(true);
             setActiveTab('pass-program');
@@ -343,6 +345,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             { type: 'link', id: 'infosidor', label: 'Infosidor', icon: DocumentTextIcon },
             { type: 'link', id: 'info-karusell', label: 'Info-karusell', icon: SpeakerphoneIcon },
             { type: 'link', id: 'medlemmar', label: 'Team & Medlemmar', icon: UsersIcon },
+            { type: 'link', id: 'orter', label: 'Studios/Orter', icon: MapIcon },
             { type: 'header', label: 'Inställningar' },
             { type: 'link', id: 'globala-installningar', label: 'Globala Inställningar', icon: SettingsIcon },
             { type: 'link', id: 'studios', label: 'Skärmar', icon: BuildingIcon },
@@ -354,7 +357,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             return allItems.filter(item => {
                 if (item.type === 'header' && item.label === 'Inställningar') return false;
                 if (item.type === 'link') {
-                    return !['globala-installningar', 'studios', 'varumarke', 'company-info'].includes(item.id);
+                    return !['globala-installningar', 'studios', 'varumarke', 'company-info', 'orter'].includes(item.id);
                 }
                 return true;
             });
@@ -542,6 +545,8 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
                 return <InfoKarusellContent {...props} />;
             case 'medlemmar':
                 return <MemberManagementScreen onSelectMember={onSelectMember} />;
+            case 'orter':
+                return <LocationsContent organization={organization} />;
             case 'globala-installningar':
                 return <GlobalSettingsContent {...props} config={config} isSavingConfig={isSavingConfig} isConfigDirty={isConfigDirty} handleUpdateConfigField={handleUpdateConfigField} handleSaveConfig={handleSaveConfig} onTriggerUpgrade={() => setIsUpgradeModalOpen(true)} />;
             case 'studios':

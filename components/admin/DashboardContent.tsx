@@ -23,11 +23,11 @@ interface DashboardContentProps {
     organization: Organization;
     workouts: Workout[];
     workoutsLoading: boolean;
-    setActiveTab: (tab: AdminTab) => void;
-    admins: UserData[];
-    coaches: UserData[];
-    usersLoading: boolean;
-    onQuickGenerate: (prompt: string) => Promise<void>;
+    setActiveTab?: (tab: AdminTab) => void;
+    admins?: UserData[];
+    coaches?: UserData[];
+    usersLoading?: boolean;
+    onQuickGenerate?: (prompt: string) => Promise<void>;
 }
 
 // ... (WelcomeBanner, SetupProgressWidget, QuickAIWidget, DashboardContent components remain the same)

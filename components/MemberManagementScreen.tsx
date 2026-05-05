@@ -107,7 +107,7 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
-  const [studioFilter, setStudioFilter] = useState<string>('all');
+  const [locationFilter, setLocationFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [toast, setToast] = useState<{ message: string, visible: boolean }>({ message: '', visible: false });
 
@@ -143,7 +143,7 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
 
   useEffect(() => {
       setCurrentPage(1);
-  }, [searchTerm, roleFilter, studioFilter]);
+  }, [searchTerm, roleFilter, locationFilter]);
 
   const filteredMembers = useMemo(() => {
       return members.filter(m => {
@@ -157,17 +157,17 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
           else if (roleFilter === 'coach') matchesRole = m.role === 'coach';
           else if (roleFilter === 'admin') matchesRole = m.role === 'organizationadmin' || m.role === 'systemowner';
 
-          let matchesStudio = true;
+          let matchesLocation = true;
           // Coach kan bara se de i sin egen studio (om de har en studio)
-          if (currentUserRole === 'coach' && currentUser?.studioId) {
-              matchesStudio = m.studioId === currentUser.studioId;
-          } else if (studioFilter !== 'all') {
-              matchesStudio = m.studioId === studioFilter;
+          if (currentUserRole === 'coach' && currentUser?.locationId) {
+              matchesLocation = m.locationId === currentUser.locationId;
+          } else if (locationFilter !== 'all') {
+              matchesLocation = m.locationId === locationFilter;
           }
 
-          return matchesSearch && matchesRole && matchesStudio;
+          return matchesSearch && matchesRole && matchesLocation;
       });
-  }, [members, searchTerm, roleFilter, studioFilter]);
+  }, [members, searchTerm, roleFilter, locationFilter]);
 
   const totalPages = Math.ceil(filteredMembers.length / ITEMS_PER_PAGE);
   const paginatedMembers = useMemo(() => {
@@ -251,10 +251,10 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
   
   const baseUrl = window.location.origin;
   const qrUrl = inviteCode 
-      ? (studioFilter !== 'all' ? `${baseUrl}/?invite=${inviteCode}&studio=${studioFilter}` : `${baseUrl}/?invite=${inviteCode}`) 
+      ? (locationFilter !== 'all' ? `${baseUrl}/?invite=${inviteCode}&location=${locationFilter}` : `${baseUrl}/?invite=${inviteCode}`) 
       : '';
   const coachQrUrl = coachCode 
-      ? (studioFilter !== 'all' ? `${baseUrl}/?invite=${coachCode}&studio=${studioFilter}` : `${baseUrl}/?invite=${coachCode}`) 
+      ? (locationFilter !== 'all' ? `${baseUrl}/?invite=${coachCode}&location=${locationFilter}` : `${baseUrl}/?invite=${coachCode}`) 
       : '';
 
   if (isLoading) {
@@ -376,17 +376,17 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                   ))}
               </div>
 
-              {selectedOrganization && selectedOrganization.studios && selectedOrganization.studios.length > 0 && currentUserRole !== 'coach' && (
+              {selectedOrganization && selectedOrganization.locations && selectedOrganization.locations.length > 0 && currentUserRole !== 'coach' && (
                   <div className="flex items-center min-w-[200px]">
                       <select
-                          value={studioFilter}
-                          onChange={(e) => setStudioFilter(e.target.value)}
+                          value={locationFilter}
+                          onChange={(e) => setLocationFilter(e.target.value)}
                           className="w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-sm px-4 py-3 text-sm font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
                       >
                           <option value="all">Alla Orter/Studios</option>
-                          {selectedOrganization.studios.map(studio => (
-                              <option key={studio.id} value={studio.id}>
-                                  {studio.name}
+                          {selectedOrganization.locations.map(loc => (
+                              <option key={loc.id} value={loc.id}>
+                                  {loc.name}
                               </option>
                           ))}
                       </select>
@@ -418,7 +418,7 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                   Prova att ändra din sökning eller filter.
               </p>
               <button 
-                onClick={() => { setSearchTerm(''); setRoleFilter('all'); setStudioFilter('all'); }}
+                onClick={() => { setSearchTerm(''); setRoleFilter('all'); setLocationFilter('all'); }}
                 className="text-primary font-bold hover:underline"
               >
                   Nollställ filter
