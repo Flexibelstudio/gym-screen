@@ -29,3 +29,19 @@ export const formatBirthday = (birthDateString?: string): string | null => {
     
     return `${birthDate.getDate()} ${months[birthDate.getMonth()]}`;
 };
+
+export const isBirthdayToday = (birthDateString?: string): boolean => {
+    if (!birthDateString) return false;
+    
+    // birthDateString usually in format "YYYY-MM-DD"
+    const parts = birthDateString.split('-');
+    if (parts.length === 3) {
+        const month = parseInt(parts[1], 10);
+        const day = parseInt(parts[2], 10);
+        
+        const today = new Date();
+        return today.getMonth() + 1 === month && today.getDate() === day;
+    }
+    
+    return false;
+};

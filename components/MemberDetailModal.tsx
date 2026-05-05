@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { ChartBarIcon, SparklesIcon, InformationCircleIcon, DumbbellIcon, FireIcon } from './icons';
 import { useStudio } from '../context/StudioContext';
 import { MapPinIcon } from 'lucide-react';
+import { calculateAge } from '../utils/dateUtils';
 
 interface MemberDetailModalProps {
     visible: boolean;
@@ -132,6 +133,12 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                         </div>
                         <div>
                             <p className="text-sm text-gray-500 dark:text-gray-400">{member.email}</p>
+                            {(member.birthDate || member.age) && (
+                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                                    Ålder: <span className="font-medium text-gray-600 dark:text-gray-300">{calculateAge(member.birthDate, member.age)}</span>
+                                    {member.birthDate && <span className="ml-1">({member.birthDate})</span>}
+                                </p>
+                            )}
                             <div className="flex gap-2 mt-2 flex-wrap">
                                 {member.role === 'coach' && <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-bold">Coach</span>}
                                 {member.isTrainingMember && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">Medlem</span>}

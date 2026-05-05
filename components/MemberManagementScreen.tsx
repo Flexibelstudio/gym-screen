@@ -10,7 +10,7 @@ import QRCode from 'react-qr-code';
 import { Modal } from './ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import { Toast } from './ui/ToastNotification';
-import { calculateAge, formatBirthday } from '../utils/dateUtils';
+import { calculateAge, formatBirthday, isBirthdayToday } from '../utils/dateUtils';
 
 const generateInviteCode = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -87,11 +87,11 @@ const RoleSwitcher: React.FC<{
                 value={currentRole}
                 onChange={handleChange}
                 disabled={isUpdating}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none bg-transparent"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none bg-transparent text-black"
             >
-                <option value="member" className="text-gray-900 dark:text-white dark:bg-gray-800">Medlem</option>
-                <option value="coach" className="text-gray-900 dark:text-white dark:bg-gray-800">Coach</option>
-                <option value="organizationadmin" className="text-gray-900 dark:text-white dark:bg-gray-800">Admin</option>
+                <option value="member" className="text-black bg-white">Medlem</option>
+                <option value="coach" className="text-black bg-white">Coach</option>
+                <option value="organizationadmin" className="text-black bg-white">Admin</option>
             </select>
         </div>
     );
@@ -128,7 +128,7 @@ const LocationSwitcher: React.FC<{
     }
 
     return (
-        <div className="relative inline-block ml-2" onClick={handleClick}>
+        <div className="relative inline-block" onClick={handleClick}>
             <div className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider border shadow-sm cursor-pointer transition-all hover:brightness-95 ${labelClass}`}>
                 {isUpdating ? (
                     <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin mr-1"></div>
@@ -141,10 +141,10 @@ const LocationSwitcher: React.FC<{
                 value={resolvedLocId}
                 onChange={handleChange}
                 disabled={isUpdating}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none bg-transparent"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none bg-transparent text-black"
             >
                 {locations.map(loc => (
-                    <option key={loc.id} value={loc.id} className="text-gray-900 dark:text-white dark:bg-gray-800">{loc.name}</option>
+                    <option key={loc.id} value={loc.id} className="text-black bg-white">{loc.name}</option>
                 ))}
             </select>
         </div>
@@ -400,10 +400,10 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
-                    <th className="p-6 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Namn & Roll</th>
+                    <th className="p-6 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Användare</th>
+                    <th className="p-6 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Tillhörighet</th>
                     <th className="p-6 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Medlemskap</th>
                     <th className="p-6 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Mål & Deadline</th>
-                    <th className="p-6 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Kontakt</th>
                     <th className="p-6 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] text-right">Info</th>
                   </tr>
                 </thead>
@@ -426,44 +426,50 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                                 <p className="font-bold text-gray-900 dark:text-white text-lg truncate">{member.firstName} {member.lastName}</p>
-                                {(member.birthDate || member.age) && (
-                                    <span className="text-xs font-bold text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-md">
-                                        {calculateAge(member.birthDate, member.age)} år
-                                        {member.birthDate && ` (Fyller år ${formatBirthday(member.birthDate)})`}
-                                    </span>
-                                )}
                             </div>
-                            <div className="mt-1 flex items-center gap-2">
-                                <RoleSwitcher 
-                                    currentRole={member.role}
-                                    status={member.status}
-                                    memberId={member.id}
-                                    isUpdating={!!updatingMembers[member.id]}
-                                    onUpdate={(newRole) => handleQuickRoleUpdate(member.id, newRole)}
-                                    canEdit={canEditRoles && member.id !== currentUser?.uid}
-                                />
-                                {selectedOrganization?.locations && selectedOrganization.locations.length > 0 && (
-                                    <LocationSwitcher
-                                        currentLocationId={member.locationId}
-                                        memberId={member.id}
-                                        isUpdating={!!updatingMembers[member.id]}
-                                        locations={selectedOrganization.locations}
-                                        onUpdate={(newLocId) => handleQuickLocationUpdate(member.id, newLocId)}
-                                        canEdit={canEditRoles}
-                                    />
-                                )}
-                                {member.status === 'pending_coach' && canEditRoles && (
-                                    <button
-                                        onClick={(e) => handleApproveCoach(e, member.id)}
-                                        disabled={!!updatingMembers[member.id]}
-                                        className="text-xs font-bold bg-primary text-black px-3 py-1 rounded-full hover:bg-primary/90 transition-colors disabled:opacity-50"
-                                    >
-                                        {updatingMembers[member.id] ? 'Godkänner...' : 'Godkänn Coach'}
-                                    </button>
+                            <div className="mt-1">
+                                {(member.birthDate || member.age) ? (
+                                    <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
+                                        {member.email} • <span className="font-bold">{calculateAge(member.birthDate, member.age)} år</span>
+                                        {isBirthdayToday(member.birthDate) && <span className="ml-1" title={formatBirthday(member.birthDate) || ''}>🎂</span>}
+                                    </span>
+                                ) : (
+                                    <p className="text-xs text-gray-400 dark:text-gray-500">{member.email}</p>
                                 )}
                             </div>
                           </div>
                         </div>
+                      </td>
+                      <td className="p-6">
+                          <div className="flex flex-col gap-2 items-start">
+                              <RoleSwitcher 
+                                  currentRole={member.role}
+                                  status={member.status}
+                                  memberId={member.id}
+                                  isUpdating={!!updatingMembers[member.id]}
+                                  onUpdate={(newRole) => handleQuickRoleUpdate(member.id, newRole)}
+                                  canEdit={canEditRoles && member.id !== currentUser?.uid}
+                              />
+                              {selectedOrganization?.locations && selectedOrganization.locations.length > 0 && (
+                                  <LocationSwitcher
+                                      currentLocationId={member.locationId}
+                                      memberId={member.id}
+                                      isUpdating={!!updatingMembers[member.id]}
+                                      locations={selectedOrganization.locations}
+                                      onUpdate={(newLocId) => handleQuickLocationUpdate(member.id, newLocId)}
+                                      canEdit={canEditRoles}
+                                  />
+                              )}
+                              {member.status === 'pending_coach' && canEditRoles && (
+                                  <button
+                                      onClick={(e) => handleApproveCoach(e, member.id)}
+                                      disabled={!!updatingMembers[member.id]}
+                                      className="text-[10px] font-black tracking-wider uppercase bg-primary text-black px-3 py-1.5 rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 mt-1 shadow-sm"
+                                  >
+                                      {updatingMembers[member.id] ? 'Godkänner...' : 'Godkänn Coach'}
+                                  </button>
+                              )}
+                          </div>
                       </td>
                       <td className="p-6">
                         <div className="flex items-center gap-3">
@@ -513,9 +519,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                         ) : (
                             <span className="text-xs text-gray-400 italic">Inget mål</span>
                         )}
-                      </td>
-                      <td className="p-6 text-gray-600 dark:text-gray-300">
-                        <p className="text-sm font-medium">{member.email}</p>
                       </td>
                       <td className="p-6 text-right">
                           <div className="flex justify-end">
