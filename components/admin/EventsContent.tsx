@@ -90,7 +90,7 @@ const EventEditor: React.FC<{
 
     const [editingResultId, setEditingResultId] = useState<string | null>(null);
     const [editResultTime, setEditResultTime] = useState<number>(0);
-    const [results, setResults] = useState<any[]>((event as any)?.results || []);
+    const [results, setResults] = useState<HyroxRaceResult[]>(event?.results || []);
 
     const handleImportParticipants = () => {
         if (!participantsText.trim()) return;

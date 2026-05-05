@@ -209,7 +209,7 @@ const QuickTimerSetup: React.FC<{ onStart: (settings: TimerSettings, title: stri
             direction: 'down'
         };
 
-        let title: string = mode;
+        let title = mode;
 
         switch (mode) {
             case TimerMode.Interval:

@@ -392,7 +392,7 @@ const IdeaBoardTimerSetupModal: React.FC<IdeaBoardTimerSetupModalProps> = ({ onS
 
     const handleStartTimer = () => {
         let settings: any = { mode, prepareTime: 10, direction };
-        let title: string = mode;
+        let title = mode;
         let exercises: Exercise[] = [{ id: 'ex-dummy', name: mode, reps: '', description: '' }];
 
         switch (mode) {

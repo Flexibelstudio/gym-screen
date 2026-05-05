@@ -1153,7 +1153,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                 maxWeight = parseFloat(bestSet.weight) || 0;
                                 maxReps = bestSet.reps?.toString() || '0';
                             } else {
-                                maxWeight = parseFloat(String(exMatch.weight)) || 0;
+                                maxWeight = parseFloat(exMatch.weight) || 0;
                                 maxReps = exMatch.reps?.toString() || '0';
                             }
                             
@@ -1232,7 +1232,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                       maxWeight = parseFloat(bestSet.weight) || 0;
                                       maxReps = bestSet.reps?.toString() || '0';
                                   } else {
-                                      maxWeight = parseFloat(String(exMatch.weight)) || 0;
+                                      maxWeight = parseFloat(exMatch.weight) || 0;
                                       maxReps = exMatch.reps?.toString() || '0';
                                   }
                                   historyMap[currentEx.exerciseName] = { weight: maxWeight, reps: maxReps, note: mostRecentNote };
@@ -1337,7 +1337,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                   maxWeight = parseFloat(bestSet.weight) || 0;
                   maxReps = bestSet.reps?.toString() || '0';
               } else {
-                  maxWeight = parseFloat(String(exMatch.weight)) || 0;
+                  maxWeight = parseFloat(exMatch.weight) || 0;
                   maxReps = exMatch.reps?.toString() || '0';
               }
               setHistory(prev => ({
@@ -2086,12 +2086,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                               <div className="flex-1 min-w-0">
                                   <h4 className="font-bold text-gray-900 dark:text-white truncate">{ex.name}</h4>
                                   <div className="flex items-center gap-2 mt-1">
-                                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${(ex as any).category === 'Custom Egen' ? 'text-orange-600 bg-orange-100 dark:bg-orange-900/30' : 'text-primary bg-primary/10'}`}>
-                                          {(ex as any).category === 'Custom Egen' ? 'Egen' : (ex as any).category}
+                                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${ex.category === 'Custom Egen' ? 'text-orange-600 bg-orange-100 dark:bg-orange-900/30' : 'text-primary bg-primary/10'}`}>
+                                          {ex.category === 'Custom Egen' ? 'Egen' : ex.category}
                                       </span>
                                   </div>
                               </div>
-                              {(ex as any).category === 'Custom Egen' ? (
+                              {ex.category === 'Custom Egen' ? (
                                   <div className="flex items-center gap-1">
                                       <button onClick={(e) => {
                                           e.stopPropagation();
