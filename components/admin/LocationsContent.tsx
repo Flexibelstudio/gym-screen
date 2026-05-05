@@ -137,52 +137,51 @@ export const LocationsContent: React.FC<LocationsContentProps> = ({ organization
                                         <SparklesIcon className="w-5 h-5" /> Skapa inloggningskoder
                                     </button>
                                 ) : (
-                                    <div className="flex flex-col gap-3 w-full xl:w-auto">
-                                        <div className="bg-black text-white p-3 rounded-lg border border-gray-700 flex flex-col justify-between items-center sm:items-start gap-2">
-                                            <div className="w-full flex items-center justify-between text-xs text-gray-400 uppercase tracking-widest font-bold">
-                                                Medlemskod för {loc.name}
-                                                <span className="text-[#39ff14] text-sm bg-[#39ff14]/10 px-2 py-0.5 rounded ml-2">{loc.inviteCode}</span>
+                                    <div className="flex flex-col sm:flex-row gap-4 w-full xl:w-auto">
+                                        <div className="bg-[#1e232d] rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center border border-slate-700/50 shadow-lg relative overflow-hidden w-full sm:min-w-[280px]">
+                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Medlemskod</span>
+                                            <div className="border border-white/20 rounded-2xl px-6 py-3 sm:px-8 sm:py-4 mb-6 bg-[#141820]">
+                                                <span className="text-3xl sm:text-4xl font-black font-mono tracking-[0.15em] text-[#39ff14]">{loc.inviteCode}</span>
                                             </div>
-                                            <div className="flex items-center justify-center gap-4 w-full mt-2 border-t border-gray-800 pt-3">
-                                                 <button 
+                                            <div className="flex items-center gap-4">
+                                                <button 
                                                     onClick={() => {
                                                         navigator.clipboard.writeText(loc.inviteCode || '');
                                                         setToast({ message: "Medlemskod kopierad!", visible: true });
                                                     }}
-                                                    className="text-[10px] sm:text-xs font-black text-[#39ff14] hover:text-green-300 uppercase tracking-widest transition-colors flex items-center"
+                                                    className="text-[10px] font-black text-[#39ff14] hover:text-green-300 uppercase tracking-widest transition-colors flex items-center"
                                                 >
-                                                    <CopyIcon className="w-3 h-3 mr-2" /> Kopiera
+                                                    <CopyIcon className="w-3 h-3 mr-2" /> Kopiera kod
                                                 </button>
                                                 <span className="text-gray-600">|</span>
                                                 <button 
                                                     onClick={() => handlePrint('member', loc)}
-                                                    className="text-[10px] sm:text-xs font-black text-gray-400 hover:text-white uppercase tracking-widest transition-colors flex items-center"
+                                                    className="text-[10px] font-black text-gray-400 hover:text-white uppercase tracking-widest transition-colors flex items-center"
                                                 >
                                                     <QrCodeIcon className="w-3 h-3 mr-2" /> Skriv ut poster
                                                 </button>
                                             </div>
                                         </div>
 
-                                        <div className="bg-black text-white p-3 rounded-lg border border-purple-900/40 flex flex-col justify-between items-center sm:items-start gap-2 relative overflow-hidden">
-                                            <div className="absolute inset-0 bg-gradient-to-br from-purple-900/10 to-transparent pointer-events-none"></div>
-                                            <div className="w-full flex items-center justify-between text-xs text-gray-400 uppercase tracking-widest font-bold relative z-10">
-                                                Coachkod för {loc.name}
-                                                <span className="text-[#bb86fc] text-sm bg-[#bb86fc]/10 px-2 py-0.5 rounded ml-2">{loc.coachCode}</span>
+                                        <div className="bg-[#2a1b3d] rounded-3xl p-6 sm:p-8 flex flex-col items-center justify-center border border-purple-900/50 shadow-lg relative overflow-hidden w-full sm:min-w-[280px]">
+                                            <span className="text-[10px] font-black text-purple-300 uppercase tracking-[0.2em] mb-6">Coachkod</span>
+                                            <div className="border border-purple-500/20 bg-[#1a1025] rounded-2xl px-6 py-3 sm:px-8 sm:py-4 mb-6">
+                                                <span className="text-3xl sm:text-4xl font-black font-mono tracking-[0.15em] text-[#bb86fc]">{loc.coachCode}</span>
                                             </div>
-                                            <div className="flex items-center justify-center gap-4 w-full mt-2 border-t border-purple-900/30 pt-3 relative z-10">
+                                            <div className="flex items-center gap-4">
                                                 <button 
                                                     onClick={() => {
                                                         navigator.clipboard.writeText(loc.coachCode || '');
                                                         setToast({ message: "Coachkod kopierad!", visible: true });
                                                     }}
-                                                    className="text-[10px] sm:text-xs font-black text-[#bb86fc] hover:text-purple-300 uppercase tracking-widest transition-colors flex items-center"
+                                                    className="text-[10px] font-black text-[#bb86fc] hover:text-purple-300 uppercase tracking-widest transition-colors flex items-center"
                                                 >
-                                                    <CopyIcon className="w-3 h-3 mr-2" /> Kopiera
+                                                    <CopyIcon className="w-3 h-3 mr-2" /> Kopiera kod
                                                 </button>
                                                 <span className="text-purple-900/50">|</span>
                                                 <button 
                                                     onClick={() => handlePrint('coach', loc)}
-                                                    className="text-[10px] sm:text-xs font-black text-gray-400 hover:text-white uppercase tracking-widest transition-colors flex items-center"
+                                                    className="text-[10px] font-black text-gray-400 hover:text-white uppercase tracking-widest transition-colors flex items-center"
                                                 >
                                                     <QrCodeIcon className="w-3 h-3 mr-2" /> Skriv ut poster
                                                 </button>
