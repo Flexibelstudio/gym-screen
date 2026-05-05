@@ -5,7 +5,7 @@ import { UsersIcon, PencilIcon, ChartBarIcon, SearchIcon, ChevronDownIcon, Chevr
 import { MemberDetailModal } from './MemberDetailModal';
 import { PrintablePoster } from './PrintablePoster';
 import { useStudio } from '../context/StudioContext';
-import { listenToMembers, updateMemberEndDate, updateUserRoleCloud, approveCoach, updateOrganization } from '../services/firebaseService';
+import { listenToMembers, updateMemberEndDate, updateUserRoleCloud, approveCoach, updateOrganization, updateUserProfile } from '../services/firebaseService';
 import QRCode from 'react-qr-code';
 import { Modal } from './ui/Modal';
 import { useAuth } from '../context/AuthContext';
@@ -97,6 +97,60 @@ const RoleSwitcher: React.FC<{
     );
 };
 
+const LocationSwitcher: React.FC<{ 
+    currentLocationId?: string; 
+    memberId: string; 
+    isUpdating: boolean;
+    locations: { id: string, name: string }[];
+    onUpdate: (locationId: string) => void;
+    canEdit: boolean;
+}> = ({ currentLocationId, memberId, isUpdating, locations, onUpdate, canEdit }) => {
+    const handleClick = (e: React.MouseEvent) => e.stopPropagation();
+
+    const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        e.stopPropagation();
+        onUpdate(e.target.value);
+    };
+
+    if (locations.length === 0) return null;
+
+    const currentLoc = locations.find(l => l.id === currentLocationId);
+    const resolvedLocId = currentLoc ? currentLoc.id : (locations.length > 0 ? locations[0].id : '');
+    const label = currentLoc ? currentLoc.name : (locations.length > 0 ? locations[0].name : "Saknar Ort");
+    const labelClass = currentLoc ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-gray-100 text-gray-500 border-gray-200";
+
+    if (!canEdit) {
+        return (
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider border shadow-sm ${labelClass}`}>
+                {label}
+            </span>
+        );
+    }
+
+    return (
+        <div className="relative inline-block ml-2" onClick={handleClick}>
+            <div className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider border shadow-sm cursor-pointer transition-all hover:brightness-95 ${labelClass}`}>
+                {isUpdating ? (
+                    <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin mr-1"></div>
+                ) : (
+                    <span className="max-w-[100px] truncate">{label}</span>
+                )}
+                {!isUpdating && <ChevronDownIcon className="w-3 h-3 opacity-70" />}
+            </div>
+            <select
+                value={resolvedLocId}
+                onChange={handleChange}
+                disabled={isUpdating}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none bg-transparent"
+            >
+                {locations.map(loc => (
+                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                ))}
+            </select>
+        </div>
+    );
+};
+
 export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ onSelectMember }) => {
   const { selectedOrganization } = useStudio();
   const { role: currentUserRole, currentUser } = useAuth();
@@ -142,11 +196,13 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
           else if (roleFilter === 'admin') matchesRole = m.role === 'organizationadmin' || m.role === 'systemowner';
 
           let matchesLocation = true;
+          const resolvedLocationId = m.locationId || (selectedOrganization?.locations?.[0]?.id);
+          
           // Coach kan bara se de i sin egen studio (om de har en studio)
           if (currentUserRole === 'coach' && currentUser?.locationId) {
-              matchesLocation = m.locationId === currentUser.locationId;
+              matchesLocation = resolvedLocationId === currentUser.locationId;
           } else if (locationFilter !== 'all') {
-              matchesLocation = m.locationId === locationFilter;
+              matchesLocation = resolvedLocationId === locationFilter;
           }
 
           return matchesSearch && matchesRole && matchesLocation;
@@ -200,6 +256,18 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
       } catch (e) {
           console.error("Failed to update role", e);
           alert(e instanceof Error ? e.message : "Kunde inte uppdatera rollen.");
+      } finally {
+          setUpdatingMembers(prev => ({ ...prev, [memberId]: false }));
+      }
+  };
+
+  const handleQuickLocationUpdate = async (memberId: string, newLocationId: string) => {
+      setUpdatingMembers(prev => ({ ...prev, [memberId]: true }));
+      try {
+          await updateUserProfile(memberId, { locationId: newLocationId });
+      } catch (e) {
+          console.error("Failed to update location", e);
+          alert(e instanceof Error ? e.message : "Kunde inte uppdatera ort.");
       } finally {
           setUpdatingMembers(prev => ({ ...prev, [memberId]: false }));
       }
@@ -374,6 +442,16 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                                     onUpdate={(newRole) => handleQuickRoleUpdate(member.id, newRole)}
                                     canEdit={canEditRoles && member.id !== currentUser?.uid}
                                 />
+                                {selectedOrganization?.locations && selectedOrganization.locations.length > 0 && (
+                                    <LocationSwitcher
+                                        currentLocationId={member.locationId}
+                                        memberId={member.id}
+                                        isUpdating={!!updatingMembers[member.id]}
+                                        locations={selectedOrganization.locations}
+                                        onUpdate={(newLocId) => handleQuickLocationUpdate(member.id, newLocId)}
+                                        canEdit={canEditRoles}
+                                    />
+                                )}
                                 {member.status === 'pending_coach' && canEditRoles && (
                                     <button
                                         onClick={(e) => handleApproveCoach(e, member.id)}
