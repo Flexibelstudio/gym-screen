@@ -1,1629 +1,1859 @@
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout, TimerSegment } from '../types';
-import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration, playTimerSound } from '../hooks/useWorkoutTimer';
-import { useWorkout } from '../context/WorkoutContext';
-import { saveRace, updateOrganizationActivity } from '../services/firebaseService';
-import { Confetti } from './WorkoutCompleteModal';
-import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmationModal, RaceFinishAnimation, PauseOverlay } from './timer/TimerModals';
-import { ParticipantFinishList } from './timer/ParticipantFinishList';
-import { DumbbellIcon, InformationCircleIcon, LightningIcon, SparklesIcon, ChevronRightIcon, ClockIcon, PlayIcon, SettingsIcon, RefreshIcon } from './icons'; // Added SettingsIcon if available, else standard icons
-import { useStudio } from '../context/StudioContext';
 
-// --- Constants ---
-const HYROX_RIGHT_PANEL_WIDTH = '450px';
+// ... (imports remain the same)
+import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
+import { 
+  getAuth, 
+  signInWithEmailAndPassword, 
+  signInAnonymously, 
+  signOut as firebaseSignOut, 
+  onAuthStateChanged, 
+  sendPasswordResetEmail as firebaseSendPasswordResetEmail,
+  reauthenticateWithCredential,
+  createUserWithEmailAndPassword,
+  EmailAuthProvider,
+  Auth,
+  User
+} from 'firebase/auth';
+import { 
+  getFirestore, 
+  collection, 
+  doc, 
+  getDoc, 
+  getDocs, 
+  getDocsFromServer,
+  setDoc, 
+  updateDoc, 
+  deleteDoc, 
+  query, 
+  where, 
+  or,
+  orderBy, 
+  limit, 
+  onSnapshot, 
+  writeBatch, 
+  deleteField,
+  serverTimestamp,
+  Firestore,
+  runTransaction,
+  enableMultiTabIndexedDbPersistence
+} from 'firebase/firestore';
+import { 
+  getStorage, 
+  ref, 
+  uploadBytes, 
+  getDownloadURL, 
+  deleteObject, 
+  FirebaseStorage 
+} from 'firebase/storage';
+import { 
+  getFunctions, 
+  httpsCallable 
+} from 'firebase/functions';
+import { getMessaging, getToken, Messaging, onMessage } from 'firebase/messaging';
 
-// --- Helper Components & Interfaces ---
-
-interface TimerStyle {
-  bg: string;
-  text: string;
-  pulseRgb: string;
-  border: string;
-  badge: string;
-}
-
-const getTimerStyle = (status: TimerStatus, mode: TimerMode, isHyrox: boolean, isTransitioning: boolean, currentSegment: TimerSegment | null): TimerStyle => {
-  if (isTransitioning) {
-      return { bg: 'bg-teal-500', text: 'text-white', pulseRgb: '45, 212, 191', border: 'border-teal-200', badge: 'bg-teal-600' };
-  }
-  
-  if (isHyrox) {
-      return { bg: 'bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 animate-pulse-hyrox-bg', text: 'text-white', pulseRgb: '255, 255, 255', border: 'border-white', badge: 'bg-white text-indigo-600' };
-  }
-
-  // CUSTOM MODE OVERRIDE
-  if (mode === TimerMode.Custom && currentSegment) {
-      if (currentSegment.type === 'work') {
-          return { bg: 'bg-orange-600', text: 'text-white', pulseRgb: '249, 115, 22', border: 'border-orange-300', badge: 'bg-orange-600' };
-      } else {
-          return { bg: 'bg-teal-500', text: 'text-white', pulseRgb: '45, 212, 191', border: 'border-teal-200', badge: 'bg-teal-600' };
-      }
-  }
-
-  switch (status) {
-    case TimerStatus.Preparing:
-      return { bg: 'bg-blue-600', text: 'text-white', pulseRgb: '59, 130, 246', border: 'border-blue-300', badge: 'bg-blue-600' };
-    case TimerStatus.Running:
-      switch (mode) {
-        case TimerMode.Interval: return { bg: 'bg-orange-600', text: 'text-white', pulseRgb: '249, 115, 22', border: 'border-orange-300', badge: 'bg-orange-600' };
-        case TimerMode.Tabata: return { bg: 'bg-red-600', text: 'text-white', pulseRgb: '239, 68, 68', border: 'border-red-300', badge: 'bg-red-600' };
-        case TimerMode.AMRAP: return { bg: 'bg-pink-600', text: 'text-white', pulseRgb: '219, 39, 119', border: 'border-pink-300', badge: 'bg-pink-700' };
-        case TimerMode.EMOM: return { bg: 'bg-purple-600', text: 'text-white', pulseRgb: '147, 51, 234', border: 'border-purple-300', badge: 'bg-purple-700' };
-        case TimerMode.TimeCap: return { bg: 'bg-indigo-600', text: 'text-white', pulseRgb: '79, 70, 229', border: 'border-indigo-300', badge: 'bg-indigo-700' };
-        case TimerMode.Stopwatch: return { bg: 'bg-green-600', text: 'text-white', pulseRgb: '22, 163, 74', border: 'border-green-300', badge: 'bg-green-700' };
-        default: return { bg: 'bg-orange-600', text: 'text-white', pulseRgb: '249, 115, 22', border: 'border-orange-300', badge: 'bg-orange-600' };
-      }
-    case TimerStatus.Resting:
-      return { bg: 'bg-teal-500', text: 'text-white', pulseRgb: '45, 212, 191', border: 'border-teal-200', badge: 'bg-teal-600' };
-    case TimerStatus.Paused:
-      return { bg: 'bg-gray-600', text: 'text-white', pulseRgb: '107, 114, 128', border: 'border-gray-400', badge: 'bg-gray-600' };
-    case TimerStatus.Finished:
-      return { bg: 'bg-teal-700', text: 'text-white', pulseRgb: '13, 148, 136', border: 'border-teal-400', badge: 'bg-teal-800' };
-    case TimerStatus.Idle:
-    default:
-      // IDLE STATE - Use a neutral but ready color
-      return { bg: 'bg-slate-800', text: 'text-white', pulseRgb: '30, 41, 59', border: 'border-slate-600', badge: 'bg-slate-700' };
-  }
+export const listenToForegroundMessages = (callback: (payload: any) => void) => {
+    if (isOffline || !messaging) return () => {};
+    return onMessage(messaging, (payload) => {
+        console.log('Message received. ', payload);
+        callback(payload);
+    });
 };
 
-const getTagHexColor = (tag: string) => {
-    switch (tag.toLowerCase()) {
-        case 'styrka': return '#ef4444'; // Red
-        case 'kondition': return '#3b82f6'; // Blue
-        case 'rörlighet': return '#14b8a6'; // Teal
-        case 'teknik': return '#a855f7'; // Purple
-        case 'core': case 'bål': return '#eab308'; // Yellow
-        default: return '#14b8a6';
+import { firebaseConfig } from './firebaseConfig';
+import { 
+  Organization, UserData, Workout, InfoCarousel, 
+  BankExercise, SuggestedExercise, WorkoutResult, CompanyDetails, 
+  SmartScreenPricing, HyroxRace, SeasonalThemeSetting, MemberGoals, 
+  WorkoutLog, CheckInEvent, Member, UserRole, PersonalBest, StudioEvent,
+  CustomPage, AdminActivity, BenchmarkDefinition, Studio, GalleryImage, Lead, CoachNote
+} from '../types';
+import { MOCK_ORGANIZATIONS, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_MEMBERS, MOCK_SMART_SCREEN_PRICING } from '../data/mockData';
+
+// --- INITIALISERING ---
+const hasFirebaseConfig = !!(
+    (import.meta as any).env?.VITE_FIREBASE_API_KEY || 
+    (process as any).env?.VITE_FIREBASE_API_KEY
+);
+
+export const isOffline = !hasFirebaseConfig;
+
+let app: FirebaseApp | null = null;
+export let auth: Auth | null = null;
+export let db: Firestore | null = null;
+export let storage: FirebaseStorage | null = null;
+export let messaging: Messaging | null = null;
+let functions: any = null;
+
+if (!isOffline) {
+    try {
+        app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+        auth = getAuth(app);
+        db = getFirestore(app);
+        
+        try {
+            enableMultiTabIndexedDbPersistence(db).catch((err) => {
+                if (err.code == 'failed-precondition') {
+                    console.warn('Multiple tabs open, persistence can only be enabled in one tab at a a time.');
+                } else if (err.code == 'unimplemented') {
+                    console.warn('The current browser does not support all of the features required to enable persistence.');
+                }
+            });
+        } catch (e) {
+            console.warn("Could not enable persistence immediately", e);
+        }
+
+        storage = getStorage(app);
+        functions = getFunctions(app, 'us-central1');
+        
+        // Messaging is only supported in browsers that support the required APIs
+        if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+            messaging = getMessaging(app);
+        }
+    } catch (error) {
+        console.error("CRITICAL: Firebase init failed.", error);
+    }
+}
+
+// ... (Rest of auth and helper functions remain unchanged)
+const sanitizeData = <T>(data: T): T => JSON.parse(JSON.stringify(data));
+
+const generateInviteCode = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let result = '';
+    for (let i = 0; i < 6; i++) {
+        result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+};
+
+const getPBId = (name: string) => name.toLowerCase().trim().replace(/[^\w]/g, '_');
+
+const normalizeString = (str: string) => str.toLowerCase().trim().replace(/[^\w\såäöÅÄÖ]/g, '');
+
+// ... (Previous exports like saveAdminActivity, getAdminActivities etc. remain unchanged)
+export const saveAdminActivity = async (activity: Omit<AdminActivity, 'id'>) => {
+    if (isOffline || !db) return;
+    try {
+        const ref = doc(collection(db, 'admin_activity'));
+        await setDoc(ref, {
+            ...sanitizeData(activity),
+            id: ref.id
+        });
+    } catch (e) {
+        console.error("Failed to save admin activity:", e);
     }
 };
 
-const formatReps = (reps: string | undefined): string => {
-    if (!reps) return '';
-    return reps.trim();
+export const getAdminActivities = async (orgId: string, limitCount = 100): Promise<AdminActivity[]> => {
+    if (isOffline || !db || !orgId) return [];
+    try {
+        const q = query(
+            collection(db, 'admin_activity'), 
+            where('organizationId', '==', orgId),
+            orderBy('timestamp', 'desc'),
+            limit(limitCount)
+        );
+        const snap = await getDocs(q);
+        return snap.docs.map(d => d.data() as AdminActivity);
+    } catch (e) {
+        console.error("getAdminActivities failed", e);
+        return [];
+    }
 };
 
-const formatSeconds = (totalSeconds: number) => {
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-};
-
-const getBlockTimeLabel = (block: WorkoutBlock): string => {
-    const s = block.settings;
-    if (!s) return "";
-    
-    if (s.mode === TimerMode.NoTimer) return "Ingen tid";
-    
-    const duration = calculateBlockDuration(s, block.exercises?.length || 0);
-    return formatSeconds(duration);
-};
-
-// --- Visualization Components ---
-
-const NextUpCompactBar: React.FC<{ transitionTime?: number; block?: WorkoutBlock; isRestNext?: boolean }> = ({ transitionTime, block, isRestNext }) => {
-    return (
-        <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="w-full bg-white/95 dark:bg-black/40 backdrop-blur-xl rounded-[2.5rem] border-2 border-gray-100 dark:border-white/10 p-8 flex items-center justify-between shadow-2xl mt-4"
-        >
-            <div className="flex items-center gap-6">
-                <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20">
-                    {isRestNext ? <ClockIcon className="w-10 h-10 text-primary" /> : <ChevronRightIcon className="w-10 h-10 text-primary" />}
-                </div>
-                <div>
-                    <span className="block text-[12px] font-black text-gray-400 dark:text-white/40 uppercase tracking-[0.4em] mb-1.5">HÄRNÄST</span>
-                    <h5 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tight leading-none">
-                        {isRestNext ? 'VILA' : block?.title}
-                    </h5>
-                </div>
-            </div>
-
-            <div className="flex items-center gap-8">
-                {transitionTime !== undefined && transitionTime > 0 ? (
-                    <div className="text-6xl font-mono font-black text-primary tabular-nums drop-shadow-xl">
-                        {formatSeconds(transitionTime)}
-                    </div>
-                ) : (
-                    <div className="flex items-center gap-3">
-                         <span className="text-sm font-black uppercase tracking-widest bg-gray-100 dark:bg-white/5 text-gray-500 dark:text-white/60 px-4 py-2 rounded-xl border border-gray-200 dark:border-white/10">{block?.settings.mode}</span>
-                    </div>
-                )}
-            </div>
-        </motion.div>
+export const listenToAdminActivities = (orgId: string, onUpdate: (activities: AdminActivity[]) => void) => {
+    if (isOffline || !db || !orgId) return () => {};
+    const q = query(
+        collection(db, 'admin_activity'), 
+        where('organizationId', '==', orgId),
+        orderBy('timestamp', 'desc'),
+        limit(100)
     );
+    return onSnapshot(q, (snap) => {
+        onUpdate(snap.docs.map(d => d.data() as AdminActivity));
+    });
 };
 
-const SegmentedRoadmap: React.FC<{ 
-    chain: WorkoutBlock[]; 
-    currentBlockId: string; 
-    totalChainElapsed: number; 
-    totalChainTime: number;
-    // Props for Custom Mode Roadmap
-    isCustomMode?: boolean;
-    sequence?: TimerSegment[];
-    currentSegmentIndex?: number;
-    totalSequenceDuration?: number;
-    totalSequenceElapsed?: number;
-}> = ({ chain, currentBlockId, totalChainElapsed, totalChainTime, isCustomMode, sequence, currentSegmentIndex, totalSequenceDuration, totalSequenceElapsed }) => {
-    
-    // STANDARD BLOCK CHAIN ROADMAP
-    let accumulatedTime = 0;
-    
-    return (
-        <div className="w-full flex items-center gap-1.5 h-6 mb-1">
-            {chain.map((b, i) => {
-                const bDur = calculateBlockDuration(b.settings, b.exercises.length);
-                const transTime = (i < chain.length - 1 && b.autoAdvance) ? (b.transitionTime || 0) : 0;
-                const segmentTotal = bDur + transTime;
-                
-                const widthPercent = totalChainTime > 0 ? (segmentTotal / totalChainTime) * 100 : (100 / chain.length);
-                const isActive = b.id === currentBlockId;
-                
-                const segmentStart = accumulatedTime;
-                const segmentEnd = accumulatedTime + segmentTotal;
-                
-                let segmentProgress = 0;
-                if (totalChainElapsed > segmentEnd) segmentProgress = 100;
-                else if (totalChainElapsed > segmentStart) segmentProgress = ((totalChainElapsed - segmentStart) / segmentTotal) * 100;
-                
-                accumulatedTime += segmentTotal;
-
-                return (
-                    <div 
-                        key={b.id} 
-                        style={{ width: `${widthPercent}%` }} 
-                        className={`h-3 rounded-full overflow-hidden border relative shadow-sm transition-all ${isActive ? 'bg-black/40 border-white/60' : 'bg-black/20 border-white/10'}`}
-                    >
-                        <motion.div 
-                            className={`absolute inset-0 transition-colors duration-500 ${isActive ? 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.8)]' : 'bg-white/30'}`}
-                            style={{ width: `${segmentProgress}%` }}
-                        />
-                    </div>
-                );
-            })}
-        </div>
-    );
+export const onAuthChange = (callback: (user: User | null) => void) => {
+    if (isOffline || !auth) return () => {}; 
+    return onAuthStateChanged(auth, callback);
 };
 
-const NextStartIndicator: React.FC<{
-    groupName: string;
-    timeLeft: number;
-    groupsLeft: number;
-}> = ({ groupName, timeLeft, groupsLeft }) => {
-    const minutes = Math.floor(Math.max(0, timeLeft) / 60);
-    const seconds = Math.max(0, timeLeft) % 60;
-    const isUrgent = timeLeft <= 30;
-
-    return (
-        <motion.div 
-            initial={{ opacity: 0, y: -20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9, height: 0 }}
-            className="w-full mb-4 relative flex-shrink-0"
-        >
-            <div className={`bg-white/95 dark:bg-black/60 backdrop-blur-2xl rounded-[1.8rem] p-4 border-2 shadow-xl dark:shadow-2xl flex items-center justify-between transition-colors duration-500 ${isUrgent ? 'border-orange-500 shadow-orange-500/20' : 'border-gray-200 dark:border-white/10'}`}>
-                <div className="flex items-center gap-6">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-inner ${isUrgent ? 'bg-orange-500 text-white animate-pulse' : 'bg-gray-100 dark:bg-white/10 text-gray-400 dark:text-white/40'}`}>
-                        <LightningIcon className="w-6 h-6" />
-                    </div>
-                    <div className="min-w-0">
-                        <span className="block text-[8px] font-black text-gray-400 dark:text-white/30 uppercase tracking-widest mb-0.5">NÄSTA START</span>
-                        <h4 className="text-xl font-black text-gray-900 dark:text-white uppercase tracking-tight truncate max-w-[250px] sm:max-w-md leading-none">
-                            {groupName}
-                        </h4>
-                        <p className="text-[8px] font-black text-gray-400 dark:text-white/20 uppercase tracking-[0.2em] mt-1">
-                            {groupsLeft} {groupsLeft === 1 ? 'GRUPP' : 'GRUPPER'} KVAR
-                        </p>
-                    </div>
-                </div>
-
-                <div className="text-right shrink-0">
-                    <span className="block text-[8px] font-black text-gray-400 dark:text-white/30 uppercase tracking-[0.3em] mb-0.5">STARTAR OM</span>
-                    <div className={`font-mono text-3xl font-black tabular-nums leading-none ${isUrgent ? 'text-orange-500' : 'text-gray-900 dark:text-white'}`}>
-                        {minutes}:{seconds.toString().padStart(2, '0')}
-                    </div>
-                </div>
-            </div>
-        </motion.div>
-    );
+export const signIn = async (email: string, password: string): Promise<User> => {
+    if (isOffline || !auth) throw new Error("Appen är i offline-läge.");
+    try {
+        const credential = await signInWithEmailAndPassword(auth, email, password);
+        return credential.user;
+    } catch (error) {
+        console.error("SignIn failed:", error);
+        throw error;
+    }
 };
 
-const FollowMeView: React.FC<{ 
-    exercise: Exercise | null, 
-    nextExercise: Exercise | null, 
-    timerStyle: TimerStyle, 
-    status: TimerStatus,
-    nextBlock?: WorkoutBlock,
-    transitionTime?: number,
-    isRestNext?: boolean,
-    showDescription: boolean,
-    textSizeScale?: number, // NEW PROP
-    repsSizeScale?: number,  // NEW PROP
-    upcomingText?: string | null
-}> = ({ exercise, nextExercise, timerStyle, status, nextBlock, transitionTime, isRestNext, showDescription, textSizeScale = 1, repsSizeScale = 1, upcomingText }) => {
-    const isResting = status === TimerStatus.Resting;
-    const isPreparing = status === TimerStatus.Preparing;
-    // IF IDLE (Lobby), show the first exercise as "Next/Ready"
-    const isIdle = status === TimerStatus.Idle;
+export const signInAsStudio = async (): Promise<User> => {
+    if (isOffline || !auth) return { uid: 'offline_studio_uid', isAnonymous: true } as User;
+    try {
+        const credential = await signInAnonymously(auth);
+        return credential.user;
+    } catch (error) {
+        console.error("Anonymous sign-in failed:", error);
+        throw error;
+    }
+};
 
-    const displayExercise = exercise;
-    let label = "Aktuell övning";
-    if (isResting || isPreparing) label = "Nästa övning";
-    if (isIdle) label = "Första övning";
+export const signOut = (): Promise<void> => (isOffline || !auth) ? Promise.resolve() : firebaseSignOut(auth);
 
-    if (!displayExercise) return null;
+export const sendPasswordResetEmail = (email: string) => (isOffline || !auth) ? Promise.resolve() : firebaseSendPasswordResetEmail(auth, email);
 
-    // Dynamisk storlek för övningsnamnet baserat på teckenantal + SKALNING
-    const nameLen = displayExercise.name.length;
+export const reauthenticateUser = async (user: User, password: string) => {
+  if (isOffline || !auth || !user.email) return;
+  const credential = EmailAuthProvider.credential(user.email, password);
+  return await reauthenticateWithCredential(user, credential);
+};
+
+export const updateUserTermsAccepted = async (uid: string) => {
+    if (isOffline || !db || !uid) return;
+    try {
+        await updateDoc(doc(db, 'users', uid), { termsAcceptedAt: Date.now() });
+    } catch (e) { console.error("Terms update failed", e); }
+};
+
+export const getMembers = async (orgId: string): Promise<Member[]> => {
+    if (isOffline || !db || !orgId) return MOCK_MEMBERS;
+    try {
+        const q = query(collection(db, 'users'), where('organizationId', '==', orgId));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ ...d.data(), uid: d.id, id: d.id }) as Member);
+    } catch (e) { console.error("getMembers failed", e); return []; }
+};
+
+export const getAdminsForOrganization = async (orgId: string): Promise<UserData[]> => {
+    if (isOffline || !db || !orgId) return [MOCK_ORG_ADMIN];
+    try {
+        const q = query(collection(db, 'users'), where('organizationId', '==', orgId), where('role', '==', 'organizationadmin'));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ ...d.data(), uid: d.id }) as UserData);
+    } catch (e) { return []; }
+};
+
+export const getCoachesForOrganization = async (orgId: string): Promise<UserData[]> => {
+    if (isOffline || !db || !orgId) return [];
+    try {
+        const q = query(collection(db, 'users'), where('organizationId', '==', orgId), where('role', '==', 'coach'));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ ...d.data(), uid: d.id }) as UserData);
+    } catch (e) { return []; }
+};
+
+export const listenToMembers = (orgId: string, onUpdate: (members: Member[]) => void) => {
+    if (isOffline || !db || !orgId) {
+        onUpdate(MOCK_MEMBERS);
+        return () => {};
+    }
+    const q = query(collection(db, 'users'), where('organizationId', '==', orgId));
+    return onSnapshot(q, (snap) => {
+        const members = snap.docs.map(d => ({ ...d.data(), uid: d.id, id: d.id }) as Member);
+        onUpdate(members);
+    }, (err) => console.error("listenToMembers failed", err));
+};
+
+export const updateUserGoals = async (uid: string, goals: MemberGoals) => {
+    if (isOffline || !db || !uid) return;
+    await updateDoc(doc(db, 'users', uid), { goals: sanitizeData(goals) });
+};
+
+export const updateUserProfile = async (uid: string, data: Partial<UserData>) => {
+    if (isOffline || !db || !uid) return;
+    await updateDoc(doc(db, 'users', uid), sanitizeData(data));
     
-    // Base sizes in REM (approximate to previous Tailwind classes)
-    // text-8xl = 6rem, text-7xl = 4.5rem, text-6xl = 3.75rem
-    let baseTitleRem = 6; 
-    if (nameLen > 35) baseTitleRem = 3.75;
-    else if (nameLen > 20) baseTitleRem = 4.5;
-
-    const calculatedTitleSize = `${baseTitleRem * textSizeScale}rem`;
-    const calculatedRepsSize = `${4.5 * repsSizeScale}rem`; // Base 4.5rem (~text-7xl)
-
-    return (
-        <div className="flex flex-col h-full items-center justify-between">
-            <AnimatePresence mode="wait">
-                <motion.div
-                    key={displayExercise.id}
-                    initial={{ x: -100, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    exit={{ x: 100, opacity: 0 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    className={`w-full max-w-5xl bg-white dark:bg-gray-900 rounded-[3.5rem] shadow-2xl overflow-hidden border-l-[20px] ${isResting ? 'border-teal-400' : timerStyle.border.replace('border-', 'border-')}`}
-                    style={{ borderColor: isResting ? undefined : `rgb(${timerStyle.pulseRgb})` }}
-                >
-                    <div className="p-10 md:p-14 flex flex-col items-center text-center">
-                        <span className="block text-2xl md:text-3xl font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400 mb-4">
-                            {label}
-                        </span>
-                        <h3 
-                            className="font-black text-gray-900 dark:text-white leading-tight mb-6 tracking-tight transition-all duration-300"
-                            style={{ fontSize: calculatedTitleSize }}
-                        >
-                            {displayExercise.name}
-                        </h3>
-                        {displayExercise.reps && (
-                            <p 
-                                className="font-black text-primary mb-6 transition-all duration-300"
-                                style={{ fontSize: calculatedRepsSize }}
-                            >
-                                {formatReps(displayExercise.reps)}
-                            </p>
-                        )}
-                        {displayExercise.description && showDescription && (
-                            <p className="text-gray-600 dark:text-gray-300 text-2xl md:text-4xl leading-relaxed max-w-4xl font-medium">
-                                {displayExercise.description}
-                            </p>
-                        )}
-                    </div>
-                </motion.div>
-            </AnimatePresence>
+    // If showOnLeaderboard preference changed, update recent workout logs so they disappear/appear immediately
+    if (data.showOnLeaderboard !== undefined) {
+        try {
+            const now = new Date();
+            const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1)));
+            startOfWeek.setHours(0, 0, 0, 0);
             
-            <AnimatePresence>
-                {upcomingText && (
-                    <motion.div 
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 20 }}
-                        className="mt-8 bg-white px-10 py-5 rounded-3xl shadow-2xl flex items-center gap-4"
-                    >
-                        <span className="text-gray-500 font-bold uppercase tracking-widest text-2xl md:text-3xl">Nästa:</span>
-                        <span className="text-gray-900 font-black uppercase tracking-tight text-5xl md:text-6xl">
-                            {upcomingText}
-                        </span>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-            
-            {(isRestNext || nextBlock) && (
-                <div className="w-full max-w-5xl">
-                    <NextUpCompactBar block={nextBlock} isRestNext={isRestNext} transitionTime={isRestNext ? transitionTime : undefined} />
-                </div>
-            )}
-        </div>
-    );
+            const q = query(
+                collection(db, 'workoutLogs'),
+                where("memberId", "==", uid),
+                where("date", ">=", startOfWeek.getTime() - 7 * 24 * 60 * 60 * 1000) // Go back an extra week just in case
+            );
+            const snap = await getDocs(q);
+            const batch = writeBatch(db);
+            snap.docs.forEach(d => {
+                batch.update(d.ref, { showOnLeaderboard: data.showOnLeaderboard });
+            });
+            await batch.commit();
+        } catch (e) {
+            console.error("Failed to update recent logs visibility", e);
+        }
+    }
 };
 
-// --- STANDARD LIST VIEW ---
-const StandardListView: React.FC<{ 
-    exercises: Exercise[], 
-    timerStyle: TimerStyle,
-    forceFullHeight?: boolean,
-    isHyrox?: boolean,
-    showDescriptions: boolean,
-    textSizeScale?: number, // NEW PROP
-    repsSizeScale?: number,  // NEW PROP
-    status: TimerStatus // NEW PROP
-}> = ({ exercises, timerStyle, forceFullHeight = true, isHyrox = false, showDescriptions, textSizeScale = 1, repsSizeScale = 1, status }) => {
-    const count = exercises.length;
-    const isLargeList = count > 12 || isHyrox; 
+export const requestPushNotificationPermission = async (uid: string): Promise<string | null> => {
+    if (isOffline || !messaging || !db || !uid) return null;
+    try {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+            // Get the token
+            const token = await getToken(messaging, {
+                // VAPID key is optional if configured in Firebase Console, but recommended.
+                // We'll let Firebase use the default sender ID from config.
+            });
+            
+            if (token) {
+                // Save token to user profile
+                await updateDoc(doc(db, 'users', uid), {
+                    fcmToken: token,
+                    pushNotificationsEnabled: true
+                });
+                return token;
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error('Error requesting push notification permission:', error);
+        return null;
+    }
+};
+
+export const updateUserRoleCloud = async (targetUid: string, newRole: UserRole) => {
+    if (isOffline || !functions) throw new Error("Offline eller systemet ej redo.");
+    try {
+        const func = httpsCallable(functions, 'flexUpdateUserRole');
+        const result = await func({ targetUid, newRole });
+        return result.data;
+    } catch (err: any) {
+        console.error("Cloud function error:", err);
+        throw new Error(err.message || "Ett fel uppstod vid rollbyte.");
+    }
+};
+
+export const approveCoach = async (uid: string) => {
+    if (isOffline || !db || !uid) return;
+    const approveCoachFn = httpsCallable(functions, 'flexApproveCoach');
+    try {
+        await approveCoachFn({ targetUid: uid });
+    } catch (err: any) {
+        console.error("Cloud function error:", err);
+        throw new Error(err.message || "Ett fel uppstod vid godkännande av coach.");
+    }
+};
+
+export const updateMemberEndDate = async (uid: string, date: string | null) => {
+    if (isOffline || !db || !uid) return;
+    await updateDoc(doc(db, 'users', uid), { endDate: date });
+};
+
+export const registerMemberWithCode = async (email: string, pass: string, code: string, additionalData?: any) => {
+    if (isOffline || !db || !auth) throw new Error("Systemet är i offline-läge.");
+
+    const upperCode = code.toUpperCase();
     
-    // --- NY LOGIK FÖR STORLEKAR (REM-baserad + Skalning) ---
-    // Vi definierar en "Bas" för Standardläget och multiplicerar med skalningen.
+    // Check for member code first
+    let q = query(collection(db, 'organizations'), where('inviteCode', '==', upperCode));
+    let snap = await getDocs(q);
     
-    // Standardstorlekar i REM
-    const titleBaseRem = isHyrox ? 1.5 : 2.25; // ~text-2xl / text-4xl
-    const repsBaseRem = isHyrox ? 1.25 : 3;    // ~text-xl / text-5xl
+    let isCoach = false;
+    let targetLocationId: string | undefined = undefined;
+    
+    // If not found, check for coach code
+    if (snap.empty) {
+        q = query(collection(db, 'organizations'), where('coachCode', '==', upperCode));
+        snap = await getDocs(q);
+        if (!snap.empty) {
+            isCoach = true;
+        }
+    }
 
-    const calculatedTitleSize = `${titleBaseRem * textSizeScale}rem`;
-    const calculatedRepsSize = `${repsBaseRem * repsSizeScale}rem`;
+    // Try location codes
+    if (snap.empty) {
+        q = query(collection(db, 'organizations'), where('inviteCodes', 'array-contains', upperCode));
+        snap = await getDocs(q);
+        if (!snap.empty) {
+            const orgData = snap.docs[0].data() as Organization;
+            const loc = orgData.locations?.find(l => l.inviteCode === upperCode || l.coachCode === upperCode);
+            if (loc) {
+                targetLocationId = loc.id;
+                if (loc.coachCode === upperCode) {
+                    isCoach = true;
+                }
+            } else {
+                throw new Error("Ogiltig inbjudningskod.");
+            }
+        }
+    }
 
-    // Padding logic (behåller standard-Tailwind för enkelhet, men kan skalas om man vill)
-    const padding = isHyrox ? 'pl-16 pr-6 py-2' : isLargeList ? 'pl-8 pr-4 py-2' : count > 6 ? 'pl-8 pr-6 py-3' : 'px-10 py-4';
+    if (snap.empty) {
+        throw new Error("Ogiltig inbjudningskod.");
+    }
+    
+    const organizationId = snap.docs[0].id;
 
-    return (
-        <div className={`w-full h-full flex flex-col overflow-hidden pb-1`}>
-            {exercises.map((ex, i) => {
-                const useGroupColor = !!ex.groupColor;
-                const nextEx = exercises[i + 1];
-                const isGroupedWithNext = nextEx && ex.groupId && ex.groupId === nextEx.groupId;
-                
-                let mbClass = '';
-                if (i < exercises.length - 1) {
-                    if (isGroupedWithNext) {
-                        mbClass = isLargeList ? 'mb-0' : 'mb-1'; // Reduced gap for grouped items
-                    } else {
-                        mbClass = isLargeList ? 'mb-1' : count > 6 ? 'mb-2' : 'mb-4';
+    const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
+    const user = userCredential.user;
+
+    const userData = {
+        uid: user.uid,
+        email: email,
+        role: isCoach ? 'coach' : 'member',
+        status: isCoach ? 'pending_coach' : 'active',
+        organizationId: organizationId,
+        locationId: targetLocationId || additionalData?.locationId || undefined,
+        firstName: additionalData?.firstName || '',
+        lastName: additionalData?.lastName || '',
+        age: additionalData?.age || null,
+        birthDate: additionalData?.birthDate || null,
+        gender: additionalData?.gender || 'prefer_not_to_say',
+        isTrainingMember: !isCoach,
+        createdAt: serverTimestamp(),
+        termsAcceptedAt: Date.now() 
+    };
+    
+    await setDoc(doc(db, 'users', user.uid), userData);
+    return user;
+};
+
+import { calculate1RM } from '../utils/workoutUtils';
+
+export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecords: { exerciseName: string, weight: number, diff: number, reps?: number, calculated1RM?: number }[] }> => {
+    if (isOffline || !db || !logData.organizationId) {
+        return { log: logData, newRecords: [] };
+    }
+    
+    const newLogRef = doc(collection(db, 'workoutLogs'));
+    const newLog = { id: newLogRef.id, ...logData };
+    const newRecords: { exerciseName: string; weight: number; diff: number; reps?: number; calculated1RM?: number }[] = [];
+
+    if (logData.workoutId && logData.workoutId !== 'manual' && !logData.benchmarkId) {
+        try {
+            const wSnap = await getDoc(doc(db, 'workouts', logData.workoutId));
+            if (wSnap.exists()) {
+                const wData = wSnap.data() as Workout;
+                if (wData.aiProgressionPrompt) {
+                    newLog.aiProgressionPrompt = wData.aiProgressionPrompt;
+                }
+                if (wData.benchmarkId) {
+                    newLog.benchmarkId = wData.benchmarkId;
+                    if (newLog.durationMinutes) {
+                        newLog.benchmarkValue = newLog.durationMinutes * 60;
+                    } else if (newLog.exerciseResults && newLog.exerciseResults.length > 0) {
+                         const maxWeight = Math.max(...newLog.exerciseResults.map((ex: any) => ex.weight || 0));
+                         if (maxWeight > 0) newLog.benchmarkValue = maxWeight;
                     }
                 }
+            }
+        } catch (e) {}
+    }
+
+    let showOnLeaderboard = true;
+
+    if (logData.memberId) {
+        try {
+            const userSnap = await getDoc(doc(db, 'users', logData.memberId));
+            if (userSnap.exists()) {
+                const userData = userSnap.data();
+                newLog.memberName = `${userData.firstName || 'Medlem'} ${userData.lastName ? userData.lastName[0] + '.' : ''}`.trim();
+                newLog.memberPhotoUrl = userData.photoUrl || null;
+                showOnLeaderboard = userData.showOnLeaderboard !== false;
+                newLog.showOnLeaderboard = showOnLeaderboard;
+            }
+        } catch (e) { console.warn("Failed to enrich log", e); }
+    }
+
+    const batch = writeBatch(db);
+
+    if (logData.memberId && logData.exerciseResults) {
+        try {
+            const pbCollectionRef = collection(db, 'users', logData.memberId, 'personalBests');
+            const currentPBsSnap = await getDocs(pbCollectionRef);
+            const currentPBs: Record<string, any> = {};
+            currentPBsSnap.forEach(d => currentPBs[d.id] = d.data());
+
+            for (const exResult of logData.exerciseResults) {
+                let bestSet: { weight: number, reps: number, oneRm: number } | null = null;
                 
-                return (
-                    <div 
-                        key={ex.id} 
-                        className={`flex-1 min-h-0 bg-white/95 dark:bg-gray-900/90 backdrop-blur-sm rounded-2xl flex flex-col justify-center border-l-[12px] shadow-sm transition-all relative group ${
-                            useGroupColor 
-                            ? ex.groupColor.replace('bg-', 'border-') 
-                            : 'border-gray-100 dark:border-transparent'
-                        } ${padding} ${mbClass}`}
-                        style={{ 
-                            borderLeftColor: useGroupColor ? undefined : (isHyrox ? '#6366f1' : `rgb(${timerStyle.pulseRgb})`)
-                        }}
-                    >
-                        <div className="flex items-center w-full gap-6 md:gap-8">
-                            {ex.reps && (
-                                <div className="shrink-0 flex items-center justify-center bg-primary/5 rounded-2xl border border-primary/10 px-4 py-2 min-w-[80px] md:min-w-[120px]">
-                                    <span 
-                                        className={`font-mono font-black text-primary whitespace-nowrap leading-none`}
-                                        style={{ fontSize: calculatedRepsSize }}
-                                    >
-                                        {formatReps(ex.reps)}
-                                    </span>
-                                </div>
-                            )}
-                            <h4 
-                                className={`font-black text-gray-900 dark:text-white leading-[0.9] tracking-tight overflow-visible whitespace-normal transition-all duration-300`}
-                                style={{ fontSize: calculatedTitleSize }}
-                            >
-                                {ex.name}
-                            </h4>
-                        </div>
+                const processSet = (wVal: any, rVal: any) => {
+                    const w = parseFloat(wVal) || 0;
+                    const r = parseFloat(rVal) || 0;
+                    
+                    if (r > 0 || w > 0) {
+                        let oneRm = 0;
+                        if (w > 0 && r > 0 && r <= 10) {
+                            oneRm = calculate1RM(w, r) || 0;
+                        }
+                        
+                        const currentScore = oneRm > 0 ? oneRm * 10000 : (w > 0 ? w * 100 + r : r);
+                        const bestScore = bestSet ? (bestSet.oneRm > 0 ? bestSet.oneRm * 10000 : (bestSet.weight > 0 ? bestSet.weight * 100 + bestSet.reps : bestSet.reps)) : -1;
+                        
+                        if (currentScore > bestScore) {
+                            bestSet = { weight: w, reps: r, oneRm };
+                        }
+                    }
+                };
 
-                        {ex.description && showDescriptions && !isHyrox && count <= 8 && (
-                            <div className="mt-3 hidden sm:block pl-1">
-                                <p className={`font-medium text-gray-600 dark:text-gray-300 leading-snug line-clamp-2`} style={{ fontSize: `calc(${calculatedTitleSize} * 0.6)` }}>
-                                    {ex.description}
-                                </p>
-                            </div>
-                        )}
-                    </div>
-                );
-            })}
-        </div>
-    );
-};
+                if (exResult.setDetails && exResult.setDetails.length > 0) {
+                    exResult.setDetails.forEach((s: any) => processSet(s.weight, s.reps));
+                } else if (exResult.weight || exResult.reps) {
+                    processSet(exResult.weight, exResult.reps);
+                }
 
-interface BigIndicatorProps {
-    currentRound: number;
-    totalRounds: number;
-    mode: TimerMode;
-    currentInterval?: number;
-    totalIntervalsInLap?: number;
-}
+                if (bestSet && exResult.exerciseName) {
+                    const pbId = getPBId(exResult.exerciseName);
+                    
+                    const existingPB = currentPBs[pbId];
+                    let existingScore = -1;
+                    if (existingPB) {
+                        const ew = existingPB.weight || 0;
+                        const er = existingPB.reps || 0;
+                        const eRm = existingPB.calculated1RM || 0;
+                        existingScore = eRm > 0 ? eRm * 10000 : (ew > 0 ? ew * 100 + er : er);
+                    }
 
-const BigRoundIndicator: React.FC<BigIndicatorProps> = ({ currentRound, totalRounds, mode, currentInterval, totalIntervalsInLap }) => {
-    if (mode !== TimerMode.Interval && mode !== TimerMode.Tabata && mode !== TimerMode.EMOM && mode !== TimerMode.Custom) return null;
+                    const newScore = bestSet.oneRm > 0 ? bestSet.oneRm * 10000 : (bestSet.weight > 0 ? bestSet.weight * 100 + bestSet.reps : bestSet.reps);
 
-    let primaryLabel = '';
-    let primaryCurrent = 0;
-    let primaryTotal = 0;
+                    if (newScore > existingScore) {
+                        const pbData: PersonalBest = { 
+                            id: pbId, 
+                            exerciseName: exResult.exerciseName.trim(), 
+                            weight: bestSet.weight, 
+                            reps: bestSet.reps,
+                            calculated1RM: bestSet.oneRm,
+                            date: Date.now() 
+                        };
+                        batch.set(doc(db, 'users', logData.memberId, 'personalBests', pbId), pbData);
+                        
+                        // For pure reps exercises, diff can just be the difference in reps.
+                        // Or if 1RM exists, the difference in 1RM.
+                        let computedDiff = 0;
+                        if (bestSet.oneRm > 0 && existingPB && existingPB.calculated1RM) {
+                            computedDiff = parseFloat((bestSet.oneRm - existingPB.calculated1RM).toFixed(2));
+                        } else if (bestSet.weight === 0 && existingPB && existingPB.weight === 0) {
+                            computedDiff = bestSet.reps - (existingPB.reps || 0);
+                        } else if (bestSet.weight > 0 && (!existingPB || existingPB.weight === 0)) {
+                            computedDiff = bestSet.weight;
+                        } else if (existingPB && bestSet.weight > existingPB.weight) {
+                            computedDiff = bestSet.weight - existingPB.weight;
+                        }
 
-    let secondaryLabel = '';
-    let secondaryCurrent = 0;
-    let secondaryTotal = 0;
+                        newRecords.push({
+                            exerciseName: exResult.exerciseName.trim(),
+                            weight: bestSet.weight, 
+                            reps: bestSet.reps,
+                            calculated1RM: bestSet.oneRm,
+                            diff: computedDiff
+                        });
+                    }
+                }
+            }
 
-    if (mode === TimerMode.Custom) {
-        primaryLabel = 'INTERVALL';
-        primaryCurrent = currentInterval || 1;
-        primaryTotal = totalIntervalsInLap || 1;
-        secondaryLabel = 'VARV';
-        secondaryCurrent = currentRound;
-        secondaryTotal = totalRounds;
-    } else if (mode === TimerMode.Interval && currentInterval !== undefined && totalIntervalsInLap !== undefined) {
-        primaryLabel = 'INTERVALL';
-        primaryCurrent = currentInterval;
-        primaryTotal = totalIntervalsInLap;
-        secondaryLabel = 'VARV';
-        secondaryCurrent = currentRound;
-        secondaryTotal = totalRounds;
-    } else if (mode === TimerMode.Interval) {
-        primaryLabel = 'INTERVALL';
-        primaryCurrent = currentRound;
-        primaryTotal = totalRounds;
-    } else if (mode === TimerMode.Tabata) {
-        primaryLabel = 'INTERVALL';
-        primaryCurrent = currentRound;
-        primaryTotal = totalRounds;
-    } else if (mode === TimerMode.EMOM) {
-        primaryLabel = 'MINUT';
-        primaryCurrent = currentRound;
-        primaryTotal = totalRounds;
+            if (newRecords.length > 0 && showOnLeaderboard) {
+                newLog.newPBs = newRecords;
+                const eventRef = doc(collection(db, 'studio_events'));
+                const eventData: StudioEvent = {
+                    id: eventRef.id,
+                    type: 'pb',
+                    organizationId: logData.organizationId,
+                    timestamp: Date.now(),
+                    data: { 
+                        userName: newLog.memberName || 'En medlem', 
+                        userPhotoUrl: newLog.memberPhotoUrl || null, 
+                        records: newRecords
+                    }
+                };
+                batch.set(eventRef, eventData);
+            }
+        } catch (e) { console.error("PB calculation failed", e); }
     }
 
-    return (
-        <div className="flex flex-col items-end gap-1 animate-fade-in">
-            <div className="flex flex-col items-end">
-                <span className="block text-white/80 font-black text-xs sm:text-sm uppercase tracking-[0.4em] mb-1 drop-shadow-md">{primaryLabel}</span>
-                <div className="flex items-baseline justify-end gap-1">
-                    <motion.span 
-                        key={`primary-${primaryCurrent}`} 
-                        initial={{ opacity: 0, scale: 0.8 }} 
-                        animate={{ opacity: 1, scale: 1 }} 
-                        className="font-black text-6xl sm:text-7xl text-white drop-shadow-lg leading-none"
-                    >
-                        {primaryCurrent}
-                    </motion.span>
-                    <span className="text-2xl sm:text-3xl font-black text-white/80 drop-shadow-md">/ {primaryTotal}</span>
-                </div>
-            </div>
+    batch.set(newLogRef, newLog);
+    await batch.commit();
 
-            {secondaryLabel && (
-                <motion.div 
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="flex items-center justify-end gap-3 mt-2"
-                >
-                    <span className="text-white/80 font-black text-[10px] sm:text-xs uppercase tracking-[0.3em] drop-shadow-md">
-                        {secondaryLabel}
-                    </span>
-                    <div className="flex items-baseline gap-1">
-                        <span className="text-2xl sm:text-3xl font-black text-white drop-shadow-lg">{secondaryCurrent}</span>
-                        <span className="text-sm sm:text-base font-bold text-white/80 drop-shadow-md">/ {secondaryTotal}</span>
-                    </div>
-                </motion.div>
-            )}
-        </div>
-    );
+    return { log: newLog, newRecords };
 };
 
-
-// --- TIMER CONTROLS COMPONENT ---
-const TimerControls: React.FC<{
-    textSizeScale: number;
-    repsSizeScale: number;
-    onTextChange: (val: number) => void;
-    onRepsChange: (val: number) => void;
-    visible: boolean;
-}> = ({ textSizeScale, repsSizeScale, onTextChange, onRepsChange, visible }) => {
-    return (
-        <AnimatePresence>
-            {visible && (
-                <motion.div
-                    initial={{ opacity: 0, height: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, height: 'auto', scale: 1 }}
-                    exit={{ opacity: 0, height: 0, scale: 0.95 }}
-                    className="bg-white/80 dark:bg-black/60 backdrop-blur-xl border border-gray-200 dark:border-white/10 rounded-2xl p-4 flex flex-col sm:flex-row items-center gap-6 shadow-2xl overflow-hidden mx-auto max-w-2xl mt-4"
-                >
-                    {/* Text Size Control */}
-                    <div className="flex items-center gap-4 w-full">
-                        <span className="text-gray-500 dark:text-white/50 text-xs font-bold uppercase tracking-wider w-12">Text</span>
-                        <input 
-                            type="range" 
-                            min="0.5" 
-                            max="2.0" 
-                            step="0.1" 
-                            value={textSizeScale}
-                            onChange={(e) => onTextChange(parseFloat(e.target.value))}
-                            className="flex-grow h-2 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary"
-                        />
-                        <span className="text-gray-900 dark:text-white font-mono font-bold w-12 text-right">
-                            {Math.round(textSizeScale * 100)}%
-                        </span>
-                    </div>
-
-                    <div className="hidden sm:block w-px h-8 bg-gray-300 dark:bg-white/10"></div>
-
-                    {/* Reps Size Control */}
-                    <div className="flex items-center gap-4 w-full">
-                        <span className="text-gray-500 dark:text-white/50 text-xs font-bold uppercase tracking-wider w-12">Reps</span>
-                        <input 
-                            type="range" 
-                            min="0.5" 
-                            max="2.5" 
-                            step="0.1" 
-                            value={repsSizeScale}
-                            onChange={(e) => onRepsChange(parseFloat(e.target.value))}
-                            className="flex-grow h-2 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer accent-primary"
-                        />
-                        <span className="text-gray-900 dark:text-white font-mono font-bold w-12 text-right">
-                            {Math.round(repsSizeScale * 100)}%
-                        </span>
-                    </div>
-                </motion.div>
-            )}
-        </AnimatePresence>
-    );
+export const updateWorkoutLog = async (logId: string, updates: Partial<WorkoutLog>) => {
+    if (isOffline || !db || !logId) return;
+    try {
+        await updateDoc(doc(db, 'workoutLogs', logId), sanitizeData(updates));
+    } catch (e) { console.error("updateWorkoutLog failed", e); }
 };
 
-interface TimerScreenProps {
-    block: WorkoutBlock;
-    onFinish: (finishData: { isNatural?: boolean; time?: number, raceId?: string }) => void;
-    onHeaderVisibilityChange: (isVisible: boolean) => void;
-    onShowImage: (url: string) => void; 
-    setCompletionInfo: React.Dispatch<React.SetStateAction<{ workout: Workout; isFinal: boolean; blockTag?: string; finishTime?: number; } | null>>;
-    setIsRegisteringHyroxTime: React.Dispatch<React.SetStateAction<boolean>>;
-    setIsBackButtonHidden: React.Dispatch<React.SetStateAction<boolean>>;
-    followMeShowImage: boolean;
-    organization: Organization | null;
-    onBackToGroups: () => void;
-    isAutoTransition?: boolean;
-}
+export const deleteWorkoutLog = async (logId: string) => {
+    if (isOffline || !db || !logId) return;
+    try {
+        await deleteDoc(doc(db, 'workoutLogs', logId));
+    } catch (e) { console.error("deleteWorkoutLog failed", e); }
+};
 
-interface FinishData { time: number; placement: number | null; }
+export const getLeaderboardData = async (orgId: string): Promise<{ memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]> => {
+    if (isOffline || !db || !orgId) return [];
+    try {
+        // Get start of current week (Monday)
+        const now = new Date();
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+        const startOfWeek = new Date(now.setDate(diff));
+        startOfWeek.setHours(0, 0, 0, 0);
 
-export const TimerScreen: React.FC<TimerScreenProps> = ({ 
-    block, onFinish, onHeaderVisibilityChange, onShowImage,
-    setCompletionInfo, setIsRegisteringHyroxTime,
-    setIsBackButtonHidden, followMeShowImage, organization, onBackToGroups,
-    isAutoTransition = false
-}) => {
-  const { activeWorkout } = useWorkout();
-  const { studioConfig, selectedStudio, selectedOrganization } = useStudio(); 
-  
-  // Use the hook with the selected sound profile
-  const { 
-    status, currentTime, currentPhaseDuration, currentRound, currentExercise, nextExercise,
-    start, pause, resume, reset, 
-    totalRounds, totalExercises,
-    totalBlockDuration, totalTimeElapsed,
-    completedWorkIntervals, effectiveIntervalsPerLap,
-    currentSegment, // Get current segment for Custom Mode
-    nextSegment,
-    totalWorkIntervals
-  } = useWorkoutTimer(block, studioConfig.soundProfile || 'airhorn');
-
-  // LOBBY MODE STATE - Default to TRUE unless auto-transition
-  const [isLobbyMode, setIsLobbyMode] = useState(!isAutoTransition);
-
-  // --- NEW STATES FOR TEXT/REPS SIZE ---
-  const [textSizeScale, setTextSizeScale] = useState(1);
-  const [repsSizeScale, setRepsSizeScale] = useState(1);
-  
-  // EXITING STATE FOR IMMEDIATE VISUAL FEEDBACK
-  const [isExiting, setIsExiting] = useState(false);
-
-  const handleExit = () => {
-      if (isExiting) return;
-      setIsExiting(true);
-      // Allow the UI to paint the exiting state (overlay fade out) before blocking the thread with unmount
-      setTimeout(() => {
-          onFinish({ isNatural: false });
-      }, 100);
-  };
-
-  // Sync with Remote State
-  // IMPORTANT: We need to listen to the selectedStudio from context which gets updated via the snapshot listener in App.tsx
-  // The previous implementation might have been relying on a stale reference or not triggering re-renders correctly.
-  
-  const remoteViewerSettings = selectedStudio?.remoteState?.viewerSettings;
-
-  useEffect(() => {
-      if (remoteViewerSettings) {
-          const { textScale, repsScale } = remoteViewerSettings;
-          // Only update if values are different to avoid loops, though React state setter handles this.
-          if (textScale !== undefined) setTextSizeScale(textScale);
-          if (repsScale !== undefined) setRepsSizeScale(repsScale);
-      }
-  }, [remoteViewerSettings]); // Dependency on the specific object part
-
-  useEffect(() => {
-      const storedText = localStorage.getItem('timer-text-scale');
-      const storedReps = localStorage.getItem('timer-reps-scale');
-      // Only load from local storage if NO remote settings are present
-      if (storedText && !remoteViewerSettings) setTextSizeScale(parseFloat(storedText));
-      if (storedReps && !remoteViewerSettings) setRepsSizeScale(parseFloat(storedReps));
-  }, [remoteViewerSettings]);
-
-  const handleSizeChange = (type: 'text' | 'reps', val: number) => {
-      if (type === 'text') {
-          setTextSizeScale(val);
-          localStorage.setItem('timer-text-scale', val.toString());
-      } else {
-          setRepsSizeScale(val);
-          localStorage.setItem('timer-reps-scale', val.toString());
-      }
-  };
-
-  const [controlsVisible, setControlsVisible] = React.useState(false);
-  const hideTimeoutRef = React.useRef<number | null>(null);
-  const wakeLockRef = useRef<any>(null);
-  
-  // Get navigation position preference (default top)
-  const navPos = studioConfig.navigationControlPosition || 'top';
-
-
-
-  // --- TRANSITION LOGIC ---
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [transitionTimeLeft, setTransitionTimeLeft] = useState(0);
-  const [isTransitionPaused, setIsTransitionPaused] = useState(false);
-  const transitionIntervalRef = useRef<number | null>(null);
-  const hasTriggeredFinish = useRef(false);
-
-  const upcomingBlocks = useMemo(() => {
-    if (!activeWorkout) return [];
-    const index = activeWorkout.blocks.findIndex(b => b.id === block.id);
-    if (index === -1) return [];
-    // Hämta 3 block framåt för att säkra split-vyn i transition
-    return activeWorkout.blocks.slice(index + 1, index + 4);
-  }, [activeWorkout, block.id]);
-
-  const nextBlock = upcomingBlocks[0] || null;
-
-  const workoutChain = useMemo(() => {
-      // Om vi inte har ett aktivt pass, visa bara det aktuella blocket
-      if (!activeWorkout) return [block];
-
-      const index = activeWorkout.blocks.findIndex(b => b.id === block.id);
-      
-      // Om blocket inte hittas i passet (vilket kan hända precis vid ett byte), 
-      // använd det aktuella blocket som bas för att undvika krasch.
-      if (index === -1) return [block];
-
-      // Hitta början på kedjan (gå bakåt så länge föregående block har autoAdvance)
-      let startIdx = index;
-      while (startIdx > 0 && activeWorkout.blocks[startIdx - 1].autoAdvance) {
-          startIdx--;
-      }
-
-      // Hitta slutet på kedjan (gå framåt så länge nuvarande/nästa block har autoAdvance)
-      let endIdx = index;
-      while (endIdx < activeWorkout.blocks.length - 1 && activeWorkout.blocks[endIdx].autoAdvance) {
-          endIdx++;
-      }
-
-      // Returnera den exakta delen av passet som ska köras i en följd
-      return activeWorkout.blocks.slice(startIdx, endIdx + 1);
-  }, [activeWorkout, block]); // <--- VIKTIGT: Här lyssnar vi på hela blocket, inte bara ID
-
-  const chainInfo = useMemo(() => {
-      let totalDuration = 0;
-      let elapsedTimeBeforeCurrent = 0;
-      const currentIdxInChain = workoutChain.findIndex(b => b.id === block.id);
-      
-      workoutChain.forEach((b, i) => {
-          const bDur = calculateBlockDuration(b.settings, b.exercises.length);
-          const transTime = (i < workoutChain.length - 1 && b.autoAdvance) ? (b.transitionTime || 0) : 0;
-          totalDuration += bDur + transTime;
-          if (i < currentIdxInChain) elapsedTimeBeforeCurrent += bDur + transTime;
-      });
-
-      return { totalDuration, elapsedTimeBeforeCurrent, currentBlockInChain: currentIdxInChain + 1, totalBlocksInChain: workoutChain.length };
-  }, [workoutChain, block.id]);
-
-  const totalChainElapsed = useMemo(() => {
-      let base = chainInfo.elapsedTimeBeforeCurrent + totalTimeElapsed;
-      if (isTransitioning) {
-          const elapsedInTrans = (block.transitionTime || 0) - transitionTimeLeft;
-          base += elapsedInTrans;
-      }
-      return base;
-  }, [chainInfo, totalTimeElapsed, isTransitioning, transitionTimeLeft, block.transitionTime]);
-
-  const handleStartNextBlock = useCallback(() => {
-      if (hasTriggeredFinish.current) return;
-      
-      if (transitionIntervalRef.current) clearInterval(transitionIntervalRef.current);
-      setIsTransitioning(false);
-      setIsTransitionPaused(false);
-      
-      if (nextBlock) {
-          hasTriggeredFinish.current = true;
-          onFinish({ isNatural: true, time: totalTimeElapsed }); 
-      }
-  }, [nextBlock, totalTimeElapsed, onFinish]);
-
-  useEffect(() => {
-      hasTriggeredFinish.current = false;
-  }, []);
-
-  useEffect(() => {
-      if (status === TimerStatus.Finished && nextBlock && block.autoAdvance && !hasTriggeredFinish.current) {
-          const waitTime = block.transitionTime || 0;
-          if (waitTime === 0) {
-              handleStartNextBlock();
-          } else {
-              setIsTransitioning(true);
-              setTransitionTimeLeft(waitTime);
-          }
-      }
-  }, [status, nextBlock, block.autoAdvance, block.transitionTime, handleStartNextBlock]);
-
-  useEffect(() => {
-      if (isTransitioning && !isTransitionPaused) {
-          transitionIntervalRef.current = window.setInterval(() => {
-              setTransitionTimeLeft(prev => {
-                  if (prev <= 1) {
-                      handleStartNextBlock();
-                      return 0;
-                  }
-                  return prev - 1;
-              });
-          }, 1000);
-      } else {
-          if (transitionIntervalRef.current) clearInterval(transitionIntervalRef.current);
-      }
-      return () => { if (transitionIntervalRef.current) clearInterval(transitionIntervalRef.current); };
-  }, [isTransitioning, isTransitionPaused, handleStartNextBlock]);
-
-  // --- PRE-START LOGIC ---
-  const hasStartedRef = useRef(false);
-  
-  useEffect(() => {
-    if (!hasStartedRef.current && (status === TimerStatus.Idle || status === TimerStatus.Finished)) {
-        if (organization) updateOrganizationActivity(organization.id);
+        const q = query(
+            collection(db, 'workoutLogs'), 
+            where("organizationId", "==", orgId),
+            where("date", ">=", startOfWeek.getTime())
+        );
         
-        // IMPORTANT: Only auto-start if NOT in lobby mode
-        if (!isLobbyMode) {
-             start({ skipPrep: isAutoTransition });
-        }
+        const snap = await getDocs(q);
+        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
         
-        hasStartedRef.current = true;
-        if (!isLobbyMode) {
-             onHeaderVisibilityChange(false);
-             setIsBackButtonHidden(true);
-        } else {
-             onHeaderVisibilityChange(true);
-             setIsBackButtonHidden(false);
-        }
+        // Aggregate by memberId
+        const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
+        
+        logs.forEach(log => {
+            if (!memberStats[log.memberId]) {
+                memberStats[log.memberId] = { count: 0, pbs: 0, name: log.memberName || 'Okänd', photoUrl: log.memberPhotoUrl || '' };
+            }
+            memberStats[log.memberId].count += 1;
+            if (log.newPBs && log.newPBs.length > 0) {
+                memberStats[log.memberId].pbs += log.newPBs.length;
+            }
+        });
+
+        // Convert to array and sort by count
+        return Object.entries(memberStats)
+            .map(([memberId, stats]) => ({ memberId, ...stats }))
+            .sort((a, b) => b.count - a.count);
+
+    } catch (e) {
+        console.error("getLeaderboardData failed", e);
+        return [];
     }
-  }, [start, status, onHeaderVisibilityChange, setIsBackButtonHidden, organization, isAutoTransition, isLobbyMode]);
+};
 
-  const handleLobbyStart = () => {
-      setIsLobbyMode(false);
-      start(); // Trigger timer start
-  };
-
-  const [finishedParticipants, setFinishedParticipants] = useState<Record<string, FinishData>>({});
-  const [savingParticipant, setSavingParticipant] = useState<string | null>(null);
-  const [showConfetti, setShowConfetti] = React.useState(false);
-  const [participantToEdit, setParticipantToEdit] = useState<string | null>(null);
-  const [showResetConfirmation, setShowResetConfirmation] = useState(false);
-  const [showBackToPrepConfirmation, setShowBackToPrepConfirmation] = useState(false);
-  const [showFinishAnimation, setShowFinishAnimation] = useState(false);
-  const [winnerName, setWinnerName] = useState<string | null>(null);
-  const [isSavingRace, setIsSavingRace] = useState(false);
-  const [finalRaceId, setFinalRaceId] = useState<string | null>(null);
-  const [isClockFrozen, setIsClockFrozen] = useState(false);
-  const [frozenTime, setFrozenTime] = useState(0);
-
-  // Hyrox and Mode setup
-  const isHyroxRace = useMemo(() => activeWorkout?.id.startsWith('hyrox-full-race') || activeWorkout?.id.startsWith('custom-race'), [activeWorkout]);
-  const isFreestanding = block.tag === 'Fristående';
-  const showFullScreenColor = isFreestanding;
-
-  const [startGroups, setStartGroups] = useState<StartGroup[]>([]);
-  const startIntervalSeconds = useMemo(() => (activeWorkout?.startIntervalMinutes ?? 2) * 60, [activeWorkout]);
-
-  const nextGroupToStartIndex = useMemo(() => startGroups.findIndex(g => g.startTime === undefined), [startGroups]);
-  const nextGroupToStart = useMemo(() => (nextGroupToStartIndex !== -1 ? startGroups[nextGroupToStartIndex] : null), [startGroups, nextGroupToStartIndex]);
-  const remainingGroupsCount = useMemo(() => startGroups.filter(g => g.startTime === undefined).length, [startGroups]);
-
-  const groupForCountdownDisplay = useMemo(() => {
-    if (!isHyroxRace) return null;
-    if (status === TimerStatus.Preparing) return startGroups.length > 0 ? startGroups[0] : null;
-    return nextGroupToStart;
-  }, [isHyroxRace, status, startGroups, nextGroupToStart]);
-
-  const timeForCountdownDisplay = useMemo(() => {
-      if (!groupForCountdownDisplay) return 0;
-      if (status === TimerStatus.Preparing) return currentTime;
-      const groupIndex = startGroups.findIndex(g => g.id === groupForCountdownDisplay.id);
-      if (groupIndex === -1) return 0;
-      return (groupIndex * startIntervalSeconds) - totalTimeElapsed;
-  }, [status, currentTime, groupForCountdownDisplay, startGroups, startIntervalSeconds, totalTimeElapsed]);
-
-  const requestWakeLock = useCallback(async () => {
-    if ('wakeLock' in navigator) {
-      try {
-        const wakeLock = await (navigator as any).wakeLock.request('screen');
-        wakeLockRef.current = wakeLock;
-        wakeLock.addEventListener('release', () => { wakeLockRef.current = null; });
-      } catch (err: any) { console.error(`${err.name}, ${err.message}`); }
+export const listenToLeaderboardData = (orgId: string, onUpdate: (data: { memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]) => void) => {
+    if (isOffline || !db || !orgId) {
+        onUpdate([]);
+        return () => {};
     }
-  }, []);
-
-  const releaseWakeLock = useCallback(async () => {
-    if (wakeLockRef.current) {
-      await wakeLockRef.current.release();
-      wakeLockRef.current = null;
-    }
-  }, []);
-
-  useEffect(() => {
-    if (status === TimerStatus.Running || status === TimerStatus.Preparing || status === TimerStatus.Resting) requestWakeLock();
-    else releaseWakeLock();
-    const handleVisibilityChange = () => { if (document.visibilityState === 'visible' && (status === TimerStatus.Running || status === TimerStatus.Preparing || status === TimerStatus.Resting)) requestWakeLock(); };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => { document.removeEventListener('visibilitychange', handleVisibilityChange); releaseWakeLock(); };
-  }, [status, requestWakeLock, releaseWakeLock]);
-
-  const stopAllAudio = useCallback(() => { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); }, []);
-  const speak = useCallback((text: string) => {
-    if (!('speechSynthesis' in window)) return;
-    stopAllAudio();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'sv-SE'; 
-    utterance.rate = 1.1;
-    const voices = window.speechSynthesis.getVoices();
-    const swedishVoice = voices.find(v => v.lang === 'sv-SE' || v.lang === 'sv_SE');
-    if (swedishVoice) utterance.voice = swedishVoice;
-    window.speechSynthesis.speak(utterance);
-  }, [stopAllAudio]);
-
-  useEffect(() => {
-    if (!isHyroxRace || !groupForCountdownDisplay || (status !== TimerStatus.Running && status !== TimerStatus.Preparing)) return;
-    const timeLeft = timeForCountdownDisplay;
-    if (timeLeft === 60) speak(`${groupForCountdownDisplay.name} startar om en minut`);
-    else if (timeLeft === 30) speak("30 sekunder till start");
-    else if (timeLeft === 10) speak("10 sekunder");
-    else if (timeLeft <= 5 && timeLeft > 0) speak(String(timeLeft)); 
-    else if (timeLeft === 0) speak(`Kör ${groupForCountdownDisplay.name}!`); 
-  }, [timeForCountdownDisplay, groupForCountdownDisplay, speak, isHyroxRace, status]);
-
-  const hasCalledFinishRef = useRef(false);
-  useEffect(() => {
-    if (status === TimerStatus.Finished && !isHyroxRace && block.settings.mode !== TimerMode.Stopwatch) {
-        if (block.autoAdvance && nextBlock) return;
-        if (hasCalledFinishRef.current) return;
-        const timerId = setTimeout(() => { onFinish({ isNatural: true, time: totalTimeElapsed }); hasCalledFinishRef.current = true; }, 500);
-        return () => clearTimeout(timerId);
-    } else if (status !== TimerStatus.Finished) { hasCalledFinishRef.current = false; }
-  }, [status, isHyroxRace, block.settings.mode, block.autoAdvance, nextBlock, onFinish, totalTimeElapsed]);
-
-  const handleConfirmReset = () => {
-    setShowResetConfirmation(false);
-    stopAllAudio();
-    setFinishedParticipants({});
-    setIsClockFrozen(false);
-    setFrozenTime(0);
-    setIsTransitioning(false);
-    setIsTransitionPaused(false);
-    if (activeWorkout?.startGroups && activeWorkout.startGroups.length > 0) {
-        setStartGroups(activeWorkout.startGroups.map(g => ({ ...g, startTime: undefined })));
-    } else if (activeWorkout) {
-        setStartGroups([{ id: `group-${Date.now()}`, name: 'Startgrupp 1', participants: (activeWorkout?.participants || []).join('\n'), startTime: undefined }]);
-    } else {
-        setStartGroups([]);
-    }
-    // RESET LOBBY MODE
-    setIsLobbyMode(true);
-    reset(); // Reset will stop timer and set status to Idle
-  };
-
-  const handleRemoteAction = useCallback(async (action: 'start' | 'pause' | 'resume' | 'reset') => {
-      // 1. Perform Local Action IMMEDIATELY
-      if (action === 'start') {
-          setIsLobbyMode(false);
-          start(); 
-      }
-      else if (action === 'pause') {
-          if (isTransitioning) setIsTransitionPaused(true);
-          else pause();
-      }
-      else if (action === 'resume') {
-          if (isTransitioning) setIsTransitionPaused(false);
-          else resume();
-      }
-      else if (action === 'reset') {
-          handleConfirmReset();
-      }
-  }, [selectedOrganization, selectedStudio, activeWorkout, block.id, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset]);
-
-  useEffect(() => { return () => stopAllAudio(); }, [stopAllAudio]);
-
-  useEffect(() => {
-    if (isHyroxRace) {
-        if (activeWorkout?.startGroups && activeWorkout.startGroups.length > 0) {
-            setStartGroups(activeWorkout.startGroups.map((g, index) => ({ ...g, startTime: index === 0 ? 0 : undefined })));
-        } else if (activeWorkout) { 
-            setStartGroups([{ id: `group-${Date.now()}`, name: 'Startgrupp 1', participants: (activeWorkout.participants || []).join('\n'), startTime: 0 }]);
-        } else { setStartGroups([]); }
-    } else { setStartGroups([]); }
-  }, [isHyroxRace, activeWorkout]);
-
-  useEffect(() => {
-      if (!isHyroxRace || (status !== TimerStatus.Running && status !== TimerStatus.Preparing)) return;
-      const groupsToStart = startGroups.filter((group, index) => { const expectedStartTime = index * startIntervalSeconds; return group.startTime === undefined && totalTimeElapsed >= expectedStartTime; });
-      if (groupsToStart.length > 0) {
-          setStartGroups(prevGroups => {
-              const newGroups = [...prevGroups];
-              groupsToStart.forEach(groupToStart => {
-                  const index = newGroups.findIndex(g => g.id === groupToStart.id);
-                  if (index !== -1) { newGroups[index] = { ...newGroups[index], startTime: index * startIntervalSeconds }; }
-              });
-              return newGroups;
-          });
-      }
-  }, [isHyroxRace, totalTimeElapsed, startGroups, status, startIntervalSeconds]);
-
-  useEffect(() => {
-      if (status === TimerStatus.Preparing) return;
-      if (isHyroxRace && groupForCountdownDisplay && timeForCountdownDisplay > 0 && timeForCountdownDisplay <= 3) playShortBeep();
-  }, [isHyroxRace, timeForCountdownDisplay, groupForCountdownDisplay, status]);
-
-  // --- HYROX HANDLERS ---
-  const startedParticipants = useMemo(() => {
-    return startGroups.filter(g => g.startTime !== undefined).flatMap(g => {
-        if (g.participantList && g.participantList.length > 0) {
-            return g.participantList;
-        }
-        // Fallback for legacy string participants
-        return g.participants.split('\n').map(p => p.trim()).filter(Boolean).map((name, index) => ({
-            id: `legacy-${g.id}-${index}`,
-            name,
-            startNumber: index + 1
-        }));
-    });
-  }, [startGroups]);
-
-  const handleParticipantFinish = (participantId: string) => {
-    setSavingParticipant(participantId);
     
-    // Find the group that contains this participant
-    const group = startGroups.find(g => {
-        if (g.participantList && g.participantList.length > 0) {
-            return g.participantList.some(p => p.id === participantId);
+    // Get start of current week (Monday)
+    const now = new Date();
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
+    const startOfWeek = new Date(now.setDate(diff));
+    startOfWeek.setHours(0, 0, 0, 0);
+
+    const q = query(
+        collection(db, 'workoutLogs'), 
+        where("organizationId", "==", orgId),
+        where("date", ">=", startOfWeek.getTime())
+    );
+    
+    return onSnapshot(q, (snap) => {
+        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
+        
+        // Aggregate by memberId
+        const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
+        
+        logs.forEach(log => {
+            if (!memberStats[log.memberId]) {
+                memberStats[log.memberId] = { count: 0, pbs: 0, name: log.memberName || 'Okänd', photoUrl: log.memberPhotoUrl || '' };
+            }
+            memberStats[log.memberId].count += 1;
+            if (log.newPBs && log.newPBs.length > 0) {
+                memberStats[log.memberId].pbs += log.newPBs.length;
+            }
+        });
+
+        // Convert to array and sort by count
+        const data = Object.entries(memberStats)
+            .map(([memberId, stats]) => ({ memberId, ...stats }))
+            .sort((a, b) => b.count - a.count);
+            
+        onUpdate(data);
+    }, (error) => {
+        console.error("listenToLeaderboardData failed", error);
+    });
+};
+
+export const listenToMemberLogs = (memberId: string, onUpdate: (logs: WorkoutLog[]) => void) => {
+    if (isOffline || !db || !memberId) {
+        onUpdate([]);
+        return () => {};
+    }
+    const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"));
+    return onSnapshot(q, (snap) => {
+        onUpdate(snap.docs.map(d => d.data() as WorkoutLog));
+    }, (err) => console.error("listenToMemberLogs failed", err));
+};
+
+export const listenToCommunityLogs = (orgId: string, onUpdate: (logs: WorkoutLog[]) => void) => {
+    if (isOffline || !db || !orgId) {
+        onUpdate([]);
+        return () => {};
+    }
+    const q = query(collection(db, 'workoutLogs'), where("organizationId", "==", orgId), orderBy("date", "desc"), limit(20));
+    return onSnapshot(q, (snap) => {
+        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
+        onUpdate(logs);
+    }, (err) => console.error("listenToCommunityLogs failed", err));
+};
+
+export const getMemberLogs = async (memberId: string): Promise<WorkoutLog[]> => {
+    if (isOffline || !db || !memberId) return []; 
+    try {
+        const q = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => d.data() as WorkoutLog);
+    } catch (e) { return []; }
+};
+
+export const getOrganizationLogs = async (orgId: string, limitCount: number = 100): Promise<WorkoutLog[]> => {
+    if (isOffline || !db || !orgId) return [];
+    try {
+        const q = query(collection(db, 'workoutLogs'), where("organizationId", "==", orgId), orderBy("date", "desc"), limit(limitCount));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => d.data() as WorkoutLog);
+    } catch (e) { return []; }
+};
+
+export const getMemberDataForAI = async (memberId: string): Promise<{ logs: WorkoutLog[], pbs: PersonalBest[] }> => {
+    if (isOffline || !db || !memberId) return { logs: [], pbs: [] };
+
+    try {
+        // Fetch last 15 workout logs
+        const logsQuery = query(collection(db, 'workoutLogs'), where("memberId", "==", memberId), orderBy("date", "desc"), limit(15));
+        const logsSnap = await getDocs(logsQuery);
+        const logs = logsSnap.docs.map(d => d.data() as WorkoutLog);
+
+        // Fetch all personal bests
+        const pbsSnap = await getDocs(collection(db, 'users', memberId, 'personalBests'));
+        const pbs = pbsSnap.docs.map(d => d.data() as PersonalBest);
+
+        return { logs, pbs };
+    } catch (error) {
+        console.error("Error fetching member data for AI:", error);
+        return { logs: [], pbs: [] };
+    }
+};
+
+export const listenToPersonalBests = (userId: string, onUpdate: (pbs: PersonalBest[]) => void, onError?: (err: any) => void) => {
+    if (isOffline || !db || !userId) {
+        onUpdate([]);
+        return () => {};
+    }
+    return onSnapshot(collection(db, 'users', userId, 'personalBests'), (snap) => {
+        onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() }) as PersonalBest));
+    }, (err) => {
+        console.error("listenToPersonalBests failed", err);
+        if (onError) onError(err);
+    });
+};
+
+export const updatePersonalBest = async (userId: string, exerciseName: string, weight: number) => {
+    if (isOffline || !db || !userId) return;
+    const pbId = getPBId(exerciseName);
+    try {
+        await setDoc(doc(db, 'users', userId, 'personalBests', pbId), { id: pbId, exerciseName: exerciseName.trim(), weight, date: Date.now() });
+    } catch (e) { console.error("updatePersonalBest failed", e); }
+};
+
+export const resetPersonalBest = async (userId: string, exerciseName: string) => {
+    if (isOffline || !db || !userId) return;
+    const pbId = getPBId(exerciseName);
+    try {
+        await setDoc(doc(db, 'users', userId, 'personalBests', pbId), { 
+            id: pbId, 
+            exerciseName: exerciseName.trim(), 
+            weight: 0, 
+            reps: 0,
+            calculated1RM: 0,
+            date: Date.now() 
+        });
+    } catch (e) { console.error("resetPersonalBest failed", e); }
+};
+
+export const listenForStudioEvents = (orgId: string, callback: (event: StudioEvent) => void) => {
+    if (isOffline || !db || !orgId) return () => {};
+    
+    // VIKTIGT: Vi tar bort 'where timestamp > ...' från databasfrågan eftersom det kräver 
+    // ett sammansatt index som kan krångla. Istället hämtar vi de 20 SENASTE händelserna
+    // och filtrerar bort gamla events (äldre än 5 min) här i koden istället.
+    // Detta gör lyssnaren mycket snabbare och mer pålitlig.
+
+    const q = query(
+        collection(db, 'studio_events'), 
+        where('organizationId', '==', orgId), 
+        orderBy('timestamp', 'desc'), // Hämta nyaste först
+        limit(20)
+    );
+
+    return onSnapshot(q, (snapshot) => {
+        // Eftersom vi sorterar 'desc' (nyast först), kommer snapshot.docChanges() 
+        // leverera de nyaste eventen. Vi itererar igenom dem.
+        
+        // Vi samlar upp ändringarna och reverserar dem så att om vi får en batch 
+        // (t.ex. vid start), så processar vi dem i kronologisk ordning (äldst till nyast)
+        // för att kön ska kännas naturlig om flera kom in precis samtidigt.
+        const changes = snapshot.docChanges();
+        
+        // Loopa baklänges eller reversera för att hantera ordningen om det behövs, 
+        // men för realtidshändelser kommer de en och en.
+        changes.forEach((change) => {
+            if (change.type === 'added') {
+                const data = change.doc.data() as StudioEvent;
+                
+                // CLIENT-SIDE FILTERING:
+                // Är eventet skapat för mer än 10 minuter sedan? Ignorera det.
+                // Vi har en striktare spärr i PBOverlay (5 min), men detta sparar prestanda.
+                const timeDiff = Date.now() - data.timestamp;
+                if (timeDiff < 10 * 60 * 1000) { 
+                    callback(data);
+                }
+            }
+        });
+    });
+};
+
+export const listenToWeeklyPBs = (orgId: string, onUpdate: (events: StudioEvent[]) => void) => {
+    if (isOffline || !db || !orgId) { onUpdate([]); return () => {}; }
+    
+    // Vi tar bort tidsbegränsningen för att visa de senaste 20 rekorden oavsett när de sattes.
+    // Vi filtrerar på 'type' i minnet för att undvika index-fel i Firestore.
+    const q = query(
+        collection(db, 'studio_events'), 
+        where('organizationId', '==', orgId), 
+        orderBy('timestamp', 'desc'), 
+        limit(50)
+    );
+    return onSnapshot(q, (snap) => {
+        const allEvents = snap.docs.map(d => d.data() as StudioEvent);
+        const pbEvents = allEvents.filter(e => e.type === 'pb' || e.type === 'pb_batch');
+        onUpdate(pbEvents.slice(0, 20));
+    }, (error) => {
+        console.error("Error listening to weekly PBs:", error);
+    });
+};
+
+// --- COACH NOTES ---
+
+export const saveCoachNote = async (noteData: Omit<CoachNote, 'id' | 'createdAt'>): Promise<CoachNote | null> => {
+    if (isOffline || !db) return null;
+    try {
+        const ref = doc(collection(db, 'coachNotes'));
+        const newNote: any = {
+            ...noteData,
+            id: ref.id,
+            createdAt: Date.now()
+        };
+        // Clean up undefined fields
+        Object.keys(newNote).forEach(key => newNote[key] === undefined && delete newNote[key]);
+        
+        await setDoc(ref, newNote);
+        return newNote as CoachNote;
+    } catch (e) {
+        console.error("saveCoachNote failed", e);
+        return null;
+    }
+};
+
+export const updateCoachNote = async (noteId: string, updates: Partial<Omit<CoachNote, 'id' | 'createdAt'>>): Promise<void> => {
+    if (isOffline || !db || !noteId) return;
+    try {
+        const cleanedUpdates: any = { ...updates };
+        // Clean up undefined fields
+        Object.keys(cleanedUpdates).forEach(key => cleanedUpdates[key] === undefined && delete cleanedUpdates[key]);
+        
+        await updateDoc(doc(db, 'coachNotes', noteId), cleanedUpdates);
+    } catch (e) {
+        console.error("updateCoachNote failed", e);
+    }
+};
+
+export const listenToCoachNotes = (orgId: string, onUpdate: (notes: CoachNote[]) => void) => {
+    if (isOffline || !db || !orgId) {
+        onUpdate([]);
+        return () => {};
+    }
+    const q = query(
+        collection(db, 'coachNotes'),
+        where('organizationId', '==', orgId),
+        orderBy('createdAt', 'desc')
+    );
+    return onSnapshot(q, (snap) => {
+        onUpdate(snap.docs.map(d => d.data() as CoachNote));
+    }, (err) => console.error("listenToCoachNotes failed", err));
+};
+
+export const toggleCoachNoteFavorite = async (noteId: string, isFavorite: boolean) => {
+    if (isOffline || !db || !noteId) return;
+    try {
+        await updateDoc(doc(db, 'coachNotes', noteId), { isFavorite });
+    } catch (e) { console.error("toggleCoachNoteFavorite failed", e); }
+};
+
+export const deleteCoachNote = async (noteId: string, imageUrl?: string) => {
+    if (isOffline || !db || !noteId) return;
+    try {
+        if (imageUrl) {
+            await deleteImageByUrl(imageUrl);
         }
-        // Fallback for legacy string participants where participantId is actually the name/id generated in startedParticipants
-        // The generated ID is `legacy-${g.id}-${index}`, so we can check if participantId starts with `legacy-${g.id}`
-        return participantId.startsWith(`legacy-${g.id}`);
+        await deleteDoc(doc(db, 'coachNotes', noteId));
+    } catch (e) { console.error("deleteCoachNote failed", e); }
+};
+
+export const getOrganizations = async (): Promise<Organization[]> => {
+    if (isOffline || !db) return MOCK_ORGANIZATIONS;
+    try {
+        const snap = await getDocs(collection(db, 'organizations'));
+        return snap.docs.map(d => {
+            const data = { id: d.id, ...d.data() } as Organization;
+            if (!data.studios) data.studios = [];
+            return data;
+        });
+    } catch (e) { return []; }
+};
+
+export const getOrganizationById = async (id: string): Promise<Organization | null> => {
+    if (isOffline || !db || !id) return MOCK_ORGANIZATIONS.find(o => o.id === id) || null;
+    try {
+        const snap = await getDoc(doc(db, 'organizations', id));
+        if (!snap.exists()) return null;
+        const data = { id: snap.id, ...snap.data() } as Organization;
+        if (!data.studios) data.studios = [];
+        return data;
+    } catch (e) { return null; }
+};
+
+export const listenToOrganizationChanges = (id: string, onUpdate: (org: Organization) => void) => {
+    if (isOffline || !db || !id) return () => {}; 
+    return onSnapshot(doc(db, 'organizations', id), (snap) => {
+        if (snap.exists()) {
+            const data = { id: snap.id, ...snap.data() } as Organization;
+            if (!data.studios) data.studios = [];
+            onUpdate(data);
+        }
+    }, (err) => console.error("listenToOrganizationChanges failed", err));
+};
+
+
+
+export const createOrganization = async (name: string, subdomain: string): Promise<Organization> => {
+    if(isOffline || !db) throw new Error("Offline");
+    const id = `org_${subdomain}_${Date.now()}`;
+    const newOrg: Organization = { 
+        id, name, subdomain, passwords: { coach: '1234' }, studios: [], customPages: [], status: 'active',
+        inviteCode: generateInviteCode(),
+        globalConfig: { customCategories: [{ id: '1', name: 'Standard', prompt: '' }] } 
+    };
+    await setDoc(doc(db, 'organizations', id), newOrg);
+    return newOrg;
+};
+
+// ... (updateOrganization functions)
+export const updateOrganizationName = async (id: string, name: string) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { name });
+    return getOrganizationById(id);
+};
+
+export const updateOrganization = async (id: string, name: string, subdomain: string, inviteCode?: string, coachCode?: string, maxFreeCoaches?: number) => {
+    if(isOffline || !db || !id) return;
+    const updateData: any = { name, subdomain };
+    if (inviteCode) updateData.inviteCode = inviteCode.toUpperCase();
+    if (coachCode) updateData.coachCode = coachCode.toUpperCase();
+    if (maxFreeCoaches !== undefined) updateData.maxFreeCoaches = maxFreeCoaches;
+    await updateDoc(doc(db, 'organizations', id), updateData);
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationPasswords = async (id: string, passwords: Organization['passwords']) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { passwords });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationLogos = async (id: string, logos: { light: string; dark: string }) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { logoUrlLight: logos.light, logoUrlDark: logos.dark });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationFavicon = async (id: string, faviconUrl: string) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { faviconUrl });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationPrimaryColor = async (id: string, color: string) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { primaryColor: color });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationCustomPages = async (id: string, customPages: CustomPage[]) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { customPages: sanitizeData(customPages) });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationLocations = async (id: string, locations: any[]) => {
+    if(isOffline || !db || !id) return;
+    
+    const inviteCodes: string[] = [];
+    locations.forEach(loc => {
+        if (loc.inviteCode) inviteCodes.push(loc.inviteCode);
+        if (loc.coachCode) inviteCodes.push(loc.coachCode);
     });
 
-    if (group?.startTime !== undefined) {
-      const netTime = Math.max(0, totalTimeElapsed - group.startTime);
-      setFinishedParticipants(prev => ({
-        ...prev,
-        [participantId]: { time: netTime, placement: Object.keys(prev).length + 1 }
-      }));
-      
-      // Try to find the actual name for the speech synthesis
-      let participantName = participantId;
-      if (group.participantList && group.participantList.length > 0) {
-          const p = group.participantList.find(p => p.id === participantId);
-          if (p) participantName = p.name;
-      } else {
-          // Extract name from legacy participants based on index
-          const match = participantId.match(/legacy-.*-(\d+)/);
-          if (match) {
-              const index = parseInt(match[1], 10);
-              const names = group.participants.split('\n').map(p => p.trim()).filter(Boolean);
-              if (names[index]) participantName = names[index];
-          }
-      }
-      
-      speak(`Målgång ${participantName}!`);
-    }
-    setSavingParticipant(null);
-  };
-
-  const handleEditParticipant = (name: string) => {
-    setParticipantToEdit(name);
-  };
-
-  const handleUpdateResult = (newTime: number) => {
-    if (participantToEdit) {
-      setFinishedParticipants(prev => ({
-        ...prev,
-        [participantToEdit]: { ...prev[participantToEdit], time: newTime }
-      }));
-      setParticipantToEdit(null);
-    }
-  };
-
-  const handleAddPenalty = () => {
-    if (participantToEdit) {
-      setFinishedParticipants(prev => ({
-        ...prev,
-        [participantToEdit]: { ...prev[participantToEdit], time: prev[participantToEdit].time + 60 }
-      }));
-      setParticipantToEdit(null);
-    }
-  };
-
-  const handleRemoveResult = () => {
-    if (participantToEdit) {
-      setFinishedParticipants(prev => {
-        const next = { ...prev };
-        delete next[participantToEdit];
-        return next;
-      });
-      setParticipantToEdit(null);
-    }
-  };
-
-  const handleRaceComplete = useCallback(async () => {
-      if (!isHyroxRace || !activeWorkout || !organization) { 
-          if (!organization) console.error("Hyrox save failed: Missing organizationId");
-          return; 
-      }
-      
-      setIsSavingRace(true);
-      const sortedFinishers = Object.entries(finishedParticipants).sort(([, a], [, b]) => (a as FinishData).time - (b as FinishData).time);
-      const winner = sortedFinishers.length > 0 ? sortedFinishers[0][0] : null;
-      setWinnerName(winner);
-      
-      const raceResults = sortedFinishers.map(([participant, data], index) => {
-          const group = startGroups.find(g => g.participants.includes(participant));
-          return { participant, time: (data as FinishData).time, groupId: group?.id || 'unknown' };
-      });
-
-      try {
-          // Extract the original race ID if it was a planned race
-          let originalRaceId = undefined;
-          if (activeWorkout.id && activeWorkout.id.startsWith('custom-race-') && activeWorkout.id !== 'custom-race') {
-              originalRaceId = activeWorkout.id.replace('custom-race-', '');
-          }
-
-          const raceData: any = {
-              raceName: activeWorkout.title,
-              exercises: block.exercises?.map(e => `${e.reps || ''} ${e.name}`.trim()) || [],
-              startGroups: startGroups.map(g => ({ id: g.id, name: g.name, participants: g.participants.split('\n').map(p => p.trim()).filter(Boolean) })),
-              results: raceResults,
-              status: 'completed'
-          };
-          
-          if (originalRaceId) {
-              raceData.id = originalRaceId;
-          }
-          
-          const savedRace = await saveRace(raceData, organization.id);
-          if (savedRace && savedRace.id) {
-              setFinalRaceId(savedRace.id);
-              setShowFinishAnimation(true);
-              if (winner) speak(`Och vinnaren är ${winner}! Bra jobbat alla!`);
-          } else {
-              throw new Error("Missing raceId from server response");
-          }
-      } catch (error) {
-          console.error("Failed to save race:", error);
-          alert("Kunde inte spara loppet. Kontrollera din anslutning.");
-      } finally {
-          setIsSavingRace(false);
-      }
-  }, [isHyroxRace, activeWorkout, finishedParticipants, block.exercises, startGroups, organization, speak]);
-
-  const timerStyle = getTimerStyle(status, block.settings.mode, isHyroxRace, isTransitioning, currentSegment);
-  
-  const modeLabel = useMemo(() => {
-      if (isTransitioning) return "VILA INFÖR NÄSTA";
-      if (isHyroxRace) return "RACE";
-      switch(block.settings.mode) {
-          case TimerMode.Interval: return "INTERVALLER";
-          case TimerMode.Tabata: return "TABATA";
-          case TimerMode.AMRAP: return "AMRAP";
-          case TimerMode.EMOM: return "EMOM";
-          case TimerMode.TimeCap: return "TIME CAP";
-          case TimerMode.Stopwatch: return "STOPPUR";
-          case TimerMode.Custom: return "SEKVENS";
-          default: return (block.settings.mode as string).toUpperCase();
-      }
-  }, [block.settings.mode, isHyroxRace, isTransitioning]);
-
-  const statusLabel = useMemo(() => {
-      if (isTransitioning) return `Gör er redo för: ${nextBlock?.title}`;
-      if (isHyroxRace) {
-          switch (status) {
-              case TimerStatus.Preparing: return "Gör er redo";
-              case TimerStatus.Running: return "Pågår"; 
-              case TimerStatus.Resting: return "Vila"; 
-              case TimerStatus.Paused: return "Pausad";
-              case TimerStatus.Finished: return "Målgång";
-              default: return "Redo";
-          }
-      }
-      
-      // CUSTOM LABELS
-      if (block.settings.mode === TimerMode.Custom && currentSegment) {
-          if (status === TimerStatus.Preparing) return "Gör dig redo";
-          if (status === TimerStatus.Finished) return "Klar";
-          // Use segment title or default
-          return currentSegment.title || (currentSegment.type === 'work' ? "ARBETE" : "VILA");
-      }
-
-      switch (status) {
-          case TimerStatus.Preparing: return "Gör dig redo";
-          case TimerStatus.Running: return "Arbete";
-          case TimerStatus.Resting: return "Vila";
-          case TimerStatus.Paused: return "Pausad";
-          case TimerStatus.Finished: return "Klar";
-          default: return "Redo";
-      }
-  }, [status, isHyroxRace, isTransitioning, nextBlock, block.settings.mode, currentSegment]);
-
-  const timeToDisplay = useMemo(() => {
-      if (isTransitioning) return transitionTimeLeft;
-      if (status === TimerStatus.Preparing) return currentTime;
-      if (isHyroxRace && isClockFrozen) return frozenTime;
-      if (isHyroxRace || block.settings.mode === TimerMode.Stopwatch) return totalTimeElapsed;
-      if (!block.settings.direction || block.settings.direction === 'down') return currentTime;
-      return currentPhaseDuration - currentTime;
-  }, [status, currentTime, isHyroxRace, block.settings, currentPhaseDuration, totalTimeElapsed, isClockFrozen, frozenTime, isTransitioning, transitionTimeLeft]);
-
-  const minutesStr = Math.floor(timeToDisplay / 60).toString().padStart(2, '0');
-  const secondsStr = (timeToDisplay % 60).toString().padStart(2, '0');
-
-  const currentIntervalInLap = (completedWorkIntervals % effectiveIntervalsPerLap) + 1;
-  
-  // Autostart 2.0 Mode Detection
-  const isAutostartMode = useMemo(() => {
-      if (!activeWorkout) return false;
-      // FIX: Vi kollar nu om DET AKTUELLA blocket (block) har autostart påslaget,
-      // istället för att kolla om *något* block i hela passet har det.
-      return activeWorkout.blocks.length > 1 && block.autoAdvance;
-  }, [activeWorkout, block.autoAdvance]);
-
-  const isRestNext = block.autoAdvance && (block.transitionTime || 0) > 0 && status !== TimerStatus.Resting;
-  
-  // --- VIKTAD HÖJDFÖRDELNING ---
-  const getBlockWeight = (block: WorkoutBlock) => {
-    // 2 poäng för header/titel, 1 poäng per övning
-    return 2 + (block.exercises?.length || 0);
-  };
-
-  const restartHideTimer = React.useCallback(() => {
-    if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-    if (status === TimerStatus.Running || status === TimerStatus.Resting || status === TimerStatus.Preparing || isTransitioning) {
-        hideTimeoutRef.current = window.setTimeout(() => { setControlsVisible(false); onHeaderVisibilityChange(false); setIsBackButtonHidden(true); }, 3000); 
-    }
-  }, [status, isTransitioning, onHeaderVisibilityChange, setIsBackButtonHidden]);
-
-  const handleInteraction = React.useCallback(() => { setControlsVisible(true); onHeaderVisibilityChange(true); setIsBackButtonHidden(false); restartHideTimer(); }, [onHeaderVisibilityChange, setIsBackButtonHidden, restartHideTimer]);
-
-  // Show controls on mouse move or touch
-  useEffect(() => {
-      window.addEventListener('mousemove', handleInteraction);
-      window.addEventListener('touchstart', handleInteraction);
-      return () => {
-          window.removeEventListener('mousemove', handleInteraction);
-          window.removeEventListener('touchstart', handleInteraction);
-      };
-  }, [handleInteraction]);
-
-  useEffect(() => {
-    if (controlsVisible) restartHideTimer();
-    return () => { if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); };
-  }, [controlsVisible, restartHideTimer]);
-
-  useEffect(() => {
-    if (status === TimerStatus.Running || status === TimerStatus.Preparing || status === TimerStatus.Resting || isTransitioning) {
-        restartHideTimer();
-    } else if (isLobbyMode) { 
-        setControlsVisible(true); 
-        onHeaderVisibilityChange(true); 
-        setIsBackButtonHidden(false); 
-        if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current); 
-    }
-  }, [status, restartHideTimer, onHeaderVisibilityChange, setIsBackButtonHidden, isTransitioning, isLobbyMode]);
-
-  const isActuallyPaused = status === TimerStatus.Paused || (isTransitioning && isTransitionPaused);
-  const isActuallyFinishedOrIdle = (status === TimerStatus.Idle || status === TimerStatus.Finished) && !isTransitioning;
-
-  // --- Calculate total sequence duration for Custom Mode ---
-  const singleSequenceDuration = block.settings.sequence ? block.settings.sequence.reduce((acc, s) => acc + (s.duration || 0), 0) : 0;
-  const totalSequenceDuration = singleSequenceDuration * (block.settings.rounds || 1);
-
-  const upcomingText = useMemo(() => {
-      if (status !== TimerStatus.Running || currentTime > 10) return null;
-      
-      const { mode, restTime } = block.settings;
-      
-      if (mode === TimerMode.Custom) {
-          if (nextSegment) {
-              return nextSegment.type === 'rest' ? 'Vila' : (nextSegment.name || 'Nästa övning');
-          }
-      } else if (mode === TimerMode.Interval || mode === TimerMode.Tabata || mode === TimerMode.EMOM) {
-          if (completedWorkIntervals + 1 >= totalWorkIntervals) return null;
-
-          if (restTime > 0) {
-              return 'Vila';
-          } else if (nextExercise) {
-              return nextExercise.name;
-          }
-      }
-      return null;
-  }, [status, currentTime, block.settings, nextSegment, nextExercise, completedWorkIntervals, totalWorkIntervals]);
-
-  return (
-    <div 
-        className={`fixed inset-0 w-full h-full overflow-hidden transition-colors duration-500 ${showFullScreenColor ? `${timerStyle.bg}` : 'bg-gray-100 dark:bg-black'}`}
-        style={{ '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties}
-        onClick={handleInteraction}
-        onMouseMove={handleInteraction}
-        onTouchStart={handleInteraction}
-    >
-      {/* NEW BACK BUTTON FOR LOBBY MODE */}
-      {/* IMPORTANT: This should be visible if isLobbyMode OR isActuallyFinishedOrIdle */}
-      {/* UPDATE: Also visible if paused to allow exit */}
-      {(isLobbyMode || isActuallyFinishedOrIdle || isActuallyPaused) && (
-          <button
-              onClick={handleExit}
-              className={`fixed ${navPos === 'bottom' ? 'bottom-8' : 'top-8'} left-8 z-[60] bg-black/20 hover:bg-black/40 text-white backdrop-blur-md px-6 py-3 rounded-full font-bold transition-all flex items-center gap-3 border border-white/10 shadow-lg group`}
-          >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 group-hover:-translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              <span>{isActuallyPaused ? 'AVSLUTA' : 'TILLBAKA'}</span>
-          </button>
-      )}
-
-      {/* LOBBY OVERLAY REMOVED - NOW INTEGRATED INTO CARD */}
-
-      {showConfetti && <Confetti />}
-      {showFinishAnimation && (
-          <RaceFinishAnimation 
-            winnerName={winnerName} 
-            onDismiss={() => {
-                setShowFinishAnimation(false);
-                if (finalRaceId) onFinish({ isNatural: true, raceId: finalRaceId });
-            }} 
-          />
-      )}
-      
-      <AnimatePresence>
-        {isExiting && (
-            <motion.div 
-                initial={{ opacity: 0 }} 
-                animate={{ opacity: 1 }} 
-                exit={{ opacity: 0 }} 
-                transition={{ duration: 0.1 }}
-                className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center backdrop-blur-sm"
-            >
-                <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
-            </motion.div>
-        )}
-        {isActuallyPaused && !showFinishAnimation && !isLobbyMode && (
-            <PauseOverlay onResume={() => handleRemoteAction('resume')} onRestart={() => handleRemoteAction('reset')} onFinish={handleExit} />
-        )}
-        {participantToEdit && (
-            <EditResultModal 
-                participantName={startedParticipants.find(p => p.id === participantToEdit)?.name || participantToEdit}
-                currentTime={finishedParticipants[participantToEdit]?.time || 0}
-                onSave={handleUpdateResult}
-                onAddPenalty={handleAddPenalty}
-                onUndo={handleRemoveResult}
-                onCancel={() => setParticipantToEdit(null)}
-            />
-        )}
-        {showResetConfirmation && <RaceResetConfirmationModal onConfirm={handleConfirmReset} onCancel={() => setShowResetConfirmation(false)} onExit={() => onFinish({ isNatural: false })} />}
-        {showBackToPrepConfirmation && <RaceBackToPrepConfirmationModal onConfirm={onBackToGroups} onCancel={() => setShowBackToPrepConfirmation(false)} />}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {status !== TimerStatus.Idle && !isActuallyPaused && !showFinishAnimation && !isLobbyMode && (
-            <motion.div 
-                initial={{ opacity: 0, x: 50 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 50 }}
-                className="absolute top-10 z-[100]"
-                style={{ right: isHyroxRace ? `calc(${HYROX_RIGHT_PANEL_WIDTH} + 2.5rem)` : '2.5rem' }}
-            >
-                {!isTransitioning && (
-                    <BigRoundIndicator 
-                        currentRound={currentRound} 
-                        totalRounds={totalRounds} 
-                        mode={block.settings.mode} 
-                        currentInterval={
-                            block.settings.mode === TimerMode.Custom ? (completedWorkIntervals % (block.settings.sequence?.length || 1)) + 1 :
-                            block?.settings.specifiedLaps != null ? (completedWorkIntervals % (block?.settings.specifiedIntervalsPerLap || block.exercises?.length || 1)) + 1 : 
-                            (block?.settings.mode === TimerMode.Interval && block?.settings.specifiedLaps === undefined && block?.settings.rounds && (block.exercises?.length || 0) > 0 && block.settings.rounds % (block.exercises?.length || 1) === 0) ? (completedWorkIntervals % (block.exercises?.length || 1)) + 1 : undefined
-                        }
-                        totalIntervalsInLap={
-                            block.settings.mode === TimerMode.Custom ? block.settings.sequence?.length || 1 :
-                            block?.settings.specifiedLaps != null ? (block?.settings.specifiedIntervalsPerLap || block.exercises?.length || 1) : 
-                            (block?.settings.mode === TimerMode.Interval && block?.settings.specifiedLaps === undefined && block?.settings.rounds && (block.exercises?.length || 0) > 0 && block.settings.rounds % (block.exercises?.length || 1) === 0) ? (block.exercises?.length || 1) : undefined
-                        }
-                    />
-                )}
-            </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* MAIN TIMER CARD */}
-      <div 
-          className={`absolute flex flex-col items-center transition-all duration-500 z-10 left-0 
-              ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'} 
-              ${showFullScreenColor 
-                  ? `top-[12%] min-h-[50%] justify-center` 
-                  : `${isAutostartMode ? (controlsVisible ? 'pt-4 pb-4 min-h-[25%]' : 'pt-4 pb-2 min-h-[20%]') : 'pt-6 pb-6 min-h-[25%]'} top-4 mx-4 sm:mx-6 rounded-[3rem] shadow-2xl ${timerStyle.bg}`
-              }`}
-          style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
-      >
-        {/* LOBBY START BUTTON OVERLAY */}
-            {isLobbyMode && (
-                 <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-8">
-                     <button 
-                        onClick={() => handleRemoteAction('start')}
-                        className="bg-white text-black active:scale-110 transition-transform duration-200 rounded-full p-6 shadow-2xl border-4 border-white/50 group"
-                     >
-                        <PlayIcon className="w-16 h-16 ml-1 fill-current group-active:text-primary transition-colors" />
-                     </button>
-                 </div>
-            )}
-
-            {isAutostartMode ? (
-                <div className={`absolute top-4 left-4 sm:top-6 sm:left-6 px-3 py-1 sm:px-4 sm:py-1.5 rounded-full bg-black/20 backdrop-blur-md border border-white/10 shadow-sm z-20 transition-opacity ${isLobbyMode ? 'opacity-0' : 'opacity-100'}`}>
-                    <span className={`font-bold tracking-widest text-white/90 uppercase drop-shadow-sm text-[10px] sm:text-xs`}>{modeLabel}</span>
-                </div>
-            ) : (
-                <div className={`mb-2 px-8 py-1.5 rounded-full bg-black/30 backdrop-blur-xl border border-white/20 shadow-lg z-20 transition-opacity ${isLobbyMode ? 'opacity-0' : 'opacity-100'}`}>
-                    <span className={`font-black tracking-[0.3em] text-white uppercase drop-shadow-md text-base md:text-lg`}>{modeLabel}</span>
-                </div>
-            )}
-
-            {/* STATUS (ARBETE/VILA) ELLER BLOCK RUBRIK - Överst */}
-            <div className="text-center z-20 w-full px-10 mb-1">
-                {isAutostartMode ? (
-                    <h1 className={`font-black text-white/90 uppercase tracking-tighter text-xl sm:text-2xl md:text-3xl drop-shadow-lg overflow-visible whitespace-nowrap leading-none ${isTransitioning ? 'animate-pulse' : ''}`}>
-                        {isTransitioning ? "VILA - GÖR REDO" : block.title}
-                    </h1>
-                ) : (
-                    <h2 className={`font-black text-white tracking-widest uppercase drop-shadow-xl animate-pulse w-full text-center text-3xl sm:text-4xl lg:text-5xl overflow-visible whitespace-nowrap leading-none ${isLobbyMode ? 'opacity-100' : ''}`}>
-                        {isLobbyMode ? "REDO" : statusLabel}
-                    </h2>
-                )}
-            </div>
-
-            {/* SIFFROR (Tiden) - Mitten */}
-            <div className={`z-20 relative flex flex-col items-center w-full text-white transition-opacity duration-300 ${isLobbyMode ? 'opacity-30 blur-sm' : 'opacity-100'}`}>
-                <div className="flex items-center justify-center w-full gap-2">
-                     <span className="font-mono font-black leading-none tracking-tighter tabular-nums select-none text-[7rem] sm:text-[9rem] md:text-[11rem]">
-                        {minutesStr}:{secondsStr}
-                     </span>
-                </div>
-            </div>
-
-            {/* TIDSLINJE (Roadmap) - Under tiden */}
-            <div className="w-[80%] max-w-4xl mt-1 mb-1 z-20">
-                <SegmentedRoadmap 
-                    chain={workoutChain} 
-                    currentBlockId={block.id} 
-                    totalChainElapsed={totalChainElapsed} 
-                    totalChainTime={chainInfo.totalDuration}
-                    // Custom Mode props
-                    isCustomMode={block.settings.mode === TimerMode.Custom}
-                    sequence={block.settings.sequence}
-                    currentSegmentIndex={completedWorkIntervals}
-                    totalSequenceDuration={totalSequenceDuration}
-                    totalSequenceElapsed={totalTimeElapsed}
-                />
-            </div>
-
-            {/* BLOCK RUBRIK (Stort) - Längst ner (Döljs i AutostartMode) */}
-            {!isAutostartMode && (
-                <div className="text-center z-20 w-full px-10 mt-2 mb-1">
-                    <h1 className="font-black text-white/90 uppercase tracking-tighter text-xl sm:text-2xl md:text-3xl drop-shadow-lg overflow-visible whitespace-nowrap leading-none">
-                        {isTransitioning ? nextBlock?.title : block.title}
-                    </h1>
-                </div>
-            )}
-
-        {/* TIMER CONTROLS (Relative under title) */}
-        <div className="relative z-50">
-            <TimerControls 
-                textSizeScale={textSizeScale} 
-                repsSizeScale={repsSizeScale} 
-                onTextChange={(val) => handleSizeChange('text', val)} 
-                onRepsChange={(val) => handleSizeChange('reps', val)} 
-                visible={controlsVisible && !isFreestanding}
-            />
-        </div>
-      </div>
-
-      {/* CONTENT AREA (Under Clock) */}
-      <div className={`absolute bottom-4 left-0 flex flex-col items-center justify-start z-0 pt-2 transition-all duration-500
-          ${showFullScreenColor ? 'top-[65%]' : (isAutostartMode ? (controlsVisible ? 'top-[26%]' : 'top-[24%]') : 'top-[28%]')} 
-          ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] px-6` : 'right-0 px-6'}`}>
-          
-          <div className="w-full max-w-[1500px] h-full flex flex-col">
-              <div className="flex flex-col h-full w-full">
-                <AnimatePresence>
-                    {isHyroxRace && groupForCountdownDisplay && (
-                        <div className="flex-shrink-0 w-full max-w-4xl mx-auto mb-2">
-                            <NextStartIndicator
-                                groupName={groupForCountdownDisplay.name}
-                                timeLeft={timeForCountdownDisplay}
-                                groupsLeft={remainingGroupsCount}
-                            />
-                        </div>
-                    )}
-                </AnimatePresence>
-
-                {block.followMe && !isTransitioning ? (
-                    // FOLLOW ME LAYOUT (Vertical stack - Bar forced to bottom)
-                    <div className="w-full flex flex-col items-center flex-grow justify-between pb-4 min-h-0">
-                        <div className="w-full flex flex-col flex-grow min-h-0">
-                            {block.showDescriptionInTimer && block.setupDescription && (
-                                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 mb-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0 mx-auto max-w-5xl">
-                                        <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
-                                        <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight">{block.setupDescription}</p>
-                                </motion.div>
-                            )}
-                            <div className="flex-grow min-h-0">
-                                <FollowMeView 
-                                    exercise={currentExercise} 
-                                    nextExercise={nextExercise} 
-                                    timerStyle={timerStyle} 
-                                    status={status} 
-                                    nextBlock={nextBlock && block.autoAdvance ? nextBlock : undefined}
-                                    isRestNext={isRestNext}
-                                    transitionTime={isRestNext ? block.transitionTime : undefined}
-                                    showDescription={block.showExerciseDescriptions !== false} // PASS THE PROP
-                                    textSizeScale={textSizeScale}
-                                    repsSizeScale={repsSizeScale}
-                                    upcomingText={upcomingText}
-                                />
-                            </div>
-                        </div>
-                    </div>
-                ) : (
-                    // STANDARD LIST LAYOUT (Side by side if next blocks exist)
-                    <div className="flex gap-4 flex-grow items-stretch w-full min-h-0">
-                         <div className={`flex flex-col gap-6 transition-all duration-500 h-full min-h-0 w-full mx-auto max-w-6xl`}>
-                            {isTransitioning && !isAutostartMode ? (
-                                // Header för vila-läget (Döljs i AutostartMode)
-                                <div className="flex-shrink-0 flex flex-col sm:flex-row justify-between items-center bg-white/80 dark:bg-black/20 p-8 rounded-[2.5rem] border border-gray-100 dark:border-white/5 shadow-lg gap-6">
-                                    <div className="flex-1">
-                                        <span className="inline-block px-4 py-1.5 rounded-lg bg-primary text-white text-xs font-black uppercase tracking-[0.2em] mb-3">Uppladdning</span>
-                                        <h3 className="text-5xl font-black text-gray-900 dark:text-white uppercase tracking-tighter leading-none">{nextBlock?.title}</h3>
-                                        <p className="text-gray-500 dark:text-gray-400 mt-2 font-medium">Gör er redo för nästa del av passet</p>
-                                        {nextBlock?.showDescriptionInTimer && nextBlock?.setupDescription && (
-                                            <p className="text-gray-900 dark:text-white text-xl md:text-2xl font-bold leading-tight tracking-tight mt-4 border-t border-gray-200 dark:border-white/10 pt-4">
-                                                {nextBlock.setupDescription}
-                                            </p>
-                                        )}
-                                    </div>
-                                    <button 
-                                        onClick={handleStartNextBlock}
-                                        className="bg-gray-900 dark:bg-white text-white dark:text-black font-black py-4 px-10 rounded-2xl shadow-2xl hover:scale-105 transition-all text-lg uppercase tracking-widest border-4 border-gray-700 dark:border-white/30 whitespace-nowrap"
-                                    >
-                                        Starta nu
-                                    </button>
-                                </div>
-                            ) : (
-                                ((!isTransitioning && block.showDescriptionInTimer && block.setupDescription) || 
-                                 (isTransitioning && nextBlock?.showDescriptionInTimer && nextBlock?.setupDescription)) && (
-                                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="px-8 py-6 bg-white/95 dark:bg-gray-900 border-2 border-primary/20 dark:border-white/10 w-full flex items-center gap-6 shadow-xl rounded-[2.5rem] flex-shrink-0">
-                                            <div className="bg-primary/10 p-3 rounded-2xl"><InformationCircleIcon className="w-8 h-8 text-primary shrink-0" /></div>
-                                            <p className="text-gray-900 dark:text-white text-2xl md:text-3xl font-black leading-tight tracking-tight">
-                                                {isTransitioning ? nextBlock!.setupDescription : block.setupDescription}
-                                            </p>
-                                    </motion.div>
-                                )
-                            )}
-
-                            <div className="w-full flex-grow min-h-0"> 
-                                {!isFreestanding && (
-                                    <div className="flex flex-col gap-8 w-full h-full">
-                                        {/* Current Block (or Next Block if transitioning) */}
-                                        <div className={`flex-1 min-h-0 ${isAutostartMode && !isTransitioning ? 'opacity-100' : ''}`}>
-                                            <StandardListView 
-                                                exercises={isTransitioning ? (nextBlock?.exercises || []) : (block.exercises || [])} 
-                                                timerStyle={timerStyle} 
-                                                isHyrox={isHyroxRace} 
-                                                showDescriptions={block.showExerciseDescriptions !== false} // PASS THE PROP
-                                                textSizeScale={textSizeScale}
-                                                repsSizeScale={repsSizeScale}
-                                                status={status}
-                                            />
-                                        </div>
-                                        
-                                        {/* Upcoming Block (only in AutostartMode) */}
-                                        {isAutostartMode && (
-                                            (() => {
-                                                const upcomingBlock = isTransitioning ? upcomingBlocks[1] : nextBlock;
-                                                if (!upcomingBlock) return null;
-                                                return (
-                                                    <div className="flex-1 min-h-0 opacity-50 transition-opacity duration-500">
-                                                        <div className="mb-4 flex items-center gap-4">
-                                                            <div className="h-px bg-gray-300 dark:bg-gray-700 flex-1"></div>
-                                                            <span className="text-gray-500 dark:text-gray-400 font-bold uppercase tracking-widest text-sm">
-                                                                Kommande: {upcomingBlock.title}
-                                                            </span>
-                                                            <div className="h-px bg-gray-300 dark:bg-gray-700 flex-1"></div>
-                                                        </div>
-                                                        <StandardListView 
-                                                            exercises={upcomingBlock.exercises} 
-                                                            timerStyle={getTimerStyle(TimerStatus.Idle, upcomingBlock.settings.mode, isHyroxRace, false, null)} 
-                                                            isHyrox={isHyroxRace} 
-                                                            showDescriptions={false} // Hide descriptions for upcoming
-                                                            textSizeScale={textSizeScale * 0.8} // Maybe slightly smaller?
-                                                            repsSizeScale={repsSizeScale * 0.8}
-                                                            status={TimerStatus.Idle}
-                                                        />
-                                                    </div>
-                                                );
-                                            })()
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* UPCOMING BLOCKS STACK REMOVED */}
-                    </div>
-                )}
-              </div>
-          </div>
-      </div>
-
-      {isHyroxRace && (
-          <div 
-              className="absolute top-0 right-0 bottom-0 border-l-4 border-gray-200 dark:border-white/10 bg-white/95 dark:bg-gray-900/95 backdrop-blur-md flex flex-col z-40 shadow-2xl"
-              style={{ width: HYROX_RIGHT_PANEL_WIDTH }}
-          >
-              <ParticipantFinishList 
-                participants={startedParticipants} 
-                finishData={finishedParticipants} 
-                onFinish={handleParticipantFinish} 
-                onEdit={handleEditParticipant} 
-                isSaving={(name) => savingParticipant === name} 
-              />
-              
-              <div className="p-6 mt-auto bg-gray-50/50 dark:bg-gray-900/50 border-t border-gray-100 dark:border-white/10">
-                 <button 
-                    onClick={handleRaceComplete}
-                    disabled={isSavingRace || startedParticipants.length === 0}
-                    className={`w-full font-black py-5 rounded-2xl shadow-xl transition-all transform active:scale-95 flex items-center justify-center gap-3 text-lg uppercase tracking-tight disabled:opacity-50 ${isClockFrozen ? 'bg-green-600 hover:bg-green-500 shadow-green-500/20 text-white' : 'bg-primary hover:brightness-110 shadow-primary/20 text-white'}`}
-                 >
-                    {isSavingRace ? (
-                        <>
-                            <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
-                            <span>Sparar...</span>
-                        </>
-                    ) : (
-                        <>
-                            <span>{isClockFrozen ? 'Slutför & Spara lopp' : 'Avsluta lopp i förtid'}</span>
-                        </>
-                    )}
-                 </button>
-              </div>
-          </div>
-      )}
-
-      {/* ACTION BAR AT BOTTOM - HIDDEN IN LOBBY */}
-      {!isLobbyMode && (
-          <div className={`fixed z-50 transition-all duration-500 flex gap-6 left-1/2 -translate-x-1/2 ${showFullScreenColor ? 'top-[65%]' : 'top-[35%]'} ${controlsVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'} ${isHyroxRace ? 'ml-[-225px]' : ''}`}>
-                {isActuallyFinishedOrIdle ? (
-                    <>
-                        <button onClick={handleExit} className="bg-gray-600/80 text-white font-bold py-4 px-10 rounded-full shadow-xl hover:bg-gray-50 active:scale-95 transition-all text-xl backdrop-blur-md border-2 border-white/20 uppercase" style={{ touchAction: 'manipulation' }}>TILLBAKA</button>
-                        <button onClick={() => handleRemoteAction('start')} className="bg-white text-black font-black py-4 px-16 rounded-full shadow-2xl active:scale-95 transition-transform text-xl border-4 border-white/50 uppercase" style={{ touchAction: 'manipulation' }}>STARTA</button>
-                    </>
-                ) : isActuallyPaused ? (
-                    <button onClick={() => handleRemoteAction('resume')} className="bg-green-500 text-white font-bold py-4 px-10 rounded-full shadow-xl border-2 border-green-400 uppercase active:scale-95 transition-transform" style={{ touchAction: 'manipulation' }}>FORTSÄTT</button>
-                ) : (
-                    <button onClick={() => handleRemoteAction('pause')} className="bg-white text-gray-900 font-black py-4 px-16 rounded-full shadow-2xl active:bg-gray-100 transition-transform active:scale-95 text-xl border-4 border-white/50 uppercase" style={{ touchAction: 'manipulation' }}>PAUSA</button>
-                )}
-                {isHyroxRace && status !== TimerStatus.Running && <button onClick={() => setShowBackToPrepConfirmation(true)} className="bg-gray-800/80 text-white font-bold py-4 px-8 rounded-full shadow-xl border-2 border-gray-600 hover:bg-gray-700 active:scale-95 transition-all text-lg uppercase" style={{ touchAction: 'manipulation' }}>⚙️ Grupper</button>}
-          </div>
-      )}
-    </div>
-  );
+    await updateDoc(doc(db, 'organizations', id), { 
+        locations: sanitizeData(locations),
+        inviteCodes 
+    });
 };
+
+export const updateOrganizationInfoCarousel = async (id: string, infoCarousel: InfoCarousel) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { infoCarousel: sanitizeData(infoCarousel) });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationCompanyDetails = async (id: string, details: CompanyDetails) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { companyDetails: sanitizeData(details) });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationDiscount = async (id: string, discount: { type: 'percentage' | 'fixed', value: number }) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { discountType: discount.type, discountValue: discount.value });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationFreeCoaches = async (id: string, count: number) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { freeCoachAccounts: count });
+    return getOrganizationById(id);
+};
+
+export const undoLastBilling = async (id: string) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { lastBilledMonth: deleteField(), lastBilledDate: deleteField() });
+    return getOrganizationById(id);
+};
+
+export const updateGlobalConfig = async (id: string, config: any) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { globalConfig: sanitizeData(config) });
+};
+
+export const updateOrganizationBenchmarks = async (id: string, benchmarks: BenchmarkDefinition[]) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { benchmarkDefinitions: sanitizeData(benchmarks) });
+    return getOrganizationById(id);
+};
+
+export const createStudio = async (orgId: string, name: string) => {
+    if(isOffline || !db || !orgId) return { id: 'off', name };
+    const org = await getOrganizationById(orgId);
+    if (!org) throw new Error("Organisationen hittades inte.");
+    const studio = { id: `st_${Date.now()}`, name, createdAt: Date.now(), configOverrides: {} };
+    await updateDoc(doc(db, 'organizations', orgId), { studios: [...org.studios, studio] });
+    return studio;
+};
+
+export const updateStudio = async (orgId: string, studioId: string, name: string) => {
+    if(isOffline || !db || !orgId) return;
+    const org = await getOrganizationById(orgId);
+    if (!org) throw new Error("Organisationen hittades inte.");
+    const studios = org.studios.map(s => s.id === studioId ? { ...s, name } : s);
+    await updateDoc(doc(db, 'organizations', orgId), { studios });
+};
+
+export const deleteStudio = async (orgId: string, studioId: string) => {
+    if(isOffline || !db || !orgId) return;
+    const org = await getOrganizationById(orgId);
+    if (!org) throw new Error("Organisationen hittades inte.");
+    const studios = org.studios.filter(s => s.id !== studioId);
+    await updateDoc(doc(db, 'organizations', orgId), { studios });
+};
+
+export const updateStudioConfig = async (orgId: string, studioId: string, overrides: any) => {
+    if(isOffline || !db || !orgId) return {} as Studio;
+    const org = await getOrganizationById(orgId);
+    if (!org) throw new Error("Organisationen hittades inte.");
+    const studios = org.studios.map(s => s.id === studioId ? { ...s, configOverrides: sanitizeData(overrides) } : s);
+    await updateDoc(doc(db, 'organizations', orgId), { studios });
+    return studios.find(s => s.id === studioId) as Studio;
+};
+
+export const getFreshCategoryWorkouts = async (orgId: string, category: string): Promise<Workout[]> => {
+    if (isOffline || !db || !orgId) return [];
+    try {
+        const q = query(
+          collection(db, 'workouts'), 
+          where("organizationId", "==", orgId),
+          where("category", "==", category),
+          where("isPublished", "==", true),
+          where("isMemberDraft", "==", false)
+        );
+        const snap = await getDocsFromServer(q);
+        
+        return snap.docs
+            .map(d => {
+                const data = d.data() as Workout;
+                if (!data.blocks) data.blocks = [];
+                else {
+                    data.blocks = data.blocks.map(block => ({
+                        ...block,
+                        exercises: block.exercises || []
+                    }));
+                }
+                return data;
+            });
+    } catch (error) {
+        console.error("Error fetching fresh category workouts:", error);
+        return [];
+    }
+};
+
+export const getWorkoutsForOrganization = async (orgId: string): Promise<Workout[]> => {
+    if (isOffline || !db || !orgId) return [];
+    try {
+        const q = query(
+          collection(db, 'workouts'), 
+          where("organizationId", "==", orgId)
+        );
+        const snap = await getDocs(q);
+        return snap.docs.map(d => {
+            const data = d.data() as Workout;
+            if (!data.blocks) {
+                data.blocks = [];
+            } else {
+                data.blocks = data.blocks.map(block => ({
+                    ...block,
+                    exercises: block.exercises || []
+                }));
+            }
+            return data;
+        }).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+    } catch (e) { 
+        console.error("getWorkoutsForOrganization failed", e);
+        return []; 
+    }
+};
+
+export const subscribeToWorkoutsForOrganization = (orgId: string, onUpdate: (workouts: Workout[]) => void, onError: (error: Error) => void) => {
+    if (isOffline || !db || !orgId) {
+        onUpdate([]);
+        return () => {};
+    }
+    
+    const q = query(
+      collection(db, 'workouts'), 
+      where("organizationId", "==", orgId)
+    );
+
+    return onSnapshot(q, (snap) => {
+        const workouts = snap.docs.map(d => {
+            const data = d.data() as Workout;
+            if (!data.blocks) {
+                data.blocks = [];
+            } else {
+                data.blocks = data.blocks.map(block => ({
+                    ...block,
+                    exercises: block.exercises || []
+                }));
+            }
+            return data;
+        }).sort((a,b) => (b.createdAt || 0) - (a.createdAt || 0));
+        onUpdate(workouts);
+    }, (error) => {
+        console.error("subscribeToWorkoutsForOrganization failed", error);
+        onError(error);
+    });
+};
+
+export const getWorkoutById = async (id: string): Promise<Workout | null> => {
+    if (isOffline || !db || !id) return null;
+    try {
+        const snap = await getDoc(doc(db, 'workouts', id));
+        if (!snap.exists()) return null;
+        const data = snap.data() as Workout;
+        if (!data.blocks) {
+            data.blocks = [];
+        } else {
+            data.blocks = data.blocks.map(block => ({
+                ...block,
+                exercises: block.exercises || []
+            }));
+        }
+        return data;
+    } catch (e) {
+        console.error("getWorkoutById failed", e);
+        return null;
+    }
+};
+
+export const saveWorkout = async (w: Workout): Promise<Workout> => {
+    if (isOffline || !db || !w.id) return w;
+    try {
+        await setDoc(doc(db, 'workouts', w.id), sanitizeData(w), { merge: true });
+        return w;
+    } catch (e) { 
+        console.error("saveWorkout failed", e); 
+        // Throw the error so the caller knows it failed
+        throw e;
+    }
+};
+
+export const deleteWorkout = async (id: string) => {
+    if (isOffline || !db || !id) return;
+    try {
+        await deleteDoc(doc(db, 'workouts', id));
+    } catch (e) { console.error("deleteWorkout failed", e); }
+};
+
+export const getExerciseBank = async (): Promise<BankExercise[]> => {
+    if (isOffline || !db) return MOCK_EXERCISE_BANK;
+    try {
+        const snap = await getDocs(query(collection(db, 'exerciseBank'), orderBy('name')));
+        return snap.docs.map(d => d.data() as BankExercise);
+    } catch (e) { return MOCK_EXERCISE_BANK; }
+};
+
+export const getMemberCustomExercises = async (userId: string): Promise<BankExercise[]> => {
+    if (isOffline || !db || !userId) return [];
+    try {
+        const snap = await getDocs(query(collection(db, 'users', userId, 'customExercises')));
+        return snap.docs.map(d => {
+            const data = d.data() as BankExercise;
+            return {
+                ...data,
+                name: data.name // Keep original name
+            };
+        });
+    } catch (e) { 
+        console.error("Failed to fetch member custom exercises", e);
+        return []; 
+    }
+};
+
+export const addMemberCustomExercise = async (userId: string, exerciseName: string): Promise<BankExercise> => {
+    if (!db) throw new Error("DB ej tillgänglig");
+    
+    // We shouldn't use organizationId for member custom, we just let it be a personal custom collection
+    const exercisesRef = collection(db, 'users', userId, 'customExercises');
+    const newDocRef = doc(exercisesRef); // Generate auto id
+    
+    const newExercise: BankExercise = {
+        id: newDocRef.id,
+        name: exerciseName,
+        tags: ['Custom Egen'],
+        description: 'Egen skapad övning.',
+    };
+
+    await setDoc(newDocRef, newExercise);
+    return newExercise;
+};
+
+export const deleteMemberCustomExercise = async (userId: string, exerciseId: string): Promise<void> => {
+    if (!db) throw new Error("DB ej tillgänglig");
+    await deleteDoc(doc(db, 'users', userId, 'customExercises', exerciseId));
+};
+
+export const updateMemberCustomExercise = async (userId: string, exerciseId: string, newName: string): Promise<void> => {
+    if (!db) throw new Error("DB ej tillgänglig");
+    await updateDoc(doc(db, 'users', userId, 'customExercises', exerciseId), {
+        name: newName
+    });
+};
+
+export const getOrganizationExerciseBank = async (orgId: string): Promise<BankExercise[]> => {
+    if (isOffline || !db || !orgId) return MOCK_EXERCISE_BANK;
+    try {
+        // 1. Fetch Global Bank
+        const globalSnap = await getDocs(query(collection(db, 'exerciseBank'), orderBy('name')));
+        const globalBank = globalSnap.docs.map(d => d.data() as BankExercise);
+
+        // 2. Fetch Custom Bank
+        const customQ = query(collection(db, 'custom_exercises'), where('organizationId', '==', orgId));
+        const customSnap = await getDocs(customQ);
+        const customBank = customSnap.docs.map(d => d.data() as BankExercise);
+
+        return [...globalBank, ...customBank].sort((a, b) => a.name.localeCompare(b.name, 'sv'));
+    } catch (e) { 
+        console.error("Failed to fetch custom exercises", e);
+        return MOCK_EXERCISE_BANK; 
+    }
+};
+
+// Resolver Function (The logic engine)
+export const resolveAndCreateExercises = async (orgId: string, workout: Workout, createMissing: boolean = false): Promise<Workout> => {
+    if (isOffline || !db) return workout; // Safety
+
+    // 1. Get combined banks
+    const combinedBank = await getOrganizationExerciseBank(orgId);
+    const bankMap = new Map(combinedBank.map(b => [b.id, b])); // Create Map for O(1) lookup
+    const newlyCreatedCache: Record<string, BankExercise> = {};
+
+    // 2. Helper for matching
+    const findMatch = (name: string) => {
+        const nName = normalizeString(name);
+        
+        // Try exact normalized match first
+        let match = combinedBank.find(b => normalizeString(b.name) === nName);
+        if(match) return match;
+
+        // Try "contains" match (reversed)
+        match = combinedBank.find(b => normalizeString(b.name).includes(nName));
+        
+        if (!match) {
+             match = combinedBank.find(b => nName.includes(normalizeString(b.name)));
+        }
+
+        return match;
+    };
+
+    // 3. Process blocks
+    const resolvedBlocks = await Promise.all(workout.blocks.map(async (block) => {
+        const resolvedExercises = await Promise.all(block.exercises.map(async (ex) => {
+            // Case 1: It claims to be from the bank
+            if (ex.isFromBank) {
+                // If it claims to be from bank, we MUST verify the ID exists.
+                // If it doesn't exist (deleted), we downgrade it to ad-hoc.
+                if (bankMap.has(ex.id)) {
+                    // Valid link. Optionally sync details? 
+                    const bankEx = bankMap.get(ex.id);
+                    return {
+                        ...ex,
+                        imageUrl: bankEx?.imageUrl || ex.imageUrl, // Sync image
+                        description: bankEx?.description || ex.description, // Optional: Sync desc
+                        // Keep the existing loggingEnabled state, or default to false if undefined
+                        loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
+                    };
+                } else {
+                    // INVALID LINK (Deleted from bank). Downgrade to Ad-hoc.
+                    return {
+                        ...ex,
+                        isFromBank: false,
+                        loggingEnabled: false,
+                        // Keep existing name/reps/desc as they are in the workout
+                    };
+                }
+            }
+
+            // Case 2: Ad-hoc (Try to match by name or create new)
+            const match = findMatch(ex.name);
+
+            if (match) {
+                return {
+                    ...ex,
+                    id: match.id, // THE MAGIC: Link to Master ID
+                    originalBankId: match.id, // Helper for history tracking
+                    description: ex.description || match.description, 
+                    imageUrl: match.imageUrl || ex.imageUrl,
+                    isFromBank: true,
+                    loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
+                };
+            }
+
+            // If no match found, and we are NOT allowed to create missing exercises (e.g. Ad-hoc/AI)
+            // Just return the exercise as-is but ensure logging is disabled to keep data clean
+            if (!createMissing) {
+                return {
+                    ...ex,
+                    isFromBank: false,
+                    loggingEnabled: false
+                };
+            }
+
+            // Check cache for duplicates in same workout session
+            const nName = normalizeString(ex.name);
+            if (newlyCreatedCache[nName]) {
+                const cached = newlyCreatedCache[nName];
+                return { 
+                    ...ex, 
+                    id: cached.id, 
+                    originalBankId: cached.id,
+                    isFromBank: true, 
+                    loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
+                };
+            }
+
+            // Create new Custom Exercise
+            const newId = `custom_${orgId}_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+            const newBankEx: BankExercise = {
+                id: newId,
+                name: ex.name, // Use the provided name
+                description: ex.description || '',
+                tags: [], 
+                organizationId: orgId
+            };
+
+            // Add to Firestore
+            await setDoc(doc(db, 'custom_exercises', newId), newBankEx);
+
+            // Add to cache
+            newlyCreatedCache[nName] = newBankEx;
+            
+            return {
+                ...ex,
+                id: newId,
+                originalBankId: newId,
+                isFromBank: true,
+                loggingEnabled: ex.loggingEnabled !== undefined ? ex.loggingEnabled : false
+            };
+        }));
+
+        return { ...block, exercises: resolvedExercises };
+    }));
+
+    return { ...workout, blocks: resolvedBlocks };
+};
+
+export const saveExerciseToBank = async (ex: BankExercise) => {
+    if (isOffline || !db || !ex.id) return;
+    try {
+        // Om övningen har ett organizationId eller ID:t börjar på 'custom_', spara i custom_exercises
+        const collectionName = ex.organizationId || ex.id.startsWith('custom_') 
+            ? 'custom_exercises' 
+            : 'exerciseBank';
+            
+        await setDoc(doc(db, collectionName, ex.id), sanitizeData(ex), { merge: true });
+    } catch (e) { console.error("saveExerciseToBank failed", e); }
+};
+
+export const deleteExerciseFromBank = async (id: string) => {
+    if (isOffline || !db || !id) return;
+    try {
+        // Check if it's a custom exercise based on ID prefix
+        const collectionName = id.startsWith('custom_') ? 'custom_exercises' : 'exerciseBank';
+        await deleteDoc(doc(db, collectionName, id));
+    } catch (e) { console.error("deleteExerciseFromBank failed", e); }
+};
+
+export const mergeExercises = async (sourceId: string, targetId: string) => {
+    if (isOffline || !db) return;
+    try {
+        let targetEx: BankExercise | null = null;
+        let sourceEx: BankExercise | null = null;
+        
+        const globalTargetSnap = await getDoc(doc(db, 'exerciseBank', targetId));
+        if (globalTargetSnap.exists()) targetEx = globalTargetSnap.data() as BankExercise;
+        else {
+            const customTargetSnap = await getDoc(doc(db, 'custom_exercises', targetId));
+            if (customTargetSnap.exists()) targetEx = customTargetSnap.data() as BankExercise;
+        }
+
+        const globalSourceSnap = await getDoc(doc(db, 'exerciseBank', sourceId));
+        if (globalSourceSnap.exists()) sourceEx = globalSourceSnap.data() as BankExercise;
+        else {
+            const customSourceSnap = await getDoc(doc(db, 'custom_exercises', sourceId));
+            if (customSourceSnap.exists()) sourceEx = customSourceSnap.data() as BankExercise;
+        }
+
+        if (!targetEx || !sourceEx) {
+            throw new Error("Kunde inte hitta båda övningarna för sammanslagning.");
+        }
+
+        // Hitta alla pass som använder source-övningen
+        const workoutsSnap = await getDocs(collection(db, 'workouts'));
+        const batch = writeBatch(db);
+        let updateCount = 0;
+
+        workoutsSnap.forEach(docSnap => {
+            const workout = docSnap.data() as Workout;
+            let modified = false;
+
+            if (workout.blocks) {
+                workout.blocks.forEach(block => {
+                    if (block.exercises) {
+                        block.exercises.forEach(ex => {
+                            if (ex.id === sourceId || ex.name === sourceEx!.name) {
+                                ex.id = targetId;
+                                ex.name = targetEx!.name;
+                                ex.isFromBank = true;
+                                modified = true;
+                            }
+                        });
+                    }
+                });
+            }
+
+            if (modified) {
+                batch.update(docSnap.ref, { blocks: workout.blocks });
+                updateCount++;
+            }
+        });
+
+        if (updateCount > 0) {
+            await batch.commit();
+            console.log(`Uppdaterade ${updateCount} pass.`);
+        }
+
+        // Ta bort source-övningen
+        await deleteExerciseFromBank(sourceId);
+
+    } catch (e) {
+        console.error("mergeExercises failed", e);
+        throw e;
+    }
+};
+
+export const updateExerciseImageOverride = async (orgId: string, exerciseId: string, imageUrl: string | null) => {
+    if (isOffline || !db || !orgId) return;
+    try {
+        const orgRef = doc(db, 'organizations', orgId);
+        if (imageUrl) {
+            await updateDoc(orgRef, { [`exerciseOverrides.${exerciseId}`]: { imageUrl } });
+        } else {
+            await updateDoc(orgRef, { [`exerciseOverrides.${exerciseId}`]: deleteField() });
+        }
+        return getOrganizationById(orgId);
+    } catch (e) { console.error("updateExerciseImageOverride failed", e); }
+};
+
+// ... (Rest of the file remains same: billing, images, hyrox, checkins etc.)
+export const getSmartScreenPricing = async () => {
+    if (isOffline || !db) return MOCK_SMART_SCREEN_PRICING;
+    try {
+        const snap = await getDoc(doc(db, 'system', 'pricing'));
+        return snap.exists() ? snap.data() as SmartScreenPricing : MOCK_SMART_SCREEN_PRICING;
+    } catch (e) { return MOCK_SMART_SCREEN_PRICING; }
+};
+
+export const updateSmartScreenPricing = async (pricing: SmartScreenPricing) => {
+    if (isOffline || !db) return;
+    try {
+        await setDoc(doc(db, 'system', 'pricing'), sanitizeData(pricing));
+    } catch (e) { console.error("updateSmartScreenPricing failed", e); }
+};
+
+export const updateOrganizationBilledStatus = async (id: string, month: string) => {
+    if(isOffline || !db || !id) return;
+    try {
+        await updateDoc(doc(db, 'organizations', id), { lastBilledMonth: month, lastBilledDate: Date.now() });
+        return getOrganizationById(id);
+    } catch (e) { console.error("updateOrganizationBilledStatus failed", e); }
+};
+
+export const uploadImage = async (path: string, image: File | string): Promise<string> => {
+    if (typeof image === 'string' && !image.startsWith('data:image')) return image;
+    if (isOffline || !storage) return "";
+    try {
+        const blob = typeof image === 'string' ? await (await fetch(image)).blob() : image;
+        const snap = await uploadBytes(ref(storage, path), blob);
+        return getDownloadURL(snap.ref);
+    } catch (e) { console.error("uploadImage failed", e); return ""; }
+};
+
+export const deleteImageByUrl = async (url: string): Promise<void> => {
+    if (isOffline || !storage || !url || !url.includes('firebasestorage')) return;
+    try { await deleteObject(ref(storage, url)); } catch (e) {}
+};
+
+export const getSeasonalThemes = async () => {
+    if (isOffline || !db) return [];
+    try {
+        const snap = await getDoc(doc(db, 'system', 'seasonalThemes'));
+        return snap.exists() ? (snap.data() as any).themes : [];
+    } catch (e) { return []; }
+};
+
+export const updateSeasonalThemes = async (themes: SeasonalThemeSetting[]) => {
+    if (isOffline || !db) return;
+    try {
+        await setDoc(doc(db, 'system', 'seasonalThemes'), { themes: sanitizeData(themes) }, { merge: true });
+    } catch (e) { console.error("updateSeasonalThemes failed", e); }
+};
+
+export const archiveOrganization = async (id: string) => {
+    if (isOffline || !db || !id) return;
+    try {
+        await updateDoc(doc(db, 'organizations', id), { status: 'archived' });
+    } catch (e) { console.error("archiveOrganization failed", e); }
+};
+
+export const restoreOrganization = async (id: string) => {
+    if (isOffline || !db || !id) return;
+    try {
+        await updateDoc(doc(db, 'organizations', id), { status: 'active' });
+    } catch (e) { console.error("restoreOrganization failed", e); }
+};
+
+export const deleteOrganizationPermanently = async (id: string) => {
+    if (isOffline || !db || !id) return;
+    try {
+        await deleteDoc(doc(db, 'organizations', id));
+    } catch (e) { console.error("deleteOrganizationPermanently failed", e); }
+};
+
+export const updateOrganizationActivity = async (id: string): Promise<void> => {
+    if (isOffline || !db || !id) return;
+    try { await updateDoc(doc(db, 'organizations', id), { lastActiveAt: Date.now() }); } catch(e){}
+};
+
+export const saveRace = async (data: any, orgId: string) => {
+    if(isOffline || !db || !orgId) return { id: 'off' };
+    try {
+        let raceRef;
+        if (data.id && !data.id.startsWith('race-')) { // If it's a real firebase ID
+             raceRef = doc(db, 'races', data.id);
+        } else if (data.id && data.id.startsWith('race-')) {
+             // It's a temporary ID generated by the client, we should create a new doc but maybe keep the ID?
+             // Actually, doc(collection(db, 'races')) generates a random ID. Let's just use the provided ID if it exists.
+             raceRef = doc(db, 'races', data.id);
+        } else {
+             raceRef = doc(collection(db, 'races'));
+        }
+        
+        const race = { ...sanitizeData(data), id: raceRef.id, organizationId: orgId };
+        if (!race.createdAt) race.createdAt = Date.now();
+        
+        await setDoc(raceRef, race, { merge: true });
+        return race;
+    } catch (e) { console.error("saveRace failed", e); throw e; }
+};
+
+export const deleteRace = async (raceId: string) => {
+    if (isOffline || !db || !raceId) return;
+    try {
+        await deleteDoc(doc(db, 'races', raceId));
+    } catch (e) {
+        console.error("deleteRace failed", e);
+        throw e;
+    }
+};
+
+export const getPastRaces = async (orgId: string) => {
+    if (isOffline || !db || !orgId) return [];
+    try {
+        const q = query(collection(db, 'races'), where("organizationId", "==", orgId));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => d.data() as HyroxRace).sort((a,b) => b.createdAt - a.createdAt);
+    } catch (e) { return []; }
+};
+
+export const getRace = async (id: string) => {
+    if (isOffline || !db || !id) return null;
+    try {
+        const snap = await getDoc(doc(db, 'races', id));
+        return snap.exists() ? snap.data() as HyroxRace : null;
+    } catch (e) { return null; }
+};
+
+export const saveWorkoutResult = async (result: WorkoutResult) => {
+    if (isOffline || !db) return;
+    try {
+        await setDoc(doc(db, 'workout_results', result.id), sanitizeData(result));
+    } catch (e) { console.error("saveWorkoutResult failed", e); }
+};
+
+export const getWorkoutResults = async (workoutId: string, orgId: string): Promise<WorkoutResult[]> => {
+    if (isOffline || !db || !workoutId) return [];
+    try {
+        const q = query(collection(db, 'workout_results'), where('workoutId', '==', workoutId), where('organizationId', '==', orgId), orderBy('finishTime', 'asc'));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => d.data() as WorkoutResult);
+    } catch (e) { return []; }
+};
+
+export const sendCheckIn = async (orgId: string, userEmail: string) => {
+    if (isOffline || !db || !orgId) return;
+    try {
+        const checkInRef = doc(collection(db, 'active_checkins'));
+        const event: CheckInEvent = {
+            id: checkInRef.id,
+            userId: userEmail,
+            firstName: userEmail.split('@')[0],
+            lastName: '',
+            timestamp: Date.now(),
+            organizationId: orgId,
+            streak: Math.floor(Math.random() * 20) + 1
+        };
+        await setDoc(checkInRef, event);
+    } catch (e) { console.error("sendCheckIn failed", e); }
+};
+
+export const listenForCheckIns = (orgId: string, callback: (event: CheckInEvent) => void) => {
+    if (isOffline || !db || !orgId) return () => {};
+    const q = query(collection(db, 'active_checkins'), where('organizationId', '==', orgId), orderBy('timestamp', 'desc'), limit(1));
+    return onSnapshot(q, (snapshot) => {
+        snapshot.docChanges().forEach((change) => {
+            if (change.type === 'added') {
+                const data = change.doc.data() as CheckInEvent;
+                if (Date.now() - data.timestamp < 10000) callback(data);
+            }
+        });
+    }, (err) => console.error("listenForCheckIns failed", err));
+};
+
+export const getSuggestedExercises = async () => {
+    if (isOffline || !db) return [];
+    try {
+        const snap = await getDocs(collection(db, 'exerciseSuggestions'));
+        return snap.docs.map(d => ({ ...d.data(), id: d.id }) as SuggestedExercise);
+    } catch (e) { return []; }
+};
+
+export const approveExerciseSuggestion = async (s: SuggestedExercise) => {
+    try {
+        const bankEx: BankExercise = { id: s.id, name: s.name, description: s.description, imageUrl: s.imageUrl, tags: s.tags };
+        await saveExerciseToBank(bankEx);
+        await deleteExerciseSuggestion(s.id);
+    } catch (e) { console.error("approveExerciseSuggestion failed", e); }
+};
+
+export const deleteExerciseSuggestion = async (id: string) => {
+    if (isOffline || !db) return;
+    try {
+        await deleteDoc(doc(db, 'exerciseSuggestions', id));
+    } catch (e) { console.error("deleteExerciseSuggestion failed", e); }
+};
+
+export const updateExerciseSuggestion = async (s: SuggestedExercise) => {
+    if (isOffline || !db) return;
+    try {
+        await setDoc(doc(db, 'exerciseSuggestions', s.id), s, { merge: true });
+    } catch (e) { console.error("updateExerciseSuggestion failed", e); }
+};
+
+// --- GALLERY IMAGES ---
+export const getGalleryImages = async (): Promise<GalleryImage[]> => {
+    if (isOffline || !db) return [];
+    try {
+        const q = query(collection(db, 'system_gallery'), orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as GalleryImage));
+    } catch (error) {
+        console.error("Error getting gallery images:", error);
+        return [];
+    }
+};
+
+export const addGalleryImage = async (file: File, gymName: string): Promise<GalleryImage | null> => {
+    if (isOffline || !db || !storage) return null;
+    try {
+        const storageRef = ref(storage, `gallery/${Date.now()}_${file.name}`);
+        await uploadBytes(storageRef, file);
+        const imageUrl = await getDownloadURL(storageRef);
+        
+        const newDocRef = doc(collection(db, 'system_gallery'));
+        const newImage: GalleryImage = {
+            id: newDocRef.id,
+            imageUrl,
+            gymName,
+            createdAt: Date.now()
+        };
+        await setDoc(newDocRef, newImage);
+        return newImage;
+    } catch (error) {
+        console.error("Error adding gallery image:", error);
+        return null;
+    }
+};
+
+export const removeGalleryImage = async (id: string, imageUrl: string): Promise<void> => {
+    if (isOffline || !db || !storage) return;
+    try {
+        await deleteDoc(doc(db, 'system_gallery', id));
+        if (imageUrl) {
+            const imageRef = ref(storage, imageUrl);
+            await deleteObject(imageRef).catch(e => console.log("Image might already be deleted or not found", e));
+        }
+    } catch (error) {
+        console.error("Error removing gallery image:", error);
+    }
+};
+
+// --- LEADS ---
+export const createLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'status'>): Promise<boolean> => {
+    if (isOffline || !db) return false;
+    try {
+        const newDocRef = doc(collection(db, 'leads'));
+        const newLead: Lead = {
+            id: newDocRef.id,
+            ...leadData,
+            status: 'new',
+            createdAt: Date.now()
+        };
+        
+        // Vi sparar leadet först. Om detta misslyckas kastas ett fel och vi returnerar false.
+        await setDoc(newDocRef, newLead);
+
+        // Vi försöker skriva till mail-samlingen, men vi bryr oss inte om det misslyckas 
+        // (t.ex. pga saknade regler innan Trigger Email är uppsatt).
+        // Vi använder .catch() direkt på Promise:t istället för try/catch för att vara helt säkra på att det inte bubblar upp.
+        setDoc(doc(collection(db, 'mail')), {
+            to: 'hej@smartstudio.se',
+            message: {
+                subject: `Ny förfrågan från ${leadData.gymName}`,
+                text: `Ny förfrågan från landningssidan:\n\nNamn: ${leadData.name}\nE-post: ${leadData.email}\nGym: ${leadData.gymName}\nTelefon: ${leadData.phone || '-'}\nMeddelande: ${leadData.message || '-'}`
+            }
+        }).catch(e => console.log("Mail notification skipped (expected if Trigger Email is not set up):", e.message));
+
+        return true;
+    } catch (error) {
+        console.error("Error creating lead:", error);
+        return false;
+    }
+};
+
+export const getLeads = async (): Promise<Lead[]> => {
+    if (isOffline || !db) return [];
+    try {
+        const q = query(collection(db, 'leads'), orderBy('createdAt', 'desc'));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Lead));
+    } catch (error) {
+        console.error("Error getting leads:", error);
+        return [];
+    }
+};
+
+export const updateLeadStatus = async (id: string, status: Lead['status']): Promise<void> => {
+    if (isOffline || !db) return;
+    try {
+        await updateDoc(doc(db, 'leads', id), { status });
+    } catch (error) {
+        console.error("Error updating lead status:", error);
+    }
+};
+
+export const saveCustomProgram = async (userId: string, program: Workout): Promise<void> => {
+    if (isOffline || !db) return;
+    try {
+        const docRef = doc(db, `users/${userId}/customPrograms`, program.id);
+        await setDoc(docRef, sanitizeData(program));
+        window.dispatchEvent(new Event('customProgramsUpdated'));
+    } catch (e) {
+        console.error("saveCustomProgram failed", e);
+        throw e;
+    }
+};
+
+export const fetchCustomPrograms = async (userId: string): Promise<Workout[]> => {
+    if (isOffline || !db || !userId) return [];
+    try {
+        const q = query(collection(db, `users/${userId}/customPrograms`), orderBy("createdAt", "desc"));
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => doc.data() as Workout);
+    } catch (e) {
+        console.error("fetchCustomPrograms failed", e);
+        return [];
+    }
+};
+
+export const deleteCustomProgram = async (userId: string, programId: string): Promise<void> => {
+    if (isOffline || !db) return;
+    try {
+        await deleteDoc(doc(db, `users/${userId}/customPrograms`, programId));
+        window.dispatchEvent(new Event('customProgramsUpdated'));
+    } catch (e) {
+        console.error("deleteCustomProgram failed", e);
+        throw e;
+    }
+};
+
+
