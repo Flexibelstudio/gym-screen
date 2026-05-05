@@ -1505,7 +1505,7 @@ const App: React.FC = () => {
                     handleCoachAccessRequest: handleCoachAccessRequest,
                     handleReturnToAdmin: handleReturnToAdminRequest, 
                     handleGoToSystemOwner: () => setHistory([Page.SystemOwner]),
-                    checkUnsavedChanges: () => false,
+                    checkUnsavedChanges: () => true,
                     setShowImage: (url) => setPreviewImageUrl(url),
                     setTimerHeaderVisible: setIsTimerHeaderVisible,
                     setBackButtonHidden: setIsBackButtonHidden,
