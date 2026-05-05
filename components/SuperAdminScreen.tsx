@@ -59,7 +59,7 @@ interface SuperAdminScreenProps {
     theme: string;
     onSaveGlobalConfig: (organizationId: string, newConfig: StudioConfig) => Promise<void>;
     onEditStudioConfig: (studio: Studio) => void;
-    onCreateStudio: (organizationId: string, name: string) => Promise<void>;
+    onCreateStudio: (organizationId: string, name: string, locationId?: string) => Promise<void>;
     onUpdateStudio: (organizationId: string, studioId: string, name: string, locationId?: string) => Promise<void>;
     onDeleteStudio: (organizationId: string, studioId: string) => Promise<void>;
     onUpdatePasswords: (organizationId: string, passwords: Organization['passwords']) => Promise<void>;

@@ -851,9 +851,9 @@ const App: React.FC = () => {
       }
   };
 
-  const handleCreateStudio = async (organizationId: string, name: string) => {
+  const handleCreateStudio = async (organizationId: string, name: string, locationId?: string) => {
       try {
-          const newStudio = await createStudio(organizationId, name);
+          const newStudio = await createStudio(organizationId, name, locationId);
           const newOrgs = allOrganizations.length > 0 ? allOrganizations.map(o => o.id === organizationId ? { ...o, studios: [...o.studios, newStudio] } : o) : [];
           setAllOrganizations(newOrgs);
           const updatedOrg = newOrgs.find(o => o.id === organizationId);

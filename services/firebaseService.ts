@@ -1073,11 +1073,11 @@ export const updateOrganizationBenchmarks = async (id: string, benchmarks: Bench
     return getOrganizationById(id);
 };
 
-export const createStudio = async (orgId: string, name: string) => {
+export const createStudio = async (orgId: string, name: string, locationId?: string) => {
     if(isOffline || !db || !orgId) return { id: 'off', name };
     const org = await getOrganizationById(orgId);
     if (!org) throw new Error("Organisationen hittades inte.");
-    const studio = { id: `st_${Date.now()}`, name, createdAt: Date.now(), configOverrides: {} };
+    const studio = { id: `st_${Date.now()}`, name, createdAt: Date.now(), configOverrides: {}, locationId };
     await updateDoc(doc(db, 'organizations', orgId), { studios: [...org.studios, studio] });
     return studio;
 };

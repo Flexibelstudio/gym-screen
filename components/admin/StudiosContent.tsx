@@ -6,7 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 interface StudiosContentProps {
     organization: Organization;
     onEditStudioConfig: (studio: Studio) => void;
-    onCreateStudio: (organizationId: string, name: string) => Promise<void>;
+    onCreateStudio: (organizationId: string, name: string, locationId?: string) => Promise<void>;
     onUpdateStudio: (organizationId: string, studioId: string, name: string, locationId?: string) => Promise<void>;
     onDeleteStudio: (organizationId: string, studioId: string) => Promise<void>;
     onSwitchToStudioView: (studio: Studio) => void;
@@ -28,7 +28,8 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
 
         setIsCreating(true);
         try {
-            await onCreateStudio(organization.id, newStudioName.trim());
+            const defaultLocationId = organization.locations && organization.locations.length > 0 ? organization.locations[0].id : undefined;
+            await onCreateStudio(organization.id, newStudioName.trim(), defaultLocationId);
             setNewStudioName('');
         } catch (error) {
             console.error(error);
@@ -61,9 +62,6 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
                 {organization.studios.map(studio => (
                     <div key={studio.id} className="bg-white dark:bg-gray-800 p-5 rounded-xl flex flex-col xl:flex-row justify-between items-center gap-4 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-4 flex-grow w-full xl:w-auto">
-                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold flex-shrink-0">
-                                {studio.name[0].toUpperCase()}
-                            </div>
                             <div>
                                 <p className="font-bold text-lg text-gray-900 dark:text-white truncate">{studio.name}</p>
                                 {organization.locations && organization.locations.length > 0 && (
@@ -82,7 +80,7 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
                         </div>
                         <div className="flex flex-wrap gap-2 w-full xl:w-auto justify-end">
                             <button onClick={() => onSwitchToStudioView(studio)} className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm shadow-sm flex items-center gap-2">
-                                <span className="text-lg">📱</span> Växla till skärm vy
+                                Växla till skärm vy
                             </button>
                             <button onClick={() => onEditStudioConfig(studio)} className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm">Inställningar</button>
                             <button onClick={() => handleDelete(studio.id, studio.name)} className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-semibold py-2 px-4 rounded-lg transition-colors text-sm border border-red-100 dark:border-red-900/30">Ta bort</button>
