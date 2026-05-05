@@ -9,6 +9,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { WorkoutQRDisplay } from './WorkoutQRDisplay';
 import { useAuth } from '../context/AuthContext';
 import { useWorkout } from '../context/WorkoutContext';
+import { useConfirm } from './ConfirmContext';
 
 // Helper to format time for results (00:00)
 const formatResultTime = (timeInSeconds: number) => {
@@ -393,6 +394,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   const { selectedOrganization, selectedStudio } = useStudio();
   const { isStudioMode, role, userData, currentUser } = useAuth();
   const { setActiveWorkout } = useWorkout();
+  const confirm = useConfirm();
   
   const [sessionWorkout, setSessionWorkout] = useState<Workout>(() => JSON.parse(JSON.stringify(workout)));
   const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
@@ -455,9 +457,17 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
       return () => onHeaderVisibilityChange?.(true);
   }, [visualizingFullWorkout, onHeaderVisibilityChange]);
 
-  const handleDelete = () => {
-      if (onDelete && window.confirm(`Är du säker på att du vill ta bort passet "${workout.title}"?`)) {
-          onDelete(workout.id);
+  const handleDelete = async () => {
+      if (onDelete) {
+          const isConfirmed = await confirm({
+              title: "Ta bort pass?",
+              message: `Är du säker på att du vill ta bort passet "${workout.title}"?`,
+              confirmText: "Ta bort",
+              confirmColor: "red"
+          });
+          if (isConfirmed) {
+              onDelete(workout.id);
+          }
       }
   };
 

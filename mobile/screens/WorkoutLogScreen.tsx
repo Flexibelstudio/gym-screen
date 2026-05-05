@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog, getOrganizationExerciseBank } from '../../services/firebaseService';
+import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog, getOrganizationExerciseBank, getMemberCustomExercises, addMemberCustomExercise, deleteMemberCustomExercise, updateMemberCustomExercise } from '../../services/firebaseService';
 import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage, getExerciseDagsformAdvice, ExerciseDagsformAdvice } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
 import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, ChartBarIcon, HistoryIcon, CalculatorIcon } from '../../components/icons'; 
 import { Modal } from '../../components/ui/Modal';
+import { ConfirmModal } from '../../components/ui/ConfirmModal';
 import { calculate1RM } from '../../utils/workoutUtils';
 import { ExerciseResult, MemberFeeling, WorkoutDiploma, WorkoutLog, BenchmarkDefinition, BankExercise, Workout } from '../../types';
 import { MOCK_EXERCISE_BANK } from '../../data/mockData';
@@ -37,6 +38,7 @@ interface LocalExerciseResult {
   blockId: string;
   blockTitle: string;
   coachAdvice?: string;
+  note?: string;
   trackingFields?: ('time' | 'distance' | 'kcal' | 'reps' | 'weight')[];
   groupId?: string;
   groupColor?: string;
@@ -380,7 +382,7 @@ const ExerciseLogCard: React.FC<{
   onRemove?: () => void;
   aiSuggestion?: string; // Koncept 1: Coach Whisper
   scaling?: string;      // Koncept 1: Alternativ
-  lastPerformance?: { weight: number, reps: string } | null;
+  lastPerformance?: { weight: number, reps: string, note?: string } | null;
   isLastInGroup?: boolean;
   onAddGroupSet?: () => void;
   onOpenCalculator?: (context: { exerciseName: string, current1RM?: number }) => void;
@@ -451,7 +453,9 @@ const ExerciseLogCard: React.FC<{
                         <h4 className="font-bold text-gray-900 dark:text-white text-base truncate">{name}</h4>
                         {lastPerformance ? (
                             <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-0.5">
-                                Senast: <span className="text-gray-600 dark:text-gray-300">{lastPerformance.reps} x {lastPerformance.weight}kg</span>
+                                Senast: <span className="text-gray-600 dark:text-gray-300">
+                                    {lastPerformance.weight > 0 ? `${lastPerformance.reps} x ${lastPerformance.weight}kg` : `${lastPerformance.reps} reps`}
+                                </span>
                             </p>
                         ) : (
                             <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mt-0.5">
@@ -649,6 +653,25 @@ const ExerciseLogCard: React.FC<{
                         </button>
                     )}
                 </div>
+                
+                {/* Anteckningar för övningen */}
+                <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
+                    {lastPerformance?.note && (
+                        <div className="mb-3 bg-blue-50/50 dark:bg-blue-900/10 p-3 rounded-xl border border-blue-100/50 dark:border-blue-800/30">
+                            <span className="block text-[9px] font-black uppercase tracking-widest text-blue-500/70 dark:text-blue-400/70 mb-1">Anteckning från förra passet:</span>
+                            <p className="text-xs text-blue-900/80 dark:text-blue-200/80 italic leading-relaxed">
+                                "{lastPerformance.note}"
+                            </p>
+                        </div>
+                    )}
+                    <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-1 mb-2">Din anteckning</label>
+                    <textarea 
+                        value={result.note || ''} 
+                        onChange={(e) => onUpdate({ note: e.target.value })}
+                        placeholder="Lägg till en kommentar..."
+                        className="w-full bg-gray-50/50 dark:bg-gray-800/50 text-xs text-gray-900 dark:text-gray-100 p-3 rounded-xl border border-gray-100 dark:border-gray-800 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all resize-none min-h-[60px]"
+                    />
+                </div>
             </div>
         </div>
     );
@@ -774,7 +797,7 @@ const cleanForFirestore = (obj: any): any => {
 const OneRMCalculatorModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
-    context: { exerciseName?: string, current1RM?: number } | null;
+    context: { exerciseName?: string, current1RM?: number, onSelectWeight?: (w: number) => void } | null;
 }> = ({ isOpen, onClose, context }) => {
     const [calcWeight, setCalcWeight] = useState<string>('');
     const [calcReps, setCalcReps] = useState<string>('');
@@ -832,10 +855,22 @@ const OneRMCalculatorModal: React.FC<{
                             {percentages.map(p => {
                                 const weight = Math.round((calculated1RM as number) * (p / 100) * 2) / 2;
                                 return (
-                                    <div key={p} className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 p-3 rounded-xl flex justify-between items-center shadow-sm">
-                                        <span className="text-sm font-black text-gray-400">{p}%</span>
-                                        <span className="text-base font-bold text-gray-900 dark:text-white">{weight} kg</span>
-                                    </div>
+                                    <button 
+                                        key={p} 
+                                        onClick={() => {
+                                            if (context?.onSelectWeight) {
+                                                context.onSelectWeight(weight);
+                                                onClose();
+                                            }
+                                        }}
+                                        disabled={!context?.onSelectWeight}
+                                        className={`p-3 rounded-xl flex justify-between items-center transition-all ${context?.onSelectWeight ? 'bg-primary/5 border border-primary/20 hover:bg-primary/10 active:scale-[0.98]' : 'bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 shadow-sm'}`}
+                                    >
+                                        <div className="flex items-center justify-between w-full">
+                                            <span className={`text-sm font-black ${context?.onSelectWeight ? 'text-primary' : 'text-gray-400'}`}>{p}%</span>
+                                            <span className="text-lg font-black text-gray-900 dark:text-white">{weight} <span className="text-xs opacity-50">kg</span></span>
+                                        </div>
+                                    </button>
                                 );
                             })}
                         </div>
@@ -851,7 +886,7 @@ const OneRMCalculatorModal: React.FC<{
 };
 
 export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, navigation, route, workouts: contextWorkouts = [] }: any) => {
-  const { currentUser } = useAuth();
+  const { currentUser, userData } = useAuth();
   const { selectedOrganization } = useStudio();
   const userId = currentUser?.uid || "offline_member_uid"; 
   const passedWId = workoutId || route?.params?.workoutId;
@@ -890,7 +925,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [exerciseBank, setExerciseBank] = useState<BankExercise[]>(MOCK_EXERCISE_BANK);
   
   const [showCalculator, setShowCalculator] = useState(false);
-  const [calculatorContext, setCalculatorContext] = useState<{ exerciseName?: string, current1RM?: number } | null>(null);
+  const [calculatorContext, setCalculatorContext] = useState<{ exerciseName?: string, current1RM?: number, onSelectWeight?: (w: number) => void } | null>(null);
+  const [exerciseToEdit, setExerciseToEdit] = useState<BankExercise | null>(null);
+  const [editExerciseName, setEditExerciseName] = useState("");
+  const [exerciseToDelete, setExerciseToDelete] = useState<BankExercise | null>(null);
   
   const uncheckedSetsCount = useMemo(() => {
       if (isManualMode) return 0;
@@ -950,7 +988,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
     try {
       if ('wakeLock' in navigator) {
         wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
-        console.log('Wake Lock is active!');
       }
     } catch (err: any) {
       console.error(`Wake Lock error: ${err.name}, ${err.message}`);
@@ -962,7 +999,6 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       try {
         await wakeLockRef.current.release();
         wakeLockRef.current = null;
-        console.log('Wake Lock released manually');
       } catch (err) {
         console.error('Failed to release Wake Lock', err);
       }
@@ -1024,7 +1060,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
             setAllLogs(logs);
 
             const bank = await getOrganizationExerciseBank(finalOrgId);
-            setExerciseBank(bank);
+            const userCustomExercises = await getMemberCustomExercises(userId);
+            setExerciseBank([...bank, ...userCustomExercises].sort((a, b) => a.name.localeCompare(b.name, 'sv')));
 
             const savedSessionRaw = localStorage.getItem(ACTIVE_LOG_STORAGE_KEY);
             let loadedResults: LocalExerciseResult[] | null = null;
@@ -1083,19 +1120,44 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                 }
                 if (loadedCustomActivity) setCustomActivity(loadedCustomActivity);
 
-                const historyMap: Record<string, { weight: number, reps: string }> = {};
+                const historyMap: Record<string, { weight: number, reps: string, note?: string }> = {};
                 
                 exercises.forEach(currentEx => {
                     const match = logs.find(log => log.exerciseResults?.some(logEx => isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId)));
                     
+                    let mostRecentNote: string | undefined = undefined;
+                    const logWithNote = logs.find(log => log.exerciseResults?.some(logEx => isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId) && logEx.note));
+                    if (logWithNote) {
+                        const exWithNote = logWithNote.exerciseResults?.find(logEx => isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId) && logEx.note);
+                        if (exWithNote) mostRecentNote = exWithNote.note;
+                    }
+
                     if (match) {
                         const exMatch = match.exerciseResults?.find(logEx => isExerciseMatch(currentEx.exerciseName, currentEx.exerciseId, logEx.exerciseName, logEx.exerciseId));
-                        if (exMatch && exMatch.weight) {
-                            let reps = '0';
-                            if (exMatch.reps) {
-                                reps = exMatch.reps.toString();
+                        if (exMatch) {
+                            let maxWeight = 0;
+                            let maxReps = '0';
+                            
+                            if (exMatch.setDetails && exMatch.setDetails.length > 0) {
+                                let bestSet = exMatch.setDetails.reduce((prev: any, current: any) => {
+                                    const prevW = parseFloat(prev.weight) || 0;
+                                    const currW = parseFloat(current.weight) || 0;
+                                    if (currW > prevW) return current;
+                                    if (currW === prevW) {
+                                        const prevR = parseFloat(prev.reps) || 0;
+                                        const currR = parseFloat(current.reps) || 0;
+                                        return currR > prevR ? current : prev;
+                                    }
+                                    return prev;
+                                }, exMatch.setDetails[0]);
+                                maxWeight = parseFloat(bestSet.weight) || 0;
+                                maxReps = bestSet.reps?.toString() || '0';
+                            } else {
+                                maxWeight = parseFloat(exMatch.weight) || 0;
+                                maxReps = exMatch.reps?.toString() || '0';
                             }
-                            historyMap[currentEx.exerciseName] = { weight: exMatch.weight, reps };
+                            
+                            historyMap[currentEx.exerciseName] = { weight: maxWeight, reps: maxReps, note: mostRecentNote };
                         }
                     }
                 });
@@ -1103,7 +1165,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                 setHistory(historyMap);
 
                 if (!skipInsights) {
-                    if (foundWorkout.usePreGame === false) {
+                    const isCustomWorkout = foundWorkout.id?.startsWith('custom-') || false;
+                    const preGameDisabledByGlobalSetting = isCustomWorkout && userData?.usePreGameForCustomWorkouts === false;
+                    
+                    if (foundWorkout.usePreGame === false || preGameDisabledByGlobalSetting) {
                         setViewMode('logging');
                     } else {
                         try {
@@ -1136,14 +1201,42 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                  
                  // Compute history for loaded manual mode results
                  if (loadedResults) {
-                     const historyMap: Record<string, { weight: number, reps: string }> = {};
+                     const historyMap: Record<string, { weight: number, reps: string, note?: string }> = {};
                      loadedResults.forEach(currentEx => {
                          const match = logs.find(log => log.exerciseResults?.some(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase()));
+
+                         let mostRecentNote: string | undefined = undefined;
+                         const logWithNote = logs.find(log => log.exerciseResults?.some(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase() && logEx.note));
+                         if (logWithNote) {
+                             const exWithNote = logWithNote.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase() && logEx.note);
+                             if (exWithNote) mostRecentNote = exWithNote.note;
+                         }
+
                          if (match) {
                              const exMatch = match.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === currentEx.exerciseName.toLowerCase());
-                             if (exMatch && exMatch.weight) {
-                                  historyMap[currentEx.exerciseName] = { weight: Number(exMatch.weight), reps: exMatch.reps?.toString() || '0' };
-                             }
+                              if (exMatch) {
+                                  let maxWeight = 0;
+                                  let maxReps = '0';
+                                  if (exMatch.setDetails && exMatch.setDetails.length > 0) {
+                                      let bestSet = exMatch.setDetails.reduce((prev: any, current: any) => {
+                                          const prevW = parseFloat(prev.weight) || 0;
+                                          const currW = parseFloat(current.weight) || 0;
+                                          if (currW > prevW) return current;
+                                          if (currW === prevW) {
+                                              const prevR = parseFloat(prev.reps) || 0;
+                                              const currR = parseFloat(current.reps) || 0;
+                                              return currR > prevR ? current : prev;
+                                          }
+                                          return prev;
+                                      }, exMatch.setDetails[0]);
+                                      maxWeight = parseFloat(bestSet.weight) || 0;
+                                      maxReps = bestSet.reps?.toString() || '0';
+                                  } else {
+                                      maxWeight = parseFloat(exMatch.weight) || 0;
+                                      maxReps = exMatch.reps?.toString() || '0';
+                                  }
+                                  historyMap[currentEx.exerciseName] = { weight: maxWeight, reps: maxReps, note: mostRecentNote };
+                              }
                          }
                      });
                      setHistory(historyMap);
@@ -1188,10 +1281,26 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
     else if (navigation) navigation.goBack();
   };
 
-  const handleAddManualExercise = (exerciseName: string) => {
+  const handleAddManualExercise = async (exerciseName: string) => {
       if (!exerciseName.trim()) return;
+
+      const existingInBank = exerciseBank.find(ex => ex.name.toLowerCase() === exerciseName.trim().toLowerCase());
+      let newExerciseId = 'manual-' + Date.now();
+      
+      if (!existingInBank && userId) {
+          try {
+              const savedEx = await addMemberCustomExercise(userId, exerciseName.trim());
+              setExerciseBank(prev => [...prev, savedEx].sort((a, b) => a.name.localeCompare(b.name, 'sv')));
+              newExerciseId = savedEx.id;
+          } catch (e) {
+              console.error("Failed to add custom exercise", e);
+          }
+      } else if (existingInBank) {
+          newExerciseId = existingInBank.id;
+      }
+
       const newEx: LocalExerciseResult = {
-          exerciseId: 'manual-' + Date.now(),
+          exerciseId: newExerciseId,
           exerciseName: exerciseName.trim(),
           blockId: 'manual-block',
           blockTitle: 'Valda övningar',
@@ -1200,12 +1309,40 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       };
 
       const match = allLogs.find(log => log.exerciseResults?.some(logEx => logEx.exerciseName.toLowerCase() === exerciseName.trim().toLowerCase()));
+      
+      let mostRecentNote: string | undefined = undefined;
+      const logWithNote = allLogs.find(log => log.exerciseResults?.some(logEx => logEx.exerciseName.toLowerCase() === exerciseName.trim().toLowerCase() && logEx.note));
+      if (logWithNote) {
+          const exWithNote = logWithNote.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === exerciseName.trim().toLowerCase() && logEx.note);
+          if (exWithNote) mostRecentNote = exWithNote.note;
+      }
+
       if (match) {
           const exMatch = match.exerciseResults?.find(logEx => logEx.exerciseName.toLowerCase() === exerciseName.trim().toLowerCase());
-          if (exMatch && exMatch.weight) {
+          if (exMatch) {
+              let maxWeight = 0;
+              let maxReps = '0';
+              if (exMatch.setDetails && exMatch.setDetails.length > 0) {
+                  let bestSet = exMatch.setDetails.reduce((prev: any, current: any) => {
+                      const prevW = parseFloat(prev.weight) || 0;
+                      const currW = parseFloat(current.weight) || 0;
+                      if (currW > prevW) return current;
+                      if (currW === prevW) {
+                          const prevR = parseFloat(prev.reps) || 0;
+                          const currR = parseFloat(current.reps) || 0;
+                          return currR > prevR ? current : prev;
+                      }
+                      return prev;
+                  }, exMatch.setDetails[0]);
+                  maxWeight = parseFloat(bestSet.weight) || 0;
+                  maxReps = bestSet.reps?.toString() || '0';
+              } else {
+                  maxWeight = parseFloat(exMatch.weight) || 0;
+                  maxReps = exMatch.reps?.toString() || '0';
+              }
               setHistory(prev => ({
                   ...prev,
-                  [exerciseName.trim()]: { weight: Number(exMatch.weight), reps: exMatch.reps?.toString() || '0' }
+                  [exerciseName.trim()]: { weight: maxWeight, reps: maxReps, note: mostRecentNote }
               }));
           }
       }
@@ -1311,7 +1448,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                   distance: totalDistance > 0 ? totalDistance : null,
                   kcal: totalKcal > 0 ? totalKcal : null,
                   blockId: r.blockId,
-                  coachAdvice: r.coachAdvice
+                  coachAdvice: r.coachAdvice,
+                  note: r.note
               };
           });
 
@@ -1352,7 +1490,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                           title: 'Valda övningar',
                           tag: 'Custom',
                           followMe: false,
-                          settings: { rounds: 1, mode: "Stoppur" as any },
+                          settings: { rounds: 1, mode: "Stoppur" as any, workTime: 0, restTime: 0, prepareTime: 0 },
                           exercises: exerciseResultsToSave.map((r: any) => ({ 
                               id: r.exerciseId, 
                               name: r.exerciseName,
@@ -1703,7 +1841,28 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                     isLastInGroup={isLastInGroup}
                                     onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
                                     onOpenCalculator={(ctx) => {
-                                        setCalculatorContext(ctx);
+                                        setCalculatorContext({
+                                            ...ctx,
+                                            onSelectWeight: (weight: number) => {
+                                                setExerciseResults(prev => {
+                                                    const newResults = [...prev];
+                                                    const res = {...newResults[index]};
+                                                    res.setDetails = res.setDetails.map(s => ({...s}));
+                                                    
+                                                    // Find first uncompleted set
+                                                    let targetIdx = res.setDetails.findIndex(s => !s.completed);
+                                                    if (targetIdx === -1) {
+                                                        // if all completed, just use the last one
+                                                        targetIdx = res.setDetails.length - 1;
+                                                    }
+                                                    if (targetIdx !== -1) {
+                                                        res.setDetails[targetIdx].weight = weight.toString();
+                                                    }
+                                                    newResults[index] = res;
+                                                    return newResults;
+                                                });
+                                            }
+                                        });
                                         setShowCalculator(true);
                                     }}
                                 />
@@ -1927,12 +2086,32 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                               <div className="flex-1 min-w-0">
                                   <h4 className="font-bold text-gray-900 dark:text-white truncate">{ex.name}</h4>
                                   <div className="flex items-center gap-2 mt-1">
-                                      <span className="text-[10px] font-black uppercase tracking-widest text-primary px-2 py-0.5 bg-primary/10 rounded">
-                                          {ex.muscleGroup}
+                                      <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded ${ex.category === 'Custom Egen' ? 'text-orange-600 bg-orange-100 dark:bg-orange-900/30' : 'text-primary bg-primary/10'}`}>
+                                          {ex.category === 'Custom Egen' ? 'Egen' : ex.category}
                                       </span>
                                   </div>
                               </div>
-                              <PlusIcon className="w-5 h-5 text-gray-400" />
+                              {ex.category === 'Custom Egen' ? (
+                                  <div className="flex items-center gap-1">
+                                      <button onClick={(e) => {
+                                          e.stopPropagation();
+                                          setEditExerciseName(ex.name);
+                                          setExerciseToEdit(ex);
+                                      }} className="p-2 text-gray-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors" title="Ändra namn">
+                                          <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                          </svg>
+                                      </button>
+                                      <button onClick={(e) => {
+                                          e.stopPropagation();
+                                          setExerciseToDelete(ex);
+                                      }} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors" title="Ta bort">
+                                          <TrashIcon className="w-5 h-5" />
+                                      </button>
+                                  </div>
+                              ) : (
+                                  <PlusIcon className="w-5 h-5 text-gray-400" />
+                              )}
                           </div>
                       ))}
                       {filteredBank.length === 0 && exerciseSearchTerm.length === 0 && (
@@ -1941,6 +2120,70 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                           </div>
                       )}
                   </div>
+              </div>
+          </Modal>
+      )}
+
+      {exerciseToDelete && (
+          <ConfirmModal
+              isOpen={!!exerciseToDelete}
+              onClose={() => setExerciseToDelete(null)}
+              onConfirm={async () => {
+                  if (!userId) return;
+                  const id = exerciseToDelete.id;
+                  await deleteMemberCustomExercise(userId, id);
+                  setExerciseBank(prev => prev.filter(b => b.id !== id));
+                  setExerciseToDelete(null);
+              }}
+              title="Ta bort övning"
+              message={`Är du säker på att du vill ta bort "${exerciseToDelete.name}"?`}
+              confirmText="Ta bort"
+              cancelText="Avbryt"
+              confirmColor="red"
+          />
+      )}
+
+      {exerciseToEdit && (
+          <Modal 
+              isOpen={!!exerciseToEdit} 
+              onClose={() => setExerciseToEdit(null)} 
+              title="Byt namn på övning" 
+              size="sm"
+              footer={
+                  <div className="flex gap-2 justify-end w-full">
+                      <button onClick={() => setExerciseToEdit(null)} className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                          Avbryt
+                      </button>
+                      <button 
+                          onClick={async () => {
+                              if (!userId) return;
+                              const newName = editExerciseName.trim();
+                              if (newName !== "" && newName !== exerciseToEdit.name) {
+                                  try {
+                                      await updateMemberCustomExercise(userId, exerciseToEdit.id, newName);
+                                      setExerciseBank(prev => prev.map(b => b.id === exerciseToEdit.id ? { ...b, name: newName } : b));
+                                  } catch (error) {
+                                      console.error("Fel vid uppdatering av namn:", error);
+                                  }
+                              }
+                              setExerciseToEdit(null);
+                          }} 
+                          className="px-4 py-2 text-sm font-semibold bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors"
+                      >
+                          Spara
+                      </button>
+                  </div>
+              }
+          >
+              <div className="p-4 pt-2">
+                  <input 
+                      type="text" 
+                      value={editExerciseName}
+                      onChange={(e) => setEditExerciseName(e.target.value)}
+                      placeholder="Övningens namn"
+                      autoFocus
+                      className="w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 text-gray-900 dark:text-gray-100"
+                  />
               </div>
           </Modal>
       )}

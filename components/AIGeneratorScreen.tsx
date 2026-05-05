@@ -238,7 +238,14 @@ export const AIGeneratorScreen: React.FC<AIGeneratorScreenProps> = ({
             setGeneratedWorkout(safeWorkout);
         } catch (err) {
             console.error("AI/Parsing failed:", err);
-            setError(err instanceof Error ? err.message : "Ett fel uppstod.");
+            const errMsg = err instanceof Error ? err.message : "Ett fel uppstod.";
+            if (errMsg.includes('403') || errMsg.includes('PERMISSION_DENIED') || errMsg.includes('denied access')) {
+                setError("Det gick inte att generera passet just nu på grund av en åtkomstbegränsning till AI-motorn. Vänligen kontakta supporten om problemet kvarstår.");
+            } else if (errMsg.includes('503') || errMsg.includes('overloaded')) {
+                setError("AI-motorn är tillfälligt överbelastad. Vänligen vänta en minut och försök igen.");
+            } else {
+                setError("Kunde inte tyda informationen. Vänligen försök igen med en tydligare bild eller text. (Tekniskt fel: " + (errMsg.length > 50 ? errMsg.substring(0, 50) + "..." : errMsg) + ")");
+            }
         } finally {
             setIsProcessing(false);
         }

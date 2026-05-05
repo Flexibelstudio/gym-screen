@@ -6,6 +6,7 @@ import { ChatMessage } from '../types';
 import { GoogleGenAI, GenerateContentResponse } from "@google/genai";
 import { SparklesIcon, CloseIcon, PaperAirplaneIcon, QrCodeIcon, DumbbellIcon, PlusIcon, SearchIcon } from './icons';
 import { getMemberDataForAI } from '../services/firebaseService';
+import Markdown from 'react-markdown';
 
 // --- Sub-component: MemberChatModal ---
 const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
@@ -90,6 +91,7 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             3. Tydligt formaterade. Använd punktlistor om du ger flera råd.
 
             VIKTIGA REGLER FÖR FORMATERING:
+            - Använd standard Markdown för formatering. Om du vill framhäva text, använd **fet stil** istället för vanliga stjärnor.
             - Använd ALDRIG stjärnor (**) runt namn på personer, gymmet eller platser. Skriv bara namnet som vanlig text.
             - Använd inte emojis i överflöd, max 1-2 per svar.
 
@@ -178,7 +180,13 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                                     ? 'bg-primary text-white rounded-br-none' 
                                     : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-bl-none border border-gray-50 dark:border-gray-700'
                             }`}>
-                                {msg.text}
+                                {msg.role === 'user' ? (
+                                    msg.text
+                                ) : (
+                                    <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-0 [&>p:not(:last-child)]:mb-2 [&_strong]:font-bold [&_strong]:text-inherit [&_em]:font-bold [&_em]:text-inherit [&_em]:not-italic">
+                                        <Markdown>{msg.text}</Markdown>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ))}

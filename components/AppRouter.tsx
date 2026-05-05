@@ -73,7 +73,7 @@ interface AppRouterProps {
     onSaveWorkoutNoNav: (workout: Workout) => Promise<Workout>;
     onTogglePublish: (workoutId: string, isPublished: boolean) => void;
     onToggleFavorite: (workoutId: string) => void;
-    onDuplicateWorkout: (workout: Workout) => void;
+    onDuplicateWorkout: (workout: Workout, origin?: string) => void;
     onTimerFinish: (finishData: { isNatural?: boolean; time?: number, raceId?: string }) => void;
     
     functions: {
@@ -410,7 +410,6 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onDeleteOrganization={functions.deleteOrganization as any}
             />;
 
-        case Page.Home:
         case Page.StudioSelection:
             return <StudioSelectionScreen onStudioSelected={() => {}} />;
 

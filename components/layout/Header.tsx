@@ -19,12 +19,14 @@ interface HeaderProps {
     showClock?: boolean;
     hideBackButton?: boolean;
     onCoachAccessRequest?: () => void;
+    onPreviewWorkoutsRequest?: () => void;
     showCoachButton?: boolean;
     onMemberProfileRequest?: () => void;
     onEditProfileRequest?: () => void;
     isStudioMode?: boolean;
     hasCustomBack?: boolean;
     navigateTo?: (page: Page) => void;
+    hasBackgroundImage?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -39,13 +41,15 @@ export const Header: React.FC<HeaderProps> = ({
     historyLength, 
     showClock, 
     hideBackButton = false, 
-    onCoachAccessRequest, 
+    onCoachAccessRequest,
+    onPreviewWorkoutsRequest,
     showCoachButton,
     onMemberProfileRequest,
     onEditProfileRequest,
     isStudioMode,
     hasCustomBack = false,
-    navigateTo
+    navigateTo,
+    hasBackgroundImage = false
 }) => {
   const { selectedOrganization, studioConfig, studioLoading } = useStudio();
   const { userData, stopImpersonation } = useAuth();
@@ -200,7 +204,11 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="relative" ref={dropdownRef}>
               <button
                   onClick={(e) => { e.stopPropagation(); setIsDropdownOpen(!isDropdownOpen); }}
-                  className="w-10 h-10 md:w-11 md:h-11 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-700 dark:text-gray-200 hover:ring-2 hover:ring-primary transition-all shadow-sm overflow-hidden border border-gray-200 dark:border-gray-700"
+                  className={`w-10 h-10 md:w-11 md:h-11 rounded-full flex items-center justify-center text-gray-700 dark:text-gray-200 hover:ring-2 hover:ring-primary transition-all overflow-hidden ${
+                      hasBackgroundImage 
+                          ? 'shadow-[0_0_15px_rgba(0,0,0,0.5)] border-0 bg-white/20 dark:bg-black/30 backdrop-blur-sm' 
+                          : 'shadow-sm bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
+                  }`}
               >
                   {userData?.photoUrl ? (
                       <img src={userData.photoUrl} alt="Profil" className="w-full h-full object-cover" />
@@ -265,6 +273,18 @@ export const Header: React.FC<HeaderProps> = ({
                                       className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
                                   >
                                       <SettingsIcon className="w-4 h-4" /> Admin
+                                  </button>
+                              )}
+
+                              {onPreviewWorkoutsRequest && (
+                                  <button 
+                                      onClick={() => { setIsDropdownOpen(false); onPreviewWorkoutsRequest(); }} 
+                                      className="w-full text-left px-4 py-3 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 transition-colors flex items-center gap-3"
+                                  >
+                                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
+                                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                                      </svg>
+                                      Kolla in pass
                                   </button>
                               )}
 

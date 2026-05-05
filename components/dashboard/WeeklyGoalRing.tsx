@@ -14,7 +14,7 @@ export const WeeklyGoalRing: React.FC<WeeklyGoalRingProps> = ({ current, goal })
     const strokeDashoffset = circumference - (percent / 100) * circumference;
 
     return (
-        <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-2 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-800 flex flex-col items-center justify-center">
+        <div className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl rounded-[2rem] p-2 sm:p-4 shadow-sm border border-gray-100/50 dark:border-gray-800/50 flex flex-col items-center justify-center">
             <div className="relative flex items-center justify-center w-full max-w-[280px] aspect-square">
                 <svg className="transform -rotate-90 w-full h-full" viewBox="0 0 400 400">
                     <circle

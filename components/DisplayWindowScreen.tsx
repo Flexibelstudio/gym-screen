@@ -116,15 +116,11 @@ export const DisplayWindowScreen: React.FC<DisplayWindowScreenProps> = ({ onBack
                 const wakeLock = await (navigator as any).wakeLock.request('screen');
                 wakeLockSentinelRef.current = wakeLock;
                 wakeLockSentinelRef.current.addEventListener('release', () => {
-                    console.log('Screen Wake Lock was released by the system.');
                     wakeLockSentinelRef.current = null;
                 });
-                console.log('Screen Wake Lock is active.');
             } catch (err: any) {
                 console.error(`Failed to acquire wake lock: ${err.name}, ${err.message}`);
             }
-        } else {
-            console.warn('Wake Lock API is not supported in this browser.');
         }
     }, []);
 

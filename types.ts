@@ -401,6 +401,8 @@ export interface UserData {
   birthDate?: string;
   gender?: string;
   goals?: MemberGoals;
+  backgroundImageUrl?: string;
+  backgroundOverlayOpacity?: number; // 0 to 100
   
   // Subscription / Payment fields
   subscriptionStatus?: 'active' | 'inactive' | 'trialing' | 'past_due' | 'canceled';
@@ -408,6 +410,7 @@ export interface UserData {
   // Dashboard & Gamification
   weeklyGoal?: number;
   showOnLeaderboard?: boolean;
+  usePreGameForCustomWorkouts?: boolean;
 }
 
 export interface SmartGoalDetail {
@@ -509,6 +512,7 @@ export interface ExerciseResult {
     time?: number | null;
     blockId?: string;
     coachAdvice?: string; // NYTT: Sparar AI-rådet direkt på övningen
+    note?: string; // Användarens anteckning för denna övning
 }
 
 export type MemberFeeling = 'good' | 'neutral' | 'bad';

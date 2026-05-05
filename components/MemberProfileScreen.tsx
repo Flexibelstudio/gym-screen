@@ -4,6 +4,7 @@ import { WorkoutLog, UserData, MemberGoals, Page, UserRole, SmartGoalDetail, Wor
 import { listenToMemberLogs, updateUserGoals, updateUserProfile, uploadImage, updateWorkoutLog, deleteWorkoutLog, requestPushNotificationPermission, auth } from '../services/firebaseService';
 import { ChartBarIcon, DumbbellIcon, PencilIcon, SparklesIcon, UserIcon, FireIcon, LightningIcon, TrashIcon, CloseIcon, TrophyIcon, ToggleSwitch, ClockIcon, HistoryIcon, FlagIcon, StarIcon, ChevronRightIcon } from './icons';
 import { Modal } from './ui/Modal';
+import { useConfirm } from './ConfirmContext';
 import { resizeImage } from '../utils/imageUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MyStrengthScreen } from './MyStrengthScreen';
@@ -439,9 +440,18 @@ const GoalsEditModal: React.FC<{ currentGoals?: MemberGoals, onSave: (goals: Mem
 
 const LogDetailModal: React.FC<{ log: WorkoutLog, onClose: () => void, onUpdate: (id: string, data: Partial<WorkoutLog>) => void, onDelete: (id: string) => void, onViewDiploma?: (diploma: WorkoutDiploma) => void }> = ({ log, onClose, onUpdate, onDelete, onViewDiploma }) => {
     const [isEditing, setIsEditing] = useState(false);
+    const confirm = useConfirm();
     const [comment, setComment] = useState(log.comment || '');
     const handleSave = () => { onUpdate(log.id, { comment }); setIsEditing(false); };
-    const handleDelete = () => { if(confirm("Är du säker på att du vill ta bort detta pass?")) { onDelete(log.id); onClose(); } };
+    const handleDelete = async () => {
+        const isConfirmed = await confirm({
+            title: "Ta bort pass?",
+            message: "Är du säker på att du vill ta bort detta pass? Detta går inte att ångra.",
+            confirmText: "Ta bort",
+            confirmColor: "red"
+        });
+        if(isConfirmed) { onDelete(log.id); onClose(); }
+    };
     const isCustomActivity = log.activityType === 'custom_activity' || (!log.exerciseResults || log.exerciseResults.length === 0);
     return (
         <Modal isOpen={true} onClose={onClose} title={log.workoutTitle} size="lg">
@@ -516,6 +526,7 @@ const PushNotificationSettings: React.FC = () => {
 export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userData, onBack, profileEditTrigger, navigateTo, functions, studioConfig }) => {
     const { selectedOrganization } = useStudio();
     const isNewUser = !userData.firstName || !userData.organizationId;
+    const confirm = useConfirm();
     
     const [logs, setLogs] = useState<WorkoutLog[]>([]);
     const [loading, setLoading] = useState(false);
@@ -538,10 +549,14 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     const [birthDate, setBirthDate] = useState(userData.birthDate || '');
     const [gender, setGender] = useState(userData.gender || 'prefer_not_to_say');
     const [photoUrl, setPhotoUrl] = useState(userData.photoUrl || '');
+    const [backgroundImageUrl, setBackgroundImageUrl] = useState(userData.backgroundImageUrl || '');
+    const [backgroundOverlayOpacity, setBackgroundOverlayOpacity] = useState(userData.backgroundOverlayOpacity ?? 20);
     const [weeklyGoal, setWeeklyGoal] = useState(userData.weeklyGoal || 3);
+    const [showGoalSaved, setShowGoalSaved] = useState(false);
     const [showOnLeaderboard, setShowOnLeaderboard] = useState(userData.showOnLeaderboard !== false);
 
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const bgFileInputRef = useRef<HTMLInputElement>(null);
 
     const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         let v = e.target.value.replace(/\D/g, '');
@@ -617,6 +632,23 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         }
     };
 
+    const handleBgFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setIsSaving(true);
+        try {
+            const resized = await resizeImage(file, 1200, 1600, 0.8);
+            const path = `users/${userData.uid}/bg_${Date.now()}.jpg`;
+            const url = await uploadImage(path, resized);
+            setBackgroundImageUrl(url);
+            await updateUserProfile(userData.uid, { backgroundImageUrl: url });
+        } catch (err) {
+            alert("Kunde inte spara bakgrundsbilden.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const handleSaveProfile = async () => {
         if (birthDate && birthDate.length !== 10) {
             alert("Vänligen ange ett fullständigt födelsedatum (ÅÅÅÅ-MM-DD).");
@@ -630,7 +662,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 birthDate: birthDate || undefined,
                 gender: gender as any,
                 weeklyGoal: Number(weeklyGoal),
-                showOnLeaderboard
+                showOnLeaderboard,
+                backgroundOverlayOpacity: Number(backgroundOverlayOpacity)
             });
             setIsEditing(false);
         } catch (error) {
@@ -705,8 +738,14 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
         }
     };
 
-    const handleDismissResume = () => {
-        if (confirm("Är du säker på att du vill kasta det sparade passet? All data du fyllt i kommer att försvinna.")) {
+    const handleDismissResume = async () => {
+        const isConfirmed = await confirm({
+            title: "Släng sparad data?",
+            message: "Är du säker på att du vill kasta det sparade passet? All data du fyllt i kommer att försvinna.",
+            confirmText: "Släng passet",
+            confirmColor: "red"
+        });
+        if (isConfirmed) {
             localStorage.removeItem(ACTIVE_LOG_STORAGE_KEY);
             setActiveSession(null);
         }
@@ -716,6 +755,11 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     if (isEditing) {
         return (
             <div className="w-full max-w-2xl mx-auto px-6 py-12 animate-fade-in pb-32">
+                <style>{`
+                    #user-background-layer { display: none !important; }
+                    #app-root-container { background-color: #ffffff !important; }
+                    html.dark #app-root-container { background-color: #000000 !important; }
+                `}</style>
                 <div className="flex justify-between items-center mb-10">
                     <h2 className="text-4xl font-black text-gray-900 dark:text-white uppercase tracking-tight">Redigera profil</h2>
                     {!isNewUser && (
@@ -739,6 +783,64 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             {isSaving && <div className="absolute inset-0 bg-white/50 dark:bg-black/50 flex items-center justify-center"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div></div>}
                         </div>
                         <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
+                    </div>
+
+                    {/* Bakgrundsbild */}
+                    <div className="flex flex-col items-center gap-4">
+                        <div 
+                            className="w-full h-32 sm:h-48 rounded-2xl bg-gray-100 dark:bg-gray-800 border-4 border-white dark:border-gray-900 shadow-xl flex items-center justify-center overflow-hidden cursor-pointer relative group"
+                            onClick={() => bgFileInputRef.current?.click()}
+                        >
+                            {backgroundImageUrl ? (
+                                <>
+                                    <img src={backgroundImageUrl} className="w-full h-full object-cover" />
+                                    <div className="absolute inset-0 block dark:hidden mix-blend-normal pointer-events-none" style={{ backgroundColor: `rgba(255,255,255,${backgroundOverlayOpacity / 100})` }}></div>
+                                    <div className="absolute inset-0 hidden dark:block mix-blend-normal pointer-events-none" style={{ backgroundColor: `rgba(0,0,0,${backgroundOverlayOpacity / 100})` }}></div>
+                                </>
+                            ) : (
+                                <div className="flex flex-col items-center text-gray-400">
+                                    <span className="text-sm font-bold uppercase tracking-widest mb-1">Bakgrundsbild</span>
+                                    <span className="text-xs">Klicka för att ladda upp</span>
+                                </div>
+                            )}
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <span className="text-white text-xs font-black uppercase tracking-widest">Ändra bakgrundsbild</span>
+                            </div>
+                            {isSaving && <div className="absolute inset-0 bg-white/50 dark:bg-black/50 flex items-center justify-center"><div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div></div>}
+                        </div>
+                        <input type="file" ref={bgFileInputRef} onChange={handleBgFileChange} accept="image/*" className="hidden" />
+                        {backgroundImageUrl && (
+                            <div className="flex flex-col items-center gap-4 w-full">
+                                <div className="w-full max-w-xs space-y-2">
+                                    <label className="flex justify-between text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-1">
+                                        <span>Dämpning av bakgrund</span>
+                                        <span>{backgroundOverlayOpacity}%</span>
+                                    </label>
+                                    <input 
+                                        type="range" 
+                                        min="0" 
+                                        max="100" 
+                                        value={backgroundOverlayOpacity} 
+                                        onChange={(e) => setBackgroundOverlayOpacity(Number(e.target.value))}
+                                        className="w-full accent-primary"
+                                    />
+                                    <p className="text-xs text-gray-500 text-center">Justerar hur mycket bilden skuggas för att öka kontrasten för meny och text.</p>
+                                </div>
+                                <button 
+                                    onClick={async () => {
+                                        if(window.confirm('Vill du ta bort bakgrundsbilden?')) {
+                                            setIsSaving(true);
+                                            setBackgroundImageUrl('');
+                                            await updateUserProfile(userData.uid, { backgroundImageUrl: '' });
+                                            setIsSaving(false);
+                                        }
+                                    }}
+                                    className="text-xs text-red-500 hover:text-red-700 font-bold uppercase tracking-widest transition-colors"
+                                >
+                                    Ta bort bakgrundsbild
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
@@ -805,7 +907,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     }
 
     return (
-        <div className="w-full max-w-4xl mx-auto px-1 sm:px-6 pt-2 pb-24 animate-fade-in">
+        <div className="w-full max-w-4xl mx-auto px-1 sm:px-6 pt-2 pb-24 animate-fade-in relative z-0">
             
             {/* 1. Resume Workout Banner */}
             {activeSession && (
@@ -818,7 +920,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
             {/* --- FLIKAR I HEADER --- */}
             {document.getElementById('member-header-tabs') && createPortal(
-                <div className="flex gap-2 sm:gap-4">
+                <div className="flex gap-2 sm:gap-4 transition-all" style={{ filter: userData.backgroundImageUrl ? 'drop-shadow(0px 2px 4px rgba(0,0,0,0.4))' : 'none' }}>
                     {[
                         { id: 'overview', label: 'Översikt', icon: ChartBarIcon },
                         { id: 'goals', label: 'Mål', icon: Target },
@@ -831,7 +933,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             className={`p-2 sm:p-2.5 rounded-full transition-all ${
                                 activeTab === tab.id 
                                 ? 'bg-primary/20 text-primary shadow-sm' 
-                                : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800'
+                                : `text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100/50 dark:hover:bg-gray-800/50 ${userData.backgroundImageUrl ? 'text-white/80 hover:text-white' : ''}`
                             }`}
                             title={tab.label}
                         >
@@ -864,7 +966,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             <div className="absolute -right-2 -bottom-2 text-white opacity-20 transform -rotate-12 transition-transform group-hover:scale-110">
                                 <ChartBarIcon className="w-16 h-16" />
                             </div>
-                            <span className="block text-[10px] font-black text-white/80 uppercase tracking-widest mb-1 relative z-10">Månad</span>
+                            <span className="block text-[10px] font-black text-white/80 uppercase tracking-widest mb-1 relative z-10">{new Date().toLocaleString('sv-SE', { month: 'long' })}</span>
                             <p className="text-3xl sm:text-4xl font-black text-white leading-none tracking-tight relative z-10">{stats.thisMonth}</p>
                         </div>
 
@@ -1036,7 +1138,8 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                     onClick={async () => {
                                         try {
                                             await updateUserProfile(userData.uid, { weeklyGoal: Number(weeklyGoal) });
-                                            alert("Veckomål sparat!");
+                                            setShowGoalSaved(true);
+                                            setTimeout(() => setShowGoalSaved(false), 3000);
                                         } catch (e) {
                                             console.error(e);
                                             alert("Kunde inte spara veckomål.");
@@ -1044,7 +1147,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                     }}
                                     className="px-6 py-3 bg-primary text-white font-bold rounded-xl hover:brightness-110 transition-colors shadow-sm"
                                 >
-                                    Spara
+                                    {showGoalSaved ? 'Sparat!' : 'Spara'}
                                 </button>
                             </div>
                         </div>
@@ -1097,13 +1200,30 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 }}
                                 className="w-full text-left bg-gray-50 dark:bg-gray-800 p-4 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center justify-between group"
                             >
-                                <div>
-                                    <h4 className="font-bold text-gray-900 dark:text-white mb-1">{log.workoutTitle || 'Pass'}</h4>
-                                    <p className="text-xs text-gray-500">
-                                        {new Date(log.date).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
-                                    </p>
+                                <div className="flex-1 w-full relative">
+                                    <h4 className="font-bold text-gray-900 dark:text-white mb-2">{log.workoutTitle || 'Pass'}</h4>
+                                    
+                                    {log.exerciseResults && log.exerciseResults.length > 0 && (
+                                        <div className="space-y-1 mb-6 text-sm text-gray-600 dark:text-gray-400 pr-8">
+                                            {log.exerciseResults.slice(0, 4).map((ex, i) => (
+                                                <div key={i} className="truncate">
+                                                    {ex.sets > 0 ? `${ex.sets}x ` : ''}{ex.exerciseName}
+                                                </div>
+                                            ))}
+                                            {log.exerciseResults.length > 4 && (
+                                                <div className="text-xs text-gray-400 italic mt-1">och {log.exerciseResults.length - 4} till...</div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-between items-center text-xs text-gray-500">
+                                        <span>{new Date(log.date).toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}</span>
+                                        {log.durationMinutes ? (
+                                            <span className="font-medium">{log.durationMinutes} min</span>
+                                        ) : null}
+                                    </div>
                                 </div>
-                                <div className="w-8 h-8 rounded-full bg-white dark:bg-gray-900 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors shadow-sm">
+                                <div className="ml-4 w-8 h-8 flex-shrink-0 rounded-full bg-white dark:bg-gray-900 flex items-center justify-center text-gray-400 group-hover:text-primary transition-colors shadow-sm self-start mt-1">
                                     <ChevronRightIcon className="w-4 h-4" />
                                 </div>
                             </button>

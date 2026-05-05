@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { BankExercise } from '../types';
-import { getExerciseBank, saveExerciseToBank, deleteExerciseFromBank } from '../services/firebaseService';
+import { getExerciseBank, saveExerciseToBank, deleteExerciseFromBank, mergeExercises } from '../services/firebaseService';
 import { generateExerciseSuggestions } from '../services/geminiService';
 // FIX: Safer import for react-window to handle both Vite and CDN environments
 import * as ReactWindow from 'react-window';
@@ -87,10 +87,86 @@ const ExerciseEditorModal: React.FC<ExerciseEditorModalProps> = ({ exercise, onS
     );
 };
 
+interface MergeModalProps {
+    sourceExercise: BankExercise;
+    bank: BankExercise[];
+    onMerge: (sourceId: string, targetId: string) => Promise<void>;
+    onClose: () => void;
+}
+
+const MergeModal: React.FC<MergeModalProps> = ({ sourceExercise, bank, onMerge, onClose }) => {
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isMerging, setIsMerging] = useState(false);
+    
+    const filteredBank = useMemo(() => {
+        const lower = searchTerm.toLowerCase();
+        return bank.filter(ex => 
+            ex.id !== sourceExercise.id && 
+            ex.name.toLowerCase().includes(lower)
+        );
+    }, [bank, searchTerm, sourceExercise.id]);
+
+    const handleMerge = async (targetId: string) => {
+        if (window.confirm(`Är du säker? Detta kommer att radera "${sourceExercise.name}" och ersätta den med den valda övningen i alla pass. Detta kan inte ångras.`)) {
+            setIsMerging(true);
+            try {
+                await onMerge(sourceExercise.id, targetId);
+                onClose();
+            } catch (e) {
+                alert("Ett fel inträffade vid sammanslagningen.");
+                setIsMerging(false);
+            }
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
+            <div className="bg-gray-800 rounded-xl p-6 w-full max-w-lg text-white shadow-2xl border-gray-700 flex flex-col max-h-[80vh]" onClick={e => e.stopPropagation()}>
+                <h2 className="text-2xl font-bold mb-2">Slå ihop övning</h2>
+                <p className="text-gray-400 mb-4">
+                    Välj vilken övning du vill slå ihop <strong className="text-white">{sourceExercise.name}</strong> med.
+                </p>
+                
+                <input 
+                    type="text" 
+                    value={searchTerm} 
+                    onChange={(e) => setSearchTerm(e.target.value)} 
+                    placeholder="Sök efter övning att behålla..." 
+                    className="w-full bg-black p-3 rounded mb-4" 
+                    disabled={isMerging} 
+                />
+                
+                <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
+                    {filteredBank.map(ex => (
+                        <div key={ex.id} className="bg-gray-900 p-3 rounded flex justify-between items-center">
+                            <span className="font-medium truncate mr-2">{ex.name}</span>
+                            <button 
+                                onClick={() => handleMerge(ex.id)} 
+                                disabled={isMerging}
+                                className="bg-primary text-white text-sm px-3 py-1 rounded whitespace-nowrap disabled:opacity-50"
+                            >
+                                Slå ihop hit
+                            </button>
+                        </div>
+                    ))}
+                    {filteredBank.length === 0 && (
+                        <p className="text-gray-500 text-center py-4">Inga övningar hittades.</p>
+                    )}
+                </div>
+                
+                <div className="mt-6">
+                    <button onClick={onClose} disabled={isMerging} className="w-full bg-gray-600 font-bold py-3 rounded">Avbryt</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
 export const OvningsbankContent: React.FC = () => {
     const [bank, setBank] = useState<BankExercise[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [editingExercise, setEditingExercise] = useState<BankExercise | null>(null);
+    const [mergingExercise, setMergingExercise] = useState<BankExercise | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [suggestions, setSuggestions] = useState<Partial<BankExercise>[]>([]);
     const [suggestionPrompt, setSuggestionPrompt] = useState('');
@@ -165,6 +241,10 @@ export const OvningsbankContent: React.FC = () => {
         await fetchBank();
     };
 
+    const handleMerge = async (sourceId: string, targetId: string) => {
+        await mergeExercises(sourceId, targetId);
+        await fetchBank();
+    };
 
     const Row = ({ index, style }: { index: number, style: React.CSSProperties }) => {
         const exercise = filteredBank[index];
@@ -176,6 +256,7 @@ export const OvningsbankContent: React.FC = () => {
                         <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{exercise.description}</p>
                     </div>
                     <div className="flex-shrink-0 flex gap-2">
+                        <button onClick={() => setMergingExercise(exercise)} className="text-sm bg-blue-600 hover:bg-blue-500 text-white font-semibold py-1 px-3 rounded">Slå ihop</button>
                         <button onClick={() => setEditingExercise(exercise)} className="text-sm bg-gray-600 hover:bg-gray-500 text-white font-semibold py-1 px-3 rounded">Redigera</button>
                         <button onClick={() => handleDelete(exercise)} className="text-sm bg-red-600 hover:bg-red-500 text-white font-semibold py-1 px-3 rounded">Ta bort</button>
                     </div>
@@ -235,6 +316,7 @@ export const OvningsbankContent: React.FC = () => {
             </div>
 
             {editingExercise && <ExerciseEditorModal exercise={editingExercise} onSave={handleSave} onClose={() => setEditingExercise(null)} />}
+            {mergingExercise && <MergeModal sourceExercise={mergingExercise} bank={bank} onMerge={handleMerge} onClose={() => setMergingExercise(null)} />}
         </div>
     );
 };

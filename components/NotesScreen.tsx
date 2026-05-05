@@ -1363,7 +1363,14 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             const workout = await parseWorkoutFromImage(base64Image, undefined, true, exerciseNames);
             setInterpretedWorkout(workout);
         } catch(e) {
-            setParseError(e instanceof Error ? e.message : 'Ett okänt fel inträffade.');
+            const errMsg = e instanceof Error ? e.message : 'Ett okänt fel inträffade.';
+            if (errMsg.includes('403') || errMsg.includes('PERMISSION_DENIED') || errMsg.includes('denied access')) {
+                setParseError("Det gick inte att generera passet just nu på grund av en åtkomstbegränsning till AI-motorn. Vänligen kontakta supporten om problemet kvarstår.");
+            } else if (errMsg.includes('503') || errMsg.includes('overloaded')) {
+                setParseError("AI-motorn är tillfälligt överbelastad. Vänligen vänta en minut och försök igen.");
+            } else {
+                setParseError("Kunde inte tyda whiteboarden. Vänligen försök igen med en tydligare bild. (Tekniskt fel: " + (errMsg.length > 50 ? errMsg.substring(0, 50) + "..." : errMsg) + ")");
+            }
         } finally {
             setIsInterpretingWorkout(false);
         }
@@ -1905,10 +1912,10 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md flex flex-col items-center justify-center z-50 p-4 text-center animate-fade-in">
                     <div className="bg-gray-800 p-8 rounded-2xl max-w-lg border border-gray-700 shadow-2xl relative">
                         <button onClick={() => setParseError(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white">✕</button>
-                        <div className="text-red-400 text-5xl mb-4">⚠️</div>
-                        <h2 className="text-2xl font-bold text-white mb-4">Ett fel uppstod</h2>
+                        <div className="text-orange-400 text-5xl mb-4">😅</div>
+                        <h2 className="text-2xl font-bold text-white mb-4">Oj då, något gick snett!</h2>
                         <p className="text-gray-300 font-medium mb-6">{parseError}</p>
-                        <button onClick={() => setParseError(null)} className="bg-primary px-6 py-3 rounded-xl font-bold text-white hover:bg-primary/90 w-full transition-colors">Förstått</button>
+                        <button onClick={() => setParseError(null)} className="bg-primary px-6 py-3 rounded-xl font-bold text-white hover:bg-primary/90 w-full transition-colors">Okej, jag förstår</button>
                     </div>
                 </div>
             )}

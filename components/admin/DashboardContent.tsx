@@ -301,7 +301,7 @@ const ManageWorkoutsView: React.FC<{
     workouts: Workout[];
     onEdit: (workout: Workout) => void;
     onDelete: (id: string) => void;
-    onDuplicate: (workout: Workout) => void;
+    onDuplicate: (workout: Workout, origin?: string) => void;
     onTogglePublish: (id: string, isPublished: boolean, silentPublish?: boolean) => void;
     onCopyToLibrary: (workout: Workout) => void;
     onBack: () => void;
@@ -542,7 +542,7 @@ const ManageWorkoutsView: React.FC<{
                                                     <PencilIcon className="w-4 h-4" />
                                                 </button>
                                                 <button 
-                                                    onClick={() => onDuplicate(workout)}
+                                                    onClick={() => onDuplicate(workout, 'admin')}
                                                     className="p-2 text-gray-400 hover:text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition-colors"
                                                     title="Kopiera pass"
                                                 >
@@ -749,7 +749,7 @@ const PassProgramContent: React.FC<DashboardContentProps & {
     onSaveWorkout: (workout: Workout) => Promise<Workout>;
     onDeleteWorkout: (id: string) => Promise<void>;
     onTogglePublish: (id: string, isPublished: boolean, silentPublish?: boolean) => void;
-    onDuplicateWorkout: (workout: Workout) => void;
+    onDuplicateWorkout: (workout: Workout, origin?: string) => void;
     setCustomBackHandler?: (handler: (() => void) | null) => void;
 }> = ({
     subView, setSubView, workoutToEdit, setWorkoutToEdit, isNewDraft, setIsNewDraft,

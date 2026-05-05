@@ -3,12 +3,13 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Workout, WorkoutLog } from '../types';
 import { useWorkout } from '../context/WorkoutContext';
 import { useStudio } from '../context/StudioContext';
-import { SearchIcon, DumbbellIcon, ClockIcon, TrashIcon, TrophyIcon, CloseIcon } from './icons';
+import { SearchIcon, DumbbellIcon, ClockIcon, TrashIcon, TrophyIcon, CloseIcon, ToggleSwitch, LockIcon } from './icons';
 import { useAuth } from '../context/AuthContext';
-import { fetchCustomPrograms, deleteCustomProgram, getMemberLogs } from '../services/firebaseService';
+import { fetchCustomPrograms, deleteCustomProgram, getMemberLogs, updateUserProfile } from '../services/firebaseService';
 import WorkoutDetailScreen from './WorkoutDetailScreen';
 import { LineChart, Line, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Modal } from './ui/Modal';
+import { PasswordModal } from './PasswordModal';
 
 interface WorkoutListScreenProps {
     passkategori?: string;
@@ -17,13 +18,20 @@ interface WorkoutListScreenProps {
 
 export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkategori, onSelectWorkout }) => {
     const { workouts } = useWorkout();
-    const { isStudioMode, currentUser } = useAuth();
-    const { studioConfig } = useStudio();
+    const { isStudioMode, currentUser, userData } = useAuth();
+    const { studioConfig, selectedOrganization } = useStudio();
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<'alla' | 'mina'>('alla');
     const [customPrograms, setCustomPrograms] = useState<Workout[]>([]);
     const [programToDelete, setProgramToDelete] = useState<Workout | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    
+    // Category filter state
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(passkategori || null);
+    const [showPasswordModal, setShowPasswordModal] = useState(false);
+    const [pendingCategory, setPendingCategory] = useState<string | null>(null);
+    const [passwordInput, setPasswordInput] = useState("");
+    const [passwordError, setPasswordError] = useState(false);
     
     // Member Logs for PBs
     const [memberLogs, setMemberLogs] = useState<WorkoutLog[]>([]);
@@ -52,10 +60,10 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
     }, [currentUser?.uid, activeTab]);
 
     const filteredWorkouts = useMemo(() => {
-        const sourceWorkouts = (!passkategori && activeTab === 'mina') ? customPrograms : workouts;
+        const sourceWorkouts = (!selectedCategory && activeTab === 'mina') ? customPrograms : workouts;
 
         return sourceWorkouts.filter(w => {
-            const matchesCategory = !passkategori || w.category === passkategori;
+            const matchesCategory = !selectedCategory || w.category === selectedCategory;
             const matchesSearch = (w.title || '').toLowerCase().includes(searchTerm.toLowerCase()) || 
                                 (w.coachTips && (w.coachTips || '').toLowerCase().includes(searchTerm.toLowerCase()));
             
@@ -69,13 +77,14 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                     if (w.showInStudio === false) return false;
                 } else {
                     if (w.showInApp === false) return false;
-                    if (isCategoryLocked) return false;
+                    // Dölj låsta kategorier om de inte är den valda kategorin
+                    if (isCategoryLocked && w.category !== selectedCategory) return false;
                 }
             }
 
             return w.isPublished && matchesCategory && matchesSearch;
         });
-    }, [workouts, customPrograms, passkategori, searchTerm, isStudioMode, studioConfig, activeTab]);
+    }, [workouts, customPrograms, selectedCategory, searchTerm, isStudioMode, studioConfig, activeTab]);
     
     const renderWorkoutCard = (workout: Workout, isLoggable: boolean) => {
         if (isStudioMode) {
@@ -121,16 +130,16 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                 onClick={() => {
                     setSelectedWorkoutHistory(workout);
                 }}
-                className={`cursor-pointer group relative overflow-hidden rounded-[2.5rem] p-8 transition-all bg-white dark:bg-[#0f141e] border-2 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 shadow-xl flex flex-col`}
+                className={`cursor-pointer group relative overflow-hidden rounded-2xl p-4 sm:p-5 transition-all bg-white dark:bg-[#0f141e] border-2 border-gray-200 dark:border-gray-800 hover:border-gray-300 dark:hover:border-gray-700 shadow-md flex flex-col`}
                 style={{ touchAction: 'manipulation' }}
             >
                 {/* Decorative Background */}
                 <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
 
                 <div className="relative z-10 flex-grow flex flex-col">
-                    <div className="flex justify-between items-start mb-6 w-full">
+                    <div className="flex justify-between items-start mb-3 w-full">
                         <div className="flex items-center gap-2 flex-1 pr-2">
-                             <h3 className="text-xl font-bold text-gray-900 dark:text-white leading-tight">
+                             <h3 className="text-base font-bold text-gray-900 dark:text-white leading-tight">
                                  {workout.title || 'Namnlöst pass'}
                              </h3>
                         </div>
@@ -141,15 +150,15 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                         e.stopPropagation();
                                         setProgramToDelete(workout);
                                     }}
-                                    className="p-2 bg-gray-100 dark:bg-gray-800/80 backdrop-blur-sm text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-full transition-colors z-40 cursor-pointer border border-gray-200 dark:border-gray-700 hover:scale-105 active:scale-95"
+                                    className="p-1.5 bg-gray-100 dark:bg-gray-800/80 backdrop-blur-sm text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-full transition-colors z-40 cursor-pointer border border-gray-200 dark:border-gray-700 hover:scale-105 active:scale-95"
                                     aria-label="Radera pass"
                                 >
                                     <TrashIcon className="w-4 h-4" />
                                 </button>
                             )}
                             {workout.benchmarkId && (
-                                <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 px-2.5 py-2.5 rounded-xl border border-yellow-300/30 dark:border-yellow-500/20 shadow-sm">
-                                    <TrophyIcon className="w-5 h-5" />
+                                <div className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-600 dark:text-yellow-400 px-2 py-2 rounded-xl border border-yellow-300/30 dark:border-yellow-500/20 shadow-sm">
+                                    <TrophyIcon className="w-4 h-4" />
                                 </div>
                             )}
                         </div>
@@ -157,36 +166,36 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                     
                     <>
                         {attempts > 0 ? (
-                            <div className="flex flex-col justify-end mt-4">
+                            <div className="flex flex-col justify-end mt-2">
                                 {pbVolume && pbVolume > 0 ? (
-                                    <p className="text-[2.5rem] leading-none font-black text-gray-900 dark:text-white tracking-tight">
-                                        {pbVolume.toLocaleString('sv-SE')} <span className="text-lg text-gray-500 font-bold ml-1">kg</span>
+                                    <p className="text-2xl sm:text-3xl leading-none font-black text-gray-900 dark:text-white tracking-tight">
+                                        {pbVolume.toLocaleString('sv-SE')} <span className="text-sm text-gray-500 font-bold ml-1">kg</span>
                                     </p>
                                 ) : (
-                                    <p className="text-3xl font-black text-gray-900 dark:text-white tracking-tight mb-1">Genomfört</p>
+                                    <p className="text-xl font-black text-gray-900 dark:text-white tracking-tight mb-1">Genomfört</p>
                                 )}
-                                <p className="text-[11px] text-gray-500 mt-4 uppercase tracking-widest font-black flex items-center gap-2">
+                                <p className="text-[10px] text-gray-500 mt-1 uppercase tracking-widest font-black flex items-center gap-1">
                                     {latestDate} • {attempts} FÖRSÖK 
                                 </p>
                             </div>
                         ) : (
-                            <div className="flex flex-col justify-end mt-4">
-                                 <p className="text-[2.5rem] leading-none font-black text-gray-300 dark:text-gray-700 tracking-tight">
+                            <div className="flex flex-col justify-end mt-2">
+                                 <p className="text-2xl sm:text-3xl leading-none font-black text-gray-300 dark:text-gray-700 tracking-tight">
                                      -
                                  </p>
-                                 <p className="text-[11px] text-gray-400 dark:text-gray-600 mt-4 uppercase tracking-widest font-black">
+                                 <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-1 uppercase tracking-widest font-black">
                                      INGA FÖRSÖK ÄN
                                  </p>
                             </div>
                         )}
 
-                        <div className="flex gap-2 w-full mt-8 relative z-20">
+                        <div className="flex gap-2 w-full mt-4 relative z-20">
                              <button
                                  onClick={(e) => {
                                      e.stopPropagation();
                                      onSelectWorkout(workout, 'view');
                                  }}
-                                 className="flex-1 py-3 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-800 dark:text-white rounded-2xl text-xs font-black uppercase tracking-widest transition-colors shadow-sm"
+                                 className="flex-1 py-1.5 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-800 dark:text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-colors shadow-sm"
                              >
                                  Visa
                              </button>
@@ -196,12 +205,12 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                          e.stopPropagation();
                                          onSelectWorkout(workout, 'log');
                                      }}
-                                     className="flex-1 py-3 bg-primary text-white hover:bg-primary/90 rounded-2xl text-xs font-black uppercase tracking-widest transition-colors shadow-sm"
+                                     className="flex-1 py-1.5 bg-primary text-white hover:bg-primary/90 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors shadow-sm"
                                  >
                                      Logga
                                  </button>
                              )}
-                        </div>
+                         </div>
                     </>
                 </div>
                 
@@ -213,51 +222,99 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
     };
 
     return (
-        <div className="w-full max-w-5xl mx-auto px-6 pb-12 animate-fade-in">
+        <div className="w-full max-w-5xl mx-auto px-4 sm:px-6 pb-20 animate-fade-in">
             {!passkategori && (
-                <div className="text-center mb-6">
-                    <h1 className="text-5xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
+                <div className="mb-4">
+                    <h1 className="text-2xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">
                         Välj Träningspass
                     </h1>
-                    <div className="h-1.5 w-24 bg-primary mx-auto rounded-full mb-8"></div>
-                    
-                    <div className="flex items-center justify-center gap-2 mb-8">
+                    <div className="flex items-center gap-2 mb-4 w-full">
                         <button
                             onClick={() => setActiveTab('alla')}
-                            className={`px-6 py-2.5 rounded-full font-black uppercase tracking-widest text-sm transition-all ${
+                            className={`flex-1 py-2 px-2 rounded-full font-bold uppercase tracking-wide text-xs transition-all ${
                                 activeTab === 'alla'
-                                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-lg'
+                                    ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-md'
                                     : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
                             }`}
                         >
-                            Studions Pass
+                            Alla Pass
                         </button>
                         <button
                             onClick={() => setActiveTab('mina')}
-                            className={`px-6 py-2.5 rounded-full font-black uppercase tracking-widest text-sm transition-all ${
+                            className={`flex-1 py-2 px-2 rounded-full font-bold uppercase tracking-wide text-xs transition-all ${
                                 activeTab === 'mina'
-                                    ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                                    ? 'bg-primary text-white shadow-md'
                                     : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
                             }`}
                         >
-                            Mina Program ({customPrograms.length})
+                            Mina ({customPrograms.length})
                         </button>
                     </div>
                 </div>
             )}
 
-            {/* Sökfält */}
-            <div className="relative max-w-xl mx-auto mb-12">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <SearchIcon className="h-6 w-6 text-gray-400" />
+            {/* Sökfält & Inställningar */}
+            <div className="relative max-w-xl mx-auto mb-6 space-y-3">
+                <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <SearchIcon className="h-4 w-4 text-gray-400" />
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Sök på pass..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="block w-full pl-9 pr-4 py-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary/20 focus:border-primary shadow-sm transition-all text-sm"
+                    />
                 </div>
-                <input
-                    type="text"
-                    placeholder="Sök på passets namn..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="block w-full pl-12 pr-4 py-5 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-3xl text-gray-900 dark:text-white placeholder-gray-400 focus:ring-4 focus:ring-primary/10 focus:border-primary shadow-xl transition-all text-lg"
-                />
+                
+                {activeTab === 'alla' && !isStudioMode && studioConfig?.customCategories && studioConfig.customCategories.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pb-1 pt-1 px-1">
+                        <button
+                            onClick={() => setSelectedCategory(null)}
+                            className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1 border
+                                ${!selectedCategory 
+                                    ? 'bg-primary text-white border-primary shadow-sm' 
+                                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                        >
+                            Alla
+                        </button>
+                        {studioConfig.customCategories.map(cat => (
+                            <button
+                                key={cat.id || cat.name}
+                                onClick={() => {
+                                    if (cat.isLocked && cat.name !== selectedCategory) {
+                                        setPendingCategory(cat.name);
+                                        setShowPasswordModal(true);
+                                    } else {
+                                        setSelectedCategory(cat.name);
+                                    }
+                                }}
+                                className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1 border
+                                    ${selectedCategory === cat.name 
+                                        ? 'bg-primary text-white border-primary shadow-sm' 
+                                        : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                            >
+                                {cat.name}
+                                {cat.isLocked && <LockIcon className="w-3 h-3 opacity-70" />}
+                            </button>
+                        ))}
+                    </div>
+                )}
+                
+                {activeTab === 'mina' && !isStudioMode && currentUser?.uid && userData && (
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-700">
+                        <ToggleSwitch
+                            label="Använd Pre-game på mina pass"
+                            description="Få en dagsforms-koll innan passet startar. Om avstängt går du direkt till dina pass."
+                            checked={userData.usePreGameForCustomWorkouts !== false}
+                            onChange={(val) => {
+                                updateUserProfile(currentUser.uid, { usePreGameForCustomWorkouts: val })
+                                    .catch(err => console.error("Error saving preference:", err));
+                            }}
+                        />
+                    </div>
+                )}
             </div>
 
             {filteredWorkouts.length > 0 ? (
@@ -470,6 +527,19 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                         </div>
                     </div>
                 </Modal>
+            )}
+
+            {showPasswordModal && (
+                <PasswordModal
+                    coachPassword={selectedOrganization?.passwords.coach}
+                    onClose={() => setShowPasswordModal(false)}
+                    onSuccess={() => {
+                        setShowPasswordModal(false);
+                        if (pendingCategory) {
+                            setSelectedCategory(pendingCategory);
+                        }
+                    }}
+                />
             )}
         </div>
     );

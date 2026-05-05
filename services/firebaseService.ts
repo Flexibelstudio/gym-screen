@@ -451,34 +451,46 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
             for (const exResult of logData.exerciseResults) {
                 let bestSet: { weight: number, reps: number, oneRm: number } | null = null;
                 
-                if (exResult.setDetails) {
-                    exResult.setDetails.forEach((s: any) => {
-                        const w = parseFloat(s.weight);
-                        const r = parseFloat(s.reps);
-                        if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0 && r <= 10) {
-                            const oneRm = calculate1RM(w, r);
-                            if (oneRm && (!bestSet || oneRm > bestSet.oneRm)) {
-                                bestSet = { weight: w, reps: r, oneRm };
-                            }
+                const processSet = (wVal: any, rVal: any) => {
+                    const w = parseFloat(wVal) || 0;
+                    const r = parseFloat(rVal) || 0;
+                    
+                    if (r > 0 || w > 0) {
+                        let oneRm = 0;
+                        if (w > 0 && r > 0 && r <= 10) {
+                            oneRm = calculate1RM(w, r) || 0;
                         }
-                    });
-                } else if (exResult.weight && exResult.reps) {
-                    const w = parseFloat(exResult.weight);
-                    const r = parseFloat(exResult.reps);
-                    if (!isNaN(w) && !isNaN(r) && w > 0 && r > 0 && r <= 10) {
-                        const oneRm = calculate1RM(w, r);
-                        if (oneRm) {
+                        
+                        const currentScore = oneRm > 0 ? oneRm * 10000 : (w > 0 ? w * 100 + r : r);
+                        const bestScore = bestSet ? (bestSet.oneRm > 0 ? bestSet.oneRm * 10000 : (bestSet.weight > 0 ? bestSet.weight * 100 + bestSet.reps : bestSet.reps)) : -1;
+                        
+                        if (currentScore > bestScore) {
                             bestSet = { weight: w, reps: r, oneRm };
                         }
                     }
+                };
+
+                if (exResult.setDetails && exResult.setDetails.length > 0) {
+                    exResult.setDetails.forEach((s: any) => processSet(s.weight, s.reps));
+                } else if (exResult.weight || exResult.reps) {
+                    processSet(exResult.weight, exResult.reps);
                 }
 
                 if (bestSet && exResult.exerciseName) {
                     const pbId = getPBId(exResult.exerciseName);
-                    // Fallback to weight if calculated1RM is missing for older records
-                    const existingPBOneRm = currentPBs[pbId]?.calculated1RM || currentPBs[pbId]?.weight || 0; 
+                    
+                    const existingPB = currentPBs[pbId];
+                    let existingScore = -1;
+                    if (existingPB) {
+                        const ew = existingPB.weight || 0;
+                        const er = existingPB.reps || 0;
+                        const eRm = existingPB.calculated1RM || 0;
+                        existingScore = eRm > 0 ? eRm * 10000 : (ew > 0 ? ew * 100 + er : er);
+                    }
 
-                    if (bestSet.oneRm > existingPBOneRm) {
+                    const newScore = bestSet.oneRm > 0 ? bestSet.oneRm * 10000 : (bestSet.weight > 0 ? bestSet.weight * 100 + bestSet.reps : bestSet.reps);
+
+                    if (newScore > existingScore) {
                         const pbData: PersonalBest = { 
                             id: pbId, 
                             exerciseName: exResult.exerciseName.trim(), 
@@ -489,12 +501,25 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                         };
                         batch.set(doc(db, 'users', logData.memberId, 'personalBests', pbId), pbData);
                         
+                        // For pure reps exercises, diff can just be the difference in reps.
+                        // Or if 1RM exists, the difference in 1RM.
+                        let computedDiff = 0;
+                        if (bestSet.oneRm > 0 && existingPB && existingPB.calculated1RM) {
+                            computedDiff = parseFloat((bestSet.oneRm - existingPB.calculated1RM).toFixed(2));
+                        } else if (bestSet.weight === 0 && existingPB && existingPB.weight === 0) {
+                            computedDiff = bestSet.reps - (existingPB.reps || 0);
+                        } else if (bestSet.weight > 0 && (!existingPB || existingPB.weight === 0)) {
+                            computedDiff = bestSet.weight;
+                        } else if (existingPB && bestSet.weight > existingPB.weight) {
+                            computedDiff = bestSet.weight - existingPB.weight;
+                        }
+
                         newRecords.push({
                             exerciseName: exResult.exerciseName.trim(),
-                            weight: bestSet.weight, // Keep actual weight for UI
+                            weight: bestSet.weight, 
                             reps: bestSet.reps,
                             calculated1RM: bestSet.oneRm,
-                            diff: parseFloat((bestSet.oneRm - existingPBOneRm).toFixed(2))
+                            diff: computedDiff
                         });
                     }
                 }
@@ -709,6 +734,21 @@ export const updatePersonalBest = async (userId: string, exerciseName: string, w
     try {
         await setDoc(doc(db, 'users', userId, 'personalBests', pbId), { id: pbId, exerciseName: exerciseName.trim(), weight, date: Date.now() });
     } catch (e) { console.error("updatePersonalBest failed", e); }
+};
+
+export const resetPersonalBest = async (userId: string, exerciseName: string) => {
+    if (isOffline || !db || !userId) return;
+    const pbId = getPBId(exerciseName);
+    try {
+        await setDoc(doc(db, 'users', userId, 'personalBests', pbId), { 
+            id: pbId, 
+            exerciseName: exerciseName.trim(), 
+            weight: 0, 
+            reps: 0,
+            calculated1RM: 0,
+            date: Date.now() 
+        });
+    } catch (e) { console.error("resetPersonalBest failed", e); }
 };
 
 export const listenForStudioEvents = (orgId: string, callback: (event: StudioEvent) => void) => {
@@ -1177,6 +1217,55 @@ export const getExerciseBank = async (): Promise<BankExercise[]> => {
         const snap = await getDocs(query(collection(db, 'exerciseBank'), orderBy('name')));
         return snap.docs.map(d => d.data() as BankExercise);
     } catch (e) { return MOCK_EXERCISE_BANK; }
+};
+
+export const getMemberCustomExercises = async (userId: string): Promise<BankExercise[]> => {
+    if (isOffline || !db || !userId) return [];
+    try {
+        const snap = await getDocs(query(collection(db, 'users', userId, 'customExercises')));
+        return snap.docs.map(d => {
+            const data = d.data() as BankExercise;
+            return {
+                ...data,
+                name: data.name // Keep original name
+            };
+        });
+    } catch (e) { 
+        console.error("Failed to fetch member custom exercises", e);
+        return []; 
+    }
+};
+
+export const addMemberCustomExercise = async (userId: string, exerciseName: string): Promise<BankExercise> => {
+    if (!db) throw new Error("DB ej tillgänglig");
+    
+    // We shouldn't use organizationId for member custom, we just let it be a personal custom collection
+    const exercisesRef = collection(db, 'users', userId, 'customExercises');
+    const newDocRef = doc(exercisesRef); // Generate auto id
+    
+    const newExercise: BankExercise = {
+        id: newDocRef.id,
+        name: exerciseName,
+        category: 'Custom Egen',
+        trackingFields: ['weight', 'reps', 'duration', 'distance', 'heartRate', 'calories'],
+        description: 'Egen skapad övning.',
+        videoLinks: []
+    };
+
+    await setDoc(newDocRef, newExercise);
+    return newExercise;
+};
+
+export const deleteMemberCustomExercise = async (userId: string, exerciseId: string): Promise<void> => {
+    if (!db) throw new Error("DB ej tillgänglig");
+    await deleteDoc(doc(db, 'users', userId, 'customExercises', exerciseId));
+};
+
+export const updateMemberCustomExercise = async (userId: string, exerciseId: string, newName: string): Promise<void> => {
+    if (!db) throw new Error("DB ej tillgänglig");
+    await updateDoc(doc(db, 'users', userId, 'customExercises', exerciseId), {
+        name: newName
+    });
 };
 
 export const getOrganizationExerciseBank = async (orgId: string): Promise<BankExercise[]> => {

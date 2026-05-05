@@ -52,6 +52,7 @@ import { WorkoutDiplomaView } from './components/WorkoutDiplomaView';
 // --- Modals ---
 import { BirthDatePromptModal } from './components/modals/BirthDatePromptModal';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
+import { CoachWorkoutPreviewModal } from './components/CoachWorkoutPreviewModal';
 
 const THEME_STORAGE_KEY = 'flexibel-screen-theme';
 
@@ -375,6 +376,7 @@ const App: React.FC = () => {
   const [racePrepState, setRacePrepState] = useState<{ groups: StartGroup[]; interval: number } | null>(null);
   const [activeRaceId, setActiveRaceId] = useState<string | null>(null);
   const [isEditingNewDraft, setIsEditingNewDraft] = useState(false);
+  const [returnToAdminOnSave, setReturnToAdminOnSave] = useState(false);
   const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
   const [customPageToEdit, setCustomPageToEdit] = useState<CustomPage | null>(null);
   const [studioToEditConfig, setStudioToEditConfig] = useState<Studio | null>(null);
@@ -392,6 +394,7 @@ const App: React.FC = () => {
   const [mobileLogData, setMobileLogData] = useState<{workoutId: string, organizationId: string, source?: 'qr_scan' | 'manual'} | null>(null);
   const [mobileViewData, setMobileViewData] = useState<Workout | null>(null); 
   const [isSearchWorkoutOpen, setIsSearchWorkoutOpen] = useState(false);
+  const [isCoachPreviewOpen, setIsCoachPreviewOpen] = useState(false);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [activeDiploma, setActiveDiploma] = useState<WorkoutDiploma | null>(null);
   const [showBirthDatePrompt, setShowBirthDatePrompt] = useState(false);
@@ -405,13 +408,13 @@ const App: React.FC = () => {
   }, [userData, isStudioMode]);
 
   useEffect(() => {
-      if (mobileLogData || mobileViewData || isSearchWorkoutOpen || isScannerOpen || activeDiploma) {
+      if (mobileLogData || mobileViewData || isSearchWorkoutOpen || isCoachPreviewOpen || isScannerOpen || activeDiploma) {
           document.body.style.overflow = 'hidden';
       } else {
           document.body.style.overflow = '';
       }
       return () => { document.body.style.overflow = ''; };
-  }, [mobileLogData, mobileViewData, isSearchWorkoutOpen, isScannerOpen, activeDiploma]);
+  }, [mobileLogData, mobileViewData, isSearchWorkoutOpen, isCoachPreviewOpen, isScannerOpen, activeDiploma]);
 
   const [theme, setTheme] = useState(() => {
     const savedTheme = localStorage.getItem(THEME_STORAGE_KEY);
@@ -705,7 +708,13 @@ const App: React.FC = () => {
             navigateReplace(Page.WorkoutDetail);
         } else if (isEditingNewDraft) {
             setIsEditingNewDraft(false);
-            navigateReplace(Page.WorkoutDetail);
+            if (returnToAdminOnSave) {
+                setReturnToAdminOnSave(false);
+                handleBack();
+                setPreferredAdminTab('pass-program');
+            } else {
+                navigateReplace(Page.WorkoutDetail);
+            }
         } else {
             handleBack();
             setPreferredAdminTab('pass-program');
@@ -821,7 +830,8 @@ const App: React.FC = () => {
     if (workout.blocks.length > 0) handleStartBlock(workout.blocks[0], workout);
   };
   
-  const handleDuplicateWorkout = (workoutToCopy: Workout) => {
+  const handleDuplicateWorkout = (workoutToCopy: Workout, origin?: string) => {
+    if (origin === 'admin') setReturnToAdminOnSave(true);
     const newDraft = deepCopyAndPrepareAsNew(workoutToCopy);
     setActiveWorkout(newDraft);
     setIsEditingNewDraft(true);
@@ -856,6 +866,10 @@ const App: React.FC = () => {
     else navigateTo(Page.Coach);
   };
   
+  const handlePreviewWorkoutsRequest = () => {
+    setIsCoachPreviewOpen(true);
+  };
+
   const handleSelectCustomPage = (page: CustomPage) => {
     setActiveCustomPage(page);
     navigateTo(Page.CustomContent);
@@ -1311,8 +1325,49 @@ const App: React.FC = () => {
       );
   }
 
+  // --- DIN NYA FALLBACK-SPÄRR FÖR SKÄRMAR ---
+  const savedOrgId = localStorage.getItem('ny-screen-selected-org');
+  const isAmnesiaScreen = isStudioMode && !savedOrgId;
+
+  if (isAmnesiaScreen) {
+      return (
+          <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
+              <img src="/favicon.png" alt="SmartStudio" className="w-24 h-24 mb-6 rounded-2xl shadow-lg opacity-50" />
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Skärmens koppling saknas</h2>
+              <p className="text-gray-500 max-w-md mx-auto mb-8 text-lg">
+                  Webbläsarens historik har rensats och skärmen vet inte längre vilket gym den tillhör. 
+                  Vänligen logga ut för att ställa in skärmen på nytt.
+              </p>
+              <button 
+                  onClick={() => signOut()} 
+                  className="px-8 py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl text-lg shadow-xl transition-all"
+              >
+                  Logga ut och ställ in på nytt
+              </button>
+          </div>
+      );
+  }
+  // --- SLUT PÅ SPÄRR ---
+
+  const showUserBackground = page === Page.MemberProfile && !!userData?.backgroundImageUrl;
+  const backgroundOverlayOpacity = userData?.backgroundOverlayOpacity ?? 20;
+
   return (
-    <div className={`bg-white dark:bg-black text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
+    <div id="app-root-container" className={`${showUserBackground ? 'bg-transparent' : 'bg-white dark:bg-black'} text-gray-800 dark:text-gray-200 font-sans flex flex-col ${isStudioMode && page === Page.Home ? 'h-screen overflow-hidden' : 'min-h-screen'} ${paddingClass}`}>
+        {showUserBackground && (
+            <div id="user-background-layer" className="fixed inset-0 z-[-1]">
+                <img src={userData.backgroundImageUrl} alt="Background" className="w-full h-full object-cover" />
+                <div 
+                    className="absolute inset-0 pointer-events-none mix-blend-normal" 
+                    style={{ backgroundColor: theme === 'dark' ? `rgba(0,0,0,${backgroundOverlayOpacity / 100})` : `rgba(255,255,255,${backgroundOverlayOpacity / 100})` }}
+                ></div>
+                {/* Mjuk gradient i överkant för att säkra ikonernas läsbarhet, också kopplad till opaciteten (minst viss procent för att alltid säkra ikoner) */}
+                <div 
+                    className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-white to-transparent dark:from-black dark:to-transparent pointer-events-none mix-blend-normal"
+                    style={{ opacity: Math.max(0.6, backgroundOverlayOpacity / 100) }}
+                ></div>
+            </div>
+        )}
        {isOffline && (
             <div className="bg-red-500 text-white text-xs font-bold uppercase tracking-widest py-2 px-4 flex justify-center items-center gap-2 fixed top-0 w-full z-[10000] shadow-md">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -1346,6 +1401,7 @@ const App: React.FC = () => {
        <div className={(isAnyModalOpen || showPaywall || showWelcomePaywall || showPendingCoach || !(page === Page.Timer || !isFullScreenPage)) ? 'hidden' : 'contents'}>
            <Header 
             page={page} 
+            hasBackgroundImage={showUserBackground}
             onBack={handleBack} 
             theme={theme}
             toggleTheme={toggleTheme}
@@ -1357,6 +1413,7 @@ const App: React.FC = () => {
             showClock={isStudioMode && (page === Page.WorkoutDetail)}
             hideBackButton={isBackButtonHidden}
             onCoachAccessRequest={handleCoachAccessRequest}
+            onPreviewWorkoutsRequest={isAdminOrCoach ? handlePreviewWorkoutsRequest : undefined}
             showCoachButton={isStudioMode}
             onMemberProfileRequest={handleMemberProfileRequest} 
             onEditProfileRequest={handleEditProfileRequest}
@@ -1526,6 +1583,17 @@ const App: React.FC = () => {
                       </div>
                   </motion.div>
               </>
+          )}
+
+          {isCoachPreviewOpen && (
+              <CoachWorkoutPreviewModal 
+                  isOpen={isCoachPreviewOpen}
+                  onClose={() => setIsCoachPreviewOpen(false)}
+                  workouts={workouts}
+                  onPreviewWorkout={(workout) => {
+                      setMobileViewData(workout);
+                  }}
+              />
           )}
       </AnimatePresence>
 
