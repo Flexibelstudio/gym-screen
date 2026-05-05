@@ -124,7 +124,7 @@ export const LocationsContent: React.FC<LocationsContentProps> = ({ organization
 
     return (
          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
-            {toast.visible && <Toast message={toast.message} onClose={() => setToast({ ...toast, visible: false })} />}
+            {toast.visible && <Toast message={toast.message} isVisible={toast.visible} onClose={() => setToast({ ...toast, visible: false })} />}
             <div className="p-6 sm:p-8 border-b border-gray-100 dark:border-gray-700">
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Studios / Orter</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Lägg till dina olika studios och bjud in team & medlemmar till respektive studio. För att bjuda in och använda loggningen för medlemmar måste Passloggning först aktiveras i inställningarna.</p>
@@ -135,14 +135,8 @@ export const LocationsContent: React.FC<LocationsContentProps> = ({ organization
                     <div key={loc.id} className="bg-white dark:bg-gray-800 p-5 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm">
                         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
                             <div className="flex items-center gap-4 flex-grow">
-                                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold flex-shrink-0 text-xl border border-primary/20">
-                                    {loc.name[0].toUpperCase()}
-                                </div>
                                 <div>
-                                    <p className="font-bold text-xl text-gray-900 dark:text-white">{loc.name}</p>
-                                    <p className="text-xs text-gray-400 uppercase tracking-wider mt-1">
-                                        Fristående Ort/Studio
-                                    </p>
+                                    <p className="font-bold text-2xl text-gray-900 dark:text-white">{loc.name}</p>
                                 </div>
                             </div>
                             
@@ -161,7 +155,7 @@ export const LocationsContent: React.FC<LocationsContentProps> = ({ organization
                                             {!organization.globalConfig?.enableWorkoutLogging && (
                                                 <div 
                                                     className="absolute inset-0 z-20 cursor-pointer" 
-                                                    onClick={() => alert("Aktivera Passloggning i Globala Inställningar först för att låsa upp medlemsinbjudningar på studios.")}
+                                                    onClick={() => setToast({ message: "Aktivera Passloggning först för att låsa upp medlemsinbjudningar.", visible: true, type: 'error' } as any)}
                                                 />
                                             )}
                                             <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Medlemskod</span>
