@@ -87,11 +87,11 @@ const RoleSwitcher: React.FC<{
                 value={currentRole}
                 onChange={handleChange}
                 disabled={isUpdating}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none bg-transparent"
             >
-                <option value="member">Medlem</option>
-                <option value="coach">Coach</option>
-                <option value="organizationadmin">Admin</option>
+                <option value="member" className="text-gray-900 dark:text-white dark:bg-gray-800">Medlem</option>
+                <option value="coach" className="text-gray-900 dark:text-white dark:bg-gray-800">Coach</option>
+                <option value="organizationadmin" className="text-gray-900 dark:text-white dark:bg-gray-800">Admin</option>
             </select>
         </div>
     );
@@ -144,7 +144,7 @@ const LocationSwitcher: React.FC<{
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none bg-transparent"
             >
                 {locations.map(loc => (
-                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                    <option key={loc.id} value={loc.id} className="text-gray-900 dark:text-white dark:bg-gray-800">{loc.name}</option>
                 ))}
             </select>
         </div>
