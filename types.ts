@@ -237,6 +237,8 @@ export interface Location {
   id: string;
   name: string;
   createdAt?: number;
+  inviteCode?: string;
+  coachCode?: string;
 }
 
 export interface CompanyDetails {
@@ -317,6 +319,7 @@ export interface Organization {
   companyDetails?: CompanyDetails;
   inviteCode?: string;
   coachCode?: string;
+  inviteCodes?: string[]; // Includes location-specific codes for querying
   maxFreeCoaches?: number;
   lastActiveAt?: number;
   discountType?: 'percentage' | 'fixed';

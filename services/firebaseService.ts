@@ -356,15 +356,37 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
     let snap = await getDocs(q);
     
     let isCoach = false;
+    let targetLocationId: string | undefined = undefined;
     
     // If not found, check for coach code
     if (snap.empty) {
         q = query(collection(db, 'organizations'), where('coachCode', '==', upperCode));
         snap = await getDocs(q);
-        if (snap.empty) {
-            throw new Error("Ogiltig inbjudningskod.");
+        if (!snap.empty) {
+            isCoach = true;
         }
-        isCoach = true;
+    }
+
+    // Try location codes
+    if (snap.empty) {
+        q = query(collection(db, 'organizations'), where('inviteCodes', 'array-contains', upperCode));
+        snap = await getDocs(q);
+        if (!snap.empty) {
+            const orgData = snap.docs[0].data() as Organization;
+            const loc = orgData.locations?.find(l => l.inviteCode === upperCode || l.coachCode === upperCode);
+            if (loc) {
+                targetLocationId = loc.id;
+                if (loc.coachCode === upperCode) {
+                    isCoach = true;
+                }
+            } else {
+                throw new Error("Ogiltig inbjudningskod.");
+            }
+        }
+    }
+
+    if (snap.empty) {
+        throw new Error("Ogiltig inbjudningskod.");
     }
     
     const organizationId = snap.docs[0].id;
@@ -378,7 +400,7 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
         role: isCoach ? 'coach' : 'member',
         status: isCoach ? 'pending_coach' : 'active',
         organizationId: organizationId,
-        locationId: additionalData?.locationId || undefined,
+        locationId: targetLocationId || additionalData?.locationId || undefined,
         firstName: additionalData?.firstName || '',
         lastName: additionalData?.lastName || '',
         age: additionalData?.age || null,
@@ -1011,7 +1033,17 @@ export const updateOrganizationCustomPages = async (id: string, customPages: Cus
 
 export const updateOrganizationLocations = async (id: string, locations: any[]) => {
     if(isOffline || !db || !id) return;
-    await updateDoc(doc(db, 'organizations', id), { locations: sanitizeData(locations) });
+    
+    const inviteCodes: string[] = [];
+    locations.forEach(loc => {
+        if (loc.inviteCode) inviteCodes.push(loc.inviteCode);
+        if (loc.coachCode) inviteCodes.push(loc.coachCode);
+    });
+
+    await updateDoc(doc(db, 'organizations', id), { 
+        locations: sanitizeData(locations),
+        inviteCodes 
+    });
 };
 
 export const updateOrganizationInfoCarousel = async (id: string, infoCarousel: InfoCarousel) => {
