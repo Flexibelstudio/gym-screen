@@ -98,9 +98,11 @@ export const PBOverlay: React.FC = () => {
             
             // Nytt: Om skärmen är låst till en specifik ort (locationId), och händelsen
             // också har ett locationId, ska vi bara visa händelsen om det matchar.
-            // Om skärmen saknar ort får den alla händelser i hela organisationen.
-            if (selectedStudio?.locationId && event.locationId) {
-                if (selectedStudio.locationId !== event.locationId) {
+            // Om skärmen saknar ort faller den tillbaka på första orten (ort 1).
+            const resolvedLocationId = selectedStudio?.locationId || selectedOrganization?.locations?.[0]?.id;
+            
+            if (resolvedLocationId && event.locationId) {
+                if (resolvedLocationId !== event.locationId) {
                     return; // Ignore - from another location
                 }
             }

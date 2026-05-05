@@ -9,9 +9,10 @@ interface StudiosContentProps {
     onCreateStudio: (organizationId: string, name: string) => Promise<void>;
     onUpdateStudio: (organizationId: string, studioId: string, name: string, locationId?: string) => Promise<void>;
     onDeleteStudio: (organizationId: string, studioId: string) => Promise<void>;
+    onSwitchToStudioView: (studio: Studio) => void;
 }
 
-export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, onEditStudioConfig, onCreateStudio, onDeleteStudio }) => {
+export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, onEditStudioConfig, onCreateStudio, onDeleteStudio, onSwitchToStudioView }) => {
     const { signOut } = useAuth();
     const [newStudioName, setNewStudioName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
@@ -49,21 +50,6 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
         }
     };
 
-    const handleActivateDevice = (studio: Studio) => {
-        if (window.confirm(`Vill du aktivera denna enhet som "${studio.name}"? Du kommer att loggas ut och skärmen låses till denna studio.`)) {
-            // 1. Save Org Provisioning
-            localStorage.setItem('ny-screen-selected-org', JSON.stringify({ id: organization.id, name: organization.name }));
-            
-            // 2. Save Pending Studio ID (to be picked up by the new anonymous user)
-            localStorage.setItem('ny-screen-pending-studio-id', studio.id);
-            
-            // 3. Sign out. The app will reload/refresh, AuthContext will see provisions, and auto-login anonymously.
-            signOut().then(() => {
-                window.location.reload();
-            });
-        }
-    };
-
     return (
          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
             <div className="p-6 sm:p-8 border-b border-gray-100 dark:border-gray-700">
@@ -82,7 +68,7 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
                                 <p className="font-bold text-lg text-gray-900 dark:text-white truncate">{studio.name}</p>
                                 {organization.locations && organization.locations.length > 0 && (
                                     <select
-                                        value={studio.locationId || ''}
+                                        value={studio.locationId || organization.locations[0].id}
                                         onChange={(e) => onUpdateStudio(organization.id, studio.id, studio.name, e.target.value || undefined)}
                                         className="mt-1 text-sm bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-primary/50"
                                     >
@@ -95,8 +81,8 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
                             </div>
                         </div>
                         <div className="flex flex-wrap gap-2 w-full xl:w-auto justify-end">
-                            <button onClick={() => handleActivateDevice(studio)} className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm shadow-sm flex items-center gap-2">
-                                <span className="text-lg">📱</span> Aktivera denna enhet
+                            <button onClick={() => onSwitchToStudioView(studio)} className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm shadow-sm flex items-center gap-2">
+                                <span className="text-lg">📱</span> Växla till skärm vy
                             </button>
                             <button onClick={() => onEditStudioConfig(studio)} className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm">Inställningar</button>
                             <button onClick={() => handleDelete(studio.id, studio.name)} className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-semibold py-2 px-4 rounded-lg transition-colors text-sm border border-red-100 dark:border-red-900/30">Ta bort</button>

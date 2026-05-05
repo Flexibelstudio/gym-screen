@@ -41,14 +41,16 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
         if (!selectedOrganization) return;
         setIsLoading(true);
         const unsubscribe = listenToCommunityLogs(selectedOrganization.id, (newLogs) => {
-            // Nytt: Filtrera baserat på skärmens ort om skärmen har en ort vald
+            // Nytt: Filtrera baserat på skärmens ort om skärmen har en ort vald, eller defaulta till ort 1
             let filteredLogs = newLogs;
             
-            if (selectedStudio?.locationId) {
+            const resolvedLocationId = selectedStudio?.locationId || selectedOrganization?.locations?.[0]?.id;
+            
+            if (resolvedLocationId) {
                 // Vi vill bara visa loggar som antingen saknar ort (bakåtkompatibilitet) 
                 // eller matchar skärmens ort
                 filteredLogs = filteredLogs.filter(log => 
-                    !log.locationId || log.locationId === selectedStudio.locationId
+                    !log.locationId || log.locationId === resolvedLocationId
                 );
             }
             
