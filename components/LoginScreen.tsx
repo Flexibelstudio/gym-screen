@@ -399,16 +399,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     </div>
                     <div>
                         <label className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">Kön</label>
-                        <select
-                            value={gender}
-                            onChange={(e) => setGender(e.target.value)}
-                            className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition appearance-none"
-                        >
-                            <option value="prefer_not_to_say">Vill ej ange</option>
-                            <option value="male">Man</option>
-                            <option value="female">Kvinna</option>
-                            <option value="other">Annat</option>
-                        </select>
+                        <div className="grid grid-cols-2 gap-2">
+                            {[
+                                { value: 'female', label: 'Kvinna' },
+                                { value: 'male', label: 'Man' },
+                                { value: 'other', label: 'Annat' },
+                                { value: 'prefer_not_to_say', label: 'Vill ej ange' }
+                            ].map(opt => (
+                                <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => setGender(opt.value)}
+                                    className={`py-3 px-2 rounded-xl text-xs font-bold transition-all border ${gender === opt.value ? 'bg-primary border-primary text-black transform scale-[0.98]' : 'bg-black border-gray-700 text-gray-400 hover:border-gray-500'}`}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
