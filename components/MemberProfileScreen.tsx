@@ -882,23 +882,12 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         </div>
                         <div>
                             <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Kön</label>
-                            <div className="grid grid-cols-2 gap-2">
-                                {[
-                                    { value: 'female', label: 'Kvinna' },
-                                    { value: 'male', label: 'Man' },
-                                    { value: 'other', label: 'Annat' },
-                                    { value: 'prefer_not_to_say', label: 'Vill ej ange' }
-                                ].map(opt => (
-                                    <button
-                                        key={opt.value}
-                                        type="button"
-                                        onClick={() => setGender(opt.value)}
-                                        className={`py-4 px-2 rounded-2xl text-sm font-bold transition-all border-2 ${gender === opt.value ? 'bg-indigo-50 border-indigo-500 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-400 dark:text-indigo-200 shadow-sm transform scale-[0.98]' : 'bg-white dark:bg-gray-900 border-gray-100 dark:border-gray-800 text-gray-500 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600 shadow-sm'}`}
-                                    >
-                                        {opt.label}
-                                    </button>
-                                ))}
-                            </div>
+                            <select value={gender} onChange={e => setGender(e.target.value)} className="w-full bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm font-bold appearance-none">
+                                <option value="prefer_not_to_say">Vill ej ange</option>
+                                <option value="male">Man</option>
+                                <option value="female">Kvinna</option>
+                                <option value="other">Annat</option>
+                            </select>
                         </div>
                         {selectedOrganization?.locations && selectedOrganization.locations.length > 0 && (
                             <div>
