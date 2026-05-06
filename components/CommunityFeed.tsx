@@ -36,12 +36,19 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
     const { selectedOrganization, selectedStudio } = useStudio();
     const [logs, setLogs] = useState<WorkoutLog[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [members, setMembers] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (!selectedOrganization) return;
+        import('../services/firebaseService').then(({ getMembers }) => {
+            getMembers(selectedOrganization.id).then(setMembers).catch(console.error);
+        });
+    }, [selectedOrganization]);
 
     useEffect(() => {
         if (!selectedOrganization) return;
         setIsLoading(true);
         const unsubscribe = listenToCommunityLogs(selectedOrganization.id, (newLogs) => {
-            // Nytt: Filtrera baserat på skärmens ort om skärmen har en ort vald, eller defaulta till ort 1
             let filteredLogs = newLogs;
             
             const resolvedLocationId = selectedStudio?.locationId || selectedOrganization?.locations?.[0]?.id;
@@ -49,16 +56,21 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
             if (resolvedLocationId) {
                 // Vi vill bara visa loggar som antingen saknar ort (bakåtkompatibilitet) 
                 // eller matchar skärmens ort
-                filteredLogs = filteredLogs.filter(log => 
-                    !log.locationId || log.locationId === resolvedLocationId
-                );
+                filteredLogs = filteredLogs.filter(log => {
+                    let logLocation = log.locationId;
+                    if (!logLocation || logLocation === '' || logLocation === 'undefined') {
+                        const member = members.find(m => m.uid === log.memberId || m.id === log.memberId);
+                        logLocation = member?.locationId;
+                    }
+                    return !logLocation || logLocation === resolvedLocationId;
+                });
             }
             
             setLogs(filteredLogs.slice(0, 50)); 
             setIsLoading(false);
         });
         return () => unsubscribe();
-    }, [selectedOrganization, selectedStudio?.locationId]);
+    }, [selectedOrganization, selectedStudio?.locationId, members]);
 
     const [, setTick] = useState(0);
     useEffect(() => {

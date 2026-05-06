@@ -20,11 +20,25 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
         if (!selectedOrganization) return;
         setIsLoading(true);
         const unsubscribe = listenToWeeklyPBs(selectedOrganization.id, (newEvents) => {
-            setEvents(newEvents.slice(0, 50)); 
+            let filteredEvents = newEvents;
+            const resolvedLocationId = selectedStudio?.locationId || selectedOrganization?.locations?.[0]?.id;
+            
+            if (resolvedLocationId) {
+                filteredEvents = newEvents.filter(event => {
+                    // Only filter out if the event EXPLICITLY has an alien locationId. 
+                    // Missing locationId defaults to showing everywhere (for backward compatibility).
+                    if (event.locationId && event.locationId !== resolvedLocationId) {
+                        return false;
+                    }
+                    return true;
+                });
+            }
+
+            setEvents(filteredEvents.slice(0, 50)); 
             setIsLoading(false);
         });
         return () => unsubscribe();
-    }, [selectedOrganization]);
+    }, [selectedOrganization, selectedStudio?.locationId]);
 
     const formatEventTime = (timestamp: number) => {
         const date = new Date(timestamp);
