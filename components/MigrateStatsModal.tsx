@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Modal } from './ui/Modal';
 import { UserData } from '../types';
 import { updateUserProfile } from '../services/firebaseService';
+import { useConfirm } from './ConfirmContext';
 
 interface Props {
     isOpen: boolean;
@@ -13,6 +14,7 @@ export const MigrateStatsModal: React.FC<Props> = ({ isOpen, onClose, userData }
     const [totalWorkouts, setTotalWorkouts] = useState('');
     const [streakWeeks, setStreakWeeks] = useState('');
     const [loading, setLoading] = useState(false);
+    const confirm = useConfirm();
 
     const handleSave = async () => {
         const workouts = parseInt(totalWorkouts, 10);
@@ -23,7 +25,15 @@ export const MigrateStatsModal: React.FC<Props> = ({ isOpen, onClose, userData }
             return;
         }
 
-        if (window.confirm('Är du säker på att siffrorna stämmer? Det går inte att ändra i efterhand.')) {
+        const isConfirmed = await confirm({
+            title: 'Är du säker?',
+            message: 'Är du säker på att siffrorna stämmer? Det går inte att ändra i efterhand.',
+            confirmText: 'Ja, siffrorna stämmer',
+            cancelText: 'Avbryt',
+            confirmColor: 'primary'
+        });
+
+        if (isConfirmed) {
             setLoading(true);
             try {
                 await updateUserProfile(userData.uid, {
