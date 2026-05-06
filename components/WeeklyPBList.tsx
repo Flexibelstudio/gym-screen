@@ -12,7 +12,7 @@ interface WeeklyPBListProps {
 }
 
 export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded = false }) => {
-    const { selectedOrganization } = useStudio();
+    const { selectedOrganization, selectedStudio } = useStudio();
     const [events, setEvents] = useState<StudioEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
