@@ -715,18 +715,18 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     };
 
     const stats = useMemo(() => {
-        const totalWorkouts = logs.length + (targetMember?.migratedStats?.totalWorkouts || 0);
+        const totalWorkouts = logs.length + (userData?.migratedStats?.totalWorkouts || 0);
         const now = new Date();
         const thisMonth = logs.filter(l => {
             const date = new Date(l.date);
             return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
         }).length;
-        const weeklyStreak = calculateWeeklyStreak(logs, targetMember?.migratedStats);
+        const weeklyStreak = calculateWeeklyStreak(logs, userData?.migratedStats);
         const currentWeekKey = getYearWeek(now);
         const thisWeek = logs.filter(l => getYearWeek(new Date(l.date)) === currentWeekKey).length;
         const hasTrainedThisWeek = thisWeek > 0;
         return { totalWorkouts, thisMonth, weeklyStreak, hasTrainedThisWeek, thisWeek };
-    }, [logs, targetMember?.migratedStats]);
+    }, [logs, userData?.migratedStats]);
 
     const daysLeft = useMemo(() => {
         if (!userData.goals?.targetDate) return null;
@@ -921,21 +921,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         </div>
                     </div>
                     
-                    {isOwnProfile && !userData.migratedStats && selectedOrganization?.allowMigrationOption && (
-                        <div className="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-200 dark:border-indigo-800/30 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                            <div>
-                                <h4 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest">Importera tidigare historik</h4>
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-md leading-relaxed">Har du tränat hos oss tidigare? Lägg till din gamla historik så behåller du dina antal pass och streak.</p>
-                            </div>
-                            <button 
-                                onClick={() => setShowMigrateModal(true)}
-                                className="w-full sm:w-auto px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors shadow-sm"
-                            >
-                                Importera
-                            </button>
-                        </div>
-                    )}
-
                     <PushNotificationSettings />
                     
                     <div className="pt-8">
@@ -991,6 +976,21 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             )}
 
             {/* --- FLIKINNEHÅLL --- */}
+
+            {isOwnProfile && !userData.migratedStats && selectedOrganization?.allowMigrationOption && (
+                <div className="mb-6 bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-200 dark:border-indigo-800/30 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in shadow-sm">
+                    <div>
+                        <h4 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest">Importera tidigare historik</h4>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-md leading-relaxed">Har du tränat hos oss tidigare? Lägg till din gamla historik så behåller du dina antal pass och streak.</p>
+                    </div>
+                    <button 
+                        onClick={() => setShowMigrateModal(true)}
+                        className="w-full sm:w-auto px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors shadow-sm"
+                    >
+                        Importera
+                    </button>
+                </div>
+            )}
 
             {activeTab === 'overview' && (
                 <div className="space-y-6 animate-fade-in">
