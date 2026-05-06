@@ -1189,7 +1189,7 @@ const App: React.FC = () => {
        <DeveloperToolbar />
        
        {isStudioMode && <SpotlightOverlay />} 
-       {isStudioMode && <PBOverlay />}
+       {isStudioMode && <PBOverlay isGrattisOpen={!!completionInfo} />}
 
        <div className={(isAnyModalOpen || showPaywall || showWelcomePaywall || showPendingCoach || !(page === Page.Timer || !isFullScreenPage)) ? 'hidden' : 'contents'}>
            <Header 
