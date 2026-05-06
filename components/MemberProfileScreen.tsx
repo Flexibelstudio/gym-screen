@@ -868,6 +868,16 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 <option value="other">Annat</option>
                             </select>
                         </div>
+                        {selectedOrganization?.locations && selectedOrganization.locations.length > 0 && (
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Din Studio / Ort</label>
+                                <input 
+                                    readOnly 
+                                    value={selectedOrganization.locations.find(l => l.id === userData.locationId)?.name || selectedOrganization.locations[0]?.name || 'Ingen'} 
+                                    className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 text-gray-500 dark:text-gray-400 outline-none shadow-sm font-bold cursor-not-allowed" 
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 gap-6">

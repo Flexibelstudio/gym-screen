@@ -461,6 +461,10 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 newLog.memberPhotoUrl = userData.photoUrl || null;
                 showOnLeaderboard = userData.showOnLeaderboard !== false;
                 newLog.showOnLeaderboard = showOnLeaderboard;
+                // Add location from user object if not already explicitly sent
+                if (!newLog.locationId && userData.locationId) {
+                    newLog.locationId = userData.locationId;
+                }
             }
         } catch (e) { console.warn("Failed to enrich log", e); }
     }
