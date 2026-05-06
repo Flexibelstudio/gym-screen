@@ -400,6 +400,12 @@ export interface UserData {
   weeklyGoal?: number;
   showOnLeaderboard?: boolean;
   usePreGameForCustomWorkouts?: boolean;
+
+  migratedStats?: {
+    totalWorkouts: number;
+    streakWeeks: number;
+    migratedAtDate: string; // ISO string date
+  };
 }
 
 export interface SmartGoalDetail {

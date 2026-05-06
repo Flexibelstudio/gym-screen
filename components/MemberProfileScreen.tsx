@@ -20,6 +20,7 @@ import { WeeklyGoalRing } from './dashboard/WeeklyGoalRing';
 import { Leaderboard } from './dashboard/Leaderboard';
 import { Target } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { MigrateStatsModal } from './MigrateStatsModal';
 
 interface MemberProfileScreenProps {
     userData: UserData;
@@ -99,11 +100,28 @@ const getYearWeek = (date: Date) => {
     return `${d.getFullYear()}-W${weekNo}`;
 };
 
-const calculateWeeklyStreak = (logs: WorkoutLog[]) => {
-    if (logs.length === 0) return 0;
+const calculateWeeklyStreak = (logs: WorkoutLog[], migratedStats?: { totalWorkouts: number; streakWeeks: number; migratedAtDate: string; }) => {
     const activeWeeks = new Set(logs.map(log => getYearWeek(new Date(log.date))));
+    
+    if (migratedStats?.streakWeeks && migratedStats?.migratedAtDate) {
+        let migrationCheckDate = new Date(migratedStats.migratedAtDate);
+        for (let i = 0; i < migratedStats.streakWeeks; i++) {
+            activeWeeks.add(getYearWeek(migrationCheckDate));
+            migrationCheckDate.setDate(migrationCheckDate.getDate() - 7);
+        }
+    }
+
+    if (activeWeeks.size === 0) return 0;
+
     const now = new Date();
     let streak = 0;
+    
+    // Check if current week has a workout
+    const currentWeekKey = getYearWeek(now);
+    if (activeWeeks.has(currentWeekKey)) {
+        streak++;
+    }
+
     let checkDate = new Date(now);
     checkDate.setDate(checkDate.getDate() - 7);
     while (true) {
@@ -543,6 +561,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     // Resume session state
     const [activeSession, setActiveSession] = useState<any | null>(null);
 
+    const isOwnProfile = auth?.currentUser?.uid === userData.uid;
+    const [showMigrateModal, setShowMigrateModal] = useState(false);
+
     // Form states
     const [firstName, setFirstName] = useState(userData.firstName || '');
     const [lastName, setLastName] = useState(userData.lastName || '');
@@ -694,18 +715,18 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     };
 
     const stats = useMemo(() => {
-        const totalWorkouts = logs.length;
+        const totalWorkouts = logs.length + (targetMember?.migratedStats?.totalWorkouts || 0);
         const now = new Date();
         const thisMonth = logs.filter(l => {
             const date = new Date(l.date);
             return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
         }).length;
-        const weeklyStreak = calculateWeeklyStreak(logs);
+        const weeklyStreak = calculateWeeklyStreak(logs, targetMember?.migratedStats);
         const currentWeekKey = getYearWeek(now);
         const thisWeek = logs.filter(l => getYearWeek(new Date(l.date)) === currentWeekKey).length;
         const hasTrainedThisWeek = thisWeek > 0;
         return { totalWorkouts, thisMonth, weeklyStreak, hasTrainedThisWeek, thisWeek };
-    }, [logs]);
+    }, [logs, targetMember?.migratedStats]);
 
     const daysLeft = useMemo(() => {
         if (!userData.goals?.targetDate) return null;
@@ -1007,6 +1028,21 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         </div>
                     </div>
 
+                    {isOwnProfile && !userData.migratedStats && (
+                        <div className="bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 rounded-2xl p-4 flex items-center justify-between">
+                            <div>
+                                <h4 className="text-sm font-bold text-indigo-900 dark:text-indigo-200">Har du tränat hos oss tidigare?</h4>
+                                <p className="text-xs text-indigo-700 dark:text-indigo-400 mt-1">Importera din gamla historik och behåll dina pass och streak.</p>
+                            </div>
+                            <button 
+                                onClick={() => setShowMigrateModal(true)}
+                                className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-indigo-700 transition-colors"
+                            >
+                                Importera
+                            </button>
+                        </div>
+                    )}
+
                     {/* Archetype card */}
                     <div className={`bg-gradient-to-br ${archetype.color} rounded-[2rem] p-5 sm:p-8 text-white shadow-2xl relative overflow-hidden`}>
                         <div className="relative z-10">
@@ -1305,6 +1341,12 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     />
                 )}
             </AnimatePresence>
+
+            <MigrateStatsModal 
+                isOpen={showMigrateModal}
+                onClose={() => setShowMigrateModal(false)}
+                userData={userData}
+            />
         </div>
     );
 };
