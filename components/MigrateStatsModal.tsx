@@ -48,40 +48,40 @@ export const MigrateStatsModal: React.FC<Props> = ({ isOpen, onClose, userData }
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Importera befintlig historik" size="sm">
             <div className="space-y-6">
-                <p className="text-sm text-gray-500 mb-4">
-                    Har du tränat och loggat din historik tidigare utanför denna app? Fyll i dina befintliga siffror nedan för att få med dem. Denna åtgärd kan bara göras en gång.
-                </p>
+                <div className="bg-indigo-50 dark:bg-indigo-900/20 text-indigo-800 dark:text-indigo-200 p-4 rounded-2xl text-sm leading-relaxed border border-indigo-100 dark:border-indigo-800/50">
+                    Har du tränat och loggat din historik tidigare utanför denna app? Fyll i dina befintliga siffror nedan för att få med dem. <br/><strong className="mt-2 block text-indigo-900 dark:text-indigo-300">Denna åtgärd kan bara göras en gång.</strong>
+                </div>
                 <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Totalt antal pass</label>
+                    <label className="block text-[10px] font-black text-indigo-400 dark:text-indigo-500 uppercase tracking-widest mb-2 ml-1">Totalt antal pass</label>
                     <input 
                         type="number" 
                         value={totalWorkouts} 
                         onChange={(e) => setTotalWorkouts(e.target.value)}
                         placeholder="t.ex. 125"
-                        className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-gray-900 dark:text-white"
+                        className="w-full bg-white dark:bg-slate-900 border-2 border-indigo-100 dark:border-indigo-900/50 rounded-2xl p-4 text-xl font-bold text-gray-900 dark:text-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 outline-none transition-all"
                     />
                 </div>
                 <div>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Aktuell Streak (antal veckor i rad)</label>
+                    <label className="block text-[10px] font-black text-indigo-400 dark:text-indigo-500 uppercase tracking-widest mb-2 ml-1">Aktuell Streak (veckor i rad)</label>
                     <input 
                         type="number" 
                         value={streakWeeks} 
                         onChange={(e) => setStreakWeeks(e.target.value)}
                         placeholder="t.ex. 5"
-                        className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 text-gray-900 dark:text-white"
+                        className="w-full bg-white dark:bg-slate-900 border-2 border-indigo-100 dark:border-indigo-900/50 rounded-2xl p-4 text-xl font-bold text-gray-900 dark:text-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 outline-none transition-all"
                     />
                 </div>
                 <div className="flex gap-4 pt-4">
                     <button 
                         onClick={onClose} 
-                        className="flex-1 px-4 py-3 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-bold uppercase tracking-wider"
+                        className="flex-1 px-4 py-4 border-2 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                     >
                         Avbryt
                     </button>
                     <button 
                         onClick={handleSave} 
                         disabled={loading}
-                        className="flex-1 px-4 py-3 bg-primary text-white rounded-xl font-bold uppercase tracking-wider disabled:opacity-50"
+                        className="flex-1 px-4 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-black text-sm uppercase tracking-widest disabled:opacity-50 shadow-lg shadow-indigo-500/25 transition-all active:scale-95"
                     >
                         {loading ? 'Sparar...' : 'Spara & Lås'}
                     </button>

@@ -920,6 +920,31 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             </label>
                         </div>
                     </div>
+
+                    {isOwnProfile && !userData.migratedStats && selectedOrganization?.allowMigrationOption && (
+                        <div className="mt-8 bg-gradient-to-br from-indigo-900 to-slate-900 border border-indigo-500/30 rounded-[2rem] p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-8 opacity-10">
+                                <HistoryIcon className="w-32 h-32 text-indigo-300" />
+                            </div>
+                            <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                                <div>
+                                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest rounded-full mb-3">
+                                        <SparklesIcon className="w-3 h-3" /> Engångsåtgärd
+                                    </div>
+                                    <h4 className="text-xl font-black text-white tracking-tight mb-2">Importera tidigare historik</h4>
+                                    <p className="text-sm text-indigo-200/80 max-w-md leading-relaxed font-medium">
+                                        Har du tränat hos oss tidigare? Lägg till din gamla historik så behåller du ditt totala antal pass och din nuvarande streak.
+                                    </p>
+                                </div>
+                                <button 
+                                    onClick={(e) => { e.preventDefault(); setShowMigrateModal(true); }}
+                                    className="w-full sm:w-auto px-8 py-4 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-black uppercase tracking-widest rounded-xl transition-all shadow-lg hover:shadow-indigo-500/25 active:scale-95 whitespace-nowrap"
+                                >
+                                    Importera nu
+                                </button>
+                            </div>
+                        </div>
+                    )}
                     
                     <PushNotificationSettings />
                     
@@ -978,17 +1003,27 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             {/* --- FLIKINNEHÅLL --- */}
 
             {isOwnProfile && !userData.migratedStats && selectedOrganization?.allowMigrationOption && (
-                <div className="mb-6 bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-200 dark:border-indigo-800/30 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-fade-in shadow-sm">
-                    <div>
-                        <h4 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest">Importera tidigare historik</h4>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-md leading-relaxed">Har du tränat hos oss tidigare? Lägg till din gamla historik så behåller du dina antal pass och streak.</p>
+                <div className="mb-8 bg-gradient-to-br from-indigo-900 to-slate-900 border border-indigo-500/30 rounded-[2rem] p-6 sm:p-8 shadow-2xl relative overflow-hidden animate-fade-in">
+                    <div className="absolute top-0 right-0 p-8 opacity-10">
+                        <HistoryIcon className="w-32 h-32 text-indigo-300" />
                     </div>
-                    <button 
-                        onClick={() => setShowMigrateModal(true)}
-                        className="w-full sm:w-auto px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors shadow-sm"
-                    >
-                        Importera
-                    </button>
+                    <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                        <div>
+                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest rounded-full mb-3">
+                                <SparklesIcon className="w-3 h-3" /> Engångsåtgärd
+                            </div>
+                            <h4 className="text-xl font-black text-white tracking-tight mb-2">Importera tidigare historik</h4>
+                            <p className="text-sm text-indigo-200/80 max-w-md leading-relaxed font-medium">
+                                Har du tränat hos oss tidigare? Lägg till din gamla historik så behåller du ditt totala antal pass och din nuvarande streak.
+                            </p>
+                        </div>
+                        <button 
+                            onClick={(e) => { e.preventDefault(); setShowMigrateModal(true); }}
+                            className="w-full sm:w-auto px-8 py-4 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-black uppercase tracking-widest rounded-xl transition-all shadow-lg hover:shadow-indigo-500/25 active:scale-95 whitespace-nowrap"
+                        >
+                            Importera nu
+                        </button>
+                    </div>
                 </div>
             )}
 
