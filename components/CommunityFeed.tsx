@@ -54,15 +54,22 @@ export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpand
             const resolvedLocationId = selectedStudio?.locationId || selectedOrganization?.locations?.[0]?.id;
             
             if (resolvedLocationId) {
-                // Vi vill bara visa loggar som antingen saknar ort (bakåtkompatibilitet) 
-                // eller matchar skärmens ort
                 filteredLogs = filteredLogs.filter(log => {
                     let logLocation = log.locationId;
+                    
+                    // Om passet saknar ort (t.ex. äldre loggar), försök hämta från medlemmen
                     if (!logLocation || logLocation === '' || logLocation === 'undefined') {
                         const member = members.find(m => m.uid === log.memberId || m.id === log.memberId);
                         logLocation = member?.locationId;
                     }
-                    return !logLocation || logLocation === resolvedLocationId;
+                    
+                    // Om ort BÅDE saknas på passet och på medlemmen, anta att det tillhör default-orten (ort 1)
+                    if (!logLocation || logLocation === '' || logLocation === 'undefined') {
+                        logLocation = selectedOrganization?.locations?.[0]?.id;
+                    }
+
+                    // Vi visar bara passet om det matchar skärmens ort
+                    return logLocation === resolvedLocationId;
                 });
             }
             

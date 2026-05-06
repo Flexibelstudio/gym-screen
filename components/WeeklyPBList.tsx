@@ -25,9 +25,8 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
             
             if (resolvedLocationId) {
                 filteredEvents = newEvents.filter(event => {
-                    // Only filter out if the event EXPLICITLY has an alien locationId. 
-                    // Missing locationId defaults to showing everywhere (for backward compatibility).
-                    if (event.locationId && event.locationId !== resolvedLocationId) {
+                    const eventLocationId = event.locationId || selectedOrganization?.locations?.[0]?.id;
+                    if (eventLocationId && eventLocationId !== resolvedLocationId) {
                         return false;
                     }
                     return true;

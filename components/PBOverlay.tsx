@@ -100,13 +100,13 @@ export const PBOverlay: React.FC<PBOverlayProps> = ({ isGrattisOpen }) => {
         const unsubscribe = listenForStudioEvents(selectedOrganization.id, (event) => {
             const now = Date.now();
             
-            // Nytt: Om skärmen är låst till en specifik ort (locationId), och händelsen
-            // också har ett locationId, ska vi bara visa händelsen om det matchar.
-            // Om skärmen saknar ort faller den tillbaka på första orten (ort 1).
+            // Nytt: Om skärmen är låst till en specifik ort (locationId), visa bara matcher.
+            // Om händelsen saknar ort, anta att den tillhör default-orten (ort 1).
             const resolvedLocationId = selectedStudio?.locationId || selectedOrganization?.locations?.[0]?.id;
+            const eventLocationId = event.locationId || selectedOrganization?.locations?.[0]?.id;
             
-            if (resolvedLocationId && event.locationId) {
-                if (resolvedLocationId !== event.locationId) {
+            if (resolvedLocationId && eventLocationId) {
+                if (resolvedLocationId !== eventLocationId) {
                     return; // Ignore - from another location
                 }
             }
