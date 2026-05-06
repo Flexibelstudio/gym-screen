@@ -33,7 +33,7 @@ interface CommunityFeedProps {
 }
 
 export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpanded = false }) => {
-    const { selectedOrganization } = useStudio();
+    const { selectedOrganization, selectedStudio } = useStudio();
     const [logs, setLogs] = useState<WorkoutLog[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 

@@ -207,6 +207,7 @@ export interface Studio {
   createdAt?: number;
   configOverrides?: Partial<StudioConfig>;
   locationId?: string; // NYTT: Vilken ort/Location denna skärm tillhör
+  remoteState?: any; // To allow remote states
 }
 
 export interface Location {

@@ -662,8 +662,12 @@ export const listenToLeaderboardData = (orgId: string, locationId: string | 'all
             .filter(log => log.showOnLeaderboard !== false && log.inStudio !== false)
             .filter(log => {
                 if (locationId && locationId !== 'all') {
-                    // Check log's locationId, fallback to member's locationId
-                    const logLocation = log.locationId || members.find(m => m.uid === log.memberId)?.locationId;
+                    // Check log's locationId, fallback to member's locationId robustly
+                    let logLocation = log.locationId;
+                    if (!logLocation || logLocation === '' || logLocation === 'undefined') {
+                        const member = members.find(m => m.uid === log.memberId || m.id === log.memberId);
+                        logLocation = member?.locationId;
+                    }
                     return logLocation === locationId;
                 }
                 return true;
