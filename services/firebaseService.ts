@@ -638,7 +638,7 @@ export const getLeaderboardData = async (orgId: string): Promise<{ memberId: str
     }
 };
 
-export const listenToLeaderboardData = (orgId: string, locationId: string | 'all' | undefined, onUpdate: (data: { memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]) => void) => {
+export const listenToLeaderboardData = (orgId: string, locationId: string | 'all' | undefined, members: any[], onUpdate: (data: { memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]) => void) => {
     if (isOffline || !db || !orgId) {
         onUpdate([]);
         return () => {};
@@ -662,7 +662,9 @@ export const listenToLeaderboardData = (orgId: string, locationId: string | 'all
             .filter(log => log.showOnLeaderboard !== false && log.inStudio !== false)
             .filter(log => {
                 if (locationId && locationId !== 'all') {
-                    return log.locationId === locationId;
+                    // Check log's locationId, fallback to member's locationId
+                    const logLocation = log.locationId || members.find(m => m.uid === log.memberId)?.locationId;
+                    return logLocation === locationId;
                 }
                 return true;
             });
