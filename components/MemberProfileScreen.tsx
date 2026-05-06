@@ -921,6 +921,21 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         </div>
                     </div>
                     
+                    {isOwnProfile && !userData.migratedStats && selectedOrganization?.allowMigrationOption && (
+                        <div className="bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-200 dark:border-indigo-800/30 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                            <div>
+                                <h4 className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-widest">Importera tidigare historik</h4>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 max-w-md leading-relaxed">Har du tränat hos oss tidigare? Lägg till din gamla historik så behåller du dina antal pass och streak.</p>
+                            </div>
+                            <button 
+                                onClick={() => setShowMigrateModal(true)}
+                                className="w-full sm:w-auto px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors shadow-sm"
+                            >
+                                Importera
+                            </button>
+                        </div>
+                    )}
+
                     <PushNotificationSettings />
                     
                     <div className="pt-8">
@@ -1027,21 +1042,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             <div className="h-full bg-primary transition-all duration-1000" style={{ width: `${progressToNext}%` }}></div>
                         </div>
                     </div>
-
-                    {isOwnProfile && !userData.migratedStats && (
-                        <div className="bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 rounded-2xl p-4 flex items-center justify-between">
-                            <div>
-                                <h4 className="text-sm font-bold text-indigo-900 dark:text-indigo-200">Har du tränat hos oss tidigare?</h4>
-                                <p className="text-xs text-indigo-700 dark:text-indigo-400 mt-1">Importera din gamla historik och behåll dina pass och streak.</p>
-                            </div>
-                            <button 
-                                onClick={() => setShowMigrateModal(true)}
-                                className="px-4 py-2 bg-indigo-600 text-white text-xs font-bold uppercase tracking-wider rounded-lg hover:bg-indigo-700 transition-colors"
-                            >
-                                Importera
-                            </button>
-                        </div>
-                    )}
 
                     {/* Archetype card */}
                     <div className={`bg-gradient-to-br ${archetype.color} rounded-[2rem] p-5 sm:p-8 text-white shadow-2xl relative overflow-hidden`}>

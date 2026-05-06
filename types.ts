@@ -313,6 +313,8 @@ export interface Organization {
   stripeSubscriptionId?: string;
   systemFeePaid?: boolean;
   systemFeeDate?: number;
+  
+  allowMigrationOption?: boolean; // Toggles the import stats widget
 }
 
 export interface RaceParticipant {

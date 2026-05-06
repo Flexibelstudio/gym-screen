@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { Organization, SmartScreenPricing, InvoiceDetails, SeasonalThemeSetting, ThemeDateRange } from '../types';
 import { OvningsbankContent } from './OvningsbankContent';
-import { getSmartScreenPricing, updateSmartScreenPricing, updateOrganizationFreeCoaches, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, restoreOrganization, deleteOrganizationPermanently, updateOrganizationName, getMembers, requestPushNotificationPermission, auth, updateGlobalConfig } from '../services/firebaseService';
+import { getSmartScreenPricing, updateSmartScreenPricing, updateOrganizationFreeCoaches, getSeasonalThemes, updateSeasonalThemes, archiveOrganization, restoreOrganization, deleteOrganizationPermanently, updateOrganizationName, getMembers, requestPushNotificationPermission, auth, updateGlobalConfig, updateOrganizationMigrationOption } from '../services/firebaseService';
 import { PencilIcon, HomeIcon, BuildingIcon, SparklesIcon, ToggleSwitch, ChevronDownIcon, CloseIcon } from './icons';
 import { MoreVertical } from 'lucide-react';
 import { calculateInvoiceDetails } from '../utils/billing';
@@ -26,11 +26,13 @@ interface OrganizationCardProps {
     onUpdateFreeCoaches: (orgId: string, count: number) => Promise<void>;
     onUpdateName: (orgId: string, name: string) => Promise<void>;
     onUpdateGlobalConfig: (orgId: string, config: any) => Promise<void>;
+    onUpdateMigrationOption: (orgId: string, allow: boolean) => Promise<void>;
 }
 
-const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onSelect, onArchive, onRestore, onDeletePermanent, onUpdateFreeCoaches, onUpdateName, onUpdateGlobalConfig }) => {
+const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onSelect, onArchive, onRestore, onDeletePermanent, onUpdateFreeCoaches, onUpdateName, onUpdateGlobalConfig, onUpdateMigrationOption }) => {
     const [freeCoaches, setFreeCoaches] = useState(org.freeCoachAccounts || 0);
     const [enableEventsModule, setEnableEventsModule] = useState(org.globalConfig?.enableEventsModule || false);
+    const [allowMigrationOption, setAllowMigrationOption] = useState(org.allowMigrationOption || false);
     const [isSaving, setIsSaving] = useState(false);
     const [isEditingName, setIsEditingName] = useState(false);
     const [editNameValue, setEditNameValue] = useState(org.name);
@@ -76,6 +78,7 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
         try {
             await onUpdateFreeCoaches(org.id, freeCoaches);
             await onUpdateGlobalConfig(org.id, { ...org.globalConfig, enableEventsModule });
+            await onUpdateMigrationOption(org.id, allowMigrationOption);
         } catch (error) {
             alert("Kunde inte spara inställningarna.");
         } finally {
@@ -143,7 +146,7 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
                         )}
                     </div>
                     
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mt-4">
                         <div className="bg-white dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-gray-700">
                             <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-1">Skärmar</p>
                             <p className="text-xl font-bold text-gray-900 dark:text-white">{org.studios.length} st</p>
@@ -165,7 +168,7 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
                                     onChange={(e) => setFreeCoaches(Number(e.target.value))}
                                     className="w-16 bg-slate-100 dark:bg-gray-900 text-black dark:text-white p-1 rounded border border-slate-300 dark:border-gray-600 text-center font-bold"
                                 />
-                                <button onClick={handleSaveSettings} disabled={isSaving || (freeCoaches === (org.freeCoachAccounts || 0) && enableEventsModule === (org.globalConfig?.enableEventsModule || false))} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-xs font-semibold disabled:opacity-50">
+                                <button onClick={handleSaveSettings} disabled={isSaving || (freeCoaches === (org.freeCoachAccounts || 0) && enableEventsModule === (org.globalConfig?.enableEventsModule || false) && allowMigrationOption === (org.allowMigrationOption || false))} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-xs font-semibold disabled:opacity-50">
                                     {isSaving ? '...' : 'Spara'}
                                 </button>
                             </div>
@@ -178,7 +181,20 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
                                     checked={enableEventsModule} 
                                     onChange={() => setEnableEventsModule(!enableEventsModule)} 
                                 />
-                                <button onClick={handleSaveSettings} disabled={isSaving || (freeCoaches === (org.freeCoachAccounts || 0) && enableEventsModule === (org.globalConfig?.enableEventsModule || false))} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-xs font-semibold disabled:opacity-50">
+                                <button onClick={handleSaveSettings} disabled={isSaving || (freeCoaches === (org.freeCoachAccounts || 0) && enableEventsModule === (org.globalConfig?.enableEventsModule || false) && allowMigrationOption === (org.allowMigrationOption || false))} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-xs font-semibold disabled:opacity-50">
+                                    {isSaving ? '...' : 'Spara'}
+                                </button>
+                            </div>
+                        </div>
+                        <div className="bg-white dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-gray-700 flex flex-col justify-between">
+                            <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-1">Importfunktion</p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <ToggleSwitch 
+                                    label="Tillåt import"
+                                    checked={allowMigrationOption} 
+                                    onChange={() => setAllowMigrationOption(!allowMigrationOption)} 
+                                />
+                                <button onClick={handleSaveSettings} disabled={isSaving || (freeCoaches === (org.freeCoachAccounts || 0) && enableEventsModule === (org.globalConfig?.enableEventsModule || false) && allowMigrationOption === (org.allowMigrationOption || false))} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-xs font-semibold disabled:opacity-50">
                                     {isSaving ? '...' : 'Spara'}
                                 </button>
                             </div>
@@ -577,6 +593,11 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
         setLocalOrgs(prev => prev.map(o => o.id === orgId ? { ...o, globalConfig: config } : o));
     }, []);
 
+    const handleUpdateMigrationOption = useCallback(async (orgId: string, allow: boolean) => {
+        await updateOrganizationMigrationOption(orgId, allow);
+        setLocalOrgs(prev => prev.map(o => o.id === orgId ? { ...o, allowMigrationOption: allow } : o));
+    }, []);
+
     const tabs = [
         { id: 'dashboard', label: 'Dashboard' },
         { id: 'list', label: 'Organisationer' },
@@ -694,15 +715,16 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                                         <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-4">Aktiva ({activeOrgs.length})</h4>
                                         <div className="space-y-3">
                                             {activeOrgs.map(org => (
-                                                <OrganizationCard 
-                                                    key={org.id} 
-                                                    org={org} 
-                                                    onSelect={() => onSelectOrganization(org)}
-                                                    onArchive={() => handleArchive(org)}
-                                                    onUpdateFreeCoaches={handleUpdateFreeCoaches}
-                                                    onUpdateName={handleUpdateName}
-                                                    onUpdateGlobalConfig={handleUpdateGlobalConfig}
-                                                />
+                                                    <OrganizationCard 
+                                                        key={org.id} 
+                                                        org={org} 
+                                                        onSelect={() => onSelectOrganization(org)}
+                                                        onArchive={() => handleArchive(org)}
+                                                        onUpdateFreeCoaches={handleUpdateFreeCoaches}
+                                                        onUpdateName={handleUpdateName}
+                                                        onUpdateGlobalConfig={handleUpdateGlobalConfig}
+                                                        onUpdateMigrationOption={handleUpdateMigrationOption}
+                                                    />
                                             ))}
                                         </div>
                                     </section>
@@ -722,6 +744,7 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                                                         onUpdateFreeCoaches={handleUpdateFreeCoaches}
                                                         onUpdateName={handleUpdateName}
                                                         onUpdateGlobalConfig={handleUpdateGlobalConfig}
+                                                        onUpdateMigrationOption={handleUpdateMigrationOption}
                                                     />
                                                 ))}
                                             </div>

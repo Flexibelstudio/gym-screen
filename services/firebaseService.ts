@@ -1563,6 +1563,12 @@ export const updateSmartScreenPricing = async (pricing: SmartScreenPricing) => {
     } catch (e) { console.error("updateSmartScreenPricing failed", e); }
 };
 
+export const updateOrganizationMigrationOption = async (id: string, allow: boolean) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { allowMigrationOption: allow });
+    return getOrganizationById(id);
+};
+
 export const updateOrganizationBilledStatus = async (id: string, month: string) => {
     if(isOffline || !db || !id) return;
     try {
