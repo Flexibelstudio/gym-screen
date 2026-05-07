@@ -294,7 +294,11 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             {/* Meny-grid */}
             <div className={`flex-shrink-0 ${!studioConfig.enableWorkoutLogging ? 'mb-12' : 'mb-8'}`}>
-                <div className={`grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 ${studioConfig.enableWorkoutLogging ? 'lg:grid-cols-5' : 'lg:grid-cols-4'} gap-4 sm:gap-6`}>
+                <div className={`grid ${
+                    isStudioMode 
+                        ? (studioConfig.enableWorkoutLogging ? 'grid-cols-5' : 'grid-cols-4') 
+                        : `grid-cols-2 sm:grid-cols-3 md:grid-cols-4 ${studioConfig.enableWorkoutLogging ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`
+                } gap-4 sm:gap-6`}>
                     {menuItems.map((item, index) => (
                         <MenuCard
                             key={item.title}

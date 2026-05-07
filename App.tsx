@@ -397,14 +397,12 @@ const App: React.FC = () => {
     document.documentElement.classList.remove('light', 'dark');
     document.documentElement.classList.add(theme);
   }, [theme]);
-  
-  useEffect(() => {
+    useEffect(() => {
     const root = document.documentElement;
     const primaryColor = selectedOrganization?.primaryColor;
     if (primaryColor) root.style.setProperty('--color-primary', primaryColor);
     else root.style.removeProperty('--color-primary');
   }, [selectedOrganization]);
-
 
 
   const handleBack = useCallback(() => {
