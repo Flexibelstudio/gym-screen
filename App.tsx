@@ -405,6 +405,35 @@ const App: React.FC = () => {
     else root.style.removeProperty('--color-primary');
   }, [selectedOrganization]);
 
+  // Scale UI automatically in Studio mode to look identical on 1080p and 4K screens
+  useEffect(() => {
+    if (!isStudioMode) {
+      document.documentElement.style.removeProperty('font-size');
+      return;
+    }
+
+    const updateScale = () => {
+      // Assuming a base design width of 1920px (standard 1080p) where font-size is 16px.
+      // This will scale font-size and all rem-based units up/down proportionally.
+      const baseWidth = 1920;
+      const baseFontSize = 16;
+      let newFontSize = (window.innerWidth / baseWidth) * baseFontSize;
+      
+      // Clamp to reasonable limits to avoid extreme brokenness on edge cases
+      if (newFontSize < 8) newFontSize = 8;
+      if (newFontSize > 40) newFontSize = 40;
+      
+      document.documentElement.style.fontSize = `${newFontSize}px`;
+    };
+
+    updateScale();
+    window.addEventListener('resize', updateScale);
+    return () => {
+      window.removeEventListener('resize', updateScale);
+      document.documentElement.style.removeProperty('font-size');
+    };
+  }, [isStudioMode]);
+
 
 
   const handleBack = useCallback(() => {
