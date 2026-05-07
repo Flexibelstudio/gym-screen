@@ -183,7 +183,7 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
                     </div>
                     {!isArchived ? (
                         <button onClick={onSelect} className="flex-1 sm:flex-none justify-center flex items-center bg-gray-900 hover:bg-black dark:bg-white dark:hover:bg-gray-100 dark:text-gray-900 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-colors shadow-sm">
-                            Gå till admin
+                            Hantera
                         </button>
                     ) : (
                         <button onClick={onRestore} className="flex-1 sm:flex-none justify-center flex items-center bg-green-600 hover:bg-green-500 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-colors shadow-sm">
