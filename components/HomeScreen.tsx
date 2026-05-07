@@ -166,6 +166,18 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 }) => {
   const { selectedOrganization, selectedStudio } = useStudio();
   const { isStudioMode } = useAuth();
+  
+  const hasInfoCarousel = useMemo(() => {
+        if (!selectedOrganization?.infoCarousel?.globalEnabled) return false;
+        const now = new Date();
+        return selectedOrganization.infoCarousel.messages.some(msg => {
+            if (!msg.isEnabled) return false;
+            if (msg.startDate && new Date(msg.startDate) > now) return false;
+            if (msg.endDate && new Date(msg.endDate) < now) return false;
+            return true;
+        });
+  }, [selectedOrganization]);
+  
   const [welcomeMessage, setWelcomeMessage] = useState({ title: "Hej på er!", subtitle: "Redo att köra?" });
   const [currentTime, setCurrentTime] = useState(new Date());
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -296,7 +308,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             <div className={`flex-shrink-0 ${!studioConfig.enableWorkoutLogging ? 'mb-12' : 'mb-8'}`}>
                 <div className={`grid ${
                     isStudioMode 
-                        ? (studioConfig.enableWorkoutLogging ? 'grid-cols-5' : 'grid-cols-4') 
+                        ? (studioConfig.enableWorkoutLogging && hasInfoCarousel ? 'grid-cols-5' : 'grid-cols-4') 
                         : `grid-cols-2 sm:grid-cols-3 md:grid-cols-4 ${studioConfig.enableWorkoutLogging ? 'lg:grid-cols-5' : 'lg:grid-cols-4'}`
                 } gap-4 sm:gap-6`}>
                     {menuItems.map((item, index) => (
@@ -319,7 +331,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             {/* Botten-dashboard - Endast om loggning är på */}
             {studioConfig.enableWorkoutLogging && (
-                <div className="mt-auto flex-shrink-0 grid grid-cols-1 md:grid-cols-2 gap-6 h-[400px] mb-6">
+                <div className={`mt-auto flex-shrink-0 grid ${isStudioMode ? 'grid-cols-2' : 'grid-cols-1 md:grid-cols-2'} gap-6 h-[400px] mb-6`}>
                     <motion.div 
                         initial={{ opacity: 0, y: 30 }} 
                         animate={{ opacity: 1, y: 0 }} 

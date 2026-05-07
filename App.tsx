@@ -1325,7 +1325,7 @@ const App: React.FC = () => {
           
           {isInfoBannerVisible && !isScreensaverActive && (
               // hidden md:block (osynlig på mobil), fast höjd h-[512px] på resten.
-              <div className="hidden md:block flex-shrink-0 w-full h-[512px] relative z-[40]">
+              <div className={`${isStudioMode ? 'block' : 'hidden md:block'} flex-shrink-0 w-full ${isStudioMode ? 'h-[400px]' : 'h-[512px]'} relative z-[40]`}>
                   <InfoCarouselBanner 
                     messages={activeInfoMessages} 
                     className="relative !h-full" 
@@ -1499,10 +1499,10 @@ const App: React.FC = () => {
             <>
                 <Screensaver 
                     logoUrl={selectedOrganization?.logoUrlDark || selectedOrganization?.logoUrlLight}
-                    bottomOffset={isInfoBannerVisible ? (window.innerWidth >= 768 ? 512 : 0) : 0}
+                    bottomOffset={isInfoBannerVisible ? (isStudioMode ? 400 : (window.innerWidth >= 768 ? 512 : 0)) : 0}
                 />
                 {isInfoBannerVisible && (
-                    <div className="hidden md:block fixed bottom-0 left-0 right-0 h-[512px] z-[1001]">
+                    <div className={`${isStudioMode ? 'block' : 'hidden md:block'} fixed bottom-0 left-0 right-0 ${isStudioMode ? 'h-[400px]' : 'h-[512px]'} z-[1001]`}>
                         <InfoCarouselBanner 
                             messages={activeInfoMessages} 
                             className="relative !h-full" 
