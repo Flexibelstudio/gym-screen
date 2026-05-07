@@ -497,7 +497,9 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                         <button onClick={() => setShowPricingModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">Avbryt</button>
                         <button 
                             onClick={async () => {
-                                if (!organization.stripeConnectSetupComplete) {
+                                const canActivateWithoutStripe = organization.stripeConnectSetupComplete || organization.allowStripeBypass;
+                                
+                                if (!canActivateWithoutStripe) {
                                     setIsConnectingStripe(true);
                                     try {
                                         const apiUrl = import.meta.env.VITE_API_URL;
@@ -539,7 +541,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                                     </svg>
                                     Laddar...
                                 </>
-                            ) : (!organization.stripeConnectSetupComplete ? 'Koppla Stripe & Aktivera' : 'Godkänn & Aktivera')}
+                            ) : ((organization.stripeConnectSetupComplete || organization.allowStripeBypass) ? 'Godkänn & Aktivera' : 'Koppla Stripe & Aktivera')}
                         </button>
                     </div>
                 </div>

@@ -305,6 +305,7 @@ export interface Organization {
   lastBilledMonth?: string; 
   lastBilledDate?: number;
   freeCoachAccounts?: number; // NYTT: Antal gratis coach-konton
+  allowStripeBypass?: boolean; // NYTT: Tillåt bypass för Stripe Connect
   stripeConnectAccountId?: string;
   stripeConnectSetupComplete?: boolean;
   

@@ -1569,6 +1569,12 @@ export const updateOrganizationMigrationOption = async (id: string, allow: boole
     return getOrganizationById(id);
 };
 
+export const updateOrganizationStripeBypassOption = async (id: string, allow: boolean) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { allowStripeBypass: allow });
+    return getOrganizationById(id);
+};
+
 export const updateOrganizationBilledStatus = async (id: string, month: string) => {
     if(isOffline || !db || !id) return;
     try {
