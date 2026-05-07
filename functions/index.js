@@ -858,15 +858,18 @@ app.post("/create-member-checkout", async (req, res) => {
     
     const orgData = orgDoc.data();
     const connectedAccountId = orgData.stripeConnectAccountId;
+    const bypassStripe = orgData.allowStripeBypass === true;
 
-    if (!connectedAccountId) {
+    if (!connectedAccountId && !bypassStripe) {
       return res.status(400).json({ error: "Gymmet har inte kopplat ett Stripe-konto ännu." });
     }
 
-    // Kontrollera om kontot är redo att ta emot betalningar
-    const account = await stripe.accounts.retrieve(connectedAccountId);
-    if (!account.charges_enabled) {
-      return res.status(400).json({ error: "Gymmets Stripe-konto är inte fullständigt aktiverat ännu." });
+    // Kontrollera om kontot är redo att ta emot betalningar om vi inte bypassar
+    if (connectedAccountId && !bypassStripe) {
+      const account = await stripe.accounts.retrieve(connectedAccountId);
+      if (!account.charges_enabled) {
+        return res.status(400).json({ error: "Gymmets Stripe-konto är inte fullständigt aktiverat ännu." });
+      }
     }
 
     const searchEmail = email || `member_${userId}@example.com`;
@@ -888,7 +891,7 @@ app.post("/create-member-checkout", async (req, res) => {
     // 19 kr av 39 kr = 48.72% (max 2 decimaler tillåts av Stripe)
     const applicationFeePercent = 48.72;
 
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams = {
       customer: customerId,
       payment_method_types: ['card'],
       mode: 'subscription',
@@ -908,17 +911,22 @@ app.post("/create-member-checkout", async (req, res) => {
         },
         quantity: 1,
       }],
-      subscription_data: {
-        transfer_data: {
-          destination: connectedAccountId,
-        },
-        application_fee_percent: applicationFeePercent,
-      },
       success_url: `${domain}/?success=true&type=member`,
       cancel_url: `${domain}/?canceled=true`,
       client_reference_id: userId,
       metadata: { userId, organizationId, paymentType: 'member_subscription' }
-    });
+    };
+
+    if (connectedAccountId && !bypassStripe) {
+      sessionParams.subscription_data = {
+        transfer_data: {
+          destination: connectedAccountId,
+        },
+        application_fee_percent: applicationFeePercent,
+      };
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     res.json({ url: session.url });
   } catch (error) {
