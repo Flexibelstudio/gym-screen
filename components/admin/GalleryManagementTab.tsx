@@ -45,23 +45,23 @@ export const GalleryManagementTab: React.FC = () => {
     };
 
     return (
-        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+        <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-[2rem] shadow-sm border border-gray-200 dark:border-gray-800">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Kundgalleri (Landningssida)</h2>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
                 Ladda upp bilder från studios som använder plattformen. Dessa visas i en rullande karusell på landningssidan. Rekommenderat format är kvadratiskt (1:1).
             </p>
 
-            <div className="bg-gray-50 dark:bg-gray-900 p-6 rounded-lg mb-8 border border-gray-200 dark:border-gray-700">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Lägg till ny bild</h3>
+            <div className="bg-gray-50 dark:bg-gray-800/50 p-6 md:p-8 rounded-2xl mb-8 border border-gray-200 dark:border-gray-700 shadow-sm">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Lägg till ny bild</h3>
                 <div className="flex flex-col sm:flex-row gap-4 items-end">
                     <div className="flex-grow w-full">
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Gymmets namn (frivilligt)</label>
+                        <label className="block text-xs font-black uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">Gymmets namn (frivilligt)</label>
                         <input
                             type="text"
                             value={gymName}
                             onChange={(e) => setGymName(e.target.value)}
                             placeholder="T.ex. CrossFit Svea"
-                            className="w-full px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                            className="w-full px-5 py-3.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-black text-gray-900 dark:text-white font-medium outline-none focus:ring-2 focus:ring-primary transition-shadow"
                         />
                     </div>
                     <div className="w-full sm:w-auto">
@@ -75,7 +75,7 @@ export const GalleryManagementTab: React.FC = () => {
                         />
                         <label
                             htmlFor="gallery-upload"
-                            className={`cursor-pointer flex items-center justify-center gap-2 px-6 py-2 rounded-lg font-bold text-white transition-colors ${isUploading ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-primary/90'}`}
+                            className={`cursor-pointer flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl font-bold text-white transition-colors shadow-sm w-full sm:w-auto ${isUploading ? 'bg-gray-400 cursor-not-allowed opacity-50' : 'bg-primary hover:brightness-95'}`}
                         >
                             {isUploading ? 'Laddar upp...' : <><PlusIcon /> Välj bild</>}
                         </label>
