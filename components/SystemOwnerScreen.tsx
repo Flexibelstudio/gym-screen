@@ -42,6 +42,7 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
     const [memberCount, setMemberCount] = useState<number | null>(null);
     const [staffCount, setStaffCount] = useState<number | null>(null);
     const [showMenu, setShowMenu] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(false);
     const menuRef = React.useRef<HTMLDivElement>(null);
 
     const isArchived = org.status === 'archived';
@@ -68,6 +69,7 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
     }, [org.freeCoachAccounts, org.name, org.globalConfig?.enableEventsModule]);
 
     useEffect(() => {
+        if (!isExpanded) return; // Only fetch counts if expanded (performance optimization)
         const fetchCounts = async () => {
             try {
                 const members = await getMembers(org.id);
@@ -78,7 +80,7 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
             }
         };
         fetchCounts();
-    }, [org.id]);
+    }, [org.id, isExpanded]);
 
     const handleSaveSettings = async () => {
         setIsSaving(true);
@@ -113,181 +115,217 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
     const isStripeActive = org.systemFeePaid;
 
     return (
-        <div className={`p-4 rounded-lg border shadow-sm transition-all ${isArchived ? 'bg-gray-100 dark:bg-gray-800/20 border-gray-300 dark:border-gray-800 opacity-80' : 'bg-slate-200 dark:bg-gray-900/50 border-slate-300 dark:border-gray-700'}`}>
-            <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-                <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-3">
-                        {isEditingName ? (
-                            <div className="flex items-center gap-2">
-                                <input
-                                    type="text"
-                                    value={editNameValue}
-                                    onChange={(e) => setEditNameValue(e.target.value)}
-                                    className="bg-white dark:bg-gray-900 text-black dark:text-white px-2 py-1 rounded-md border border-slate-300 dark:border-gray-600 focus:ring-1 focus:ring-primary text-lg font-semibold w-64"
-                                    disabled={isSavingName}
-                                    autoFocus
-                                />
-                                <button onClick={handleSaveName} disabled={isSavingName || !editNameValue.trim() || editNameValue === org.name} className="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-md disabled:opacity-50 text-sm font-semibold">
-                                    {isSavingName ? 'Sparar...' : 'Spara'}
-                                </button>
-                                <button onClick={() => { setIsEditingName(false); setEditNameValue(org.name); }} disabled={isSavingName} className="bg-gray-500 hover:bg-gray-400 text-white p-1.5 rounded-md disabled:opacity-50">
-                                    <CloseIcon className="w-4 h-4" />
-                                </button>
+        <div className={`p-4 rounded-[2rem] border shadow-sm transition-all group hover:border-gray-300 dark:hover:border-gray-600 ${isArchived ? 'bg-gray-100 dark:bg-gray-800/20 border-gray-300 dark:border-gray-800 opacity-80' : 'bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700'}`}>
+            <div 
+                className="flex flex-col sm:flex-row justify-between items-center gap-4 cursor-pointer"
+                onClick={() => setIsExpanded(!isExpanded)}
+            >
+                <div className="flex-1 w-full sm:w-auto">
+                    <div className="flex items-center justify-between sm:justify-start gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-2xl bg-gray-100 dark:bg-gray-800 flex flex-col items-center justify-center text-primary shrink-0 border border-gray-200 dark:border-gray-700 shadow-inner group-hover:scale-105 transition-transform">
+                                <BuildingIcon className="w-6 h-6" />
                             </div>
-                        ) : (
-                            <>
-                                <p className="font-semibold text-gray-900 dark:text-white text-lg">{org.name}</p>
-                                {!isArchived && (
-                                    <button onClick={() => setIsEditingName(true)} className="text-gray-400 hover:text-primary transition-colors">
-                                        <PencilIcon className="w-4 h-4" />
-                                    </button>
+                            <div>
+                                {isEditingName ? (
+                                    <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                                        <input
+                                            type="text"
+                                            value={editNameValue}
+                                            onChange={(e) => setEditNameValue(e.target.value)}
+                                            className="bg-white dark:bg-gray-800 text-black dark:text-white px-2 py-1 rounded-md border border-gray-300 dark:border-gray-600 focus:ring-1 focus:ring-primary text-xl font-bold w-64"
+                                            disabled={isSavingName}
+                                            autoFocus
+                                        />
+                                        <button onClick={handleSaveName} disabled={isSavingName || !editNameValue.trim() || editNameValue === org.name} className="bg-green-600 hover:bg-green-500 text-white px-3 py-1.5 rounded-md disabled:opacity-50 text-sm font-semibold shadow-sm">
+                                            {isSavingName ? 'Sparar...' : 'Spara'}
+                                        </button>
+                                        <button onClick={() => { setIsEditingName(false); setEditNameValue(org.name); }} disabled={isSavingName} className="bg-gray-500 hover:bg-gray-400 text-white p-1.5 rounded-md disabled:opacity-50 shadow-sm">
+                                            <CloseIcon className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-bold text-gray-900 dark:text-white text-xl tracking-tight">{org.name}</p>
+                                        {!isArchived && (
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setIsEditingName(true); }} 
+                                                className="text-gray-400 hover:text-primary transition-colors p-1"
+                                                title="Redigera namn"
+                                            >
+                                                <PencilIcon className="w-4 h-4" />
+                                            </button>
+                                        )}
+                                        {isArchived && <span className="bg-gray-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest shadow-sm ml-2">Arkiverad</span>}
+                                    </div>
                                 )}
-                            </>
-                        )}
-                        {isArchived && <span className="bg-gray-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-widest">Arkiverad</span>}
+                                {!isArchived && (
+                                    <div className="flex items-center mt-1">
+                                        <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${isStripeActive ? 'bg-green-100/50 text-green-700 dark:bg-green-900/20 dark:text-green-400 border border-green-200 dark:border-green-800' : 'bg-red-100/50 text-red-700 dark:bg-red-900/20 dark:text-red-400 border border-red-200 dark:border-red-800'}`}>
+                                            <div className={`w-1.5 h-1.5 rounded-full ${isStripeActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                            {isStripeActive ? 'Stripe: Aktiv' : 'Kort saknas / Inaktiv'}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                         
-                        {!isArchived && (
-                            <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider ml-2 ${isStripeActive ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
-                                <div className={`w-2 h-2 rounded-full ${isStripeActive ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                                {isStripeActive ? 'Betalning: Aktiv' : 'Kort saknas / Inaktiv'}
-                            </div>
-                        )}
-                    </div>
-                    
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mt-4">
-                        <div className="bg-white dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-gray-700">
-                            <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-1">Skärmar</p>
-                            <p className="text-xl font-bold text-gray-900 dark:text-white">{org.studios.length} st</p>
-                        </div>
-                        <div className="bg-white dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-gray-700">
-                            <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-1">Personal</p>
-                            <p className="text-xl font-bold text-gray-900 dark:text-white">{staffCount !== null ? staffCount : '-'} st</p>
-                        </div>
-                        <div className="bg-white dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-gray-700">
-                            <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-1">Medlemmar</p>
-                            <p className="text-xl font-bold text-gray-900 dark:text-white">{memberCount !== null ? memberCount : '-'} st</p>
-                        </div>
-                        <div className="bg-white dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-gray-700 flex flex-col justify-between">
-                            <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-1">Gratis coacher</p>
-                            <div className="flex items-center gap-2">
-                                <input 
-                                    type="number" 
-                                    value={freeCoaches}
-                                    onChange={(e) => setFreeCoaches(Number(e.target.value))}
-                                    className="w-16 bg-slate-100 dark:bg-gray-900 text-black dark:text-white p-1 rounded border border-slate-300 dark:border-gray-600 text-center font-bold"
-                                />
-                                <button onClick={handleSaveSettings} disabled={isSaving || !hasChanges} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-xs font-semibold disabled:opacity-50">
-                                    {isSaving ? '...' : 'Spara'}
-                                </button>
-                            </div>
-                        </div>
-                        <div className="bg-white dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-gray-700 flex flex-col justify-between">
-                            <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-1">Event & Tävlingar</p>
-                            <div className="flex items-center gap-2 mt-1">
-                                <ToggleSwitch 
-                                    label="Events-modul"
-                                    checked={enableEventsModule} 
-                                    onChange={async () => {
-                                        const newValue = !enableEventsModule;
-                                        setEnableEventsModule(newValue);
-                                        try {
-                                            await onUpdateGlobalConfig(org.id, { ...org.globalConfig, enableEventsModule: newValue });
-                                        } catch (e) {
-                                            setEnableEventsModule(!newValue);
-                                            alert("Ett fel inträffade vid sparande.");
-                                        }
-                                    }} 
-                                />
-                            </div>
-                        </div>
-                        <div className="bg-white dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-gray-700 flex flex-col justify-between">
-                            <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-1">Importfunktion</p>
-                            <div className="flex items-center gap-2 mt-1">
-                                <ToggleSwitch 
-                                    label="Tillåt import"
-                                    checked={allowMigrationOption} 
-                                    onChange={async () => {
-                                        const newValue = !allowMigrationOption;
-                                        setAllowMigrationOption(newValue);
-                                        try {
-                                            await onUpdateMigrationOption(org.id, newValue);
-                                        } catch (e) {
-                                            setAllowMigrationOption(!newValue);
-                                            alert("Ett fel inträffade vid sparande.");
-                                        }
-                                    }} 
-                                />
-                            </div>
-                        </div>
-                        <div className="bg-white dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-gray-700 flex flex-col justify-between">
-                            <p className="text-xs text-gray-500 dark:text-gray-400 font-semibold uppercase tracking-wider mb-1">Stripe Connect</p>
-                            <div className="flex items-center gap-2 mt-1">
-                                <ToggleSwitch 
-                                    label="Kräv ej Stripe"
-                                    checked={allowStripeBypass} 
-                                    onChange={async () => {
-                                        const newValue = !allowStripeBypass;
-                                        setAllowStripeBypass(newValue);
-                                        try {
-                                            await onUpdateStripeBypassOption(org.id, newValue);
-                                        } catch (e) {
-                                            setAllowStripeBypass(!newValue);
-                                            alert("Ett fel inträffade vid sparande.");
-                                        }
-                                    }} 
-                                />
-                            </div>
+                        {/* Mobilvy-chevron */}
+                        <div className="sm:hidden text-gray-400">
+                             <ChevronDownIcon className={`w-6 h-6 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                         </div>
                     </div>
                 </div>
                 
-                <div className="flex flex-row sm:flex-col gap-2 items-end flex-shrink-0 mt-4 sm:mt-0 relative" ref={menuRef}>
-                    {!isArchived && (
-                        <div className="flex items-center gap-2">
-                            <button onClick={onSelect} className="bg-purple-600 hover:bg-purple-500 text-white font-semibold py-2 px-4 rounded-lg text-sm w-full sm:w-auto">Hantera</button>
-                            <button onClick={() => setShowMenu(!showMenu)} className="p-2 bg-slate-300 hover:bg-slate-400 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                                <MoreVertical className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-                            </button>
-                        </div>
+                <div className="flex items-center gap-3 w-full sm:w-auto" onClick={(e) => e.stopPropagation()}>
+                    <div className="hidden sm:flex text-gray-400 mr-2 cursor-pointer hover:text-primary transition-colors" onClick={() => setIsExpanded(!isExpanded)}>
+                         <ChevronDownIcon className={`w-6 h-6 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                    </div>
+                    {!isArchived ? (
+                        <button onClick={onSelect} className="flex-1 sm:flex-none justify-center flex items-center bg-gray-900 hover:bg-black dark:bg-white dark:hover:bg-gray-100 dark:text-gray-900 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-colors shadow-sm">
+                            Gå till admin
+                        </button>
+                    ) : (
+                        <button onClick={onRestore} className="flex-1 sm:flex-none justify-center flex items-center bg-green-600 hover:bg-green-500 text-white font-bold py-2.5 px-6 rounded-xl text-sm transition-colors shadow-sm">
+                            Återaktivera
+                        </button>
                     )}
-                    {isArchived && (
-                        <div className="flex items-center gap-2">
-                            <button onClick={onRestore} className="bg-green-600 hover:bg-green-500 text-white font-semibold py-2 px-4 rounded-lg text-sm w-full sm:w-auto">Återaktivera</button>
-                            <button onClick={() => setShowMenu(!showMenu)} className="p-2 bg-slate-300 hover:bg-slate-400 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-lg transition-colors">
-                                <MoreVertical className="w-5 h-5 text-gray-700 dark:text-gray-300" />
-                            </button>
-                        </div>
-                    )}
-
-                    <AnimatePresence>
-                        {showMenu && (
-                            <motion.div 
-                                initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                                transition={{ duration: 0.15 }}
-                                className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-10"
-                            >
-                                {!isArchived ? (
-                                    <button 
-                                        onClick={() => { setShowMenu(false); onArchive(); }} 
-                                        className="w-full text-left px-4 py-3 text-sm text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-medium transition-colors"
-                                    >
-                                        Arkivera
-                                    </button>
-                                ) : (
-                                    <button 
-                                        onClick={() => { setShowMenu(false); onDeletePermanent?.(); }} 
-                                        className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 font-medium transition-colors"
-                                    >
-                                        Radera Permanent
-                                    </button>
-                                )}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                    
+                    <div className="relative" ref={menuRef}>
+                        <button onClick={() => setShowMenu(!showMenu)} className="p-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 rounded-xl transition-colors shrink-0">
+                            <MoreVertical className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                        </button>
+                        <AnimatePresence>
+                            {showMenu && (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                                    transition={{ duration: 0.15 }}
+                                    className="absolute top-full right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-10"
+                                >
+                                    {!isArchived ? (
+                                        <button 
+                                            onClick={() => { setShowMenu(false); onArchive(); }} 
+                                            className="w-full text-left px-5 py-3.5 text-sm text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20 font-bold transition-colors"
+                                        >
+                                            Arkivera kund
+                                        </button>
+                                    ) : (
+                                        <button 
+                                            onClick={() => { setShowMenu(false); onDeletePermanent?.(); }} 
+                                            className="w-full text-left px-5 py-3.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 font-bold transition-colors"
+                                        >
+                                            Radera Permanent
+                                        </button>
+                                    )}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
                 </div>
             </div>
+            
+            {/* EXPANDABLE CONTENT */}
+            <AnimatePresence>
+                {isExpanded && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
+                    >
+                        <div className="pt-6 mt-4 border-t border-gray-100 dark:border-gray-800">
+                            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
+                                <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-200 dark:border-gray-700">
+                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest mb-1">Skärmar</p>
+                                    <p className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{org.studios.length} <span className="text-sm font-bold text-gray-400">st</span></p>
+                                </div>
+                                <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-200 dark:border-gray-700">
+                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest mb-1">Personal</p>
+                                    <p className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{staffCount !== null ? staffCount : '-'} <span className="text-sm font-bold text-gray-400">st</span></p>
+                                </div>
+                                <div className="bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-200 dark:border-gray-700">
+                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest mb-1">Medlemmar</p>
+                                    <p className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">{memberCount !== null ? memberCount : '-'} <span className="text-sm font-bold text-gray-400">st</span></p>
+                                </div>
+                                <div className="bg-white dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 flex flex-col justify-between">
+                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest mb-2">Gratis coacher</p>
+                                    <div className="flex items-center gap-2">
+                                        <input 
+                                            type="number" 
+                                            value={freeCoaches}
+                                            onChange={(e) => setFreeCoaches(Number(e.target.value))}
+                                            className="w-16 bg-gray-100 dark:bg-gray-900 text-black dark:text-white px-2 py-1.5 rounded-lg border border-gray-200 dark:border-gray-600 text-center font-bold focus:ring-2 focus:ring-primary outline-none"
+                                        />
+                                        <button onClick={handleSaveSettings} disabled={isSaving || !hasChanges} className="bg-primary hover:brightness-95 text-white px-3 py-1.5 rounded-lg text-xs font-bold disabled:opacity-50 transition-colors shadow-sm">
+                                            {isSaving ? '...' : 'Spara'}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="bg-white dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 flex flex-col justify-between">
+                                    <p className="text-[10px] text-gray-500 dark:text-gray-400 font-black uppercase tracking-widest mb-2">Moduler</p>
+                                    <div className="space-y-2">
+                                        <div className="scale-90 origin-left">
+                                            <ToggleSwitch 
+                                                label="Events & Tävlingar"
+                                                checked={enableEventsModule} 
+                                                onChange={async () => {
+                                                    const newValue = !enableEventsModule;
+                                                    setEnableEventsModule(newValue);
+                                                    try {
+                                                        await onUpdateGlobalConfig(org.id, { ...org.globalConfig, enableEventsModule: newValue });
+                                                    } catch (e) {
+                                                        setEnableEventsModule(!newValue);
+                                                        alert("Ett fel inträffade vid sparande.");
+                                                    }
+                                                }} 
+                                            />
+                                        </div>
+                                        <div className="scale-90 origin-left">
+                                            <ToggleSwitch 
+                                                label="Importfunktion"
+                                                checked={allowMigrationOption} 
+                                                onChange={async () => {
+                                                    const newValue = !allowMigrationOption;
+                                                    setAllowMigrationOption(newValue);
+                                                    try {
+                                                        await onUpdateMigrationOption(org.id, newValue);
+                                                    } catch (e) {
+                                                        setAllowMigrationOption(!newValue);
+                                                        alert("Ett fel inträffade vid sparande.");
+                                                    }
+                                                }} 
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="bg-white dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-200 dark:border-gray-700 flex flex-col justify-between">
+                                    <p className="text-[10px] text-orange-500 dark:text-orange-400 font-black uppercase tracking-widest mb-2">System Bypass</p>
+                                    <div className="scale-90 origin-left">
+                                        <ToggleSwitch 
+                                            label="Kräv ej Stripe"
+                                            checked={allowStripeBypass} 
+                                            onChange={async () => {
+                                                const newValue = !allowStripeBypass;
+                                                setAllowStripeBypass(newValue);
+                                                try {
+                                                    await onUpdateStripeBypassOption(org.id, newValue);
+                                                } catch (e) {
+                                                    setAllowStripeBypass(!newValue);
+                                                    alert("Ett fel inträffade vid sparande.");
+                                                }
+                                            }} 
+                                        />
+                                    </div>
+                                    <p className="text-[9px] text-gray-500 font-medium mt-2 leading-tight">Stänger av tvingande registreringskrav för systemhyra.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 });
