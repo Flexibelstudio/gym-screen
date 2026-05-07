@@ -165,6 +165,20 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
     const handleToggleChange = (key: BooleanStudioConfigKeys, value: boolean) => {
         // Special logic for activating logging -> Show Pricing Modal first
         if (key === 'enableWorkoutLogging' && value === true) {
+            if (organization.allowStripeBypass) {
+                // Slå på funktionen blixtsnabbt utan kalkylator/popup
+                setOverrides(prev => {
+                    const newOverrides = { ...prev };
+                    const globalValue = globalConfig[key] ?? false;
+                    if (globalValue === true) {
+                        delete newOverrides[key];
+                    } else {
+                        newOverrides[key] = true;
+                    }
+                    return newOverrides;
+                });
+                return;
+            }
             setShowPricingModal(true);
             return;
         }

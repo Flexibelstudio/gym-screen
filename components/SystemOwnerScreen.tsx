@@ -187,11 +187,17 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
                                 <ToggleSwitch 
                                     label="Events-modul"
                                     checked={enableEventsModule} 
-                                    onChange={() => setEnableEventsModule(!enableEventsModule)} 
+                                    onChange={async () => {
+                                        const newValue = !enableEventsModule;
+                                        setEnableEventsModule(newValue);
+                                        try {
+                                            await onUpdateGlobalConfig(org.id, { ...org.globalConfig, enableEventsModule: newValue });
+                                        } catch (e) {
+                                            setEnableEventsModule(!newValue);
+                                            alert("Ett fel inträffade vid sparande.");
+                                        }
+                                    }} 
                                 />
-                                <button onClick={handleSaveSettings} disabled={isSaving || !hasChanges} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-xs font-semibold disabled:opacity-50">
-                                    {isSaving ? '...' : 'Spara'}
-                                </button>
                             </div>
                         </div>
                         <div className="bg-white dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-gray-700 flex flex-col justify-between">
@@ -200,11 +206,17 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
                                 <ToggleSwitch 
                                     label="Tillåt import"
                                     checked={allowMigrationOption} 
-                                    onChange={() => setAllowMigrationOption(!allowMigrationOption)} 
+                                    onChange={async () => {
+                                        const newValue = !allowMigrationOption;
+                                        setAllowMigrationOption(newValue);
+                                        try {
+                                            await onUpdateMigrationOption(org.id, newValue);
+                                        } catch (e) {
+                                            setAllowMigrationOption(!newValue);
+                                            alert("Ett fel inträffade vid sparande.");
+                                        }
+                                    }} 
                                 />
-                                <button onClick={handleSaveSettings} disabled={isSaving || !hasChanges} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-xs font-semibold disabled:opacity-50">
-                                    {isSaving ? '...' : 'Spara'}
-                                </button>
                             </div>
                         </div>
                         <div className="bg-white dark:bg-black/20 p-3 rounded-lg border border-slate-200 dark:border-gray-700 flex flex-col justify-between">
@@ -213,11 +225,17 @@ const OrganizationCard: React.FC<OrganizationCardProps> = React.memo(({ org, onS
                                 <ToggleSwitch 
                                     label="Kräv ej Stripe"
                                     checked={allowStripeBypass} 
-                                    onChange={() => setAllowStripeBypass(!allowStripeBypass)} 
+                                    onChange={async () => {
+                                        const newValue = !allowStripeBypass;
+                                        setAllowStripeBypass(newValue);
+                                        try {
+                                            await onUpdateStripeBypassOption(org.id, newValue);
+                                        } catch (e) {
+                                            setAllowStripeBypass(!newValue);
+                                            alert("Ett fel inträffade vid sparande.");
+                                        }
+                                    }} 
                                 />
-                                <button onClick={handleSaveSettings} disabled={isSaving || !hasChanges} className="bg-gray-600 hover:bg-gray-500 text-white px-2 py-1 rounded text-xs font-semibold disabled:opacity-50">
-                                    {isSaving ? '...' : 'Spara'}
-                                </button>
                             </div>
                         </div>
                     </div>
