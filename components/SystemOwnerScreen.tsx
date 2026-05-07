@@ -394,48 +394,48 @@ const SmartScreenPricingCard: React.FC = () => {
     }
 
     return (
-        <div className="bg-gray-50 dark:bg-gray-800/10 p-6 md:p-8 rounded-[2rem] border border-gray-100 dark:border-gray-700 shadow-sm transition-all">
+        <div className="bg-slate-200 dark:bg-gray-900/50 p-6 rounded-lg border border-slate-300 dark:border-gray-700">
             {!isEditing ? (
                 <div className="flex justify-between items-start">
                     <div>
                         <h4 className="text-xl font-bold text-gray-900 dark:text-white">Prissättning</h4>
-                        <div className="mt-4 text-gray-700 dark:text-gray-300 flex flex-wrap gap-4">
-                            <span className="bg-white dark:bg-gray-900 px-4 py-2 rounded-xl text-sm border border-gray-200 dark:border-gray-800 shadow-sm"><span className="font-bold text-gray-900 dark:text-white">Grundpaket (inkl. 1 skärm):</span> {pricing.firstScreenPrice} kr/mån</span>
-                            <span className="bg-white dark:bg-gray-900 px-4 py-2 rounded-xl text-sm border border-gray-200 dark:border-gray-800 shadow-sm"><span className="font-bold text-gray-900 dark:text-white">Ytterligare skärm:</span> {pricing.additionalScreenPrice} kr/mån</span>
+                        <div className="mt-2 text-gray-700 dark:text-gray-300 space-x-6">
+                            <span><span className="font-semibold">Grundpaket (inkl. 1 skärm):</span> {pricing.firstScreenPrice} kr/mån</span>
+                            <span><span className="font-semibold">Ytterligare skärm:</span> {pricing.additionalScreenPrice} kr/mån</span>
                         </div>
                     </div>
-                    <button onClick={() => setIsEditing(true)} className="text-gray-400 hover:text-primary hover:bg-white dark:hover:bg-gray-800 p-2 rounded-xl shadow-sm transition-colors border border-transparent hover:border-gray-200 dark:hover:border-gray-700">
-                        <PencilIcon className="w-5 h-5" />
+                    <button onClick={() => setIsEditing(true)} className="text-gray-500 hover:text-primary transition-colors">
+                        <PencilIcon className="w-6 h-6" />
                     </button>
                 </div>
             ) : (
                 <div className="animate-fade-in">
-                    <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-6">Redigera Prissättning</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <h4 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Redigera Prissättning</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-black text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-widest">Grundpaket (inkl. 1 skärm) (kr/mån)</label>
+                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Grundpaket (inkl. 1 skärm) (kr/mån)</label>
                             <input
                                 type="number"
                                 value={editValues.first}
                                 onChange={(e) => setEditValues(prev => ({ ...prev, first: e.target.value }))}
-                                className="w-full bg-white dark:bg-black text-black dark:text-white p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none font-bold"
+                                className="w-full bg-white dark:bg-black text-black dark:text-white p-2 rounded-md border border-slate-300 dark:border-gray-600 focus:ring-1 focus:ring-primary"
                                 disabled={isSaving}
                             />
                         </div>
                         <div>
-                            <label className="block text-xs font-black text-gray-500 dark:text-gray-400 mb-2 uppercase tracking-widest">Ytterligare skärm (kr/mån)</label>
+                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Ytterligare skärm (kr/mån)</label>
                             <input
                                 type="number"
                                 value={editValues.additional}
                                 onChange={(e) => setEditValues(prev => ({ ...prev, additional: e.target.value }))}
-                                className="w-full bg-white dark:bg-black text-black dark:text-white p-3.5 rounded-xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary outline-none font-bold"
+                                className="w-full bg-white dark:bg-black text-black dark:text-white p-2 rounded-md border border-slate-300 dark:border-gray-600 focus:ring-1 focus:ring-primary"
                                 disabled={isSaving}
                             />
                         </div>
                     </div>
-                    <div className="flex justify-end gap-3 mt-8">
-                        <button onClick={handleCancel} disabled={isSaving} className="bg-gray-600 hover:bg-gray-500 text-white font-bold py-3.5 px-6 rounded-xl transition-colors">Avbryt</button>
-                        <button onClick={handleSave} disabled={isSaving} className="bg-primary hover:brightness-95 text-white font-bold py-3.5 px-6 rounded-xl transition-colors shadow-sm">{isSaving ? 'Sparar...' : 'Spara'}</button>
+                    <div className="flex justify-end gap-2 mt-4">
+                        <button onClick={handleCancel} disabled={isSaving} className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg">Avbryt</button>
+                        <button onClick={handleSave} disabled={isSaving} className="bg-primary hover:brightness-95 text-white font-semibold py-2 px-4 rounded-lg">{isSaving ? 'Sparar...' : 'Spara'}</button>
                     </div>
                 </div>
             )}
@@ -491,16 +491,16 @@ const SeasonalThemesTab: React.FC = () => {
     ];
 
     return (
-        <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-[2rem] space-y-6 border border-gray-200 dark:border-gray-800 shadow-sm animate-fade-in">
-            <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-800 pb-4 mb-6">
+        <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-lg space-y-6 border border-slate-200 dark:border-gray-700 animate-fade-in">
+            <div className="flex justify-between items-center border-b border-slate-300 dark:border-gray-700 pb-4">
                 <div>
-                    <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Säsongsteman</h3>
-                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mt-1">Styr när olika visuella effekter ska aktiveras automatiskt.</p>
+                    <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Säsongsteman</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Styr när olika visuella effekter ska aktiveras automatiskt.</p>
                 </div>
                 <button 
                     onClick={handleSave} 
                     disabled={isSaving}
-                    className="bg-primary hover:brightness-95 text-white font-bold py-3 px-6 rounded-xl shadow-sm disabled:opacity-50 transition-colors"
+                    className="bg-primary hover:brightness-95 text-white font-bold py-2 px-6 rounded-lg shadow-sm disabled:opacity-50"
                 >
                     {isSaving ? 'Sparar...' : 'Spara Ändringar'}
                 </button>
@@ -508,13 +508,13 @@ const SeasonalThemesTab: React.FC = () => {
 
             <div className="grid grid-cols-1 gap-6">
                 {themes.map(theme => (
-                    <div key={theme.id} className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-2xl border border-gray-200 dark:border-gray-700 shadow-sm">
-                        <div className="flex justify-between items-center mb-6">
-                            <h4 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
-                                <SparklesIcon className="w-6 h-6 text-primary" />
+                    <div key={theme.id} className="bg-white dark:bg-gray-900/50 p-5 rounded-xl border border-slate-200 dark:border-gray-700 shadow-sm">
+                        <div className="flex justify-between items-center mb-4">
+                            <h4 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                                <SparklesIcon className="w-5 h-5 text-primary" />
                                 {theme.name}
                             </h4>
-                            <div className="scale-90 origin-right">
+                            <div className="w-24">
                                 <ToggleSwitch 
                                     label={theme.isEnabled ? "PÅ" : "AV"} 
                                     checked={theme.isEnabled} 
@@ -704,12 +704,12 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                 </h1>
                 
                 {/* Desktop Tabs */}
-                <div className="hidden lg:flex bg-gray-100/80 dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-1.5 rounded-2xl overflow-x-auto">
+                <div className="hidden lg:flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
                     {tabs.map(tab => (
                         <button 
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)} 
-                            className={`px-5 py-2.5 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${activeTab === tab.id ? 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm ring-1 ring-gray-200 dark:ring-gray-700' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-200/50 dark:hover:bg-gray-800/50'}`}
+                            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === tab.id ? 'bg-white dark:bg-gray-700 text-primary shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
                         >
                             {tab.label}
                         </button>
@@ -789,10 +789,10 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
 
                     {activeTab === 'list' && (
                         <>
-                            <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-[2rem] space-y-4 border border-gray-200 dark:border-gray-800 shadow-sm">
-                                <h3 className="text-2xl font-black text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-4 mb-6 tracking-tight">Mina Kunder</h3>
+                            <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-lg space-y-4 border border-slate-200 dark:border-gray-700 shadow-sm">
+                                <h3 className="text-2xl font-bold text-gray-900 dark:text-white border-b border-slate-300 dark:border-gray-700 pb-3 mb-4">Mina Kunder</h3>
                                 
-                                <div className="space-y-8">
+                                <div className="space-y-6">
                                     <section>
                                         <h4 className="text-xs font-black uppercase tracking-widest text-gray-400 mb-4">Aktiva ({activeOrgs.length})</h4>
                                         <div className="space-y-3">
@@ -836,26 +836,26 @@ export const SystemOwnerScreen: React.FC<SystemOwnerScreenProps> = ({ allOrganiz
                                     )}
                                 </div>
 
-                                <form onSubmit={handleCreate} className="pt-8 mt-8 border-t border-gray-100 dark:border-gray-800 space-y-4">
-                                    <label className="text-xs font-black text-gray-500 uppercase tracking-widest">Lägg till ny kund</label>
-                                    <div className="flex flex-col sm:flex-row gap-3">
+                                <form onSubmit={handleCreate} className="pt-8 border-t border-slate-300 dark:border-gray-700 space-y-3">
+                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-widest">Lägg till nytt gym</label>
+                                    <div className="flex gap-3">
                                         <input
                                             type="text"
                                             value={newOrgName}
                                             onChange={(e) => setNewOrgName(e.target.value)}
-                                            placeholder="Gymmets/Kundens namn"
-                                            className="flex-grow bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white px-5 py-3.5 rounded-xl border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition block w-full outline-none font-medium"
+                                            placeholder="Gymmets namn"
+                                            className="flex-grow bg-white dark:bg-black text-black dark:text-white p-3 rounded-md border border-slate-300 dark:border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none transition"
                                             disabled={isCreating}
                                         />
-                                        <button type="submit" disabled={!newOrgName.trim() || isCreating} className="bg-primary hover:brightness-95 text-white font-bold py-3.5 px-8 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm w-full sm:w-auto">
+                                        <button type="submit" disabled={!newOrgName.trim() || isCreating} className="bg-primary hover:brightness-95 text-white font-bold py-3 px-8 rounded-lg transition-colors disabled:bg-gray-500">
                                             {isCreating ? 'Skapar...' : 'Skapa'}
                                         </button>
                                     </div>
                                 </form>
                             </div>
                             
-                            <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-[2rem] space-y-4 border border-gray-200 dark:border-gray-800 shadow-sm">
-                                <h3 className="text-2xl font-black text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-4 mb-6 tracking-tight">Systeminställningar & Prissättning</h3>
+                            <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-lg space-y-4 border border-slate-200 dark:border-gray-700 shadow-sm">
+                                <h3 className="text-2xl font-bold text-gray-900 dark:text-white border-b border-slate-300 dark:border-gray-700 pb-3 mb-4">Systeminställningar & Prissättning</h3>
                                 <SmartScreenPricingCard />
                             </div>
                         </>

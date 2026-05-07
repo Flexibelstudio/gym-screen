@@ -5,16 +5,16 @@ export const CompanyInfoContent: React.FC<{ organization: Organization; onEdit: 
     const [isConnectingStripe, setIsConnectingStripe] = useState(false);
 
     return (
-         <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-[2rem] border border-gray-200 dark:border-gray-800 shadow-sm transition-all duration-300">
-             <div className="pb-4 mb-6 border-b border-gray-100 dark:border-gray-800">
-                 <h3 className="text-2xl font-black tracking-tight text-gray-900 dark:text-white">Ekonomi & Licens</h3>
+         <div className="bg-slate-50 dark:bg-gray-800/50 p-6 rounded-xl border border-slate-200 dark:border-gray-700">
+             <div className="flex justify-between items-center border-b border-slate-200 dark:border-gray-700 pb-4 mb-6">
+                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Ekonomi & Licens</h3>
              </div>
 
              <div className="space-y-8">
                  {/* Economy & Billing */}
                  <div>
-                     <div className="bg-gray-50 dark:bg-gray-800/50 p-6 md:p-8 rounded-2xl border border-gray-200 dark:border-gray-700 space-y-6">
-                             <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-6">
+                     <div className="bg-white dark:bg-gray-900 p-6 rounded-lg border border-slate-200 dark:border-gray-700 space-y-4">
+                             <div className="flex justify-between items-center border-b border-gray-100 dark:border-gray-800 pb-4">
                                  <div>
                                      <p className="font-bold text-gray-900 dark:text-white">Medlemspris i appen</p>
                                      <p className="text-sm text-gray-500">Pris som era medlemmar betalar för tillgång</p>

@@ -213,7 +213,7 @@ export const SkyltfonsterContent: React.FC<SkyltfonsterContentProps> = ({ organi
 
     if (editingWindow) {
         return (
-            <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-[2rem] space-y-4 border border-gray-200 dark:border-gray-800 shadow-sm transition-all duration-300">
+            <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-lg space-y-4 border border-slate-200 dark:border-gray-700">
                 <DisplayPostEditor
                     windowData={editingWindow}
                     onSaveWindow={handleWindowChange}
@@ -226,36 +226,32 @@ export const SkyltfonsterContent: React.FC<SkyltfonsterContentProps> = ({ organi
     }
 
     return (
-        <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-[2rem] space-y-6 border border-gray-200 dark:border-gray-800 shadow-sm transition-all duration-300">
-            <div className="pb-4 mb-6 border-b border-gray-100 dark:border-gray-800">
-                <h3 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">Skyltfönster</h3>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mt-1">Hantera digitala anslagstavlor som kan visas på valfri skärm i studion.</p>
+        <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-lg space-y-4 border border-slate-200 dark:border-gray-700">
+            <div className="pb-3 mb-4">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">Skyltfönster</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Hantera digitala anslagstavlor som kan visas på valfri skärm i studion.</p>
             </div>
             {localWindows.length === 0 ? (
-                <div className="text-center p-12 bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
-                    <p className="text-gray-500 font-medium">Inga skyltfönster har skapats ännu.</p>
+                <div className="text-center p-8 bg-slate-200 dark:bg-gray-900/50 rounded-lg">
+                    <p className="text-gray-500">Inga skyltfönster har skapats ännu.</p>
                 </div>
             ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                     {localWindows.map(win => (
-                        <div key={win.id} className="bg-gray-50 dark:bg-gray-800/50 p-5 rounded-2xl flex flex-col xl:flex-row justify-between xl:items-center gap-4 border border-gray-200 dark:border-gray-700 transition-all hover:border-gray-300 dark:hover:border-gray-600">
-                            <p className="font-bold text-lg text-gray-900 dark:text-white flex-grow truncate">{win.name}</p>
-                            <div className="flex flex-wrap xl:flex-nowrap items-center gap-3 self-end xl:self-center">
-                                <div className="flex items-center gap-2 bg-white dark:bg-gray-900 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm">
-                                    <span className="text-xs font-black uppercase tracking-widest text-gray-400">Aktiv:</span>
-                                    <div className="scale-90 origin-right">
-                                        <ToggleSwitch checked={win.isEnabled} onChange={checked => handleWindowChange({ ...win, isEnabled: checked })} label="" />
-                                    </div>
-                                </div>
-                                <button onClick={() => handleRenameWindow(win)} className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white font-bold py-2.5 px-4 rounded-xl transition-colors text-sm">Byt namn</button>
-                                <button onClick={() => setEditingWindow(win)} className="bg-primary hover:brightness-95 text-white font-bold py-2.5 px-4 rounded-xl transition-colors text-sm shadow-sm">Redigera inlägg</button>
-                                <button onClick={() => handleDeleteWindow(win.id)} className="bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-bold py-2.5 px-4 rounded-xl transition-colors text-sm border border-red-100 dark:border-red-900/30">Ta bort</button>
+                        <div key={win.id} className="bg-slate-200 dark:bg-gray-900/50 p-4 rounded-lg flex flex-col sm:flex-row justify-between sm:items-center gap-4 border border-slate-300 dark:border-gray-700">
+                            <p className="font-semibold text-gray-900 dark:text-white flex-grow">{win.name}</p>
+                            <div className="flex items-center gap-3 flex-shrink-0 self-end sm:self-center">
+                                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">Aktiv:</span>
+                                <ToggleSwitch checked={win.isEnabled} onChange={checked => handleWindowChange({ ...win, isEnabled: checked })} label="" />
+                                <button onClick={() => handleRenameWindow(win)} className="bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg">Byt namn</button>
+                                <button onClick={() => setEditingWindow(win)} className="bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2 px-4 rounded-lg">Redigera inlägg</button>
+                                <button onClick={() => handleDeleteWindow(win.id)} className="bg-red-600 hover:bg-red-500 text-white font-semibold py-2 px-4 rounded-lg">Ta bort</button>
                             </div>
                         </div>
                     ))}
                 </div>
             )}
-             <button onClick={handleCreateNewWindow} className="mt-4 bg-gray-900 hover:bg-black dark:bg-white dark:hover:bg-gray-100 text-white dark:text-gray-900 font-bold py-3.5 px-6 rounded-xl transition-colors shadow-sm w-full sm:w-auto">
+             <button onClick={handleCreateNewWindow} className="mt-4 bg-primary hover:brightness-95 text-white font-bold py-3 px-6 rounded-lg">
                 Skapa nytt skyltfönster
             </button>
         </div>

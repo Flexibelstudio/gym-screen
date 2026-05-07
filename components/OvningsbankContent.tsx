@@ -267,8 +267,8 @@ export const OvningsbankContent: React.FC = () => {
 
     return (
         <div className="space-y-6">
-            <div className="bg-white dark:bg-gray-900 p-6 md:p-8 rounded-[2rem] space-y-4 border border-gray-200 dark:border-gray-800 shadow-sm">
-                <h3 className="text-2xl font-black tracking-tight text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-4 mb-6">Global Övningsbank</h3>
+            <div className="bg-slate-100 dark:bg-gray-800 p-6 rounded-lg space-y-4 border border-slate-200 dark:border-gray-700">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white border-b border-slate-300 dark:border-gray-700 pb-3 mb-4">Global Övningsbank</h3>
                 <div className="flex flex-col sm:flex-row gap-4 items-center">
                     <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Sök i övningsbanken..." className="flex-grow w-full bg-white dark:bg-black p-3 rounded-md border border-slate-300 dark:border-gray-600" />
                     <button onClick={() => setEditingExercise({} as BankExercise)} className="w-full sm:w-auto bg-primary hover:brightness-95 text-white font-bold py-3 px-6 rounded-lg whitespace-nowrap">Lägg till ny övning</button>
