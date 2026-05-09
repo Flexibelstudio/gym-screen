@@ -72,6 +72,7 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 
                 Fysiska begränsningar/mål: ${userData?.goals || 'Inga specifika angivna.'}
                 `;
+            }
                    setLoadingMessage('Tänker...');
 
             const { getFunctions, httpsCallable } = await import('firebase/functions');
