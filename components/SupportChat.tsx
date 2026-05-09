@@ -172,9 +172,13 @@ Om användaren frågar om något tekniskt fel, be dem ladda om sidan eller konta
 
             const modelResponse = result.data.text || 'Inget svar.';
             setMessages(prev => [...prev, { role: 'model', text: modelResponse }]);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error sending message to Gemini:", error);
-            setMessages(prev => [...prev, { role: 'model', text: "Ursäkta, något gick fel. Försök igen." }]);
+            if (error?.code === 'functions/resource-exhausted' || (error?.message && error.message.includes('15 frågor'))) {
+                setMessages(prev => [...prev, { role: 'model', text: 'Puh, nu har vi pratat ganska intensivt! Min AI-hjärna behöver en liten paus. Du är välkommen att ställa fler frågor om en timme.' }]);
+            } else {
+                setMessages(prev => [...prev, { role: 'model', text: "Ursäkta, något gick fel. Försök igen." }]);
+            }
         } finally {
             setIsLoading(false);
         }

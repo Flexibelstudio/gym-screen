@@ -145,9 +145,13 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
             const fullResponse = result.data.text || 'Inget svar.';
             setMessages(prev => [...prev, { role: 'model', text: fullResponse }]);
-        } catch (error) {
+        } catch (error: any) {
             console.error("AI Error:", error);
-            setMessages(prev => [...prev, { role: 'model', text: 'Kunde inte nå servern. Försök igen om en stund.' }]);
+            if (error?.code === 'functions/resource-exhausted' || (error?.message && error.message.includes('15 frågor'))) {
+                setMessages(prev => [...prev, { role: 'model', text: 'Nu har vi pratat ganska mycket! Min hjärna behöver vila lite. Du kan ställa fler frågor om en timme.' }]);
+            } else {
+                setMessages(prev => [...prev, { role: 'model', text: 'Kunde inte nå servern. Försök igen om en stund.' }]);
+            }
         } finally {
             setIsLoading(false);
         }
