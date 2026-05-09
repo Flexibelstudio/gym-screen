@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useStudio } from '../context/StudioContext';
@@ -72,7 +71,9 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 
                 Fysiska begränsningar/mål: ${userData?.goals || 'Inga specifika angivna.'}
                 `;
-                   setLoadingMessage('Tänker...');
+            }
+            
+            setLoadingMessage('Tänker...');
 
             const { getFunctions, httpsCallable } = await import('firebase/functions');
             const { getApp } = await import('firebase/app');
