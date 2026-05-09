@@ -1314,7 +1314,7 @@ exports.flexGeminiProxy = onCall({
   }
 
   // 3. MEDDELANDELÄNGD (Extra säkerhet i backend)
-  if (JSON.stringify(contents).length > 2000) { 
+  if (JSON.stringify(contents).length > 50000) { 
        throw new HttpsError('invalid-argument', 'Meddelandet är för långt.');
   }
 
