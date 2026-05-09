@@ -72,15 +72,12 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 
                 Fysiska begränsningar/mål: ${userData?.goals || 'Inga specifika angivna.'}
                 `;
-            }
+                   setLoadingMessage('Tänker...');
 
-            setLoadingMessage('Tänker...');
-
-            let apiKey = '';
-            if (typeof process !== 'undefined' && process.env?.API_KEY) apiKey = process.env.API_KEY;
-            else apiKey = (import.meta as any).env.VITE_API_KEY;
-
-            const ai = new GoogleGenAI({ apiKey });
+            const { getFunctions, httpsCallable } = await import('firebase/functions');
+            const { getApp } = await import('firebase/app');
+            const functions = getFunctions(getApp(), 'us-central1');
+            const flexGeminiProxy = httpsCallable<any, any>(functions, 'flexGeminiProxy');
             
             // Build the system instruction based on Admin settings
             let systemPrompt = `Du är en hjälpsam, peppande och energisk PT och coach för medlemmar på gymmet "${gymName}".
@@ -131,27 +128,24 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 systemPrompt += `\n\nTONLÄGE: Du ska vara ${toneDesc}`;
             }
 
-            const chat = ai.chats.create({
+            const contents = messages.slice(1).map(m => ({ // ignorerar första välkomstmeddelandet
+                role: m.role === 'model' ? 'model' : 'user',
+                parts: [{ text: m.text }]
+            }));
+            contents.push({ role: 'user', parts: [{ text: userMsg }] });
+
+            const result = await flexGeminiProxy({
                 model: 'gemini-3-flash-preview',
+                contents,
                 config: {
                     systemInstruction: systemPrompt
                 }
             });
 
-            const result = await chat.sendMessageStream({ message: userMsg });
-            let fullResponse = '';
-            setMessages(prev => [...prev, { role: 'model', text: '' }]);
-
-            for await (const chunk of result) {
-                const text = (chunk as GenerateContentResponse).text;
-                fullResponse += text;
-                setMessages(prev => {
-                    const newMsgs = [...prev];
-                    newMsgs[newMsgs.length - 1].text = fullResponse;
-                    return newMsgs;
-                });
-            }
+            const fullResponse = result.data.text || 'Inget svar.';
+            setMessages(prev => [...prev, { role: 'model', text: fullResponse }]);
         } catch (error) {
+            console.error("AI Error:", error);
             setMessages(prev => [...prev, { role: 'model', text: 'Kunde inte nå servern. Försök igen om en stund.' }]);
         } finally {
             setIsLoading(false);

@@ -345,6 +345,7 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
 
 const express = require("express");
 const Stripe = require("stripe");
+const { GoogleGenAI } = require("@google/genai");
 const app = express();
 
 app.use((req, res, next) => {
@@ -1254,5 +1255,50 @@ exports.onWorkoutUpdated = onDocumentUpdated({
       'Nytt pass tillgängligt! 🏋️‍♀️',
       `Passet "${afterData.title || 'Nytt pass'}" har precis publicerats.`
     );
+  }
+});
+
+// --- FUNKTION: Gemini Proxy ---
+exports.flexGeminiProxy = onCall({
+  secrets: ["GEMINI_API_KEY"],
+  timeoutSeconds: 300,
+  memory: "1GiB"
+}, async (request) => {
+  // Verifiera att användaren är inloggad för säkerhets skull
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Du måste vara inloggad för att använda AI-funktioner.");
+  }
+
+  const { model, contents, config } = request.data;
+  
+  if (!model || !contents) {
+    throw new HttpsError("invalid-argument", "Model och contents krävs för AI-anrop.");
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.error("GEMINI_API_KEY saknas i miljön.");
+    throw new HttpsError("internal", "Serverkonfigurationsfel gällande AI.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+
+  try {
+    const response = await ai.models.generateContent({
+      model,
+      contents,
+      config
+    });
+    
+    // Konvertera kandidater till rena objekt för att undvika problem med getters etc
+    const candidates = JSON.parse(JSON.stringify(response.candidates || []));
+    
+    return {
+      text: response.text,
+      candidates: candidates
+    };
+  } catch (error) {
+    console.error("Gemini API Error under proxy:", error);
+    throw new HttpsError("internal", "Ett internt fel uppstod vid AI-anrop.");
   }
 });

@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 import { ChatMessage } from '../types';
 import { QuestionMarkCircleIcon, PaperAirplaneIcon, CloseIcon } from './icons';
 
@@ -69,7 +68,6 @@ const ChatMessageContent: React.FC<{ content: string }> = ({ content }) => {
 
 export function SupportChat(): React.ReactElement {
     const [isOpen, setIsOpen] = useState(false);
-    const [chat, setChat] = useState<Chat | null>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -77,7 +75,7 @@ export function SupportChat(): React.ReactElement {
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        if (isOpen && !chat) {
+        if (isOpen && messages.length === 0) {
             const systemKnowledge = `
 Du är Smart Support, en expert på systemet "Smart Skärm". Du hjälper coacher och administratörer att använda plattformen. Svara kortfattat, trevligt och på svenska.
 
@@ -124,46 +122,12 @@ Här är din kunskapsbas om hur systemet fungerar:
 Om användaren frågar om något tekniskt fel, be dem ladda om sidan eller kontakta hej@smartstudio.se om problemet kvarstår.
             `;
 
-            // VIKTIGT: Vi försöker hämta nyckeln från båda ställena för att stödja både
-            // AI Studio (process.env) och Vite/Produktion (import.meta.env)
-            let apiKey = '';
-            try {
-                if (typeof process !== 'undefined' && process.env?.API_KEY) {
-                    apiKey = process.env.API_KEY;
-                }
-            } catch (e) {
-                // Ignore error if process is not defined
-            }
-
-            if (!apiKey) {
-                // Fallback to Vite env var
-                apiKey = (import.meta as any).env.VITE_API_KEY;
-            }
-            
-            if (!apiKey) {
-                console.error("Support Chat: Missing API Key (checked both process.env and import.meta.env)");
-                setMessages([{
-                    role: 'model',
-                    text: 'Ursäkta, jag kan inte ansluta just nu (API-nyckel saknas). Kontakta en administratör.'
-                }]);
-                return;
-            }
-
-            const ai = new GoogleGenAI({ apiKey });
-            // Using gemini-3-flash-preview as requested for AI Studio compatibility
-            const newChat = ai.chats.create({
-                model: 'gemini-3-flash-preview', 
-                config: {
-                    systemInstruction: systemKnowledge,
-                },
-            });
-            setChat(newChat);
             setMessages([{
                 role: 'model',
                 text: 'Hej! Jag är Smart Support. Jag kan allt om passbyggaren, HYROX, AI Whiteboard och timers. Vad funderar du på?'
             }]);
         }
-    }, [isOpen, chat]);
+    }, [isOpen]);
     
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -178,35 +142,39 @@ Om användaren frågar om något tekniskt fel, be dem ladda om sidan eller konta
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         const userInput = input.trim();
-        if (isLoading || !userInput || !chat) return;
+        if (isLoading || !userInput) return;
 
         setIsLoading(true);
         setMessages(prev => [...prev, { role: 'user', text: userInput }]);
         setInput('');
 
         try {
-            const response = await chat.sendMessageStream({ message: userInput });
+            const { getFunctions, httpsCallable } = await import('firebase/functions');
+            const { getApp } = await import('firebase/app');
+            const functions = getFunctions(getApp(), 'us-central1');
+            const flexGeminiProxy = httpsCallable<any, any>(functions, 'flexGeminiProxy');
             
-            let modelResponse = '';
-            setMessages(prev => [...prev, { role: 'model', text: '' }]);
-            
-            for await (const chunk of response) {
-                // Type assertion for cleaner TS
-                const c = chunk as GenerateContentResponse;
-                modelResponse += c.text;
-                setMessages(prev => {
-                    const newMessages = [...prev];
-                    newMessages[newMessages.length - 1].text = modelResponse;
-                    return newMessages;
-                });
-            }
+            const systemKnowledge = `Du är Smart Support, en expert på systemet "Smart Skärm". Du hjälper coacher och administratörer att använda plattformen. Svara kortfattat, trevligt och på svenska. Fortsätt svara baserat på historiken.`;
+
+            const contents = messages.slice(1).map(m => ({
+                role: m.role === 'model' ? 'model' : 'user',
+                parts: [{ text: m.text }]
+            }));
+            contents.push({ role: 'user', parts: [{ text: userInput }] });
+
+            const result = await flexGeminiProxy({
+                model: 'gemini-3-flash-preview',
+                contents,
+                config: {
+                    systemInstruction: systemKnowledge
+                }
+            });
+
+            const modelResponse = result.data.text || 'Inget svar.';
+            setMessages(prev => [...prev, { role: 'model', text: modelResponse }]);
         } catch (error) {
             console.error("Error sending message to Gemini:", error);
-            setMessages(prev => {
-                const newMessages = [...prev];
-                newMessages[newMessages.length - 1].text = "Ursäkta, något gick fel. Försök igen.";
-                return newMessages;
-            });
+            setMessages(prev => [...prev, { role: 'model', text: "Ursäkta, något gick fel. Försök igen." }]);
         } finally {
             setIsLoading(false);
         }
