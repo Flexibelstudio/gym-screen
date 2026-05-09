@@ -52,6 +52,7 @@ import {
   getFunctions, 
   httpsCallable 
 } from 'firebase/functions';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import { getMessaging, getToken, Messaging, onMessage } from 'firebase/messaging';
 
 export const listenToForegroundMessages = (callback: (payload: any) => void) => {
@@ -85,12 +86,22 @@ export let auth: Auth | null = null;
 export let db: Firestore | null = null;
 export let storage: FirebaseStorage | null = null;
 export let messaging: Messaging | null = null;
+export let appCheck: any = null;
 let functions: any = null;
 
 if (!isOffline) {
     try {
         const isNewApp = !getApps().length;
         app = isNewApp ? initializeApp(firebaseConfig) : getApp();
+        
+        const siteKey = (import.meta as any).env?.VITE_RECAPTCHA_SITE_KEY || '';
+        if (typeof window !== 'undefined' && siteKey) {
+            appCheck = initializeAppCheck(app, {
+                provider: new ReCaptchaV3Provider(siteKey),
+                isTokenAutoRefreshEnabled: true
+            });
+        }
+        
         auth = getAuth(app);
         
         try {

@@ -1262,17 +1262,60 @@ exports.onWorkoutUpdated = onDocumentUpdated({
 exports.flexGeminiProxy = onCall({
   secrets: ["GEMINI_API_KEY"],
   timeoutSeconds: 300,
-  memory: "1GiB"
+  memory: "1GiB",
+  enforceAppCheck: process.env.NODE_ENV === 'production'
 }, async (request) => {
-  // Verifiera att användaren är inloggad för säkerhets skull
+  // 1. APP CHECK VERIFIERING
+  if (process.env.NODE_ENV === 'production' && request.app == undefined) {
+      throw new HttpsError("unauthenticated", "Ogiltig App Check.");
+  }
+
+  // 2. AUTH-KOLL & RATE LIMITING
   if (!request.auth) {
     throw new HttpsError("unauthenticated", "Du måste vara inloggad för att använda AI-funktioner.");
   }
+  
+  const uid = request.auth.uid;
+
+  // --- RATE LIMIT LOGIK (15 per timme) ---
+  const rateLimitRef = admin.firestore().collection('rate_limits').doc(`smartstudio_${uid}`);
+  const now = Date.now();
+  const oneHourAgo = now - (60 * 60 * 1000);
+
+  try {
+      await admin.firestore().runTransaction(async (transaction) => {
+          const doc = await transaction.get(rateLimitRef);
+          let requests = [];
+          
+          if (doc.exists) {
+              // Filtrera bort gamla tidsstämplar (äldre än 1 timme)
+              requests = (doc.data().timestamps || []).filter(ts => ts > oneHourAgo);
+          }
+
+          if (requests.length >= 15) {
+              throw new Error("RATE_LIMIT_REACHED");
+          }
+
+          requests.push(now);
+          transaction.set(rateLimitRef, { timestamps: requests }, { merge: true });
+      });
+  } catch (e) {
+      if (e.message === "RATE_LIMIT_REACHED") {
+          throw new HttpsError("resource-exhausted", "Max 15 frågor per timme.");
+      }
+      throw new HttpsError("internal", "Något gick fel vid hantering av requests.");
+  }
+  // ----------------------------------------
 
   const { model, contents, config } = request.data;
   
   if (!model || !contents) {
     throw new HttpsError("invalid-argument", "Model och contents krävs för AI-anrop.");
+  }
+
+  // 3. MEDDELANDELÄNGD (Extra säkerhet i backend)
+  if (JSON.stringify(contents).length > 2000) { 
+       throw new HttpsError('invalid-argument', 'Meddelandet är för långt.');
   }
 
   const apiKey = process.env.GEMINI_API_KEY;

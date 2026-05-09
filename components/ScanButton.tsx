@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useStudio } from '../context/StudioContext';
@@ -71,9 +72,7 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 
                 Fysiska begränsningar/mål: ${userData?.goals || 'Inga specifika angivna.'}
                 `;
-            }
-            
-            setLoadingMessage('Tänker...');
+                   setLoadingMessage('Tänker...');
 
             const { getFunctions, httpsCallable } = await import('firebase/functions');
             const { getApp } = await import('firebase/app');
@@ -189,15 +188,23 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     <div ref={messagesEndRef} />
                 </div>
 
-                <form onSubmit={handleSend} className="p-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex gap-2">
-                    <input 
-                        type="text" 
-                        value={input}
-                        onChange={e => setInput(e.target.value)}
-                        placeholder="Fråga om träning eller övningar..."
-                        className="flex-grow bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-4 py-3 rounded-full border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:border-transparent focus:outline-none shadow-inner"
-                    />
-                    <button type="submit" disabled={!input.trim()} className="p-3 bg-primary rounded-full text-white disabled:opacity-50 shadow-md active:scale-90 transition-transform"><PaperAirplaneIcon className="w-5 h-5 rotate-90" /></button>
+                <form onSubmit={handleSend} className="p-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex flex-col gap-2">
+                    <div className="flex gap-2 w-full">
+                        <input 
+                            type="text" 
+                            value={input}
+                            onChange={e => setInput(e.target.value)}
+                            maxLength={250}
+                            placeholder="Fråga om träning eller övningar..."
+                            className="flex-grow bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-4 py-3 rounded-full border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:border-transparent focus:outline-none shadow-inner"
+                        />
+                        <button type="submit" disabled={!input.trim()} className="p-3 bg-primary rounded-full text-white disabled:opacity-50 shadow-md active:scale-90 transition-transform"><PaperAirplaneIcon className="w-5 h-5 rotate-90" /></button>
+                    </div>
+                    <div className="flex justify-end px-2">
+                        <p className="text-xs text-gray-400">
+                            {input.length} / 250 tecken
+                        </p>
+                    </div>
                 </form>
             </div>
         </div>

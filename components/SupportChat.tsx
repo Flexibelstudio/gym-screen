@@ -231,25 +231,33 @@ Om användaren frågar om något tekniskt fel, be dem ladda om sidan eller konta
                         </div>
                         
                         {/* Input */}
-                        <form onSubmit={handleSendMessage} className="flex-shrink-0 flex items-center gap-2 p-4 border-t border-gray-200 dark:border-gray-700">
-                            <input
-                                ref={inputRef}
-                                type="text"
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                placeholder="Ställ din fråga här..."
-                                disabled={isLoading}
-                                className="w-full bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none transition"
-                            />
-                            <button
-                                type="submit"
-                                disabled={isLoading || !input.trim()}
-                                className="bg-gray-500 hover:bg-gray-600 text-white p-3 rounded-lg transition-colors disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
-                                aria-label="Skicka meddelande"
-                            >
-                                <PaperAirplaneIcon className="w-6 h-6 transform rotate-90" />
-                            </button>
-                        </form>
+                            <div className="flex-shrink-0 flex flex-col p-4 border-t border-gray-200 dark:border-gray-700">
+                                <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                                    <input
+                                        ref={inputRef}
+                                        type="text"
+                                        value={input}
+                                        onChange={(e) => setInput(e.target.value)}
+                                        maxLength={250}
+                                        placeholder="Ställ din fråga här..."
+                                        disabled={isLoading}
+                                        className="w-full bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={isLoading || !input.trim()}
+                                        className="bg-gray-500 hover:bg-gray-600 text-white p-3 rounded-lg transition-colors disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
+                                        aria-label="Skicka meddelande"
+                                    >
+                                        <PaperAirplaneIcon className="w-6 h-6 transform rotate-90" />
+                                    </button>
+                                </form>
+                                <div className="mt-1 flex justify-end">
+                                    <p className="text-xs text-gray-400">
+                                        {input.length} / 300 tecken
+                                    </p>
+                                </div>
+                            </div>
                     </div>
                 </div>
             )}
