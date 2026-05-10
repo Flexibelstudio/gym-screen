@@ -205,8 +205,11 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         />
                         <button type="submit" disabled={!input.trim()} className="p-3 bg-primary rounded-full text-white disabled:opacity-50 shadow-md active:scale-90 transition-transform"><PaperAirplaneIcon className="w-5 h-5 rotate-90" /></button>
                     </div>
-                    <div className="flex justify-end px-2">
-                        <p className="text-xs text-gray-400">
+                    <div className="flex justify-between px-2 items-center mt-1">
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase">
+                            Tänk på vad du delar. Dela inga känsliga personuppgifter med AI:n.
+                        </p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
                             {input.length} / 250 tecken
                         </p>
                     </div>

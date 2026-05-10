@@ -174,6 +174,30 @@ export const SystemDashboardContent: React.FC<{ organizations: Organization[] }>
                 <div className="space-y-8">
                     <AtRiskWidget atRiskOrgs={atRiskOrgs} />
                     
+                    {/* Database Operations Widget */}
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
+                        <h3 className="font-bold text-gray-900 dark:text-white mb-4">Systemverktyg</h3>
+                        <p className="text-sm text-gray-500 mb-4">Synkronisera användarroller till inloggningstokens för snabbare och säkrare laddtider i plattformen.</p>
+                        <button
+                            onClick={async () => {
+                                if (window.confirm("Är du säker på att du vill migrera alla roller till Custom Claims? Detta uppdaterar ALLA användare.")) {
+                                    try {
+                                        const { httpsCallable } = await import('firebase/functions');
+                                        const { functions } = await import('../../services/firebaseService');
+                                        const syncFn = httpsCallable(functions, 'flexSyncAllUsers');
+                                        const result = await syncFn();
+                                        alert((result.data as any).message || "Klar!");
+                                    } catch (e: any) {
+                                        alert("Fel vid synkronisering: " + e.message);
+                                    }
+                                }
+                            }}
+                            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-xl shadow-sm transition-colors"
+                        >
+                            Synka Custom Claims
+                        </button>
+                    </div>
+
                     {/* Distribution Chart (Simple Visual) */}
                     <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 shadow-sm">
                         <h3 className="font-bold text-gray-900 dark:text-white mb-6">Hälsofördelning</h3>

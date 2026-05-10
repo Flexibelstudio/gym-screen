@@ -256,7 +256,10 @@ Om användaren frågar om något tekniskt fel, be dem ladda om sidan eller konta
                                         <PaperAirplaneIcon className="w-6 h-6 transform rotate-90" />
                                     </button>
                                 </form>
-                                <div className="mt-1 flex justify-end">
+                                <div className="mt-1 flex justify-between items-center px-1">
+                                    <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase">
+                                        Tänk på vad du delar. Dela inga känsliga personuppgifter med supporten.
+                                    </p>
                                     <p className="text-xs text-gray-400">
                                         {input.length} / 300 tecken
                                     </p>

@@ -339,6 +339,41 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
 });
 
 
+// --- FUNKTION: Migrera/Synka roller till Custom Claims ---
+exports.flexSyncAllUsers = onCall({
+  timeoutSeconds: 540,
+  memory: "512MiB"
+}, async (request) => {
+  const caller = await verifyAdminPrivileges(request.auth);
+  if (caller.role !== "systemowner") {
+    throw new HttpsError("permission-denied", "Endast systemägare kan köra migreringen.");
+  }
+
+  const db = admin.firestore();
+  const usersSnap = await db.collection("users").get();
+  
+  let count = 0;
+  const promises = [];
+
+  usersSnap.forEach(doc => {
+    const data = doc.data();
+    if (data.role) {
+      const claims = { role: data.role };
+      if (data.organizationId) claims.organizationId = data.organizationId;
+      if (data.adminRole === 'admin') claims.adminRole = 'admin';
+      
+      promises.push(admin.auth().setCustomUserClaims(doc.id, claims).then(() => {
+        count++;
+      }).catch(err => {
+        console.error(`Misslyckades att sätta claims för ${doc.id}:`, err);
+      }));
+    }
+  });
+
+  await Promise.all(promises);
+  return { success: true, message: `Synkade ${count} användare till Custom Claims!` };
+});
+
 // ============================================================================
 // STRIPE API & EXPRESS SERVER
 // ============================================================================
@@ -1345,3 +1380,94 @@ exports.flexGeminiProxy = onCall({
     throw new HttpsError("internal", "Ett internt fel uppstod vid AI-anrop.");
   }
 });
+
+// ============================================================================
+// LEADERBOARD AGGREGATION
+// ============================================================================
+
+const { onDocumentWritten } = require("firebase-functions/v2/firestore");
+
+exports.aggregateLeaderboard = onDocumentWritten({
+  document: "workoutLogs/{logId}"
+}, async (event) => {
+  const beforeData = event.data.before.exists ? event.data.before.data() : null;
+  const afterData = event.data.after.exists ? event.data.after.data() : null;
+
+  const docData = afterData || beforeData;
+  if (!docData || !docData.organizationId || !docData.date) return;
+
+  const orgId = docData.organizationId;
+  const locationId = docData.locationId || 'all';
+  
+  const d = new Date(docData.date);
+  
+  const dISO = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = dISO.getUTCDay() || 7;
+  dISO.setUTCDate(dISO.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(dISO.getUTCFullYear(),0,1));
+  const week = Math.ceil((((dISO - yearStart) / 86400000) + 1)/7);
+  const year = dISO.getUTCFullYear();
+
+  const leaderboardDocs = [`${orgId}_all_${year}_W${week}`];
+  if (locationId !== 'all') {
+     leaderboardDocs.push(`${orgId}_${locationId}_${year}_W${week}`);
+  }
+
+  const db = admin.firestore();
+  
+  const memberId = docData.memberId;
+  if (!memberId) return;
+
+  const wasValid = beforeData && beforeData.showOnLeaderboard !== false && beforeData.inStudio !== false;
+  const isValid = afterData && afterData.showOnLeaderboard !== false && afterData.inStudio !== false;
+
+  let countDiff = 0;
+  let pbsDiff = 0;
+
+  if (isValid && !wasValid) {
+     countDiff = 1;
+     pbsDiff = (afterData.newPBs || []).length;
+  } else if (!isValid && wasValid) {
+     countDiff = -1;
+     pbsDiff = -(beforeData.newPBs || []).length;
+  } else if (isValid && wasValid) {
+     const beforePBs = (beforeData.newPBs || []).length;
+     const afterPBs = (afterData.newPBs || []).length;
+     pbsDiff = afterPBs - beforePBs;
+  }
+
+  if (countDiff === 0 && pbsDiff === 0 && !isValid) return; 
+
+  const batch = db.batch();
+  for (const lId of leaderboardDocs) {
+     const ref = db.collection("leaderboards").doc(lId);
+
+     const updateObj = {
+        orgId,
+        year,
+        week,
+        locationId: lId.includes('_all_') ? 'all' : locationId,
+     };
+     
+     if (countDiff !== 0) {
+       updateObj[`members.${memberId}.count`] = admin.firestore.FieldValue.increment(countDiff);
+     }
+     if (pbsDiff !== 0) {
+       updateObj[`members.${memberId}.pbs`] = admin.firestore.FieldValue.increment(pbsDiff);
+     }
+     if (afterData) {
+       updateObj[`members.${memberId}.name`] = afterData.memberName || 'Okänd';
+       updateObj[`members.${memberId}.photoUrl`] = afterData.memberPhotoUrl || null;
+       updateObj[`members.${memberId}.memberId`] = memberId;
+     }
+
+     batch.set(ref, updateObj, { merge: true });
+  }
+
+  try {
+      await batch.commit();
+  } catch (error) {
+      console.error("Leaderboard aggregation failed:", error);
+  }
+});
+
