@@ -1247,7 +1247,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
     };
     
     init();
-  }, [wId, finalOrgId, userId, isManualMode, contextWorkouts]);
+}, [wId, finalOrgId, userId, isManualMode]);
 
   const handleFeelingChange = (feeling: 'good' | 'neutral' | 'bad') => {
       setDailyFeeling(feeling);
