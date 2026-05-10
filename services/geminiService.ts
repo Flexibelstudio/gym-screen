@@ -1,5 +1,6 @@
-
-import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai"; 
+import { Type } from "@google/genai"; 
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getApp } from 'firebase/app';
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise, SuggestedExercise, CustomCategoryWithPrompt, WorkoutLog, MemberGoals, WorkoutDiploma } from '../types';
 import { getExerciseBank } from './firebaseService';
 import * as Prompts from '../data/aiPrompts';
@@ -46,11 +47,13 @@ export interface ExerciseDagsformAdvice {
     history: any[];
 }
 
-// SÄKERHET: Hämta nyckel exklusivt från process.env
-const getAIClient = () => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error("API-nyckel saknas.");
-    return new GoogleGenAI({ apiKey });
+// --- PROXY HELPER ---
+// Denna funktion ersätter den lokala AI-klienten och skickar alla anrop till din Firebase backend
+const callGeminiProxy = async (model: string, contents: any, config?: any) => {
+    const functions = getFunctions(getApp(), 'us-central1');
+    const flexGeminiProxy = httpsCallable<any, any>(functions, 'flexGeminiProxy');
+    const response = await flexGeminiProxy({ model, contents, config });
+    return response.data;
 };
 
 // --- SCHEMAS ---
@@ -198,7 +201,6 @@ const exerciseBankSchema = {
 
 async function _callGeminiJSON<T>(modelName: string, prompt: string, schema: any, useSearch: boolean = false): Promise<T> {
     try {
-        const ai = getAIClient();
         const config: any = {
             systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,
             responseMimeType: "application/json",
@@ -209,12 +211,8 @@ async function _callGeminiJSON<T>(modelName: string, prompt: string, schema: any
             config.tools = [{ googleSearch: {} }];
         }
 
-        const response = await ai.models.generateContent({
-            model: modelName,
-            contents: prompt,
-            config: config,
-        });
-        return JSON.parse(response.text.trim()) as T;
+        const data = await callGeminiProxy(modelName, prompt, config);
+        return JSON.parse(data.text.trim()) as T;
     } catch (error) {
         // Detta döljer det fula felmeddelandet för kunden
         console.error("AI Service Error:", error);
@@ -387,30 +385,27 @@ export async function parseWorkoutFromText(text: string, availableExercises: str
 }
 
 export async function parseWorkoutFromImage(base64Image: string, additionalText?: string, isDraft: boolean = false, availableExercises: string[] = []): Promise<Workout> {
-    const ai = getAIClient();
-    
     // Ensure we strip the data:image/...;base64, prefix if it exists
     const cleanBase64 = base64Image.includes('base64,') 
         ? base64Image.split('base64,')[1] 
         : base64Image;
 
-    const response = await ai.models.generateContent({
-        model: VISION_MODEL,
-        contents: [
-            { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-            { text: Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises) }
-        ],
-        config: {
-            systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,
-            responseMimeType: "application/json",
-            responseSchema: workoutSchema,
-        }
-    });
-    return transformWorkout(JSON.parse(response.text.trim()), '', isDraft);
+    const contents = [
+        { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+        { text: Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises) }
+    ];
+
+    const config = {
+        systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,
+        responseMimeType: "application/json",
+        responseSchema: workoutSchema,
+    };
+
+    const data = await callGeminiProxy(VISION_MODEL, contents, config);
+    return transformWorkout(JSON.parse(data.text.trim()), '', isDraft);
 }
 
 export async function beautifyDrawing(base64Image: string, width: number, height: number): Promise<any[]> {
-    const ai = getAIClient();
     const prompt = `Analysera denna handritade whiteboard-bild. Identifiera former (rutor, cirklar), text och pilar. 
     Returnera en JSON-array med objekt. Varje objekt måste ha:
     - type: "rect", "circle", "text" eller "arrow"
@@ -425,35 +420,35 @@ export async function beautifyDrawing(base64Image: string, width: number, height
     
     Returnera ENDAST JSON-arrayen.`;
 
-    const response = await ai.models.generateContent({
-        model: VISION_MODEL,
-        contents: [
-            { inlineData: { mimeType: 'image/png', data: base64Image } },
-            { text: prompt }
-        ],
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.ARRAY,
-                items: {
-                    type: Type.OBJECT,
-                    properties: {
-                        type: { type: Type.STRING, enum: ["rect", "circle", "text"] },
-                        x: { type: Type.NUMBER },
-                        y: { type: Type.NUMBER },
-                        width: { type: Type.NUMBER },
-                        height: { type: Type.NUMBER },
-                        text: { type: Type.STRING },
-                        color: { type: Type.STRING }
-                    },
-                    required: ["type", "x", "y", "width", "height", "color"]
-                }
+    const contents = [
+        { inlineData: { mimeType: 'image/png', data: base64Image } },
+        { text: prompt }
+    ];
+
+    const config = {
+        responseMimeType: "application/json",
+        responseSchema: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    type: { type: Type.STRING, enum: ["rect", "circle", "text"] },
+                    x: { type: Type.NUMBER },
+                    y: { type: Type.NUMBER },
+                    width: { type: Type.NUMBER },
+                    height: { type: Type.NUMBER },
+                    text: { type: Type.STRING },
+                    color: { type: Type.STRING }
+                },
+                required: ["type", "x", "y", "width", "height", "color"]
             }
         }
-    });
+    };
+
+    const data = await callGeminiProxy(VISION_MODEL, contents, config);
 
     try {
-        let text = response.text?.trim() || "[]";
+        let text = data.text?.trim() || "[]";
         if (text.startsWith("```json")) {
             text = text.replace(/^```json\n/, "").replace(/\n```$/, "");
         } else if (text.startsWith("```")) {
@@ -489,13 +484,8 @@ export async function parseWorkoutFromYoutube(url: string): Promise<Workout> {
 }
 
 export async function generateExerciseDescription(name: string): Promise<string> {
-    const ai = getAIClient();
-    const response = await ai.models.generateContent({
-        model: TEXT_MODEL,
-        contents: Prompts.EXERCISE_DESCRIPTION_PROMPT(name),
-        config: { systemInstruction: Prompts.SYSTEM_COACH_CONTEXT }
-    });
-    return response.text.trim();
+    const data = await callGeminiProxy(TEXT_MODEL, Prompts.EXERCISE_DESCRIPTION_PROMPT(name), { systemInstruction: Prompts.SYSTEM_COACH_CONTEXT });
+    return data.text.trim();
 }
 
 export async function generateExerciseSuggestions(prompt: string): Promise<Partial<BankExercise>[]> {
@@ -503,49 +493,32 @@ export async function generateExerciseSuggestions(prompt: string): Promise<Parti
 }
 
 export async function enhancePageWithAI(content: string): Promise<string> {
-    const ai = getAIClient();
-    const response = await ai.models.generateContent({
-        model: TEXT_MODEL,
-        contents: `Förbättra och strukturera följande text med markdown på svenska:\n${content}`,
-    });
-    return response.text.trim();
+    const data = await callGeminiProxy(TEXT_MODEL, `Förbättra och strukturera följande text med markdown på svenska:\n${content}`);
+    return data.text.trim();
 }
 
 export async function generateImage(prompt: string): Promise<string | null> {
-    const ai = getAIClient();
     try {
-        const response = await ai.models.generateContent({
-            model: IMAGE_GEN_MODEL,
-            contents: `A stylized 3D render of a workout achievement icon: ${prompt}. Clean, cinematic lighting, dark background.`,
-            config: { imageConfig: { aspectRatio: "1:1" } } as any
-        });
-        const part = response.candidates[0].content.parts.find(p => p.inlineData);
+        const data = await callGeminiProxy(IMAGE_GEN_MODEL, `A stylized 3D render of a workout achievement icon: ${prompt}. Clean, cinematic lighting, dark background.`, { imageConfig: { aspectRatio: "1:1" } });
+        const part = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
         return part ? `data:image/png;base64,${part.inlineData.data}` : null;
     } catch (e) { return null; }
 }
 
 export async function generateCarouselImage(prompt: string): Promise<string> {
-    const ai = getAIClient();
-    const response = await ai.models.generateContent({
-        model: IMAGE_GEN_MODEL,
-        contents: prompt,
-        config: { imageConfig: { aspectRatio: "16:9" } } as any
-    });
-    const part = response.candidates[0].content.parts.find(p => p.inlineData);
+    const data = await callGeminiProxy(IMAGE_GEN_MODEL, prompt, { imageConfig: { aspectRatio: "16:9" } });
+    const part = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
     if (!part) throw new Error("Ingen bild genererades.");
     return `data:image/png;base64,${part.inlineData.data}`;
 }
 
 export async function interpretHandwriting(base64Image: string): Promise<string> {
-    const ai = getAIClient();
-    const response = await ai.models.generateContent({
-        model: VISION_MODEL,
-        contents: [
-            { inlineData: { mimeType: 'image/png', data: base64Image } },
-            { text: "Transkribera texten i bilden exakt till svenska. Inget snack." }
-        ],
-    });
-    return response.text.trim();
+    const contents = [
+        { inlineData: { mimeType: 'image/png', data: base64Image } },
+        { text: "Transkribera texten i bilden exakt till svenska. Inget snack." }
+    ];
+    const data = await callGeminiProxy(VISION_MODEL, contents);
+    return data.text.trim();
 }
 
 // Helper to transform the array-based AI response to object-based frontend struct
@@ -612,24 +585,14 @@ export async function analyzeMemberProgress(logs: WorkoutLog[], name: string, go
 }
 
 export async function askAdminAnalytics(question: string, logs: WorkoutLog[]): Promise<string> {
-    const ai = getAIClient();
     const logSummary = JSON.stringify(logs.slice(0, 50).map(l => ({ date: l.date, title: l.workoutTitle, comment: l.comment })));
-    const response = await ai.models.generateContent({
-        model: TEXT_MODEL,
-        contents: Prompts.ADMIN_ANALYTICS_CHAT_PROMPT(question, logSummary),
-        config: { systemInstruction: Prompts.SYSTEM_COACH_CONTEXT }
-    });
-    return response.text.trim();
+    const data = await callGeminiProxy(TEXT_MODEL, Prompts.ADMIN_ANALYTICS_CHAT_PROMPT(question, logSummary), { systemInstruction: Prompts.SYSTEM_COACH_CONTEXT });
+    return data.text.trim();
 }
 
 export async function generateBusinessActions(logs: WorkoutLog[]): Promise<string> {
-    const ai = getAIClient();
-    const response = await ai.models.generateContent({
-        model: TEXT_MODEL,
-        contents: "Baserat på all träningsdata, ge 3 konkreta affärsåtgärder för gymmet för att öka retention och försäljning. Svara på svenska.",
-        config: { systemInstruction: Prompts.SYSTEM_COACH_CONTEXT }
-    });
-    return response.text.trim();
+    const data = await callGeminiProxy(TEXT_MODEL, "Baserat på all träningsdata, ge 3 konkreta affärsåtgärder för gymmet för att öka retention och försäljning. Svara på svenska.", { systemInstruction: Prompts.SYSTEM_COACH_CONTEXT });
+    return data.text.trim();
 }
 
 export async function generateWorkoutDiploma(logData: any): Promise<WorkoutDiploma> {
