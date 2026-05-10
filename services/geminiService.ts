@@ -48,7 +48,7 @@ export interface ExerciseDagsformAdvice {
 
 // SÄKERHET: Hämta nyckel exklusivt från process.env
 const getAIClient = () => {
-    const apiKey = (typeof process !== 'undefined' && process.env?.API_KEY) || (import.meta as any).env.VITE_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("API-nyckel saknas.");
     return new GoogleGenAI({ apiKey });
 };
