@@ -344,18 +344,6 @@ export const updateUserRoleCloud = async (targetUid: string, newRole: UserRole) 
     }
 };
 
-export const syncCustomClaims = async () => {
-    if (isOffline || !functions) throw new Error("Offline eller systemet ej redo.");
-    try {
-        const func = httpsCallable(functions, 'flexSyncAllUsers');
-        const result = await func();
-        return result.data;
-    } catch (err: any) {
-        console.error("Cloud function error:", err);
-        throw new Error(err.message || "Ett fel uppstod vid synkronisering av roller.");
-    }
-};
-
 export const approveCoach = async (uid: string) => {
     if (isOffline || !db || !uid) return;
     const approveCoachFn = httpsCallable(functions, 'flexApproveCoach');

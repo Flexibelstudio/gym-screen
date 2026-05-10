@@ -22,28 +22,14 @@ function generateInviteCode() {
 
 /**
  * Hjälpfunktion för att kolla admin-behörighet
- * Strategi: 1. Kolla Token. 2. Om det misslyckas, kolla Databasen.
  */
 const verifyAdminPrivileges = async (auth) => {
-  // 1. Grundkoll: Är man inloggad?
   if (!auth) {
     throw new HttpsError("unauthenticated", "Du måste vara inloggad.");
   }
 
   const uid = auth.uid;
-  const tokenRole = auth.token.role || "";
 
-  // 2. Snabbkoll: Har token redan rätt roll? (Systemägare eller OrgAdmin)
-  if (tokenRole === "systemowner" || tokenRole === "organizationadmin") {
-    return {
-      uid,
-      role: tokenRole,
-      organizationId: auth.token.organizationId
-    };
-  }
-
-  // 3. BACKUP: Om token saknar roll, hämta användaren direkt från Firestore.
-  console.log(`Token saknar admin-roll för ${uid}, kollar databasen...`);
   const userDoc = await admin.firestore().collection("users").doc(uid).get();
   
   if (!userDoc.exists) {
@@ -53,18 +39,15 @@ const verifyAdminPrivileges = async (auth) => {
   const userData = userDoc.data();
   const dbRole = userData.role;
 
-  // Kolla om rollen i databasen är godkänd
-  if (dbRole === "systemowner" || dbRole === "organizationadmin") {
-    console.log(`Godkänd via databasen: ${uid} är ${dbRole}`);
-    return {
-      uid,
-      role: dbRole,
-      organizationId: userData.organizationId
-    };
+  if (dbRole !== "systemowner" && dbRole !== "organizationadmin") {
+    throw new HttpsError("permission-denied", "Du saknar administratörsrättigheter.");
   }
 
-  // Om vi kommer hit är man varken admin i Token eller Databas
-  throw new HttpsError("permission-denied", "Du saknar administratörsrättigheter.");
+  return {
+    uid,
+    role: dbRole,
+    organizationId: userData.organizationId
+  };
 };
 
 // --- FUNKTION: Uppdatera Roll ---
@@ -92,16 +75,6 @@ exports.flexUpdateUserRole = onCall({
       throw new HttpsError("permission-denied", "Behörighet saknas för att skapa systemägare.");
     }
   }
-
-  const newClaims = {
-    role: newRole,
-    organizationId: targetUserData.organizationId
-  };
-  if (newRole === "organizationadmin") {
-    newClaims.adminRole = "admin";
-  }
-
-  await admin.auth().setCustomUserClaims(targetUid, newClaims);
 
   const firestoreUpdate = {
     role: newRole,
@@ -180,10 +153,6 @@ exports.flexInviteUser = onCall({
   });
 
   const finalRole = inRole === "admin" ? "organizationadmin" : "coach";
-  const claims = { role: finalRole, organizationId };
-  if (inRole === "admin") claims.adminRole = "admin";
-  
-  await admin.auth().setCustomUserClaims(userRecord.uid, claims);
 
   const newUserDoc = {
     email,
@@ -339,40 +308,7 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
 });
 
 
-// --- FUNKTION: Migrera/Synka roller till Custom Claims ---
-exports.flexSyncAllUsers = onCall({
-  timeoutSeconds: 540,
-  memory: "512MiB"
-}, async (request) => {
-  const caller = await verifyAdminPrivileges(request.auth);
-  if (caller.role !== "systemowner") {
-    throw new HttpsError("permission-denied", "Endast systemägare kan köra migreringen.");
-  }
 
-  const db = admin.firestore();
-  const usersSnap = await db.collection("users").get();
-  
-  let count = 0;
-  const promises = [];
-
-  usersSnap.forEach(doc => {
-    const data = doc.data();
-    if (data.role) {
-      const claims = { role: data.role };
-      if (data.organizationId) claims.organizationId = data.organizationId;
-      if (data.adminRole === 'admin') claims.adminRole = 'admin';
-      
-      promises.push(admin.auth().setCustomUserClaims(doc.id, claims).then(() => {
-        count++;
-      }).catch(err => {
-        console.error(`Misslyckades att sätta claims för ${doc.id}:`, err);
-      }));
-    }
-  });
-
-  await Promise.all(promises);
-  return { success: true, message: `Synkade ${count} användare till Custom Claims!` };
-});
 
 // ============================================================================
 // STRIPE API & EXPRESS SERVER
@@ -581,11 +517,6 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
             subscriptionStatus: 'active'
           });
 
-          await admin.auth().setCustomUserClaims(userId, {
-            role: 'member',
-            organizationId: organizationId
-          });
-
           console.log(`Användare ${userId} blev medlem i org ${organizationId}`);
         } else {
           // Hantera gymmets egen prenumeration
@@ -637,12 +568,6 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
             }
 
             await db.collection('users').doc(userId).update(userUpdateData);
-
-            await admin.auth().setCustomUserClaims(userId, {
-              role: 'organizationadmin',
-              organizationId: orgId,
-              adminRole: 'admin'
-            });
 
             console.log(`Org ${orgId} återställd till exakt mall och kopplad till ${userId}`);
             
