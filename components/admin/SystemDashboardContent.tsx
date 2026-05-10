@@ -182,11 +182,9 @@ export const SystemDashboardContent: React.FC<{ organizations: Organization[] }>
                             onClick={async () => {
                                 if (window.confirm("Är du säker på att du vill migrera alla roller till Custom Claims? Detta uppdaterar ALLA användare.")) {
                                     try {
-                                        const { httpsCallable } = await import('firebase/functions');
-                                        const { functions } = await import('../../services/firebaseService');
-                                        const syncFn = httpsCallable(functions, 'flexSyncAllUsers');
-                                        const result = await syncFn();
-                                        alert((result.data as any).message || "Klar!");
+                                        const { syncCustomClaims } = await import('../../services/firebaseService');
+                                        const result = await syncCustomClaims();
+                                        alert((result as any).message || "Klar!");
                                     } catch (e: any) {
                                         alert("Fel vid synkronisering: " + e.message);
                                     }

@@ -344,6 +344,18 @@ export const updateUserRoleCloud = async (targetUid: string, newRole: UserRole) 
     }
 };
 
+export const syncCustomClaims = async () => {
+    if (isOffline || !functions) throw new Error("Offline eller systemet ej redo.");
+    try {
+        const func = httpsCallable(functions, 'flexSyncAllUsers');
+        const result = await func();
+        return result.data;
+    } catch (err: any) {
+        console.error("Cloud function error:", err);
+        throw new Error(err.message || "Ett fel uppstod vid synkronisering av roller.");
+    }
+};
+
 export const approveCoach = async (uid: string) => {
     if (isOffline || !db || !uid) return;
     const approveCoachFn = httpsCallable(functions, 'flexApproveCoach');
@@ -610,23 +622,34 @@ export const getLeaderboardData = async (orgId: string): Promise<{ memberId: str
     if (isOffline || !db || !orgId) return [];
     try {
         const now = new Date();
-        const dISO = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-        const dayNum = dISO.getUTCDay() || 7;
-        dISO.setUTCDate(dISO.getUTCDate() + 4 - dayNum);
-        const yearStart = new Date(Date.UTC(dISO.getUTCFullYear(),0,1));
-        const week = Math.ceil((((dISO - yearStart) / 86400000) + 1)/7);
-        const year = dISO.getUTCFullYear();
+        const day = now.getDay();
+        const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+        const startOfWeek = new Date(now.setDate(diff));
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        const q = query(
+            collection(db, 'workoutLogs'), 
+            where("organizationId", "==", orgId),
+            where("date", ">=", startOfWeek.getTime())
+        );
         
-        const docRef = doc(db, 'leaderboards', `${orgId}_all_${year}_W${week}`);
-        const snap = await getDoc(docRef);
-
-        if (!snap.exists()) return [];
-
-        const data = snap.data();
-        const memberStats = data.members || {};
+        const snap = await getDocs(q);
+        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
+        
+        const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
+        
+        logs.forEach(log => {
+            if (!memberStats[log.memberId]) {
+                memberStats[log.memberId] = { count: 0, pbs: 0, name: log.memberName || 'Okänd', photoUrl: log.memberPhotoUrl || '' };
+            }
+            memberStats[log.memberId].count += 1;
+            if (log.newPBs && log.newPBs.length > 0) {
+                memberStats[log.memberId].pbs += log.newPBs.length;
+            }
+        });
 
         return Object.entries(memberStats)
-            .map(([memberId, stats]: [string, any]) => ({ memberId, ...stats }))
+            .map(([memberId, stats]) => ({ memberId, ...stats }))
             .sort((a, b) => b.count - a.count);
 
     } catch (e) {
@@ -642,30 +665,47 @@ export const listenToLeaderboardData = (orgId: string, locationId: string | 'all
     }
     
     const now = new Date();
-    const dISO = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
-    const dayNum = dISO.getUTCDay() || 7;
-    dISO.setUTCDate(dISO.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(dISO.getUTCFullYear(),0,1));
-    const week = Math.ceil((((dISO - yearStart) / 86400000) + 1)/7);
-    const year = dISO.getUTCFullYear();
+    const day = now.getDay();
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+    const startOfWeek = new Date(now.setDate(diff));
+    startOfWeek.setHours(0, 0, 0, 0);
 
-    const targetLocationId = (locationId && locationId !== 'all') ? locationId : 'all';
-    const docRef = doc(db, 'leaderboards', `${orgId}_${targetLocationId}_${year}_W${week}`);
+    const q = query(
+        collection(db, 'workoutLogs'), 
+        where("organizationId", "==", orgId),
+        where("date", ">=", startOfWeek.getTime())
+    );
     
-    return onSnapshot(docRef, (snap) => {
-        if (!snap.exists()) {
-            onUpdate([]);
-            return;
-        }
-
-        const data = snap.data();
-        const memberStats = data.members || {};
+    return onSnapshot(q, (snap) => {
+        const logs = snap.docs.map(d => d.data() as WorkoutLog)
+            .filter(log => log.showOnLeaderboard !== false && log.inStudio !== false)
+            .filter(log => {
+                if (locationId && locationId !== 'all') {
+                    let logLocation = log.locationId;
+                    if (!logLocation || logLocation === '' || logLocation === 'undefined') {
+                        const member = members.find(m => m.uid === log.memberId || m.id === log.memberId);
+                        logLocation = member?.locationId;
+                    }
+                    return logLocation === locationId;
+                }
+                return true;
+            });
         
-        // Convert to array and sort by count
+        const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
+        
+        logs.forEach(log => {
+            if (!memberStats[log.memberId]) {
+                memberStats[log.memberId] = { count: 0, pbs: 0, name: log.memberName || 'Okänd', photoUrl: log.memberPhotoUrl || '' };
+            }
+            memberStats[log.memberId].count += 1;
+            if (log.newPBs && log.newPBs.length > 0) {
+                memberStats[log.memberId].pbs += log.newPBs.length;
+            }
+        });
+
         const result = Object.entries(memberStats)
-            .map(([memberId, stats]: [string, any]) => ({ memberId, ...stats }))
-            .filter((stat: any) => stat.count > 0 || stat.pbs > 0)
-            .sort((a: any, b: any) => b.count - a.count);
+            .map(([memberId, stats]) => ({ memberId, ...stats }))
+            .sort((a, b) => b.count - a.count);
             
         onUpdate(result);
     }, (error) => {
