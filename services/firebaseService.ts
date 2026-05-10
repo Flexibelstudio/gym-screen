@@ -618,40 +618,29 @@ export const deleteWorkoutLog = async (logId: string) => {
     } catch (e) { console.error("deleteWorkoutLog failed", e); }
 };
 
-export const getLeaderboardData = async (orgId: string): Promise<{ memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]> => {
+const getLeaderboardDocId = (orgId: string, locationId: string | 'all') => {
+    const d = new Date();
+    const dISO = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = dISO.getUTCDay() || 7;
+    dISO.setUTCDate(dISO.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(dISO.getUTCFullYear(),0,1));
+    const week = Math.ceil((((dISO.getTime() - yearStart.getTime()) / 86400000) + 1)/7);
+    const year = dISO.getUTCFullYear();
+    return `${orgId}_${locationId}_${year}_W${week}`;
+};
+
+export const getLeaderboardData = async (orgId: string, locationId: string | 'all' = 'all'): Promise<{ memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]> => {
     if (isOffline || !db || !orgId) return [];
     try {
-        const now = new Date();
-        const day = now.getDay();
-        const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-        const startOfWeek = new Date(now.setDate(diff));
-        startOfWeek.setHours(0, 0, 0, 0);
+        const lId = getLeaderboardDocId(orgId, locationId);
+        const ref = doc(db, 'leaderboards', lId);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) return [];
 
-        const q = query(
-            collection(db, 'workoutLogs'), 
-            where("organizationId", "==", orgId),
-            where("date", ">=", startOfWeek.getTime())
-        );
-        
-        const snap = await getDocs(q);
-        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
-        
-        const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
-        
-        logs.forEach(log => {
-            if (!memberStats[log.memberId]) {
-                memberStats[log.memberId] = { count: 0, pbs: 0, name: log.memberName || 'Okänd', photoUrl: log.memberPhotoUrl || '' };
-            }
-            memberStats[log.memberId].count += 1;
-            if (log.newPBs && log.newPBs.length > 0) {
-                memberStats[log.memberId].pbs += log.newPBs.length;
-            }
-        });
+        const data = snap.data();
+        if (!data || !data.members) return [];
 
-        return Object.entries(memberStats)
-            .map(([memberId, stats]) => ({ memberId, ...stats }))
-            .sort((a, b) => b.count - a.count);
-
+        return Object.values(data.members) as { memberId: string, name: string, photoUrl: string, count: number, pbs: number }[];
     } catch (e) {
         console.error("getLeaderboardData failed", e);
         return [];
@@ -664,49 +653,22 @@ export const listenToLeaderboardData = (orgId: string, locationId: string | 'all
         return () => {};
     }
     
-    const now = new Date();
-    const day = now.getDay();
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-    const startOfWeek = new Date(now.setDate(diff));
-    startOfWeek.setHours(0, 0, 0, 0);
-
-    const q = query(
-        collection(db, 'workoutLogs'), 
-        where("organizationId", "==", orgId),
-        where("date", ">=", startOfWeek.getTime())
-    );
+    const lId = getLeaderboardDocId(orgId, locationId || 'all');
+    const ref = doc(db, 'leaderboards', lId);
     
-    return onSnapshot(q, (snap) => {
-        const logs = snap.docs.map(d => d.data() as WorkoutLog)
-            .filter(log => log.showOnLeaderboard !== false && log.inStudio !== false)
-            .filter(log => {
-                if (locationId && locationId !== 'all') {
-                    let logLocation = log.locationId;
-                    if (!logLocation || logLocation === '' || logLocation === 'undefined') {
-                        const member = members.find(m => m.uid === log.memberId || m.id === log.memberId);
-                        logLocation = member?.locationId;
-                    }
-                    return logLocation === locationId;
-                }
-                return true;
-            });
+    return onSnapshot(ref, (snap) => {
+        if (!snap.exists()) {
+            onUpdate([]);
+            return;
+        }
+        const data = snap.data();
+        if (!data || !data.members) {
+            onUpdate([]);
+            return;
+        }
         
-        const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
-        
-        logs.forEach(log => {
-            if (!memberStats[log.memberId]) {
-                memberStats[log.memberId] = { count: 0, pbs: 0, name: log.memberName || 'Okänd', photoUrl: log.memberPhotoUrl || '' };
-            }
-            memberStats[log.memberId].count += 1;
-            if (log.newPBs && log.newPBs.length > 0) {
-                memberStats[log.memberId].pbs += log.newPBs.length;
-            }
-        });
-
-        const result = Object.entries(memberStats)
-            .map(([memberId, stats]) => ({ memberId, ...stats }))
-            .sort((a, b) => b.count - a.count);
-            
+        const result = Object.values(data.members) as { memberId: string, name: string, photoUrl: string, count: number, pbs: number }[];
+        result.sort((a, b) => b.count - a.count);
         onUpdate(result);
     }, (error) => {
         console.error("listenToLeaderboardData failed", error);
