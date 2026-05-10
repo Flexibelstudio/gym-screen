@@ -48,9 +48,7 @@ export interface ExerciseDagsformAdvice {
 
 // SÄKERHET: Hämta nyckel exklusivt från process.env
 const getAIClient = () => {
-    // Använd eval för att förhindra att Vite/Esbuild minifierar process.env.
-    // Detta tillåter AI Studios server-proxy att ersätta strängen statiskt.
-    const apiKey = eval("process.env.GEMINI_API_KEY");
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("API-nyckel saknas.");
     return new GoogleGenAI({ apiKey });
 };
