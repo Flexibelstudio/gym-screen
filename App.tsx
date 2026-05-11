@@ -135,18 +135,21 @@ const App: React.FC = () => {
     if (!authLoading && !isStudioMode && currentUser) {
       const isAtInitialPage = history.length === 1;
       const currentPage = history[history.length - 1];
+      
+      // Use userData.role directly to avoid race conditions with impersonation state context
+      const actualRole = userData?.role || role;
 
-      if (role === 'systemowner' && currentPage !== Page.SystemOwner && isAtInitialPage) {
+      if (actualRole === 'systemowner' && currentPage !== Page.SystemOwner && isAtInitialPage) {
         setHistory([Page.SystemOwner]);
-      } else if (role === 'organizationadmin' && currentPage !== Page.SuperAdmin && isAtInitialPage) {
+      } else if (actualRole === 'organizationadmin' && currentPage !== Page.SuperAdmin && isAtInitialPage) {
         setHistory([Page.SuperAdmin]);
-      } else if (role === 'coach' && currentPage !== Page.Coach && isAtInitialPage) {
+      } else if (actualRole === 'coach' && currentPage !== Page.Coach && isAtInitialPage) {
         setHistory([Page.Coach]);
-      } else if (role === 'member' && currentPage !== Page.MemberProfile && isAtInitialPage) {
-        setHistory([Page.MemberProfile]);
+      } else if (actualRole === 'member' && currentPage !== Page.Home && isAtInitialPage) {
+        setHistory([Page.Home]); // Changed back to Home to prevent trapping users in MemberProfile
       }
     }
-  }, [role, authLoading, isStudioMode, history, currentUser]);
+  }, [role, userData, authLoading, isStudioMode, history.length, currentUser]);
 
   const [activeBlock, setActiveBlock] = useState<WorkoutBlock | null>(null);
   const lastLocalNavigationRef = useRef<number>(0);
