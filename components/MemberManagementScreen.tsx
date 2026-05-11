@@ -5,12 +5,12 @@ import { UsersIcon, PencilIcon, ChartBarIcon, SearchIcon, ChevronDownIcon, Chevr
 import { MemberDetailModal } from './MemberDetailModal';
 import { PrintablePoster } from './PrintablePoster';
 import { useStudio } from '../context/StudioContext';
-import { listenToMembers, updateMemberEndDate, updateUserRoleCloud, approveCoach, updateOrganization } from '../services/firebaseService';
+import { listenToMembers, updateMemberEndDate, updateUserRoleCloud, approveCoach, updateOrganization, updateUserProfile } from '../services/firebaseService';
 import QRCode from 'react-qr-code';
 import { Modal } from './ui/Modal';
 import { useAuth } from '../context/AuthContext';
 import { Toast } from './ui/ToastNotification';
-import { calculateAge, formatBirthday } from '../utils/dateUtils';
+import { calculateAge, formatBirthday, isBirthdayToday } from '../utils/dateUtils';
 
 const generateInviteCode = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -87,11 +87,65 @@ const RoleSwitcher: React.FC<{
                 value={currentRole}
                 onChange={handleChange}
                 disabled={isUpdating}
-                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none"
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none bg-transparent text-black"
             >
-                <option value="member">Medlem</option>
-                <option value="coach">Coach</option>
-                <option value="organizationadmin">Admin</option>
+                <option value="member" className="text-black bg-white">Medlem</option>
+                <option value="coach" className="text-black bg-white">Coach</option>
+                <option value="organizationadmin" className="text-black bg-white">Admin</option>
+            </select>
+        </div>
+    );
+};
+
+const LocationSwitcher: React.FC<{ 
+    currentLocationId?: string; 
+    memberId: string; 
+    isUpdating: boolean;
+    locations: { id: string, name: string }[];
+    onUpdate: (locationId: string) => void;
+    canEdit: boolean;
+}> = ({ currentLocationId, memberId, isUpdating, locations, onUpdate, canEdit }) => {
+    const handleClick = (e: React.MouseEvent) => e.stopPropagation();
+
+    const handleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        e.stopPropagation();
+        onUpdate(e.target.value);
+    };
+
+    if (locations.length === 0) return null;
+
+    const currentLoc = locations.find(l => l.id === currentLocationId);
+    const resolvedLocId = currentLoc ? currentLoc.id : (locations.length > 0 ? locations[0].id : '');
+    const label = currentLoc ? currentLoc.name : (locations.length > 0 ? locations[0].name : "Saknar Ort");
+    const labelClass = currentLoc ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-gray-100 text-gray-500 border-gray-200";
+
+    if (!canEdit) {
+        return (
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider border shadow-sm ${labelClass}`}>
+                {label}
+            </span>
+        );
+    }
+
+    return (
+        <div className="relative inline-block" onClick={handleClick}>
+            <div className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-black uppercase tracking-wider border shadow-sm cursor-pointer transition-all hover:brightness-95 ${labelClass}`}>
+                {isUpdating ? (
+                    <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin mr-1"></div>
+                ) : (
+                    <span className="max-w-[100px] truncate">{label}</span>
+                )}
+                {!isUpdating && <ChevronDownIcon className="w-3 h-3 opacity-70" />}
+            </div>
+            <select
+                value={resolvedLocId}
+                onChange={handleChange}
+                disabled={isUpdating}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer appearance-none bg-transparent text-black"
+            >
+                {locations.map(loc => (
+                    <option key={loc.id} value={loc.id} className="text-black bg-white">{loc.name}</option>
+                ))}
             </select>
         </div>
     );
@@ -104,9 +158,9 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
   const [members, setMembers] = useState<Member[]>([]);
   const [isLoading, setIsLoading] = useState(true); 
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
-  const [showInviteModal, setShowInviteModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
+  const [locationFilter, setLocationFilter] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [toast, setToast] = useState<{ message: string, visible: boolean }>({ message: '', visible: false });
 
@@ -114,21 +168,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
 
   const [editingDateMember, setEditingDateMember] = useState<Member | null>(null);
   const [newDateValue, setNewDateValue] = useState<string>('');
-  
-  const [posterToPrint, setPosterToPrint] = useState<'member' | 'coach' | null>(null);
-
-  useEffect(() => {
-    const handleAfterPrint = () => setPosterToPrint(null);
-    window.addEventListener('afterprint', handleAfterPrint);
-    return () => window.removeEventListener('afterprint', handleAfterPrint);
-  }, []);
-
-  const handlePrint = (type: 'member' | 'coach') => {
-    setPosterToPrint(type);
-    setTimeout(() => {
-      window.print();
-    }, 100);
-  };
 
   useEffect(() => {
     if (!selectedOrganization) return;
@@ -142,7 +181,7 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
 
   useEffect(() => {
       setCurrentPage(1);
-  }, [searchTerm, roleFilter]);
+  }, [searchTerm, roleFilter, locationFilter]);
 
   const filteredMembers = useMemo(() => {
       return members.filter(m => {
@@ -156,9 +195,19 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
           else if (roleFilter === 'coach') matchesRole = m.role === 'coach';
           else if (roleFilter === 'admin') matchesRole = m.role === 'organizationadmin' || m.role === 'systemowner';
 
-          return matchesSearch && matchesRole;
+          let matchesLocation = true;
+          const resolvedLocationId = m.locationId || (selectedOrganization?.locations?.[0]?.id);
+          
+          // Coach kan bara se de i sin egen studio (om de har en studio)
+          if (currentUserRole === 'coach' && currentUser?.locationId) {
+              matchesLocation = resolvedLocationId === currentUser.locationId;
+          } else if (locationFilter !== 'all') {
+              matchesLocation = resolvedLocationId === locationFilter;
+          }
+
+          return matchesSearch && matchesRole && matchesLocation;
       });
-  }, [members, searchTerm, roleFilter]);
+  }, [members, searchTerm, roleFilter, locationFilter]);
 
   const totalPages = Math.ceil(filteredMembers.length / ITEMS_PER_PAGE);
   const paginatedMembers = useMemo(() => {
@@ -212,6 +261,18 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
       }
   };
 
+  const handleQuickLocationUpdate = async (memberId: string, newLocationId: string) => {
+      setUpdatingMembers(prev => ({ ...prev, [memberId]: true }));
+      try {
+          await updateUserProfile(memberId, { locationId: newLocationId });
+      } catch (e) {
+          console.error("Failed to update location", e);
+          alert(e instanceof Error ? e.message : "Kunde inte uppdatera ort.");
+      } finally {
+          setUpdatingMembers(prev => ({ ...prev, [memberId]: false }));
+      }
+  };
+
   const handleApproveCoach = async (e: React.MouseEvent, memberId: string) => {
       e.stopPropagation();
       setUpdatingMembers(prev => ({ ...prev, [memberId]: true }));
@@ -237,13 +298,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
 
   const canEditRoles = currentUserRole === 'organizationadmin' || currentUserRole === 'systemowner';
 
-  const inviteCode = selectedOrganization?.inviteCode;
-  const coachCode = selectedOrganization?.coachCode;
-  
-  const baseUrl = window.location.origin;
-  const qrUrl = inviteCode ? `${baseUrl}/?invite=${inviteCode}` : '';
-  const coachQrUrl = coachCode ? `${baseUrl}/?invite=${coachCode}` : '';
-
   if (isLoading) {
       return (
           <div className="h-64 flex flex-col items-center justify-center gap-4 animate-fade-in">
@@ -268,101 +322,49 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
         </div>
       </div>
 
-      {selectedOrganization?.inviteCode && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Member Card */}
-            <div className="bg-[#1e232d] rounded-[2rem] p-8 flex flex-col items-center justify-center border border-slate-700/50 shadow-lg relative overflow-hidden">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] mb-6">Medlemskod</span>
-                <div className="border border-white/20 rounded-2xl px-8 py-4 mb-6 bg-[#141820]">
-                    <span className="text-4xl font-black font-mono tracking-[0.15em] text-[#39ff14]">{selectedOrganization.inviteCode}</span>
-                </div>
-                <div className="flex items-center gap-4">
-                    <button 
-                        onClick={() => {
-                            navigator.clipboard.writeText(selectedOrganization.inviteCode || '');
-                            setToast({ message: "Medlemskod kopierad!", visible: true });
-                        }}
-                        className="text-[10px] font-black text-[#39ff14] hover:text-green-300 uppercase tracking-widest transition-colors flex items-center"
-                    >
-                        <CopyIcon className="w-3 h-3 mr-2" /> Kopiera kod
-                    </button>
-                    <span className="text-gray-600">|</span>
-                    <button 
-                        onClick={() => handlePrint('member')}
-                        className="text-[10px] font-black text-gray-400 hover:text-white uppercase tracking-widest transition-colors flex items-center"
-                    >
-                        <QrCodeIcon className="w-3 h-3 mr-2" /> Skriv ut poster
-                    </button>
-                </div>
-            </div>
-
-            {/* Coach Card */}
-            {selectedOrganization.coachCode ? (
-                <div className="bg-[#2a1b3d] rounded-[2rem] p-8 flex flex-col items-center justify-center border border-purple-900/50 shadow-lg relative overflow-hidden">
-                    <span className="text-[10px] font-black text-purple-300 uppercase tracking-[0.2em] mb-6">Coachkod</span>
-                    <div className="border border-purple-500/20 bg-[#1a1025] rounded-2xl px-8 py-4 mb-6">
-                        <span className="text-4xl font-black font-mono tracking-[0.15em] text-[#bb86fc]">{selectedOrganization.coachCode}</span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <button 
-                            onClick={() => {
-                                navigator.clipboard.writeText(selectedOrganization.coachCode || '');
-                                setToast({ message: "Coachkod kopierad!", visible: true });
-                            }}
-                            className="text-[10px] font-black text-[#bb86fc] hover:text-purple-300 uppercase tracking-widest transition-colors flex items-center"
-                        >
-                            <CopyIcon className="w-3 h-3 mr-2" /> Kopiera kod
-                        </button>
-                        <span className="text-purple-900/50">|</span>
-                        <button 
-                            onClick={() => handlePrint('coach')}
-                            className="text-[10px] font-black text-gray-400 hover:text-white uppercase tracking-widest transition-colors flex items-center"
-                        >
-                            <QrCodeIcon className="w-3 h-3 mr-2" /> Skriv ut poster
-                        </button>
-                    </div>
-                </div>
-            ) : (
-                <div className="bg-[#2a1b3d] rounded-[2rem] p-8 flex flex-col items-center justify-center border border-purple-900/50 shadow-lg relative overflow-hidden">
-                    <span className="text-[10px] font-black text-purple-300 uppercase tracking-[0.2em] mb-6">Coachkod</span>
-                    <button 
-                        onClick={async () => {
-                            const newCoachCode = generateInviteCode();
-                            await updateOrganization(selectedOrganization.id, selectedOrganization.name, selectedOrganization.subdomain, selectedOrganization.inviteCode, newCoachCode, selectedOrganization.maxFreeCoaches || 5);
-                            setToast({ message: "Coachkod skapad!", visible: true });
-                        }}
-                        className="bg-purple-600 text-white px-6 py-3 rounded-xl font-bold shadow-md hover:bg-purple-700 text-sm uppercase tracking-widest"
-                    >
-                        Generera coachkod
-                    </button>
-                </div>
-            )}
-        </div>
-      )}
-
+      {/* Search and filters removed the invite cards code above here */}
       <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-          <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full lg:w-auto overflow-x-auto scrollbar-hide">
-              {[
-                  { id: 'all', label: 'Alla', count: stats.all },
-                  { id: 'training', label: 'Medlemmar', count: stats.training },
-                  { id: 'coach', label: 'Coacher', count: stats.coaches },
-                  { id: 'admin', label: 'Admins', count: stats.admins }
-              ].map(f => (
-                  <button
-                    key={f.id}
-                    onClick={() => setRoleFilter(f.id as RoleFilter)}
-                    className={`flex-1 lg:flex-none px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
-                        roleFilter === f.id 
-                        ? 'bg-white dark:bg-gray-700 text-primary shadow-md' 
-                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                    }`}
-                  >
-                      {f.label} ({f.count})
-                  </button>
-              ))}
+          <div className="flex flex-col lg:flex-row gap-4 w-full">
+              <div className="flex bg-gray-100 dark:bg-gray-800 p-1.5 rounded-2xl border border-gray-200 dark:border-gray-700 w-full lg:w-auto overflow-x-auto scrollbar-hide">
+                  {[
+                      { id: 'all', label: 'Alla', count: stats.all },
+                      { id: 'training', label: 'Medlemmar', count: stats.training },
+                      { id: 'coach', label: 'Coacher', count: stats.coaches },
+                      { id: 'admin', label: 'Admins', count: stats.admins }
+                  ].map(f => (
+                      <button
+                        key={f.id}
+                        onClick={() => setRoleFilter(f.id as RoleFilter)}
+                        className={`flex-1 lg:flex-none px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap ${
+                            roleFilter === f.id 
+                            ? 'bg-white dark:bg-gray-700 text-primary shadow-md' 
+                            : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        }`}
+                      >
+                          {f.label} ({f.count})
+                      </button>
+                  ))}
+              </div>
+
+              {selectedOrganization && selectedOrganization.locations && selectedOrganization.locations.length > 0 && currentUserRole !== 'coach' && (
+                  <div className="flex items-center min-w-[200px]">
+                      <select
+                          value={locationFilter}
+                          onChange={(e) => setLocationFilter(e.target.value)}
+                          className="w-full bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-2xl shadow-sm px-4 py-3 text-sm font-bold text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                      >
+                          <option value="all">Alla Orter/Studios</option>
+                          {selectedOrganization.locations.map(loc => (
+                              <option key={loc.id} value={loc.id}>
+                                  {loc.name}
+                              </option>
+                          ))}
+                      </select>
+                  </div>
+              )}
           </div>
           
-          <div className="relative w-full lg:max-w-md">
+          <div className="relative w-full lg:max-w-md shrink-0">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                   <SearchIcon className="h-5 w-5 text-gray-400" />
               </div>
@@ -386,7 +388,7 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                   Prova att ändra din sökning eller filter.
               </p>
               <button 
-                onClick={() => { setSearchTerm(''); setRoleFilter('all'); }}
+                onClick={() => { setSearchTerm(''); setRoleFilter('all'); setLocationFilter('all'); }}
                 className="text-primary font-bold hover:underline"
               >
                   Nollställ filter
@@ -398,10 +400,10 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-100 dark:border-gray-700">
-                    <th className="p-6 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Namn & Roll</th>
+                    <th className="p-6 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Användare</th>
+                    <th className="p-6 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Tillhörighet</th>
                     <th className="p-6 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Medlemskap</th>
                     <th className="p-6 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Mål & Deadline</th>
-                    <th className="p-6 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em]">Kontakt</th>
                     <th className="p-6 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.2em] text-right">Info</th>
                   </tr>
                 </thead>
@@ -424,34 +426,50 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
                                 <p className="font-bold text-gray-900 dark:text-white text-lg truncate">{member.firstName} {member.lastName}</p>
-                                {(member.birthDate || member.age) && (
-                                    <span className="text-xs font-bold text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded-md">
-                                        {calculateAge(member.birthDate, member.age)} år
-                                        {member.birthDate && ` (Fyller år ${formatBirthday(member.birthDate)})`}
-                                    </span>
-                                )}
                             </div>
-                            <div className="mt-1 flex items-center gap-2">
-                                <RoleSwitcher 
-                                    currentRole={member.role}
-                                    status={member.status}
-                                    memberId={member.id}
-                                    isUpdating={!!updatingMembers[member.id]}
-                                    onUpdate={(newRole) => handleQuickRoleUpdate(member.id, newRole)}
-                                    canEdit={canEditRoles && member.id !== currentUser?.uid}
-                                />
-                                {member.status === 'pending_coach' && canEditRoles && (
-                                    <button
-                                        onClick={(e) => handleApproveCoach(e, member.id)}
-                                        disabled={!!updatingMembers[member.id]}
-                                        className="text-xs font-bold bg-primary text-black px-3 py-1 rounded-full hover:bg-primary/90 transition-colors disabled:opacity-50"
-                                    >
-                                        {updatingMembers[member.id] ? 'Godkänner...' : 'Godkänn Coach'}
-                                    </button>
+                            <div className="mt-1">
+                                {(member.birthDate || member.age) ? (
+                                    <span className="text-xs font-medium text-gray-400 dark:text-gray-500">
+                                        {member.email} • <span className="font-bold">{calculateAge(member.birthDate, member.age)} år</span>
+                                        {isBirthdayToday(member.birthDate) && <span className="ml-1" title={formatBirthday(member.birthDate) || ''}>🎂</span>}
+                                    </span>
+                                ) : (
+                                    <p className="text-xs text-gray-400 dark:text-gray-500">{member.email}</p>
                                 )}
                             </div>
                           </div>
                         </div>
+                      </td>
+                      <td className="p-6">
+                          <div className="flex flex-col gap-2 items-start">
+                              <RoleSwitcher 
+                                  currentRole={member.role}
+                                  status={member.status}
+                                  memberId={member.id}
+                                  isUpdating={!!updatingMembers[member.id]}
+                                  onUpdate={(newRole) => handleQuickRoleUpdate(member.id, newRole)}
+                                  canEdit={canEditRoles && member.id !== currentUser?.uid}
+                              />
+                              {selectedOrganization?.locations && selectedOrganization.locations.length > 0 && (
+                                  <LocationSwitcher
+                                      currentLocationId={member.locationId}
+                                      memberId={member.id}
+                                      isUpdating={!!updatingMembers[member.id]}
+                                      locations={selectedOrganization.locations}
+                                      onUpdate={(newLocId) => handleQuickLocationUpdate(member.id, newLocId)}
+                                      canEdit={canEditRoles}
+                                  />
+                              )}
+                              {member.status === 'pending_coach' && canEditRoles && (
+                                  <button
+                                      onClick={(e) => handleApproveCoach(e, member.id)}
+                                      disabled={!!updatingMembers[member.id]}
+                                      className="text-[10px] font-black tracking-wider uppercase bg-primary text-black px-3 py-1.5 rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 mt-1 shadow-sm"
+                                  >
+                                      {updatingMembers[member.id] ? 'Godkänner...' : 'Godkänn Coach'}
+                                  </button>
+                              )}
+                          </div>
                       </td>
                       <td className="p-6">
                         <div className="flex items-center gap-3">
@@ -501,9 +519,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                         ) : (
                             <span className="text-xs text-gray-400 italic">Inget mål</span>
                         )}
-                      </td>
-                      <td className="p-6 text-gray-600 dark:text-gray-300">
-                        <p className="text-sm font-medium">{member.email}</p>
                       </td>
                       <td className="p-6 text-right">
                           <div className="flex justify-end">
@@ -587,98 +602,6 @@ export const MemberManagementScreen: React.FC<MemberManagementScreenProps> = ({ 
                   </div>
               </div>
           </Modal>
-      )}
-
-      {showInviteModal && selectedOrganization && (
-        <Modal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} title="Anslut Medlemmar" size="lg">
-            <div className="text-center p-2 sm:p-4 space-y-8">
-                <div className="space-y-2">
-                    <h3 className="text-3xl font-black text-gray-900 dark:text-white tracking-tighter uppercase">Bjud in ditt team</h3>
-                    <p className="text-gray-500 dark:text-gray-400 text-base">
-                        Medlemmar och personal ansluter sig till <span className="font-bold text-gray-800 dark:text-white">{selectedOrganization.name}</span> via denna kod.
-                    </p>
-                </div>
-                
-                {inviteCode ? (
-                    <div className="flex flex-col gap-6 py-2">
-                        {/* Member Code Section */}
-                        <div className="bg-gray-50 dark:bg-gray-800/50 p-6 rounded-[2.5rem] border border-gray-100 dark:border-gray-700 flex flex-col items-center justify-center">
-                            <span className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.25em] mb-4">Medlemskod</span>
-                            <div className="bg-white dark:bg-gray-900 px-8 py-5 rounded-2xl border-2 border-primary/20 shadow-inner">
-                                <span className="text-4xl font-black font-mono tracking-[0.15em] text-primary">{inviteCode}</span>
-                            </div>
-                            <div className="flex items-center gap-4 mt-4">
-                                <button 
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(inviteCode);
-                                        alert("Medlemskod kopierad!");
-                                    }}
-                                    className="text-[10px] font-black text-primary hover:underline uppercase tracking-widest"
-                                >
-                                    Kopiera medlemskod
-                                </button>
-                                <span className="text-gray-300 dark:text-gray-600">|</span>
-                                <button 
-                                    onClick={() => handlePrint('member')}
-                                    className="text-[10px] font-black text-gray-600 dark:text-gray-400 hover:text-primary dark:hover:text-primary hover:underline uppercase tracking-widest"
-                                >
-                                    Skriv ut poster
-                                </button>
-                            </div>
-                        </div>
-
-                        {/* Coach Code Section */}
-                        {coachCode && (
-                            <div className="bg-purple-50 dark:bg-purple-900/20 p-6 rounded-[2.5rem] border border-purple-100 dark:border-purple-800/50 flex flex-col items-center justify-center">
-                                <span className="text-[10px] font-black text-purple-400 dark:text-purple-500 uppercase tracking-[0.25em] mb-4">Coachkod</span>
-                                <div className="bg-white dark:bg-gray-900 px-8 py-5 rounded-2xl border-2 border-purple-500/20 shadow-inner">
-                                    <span className="text-4xl font-black font-mono tracking-[0.15em] text-purple-600 dark:text-purple-400">{coachCode}</span>
-                                </div>
-                                <div className="flex items-center gap-4 mt-4">
-                                    <button 
-                                        onClick={() => {
-                                            navigator.clipboard.writeText(coachCode);
-                                            alert("Coachkod kopierad!");
-                                        }}
-                                        className="text-[10px] font-black text-purple-600 dark:text-purple-400 hover:underline uppercase tracking-widest"
-                                    >
-                                        Kopiera coachkod
-                                    </button>
-                                    <span className="text-purple-200 dark:text-purple-800/50">|</span>
-                                    <button 
-                                        onClick={() => handlePrint('coach')}
-                                        className="text-[10px] font-black text-gray-600 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 hover:underline uppercase tracking-widest"
-                                    >
-                                        Skriv ut poster
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                ) : (
-                    <div className="p-8 bg-yellow-50 dark:bg-yellow-900/20 border-2 border-dashed border-yellow-200 rounded-3xl">
-                        <p className="text-yellow-800 dark:text-yellow-200 font-bold">Ingen kod tillgänglig</p>
-                        <p className="text-yellow-700 dark:text-yellow-300 text-sm mt-2">Du måste först aktivera Passloggning i Globala Inställningar för att generera en kod.</p>
-                    </div>
-                )}
-
-                <div className="bg-indigo-50 dark:bg-indigo-900/20 p-5 rounded-3xl text-sm text-indigo-800 dark:text-indigo-200 text-left border border-indigo-100 dark:border-indigo-800">
-                    <p className="leading-relaxed font-medium">
-                        <span className="font-black uppercase text-[10px] tracking-widest block mb-1">Tips:</span>
-                        När medlemmar scannar koden skapas deras konto och de kopplas direkt till ditt gym. Som admin kan du sedan uppgradera dem till <strong>Coacher</strong> eller <strong>Admins</strong> i listan.
-                    </p>
-                </div>
-            </div>
-        </Modal>
-      )}
-
-      {posterToPrint && selectedOrganization && (
-          <PrintablePoster 
-              title={posterToPrint === 'member' ? "Skapa konto för att logga din träning och sätta mål" : "Skapa ett Coachinlogg!"}
-              code={posterToPrint === 'member' ? (inviteCode || '') : (coachCode || '')}
-              url={`${baseUrl}/?invite=${posterToPrint === 'member' ? inviteCode : coachCode}`}
-              organizationName={selectedOrganization.name}
-          />
       )}
     </div>
   );

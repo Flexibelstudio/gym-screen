@@ -12,7 +12,7 @@ interface WeeklyPBListProps {
 }
 
 export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded = false }) => {
-    const { selectedOrganization } = useStudio();
+    const { selectedOrganization, selectedStudio } = useStudio();
     const [events, setEvents] = useState<StudioEvent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -20,11 +20,24 @@ export const WeeklyPBList: React.FC<WeeklyPBListProps> = ({ onExpand, isExpanded
         if (!selectedOrganization) return;
         setIsLoading(true);
         const unsubscribe = listenToWeeklyPBs(selectedOrganization.id, (newEvents) => {
-            setEvents(newEvents.slice(0, 50)); 
+            let filteredEvents = newEvents;
+            const resolvedLocationId = selectedStudio?.locationId || selectedOrganization?.locations?.[0]?.id;
+            
+            if (resolvedLocationId) {
+                filteredEvents = newEvents.filter(event => {
+                    const eventLocationId = event.locationId || selectedOrganization?.locations?.[0]?.id;
+                    if (eventLocationId && eventLocationId !== resolvedLocationId) {
+                        return false;
+                    }
+                    return true;
+                });
+            }
+
+            setEvents(filteredEvents.slice(0, 50)); 
             setIsLoading(false);
         });
         return () => unsubscribe();
-    }, [selectedOrganization]);
+    }, [selectedOrganization, selectedStudio?.locationId]);
 
     const formatEventTime = (timestamp: number) => {
         const date = new Date(timestamp);

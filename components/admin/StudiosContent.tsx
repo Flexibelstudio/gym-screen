@@ -6,15 +6,20 @@ import { useAuth } from '../../context/AuthContext';
 interface StudiosContentProps {
     organization: Organization;
     onEditStudioConfig: (studio: Studio) => void;
-    onCreateStudio: (organizationId: string, name: string) => Promise<void>;
-    onUpdateStudio: (organizationId: string, studioId: string, name: string) => Promise<void>;
+    onCreateStudio: (organizationId: string, name: string, locationId?: string) => Promise<void>;
+    onUpdateStudio: (organizationId: string, studioId: string, name: string, locationId?: string) => Promise<void>;
     onDeleteStudio: (organizationId: string, studioId: string) => Promise<void>;
+    onSwitchToStudioView: (studio: Studio) => void;
+    onLockStudioDevice?: (studio: Studio) => void;
 }
 
-export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, onEditStudioConfig, onCreateStudio, onDeleteStudio }) => {
+export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, onEditStudioConfig, onCreateStudio, onUpdateStudio, onDeleteStudio, onSwitchToStudioView, onLockStudioDevice }) => {
     const { signOut } = useAuth();
     const [newStudioName, setNewStudioName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
+    
+    // Custom Modals State
+    const [studioToDelete, setStudioToDelete] = useState<{id: string, name: string} | null>(null);
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -27,7 +32,8 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
 
         setIsCreating(true);
         try {
-            await onCreateStudio(organization.id, newStudioName.trim());
+            const defaultLocationId = organization.locations && organization.locations.length > 0 ? organization.locations[0].id : undefined;
+            await onCreateStudio(organization.id, newStudioName.trim(), defaultLocationId);
             setNewStudioName('');
         } catch (error) {
             console.error(error);
@@ -37,35 +43,14 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
         }
     };
 
-    const handleDelete = (studioId: string, studioName: string) => {
-        let message = `Är du säker på att du vill ta bort skärmen "${studioName}"?`;
-        
-        if (organization.studios.length > 1) {
-             message += `\n\nEftersom du har fler än 1 skärm kommer borttagningen av denna skärm att minska din månadskostnad med 995 kr/mån från och med nästa faktura.`;
-        }
-        
-        if (window.confirm(message)) {
-            onDeleteStudio(organization.id, studioId);
-        }
-    };
-
-    const handleActivateDevice = (studio: Studio) => {
-        if (window.confirm(`Vill du aktivera denna enhet som "${studio.name}"? Du kommer att loggas ut och skärmen låses till denna studio.`)) {
-            // 1. Save Org Provisioning
-            localStorage.setItem('ny-screen-selected-org', JSON.stringify({ id: organization.id, name: organization.name }));
-            
-            // 2. Save Pending Studio ID (to be picked up by the new anonymous user)
-            localStorage.setItem('ny-screen-pending-studio-id', studio.id);
-            
-            // 3. Sign out. The app will reload/refresh, AuthContext will see provisions, and auto-login anonymously.
-            signOut().then(() => {
-                window.location.reload();
-            });
-        }
+    const handleDelete = () => {
+        if (!studioToDelete) return;
+        onDeleteStudio(organization.id, studioToDelete.id);
+        setStudioToDelete(null);
     };
 
     return (
-         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
+         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden relative">
             <div className="p-6 sm:p-8 border-b border-gray-100 dark:border-gray-700">
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Skärmar</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">Hantera dina skärmar och deras specifika inställningar.</p>
@@ -75,17 +60,28 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
                 {organization.studios.map(studio => (
                     <div key={studio.id} className="bg-white dark:bg-gray-800 p-5 rounded-xl flex flex-col xl:flex-row justify-between items-center gap-4 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
                         <div className="flex items-center gap-4 flex-grow w-full xl:w-auto">
-                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold flex-shrink-0">
-                                {studio.name[0].toUpperCase()}
+                            <div>
+                                <p className="font-bold text-lg text-gray-900 dark:text-white truncate">{studio.name}</p>
+                                {organization.locations && organization.locations.length > 0 && (
+                                    <select
+                                        value={studio.locationId || organization.locations[0].id}
+                                        onChange={(e) => onUpdateStudio(organization.id, studio.id, studio.name, e.target.value || undefined)}
+                                        className="mt-1 text-sm bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-600 rounded-md px-2 py-1 outline-none focus:ring-2 focus:ring-primary/50"
+                                    >
+                                        <option value="">-- Välj ort/studio för skärmen --</option>
+                                        {organization.locations.map(loc => (
+                                            <option key={loc.id} value={loc.id}>{loc.name}</option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
-                            <p className="font-bold text-lg text-gray-900 dark:text-white truncate">{studio.name}</p>
                         </div>
                         <div className="flex flex-wrap gap-2 w-full xl:w-auto justify-end">
-                            <button onClick={() => handleActivateDevice(studio)} className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm shadow-sm flex items-center gap-2">
-                                <span className="text-lg">📱</span> Aktivera denna enhet
+                            <button onClick={() => onSwitchToStudioView(studio)} className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm shadow-sm flex items-center gap-2">
+                                Växla till skärmvy 📺
                             </button>
                             <button onClick={() => onEditStudioConfig(studio)} className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm">Inställningar</button>
-                            <button onClick={() => handleDelete(studio.id, studio.name)} className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-semibold py-2 px-4 rounded-lg transition-colors text-sm border border-red-100 dark:border-red-900/30">Ta bort</button>
+                            <button onClick={() => setStudioToDelete({id: studio.id, name: studio.name})} className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-semibold py-2 px-4 rounded-lg transition-colors text-sm border border-red-100 dark:border-red-900/30">Ta bort</button>
                         </div>
                     </div>
                 ))}
@@ -108,6 +104,44 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
                     </button>
                 </form>
             </div>
+
+            {/* Delete Device Modal */}
+            {studioToDelete && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full overflow-hidden border border-gray-100 dark:border-gray-700 transform transition-all">
+                        <div className="px-6 py-8 border-b border-gray-200 dark:border-gray-700 text-center">
+                            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 dark:bg-red-900/30 mb-6">
+                                <span className="text-3xl">🗑️</span>
+                            </div>
+                            <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-2">Ta bort skärm</h3>
+                            <p className="text-gray-500 dark:text-gray-400">
+                                Är du säker på att du vill ta bort skärmen <strong className="text-gray-900 dark:text-white">"{studioToDelete.name}"</strong>?
+                            </p>
+                        </div>
+                        <div className="px-6 py-6 bg-gray-50 dark:bg-gray-800/50">
+                            {organization.studios.length > 1 && (
+                                <div className="bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 p-4 rounded-xl text-sm mb-6 border border-green-200 dark:border-green-800/50">
+                                    Eftersom du har fler än 1 skärm kommer borttagningen av denna skärm att minska din månadskostnad med 995 kr/mån från och med nästa faktura.
+                                </div>
+                            )}
+                            <div className="flex flex-col sm:flex-row gap-3">
+                                <button
+                                    onClick={() => setStudioToDelete(null)}
+                                    className="flex-1 px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-base font-medium rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+                                >
+                                    Avbryt
+                                </button>
+                                <button
+                                    onClick={handleDelete}
+                                    className="flex-1 px-4 py-3 bg-red-600 outline-none text-white text-base font-bold rounded-xl hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 shadow-md transition-colors"
+                                >
+                                    Ja, ta bort
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

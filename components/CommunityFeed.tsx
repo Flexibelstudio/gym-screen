@@ -33,19 +33,51 @@ interface CommunityFeedProps {
 }
 
 export const CommunityFeed: React.FC<CommunityFeedProps> = ({ onExpand, isExpanded = false }) => {
-    const { selectedOrganization } = useStudio();
+    const { selectedOrganization, selectedStudio } = useStudio();
     const [logs, setLogs] = useState<WorkoutLog[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [members, setMembers] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (!selectedOrganization) return;
+        import('../services/firebaseService').then(({ getMembers }) => {
+            getMembers(selectedOrganization.id).then(setMembers).catch(console.error);
+        });
+    }, [selectedOrganization]);
 
     useEffect(() => {
         if (!selectedOrganization) return;
         setIsLoading(true);
         const unsubscribe = listenToCommunityLogs(selectedOrganization.id, (newLogs) => {
-            setLogs(newLogs.slice(0, 50)); 
+            let filteredLogs = newLogs;
+            
+            const resolvedLocationId = selectedStudio?.locationId || selectedOrganization?.locations?.[0]?.id;
+            
+            if (resolvedLocationId) {
+                filteredLogs = filteredLogs.filter(log => {
+                    let logLocation = log.locationId;
+                    
+                    // Om passet saknar ort (t.ex. äldre loggar), försök hämta från medlemmen
+                    if (!logLocation || logLocation === '' || logLocation === 'undefined') {
+                        const member = members.find(m => m.uid === log.memberId || m.id === log.memberId);
+                        logLocation = member?.locationId;
+                    }
+                    
+                    // Om ort BÅDE saknas på passet och på medlemmen, anta att det tillhör default-orten (ort 1)
+                    if (!logLocation || logLocation === '' || logLocation === 'undefined') {
+                        logLocation = selectedOrganization?.locations?.[0]?.id;
+                    }
+
+                    // Vi visar bara passet om det matchar skärmens ort
+                    return logLocation === resolvedLocationId;
+                });
+            }
+            
+            setLogs(filteredLogs.slice(0, 50)); 
             setIsLoading(false);
         });
         return () => unsubscribe();
-    }, [selectedOrganization]);
+    }, [selectedOrganization, selectedStudio?.locationId, members]);
 
     const [, setTick] = useState(0);
     useEffect(() => {

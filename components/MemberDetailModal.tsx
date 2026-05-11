@@ -5,6 +5,9 @@ import { getMemberLogs } from '../services/firebaseService';
 import { analyzeMemberProgress, MemberProgressAnalysis } from '../services/geminiService';
 import { motion } from 'framer-motion';
 import { ChartBarIcon, SparklesIcon, InformationCircleIcon, DumbbellIcon, FireIcon } from './icons';
+import { useStudio } from '../context/StudioContext';
+import { MapPinIcon } from 'lucide-react';
+import { calculateAge } from '../utils/dateUtils';
 
 interface MemberDetailModalProps {
     visible: boolean;
@@ -71,6 +74,7 @@ const SmartItem: React.FC<{ letter: string, color: string, title: string, text: 
 );
 
 export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, member, onClose }) => {
+    const { selectedOrganization } = useStudio();
     const [recentLogs, setRecentLogs] = useState<WorkoutLog[]>([]);
     const [analysis, setAnalysis] = useState<MemberProgressAnalysis | null>(null);
     const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(false);
@@ -129,9 +133,28 @@ export const MemberDetailModal: React.FC<MemberDetailModalProps> = ({ visible, m
                         </div>
                         <div>
                             <p className="text-sm text-gray-500 dark:text-gray-400">{member.email}</p>
-                            <div className="flex gap-2 mt-2">
+                            {(member.birthDate || member.age) && (
+                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
+                                    Ålder: <span className="font-medium text-gray-600 dark:text-gray-300">{calculateAge(member.birthDate, member.age)}</span>
+                                    {member.birthDate && <span className="ml-1">({member.birthDate})</span>}
+                                </p>
+                            )}
+                            <div className="flex gap-2 mt-2 flex-wrap">
                                 {member.role === 'coach' && <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-bold">Coach</span>}
                                 {member.isTrainingMember && <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs font-bold">Medlem</span>}
+                                {(() => {
+                                    const locId = member.locationId || (selectedOrganization?.locations?.[0]?.id);
+                                    const locName = selectedOrganization?.locations?.find(l => l.id === locId)?.name;
+                                    if (locName) {
+                                        return (
+                                            <span className="bg-blue-100/80 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded text-xs font-bold flex items-center gap-1 border border-blue-200 dark:border-blue-800">
+                                                <MapPinIcon className="w-3 h-3" />
+                                                {locName}
+                                            </span>
+                                        );
+                                    }
+                                    return null;
+                                })()}
                             </div>
                         </div>
                     </div>

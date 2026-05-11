@@ -73,14 +73,12 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 Fysiska begränsningar/mål: ${userData?.goals || 'Inga specifika angivna.'}
                 `;
             }
+                   setLoadingMessage('Tänker...');
 
-            setLoadingMessage('Tänker...');
-
-            let apiKey = '';
-            if (typeof process !== 'undefined' && process.env?.API_KEY) apiKey = process.env.API_KEY;
-            else apiKey = (import.meta as any).env.VITE_API_KEY;
-
-            const ai = new GoogleGenAI({ apiKey });
+            const { getFunctions, httpsCallable } = await import('firebase/functions');
+            const { getApp } = await import('firebase/app');
+            const functions = getFunctions(getApp(), 'us-central1');
+            const flexGeminiProxy = httpsCallable<any, any>(functions, 'flexGeminiProxy');
             
             // Build the system instruction based on Admin settings
             let systemPrompt = `Du är en hjälpsam, peppande och energisk PT och coach för medlemmar på gymmet "${gymName}".
@@ -131,28 +129,29 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 systemPrompt += `\n\nTONLÄGE: Du ska vara ${toneDesc}`;
             }
 
-            const chat = ai.chats.create({
+            const contents = messages.slice(1).map(m => ({ // ignorerar första välkomstmeddelandet
+                role: m.role === 'model' ? 'model' : 'user',
+                parts: [{ text: m.text }]
+            }));
+            contents.push({ role: 'user', parts: [{ text: userMsg }] });
+
+            const result = await flexGeminiProxy({
                 model: 'gemini-3-flash-preview',
+                contents,
                 config: {
                     systemInstruction: systemPrompt
                 }
             });
 
-            const result = await chat.sendMessageStream({ message: userMsg });
-            let fullResponse = '';
-            setMessages(prev => [...prev, { role: 'model', text: '' }]);
-
-            for await (const chunk of result) {
-                const text = (chunk as GenerateContentResponse).text;
-                fullResponse += text;
-                setMessages(prev => {
-                    const newMsgs = [...prev];
-                    newMsgs[newMsgs.length - 1].text = fullResponse;
-                    return newMsgs;
-                });
+            const fullResponse = result.data.text || 'Inget svar.';
+            setMessages(prev => [...prev, { role: 'model', text: fullResponse }]);
+        } catch (error: any) {
+            console.error("AI Error:", error);
+            if (error?.code === 'functions/resource-exhausted' || (error?.message && error.message.includes('15 frågor'))) {
+                setMessages(prev => [...prev, { role: 'model', text: 'Nu har vi pratat ganska mycket! Min hjärna behöver vila lite. Du kan ställa fler frågor om en timme.' }]);
+            } else {
+                setMessages(prev => [...prev, { role: 'model', text: 'Kunde inte nå servern. Försök igen om en stund.' }]);
             }
-        } catch (error) {
-            setMessages(prev => [...prev, { role: 'model', text: 'Kunde inte nå servern. Försök igen om en stund.' }]);
         } finally {
             setIsLoading(false);
         }
@@ -194,15 +193,26 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     <div ref={messagesEndRef} />
                 </div>
 
-                <form onSubmit={handleSend} className="p-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex gap-2">
-                    <input 
-                        type="text" 
-                        value={input}
-                        onChange={e => setInput(e.target.value)}
-                        placeholder="Fråga om träning eller övningar..."
-                        className="flex-grow bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-4 py-3 rounded-full border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:border-transparent focus:outline-none shadow-inner"
-                    />
-                    <button type="submit" disabled={!input.trim()} className="p-3 bg-primary rounded-full text-white disabled:opacity-50 shadow-md active:scale-90 transition-transform"><PaperAirplaneIcon className="w-5 h-5 rotate-90" /></button>
+                <form onSubmit={handleSend} className="p-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 flex flex-col gap-2">
+                    <div className="flex gap-2 w-full">
+                        <input 
+                            type="text" 
+                            value={input}
+                            onChange={e => setInput(e.target.value)}
+                            maxLength={250}
+                            placeholder="Fråga om träning eller övningar..."
+                            className="flex-grow bg-white dark:bg-gray-900 text-gray-900 dark:text-white px-4 py-3 rounded-full border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:border-transparent focus:outline-none shadow-inner"
+                        />
+                        <button type="submit" disabled={!input.trim()} className="p-3 bg-primary rounded-full text-white disabled:opacity-50 shadow-md active:scale-90 transition-transform"><PaperAirplaneIcon className="w-5 h-5 rotate-90" /></button>
+                    </div>
+                    <div className="flex justify-between px-2 items-center mt-1">
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase">
+                            Tänk på vad du delar. Dela inga känsliga personuppgifter med AI:n.
+                        </p>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
+                            {input.length} / 250 tecken
+                        </p>
+                    </div>
                 </form>
             </div>
         </div>

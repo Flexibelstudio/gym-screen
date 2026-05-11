@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 import { ChatMessage } from '../types';
 import { QuestionMarkCircleIcon, PaperAirplaneIcon, CloseIcon } from './icons';
 
@@ -69,7 +68,6 @@ const ChatMessageContent: React.FC<{ content: string }> = ({ content }) => {
 
 export function SupportChat(): React.ReactElement {
     const [isOpen, setIsOpen] = useState(false);
-    const [chat, setChat] = useState<Chat | null>(null);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -77,7 +75,7 @@ export function SupportChat(): React.ReactElement {
     const inputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => {
-        if (isOpen && !chat) {
+        if (isOpen && messages.length === 0) {
             const systemKnowledge = `
 Du är Smart Support, en expert på systemet "Smart Skärm". Du hjälper coacher och administratörer att använda plattformen. Svara kortfattat, trevligt och på svenska.
 
@@ -124,46 +122,12 @@ Här är din kunskapsbas om hur systemet fungerar:
 Om användaren frågar om något tekniskt fel, be dem ladda om sidan eller kontakta hej@smartstudio.se om problemet kvarstår.
             `;
 
-            // VIKTIGT: Vi försöker hämta nyckeln från båda ställena för att stödja både
-            // AI Studio (process.env) och Vite/Produktion (import.meta.env)
-            let apiKey = '';
-            try {
-                if (typeof process !== 'undefined' && process.env?.API_KEY) {
-                    apiKey = process.env.API_KEY;
-                }
-            } catch (e) {
-                // Ignore error if process is not defined
-            }
-
-            if (!apiKey) {
-                // Fallback to Vite env var
-                apiKey = (import.meta as any).env.VITE_API_KEY;
-            }
-            
-            if (!apiKey) {
-                console.error("Support Chat: Missing API Key (checked both process.env and import.meta.env)");
-                setMessages([{
-                    role: 'model',
-                    text: 'Ursäkta, jag kan inte ansluta just nu (API-nyckel saknas). Kontakta en administratör.'
-                }]);
-                return;
-            }
-
-            const ai = new GoogleGenAI({ apiKey });
-            // Using gemini-3-flash-preview as requested for AI Studio compatibility
-            const newChat = ai.chats.create({
-                model: 'gemini-3-flash-preview', 
-                config: {
-                    systemInstruction: systemKnowledge,
-                },
-            });
-            setChat(newChat);
             setMessages([{
                 role: 'model',
                 text: 'Hej! Jag är Smart Support. Jag kan allt om passbyggaren, HYROX, AI Whiteboard och timers. Vad funderar du på?'
             }]);
         }
-    }, [isOpen, chat]);
+    }, [isOpen]);
     
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -178,35 +142,43 @@ Om användaren frågar om något tekniskt fel, be dem ladda om sidan eller konta
     const handleSendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         const userInput = input.trim();
-        if (isLoading || !userInput || !chat) return;
+        if (isLoading || !userInput) return;
 
         setIsLoading(true);
         setMessages(prev => [...prev, { role: 'user', text: userInput }]);
         setInput('');
 
         try {
-            const response = await chat.sendMessageStream({ message: userInput });
+            const { getFunctions, httpsCallable } = await import('firebase/functions');
+            const { getApp } = await import('firebase/app');
+            const functions = getFunctions(getApp(), 'us-central1');
+            const flexGeminiProxy = httpsCallable<any, any>(functions, 'flexGeminiProxy');
             
-            let modelResponse = '';
-            setMessages(prev => [...prev, { role: 'model', text: '' }]);
-            
-            for await (const chunk of response) {
-                // Type assertion for cleaner TS
-                const c = chunk as GenerateContentResponse;
-                modelResponse += c.text;
-                setMessages(prev => {
-                    const newMessages = [...prev];
-                    newMessages[newMessages.length - 1].text = modelResponse;
-                    return newMessages;
-                });
-            }
-        } catch (error) {
-            console.error("Error sending message to Gemini:", error);
-            setMessages(prev => {
-                const newMessages = [...prev];
-                newMessages[newMessages.length - 1].text = "Ursäkta, något gick fel. Försök igen.";
-                return newMessages;
+            const systemKnowledge = `Du är Smart Support, en expert på systemet "Smart Skärm". Du hjälper coacher och administratörer att använda plattformen. Svara kortfattat, trevligt och på svenska. Fortsätt svara baserat på historiken.`;
+
+            const contents = messages.slice(1).map(m => ({
+                role: m.role === 'model' ? 'model' : 'user',
+                parts: [{ text: m.text }]
+            }));
+            contents.push({ role: 'user', parts: [{ text: userInput }] });
+
+            const result = await flexGeminiProxy({
+                model: 'gemini-3-flash-preview',
+                contents,
+                config: {
+                    systemInstruction: systemKnowledge
+                }
             });
+
+            const modelResponse = result.data.text || 'Inget svar.';
+            setMessages(prev => [...prev, { role: 'model', text: modelResponse }]);
+        } catch (error: any) {
+            console.error("Error sending message to Gemini:", error);
+            if (error?.code === 'functions/resource-exhausted' || (error?.message && error.message.includes('15 frågor'))) {
+                setMessages(prev => [...prev, { role: 'model', text: 'Puh, nu har vi pratat ganska intensivt! Min AI-hjärna behöver en liten paus. Du är välkommen att ställa fler frågor om en timme.' }]);
+            } else {
+                setMessages(prev => [...prev, { role: 'model', text: "Ursäkta, något gick fel. Försök igen." }]);
+            }
         } finally {
             setIsLoading(false);
         }
@@ -263,25 +235,36 @@ Om användaren frågar om något tekniskt fel, be dem ladda om sidan eller konta
                         </div>
                         
                         {/* Input */}
-                        <form onSubmit={handleSendMessage} className="flex-shrink-0 flex items-center gap-2 p-4 border-t border-gray-200 dark:border-gray-700">
-                            <input
-                                ref={inputRef}
-                                type="text"
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                placeholder="Ställ din fråga här..."
-                                disabled={isLoading}
-                                className="w-full bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none transition"
-                            />
-                            <button
-                                type="submit"
-                                disabled={isLoading || !input.trim()}
-                                className="bg-gray-500 hover:bg-gray-600 text-white p-3 rounded-lg transition-colors disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
-                                aria-label="Skicka meddelande"
-                            >
-                                <PaperAirplaneIcon className="w-6 h-6 transform rotate-90" />
-                            </button>
-                        </form>
+                            <div className="flex-shrink-0 flex flex-col p-4 border-t border-gray-200 dark:border-gray-700">
+                                <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                                    <input
+                                        ref={inputRef}
+                                        type="text"
+                                        value={input}
+                                        onChange={(e) => setInput(e.target.value)}
+                                        maxLength={250}
+                                        placeholder="Ställ din fråga här..."
+                                        disabled={isLoading}
+                                        className="w-full bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-primary focus:outline-none transition"
+                                    />
+                                    <button
+                                        type="submit"
+                                        disabled={isLoading || !input.trim()}
+                                        className="bg-gray-500 hover:bg-gray-600 text-white p-3 rounded-lg transition-colors disabled:bg-gray-300 dark:disabled:bg-gray-600 disabled:cursor-not-allowed"
+                                        aria-label="Skicka meddelande"
+                                    >
+                                        <PaperAirplaneIcon className="w-6 h-6 transform rotate-90" />
+                                    </button>
+                                </form>
+                                <div className="mt-1 flex justify-between items-center px-1">
+                                    <p className="text-[10px] text-gray-400 dark:text-gray-500 uppercase">
+                                        Tänk på vad du delar. Dela inga känsliga personuppgifter med supporten.
+                                    </p>
+                                    <p className="text-xs text-gray-400">
+                                        {input.length} / 300 tecken
+                                    </p>
+                                </div>
+                            </div>
                     </div>
                 </div>
             )}

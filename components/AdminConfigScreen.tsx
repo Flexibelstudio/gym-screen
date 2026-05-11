@@ -165,6 +165,20 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
     const handleToggleChange = (key: BooleanStudioConfigKeys, value: boolean) => {
         // Special logic for activating logging -> Show Pricing Modal first
         if (key === 'enableWorkoutLogging' && value === true) {
+            if (organization.allowStripeBypass) {
+                // Slå på funktionen blixtsnabbt utan kalkylator/popup
+                setOverrides(prev => {
+                    const newOverrides = { ...prev };
+                    const globalValue = globalConfig[key] ?? false;
+                    if (globalValue === true) {
+                        delete newOverrides[key];
+                    } else {
+                        newOverrides[key] = true;
+                    }
+                    return newOverrides;
+                });
+                return;
+            }
             setShowPricingModal(true);
             return;
         }
@@ -393,7 +407,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                         </div>
 
                         <div className="pt-4 border-t border-gray-200 dark:border-gray-800">
-                            {renderToggle('checkInImageEnabled', "Visa incheckningsbild", "QR-kod för incheckning.")}
+                            {renderToggle('checkInImageEnabled', "Visa QR-kod på skärm", "Visar en QR-kod på displayen så medlemmar snabbt kan logga sitt pass.")}
 
                             {(overrides.checkInImageEnabled ?? effectiveConfig.checkInImageEnabled) && (
                                 <div className="mt-4 ml-14 animate-fade-in">
@@ -497,7 +511,9 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                         <button onClick={() => setShowPricingModal(false)} className="flex-1 py-3 text-gray-500 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">Avbryt</button>
                         <button 
                             onClick={async () => {
-                                if (!organization.stripeConnectSetupComplete) {
+                                const canActivateWithoutStripe = organization.stripeConnectSetupComplete || organization.allowStripeBypass;
+                                
+                                if (!canActivateWithoutStripe) {
                                     setIsConnectingStripe(true);
                                     try {
                                         const apiUrl = import.meta.env.VITE_API_URL;
@@ -539,7 +555,7 @@ export const StudioConfigModal: React.FC<StudioConfigModalProps> = ({ isOpen, on
                                     </svg>
                                     Laddar...
                                 </>
-                            ) : (!organization.stripeConnectSetupComplete ? 'Koppla Stripe & Aktivera' : 'Godkänn & Aktivera')}
+                            ) : ((organization.stripeConnectSetupComplete || organization.allowStripeBypass) ? 'Godkänn & Aktivera' : 'Koppla Stripe & Aktivera')}
                         </button>
                     </div>
                 </div>

@@ -36,7 +36,9 @@ import {
   serverTimestamp,
   Firestore,
   runTransaction,
-  enableMultiTabIndexedDbPersistence
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager
 } from 'firebase/firestore';
 import { 
   getStorage, 
@@ -50,6 +52,7 @@ import {
   getFunctions, 
   httpsCallable 
 } from 'firebase/functions';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import { getMessaging, getToken, Messaging, onMessage } from 'firebase/messaging';
 
 export const listenToForegroundMessages = (callback: (payload: any) => void) => {
@@ -66,7 +69,7 @@ import {
   BankExercise, SuggestedExercise, WorkoutResult, CompanyDetails, 
   SmartScreenPricing, HyroxRace, SeasonalThemeSetting, MemberGoals, 
   WorkoutLog, CheckInEvent, Member, UserRole, PersonalBest, StudioEvent,
-  CustomPage, AdminActivity, BenchmarkDefinition, RemoteSessionState, Studio, GalleryImage, Lead, CoachNote
+  CustomPage, AdminActivity, BenchmarkDefinition, Studio, GalleryImage, Lead, CoachNote
 } from '../types';
 import { MOCK_ORGANIZATIONS, MOCK_ORG_ADMIN, MOCK_EXERCISE_BANK, MOCK_MEMBERS, MOCK_SMART_SCREEN_PRICING } from '../data/mockData';
 
@@ -83,24 +86,35 @@ export let auth: Auth | null = null;
 export let db: Firestore | null = null;
 export let storage: FirebaseStorage | null = null;
 export let messaging: Messaging | null = null;
+export let appCheck: any = null;
 let functions: any = null;
 
 if (!isOffline) {
     try {
-        app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+        const isNewApp = !getApps().length;
+        app = isNewApp ? initializeApp(firebaseConfig) : getApp();
+        
+        const siteKey = (import.meta as any).env?.VITE_RECAPTCHA_SITE_KEY || '';
+        if (typeof window !== 'undefined' && siteKey) {
+            appCheck = initializeAppCheck(app, {
+                provider: new ReCaptchaV3Provider(siteKey),
+                isTokenAutoRefreshEnabled: true
+            });
+        }
+        
         auth = getAuth(app);
-        db = getFirestore(app);
         
         try {
-            enableMultiTabIndexedDbPersistence(db).catch((err) => {
-                if (err.code == 'failed-precondition') {
-                    console.warn('Multiple tabs open, persistence can only be enabled in one tab at a a time.');
-                } else if (err.code == 'unimplemented') {
-                    console.warn('The current browser does not support all of the features required to enable persistence.');
-                }
-            });
+            if (isNewApp) {
+                db = initializeFirestore(app, {
+                    localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()})
+                });
+            } else {
+                db = getFirestore(app);
+            }
         } catch (e) {
-            console.warn("Could not enable persistence immediately", e);
+            console.warn("Could not enable persistence immediately, falling back to default.", e);
+            db = getFirestore(app);
         }
 
         storage = getStorage(app);
@@ -356,15 +370,37 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
     let snap = await getDocs(q);
     
     let isCoach = false;
+    let targetLocationId: string | undefined = undefined;
     
     // If not found, check for coach code
     if (snap.empty) {
         q = query(collection(db, 'organizations'), where('coachCode', '==', upperCode));
         snap = await getDocs(q);
-        if (snap.empty) {
-            throw new Error("Ogiltig inbjudningskod.");
+        if (!snap.empty) {
+            isCoach = true;
         }
-        isCoach = true;
+    }
+
+    // Try location codes
+    if (snap.empty) {
+        q = query(collection(db, 'organizations'), where('inviteCodes', 'array-contains', upperCode));
+        snap = await getDocs(q);
+        if (!snap.empty) {
+            const orgData = snap.docs[0].data() as Organization;
+            const loc = orgData.locations?.find(l => l.inviteCode === upperCode || l.coachCode === upperCode);
+            if (loc) {
+                targetLocationId = loc.id;
+                if (loc.coachCode === upperCode) {
+                    isCoach = true;
+                }
+            } else {
+                throw new Error("Ogiltig inbjudningskod.");
+            }
+        }
+    }
+
+    if (snap.empty) {
+        throw new Error("Ogiltig inbjudningskod.");
     }
     
     const organizationId = snap.docs[0].id;
@@ -378,6 +414,7 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
         role: isCoach ? 'coach' : 'member',
         status: isCoach ? 'pending_coach' : 'active',
         organizationId: organizationId,
+        locationId: targetLocationId || additionalData?.locationId || undefined,
         firstName: additionalData?.firstName || '',
         lastName: additionalData?.lastName || '',
         age: additionalData?.age || null,
@@ -435,6 +472,10 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                 newLog.memberPhotoUrl = userData.photoUrl || null;
                 showOnLeaderboard = userData.showOnLeaderboard !== false;
                 newLog.showOnLeaderboard = showOnLeaderboard;
+                // Add location from user object if not already explicitly sent
+                if (!newLog.locationId && userData.locationId) {
+                    newLog.locationId = userData.locationId;
+                }
             }
         } catch (e) { console.warn("Failed to enrich log", e); }
     }
@@ -532,9 +573,9 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                     id: eventRef.id,
                     type: 'pb',
                     organizationId: logData.organizationId,
+                    locationId: logData.locationId, 
                     timestamp: Date.now(),
                     data: { 
-                        memberId: logData.memberId,
                         userName: newLog.memberName || 'En medlem', 
                         userPhotoUrl: newLog.memberPhotoUrl || null, 
                         records: newRecords
@@ -565,90 +606,58 @@ export const deleteWorkoutLog = async (logId: string) => {
     } catch (e) { console.error("deleteWorkoutLog failed", e); }
 };
 
-export const getLeaderboardData = async (orgId: string): Promise<{ memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]> => {
+const getLeaderboardDocId = (orgId: string, locationId: string | 'all') => {
+    const d = new Date();
+    const dISO = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = dISO.getUTCDay() || 7;
+    dISO.setUTCDate(dISO.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(dISO.getUTCFullYear(),0,1));
+    const week = Math.ceil((((dISO.getTime() - yearStart.getTime()) / 86400000) + 1)/7);
+    const year = dISO.getUTCFullYear();
+    return `${orgId}_${locationId}_${year}_W${week}`;
+};
+
+export const getLeaderboardData = async (orgId: string, locationId: string | 'all' = 'all'): Promise<{ memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]> => {
     if (isOffline || !db || !orgId) return [];
     try {
-        // Get start of current week (Monday)
-        const now = new Date();
-        const day = now.getDay();
-        const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
-        const startOfWeek = new Date(now.setDate(diff));
-        startOfWeek.setHours(0, 0, 0, 0);
+        const lId = getLeaderboardDocId(orgId, locationId);
+        const ref = doc(db, 'leaderboards', lId);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) return [];
 
-        const q = query(
-            collection(db, 'workoutLogs'), 
-            where("organizationId", "==", orgId),
-            where("date", ">=", startOfWeek.getTime())
-        );
-        
-        const snap = await getDocs(q);
-        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
-        
-        // Aggregate by memberId
-        const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
-        
-        logs.forEach(log => {
-            if (!memberStats[log.memberId]) {
-                memberStats[log.memberId] = { count: 0, pbs: 0, name: log.memberName || 'Okänd', photoUrl: log.memberPhotoUrl || '' };
-            }
-            memberStats[log.memberId].count += 1;
-            if (log.newPBs && log.newPBs.length > 0) {
-                memberStats[log.memberId].pbs += log.newPBs.length;
-            }
-        });
+        const data = snap.data();
+        if (!data || !data.members) return [];
 
-        // Convert to array and sort by count
-        return Object.entries(memberStats)
-            .map(([memberId, stats]) => ({ memberId, ...stats }))
-            .sort((a, b) => b.count - a.count);
-
+        return Object.values(data.members) as { memberId: string, name: string, photoUrl: string, count: number, pbs: number }[];
     } catch (e) {
         console.error("getLeaderboardData failed", e);
         return [];
     }
 };
 
-export const listenToLeaderboardData = (orgId: string, onUpdate: (data: { memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]) => void) => {
+export const listenToLeaderboardData = (orgId: string, locationId: string | 'all' | undefined, members: any[], onUpdate: (data: { memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]) => void) => {
     if (isOffline || !db || !orgId) {
         onUpdate([]);
         return () => {};
     }
     
-    // Get start of current week (Monday)
-    const now = new Date();
-    const day = now.getDay();
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is sunday
-    const startOfWeek = new Date(now.setDate(diff));
-    startOfWeek.setHours(0, 0, 0, 0);
-
-    const q = query(
-        collection(db, 'workoutLogs'), 
-        where("organizationId", "==", orgId),
-        where("date", ">=", startOfWeek.getTime())
-    );
+    const lId = getLeaderboardDocId(orgId, locationId || 'all');
+    const ref = doc(db, 'leaderboards', lId);
     
-    return onSnapshot(q, (snap) => {
-        const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
+    return onSnapshot(ref, (snap) => {
+        if (!snap.exists()) {
+            onUpdate([]);
+            return;
+        }
+        const data = snap.data();
+        if (!data || !data.members) {
+            onUpdate([]);
+            return;
+        }
         
-        // Aggregate by memberId
-        const memberStats: Record<string, { count: number, pbs: number, name: string, photoUrl: string }> = {};
-        
-        logs.forEach(log => {
-            if (!memberStats[log.memberId]) {
-                memberStats[log.memberId] = { count: 0, pbs: 0, name: log.memberName || 'Okänd', photoUrl: log.memberPhotoUrl || '' };
-            }
-            memberStats[log.memberId].count += 1;
-            if (log.newPBs && log.newPBs.length > 0) {
-                memberStats[log.memberId].pbs += log.newPBs.length;
-            }
-        });
-
-        // Convert to array and sort by count
-        const data = Object.entries(memberStats)
-            .map(([memberId, stats]) => ({ memberId, ...stats }))
-            .sort((a, b) => b.count - a.count);
-            
-        onUpdate(data);
+        const result = Object.values(data.members) as { memberId: string, name: string, photoUrl: string, count: number, pbs: number }[];
+        result.sort((a, b) => b.count - a.count);
+        onUpdate(result);
     }, (error) => {
         console.error("listenToLeaderboardData failed", error);
     });
@@ -914,48 +923,26 @@ export const listenToOrganizationChanges = (id: string, onUpdate: (org: Organiza
     }, (err) => console.error("listenToOrganizationChanges failed", err));
 };
 
-// NYTT: Funktion för att uppdatera remote-state för en studio
-export const updateStudioRemoteState = async (orgId: string, studioId: string, state: RemoteSessionState | null) => {
-    if (isOffline || !db || !orgId || !studioId) return;
-    try {
-        const orgRef = doc(db, 'organizations', orgId);
-        await runTransaction(db, async (transaction) => {
-            const orgSnap = await transaction.get(orgRef);
-            if (!orgSnap.exists()) {
-                throw new Error("Organization does not exist!");
-            }
-            
-            const orgData = orgSnap.data() as Organization;
-            const updatedStudios = orgData.studios.map(studio => {
-                if (studio.id === studioId) {
-                    if (state === null) {
-                        const { remoteState, ...rest } = studio;
-                        return rest;
-                    }
-                    return { 
-                        ...studio, 
-                        remoteState: {
-                            ...(studio.remoteState || {}),
-                            ...state
-                        } 
-                    };
-                }
-                return studio;
-            });
-            
-            transaction.update(orgRef, { studios: updatedStudios });
-        });
-    } catch (e) {
-        console.error("Failed to update remote state:", e);
-    }
-};
+
 
 export const createOrganization = async (name: string, subdomain: string): Promise<Organization> => {
     if(isOffline || !db) throw new Error("Offline");
     const id = `org_${subdomain}_${Date.now()}`;
+    const initialInviteCode = generateInviteCode();
+    const initialCoachCode = generateInviteCode();
+    
+    const defaultLocation = {
+        id: `loc_${Date.now()}`,
+        name: name,
+        createdAt: Date.now(),
+        inviteCode: initialInviteCode,
+        coachCode: initialCoachCode
+    };
+
     const newOrg: Organization = { 
-        id, name, subdomain, passwords: { coach: '1234' }, studios: [], customPages: [], status: 'active',
-        inviteCode: generateInviteCode(),
+        id, name, subdomain, passwords: { coach: '1234' }, studios: [], locations: [defaultLocation], customPages: [], status: 'active',
+        inviteCode: initialInviteCode,
+        coachCode: initialCoachCode,
         globalConfig: { customCategories: [{ id: '1', name: 'Standard', prompt: '' }] } 
     };
     await setDoc(doc(db, 'organizations', id), newOrg);
@@ -1009,6 +996,21 @@ export const updateOrganizationCustomPages = async (id: string, customPages: Cus
     return getOrganizationById(id);
 };
 
+export const updateOrganizationLocations = async (id: string, locations: any[]) => {
+    if(isOffline || !db || !id) return;
+    
+    const inviteCodes: string[] = [];
+    locations.forEach(loc => {
+        if (loc.inviteCode) inviteCodes.push(loc.inviteCode);
+        if (loc.coachCode) inviteCodes.push(loc.coachCode);
+    });
+
+    await updateDoc(doc(db, 'organizations', id), { 
+        locations: sanitizeData(locations),
+        inviteCodes 
+    });
+};
+
 export const updateOrganizationInfoCarousel = async (id: string, infoCarousel: InfoCarousel) => {
     if(isOffline || !db || !id) return;
     await updateDoc(doc(db, 'organizations', id), { infoCarousel: sanitizeData(infoCarousel) });
@@ -1050,20 +1052,20 @@ export const updateOrganizationBenchmarks = async (id: string, benchmarks: Bench
     return getOrganizationById(id);
 };
 
-export const createStudio = async (orgId: string, name: string) => {
+export const createStudio = async (orgId: string, name: string, locationId?: string) => {
     if(isOffline || !db || !orgId) return { id: 'off', name };
     const org = await getOrganizationById(orgId);
     if (!org) throw new Error("Organisationen hittades inte.");
-    const studio = { id: `st_${Date.now()}`, name, createdAt: Date.now(), configOverrides: {} };
+    const studio = { id: `st_${Date.now()}`, name, createdAt: Date.now(), configOverrides: {}, locationId };
     await updateDoc(doc(db, 'organizations', orgId), { studios: [...org.studios, studio] });
     return studio;
 };
 
-export const updateStudio = async (orgId: string, studioId: string, name: string) => {
+export const updateStudio = async (orgId: string, studioId: string, name: string, locationId?: string) => {
     if(isOffline || !db || !orgId) return;
     const org = await getOrganizationById(orgId);
     if (!org) throw new Error("Organisationen hittades inte.");
-    const studios = org.studios.map(s => s.id === studioId ? { ...s, name } : s);
+    const studios = org.studios.map(s => s.id === studioId ? { ...s, name, locationId: locationId !== undefined ? locationId : s.locationId } : s);
     await updateDoc(doc(db, 'organizations', orgId), { studios });
 };
 
@@ -1246,10 +1248,8 @@ export const addMemberCustomExercise = async (userId: string, exerciseName: stri
     const newExercise: BankExercise = {
         id: newDocRef.id,
         name: exerciseName,
-        category: 'Custom Egen',
-        trackingFields: ['weight', 'reps', 'duration', 'distance', 'heartRate', 'calories'],
+        tags: ['Custom Egen'],
         description: 'Egen skapad övning.',
-        videoLinks: []
     };
 
     await setDoc(newDocRef, newExercise);
@@ -1527,6 +1527,18 @@ export const updateSmartScreenPricing = async (pricing: SmartScreenPricing) => {
     try {
         await setDoc(doc(db, 'system', 'pricing'), sanitizeData(pricing));
     } catch (e) { console.error("updateSmartScreenPricing failed", e); }
+};
+
+export const updateOrganizationMigrationOption = async (id: string, allow: boolean) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { allowMigrationOption: allow });
+    return getOrganizationById(id);
+};
+
+export const updateOrganizationStripeBypassOption = async (id: string, allow: boolean) => {
+    if(isOffline || !db || !id) return;
+    await updateDoc(doc(db, 'organizations', id), { allowStripeBypass: allow });
+    return getOrganizationById(id);
 };
 
 export const updateOrganizationBilledStatus = async (id: string, month: string) => {

@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma, RemoteSessionState, TimerStatus } from './types';
+import { Page, Workout, WorkoutBlock, TimerMode, Exercise, TimerSettings, Passkategori, Studio, StudioConfig, Organization, CustomPage, UserRole, InfoMessage, StartGroup, InfoCarousel, WorkoutDiploma, TimerStatus } from './types';
 
 import { useStudio } from './context/StudioContext';
 import { useAuth } from './context/AuthContext';
@@ -14,7 +14,7 @@ import { WelcomePaywall } from './components/WelcomePaywall';
 import PendingCoachScreen from './components/PendingCoachScreen';
 
 // --- Services ---
-import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, updateStudioRemoteState, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages } from './services/firebaseService';
+import { createOrganization, updateGlobalConfig, updateStudioConfig, createStudio, updateOrganization, updateOrganizationPasswords, updateOrganizationLogos, updateOrganizationPrimaryColor, updateOrganizationCustomPages, updateStudio, deleteStudio, archiveOrganization as deleteOrganization, updateOrganizationInfoCarousel, updateOrganizationFavicon, listenToOrganizationChanges, getWorkoutById, getFreshCategoryWorkouts, listenToForegroundMessages } from './services/firebaseService';
 import { Toast } from './components/ui/ToastNotification';
 
 // --- Utils ---
@@ -43,7 +43,6 @@ import { ScanButton } from './components/ScanButton';
 import { WorkoutLogScreen } from './mobile/screens/WorkoutLogScreen';
 import { WorkoutListScreen } from './components/WorkoutListScreen';
 import { WebQRScanner } from './components/WebQRScanner';
-import { RemoteControlScreen } from './components/RemoteControlScreen';
 import { motion, AnimatePresence } from 'framer-motion';
 import WorkoutDetailScreen, { WorkoutPresentationModal } from './components/WorkoutDetailScreen';
 import { CloseIcon, PencilIcon } from './components/icons';
@@ -62,7 +61,7 @@ const App: React.FC = () => {
     selectedOrganization, selectOrganization, allOrganizations, setAllOrganizations,
     studioConfig, studioLoading
   } = useStudio();
-  const { role, userData, isStudioMode, signOut, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, currentUser, authLoading } = useAuth();
+  const { role, userData, isStudioMode, signOut, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, currentUser, authLoading, clearDeviceProvisioning } = useAuth();
   const { workouts, activeWorkout, setActiveWorkout, saveWorkout, deleteWorkout } = useWorkout();
   
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
@@ -119,10 +118,6 @@ const App: React.FC = () => {
       if (role === 'systemowner') return false;
       return userData.organizationId !== selectedOrganization.id;
   }, [userData?.organizationId, selectedOrganization?.id, currentUser, role]);
-
-  // NEW: Ref to track if we have performed the initial cleanup of remote state
-  const hasCleanedUpRef = useRef(false);
-  const [isReadyToListen, setIsReadyToListen] = useState(false);
   const [pushToast, setPushToast] = useState<{ message: string, isVisible: boolean }>({ message: '', isVisible: false });
 
   // Push notification foreground listener
@@ -153,33 +148,11 @@ const App: React.FC = () => {
     }
   }, [role, authLoading, isStudioMode, history, currentUser]);
 
-  const [remoteCommand, setRemoteCommand] = useState<{ type: string, timestamp: number } | null>(null);
   const [activeBlock, setActiveBlock] = useState<WorkoutBlock | null>(null);
   const lastLocalNavigationRef = useRef<number>(0);
   const pageEntryTimestampRef = useRef<number>(Date.now());
 
   const navigateTo = useCallback((targetPage: Page, options?: { activeWorkoutId?: string | null, activeBlockId?: string | null }) => {
-    if (isStudioMode && selectedOrganization && selectedStudio) {
-         let view: RemoteSessionState['view'] = 'menu';
-         
-         if (targetPage === Page.Timer || targetPage === Page.RepsOnly) {
-             view = 'timer';
-         } else if (targetPage === Page.WorkoutDetail) {
-             view = 'preview';
-         } else if (targetPage === Page.Home) {
-             view = 'idle';
-         }
-         
-         lastLocalNavigationRef.current = Date.now();
-
-         updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-             view,
-             activeWorkoutId: options?.activeWorkoutId !== undefined ? options.activeWorkoutId : (activeWorkout?.id || null),
-             activeBlockId: options?.activeBlockId !== undefined ? options.activeBlockId : (activeBlock?.id || null),
-             lastUpdate: Date.now(),
-             controllerName: 'Touch Screen'
-         });
-    }
     setHistory(prev => {
         if (prev[prev.length - 1] === targetPage) return prev;
         return [...prev, targetPage];
@@ -197,132 +170,6 @@ const App: React.FC = () => {
         return newHistory;
     });
   }, []);
-
-  // --- STUDIO RESET LOGIC (Emergency Brake) ---
-  // If the page is reloaded in Studio Mode, clear the remote state.
-  useEffect(() => {
-      const clearRemoteStateOnMount = async () => {
-          if (isStudioMode && selectedOrganization && selectedStudio && !hasCleanedUpRef.current) {
-               hasCleanedUpRef.current = true;
-               await updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
-               // We wait for the snapshot to reflect the null state before listening
-          } else if (!isStudioMode) {
-               setIsReadyToListen(true);
-          }
-      };
-      
-      if (!studioLoading) {
-          clearRemoteStateOnMount();
-      }
-  }, [isStudioMode, selectedOrganization?.id, selectedStudio?.id, studioLoading]);
-
-  useEffect(() => {
-      if (isStudioMode && hasCleanedUpRef.current && !isReadyToListen && selectedStudio && !selectedStudio.remoteState) {
-          setIsReadyToListen(true);
-      }
-  }, [isStudioMode, isReadyToListen, selectedStudio?.remoteState]);
-
-      // STUDIO RECEIVER LOGIC (TV Mode)
-      useEffect(() => {
-          if (!isStudioMode || !selectedOrganization || !selectedStudio || !isReadyToListen) return;
-    
-          const remote = selectedStudio.remoteState;
-          
-          if (remote) {
-              if (remote.command && remote.commandTimestamp) {
-                  if (remote.commandTimestamp > pageEntryTimestampRef.current) {
-                      setRemoteCommand(prev => {
-                          if (!prev || prev.timestamp !== remote.commandTimestamp) {
-                              return { type: remote.command!, timestamp: remote.commandTimestamp! };
-                          }
-                          return prev;
-                      });
-                  }
-              }
-
-              const isRecentLocalNav = Date.now() - lastLocalNavigationRef.current < 3000;
-
-              if (!isRecentLocalNav) {
-                  if (remote.view === 'idle') {
-                      if (page !== Page.Home) {
-                          navigateReplace(Page.Home);
-                          setActiveWorkout(null);
-                      }
-                  } else if (remote.activeWorkoutId) {
-                      // PRIORITY: If we have customWorkoutData in remote state, use that!
-                      // This ensures that 5 second adjustments are visible on all screens.
-                      const workoutToLoad = (remote as any).customWorkoutData || workouts.find(w => w.id === remote.activeWorkoutId);
-                      
-                      const loadAndNavigate = (workout: Workout) => {
-                          // Deep compare or ID check to prevent re-renders
-                          if (activeWorkout?.id !== workout.id || JSON.stringify(activeWorkout) !== JSON.stringify(workout)) {
-                              setActiveWorkout(workout);
-                          }
-    
-                          if (remote.view === 'preview') {
-                              if (page !== Page.WorkoutDetail) {
-                                  navigateReplace(Page.WorkoutDetail);
-                              }
-                          } else if (remote.view === 'timer' && remote.activeBlockId) {
-                              const blockToStart = workout.blocks.find(b => b.id === remote.activeBlockId);
-                              if (blockToStart) {
-                                  if (activeBlock?.id !== blockToStart.id || JSON.stringify(activeBlock) !== JSON.stringify(blockToStart)) {
-                                      setActiveBlock(blockToStart);
-                                  }
-                                  const targetPage = blockToStart.settings.mode === TimerMode.NoTimer ? Page.RepsOnly : Page.Timer;
-                                  if (page !== targetPage) {
-                                      navigateReplace(targetPage);
-                                  }
-                              }
-                          }
-                      };
-
-                      if (workoutToLoad) {
-                          loadAndNavigate(workoutToLoad);
-                      } else {
-                          getWorkoutById(remote.activeWorkoutId).then(fetchedWorkout => {
-                              if (fetchedWorkout) {
-                                  loadAndNavigate(fetchedWorkout);
-                              }
-                          });
-                      }
-                  }
-              }
-          }
-      }, [isStudioMode, selectedOrganization, selectedStudio, workouts, page, activeWorkout, activeBlock, navigateReplace, setActiveWorkout, isReadyToListen]);
-
-      // AUTO-CLEAR STALE SESSIONS (5 minutes)
-      useEffect(() => {
-          if (!isStudioMode || !selectedOrganization || !selectedStudio) return;
-
-          const checkStaleSession = () => {
-              const remote = selectedStudio.remoteState;
-              if (!remote) return;
-
-              // Don't clear if it's actively running, resting, or preparing
-              if (remote.status === TimerStatus.Running || 
-                  remote.status === TimerStatus.Preparing || 
-                  remote.status === TimerStatus.Resting) {
-                  return;
-              }
-
-              // Only clear if there's an active workout or we are not in idle view
-              if (remote.view === 'idle' && !remote.activeWorkoutId) return;
-
-              const lastActivity = remote.commandTimestamp || remote.lastUpdate || 0;
-              const timeSinceActivity = Date.now() - lastActivity;
-
-              if (timeSinceActivity > 5 * 60 * 1000) {
-                  console.log('Session stale for > 5 mins, auto-clearing...');
-                  updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, null);
-              }
-          };
-
-          const intervalId = setInterval(checkStaleSession, 60000); // Check every minute
-          checkStaleSession(); // Check immediately on mount/update
-
-          return () => clearInterval(intervalId);
-      }, [isStudioMode, selectedOrganization, selectedStudio]);
 
   const [customBackHandlerState, setCustomBackHandlerState] = useState<(() => void) | null>(null);
   const customBackHandlerRef = useRef<(() => void) | null>(null);
@@ -490,8 +337,7 @@ const App: React.FC = () => {
       Page.IdeaBoard, 
       Page.MemberProfile, 
       Page.MemberRegistry, 
-      Page.MobileLog,
-      Page.RemoteControl 
+      Page.MobileLog
   ];
 
   const resetInactivityTimer = useCallback(() => {
@@ -589,36 +435,12 @@ const App: React.FC = () => {
         setActiveBlock(null);
         nextActiveBlockId = null;
     }
-    
-    if (targetPage === Page.Home || targetPage === Page.Coach || targetPage === Page.SuperAdmin) {
-        setActiveWorkout(null);
-    }
-    
-    if (isStudioMode && selectedOrganization && selectedStudio) {
-         let view: RemoteSessionState['view'] = 'menu';
-         
-         if (targetPage === Page.Timer || targetPage === Page.RepsOnly) {
-             view = 'timer';
-         } else if (targetPage === Page.WorkoutDetail) {
-             view = 'preview';
-         } else if (targetPage === Page.Home) {
-             view = 'idle';
-         }
-         
-         setRemoteCommand(null);
-         lastLocalNavigationRef.current = Date.now();
-
-         updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-             view,
-             activeWorkoutId: (targetPage === Page.Home || targetPage === Page.Coach || targetPage === Page.SuperAdmin) ? null : (activeWorkout?.id || null),
-             activeBlockId: nextActiveBlockId,
-             lastUpdate: Date.now(),
-             controllerName: 'Touch Screen'
-         });
+        if (targetPage === Page.Home || targetPage === Page.Coach || targetPage === Page.SuperAdmin) {
+         setActiveWorkout(null);
     }
     
     setHistory(newHistory);
-  }, [history, role, isImpersonating, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock]);
+  }, [history, role, isImpersonating, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock]);;
 
   const handleMemberProfileRequest = () => {
       if (isStudioMode) {
@@ -696,15 +518,6 @@ const App: React.FC = () => {
         setActiveWorkout(savedWorkout);
         
         if (isStudioMode) {
-            if (selectedOrganization && selectedStudio) {
-                updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-                    view: 'preview',
-                    activeWorkoutId: savedWorkout.id,
-                    activeBlockId: null,
-                    lastUpdate: Date.now(),
-                    controllerName: 'Touch Screen'
-                });
-            }
             navigateReplace(Page.WorkoutDetail);
         } else if (isEditingNewDraft) {
             setIsEditingNewDraft(false);
@@ -754,7 +567,6 @@ const App: React.FC = () => {
     setIsAutoTransition(false); 
 
     if (isStudioMode && selectedOrganization && selectedStudio && isSavedWorkout) {
-        setRemoteCommand(null);
         setActiveWorkout(workoutContext);
         setActiveBlock(block);
         const targetPage = block.settings.mode === TimerMode.NoTimer ? Page.RepsOnly : Page.Timer;
@@ -782,7 +594,6 @@ const App: React.FC = () => {
     };
 
     pageEntryTimestampRef.current = Date.now();
-    setRemoteCommand(null);
 
     setIsAutoTransition(false); 
     setActiveWorkout(tempWorkout);
@@ -928,17 +739,6 @@ const App: React.FC = () => {
             pageEntryTimestampRef.current = Date.now();
             lastLocalNavigationRef.current = Date.now(); 
             
-            if (isStudioMode && selectedOrganization && selectedStudio) {
-                setRemoteCommand(null);
-                updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-                    activeWorkoutId: activeWorkout.id,
-                    view: 'timer',
-                    activeBlockId: nextBlockInWorkout.id,
-                    lastUpdate: Date.now(),
-                    controllerName: 'Auto-Advance'
-                });
-            }
-            
             setActiveBlock(nextBlockInWorkout);
             return;
         }
@@ -962,7 +762,6 @@ const App: React.FC = () => {
                            workoutId.startsWith('fs-workout-');
 
     setCompletionInfo(null);
-    setRemoteCommand(null);
 
     if (isFreestanding) {
         setActiveWorkout(null);
@@ -1052,9 +851,9 @@ const App: React.FC = () => {
       }
   };
 
-  const handleCreateStudio = async (organizationId: string, name: string) => {
+  const handleCreateStudio = async (organizationId: string, name: string, locationId?: string) => {
       try {
-          const newStudio = await createStudio(organizationId, name);
+          const newStudio = await createStudio(organizationId, name, locationId);
           const newOrgs = allOrganizations.length > 0 ? allOrganizations.map(o => o.id === organizationId ? { ...o, studios: [...o.studios, newStudio] } : o) : [];
           setAllOrganizations(newOrgs);
           const updatedOrg = newOrgs.find(o => o.id === organizationId);
@@ -1065,12 +864,12 @@ const App: React.FC = () => {
       }
   };
 
-    const handleUpdateStudio = async (organizationId: string, studioId: string, name: string) => {
+    const handleUpdateStudio = async (organizationId: string, studioId: string, name: string, locationId?: string) => {
         try {
-            await updateStudio(organizationId, studioId, name);
+            await updateStudio(organizationId, studioId, name, locationId);
             const newOrgs = allOrganizations.map(o => {
                 if (o.id === organizationId) {
-                    return { ...o, studios: o.studios.map(s => s.id === studioId ? { ...s, name } : s) };
+                    return { ...o, studios: o.studios.map(s => s.id === studioId ? { ...s, name, locationId: locationId !== undefined ? locationId : s.locationId } : s) };
                 }
                 return o;
             });
@@ -1243,7 +1042,7 @@ const App: React.FC = () => {
     navigateTo(Page.HyroxRaceDetail);
   };
 
-  const isFullScreenPage = page === Page.Timer || page === Page.RepsOnly || page === Page.IdeaBoard || page === Page.RemoteControl;
+  const isFullScreenPage = page === Page.Timer || page === Page.RepsOnly || page === Page.IdeaBoard;
   const isAdminDashboardMode = page === Page.SuperAdmin || page === Page.SystemOwner;
   const paddingClass = (isFullScreenPage || isAdminDashboardMode) ? '' : 'p-4 sm:p-6 lg:p-8';
   
@@ -1255,12 +1054,6 @@ const App: React.FC = () => {
   const showScanButton = ((!isStudioMode && isMemberFacingPage) || (page === Page.MemberProfile)) && studioConfig.enableWorkoutLogging;
 
   const isAnyModalOpen = !!(mobileLogData || mobileViewData || isSearchWorkoutOpen || isScannerOpen || activeDiploma);
-  
-  if (page === Page.RemoteControl) {
-      return (
-          <RemoteControlScreen onBack={handleBack} />
-      );
-  }
   
   const showSplashScreen = isGlobalLoading || !minSplashTimeElapsed;
 
@@ -1325,30 +1118,6 @@ const App: React.FC = () => {
       );
   }
 
-  // --- DIN NYA FALLBACK-SPÄRR FÖR SKÄRMAR ---
-  const savedOrgId = localStorage.getItem('ny-screen-selected-org');
-  const isAmnesiaScreen = isStudioMode && !savedOrgId;
-
-  if (isAmnesiaScreen) {
-      return (
-          <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
-              <img src="/favicon.png" alt="SmartStudio" className="w-24 h-24 mb-6 rounded-2xl shadow-lg opacity-50" />
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Skärmens koppling saknas</h2>
-              <p className="text-gray-500 max-w-md mx-auto mb-8 text-lg">
-                  Webbläsarens historik har rensats och skärmen vet inte längre vilket gym den tillhör. 
-                  Vänligen logga ut för att ställa in skärmen på nytt.
-              </p>
-              <button 
-                  onClick={() => signOut()} 
-                  className="px-8 py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl text-lg shadow-xl transition-all"
-              >
-                  Logga ut och ställ in på nytt
-              </button>
-          </div>
-      );
-  }
-  // --- SLUT PÅ SPÄRR ---
-
   const showUserBackground = page === Page.MemberProfile && !!userData?.backgroundImageUrl;
   const backgroundOverlayOpacity = userData?.backgroundOverlayOpacity ?? 20;
 
@@ -1396,7 +1165,7 @@ const App: React.FC = () => {
        <DeveloperToolbar />
        
        {isStudioMode && <SpotlightOverlay />} 
-       {isStudioMode && <PBOverlay />}
+       {isStudioMode && <PBOverlay isGrattisOpen={!!completionInfo} />}
 
        <div className={(isAnyModalOpen || showPaywall || showWelcomePaywall || showPendingCoach || !(page === Page.Timer || !isFullScreenPage)) ? 'hidden' : 'contents'}>
            <Header 
@@ -1477,23 +1246,21 @@ const App: React.FC = () => {
                 onDuplicateWorkout={handleDuplicateWorkout}
                 onTimerFinish={handleTimerFinish}
                 
-                remoteCommand={remoteCommand}
-                
                 functions={{
                     selectOrganization: handleSelectOrganization,
                     createOrganization: handleCreateOrganization,
                     deleteOrganization: handleDeleteOrganization,
                     saveGlobalConfig: handleSaveGlobalConfig,
                     createStudio: handleCreateStudio,
-                    updateStudio: updateStudio,
-                    deleteStudio: deleteStudio,
-                    updatePasswords: updateOrganizationPasswords,
-                    updateLogos: updateOrganizationLogos,
-                    updateFavicon: updateOrganizationFavicon,
-                    updatePrimaryColor: updateOrganizationPrimaryColor,
+                    updateStudio: handleUpdateStudio,
+                    deleteStudio: handleDeleteStudio,
+                    updatePasswords: handleUpdateOrganizationPasswords,
+                    updateLogos: handleUpdateOrganizationLogos,
+                    updateFavicon: handleUpdateOrganizationFavicon,
+                    updatePrimaryColor: handleUpdateOrganizationPrimaryColor,
                     updateOrganization: handleUpdateOrganization,
-                    updateCustomPages: updateOrganizationCustomPages,
-                    updateInfoCarousel: updateOrganizationInfoCarousel,
+                    updateCustomPages: handleUpdateOrganizationCustomPages,
+                    updateInfoCarousel: handleUpdateOrganizationInfoCarousel,
                     
                     saveCustomPage: handleSaveCustomPage,
                     deleteCustomPage: handleDeleteCustomPage,
@@ -1505,6 +1272,7 @@ const App: React.FC = () => {
                     handleCoachAccessRequest: handleCoachAccessRequest,
                     handleReturnToAdmin: handleReturnToAdminRequest, 
                     handleGoToSystemOwner: () => setHistory([Page.SystemOwner]),
+                    checkUnsavedChanges: () => true,
                     setShowImage: (url) => setPreviewImageUrl(url),
                     setTimerHeaderVisible: setIsTimerHeaderVisible,
                     setBackButtonHidden: setIsBackButtonHidden,
@@ -1530,10 +1298,6 @@ const App: React.FC = () => {
                     handleLogWorkoutRequest: handleLogWorkoutRequest
                 }}
               />
-            )}
-            
-            {remoteCommand && (
-                <div style={{ display: 'none' }} data-command={remoteCommand.type} data-timestamp={remoteCommand.timestamp} />
             )}
           </main>
           

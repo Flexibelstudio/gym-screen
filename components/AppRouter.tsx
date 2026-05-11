@@ -81,8 +81,8 @@ interface AppRouterProps {
         createOrganization: (name: string, subdomain: string) => Promise<void>;
         deleteOrganization: (organizationId: string) => Promise<void>;
         saveGlobalConfig: (organizationId: string, newConfig: StudioConfig) => Promise<void>;
-        createStudio: (organizationId: string, name: string) => Promise<void>;
-        updateStudio: (organizationId: string, studioId: string, name: string) => Promise<void>;
+        createStudio: (organizationId: string, name: string, locationId?: string) => Promise<void>;
+        updateStudio: (organizationId: string, studioId: string, name: string, locationId?: string) => Promise<void>;
         deleteStudio: (organizationId: string, studioId: string) => Promise<void>;
         updatePasswords: (organizationId: string, passwords: Organization['passwords']) => Promise<void>;
         updateLogos: (organizationId: string, logos: { light: string; dark: string }) => Promise<void>;
@@ -98,6 +98,7 @@ interface AppRouterProps {
         
         editStudioConfig: (studio: any) => void;
         switchToStudioView: (studio: any) => void;
+        lockStudioDevice?: (studio: any) => void;
         
         handleCoachAccessRequest: () => void;
         handleReturnToAdmin: () => void;
@@ -384,6 +385,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onUpdateOrganization={functions.updateOrganization}
                 onUpdateCustomPages={functions.updateCustomPages}
                 onSwitchToStudioView={functions.switchToStudioView}
+                onLockStudioDevice={functions.lockStudioDevice}
                 onEditCustomPage={functions.editCustomPage}
                 onDeleteCustomPage={functions.deleteCustomPage}
                 onUpdateInfoCarousel={functions.updateInfoCarousel}

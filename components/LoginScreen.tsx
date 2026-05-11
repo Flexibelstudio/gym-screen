@@ -50,20 +50,25 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
     const [regError, setRegError] = useState<string | null>(null);
     const [regLoading, setRegLoading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [invitedLocationId, setInvitedLocationId] = useState<string | null>(null);
 
     // Kolla URL-parametrar vid start
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const invite = params.get('invite') || params.get('coach');
+        const locationParam = params.get('location');
         if (invite) {
             setInviteCode(invite.toUpperCase());
             setView('register');
+            if (locationParam) {
+                setInvitedLocationId(locationParam);
+            }
             window.history.replaceState({}, document.title, window.location.pathname);
         }
     }, []);
 
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleLogin = async (e?: React.FormEvent | React.KeyboardEvent) => {
+        if (e && e.preventDefault) e.preventDefault();
         setError(null);
         setLoading(true);
         try {
@@ -77,8 +82,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
         }
     };
 
-    const handleResetPassword = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleResetPassword = async (e?: React.FormEvent | React.KeyboardEvent) => {
+        if (e && e.preventDefault) e.preventDefault();
         setResetError(null);
         setResetSuccess(null);
         setResetLoading(true);
@@ -105,8 +110,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
         }
     };
 
-    const handleRegister = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleRegister = async (e?: React.FormEvent | React.KeyboardEvent) => {
+        if (e && e.preventDefault) e.preventDefault();
         setRegError(null);
         
         if (regPassword !== regConfirmPassword) {
@@ -137,7 +142,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     lastName: lastName.trim(),
                     birthDate: birthDate || undefined,
                     gender: gender as any,
-                    photoBase64: profileImage
+                    photoBase64: profileImage,
+                    locationId: invitedLocationId || undefined
                 }
             );
             if (onClose) onClose();
@@ -162,7 +168,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
             )}
 
             <div className="space-y-6">
-                <form onSubmit={handleLogin} className="space-y-6">
+                <div className="space-y-6" onKeyDown={(e) => { if (e.key === 'Enter') handleLogin(e); }}>
                     <div>
                         <label htmlFor="email" className="sr-only">E-post</label>
                         <input
@@ -205,14 +211,15 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
 
                     <div>
                         <button
-                            type="submit"
+                            type="button"
+                            onClick={handleLogin}
                             disabled={loading}
                             className="w-full bg-primary hover:brightness-110 text-white font-black py-4 rounded-xl transition-all disabled:bg-gray-600 shadow-lg shadow-primary/20 uppercase tracking-widest"
                         >
                             {loading ? 'Loggar in...' : 'Logga in'}
                         </button>
                     </div>
-                </form>
+                </div>
                 
                 <div className="text-center text-sm flex flex-col gap-2 mt-4">
                     <div>
@@ -246,9 +253,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                 <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Återställ lösenord</h2>
                 <p className="text-gray-400 mt-1">Ange din e-post så skickar vi en länk.</p>
             </div>
-            <form onSubmit={handleResetPassword} className="space-y-6">
+            <div className="space-y-6" onKeyDown={(e) => { if (e.key === 'Enter') handleResetPassword(e); }}>
                 <div>
-                    <label htmlFor="reset-email" className="sr-only">E-post</label>
+                        <label htmlFor="reset-email" className="sr-only">E-post</label>
                     <input
                         id="reset-email"
                         type="email"
@@ -266,7 +273,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
 
                 <div>
                     <button
-                        type="submit"
+                        type="button"
+                        onClick={handleResetPassword}
                         disabled={resetLoading}
                         className="w-full bg-primary hover:brightness-95 text-white font-bold py-4 rounded-xl transition-colors disabled:bg-gray-600 uppercase tracking-widest"
                     >
@@ -279,7 +287,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                         &larr; Tillbaka till inloggning
                     </button>
                 </div>
-            </form>
+            </div>
         </>
     );
 
@@ -289,7 +297,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                 <h2 className="text-2xl font-bold text-white uppercase tracking-tight">Skapa konto</h2>
                 <p className="text-gray-400 mt-1">Gå med i ett befintligt gym</p>
             </div>
-            <form onSubmit={handleRegister} className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2 custom-scrollbar" onKeyDown={(e) => { if (e.key === 'Enter') handleRegister(e); }}>
                 
                 <div className="flex bg-gray-800 p-1 rounded-xl mb-6">
                     <button
@@ -393,16 +401,23 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                     </div>
                     <div>
                         <label className="block text-[10px] font-black text-gray-500 uppercase mb-1 tracking-widest">Kön</label>
-                        <select
-                            value={gender}
-                            onChange={(e) => setGender(e.target.value)}
-                            className="w-full bg-black text-white p-3 rounded-xl border border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none transition appearance-none"
-                        >
-                            <option value="prefer_not_to_say">Vill ej ange</option>
-                            <option value="male">Man</option>
-                            <option value="female">Kvinna</option>
-                            <option value="other">Annat</option>
-                        </select>
+                        <div className="grid grid-cols-2 gap-2">
+                            {[
+                                { value: 'female', label: 'Kvinna' },
+                                { value: 'male', label: 'Man' },
+                                { value: 'other', label: 'Annat' },
+                                { value: 'prefer_not_to_say', label: 'Vill ej ange' }
+                            ].map(opt => (
+                                <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => setGender(opt.value)}
+                                    className={`py-3 px-2 rounded-xl text-xs font-bold transition-all border ${gender === opt.value ? 'bg-primary border-primary text-black transform scale-[0.98]' : 'bg-black border-gray-700 text-gray-400 hover:border-gray-500'}`}
+                                >
+                                    {opt.label}
+                                </button>
+                            ))}
+                        </div>
                     </div>
                 </div>
 
@@ -483,7 +498,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
 
                 <div className="pt-2">
                     <button
-                        type="submit"
+                        type="button"
+                        onClick={handleRegister}
                         disabled={regLoading}
                         className="w-full bg-primary hover:brightness-110 text-white font-black py-4 rounded-xl transition-all disabled:bg-gray-600 shadow-lg shadow-primary/20 uppercase tracking-widest"
                     >
@@ -496,7 +512,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onClose, onRegisterGym
                         &larr; Tillbaka till inloggning
                     </button>
                 </div>
-            </form>
+            </div>
             
             <UserTermsModal isOpen={showTerms} onClose={() => setShowTerms(false)} />
             <PrivacyPolicyModal isOpen={showPrivacy} onClose={() => setShowPrivacy(false)} />

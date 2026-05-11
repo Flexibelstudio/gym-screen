@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { Workout, WorkoutBlock, TimerMode, TimerSettings, Exercise, StudioConfig, WorkoutResult, WorkoutLog } from '../types';
 import { TimerSetupModal } from './TimerSetupModal';
 import { StarIcon, PencilIcon, DumbbellIcon, ToggleSwitch, SparklesIcon, CloseIcon, ClockIcon, UsersIcon, ChartBarIcon, TrophyIcon, EyeIcon } from './icons';
-import { getWorkoutResults, getMemberLogs, updateStudioRemoteState } from '../services/firebaseService';
+import { getWorkoutResults, getMemberLogs } from '../services/firebaseService';
 import { useStudio } from '../context/StudioContext';
 import { AnimatePresence, motion } from 'framer-motion';
 import { WorkoutQRDisplay } from './WorkoutQRDisplay';
@@ -608,18 +608,6 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
                             block={block} 
                             onStart={async () => {
                                 setActiveWorkout(sessionWorkout);
-
-                                if (selectedOrganization && selectedStudio) {
-                                    updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-                                        activeWorkoutId: sessionWorkout.id,
-                                        activeBlockId: block.id,
-                                        view: 'timer',
-                                        status: 'preparing',
-                                        // Vi skickar med hela den anpassade pass-datan i fjärr-statusen
-                                        customWorkoutData: JSON.parse(JSON.stringify(sessionWorkout)),
-                                        lastUpdate: Date.now()
-                                    } as any);
-                                }
                                 
                                 onStartBlock(block, sessionWorkout);
                             }} 

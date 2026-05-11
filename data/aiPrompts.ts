@@ -153,6 +153,36 @@ Skriv en minimalistisk instruktion (max 20 ord) i imperativ form för övningen:
 Beskriv endast rörelsen, inga hälsofördelar eller adjektiv.
 `;
 
+export const SINGLE_MEMBER_INSIGHT_PROMPT = (title: string, exercises: string[], logs: string, feeling: 'good'|'neutral'|'bad', specificHistory?: string, aiProgressionPrompt?: string) => {
+    let scenario = '';
+    if (feeling === 'good') {
+        scenario = `🔥 PIGG & STARK (ATTACK MODE)
+        Strategi: Uppmuntra till att slå PB eller öka volymen. Föreslå tyngre vikter utifrån historik och coachregel.
+        Tonläge: Utmanande och aggressivt peppande. "Idag är dagen!"`;
+    } else if (feeling === 'neutral') {
+        scenario = `🙂 NEUTRAL (MAINTENANCE MODE)
+        Strategi: Fokus på konsistens och flyt. Standardvikter baserat på historik och coachregel.
+        Tonläge: Stabilt och professionellt. "Keep building the base."`;
+    } else {
+        scenario = `🤕 SLITEN/SKADAD (REHAB MODE)
+        Strategi: Fokus på rörlighet, teknik och att genomföra passet lugnt. Föreslå lättare vikter eller skalade övningar (ignorera höjningskrav i coachregeln här).
+        Tonläge: Omtänksamt och lugnande. "Kvalitet före kvantitet."`;
+    }
+
+    return `
+    Skapa en Pre-Game Strategy inför passet: "${title}".
+    Övningar: ${exercises.join(', ')}
+    Generell Historik (senaste pass): ${logs}
+    ${specificHistory ? `Specifik historik för just dessa övningar (Ditt senaste resultat på dessa: vikt/reps): ${specificHistory}` : ''}
+    ${aiProgressionPrompt ? `\nCOACHENS PROGRESSIONSREGEL FÖR DETTA PASS: "${aiProgressionPrompt}"\n-> VIKTIGT: Följ och integrera precis denna regel från coachen i dina rekommendationer ("Smart Load" och strategi) för dagens pass!\n` : ''}
+
+    Medlemmen har angett hur de känner sig idag: ${scenario}
+
+    Ditt uppdrag är att generera EN strategi utifrån hur medlemmen känner sig idag.
+    Returnera ett JSON-objekt med nycklarna: 'readiness' (objekt med 'status' (high/moderate/low) och 'message' (string)), 'strategy' (string), 'suggestions' (array av objekt med 'exerciseName' och 'advice'), och 'scaling' (array av objekt med 'exerciseName' och 'advice').
+    `;
+};
+
 export const MEMBER_INSIGHTS_PROMPT = (title: string, exercises: string[], logs: string, specificHistory?: string, aiProgressionPrompt?: string) => {
     return `
     Skapa en komplett Pre-Game Strategy inför passet: "${title}".

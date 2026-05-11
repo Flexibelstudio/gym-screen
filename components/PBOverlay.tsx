@@ -48,7 +48,11 @@ const playBellSound = () => {
     }
 };
 
-export const PBOverlay: React.FC = () => {
+interface PBOverlayProps {
+    isGrattisOpen?: boolean;
+}
+
+export const PBOverlay: React.FC<PBOverlayProps> = ({ isGrattisOpen }) => {
     const { selectedOrganization, selectedStudio } = useStudio();
     
     // State för den som visas just nu
@@ -79,7 +83,7 @@ export const PBOverlay: React.FC = () => {
     // Hantera 5 sekunders fördröjning innan PB-regnet börjar
     useEffect(() => {
         const timerStatus = selectedStudio?.remoteState?.status;
-        if (timerStatus === TimerStatus.Finished) {
+        if (timerStatus === TimerStatus.Finished || isGrattisOpen) {
             const timer = setTimeout(() => {
                 setIsGrattisReady(true);
             }, 5000);
@@ -87,7 +91,7 @@ export const PBOverlay: React.FC = () => {
         } else {
             setIsGrattisReady(false);
         }
-    }, [selectedStudio?.remoteState?.status]);
+    }, [selectedStudio?.remoteState?.status, isGrattisOpen]);
 
     // 1. LYSSNA PÅ DATABASEN
     useEffect(() => {
@@ -95,6 +99,17 @@ export const PBOverlay: React.FC = () => {
 
         const unsubscribe = listenForStudioEvents(selectedOrganization.id, (event) => {
             const now = Date.now();
+            
+            // Nytt: Om skärmen är låst till en specifik ort (locationId), visa bara matcher.
+            // Om händelsen saknar ort, anta att den tillhör default-orten (ort 1).
+            const resolvedLocationId = selectedStudio?.locationId || selectedOrganization?.locations?.[0]?.id;
+            const eventLocationId = event.locationId || selectedOrganization?.locations?.[0]?.id;
+            
+            if (resolvedLocationId && eventLocationId) {
+                if (resolvedLocationId !== eventLocationId) {
+                    return; // Ignore - from another location
+                }
+            }
 
             // 1. Historik-spärr: Skedde detta innan vi öppnade sidan? Ignorera.
             // (Vi lägger på 1 sekunds marginal för säkerhets skull)
@@ -129,7 +144,7 @@ export const PBOverlay: React.FC = () => {
     useEffect(() => {
         const processQueue = () => {
             const timerStatus = selectedStudio?.remoteState?.status;
-            const isTimerFinished = timerStatus === TimerStatus.Finished;
+            const isTimerFinished = timerStatus === TimerStatus.Finished || isGrattisOpen;
 
             // Om vi precis lämnade Grattis-vyn (t.ex. coachen stängde passet) -> Rensa kön och dölj
             if (prevStatusRef.current === TimerStatus.Finished && !isTimerFinished) {
@@ -141,10 +156,12 @@ export const PBOverlay: React.FC = () => {
             }
             
             // Uppdatera föregående status
-            prevStatusRef.current = timerStatus;
+            prevStatusRef.current = isTimerFinished ? TimerStatus.Finished : timerStatus || TimerStatus.Idle;
 
-            // Om skärmen INTE är i Grattis-vyn, eller om vi inte väntat 5 sekunder än, gör inget mer (pausa kön)
-            if (!isTimerFinished || !isGrattisReady) {
+            // Skärmen visar Grattis-vyn OCH  har väntat sina 5 sekunder
+            const isAllowedToShowPB = isTimerFinished && isGrattisReady;
+
+            if (!isAllowedToShowPB) {
                 return;
             }
 
@@ -191,7 +208,7 @@ export const PBOverlay: React.FC = () => {
         };
 
         processQueue();
-    }, [processTrigger, selectedStudio?.remoteState?.status, isGrattisReady]); // Körs när vi får signal om nytt event, när ett event är klart, när timer-status ändras, eller när 5 sekunder har gått
+    }, [processTrigger, selectedStudio?.remoteState?.status, isGrattisReady, isGrattisOpen]); // Körs när vi får signal om nytt event, när ett event är klart, när timer-status ändras, eller när 5 sekunder har gått
 
     return (
         <div className="fixed inset-0 pointer-events-none z-[9999] flex items-center justify-center p-4">

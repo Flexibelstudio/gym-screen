@@ -146,6 +146,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const clearDeviceProvisioning = useCallback(() => {
         localStorage.removeItem(DEVICE_LOCKED_KEY);
         localStorage.removeItem(LOCAL_STORAGE_ORG_KEY);
+        
+        // Rensa alla eventuella stundio-nycklar också:
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('ny-screen-selected-studio')) {
+                localStorage.removeItem(key);
+            }
+        });
+
         // Vid nollställning vill vi definitivt inte loggas in automatiskt igen
         sessionStorage.setItem(MANUAL_SIGNOUT_FLAG, 'true');
     }, []);
@@ -189,24 +197,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }, []);
 
     const { role, isStudioMode } = useMemo(() => {
+        if (!currentUser) {
+            return { role: 'member' as UserRole, isStudioMode: false };
+        }
         if (simulatedRole !== null) {
             return { role: simulatedRole, isStudioMode: !!simulatedStudioMode };
         }
         if (impersonationState) return impersonationState;
-        if (!currentUser) return { role: 'member' as UserRole, isStudioMode: false };
         if (currentUser.isAnonymous) return { role: 'member' as UserRole, isStudioMode: true };
         if (userData) return { role: userData.role as UserRole, isStudioMode: false };
         return { role: 'member' as UserRole, isStudioMode: false };
     }, [currentUser, userData, impersonationState, simulatedRole, simulatedStudioMode]);
 
+    const isImpersonating = !!impersonationState && !!currentUser;
+
     const value = useMemo(() => ({
         currentUser, userData, role, isStudioMode, authLoading,
         signIn: handleSignIn, signInAsStudio: handleSignInAsStudio, signOut: handleSignOut,
         clearDeviceProvisioning, reauthenticate, sendPasswordResetEmail: handleSendPasswordResetEmail,
-        isImpersonating: !!impersonationState, startImpersonation, stopImpersonation,
+        isImpersonating, startImpersonation, stopImpersonation,
         showTerms, acceptTerms,
         switchSimulatedUser
-    }), [currentUser, userData, role, isStudioMode, authLoading, handleSignIn, handleSignInAsStudio, handleSignOut, impersonationState, showTerms, switchSimulatedUser]);
+    }), [currentUser, userData, role, isStudioMode, authLoading, handleSignIn, handleSignInAsStudio, handleSignOut, isImpersonating, showTerms, switchSimulatedUser]);
 
     return (
         <AuthContext.Provider value={value}>

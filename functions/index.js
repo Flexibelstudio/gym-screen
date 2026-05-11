@@ -22,28 +22,14 @@ function generateInviteCode() {
 
 /**
  * Hjälpfunktion för att kolla admin-behörighet
- * Strategi: 1. Kolla Token. 2. Om det misslyckas, kolla Databasen.
  */
 const verifyAdminPrivileges = async (auth) => {
-  // 1. Grundkoll: Är man inloggad?
   if (!auth) {
     throw new HttpsError("unauthenticated", "Du måste vara inloggad.");
   }
 
   const uid = auth.uid;
-  const tokenRole = auth.token.role || "";
 
-  // 2. Snabbkoll: Har token redan rätt roll? (Systemägare eller OrgAdmin)
-  if (tokenRole === "systemowner" || tokenRole === "organizationadmin") {
-    return {
-      uid,
-      role: tokenRole,
-      organizationId: auth.token.organizationId
-    };
-  }
-
-  // 3. BACKUP: Om token saknar roll, hämta användaren direkt från Firestore.
-  console.log(`Token saknar admin-roll för ${uid}, kollar databasen...`);
   const userDoc = await admin.firestore().collection("users").doc(uid).get();
   
   if (!userDoc.exists) {
@@ -53,18 +39,15 @@ const verifyAdminPrivileges = async (auth) => {
   const userData = userDoc.data();
   const dbRole = userData.role;
 
-  // Kolla om rollen i databasen är godkänd
-  if (dbRole === "systemowner" || dbRole === "organizationadmin") {
-    console.log(`Godkänd via databasen: ${uid} är ${dbRole}`);
-    return {
-      uid,
-      role: dbRole,
-      organizationId: userData.organizationId
-    };
+  if (dbRole !== "systemowner" && dbRole !== "organizationadmin") {
+    throw new HttpsError("permission-denied", "Du saknar administratörsrättigheter.");
   }
 
-  // Om vi kommer hit är man varken admin i Token eller Databas
-  throw new HttpsError("permission-denied", "Du saknar administratörsrättigheter.");
+  return {
+    uid,
+    role: dbRole,
+    organizationId: userData.organizationId
+  };
 };
 
 // --- FUNKTION: Uppdatera Roll ---
@@ -92,16 +75,6 @@ exports.flexUpdateUserRole = onCall({
       throw new HttpsError("permission-denied", "Behörighet saknas för att skapa systemägare.");
     }
   }
-
-  const newClaims = {
-    role: newRole,
-    organizationId: targetUserData.organizationId
-  };
-  if (newRole === "organizationadmin") {
-    newClaims.adminRole = "admin";
-  }
-
-  await admin.auth().setCustomUserClaims(targetUid, newClaims);
 
   const firestoreUpdate = {
     role: newRole,
@@ -180,10 +153,6 @@ exports.flexInviteUser = onCall({
   });
 
   const finalRole = inRole === "admin" ? "organizationadmin" : "coach";
-  const claims = { role: finalRole, organizationId };
-  if (inRole === "admin") claims.adminRole = "admin";
-  
-  await admin.auth().setCustomUserClaims(userRecord.uid, claims);
 
   const newUserDoc = {
     email,
@@ -339,12 +308,15 @@ exports.receiveExternalWorkout = onRequest(async (req, res) => {
 });
 
 
+
+
 // ============================================================================
 // STRIPE API & EXPRESS SERVER
 // ============================================================================
 
 const express = require("express");
 const Stripe = require("stripe");
+const { GoogleGenAI } = require("@google/genai");
 const app = express();
 
 app.use((req, res, next) => {
@@ -545,11 +517,6 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
             subscriptionStatus: 'active'
           });
 
-          await admin.auth().setCustomUserClaims(userId, {
-            role: 'member',
-            organizationId: organizationId
-          });
-
           console.log(`Användare ${userId} blev medlem i org ${organizationId}`);
         } else {
           // Hantera gymmets egen prenumeration
@@ -601,12 +568,6 @@ app.post("/webhook", express.raw({type: 'application/json'}), async (req, res) =
             }
 
             await db.collection('users').doc(userId).update(userUpdateData);
-
-            await admin.auth().setCustomUserClaims(userId, {
-              role: 'organizationadmin',
-              organizationId: orgId,
-              adminRole: 'admin'
-            });
 
             console.log(`Org ${orgId} återställd till exakt mall och kopplad till ${userId}`);
             
@@ -858,15 +819,18 @@ app.post("/create-member-checkout", async (req, res) => {
     
     const orgData = orgDoc.data();
     const connectedAccountId = orgData.stripeConnectAccountId;
+    const bypassStripe = orgData.allowStripeBypass === true;
 
-    if (!connectedAccountId) {
+    if (!connectedAccountId && !bypassStripe) {
       return res.status(400).json({ error: "Gymmet har inte kopplat ett Stripe-konto ännu." });
     }
 
-    // Kontrollera om kontot är redo att ta emot betalningar
-    const account = await stripe.accounts.retrieve(connectedAccountId);
-    if (!account.charges_enabled) {
-      return res.status(400).json({ error: "Gymmets Stripe-konto är inte fullständigt aktiverat ännu." });
+    // Kontrollera om kontot är redo att ta emot betalningar om vi inte bypassar
+    if (connectedAccountId && !bypassStripe) {
+      const account = await stripe.accounts.retrieve(connectedAccountId);
+      if (!account.charges_enabled) {
+        return res.status(400).json({ error: "Gymmets Stripe-konto är inte fullständigt aktiverat ännu." });
+      }
     }
 
     const searchEmail = email || `member_${userId}@example.com`;
@@ -888,7 +852,7 @@ app.post("/create-member-checkout", async (req, res) => {
     // 19 kr av 39 kr = 48.72% (max 2 decimaler tillåts av Stripe)
     const applicationFeePercent = 48.72;
 
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams = {
       customer: customerId,
       payment_method_types: ['card'],
       mode: 'subscription',
@@ -908,17 +872,22 @@ app.post("/create-member-checkout", async (req, res) => {
         },
         quantity: 1,
       }],
-      subscription_data: {
-        transfer_data: {
-          destination: connectedAccountId,
-        },
-        application_fee_percent: applicationFeePercent,
-      },
       success_url: `${domain}/?success=true&type=member`,
       cancel_url: `${domain}/?canceled=true`,
       client_reference_id: userId,
       metadata: { userId, organizationId, paymentType: 'member_subscription' }
-    });
+    };
+
+    if (connectedAccountId && !bypassStripe) {
+      sessionParams.subscription_data = {
+        transfer_data: {
+          destination: connectedAccountId,
+        },
+        application_fee_percent: applicationFeePercent,
+      };
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     res.json({ url: session.url });
   } catch (error) {
@@ -1248,3 +1217,182 @@ exports.onWorkoutUpdated = onDocumentUpdated({
     );
   }
 });
+
+// --- FUNKTION: Gemini Proxy ---
+exports.flexGeminiProxy = onCall({
+  secrets: ["GEMINI_API_KEY"],
+  timeoutSeconds: 300,
+  memory: "1GiB",
+  enforceAppCheck: process.env.NODE_ENV === 'production'
+}, async (request) => {
+  // 1. APP CHECK VERIFIERING
+  if (process.env.NODE_ENV === 'production' && request.app == undefined) {
+      throw new HttpsError("unauthenticated", "Ogiltig App Check.");
+  }
+
+  // 2. AUTH-KOLL & RATE LIMITING
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "Du måste vara inloggad för att använda AI-funktioner.");
+  }
+  
+  const uid = request.auth.uid;
+
+  // --- RATE LIMIT LOGIK (15 per timme) ---
+  const rateLimitRef = admin.firestore().collection('rate_limits').doc(`smartstudio_${uid}`);
+  const now = Date.now();
+  const oneHourAgo = now - (60 * 60 * 1000);
+
+  try {
+      await admin.firestore().runTransaction(async (transaction) => {
+          const doc = await transaction.get(rateLimitRef);
+          let requests = [];
+          
+          if (doc.exists) {
+              // Filtrera bort gamla tidsstämplar (äldre än 1 timme)
+              requests = (doc.data().timestamps || []).filter(ts => ts > oneHourAgo);
+          }
+
+          if (requests.length >= 15) {
+              throw new Error("RATE_LIMIT_REACHED");
+          }
+
+          requests.push(now);
+          transaction.set(rateLimitRef, { timestamps: requests }, { merge: true });
+      });
+  } catch (e) {
+      if (e.message === "RATE_LIMIT_REACHED") {
+          throw new HttpsError("resource-exhausted", "Max 15 frågor per timme.");
+      }
+      throw new HttpsError("internal", "Något gick fel vid hantering av requests.");
+  }
+  // ----------------------------------------
+
+  const { model, contents, config } = request.data;
+  
+  if (!model || !contents) {
+    throw new HttpsError("invalid-argument", "Model och contents krävs för AI-anrop.");
+  }
+
+  // 3. MEDDELANDELÄNGD (Extra säkerhet i backend)
+  if (JSON.stringify(contents).length > 50000) { 
+       throw new HttpsError('invalid-argument', 'Meddelandet är för långt.');
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.error("GEMINI_API_KEY saknas i miljön.");
+    throw new HttpsError("internal", "Serverkonfigurationsfel gällande AI.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+
+  try {
+    const response = await ai.models.generateContent({
+      model,
+      contents,
+      config
+    });
+    
+    // Konvertera kandidater till rena objekt för att undvika problem med getters etc
+    const candidates = JSON.parse(JSON.stringify(response.candidates || []));
+    
+    return {
+      text: response.text,
+      candidates: candidates
+    };
+  } catch (error) {
+    console.error("Gemini API Error under proxy:", error);
+    throw new HttpsError("internal", "Ett internt fel uppstod vid AI-anrop.");
+  }
+});
+
+// ============================================================================
+// LEADERBOARD AGGREGATION
+// ============================================================================
+
+const { onDocumentWritten } = require("firebase-functions/v2/firestore");
+
+exports.aggregateLeaderboard = onDocumentWritten({
+  document: "workoutLogs/{logId}"
+}, async (event) => {
+  const beforeData = event.data.before.exists ? event.data.before.data() : null;
+  const afterData = event.data.after.exists ? event.data.after.data() : null;
+
+  const docData = afterData || beforeData;
+  if (!docData || !docData.organizationId || !docData.date) return;
+
+  const orgId = docData.organizationId;
+  const locationId = docData.locationId || 'all';
+  
+  const d = new Date(docData.date);
+  
+  const dISO = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const dayNum = dISO.getUTCDay() || 7;
+  dISO.setUTCDate(dISO.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(dISO.getUTCFullYear(),0,1));
+  const week = Math.ceil((((dISO - yearStart) / 86400000) + 1)/7);
+  const year = dISO.getUTCFullYear();
+
+  const leaderboardDocs = [`${orgId}_all_${year}_W${week}`];
+  if (locationId !== 'all') {
+     leaderboardDocs.push(`${orgId}_${locationId}_${year}_W${week}`);
+  }
+
+  const db = admin.firestore();
+  
+  const memberId = docData.memberId;
+  if (!memberId) return;
+
+  const wasValid = beforeData && beforeData.showOnLeaderboard !== false && beforeData.inStudio !== false;
+  const isValid = afterData && afterData.showOnLeaderboard !== false && afterData.inStudio !== false;
+
+  let countDiff = 0;
+  let pbsDiff = 0;
+
+  if (isValid && !wasValid) {
+     countDiff = 1;
+     pbsDiff = (afterData.newPBs || []).length;
+  } else if (!isValid && wasValid) {
+     countDiff = -1;
+     pbsDiff = -(beforeData.newPBs || []).length;
+  } else if (isValid && wasValid) {
+     const beforePBs = (beforeData.newPBs || []).length;
+     const afterPBs = (afterData.newPBs || []).length;
+     pbsDiff = afterPBs - beforePBs;
+  }
+
+  if (countDiff === 0 && pbsDiff === 0 && !isValid) return; 
+
+  const batch = db.batch();
+  for (const lId of leaderboardDocs) {
+     const ref = db.collection("leaderboards").doc(lId);
+
+     const updateObj = {
+        orgId,
+        year,
+        week,
+        locationId: lId.includes('_all_') ? 'all' : locationId,
+     };
+     
+     if (countDiff !== 0) {
+       updateObj[`members.${memberId}.count`] = admin.firestore.FieldValue.increment(countDiff);
+     }
+     if (pbsDiff !== 0) {
+       updateObj[`members.${memberId}.pbs`] = admin.firestore.FieldValue.increment(pbsDiff);
+     }
+     if (afterData) {
+       updateObj[`members.${memberId}.name`] = afterData.memberName || 'Okänd';
+       updateObj[`members.${memberId}.photoUrl`] = afterData.memberPhotoUrl || null;
+       updateObj[`members.${memberId}.memberId`] = memberId;
+     }
+
+     batch.set(ref, updateObj, { merge: true });
+  }
+
+  try {
+      await batch.commit();
+  } catch (error) {
+      console.error("Leaderboard aggregation failed:", error);
+  }
+});
+

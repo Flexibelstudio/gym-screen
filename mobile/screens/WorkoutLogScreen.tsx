@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { getMemberLogs, getWorkoutsForOrganization, saveWorkoutLog, uploadImage, updateWorkoutLog, deleteWorkoutLog, getOrganizationExerciseBank, getMemberCustomExercises, addMemberCustomExercise, deleteMemberCustomExercise, updateMemberCustomExercise } from '../../services/firebaseService';
-import { generateMemberInsights, MemberInsightResponse, generateWorkoutDiploma, generateImage, getExerciseDagsformAdvice, ExerciseDagsformAdvice } from '../../services/geminiService';
+import { generateSingleMemberInsight, InsightContent, MemberInsightResponse, generateWorkoutDiploma, generateImage, getExerciseDagsformAdvice, ExerciseDagsformAdvice } from '../../services/geminiService';
 import { useAuth } from '../../context/AuthContext'; 
 import { useWorkout } from '../../context/WorkoutContext'; 
 import { CloseIcon, SparklesIcon, FireIcon, InformationCircleIcon, LightningIcon, PlusIcon, TrashIcon, CheckIcon, ChartBarIcon, HistoryIcon, CalculatorIcon } from '../../components/icons'; 
@@ -55,11 +55,13 @@ interface WorkoutData {
   id: string;
   title: string;
   benchmarkId?: string;
+  aiProgressionPrompt?: string;
+  usePreGame?: boolean;
   blocks: {
       id: string;
       title: string;
       tag: string;
-      exercises: { id: string; name: string; loggingEnabled?: boolean }[];
+      exercises: { id: string; name: string; exerciseName?: string; loggingEnabled?: boolean }[];
       settings: { rounds: number; mode: string };
   }[];
 }
@@ -251,15 +253,15 @@ const MissionHeader: React.FC<{ strategy: string; feeling: 'good' | 'neutral' | 
 
 const PreGameView: React.FC<{
     workoutTitle: string;
-    insights: MemberInsightResponse;
+    insight: InsightContent | null;
+    isGenerating: boolean;
     onStart: () => void;
     onCancel: () => void;
     onFeelingChange: (feeling: 'good' | 'neutral' | 'bad') => void;
     currentFeeling: 'good' | 'neutral' | 'bad' | null;
-}> = ({ workoutTitle, insights, onStart, onCancel, onFeelingChange, currentFeeling }) => {
+}> = ({ workoutTitle, insight, isGenerating, onStart, onCancel, onFeelingChange, currentFeeling }) => {
     
-    const activeContent = currentFeeling ? insights[currentFeeling] : null;
-    const displayStrategy = activeContent?.strategy || activeContent?.readiness?.message || "Laddar strategi...";
+    const displayStrategy = insight?.strategy || insight?.readiness?.message || "Laddar strategi...";
     
     let themeClass = "from-indigo-50 dark:from-indigo-900/20";
     
@@ -293,18 +295,22 @@ const PreGameView: React.FC<{
                             <button 
                                 key={f} 
                                 onClick={() => onFeelingChange(f as any)} 
-                                className={`p-4 rounded-2xl border-2 transition-all ${currentFeeling === f ? 'bg-white dark:bg-gray-800 border-primary scale-110 shadow-lg z-10' : 'bg-white/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800'}`}
+                                disabled={isGenerating}
+                                className={`p-4 rounded-2xl border-2 transition-all ${currentFeeling === f ? 'bg-white dark:bg-gray-800 border-primary scale-110 shadow-lg z-10' : 'bg-white/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 hover:bg-white dark:hover:bg-gray-800'} ${isGenerating ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 <span className="text-2xl block">{f === 'good' ? '🔥' : f === 'bad' ? '🤕' : '🙂'}</span>
                             </button>
                         ))}
                     </div>
-                    {!currentFeeling && (
+                    {!currentFeeling && !isGenerating && (
                         <p className="text-center text-sm text-gray-400 dark:text-gray-500 mt-4 animate-pulse">Klicka på en emoji för att få din strategi</p>
+                    )}
+                    {isGenerating && (
+                        <p className="text-center text-sm text-primary mt-4 animate-pulse">Genererar din personliga strategi...</p>
                     )}
                 </div>
 
-                {currentFeeling && (
+                {currentFeeling && insight && !isGenerating && (
                     <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm border border-gray-100 dark:border-gray-700 rounded-3xl p-6 shadow-xl mb-6 transition-all animate-fade-in">
                         <div className="flex items-start gap-4 mb-6">
                             <div className={`w-12 h-12 rounded-xl bg-gradient-to-br flex items-center justify-center flex-shrink-0 shadow-lg ${currentFeeling === 'good' ? 'from-orange-500 to-red-600' : currentFeeling === 'bad' ? 'from-green-500 to-blue-600' : 'from-indigo-500 to-purple-600'}`}>
@@ -317,33 +323,33 @@ const PreGameView: React.FC<{
                         </div>
                         
                         <div className="space-y-4">
-                            {activeContent?.suggestions && Object.keys(activeContent.suggestions).length > 0 && (
+                            {insight?.suggestions && Object.keys(insight.suggestions).length > 0 && (
                                 <div className={`p-4 rounded-2xl border ${currentFeeling === 'good' ? 'bg-orange-50 dark:bg-orange-900/10 border-orange-200 dark:border-orange-800/30' : 'bg-gray-50 dark:bg-gray-900/30 border-gray-100 dark:border-gray-700'}`}>
                                     <h4 className={`text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2 ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500'}`}>
                                         {currentFeeling === 'good' && <FireIcon className="w-4 h-4" />}
                                         Smart Load (Dina resultatmål)
                                     </h4>
                                     <div className="space-y-2">
-                                        {Object.entries(activeContent.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
+                                        {Object.entries(insight.suggestions).slice(0, 3).map(([exercise, suggestion]) => (
                                             <div key={exercise} className="flex justify-between items-center bg-white dark:bg-black/20 p-2.5 rounded-lg border border-gray-100 dark:border-white/5">
                                                 <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">{exercise}</span>
-                                                <span className={`text-sm font-bold ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-primary'}`}>{suggestion}</span>
+                                                <span className={`text-sm font-bold ${currentFeeling === 'good' ? 'text-orange-600 dark:text-orange-400' : 'text-primary'}`}>{String(suggestion)}</span>
                                             </div>
                                         ))}
                                     </div>
                                 </div>
                             )}
                             
-                            {activeContent?.scaling && Object.keys(activeContent.scaling).length > 0 && (
+                            {insight?.scaling && Object.keys(insight.scaling).length > 0 && (
                                 <div className="mt-4">
                                     <h4 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-1">
                                         <LightningIcon className="w-3 h-3" /> Alternativ / Skalning
                                     </h4>
                                     <div className="space-y-2">
-                                        {Object.entries(activeContent.scaling).map(([exercise, alternative]) => (
+                                        {Object.entries(insight.scaling).map(([exercise, alternative]) => (
                                             <div key={exercise} className="bg-white/50 dark:bg-white/5 p-3 rounded-xl border border-gray-100 dark:border-white/5">
                                                 <div className="text-xs text-gray-500 line-through mb-0.5">{exercise}</div>
-                                                <div className="text-sm font-bold text-gray-900 dark:text-white">👉 {alternative}</div>
+                                                <div className="text-sm font-bold text-gray-900 dark:text-white">👉 {String(alternative)}</div>
                                             </div>
                                         ))}
                                     </div>
@@ -921,7 +927,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   const [inStudio, setInStudio] = useState<boolean | null>(scanSource === 'qr_scan' ? true : null);
 
   const [history, setHistory] = useState<Record<string, { weight: number, reps: string }>>({}); 
-  const [aiInsights, setAiInsights] = useState<MemberInsightResponse | null>(null);
+  const [aiInsight, setAiInsight] = useState<InsightContent | null>(null);
+  const [isGeneratingInsight, setIsGeneratingInsight] = useState(false);
   const [exerciseBank, setExerciseBank] = useState<BankExercise[]>(MOCK_EXERCISE_BANK);
   
   const [showCalculator, setShowCalculator] = useState(false);
@@ -1034,7 +1041,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
 
     const init = async () => {
         // Reset state for new workout
-        setAiInsights(null);
+        setAiInsight(null);
+        setIsGeneratingInsight(false);
         setViewMode('pre-game');
         setDailyFeeling(null);
         
@@ -1140,20 +1148,20 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                             
                             if (exMatch.setDetails && exMatch.setDetails.length > 0) {
                                 let bestSet = exMatch.setDetails.reduce((prev: any, current: any) => {
-                                    const prevW = parseFloat(prev.weight) || 0;
-                                    const currW = parseFloat(current.weight) || 0;
+                                    const prevW = parseFloat(String(prev.weight)) || 0;
+                                    const currW = parseFloat(String(current.weight)) || 0;
                                     if (currW > prevW) return current;
                                     if (currW === prevW) {
-                                        const prevR = parseFloat(prev.reps) || 0;
-                                        const currR = parseFloat(current.reps) || 0;
+                                        const prevR = parseFloat(String(prev.reps)) || 0;
+                                        const currR = parseFloat(String(current.reps)) || 0;
                                         return currR > prevR ? current : prev;
                                     }
                                     return prev;
                                 }, exMatch.setDetails[0]);
-                                maxWeight = parseFloat(bestSet.weight) || 0;
+                                maxWeight = parseFloat(String(bestSet.weight)) || 0;
                                 maxReps = bestSet.reps?.toString() || '0';
                             } else {
-                                maxWeight = parseFloat(exMatch.weight) || 0;
+                                maxWeight = parseFloat(String(exMatch.weight)) || 0;
                                 maxReps = exMatch.reps?.toString() || '0';
                             }
                             
@@ -1171,17 +1179,8 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                     if (foundWorkout.usePreGame === false || preGameDisabledByGlobalSetting) {
                         setViewMode('logging');
                     } else {
-                        try {
-                            const exerciseNames = exercises.map(e => e.exerciseName);
-                            if (exerciseNames.length > 0) {
-                                // Fetch complete insights immediately (good/neutral/bad)
-                                const insights = await generateMemberInsights(logs, foundWorkout.title, exerciseNames, foundWorkout.aiProgressionPrompt, historyMap);
-                                setAiInsights(insights);
-                            } else {
-                                setViewMode('logging');
-                            }
-                        } catch (err) { 
-                            console.log("AI Insight Error", err); 
+                        const exerciseNames = exercises.map(e => e.exerciseName);
+                        if (exerciseNames.length === 0) {
                             setViewMode('logging');
                         }
                     }
@@ -1219,20 +1218,20 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                   let maxReps = '0';
                                   if (exMatch.setDetails && exMatch.setDetails.length > 0) {
                                       let bestSet = exMatch.setDetails.reduce((prev: any, current: any) => {
-                                          const prevW = parseFloat(prev.weight) || 0;
-                                          const currW = parseFloat(current.weight) || 0;
+                                          const prevW = parseFloat(String(prev.weight)) || 0;
+                                          const currW = parseFloat(String(current.weight)) || 0;
                                           if (currW > prevW) return current;
                                           if (currW === prevW) {
-                                              const prevR = parseFloat(prev.reps) || 0;
-                                              const currR = parseFloat(current.reps) || 0;
+                                              const prevR = parseFloat(String(prev.reps)) || 0;
+                                              const currR = parseFloat(String(current.reps)) || 0;
                                               return currR > prevR ? current : prev;
                                           }
                                           return prev;
                                       }, exMatch.setDetails[0]);
-                                      maxWeight = parseFloat(bestSet.weight) || 0;
+                                      maxWeight = parseFloat(String(bestSet.weight)) || 0;
                                       maxReps = bestSet.reps?.toString() || '0';
                                   } else {
-                                      maxWeight = parseFloat(exMatch.weight) || 0;
+                                      maxWeight = parseFloat(String(exMatch.weight)) || 0;
                                       maxReps = exMatch.reps?.toString() || '0';
                                   }
                                   historyMap[currentEx.exerciseName] = { weight: maxWeight, reps: maxReps, note: mostRecentNote };
@@ -1247,11 +1246,31 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
     };
     
     init();
-  }, [wId, finalOrgId, userId, isManualMode, contextWorkouts]);
+}, [wId, finalOrgId, userId, isManualMode]);
 
-  const handleFeelingChange = (feeling: 'good' | 'neutral' | 'bad') => {
+  const handleFeelingChange = async (feeling: 'good' | 'neutral' | 'bad') => {
       setDailyFeeling(feeling);
-      // No async call here anymore. Content switches instantly in PreGameView.
+      setIsGeneratingInsight(true);
+      
+      try {
+          const exercises = workout?.blocks.flatMap(b => b.exercises) || [];
+          const exerciseNames = exercises.map(e => e.exerciseName || e.name || '');
+          const logs = await getMemberLogs(userId!);
+          
+          const insight = await generateSingleMemberInsight(
+              logs, 
+              workout?.title || 'Träningspass', 
+              exerciseNames, 
+              feeling, 
+              workout?.aiProgressionPrompt, 
+              history
+          );
+          setAiInsight(insight);
+      } catch (error) {
+          console.error("AI Insight Error", error);
+      } finally {
+          setIsGeneratingInsight(false);
+      }
   };
 
   // --- AUTO-SAVE LOGIC ---
@@ -1324,20 +1343,20 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
               let maxReps = '0';
               if (exMatch.setDetails && exMatch.setDetails.length > 0) {
                   let bestSet = exMatch.setDetails.reduce((prev: any, current: any) => {
-                      const prevW = parseFloat(prev.weight) || 0;
-                      const currW = parseFloat(current.weight) || 0;
+                      const prevW = parseFloat(String(prev.weight)) || 0;
+                      const currW = parseFloat(String(current.weight)) || 0;
                       if (currW > prevW) return current;
                       if (currW === prevW) {
-                          const prevR = parseFloat(prev.reps) || 0;
-                          const currR = parseFloat(current.reps) || 0;
+                          const prevR = parseFloat(String(prev.reps)) || 0;
+                          const currR = parseFloat(String(current.reps)) || 0;
                           return currR > prevR ? current : prev;
                       }
                       return prev;
                   }, exMatch.setDetails[0]);
-                  maxWeight = parseFloat(bestSet.weight) || 0;
+                  maxWeight = parseFloat(String(bestSet.weight)) || 0;
                   maxReps = bestSet.reps?.toString() || '0';
               } else {
-                  maxWeight = parseFloat(exMatch.weight) || 0;
+                  maxWeight = parseFloat(String(exMatch.weight)) || 0;
                   maxReps = exMatch.reps?.toString() || '0';
               }
               setHistory(prev => ({
@@ -1468,6 +1487,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
               benchmarkId: benchmarkDefinition?.id,
               totalVolume: totalVolume > 0 ? totalVolume : undefined,
               inStudio: inStudio,
+              locationId: userData?.locationId,
           };
 
           finalLogRaw.durationMinutes = parseFloat(isQuickOrManual ? customActivity.duration : sessionStats.time) || 0;
@@ -1671,11 +1691,12 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       );
   }
 
-  if (viewMode === 'pre-game' && aiInsights) {
+  if (viewMode === 'pre-game') {
       return (
           <PreGameView 
               workoutTitle={workout?.title || 'Träningspass'}
-              insights={aiInsights}
+              insight={aiInsight}
+              isGenerating={isGeneratingInsight}
               onStart={handleStartWorkout}
               onCancel={() => handleCancel(false)}
               onFeelingChange={handleFeelingChange}
@@ -1685,7 +1706,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   }
 
   // --- KONCEPT 2: MISSION BANNER (Sticky Header) ---
-  const activeInsight = dailyFeeling ? aiInsights?.[dailyFeeling] : undefined;
+  const activeInsight = aiInsight || undefined;
   const missionTitle = dailyFeeling === 'good' ? 'Attack Mode' : dailyFeeling === 'bad' ? 'Rehab Mode' : 'Maintenance Mode';
 
   return (

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { listenToLeaderboardData, getMembers } from '../../services/firebaseService';
 import { TrophyIcon, FireIcon, ChartBarIcon } from '@heroicons/react/24/solid';
 import { useStudio } from '../../context/StudioContext';
+import { useAuth } from '../../context/AuthContext';
 
 interface LeaderboardProps {
     organizationId: string;
@@ -9,9 +10,12 @@ interface LeaderboardProps {
 
 export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
     const { selectedOrganization } = useStudio();
+    const { userData } = useAuth();
     const [leaderboard, setLeaderboard] = useState<{ memberId: string, name: string, photoUrl: string, count: number, pbs: number }[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'workouts' | 'pbs'>('workouts');
+    
+    const [selectedLocationId, setSelectedLocationId] = useState<string | 'all'>(userData?.locationId || 'all');
 
     useEffect(() => {
         if (!organizationId) return;
@@ -28,7 +32,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                     members.filter(m => m.showOnLeaderboard === false).map(m => m.uid)
                 );
 
-                unsubscribeLeaderboard = listenToLeaderboardData(organizationId, (data) => {
+                unsubscribeLeaderboard = listenToLeaderboardData(organizationId, selectedLocationId, members, (data) => {
                     const filteredData = data.filter(d => !optedOutMemberIds.has(d.memberId));
                     setLeaderboard(filteredData);
                     setLoading(false);
@@ -46,7 +50,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                 unsubscribeLeaderboard();
             }
         };
-    }, [organizationId]);
+    }, [organizationId, selectedLocationId]);
 
     if (loading) {
         return (
@@ -66,6 +70,43 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                     <TrophyIcon className="w-5 h-5 text-yellow-500" /> Veckans Topplista
                 </h3>
             </div>
+            
+            {/* Nytt: Platsväljare om det finns flera orter */}
+            {selectedOrganization?.locations && selectedOrganization.locations.length > 1 && (
+                <div className="mb-4">
+                    {userData?.locationId && selectedOrganization.locations.find(l => l.id === userData.locationId) ? (
+                        <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
+                            <button
+                                onClick={() => setSelectedLocationId(userData.locationId!)}
+                                className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${
+                                    selectedLocationId === userData.locationId ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                                }`}
+                            >
+                                Min studio
+                            </button>
+                            <button
+                                onClick={() => setSelectedLocationId('all')}
+                                className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${
+                                    selectedLocationId === 'all' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                                }`}
+                            >
+                                Alla studios
+                            </button>
+                        </div>
+                    ) : (
+                        <select
+                            value={selectedLocationId}
+                            onChange={(e) => setSelectedLocationId(e.target.value)}
+                            className="w-full text-sm font-bold bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/50"
+                        >
+                            <option value="all">Alla studios</option>
+                            {selectedOrganization.locations.map(loc => (
+                                <option key={loc.id} value={loc.id}>{loc.name}</option>
+                            ))}
+                        </select>
+                    )}
+                </div>
+            )}
 
             <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mb-4">
                 <button
@@ -87,7 +128,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
             </div>
             
             <p className="text-[10px] text-center text-gray-400 dark:text-gray-500 mb-3 uppercase tracking-wider font-bold">
-                Endast pass utförda på {selectedOrganization?.name || 'plats'} räknas
+                Endast pass utförda på {selectedLocationId !== 'all' ? selectedOrganization?.locations?.find(l => l.id === selectedLocationId)?.name || 'plats' : selectedOrganization?.name || 'plats'} räknas
             </p>
             
             {displayData.length === 0 ? (

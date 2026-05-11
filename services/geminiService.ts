@@ -1,5 +1,6 @@
-
-import { GoogleGenAI, GenerateContentResponse, Type } from "@google/genai"; 
+import { GoogleGenAI, Type } from "@google/genai"; 
+import { getFunctions, httpsCallable } from 'firebase/functions';
+import { getApp } from 'firebase/app';
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise, SuggestedExercise, CustomCategoryWithPrompt, WorkoutLog, MemberGoals, WorkoutDiploma } from '../types';
 import { getExerciseBank } from './firebaseService';
 import * as Prompts from '../data/aiPrompts';
@@ -46,9 +47,19 @@ export interface ExerciseDagsformAdvice {
     history: any[];
 }
 
-// SÄKERHET: Hämta nyckel exklusivt från process.env
+// --- KLIENTER & PROXYS ---
+
+// 1. Backend Proxy (För text och JSON - Bypassar frontend-nyckeln)
+const callGeminiProxy = async (model: string, contents: any, config?: any) => {
+    const functions = getFunctions(getApp(), 'us-central1');
+    const flexGeminiProxy = httpsCallable<any, any>(functions, 'flexGeminiProxy');
+    const response = await flexGeminiProxy({ model, contents, config });
+    return response.data;
+};
+
+// 2. Direktklient (Endast för TUNGA Base64-bilder för att undvika Firebases storleksgräns på 10MB)
 const getAIClient = () => {
-    const apiKey = (typeof process !== 'undefined' && process.env?.API_KEY) || (import.meta as any).env.VITE_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("API-nyckel saknas.");
     return new GoogleGenAI({ apiKey });
 };
@@ -198,7 +209,6 @@ const exerciseBankSchema = {
 
 async function _callGeminiJSON<T>(modelName: string, prompt: string, schema: any, useSearch: boolean = false): Promise<T> {
     try {
-        const ai = getAIClient();
         const config: any = {
             systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,
             responseMimeType: "application/json",
@@ -209,14 +219,9 @@ async function _callGeminiJSON<T>(modelName: string, prompt: string, schema: any
             config.tools = [{ googleSearch: {} }];
         }
 
-        const response = await ai.models.generateContent({
-            model: modelName,
-            contents: prompt,
-            config: config,
-        });
-        return JSON.parse(response.text.trim()) as T;
+        const data = await callGeminiProxy(modelName, [{ role: 'user', parts: [{ text: prompt }] }], config);
+        return JSON.parse(data.text.trim()) as T;
     } catch (error) {
-        // Detta döljer det fula felmeddelandet för kunden
         console.error("AI Service Error:", error);
         throw new Error("Just nu genomgår vi ett planerat underhåll av AI-tjänsten. Vänligen försök igen om en liten stund.");
     }
@@ -231,31 +236,22 @@ const transformWorkout = (data: any, orgId: string, isDraft: boolean = false): W
     isMemberDraft: isDraft,
     category: data.category || 'AI Genererat',
     blocks: data.blocks.map((b: any, i: number) => {
-        // Logic fix: Timer Math Correction
-        // If AI sets rounds to e.g. 3, but there are 7 exercises, it implies 3 LAPS.
-        // For Interval mode, 'rounds' means total intervals (exercises * laps).
         const exerciseCount = b.exercises?.length || 0;
         let settings = { ...b.settings };
         
         if (settings.mode === 'Interval' && exerciseCount > 0 && settings.rounds > 0 && settings.rounds < exerciseCount) {
-             // Heuristic: If rounds < exercises, assume AI meant laps.
-             // Multiply laps * exercises to get correct total rounds.
              settings.rounds = settings.rounds * exerciseCount;
         }
 
         return {
             ...b,
             id: b.id || `block-${Date.now()}-${i}`,
-            settings, // Use the corrected settings
+            settings,
             exercises: b.exercises.map((ex: any, j: number) => {
                 let cleanReps = ex.reps || '';
 
-                // Logic fix: Remove Time from Reps
-                // If timer mode implies timed work (Interval/Tabata/EMOM), strip time strings from reps.
                 if (['Interval', 'Tabata', 'EMOM'].includes(settings.mode)) {
-                     // Regex to remove "40 sek", "30s", "1 min", etc.
                      cleanReps = cleanReps.replace(/(\d+)\s*(sek|sec|s|min|m)(?![a-z])/gi, '').trim();
-                     // Cleanup trailing punctuation
                      cleanReps = cleanReps.replace(/^[,.\s]+|[,.\s]+$/g, '');
                 }
 
@@ -270,7 +266,7 @@ const transformWorkout = (data: any, orgId: string, isDraft: boolean = false): W
     })
 });
 
-// --- EXPORTED FUNCTIONS ---
+// --- EXPORTED FUNCTIONS (TEXT VIA PROXY) ---
 
 export async function generateWorkout(prompt: string, availableExercises: string[] = [], contextWorkouts?: Workout[]): Promise<Workout> {
     const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.WORKOUT_GENERATOR_PROMPT(prompt, availableExercises), workoutSchema);
@@ -382,17 +378,49 @@ ${userMessage}
 
 export async function parseWorkoutFromText(text: string, availableExercises: string[] = []): Promise<Workout> {
     const data = await _callGeminiJSON<any>(TEXT_MODEL, Prompts.TEXT_INTERPRETER_PROMPT(text, availableExercises), workoutSchema);
-    // Tolkad text från coachen bör inte vara ett "medlemsutkast" som raderas
     return transformWorkout(data, '', false);
 }
 
+export async function parseWorkoutFromYoutube(url: string): Promise<Workout> {
+    const prompt = `Analysera denna YouTube-video: ${url}.
+    
+    DITT UPPDRAG:
+    Skapa ett strukturerat träningspass baserat ENBART på innehållet i videon (titel, beskrivning, transkribering, visuellt innehåll).
+
+    REGLER FÖR TOLKNING:
+    1. **KÄLLTROHET (VIKTIGAST):** Hitta inte på övningar som inte nämns eller visas. Om videon handlar om en specifik övning (t.ex. "Teknik i Marklyft"), ska passet bli ett teknikpass för den övningen, inte en slumpmässig WOD.
+    2. **KÄNDA BENCHMARKS:** Endast om videon *tydligt* namnger ett känt testpass (t.ex. "Murph", "Hyrox PFT", "Cindy"), använd den officiella standardstrukturen för det passet.
+    3. **ENSTAKA ÖVNINGAR:** Om videon är en demo av en enda övning, skapa ett "Teknik & Färdighet"-pass (t.ex. EMOM 10 min med den övningen).
+    4. **STRUKTUR:** Försök avgöra om det är AMRAP, EMOM, For Time eller Intervall. Om det är otydligt, skapa en logisk struktur (t.ex. 3-4 set).
+    5. **TIMER:** Välj lämplig timerinställning.
+    6. **FOLLOW ME:** Om videon är ett realtidspass ("Follow Along"), sätt 'followMe' till true.
+    7. **TITEL:** Använd videons titel som grund.
+    
+    Använd Google Search för att bekräfta passets detaljer via videons metadata.`;
+    
+    const data = await _callGeminiJSON<any>(PRO_MODEL, prompt, workoutSchema, true);
+    return transformWorkout(data, '', false);
+}
+
+export async function generateExerciseDescription(name: string): Promise<string> {
+    const data = await callGeminiProxy(TEXT_MODEL, [{ role: 'user', parts: [{ text: Prompts.EXERCISE_DESCRIPTION_PROMPT(name) }] }], { systemInstruction: Prompts.SYSTEM_COACH_CONTEXT });
+    return data.text.trim();
+}
+
+export async function generateExerciseSuggestions(prompt: string): Promise<Partial<BankExercise>[]> {
+    return await _callGeminiJSON<any[]>(TEXT_MODEL, `Föreslå övningar för: ${prompt}`, exerciseBankSchema);
+}
+
+export async function enhancePageWithAI(content: string): Promise<string> {
+    const data = await callGeminiProxy(TEXT_MODEL, [{ role: 'user', parts: [{ text: `Förbättra och strukturera följande text med markdown på svenska:\n${content}` }] }]);
+    return data.text.trim();
+}
+
+// --- EXPORTED FUNCTIONS (IMAGE/VISION VIA DIRECT CLIENT TO AVOID PAYLOAD LIMITS) ---
+
 export async function parseWorkoutFromImage(base64Image: string, additionalText?: string, isDraft: boolean = false, availableExercises: string[] = []): Promise<Workout> {
     const ai = getAIClient();
-    
-    // Ensure we strip the data:image/...;base64, prefix if it exists
-    const cleanBase64 = base64Image.includes('base64,') 
-        ? base64Image.split('base64,')[1] 
-        : base64Image;
+    const cleanBase64 = base64Image.includes('base64,') ? base64Image.split('base64,')[1] : base64Image;
 
     const response = await ai.models.generateContent({
         model: VISION_MODEL,
@@ -425,10 +453,12 @@ export async function beautifyDrawing(base64Image: string, width: number, height
     
     Returnera ENDAST JSON-arrayen.`;
 
+    const cleanBase64 = base64Image.includes('base64,') ? base64Image.split('base64,')[1] : base64Image;
+
     const response = await ai.models.generateContent({
         model: VISION_MODEL,
         contents: [
-            { inlineData: { mimeType: 'image/png', data: base64Image } },
+            { inlineData: { mimeType: 'image/png', data: cleanBase64 } },
             { text: prompt }
         ],
         config: {
@@ -466,51 +496,6 @@ export async function beautifyDrawing(base64Image: string, width: number, height
     }
 }
 
-export async function parseWorkoutFromYoutube(url: string): Promise<Workout> {
-    const prompt = `Analysera denna YouTube-video: ${url}.
-    
-    DITT UPPDRAG:
-    Skapa ett strukturerat träningspass baserat ENBART på innehållet i videon (titel, beskrivning, transkribering, visuellt innehåll).
-
-    REGLER FÖR TOLKNING:
-    1. **KÄLLTROHET (VIKTIGAST):** Hitta inte på övningar som inte nämns eller visas. Om videon handlar om en specifik övning (t.ex. "Teknik i Marklyft"), ska passet bli ett teknikpass för den övningen, inte en slumpmässig WOD.
-    2. **KÄNDA BENCHMARKS:** Endast om videon *tydligt* namnger ett känt testpass (t.ex. "Murph", "Hyrox PFT", "Cindy"), använd den officiella standardstrukturen för det passet.
-    3. **ENSTAKA ÖVNINGAR:** Om videon är en demo av en enda övning, skapa ett "Teknik & Färdighet"-pass (t.ex. EMOM 10 min med den övningen).
-    4. **STRUKTUR:** Försök avgöra om det är AMRAP, EMOM, For Time eller Intervall. Om det är otydligt, skapa en logisk struktur (t.ex. 3-4 set).
-    5. **TIMER:** Välj lämplig timerinställning.
-    6. **FOLLOW ME:** Om videon är ett realtidspass ("Follow Along"), sätt 'followMe' till true.
-    7. **TITEL:** Använd videons titel som grund.
-    
-    Använd Google Search för att bekräfta passets detaljer via videons metadata.`;
-    
-    // Vi använder gemini-3-pro-preview och aktiverar googleSearch (true)
-    const data = await _callGeminiJSON<any>(PRO_MODEL, prompt, workoutSchema, true);
-    return transformWorkout(data, '', false);
-}
-
-export async function generateExerciseDescription(name: string): Promise<string> {
-    const ai = getAIClient();
-    const response = await ai.models.generateContent({
-        model: TEXT_MODEL,
-        contents: Prompts.EXERCISE_DESCRIPTION_PROMPT(name),
-        config: { systemInstruction: Prompts.SYSTEM_COACH_CONTEXT }
-    });
-    return response.text.trim();
-}
-
-export async function generateExerciseSuggestions(prompt: string): Promise<Partial<BankExercise>[]> {
-    return await _callGeminiJSON<any[]>(TEXT_MODEL, `Föreslå övningar för: ${prompt}`, exerciseBankSchema);
-}
-
-export async function enhancePageWithAI(content: string): Promise<string> {
-    const ai = getAIClient();
-    const response = await ai.models.generateContent({
-        model: TEXT_MODEL,
-        contents: `Förbättra och strukturera följande text med markdown på svenska:\n${content}`,
-    });
-    return response.text.trim();
-}
-
 export async function generateImage(prompt: string): Promise<string | null> {
     const ai = getAIClient();
     try {
@@ -538,17 +523,19 @@ export async function generateCarouselImage(prompt: string): Promise<string> {
 
 export async function interpretHandwriting(base64Image: string): Promise<string> {
     const ai = getAIClient();
+    const cleanBase64 = base64Image.includes('base64,') ? base64Image.split('base64,')[1] : base64Image;
     const response = await ai.models.generateContent({
         model: VISION_MODEL,
         contents: [
-            { inlineData: { mimeType: 'image/png', data: base64Image } },
+            { inlineData: { mimeType: 'image/png', data: cleanBase64 } },
             { text: "Transkribera texten i bilden exakt till svenska. Inget snack." }
         ],
     });
     return response.text.trim();
 }
 
-// Helper to transform the array-based AI response to object-based frontend struct
+// --- INSIGHT & DATA HANDLERS ---
+
 const transformInsightContent = (data: any): InsightContent => {
     const suggestions: Record<string, string> = {};
     if (Array.isArray(data.suggestions)) {
@@ -559,6 +546,27 @@ const transformInsightContent = (data: any): InsightContent => {
         data.scaling.forEach((s: any) => scaling[s.exerciseName] = s.advice);
     }
     return { ...data, suggestions, scaling };
+}
+
+export async function generateSingleMemberInsight(
+    logs: WorkoutLog[], 
+    title: string, 
+    exercises: string[],
+    feeling: 'good' | 'neutral' | 'bad',
+    aiProgressionPrompt?: string,
+    specificHistory?: Record<string, { weight: number, reps: string }>
+): Promise<InsightContent> {
+    const logStr = JSON.stringify(logs.slice(0, 5));
+    const specificHistoryStr = specificHistory && Object.keys(specificHistory).length > 0 ? JSON.stringify(specificHistory) : undefined;
+    
+    // Använd proxy-klienten
+    const data = await _callGeminiJSON<any>(
+        TEXT_MODEL, 
+        Prompts.SINGLE_MEMBER_INSIGHT_PROMPT(title, exercises, logStr, feeling, specificHistoryStr, aiProgressionPrompt), 
+        singleInsightSchema
+    );
+    
+    return transformInsightContent(data);
 }
 
 export async function generateMemberInsights(
@@ -576,7 +584,6 @@ export async function generateMemberInsights(
         fullMemberInsightSchema
     );
     
-    // Transform all three scenarios
     return {
         good: transformInsightContent(data.good),
         neutral: transformInsightContent(data.neutral),
@@ -612,24 +619,14 @@ export async function analyzeMemberProgress(logs: WorkoutLog[], name: string, go
 }
 
 export async function askAdminAnalytics(question: string, logs: WorkoutLog[]): Promise<string> {
-    const ai = getAIClient();
     const logSummary = JSON.stringify(logs.slice(0, 50).map(l => ({ date: l.date, title: l.workoutTitle, comment: l.comment })));
-    const response = await ai.models.generateContent({
-        model: TEXT_MODEL,
-        contents: Prompts.ADMIN_ANALYTICS_CHAT_PROMPT(question, logSummary),
-        config: { systemInstruction: Prompts.SYSTEM_COACH_CONTEXT }
-    });
-    return response.text.trim();
+    const data = await callGeminiProxy(TEXT_MODEL, [{ role: 'user', parts: [{ text: Prompts.ADMIN_ANALYTICS_CHAT_PROMPT(question, logSummary) }] }], { systemInstruction: Prompts.SYSTEM_COACH_CONTEXT });
+    return data.text.trim();
 }
 
 export async function generateBusinessActions(logs: WorkoutLog[]): Promise<string> {
-    const ai = getAIClient();
-    const response = await ai.models.generateContent({
-        model: TEXT_MODEL,
-        contents: "Baserat på all träningsdata, ge 3 konkreta affärsåtgärder för gymmet för att öka retention och försäljning. Svara på svenska.",
-        config: { systemInstruction: Prompts.SYSTEM_COACH_CONTEXT }
-    });
-    return response.text.trim();
+    const data = await callGeminiProxy(TEXT_MODEL, [{ role: 'user', parts: [{ text: "Baserat på all träningsdata, ge 3 konkreta affärsåtgärder för gymmet för att öka retention och försäljning. Svara på svenska." }] }], { systemInstruction: Prompts.SYSTEM_COACH_CONTEXT });
+    return data.text.trim();
 }
 
 export async function generateWorkoutDiploma(logData: any): Promise<WorkoutDiploma> {
@@ -639,7 +636,6 @@ export async function generateWorkoutDiploma(logData: any): Promise<WorkoutDiplo
     }
     const pbText = logData.newPBs?.map((pb: any) => `${pb.exerciseName} (+${pb.diff}kg)`).join(', ') || 'Inga nya PB.';
     
-    // Bygg en sammanfattning av vilka övningar som faktiskt kördes
     let exerciseSummary = "Inga specifika övningar hittades.";
     if (logData.exerciseResults && logData.exerciseResults.length > 0) {
         exerciseSummary = logData.exerciseResults.map((ex: any) => {

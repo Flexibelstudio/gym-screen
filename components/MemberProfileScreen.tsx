@@ -20,6 +20,7 @@ import { WeeklyGoalRing } from './dashboard/WeeklyGoalRing';
 import { Leaderboard } from './dashboard/Leaderboard';
 import { Target } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { MigrateStatsModal } from './MigrateStatsModal';
 
 interface MemberProfileScreenProps {
     userData: UserData;
@@ -99,11 +100,28 @@ const getYearWeek = (date: Date) => {
     return `${d.getFullYear()}-W${weekNo}`;
 };
 
-const calculateWeeklyStreak = (logs: WorkoutLog[]) => {
-    if (logs.length === 0) return 0;
+const calculateWeeklyStreak = (logs: WorkoutLog[], migratedStats?: { totalWorkouts: number; streakWeeks: number; migratedAtDate: string; }) => {
     const activeWeeks = new Set(logs.map(log => getYearWeek(new Date(log.date))));
+    
+    if (migratedStats?.streakWeeks && migratedStats?.migratedAtDate) {
+        let migrationCheckDate = new Date(migratedStats.migratedAtDate);
+        for (let i = 0; i < migratedStats.streakWeeks; i++) {
+            activeWeeks.add(getYearWeek(migrationCheckDate));
+            migrationCheckDate.setDate(migrationCheckDate.getDate() - 7);
+        }
+    }
+
+    if (activeWeeks.size === 0) return 0;
+
     const now = new Date();
     let streak = 0;
+    
+    // Check if current week has a workout
+    const currentWeekKey = getYearWeek(now);
+    if (activeWeeks.has(currentWeekKey)) {
+        streak++;
+    }
+
     let checkDate = new Date(now);
     checkDate.setDate(checkDate.getDate() - 7);
     while (true) {
@@ -543,6 +561,9 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     // Resume session state
     const [activeSession, setActiveSession] = useState<any | null>(null);
 
+    const isOwnProfile = auth?.currentUser?.uid === userData.uid;
+    const [showMigrateModal, setShowMigrateModal] = useState(false);
+
     // Form states
     const [firstName, setFirstName] = useState(userData.firstName || '');
     const [lastName, setLastName] = useState(userData.lastName || '');
@@ -694,18 +715,18 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     };
 
     const stats = useMemo(() => {
-        const totalWorkouts = logs.length;
+        const totalWorkouts = logs.length + (userData?.migratedStats?.totalWorkouts || 0);
         const now = new Date();
         const thisMonth = logs.filter(l => {
             const date = new Date(l.date);
             return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
         }).length;
-        const weeklyStreak = calculateWeeklyStreak(logs);
+        const weeklyStreak = calculateWeeklyStreak(logs, userData?.migratedStats);
         const currentWeekKey = getYearWeek(now);
         const thisWeek = logs.filter(l => getYearWeek(new Date(l.date)) === currentWeekKey).length;
         const hasTrainedThisWeek = thisWeek > 0;
         return { totalWorkouts, thisMonth, weeklyStreak, hasTrainedThisWeek, thisWeek };
-    }, [logs]);
+    }, [logs, userData?.migratedStats]);
 
     const daysLeft = useMemo(() => {
         if (!userData.goals?.targetDate) return null;
@@ -868,6 +889,16 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 <option value="other">Annat</option>
                             </select>
                         </div>
+                        {selectedOrganization?.locations && selectedOrganization.locations.length > 0 && (
+                            <div>
+                                <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Din Studio / Ort</label>
+                                <input 
+                                    readOnly 
+                                    value={selectedOrganization.locations.find(l => l.id === userData.locationId)?.name || selectedOrganization.locations[0]?.name || 'Ingen'} 
+                                    className="w-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl p-4 text-gray-500 dark:text-gray-400 outline-none shadow-sm font-bold cursor-not-allowed" 
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 gap-6">
@@ -889,6 +920,31 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                             </label>
                         </div>
                     </div>
+
+                    {isOwnProfile && !userData.migratedStats && selectedOrganization?.allowMigrationOption && (
+                        <div className="mt-8 bg-gradient-to-br from-indigo-900 to-slate-900 border border-indigo-500/30 rounded-[2rem] p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+                            <div className="absolute top-0 right-0 p-8 opacity-10">
+                                <HistoryIcon className="w-32 h-32 text-indigo-300" />
+                            </div>
+                            <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                                <div>
+                                    <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest rounded-full mb-3">
+                                        <SparklesIcon className="w-3 h-3" /> Engångsåtgärd
+                                    </div>
+                                    <h4 className="text-xl font-black text-white tracking-tight mb-2">Importera tidigare historik</h4>
+                                    <p className="text-sm text-indigo-200/80 max-w-md leading-relaxed font-medium">
+                                        Har du tränat hos oss tidigare? Lägg till din gamla historik så behåller du ditt totala antal pass och din nuvarande streak.
+                                    </p>
+                                </div>
+                                <button 
+                                    onClick={(e) => { e.preventDefault(); setShowMigrateModal(true); }}
+                                    className="w-full sm:w-auto px-8 py-4 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-black uppercase tracking-widest rounded-xl transition-all shadow-lg hover:shadow-indigo-500/25 active:scale-95 whitespace-nowrap"
+                                >
+                                    Importera nu
+                                </button>
+                            </div>
+                        </div>
+                    )}
                     
                     <PushNotificationSettings />
                     
@@ -945,6 +1001,31 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             )}
 
             {/* --- FLIKINNEHÅLL --- */}
+
+            {isOwnProfile && !userData.migratedStats && selectedOrganization?.allowMigrationOption && (
+                <div className="mb-8 bg-gradient-to-br from-indigo-900 to-slate-900 border border-indigo-500/30 rounded-[2rem] p-6 sm:p-8 shadow-2xl relative overflow-hidden animate-fade-in">
+                    <div className="absolute top-0 right-0 p-8 opacity-10">
+                        <HistoryIcon className="w-32 h-32 text-indigo-300" />
+                    </div>
+                    <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+                        <div>
+                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-500/20 text-indigo-300 text-[10px] font-black uppercase tracking-widest rounded-full mb-3">
+                                <SparklesIcon className="w-3 h-3" /> Engångsåtgärd
+                            </div>
+                            <h4 className="text-xl font-black text-white tracking-tight mb-2">Importera tidigare historik</h4>
+                            <p className="text-sm text-indigo-200/80 max-w-md leading-relaxed font-medium">
+                                Har du tränat hos oss tidigare? Lägg till din gamla historik så behåller du ditt totala antal pass och din nuvarande streak.
+                            </p>
+                        </div>
+                        <button 
+                            onClick={(e) => { e.preventDefault(); setShowMigrateModal(true); }}
+                            className="w-full sm:w-auto px-8 py-4 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-black uppercase tracking-widest rounded-xl transition-all shadow-lg hover:shadow-indigo-500/25 active:scale-95 whitespace-nowrap"
+                        >
+                            Importera nu
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {activeTab === 'overview' && (
                 <div className="space-y-6 animate-fade-in">
@@ -1295,6 +1376,12 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     />
                 )}
             </AnimatePresence>
+
+            <MigrateStatsModal 
+                isOpen={showMigrateModal}
+                onClose={() => setShowMigrateModal(false)}
+                userData={userData}
+            />
         </div>
     );
 };

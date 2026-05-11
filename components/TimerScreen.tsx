@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout, TimerSegment } from '../types';
 import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration, playTimerSound } from '../hooks/useWorkoutTimer';
 import { useWorkout } from '../context/WorkoutContext';
-import { saveRace, updateOrganizationActivity, updateStudioRemoteState } from '../services/firebaseService';
+import { saveRace, updateOrganizationActivity } from '../services/firebaseService';
 import { Confetti } from './WorkoutCompleteModal';
 import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmationModal, RaceFinishAnimation, PauseOverlay } from './timer/TimerModals';
 import { ParticipantFinishList } from './timer/ParticipantFinishList';
@@ -574,8 +574,7 @@ interface TimerScreenProps {
     organization: Organization | null;
     onBackToGroups: () => void;
     isAutoTransition?: boolean;
-    // NEW PROP: Remote Command
-    remoteCommand?: { type: string, timestamp: number } | null;
+    remoteCommand?: { type: string, timestamp: number } | null | any;
 }
 
 interface FinishData { time: number; placement: number | null; }
@@ -584,8 +583,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     block, onFinish, onHeaderVisibilityChange, onShowImage,
     setCompletionInfo, setIsRegisteringHyroxTime,
     setIsBackButtonHidden, followMeShowImage, organization, onBackToGroups,
-    isAutoTransition = false,
-    remoteCommand
+    isAutoTransition = false
 }) => {
   const { activeWorkout } = useWorkout();
   const { studioConfig, selectedStudio, selectedOrganization } = useStudio(); 
@@ -661,49 +659,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   // Get navigation position preference (default top)
   const navPos = studioConfig.navigationControlPosition || 'top';
 
-  // --- REMOTE STATUS SYNC ---
-  useEffect(() => {
-    if (selectedOrganization && selectedStudio) {
-        updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, {
-            status: status,
-            lastUpdate: Date.now()
-        } as any);
-    }
-  }, [status, selectedOrganization?.id, selectedStudio?.id]);
-
-  // --- REMOTE CONTROL LISTENER ---
-  const lastProcessedCommandTimestamp = useRef<number>(remoteCommand ? remoteCommand.timestamp : 0);
-  useEffect(() => {
-      if (remoteCommand && remoteCommand.timestamp > lastProcessedCommandTimestamp.current) {
-          lastProcessedCommandTimestamp.current = remoteCommand.timestamp;
-          switch (remoteCommand.type) {
-              case 'start':
-              case 'resume':
-                  if (status === TimerStatus.Idle) {
-                      setIsLobbyMode(false);
-                      start();
-                  } else if (status === TimerStatus.Paused) {
-                      resume();
-                  }
-                  break;
-              case 'pause':
-                  if (status === TimerStatus.Running || status === TimerStatus.Resting || status === TimerStatus.Preparing) {
-                      pause();
-                  }
-                  break;
-              case 'reset':
-                  // Reset confirms usually, but remote is forced
-                  setIsLobbyMode(true);
-                  reset();
-                  break;
-              case 'finish':
-                  onFinish({ isNatural: false });
-                  break;
-              default:
-                  break;
-          }
-      }
-  }, [remoteCommand, start, pause, resume, reset, status, onFinish]);
 
 
   // --- TRANSITION LOGIC ---
@@ -964,7 +919,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     reset(); // Reset will stop timer and set status to Idle
   };
 
-  // --- REMOTE SYNC HANDLER ---
   const handleRemoteAction = useCallback(async (action: 'start' | 'pause' | 'resume' | 'reset') => {
       // 1. Perform Local Action IMMEDIATELY
       if (action === 'start') {
@@ -981,21 +935,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       }
       else if (action === 'reset') {
           handleConfirmReset();
-      }
-
-      // 2. Sync to Firebase (if in Studio Mode)
-      // 2. Sync to Firebase (if in Studio Mode)
-      if (selectedOrganization && selectedStudio) {
-          const newState = {
-              view: 'timer',
-              command: action,
-              commandTimestamp: Date.now(),
-              status: action === 'pause' ? TimerStatus.Paused : (action === 'start' || action === 'resume' ? TimerStatus.Running : TimerStatus.Idle),
-              lastUpdate: Date.now(),
-              controllerName: 'Coach'
-          };
-
-          updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, newState as any);
       }
   }, [selectedOrganization, selectedStudio, activeWorkout, block.id, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset]);
 
@@ -1299,7 +1238,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       
       if (mode === TimerMode.Custom) {
           if (nextSegment) {
-              return nextSegment.type === 'rest' ? 'Vila' : (nextSegment.name || 'Nästa övning');
+              return nextSegment.type === 'rest' ? 'Vila' : (nextSegment.title || 'Nästa övning');
           }
       } else if (mode === TimerMode.Interval || mode === TimerMode.Tabata || mode === TimerMode.EMOM) {
           if (completedWorkIntervals + 1 >= totalWorkIntervals) return null;

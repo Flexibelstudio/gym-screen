@@ -57,9 +57,9 @@ export enum Page {
   MemberRegistry,
   MobileLog,
   MyStrength, 
-  RemoteControl, // NYTT: Fjärrkontrollssida
   WorkoutGamesHub, // NYTT: Träningslekar
   CoachNotes, // NYTT: Anteckningar för coacher
+  RemoteControl,
 }
 
 export enum TimerMode {
@@ -202,34 +202,21 @@ export interface StudioConfig {
   };
 }
 
-// NYTT: Tillstånd för fjärrstyrning
-export interface RemoteSessionState {
-    activeWorkoutId: string | null;
-    view: 'idle' | 'preview' | 'timer' | 'menu' | 'ideaboard'; // idle=logo, preview=workout detail, timer=running block, menu=other pages, ideaboard=drawing
-    activeBlockId: string | null;
-    lastUpdate: number; // Timestamp to force updates
-    controllerName?: string | null; // Name of coach controlling
-    command?: 'start' | 'pause' | 'resume' | 'reset' | 'finish' | 'start_hyrox' | 'undo_note' | 'save_note'; // NEW: Command channel
-    commandTimestamp?: number; // To deduplicate commands
-    status?: TimerStatus; // NEW: Track current timer status (Running, Paused, etc.)
-    viewerSettings?: {
-        textScale: number;
-        repsScale: number;
-    };
-    latestStroke?: {
-        color: string;
-        points: {x: number, y: number}[];
-        timestamp: number;
-        isClear?: boolean; // If true, clear the board
-    };
-}
-
 export interface Studio {
   id: string;
   name: string;
   createdAt?: number;
   configOverrides?: Partial<StudioConfig>;
-  remoteState?: RemoteSessionState; // NYTT: Fält för fjärrstyrning
+  locationId?: string; // NYTT: Vilken ort/Location denna skärm tillhör
+  remoteState?: any; // To allow remote states
+}
+
+export interface Location {
+  id: string;
+  name: string;
+  createdAt?: number;
+  inviteCode?: string;
+  coachCode?: string;
 }
 
 export interface CompanyDetails {
@@ -300,6 +287,7 @@ export interface Organization {
   };
   globalConfig: StudioConfig;
   studios: Studio[];
+  locations?: Location[]; // Nytt: Orter / Studios
   customPages?: CustomPage[];
   infoCarousel?: InfoCarousel;
   displayWindows?: DisplayWindow[];
@@ -309,6 +297,7 @@ export interface Organization {
   companyDetails?: CompanyDetails;
   inviteCode?: string;
   coachCode?: string;
+  inviteCodes?: string[]; // Includes location-specific codes for querying
   maxFreeCoaches?: number;
   lastActiveAt?: number;
   discountType?: 'percentage' | 'fixed';
@@ -317,6 +306,7 @@ export interface Organization {
   lastBilledMonth?: string; 
   lastBilledDate?: number;
   freeCoachAccounts?: number; // NYTT: Antal gratis coach-konton
+  allowStripeBypass?: boolean; // NYTT: Tillåt bypass för Stripe Connect
   stripeConnectAccountId?: string;
   stripeConnectSetupComplete?: boolean;
   
@@ -325,6 +315,8 @@ export interface Organization {
   stripeSubscriptionId?: string;
   systemFeePaid?: boolean;
   systemFeeDate?: number;
+  
+  allowMigrationOption?: boolean; // Toggles the import stats widget
 }
 
 export interface RaceParticipant {
@@ -373,6 +365,7 @@ export interface BankExercise {
   description?: string;
   tags?: string[];
   imageUrl?: string;
+  category?: string;
   organizationId?: string; // NYTT: Om den tillhör en specifik org (custom)
 }
 
@@ -392,6 +385,7 @@ export interface UserData {
   status?: 'active' | 'inactive' | 'pending_coach';
   adminRole?: 'superadmin' | 'admin';
   organizationId?: string;
+  locationId?: string;
   firstName?: string;
   lastName?: string;
   photoUrl?: string;
@@ -411,6 +405,12 @@ export interface UserData {
   weeklyGoal?: number;
   showOnLeaderboard?: boolean;
   usePreGameForCustomWorkouts?: boolean;
+
+  migratedStats?: {
+    totalWorkouts: number;
+    streakWeeks: number;
+    migratedAtDate: string; // ISO string date
+  };
 }
 
 export interface SmartGoalDetail {
@@ -543,6 +543,7 @@ export interface WorkoutLog {
     showOnLeaderboard?: boolean; // NYTT: För att dölja i flöden och topplistor
     totalVolume?: number; // NYTT: Total vikt x reps under passet
     inStudio?: boolean; // NYTT: Indikerar om träningspasset genomfördes på plats på gymmet
+    locationId?: string; // NYTT: Ort/Studio där passet loggades eller användaren tillhör
 }
 
 export interface CheckInEvent {
@@ -559,6 +560,7 @@ export interface StudioEvent {
     id: string;
     type: 'pb' | 'pb_batch';
     organizationId: string;
+    locationId?: string; // NYTT: Skärmens eller användarens ort
     timestamp: number;
     data: {
         userName: string;

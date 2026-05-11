@@ -16,8 +16,9 @@ const InfoMessageEditor: React.FC<{
     onSave: (message: InfoMessage) => void,
     onCancel: () => void,
     studios: Studio[],
+    locations?: { id: string, name: string }[],
     organizationId: string
-}> = ({ initialMessage, onSave, onCancel, studios, organizationId }) => {
+}> = ({ initialMessage, onSave, onCancel, studios, locations, organizationId }) => {
     const [formData, setFormData] = useState<InfoMessage>(initialMessage);
     const [customAiPrompt, setCustomAiPrompt] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -149,9 +150,18 @@ const InfoMessageEditor: React.FC<{
                 <label className="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-3">Vilka skärmar ska se detta?</label>
                 <div className="flex flex-wrap gap-3">
                     <CheckboxField label="Alla skärmar" checked={formData.visibleInStudios.includes('all')} onChange={checked => handleStudioVisibilityChange('all', checked)} />
-                    {studios.map(studio => (
-                        <CheckboxField key={studio.id} label={studio.name} checked={formData.visibleInStudios.includes('all') || formData.visibleInStudios.includes(studio.id)} onChange={checked => handleStudioVisibilityChange(studio.id, checked)} />
-                    ))}
+                    {studios.map(studio => {
+                        let label = studio.name;
+                        if (locations && locations.length > 1 && studio.locationId) {
+                            const locationName = locations.find(l => l.id === studio.locationId)?.name;
+                            if (locationName) {
+                                label = `${studio.name} (${locationName})`;
+                            }
+                        }
+                        return (
+                            <CheckboxField key={studio.id} label={label} checked={formData.visibleInStudios.includes('all') || formData.visibleInStudios.includes(studio.id)} onChange={checked => handleStudioVisibilityChange(studio.id, checked)} />
+                        );
+                    })}
                 </div>
             </div>
             
@@ -432,6 +442,7 @@ export const InfoKarusellContent: React.FC<InfoKarusellContentProps> = ({ organi
                     onSave={handleSaveMessage}
                     onCancel={() => setEditingMessage(null)}
                     studios={organization.studios}
+                    locations={organization.locations}
                     organizationId={organization.id}
                 />
             )}

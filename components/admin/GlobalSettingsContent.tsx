@@ -94,9 +94,17 @@ export const GlobalSettingsContent: React.FC<GlobalSettingsContentProps> = ({
                                 <ToggleSwitch 
                                     label="Medlemsupplevelse & Loggning" 
                                     checked={!!config.enableWorkoutLogging} 
-                                    onChange={(checked) => {
-                                        if (checked) onTriggerUpgrade();
-                                        else handleUpdateConfigField('enableWorkoutLogging', false);
+                                    onChange={async (checked) => {
+                                        if (checked) {
+                                            if (organization.allowStripeBypass) {
+                                                handleUpdateConfigField('enableWorkoutLogging', true);
+                                                await handleSaveConfig({ ...config, enableWorkoutLogging: true });
+                                            } else {
+                                                onTriggerUpgrade();
+                                            }
+                                        } else {
+                                            handleUpdateConfigField('enableWorkoutLogging', false);
+                                        }
                                     }} 
                                 />
                                 <button 
