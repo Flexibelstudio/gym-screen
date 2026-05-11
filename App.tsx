@@ -132,21 +132,24 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (!authLoading && !isStudioMode && currentUser) {
+    if (!authLoading && currentUser) {
       const isAtInitialPage = history.length === 1;
       const currentPage = history[history.length - 1];
       
-      // Use userData.role directly to avoid race conditions with impersonation state context
       const actualRole = userData?.role || role;
 
-      if (actualRole === 'systemowner' && currentPage !== Page.SystemOwner && isAtInitialPage) {
-        setHistory([Page.SystemOwner]);
-      } else if (actualRole === 'organizationadmin' && currentPage !== Page.SuperAdmin && isAtInitialPage) {
-        setHistory([Page.SuperAdmin]);
-      } else if (actualRole === 'coach' && currentPage !== Page.Coach && isAtInitialPage) {
-        setHistory([Page.Coach]);
-      } else if (actualRole === 'member' && currentPage !== Page.Home && isAtInitialPage) {
-        setHistory([Page.Home]); // Changed back to Home to prevent trapping users in MemberProfile
+      if (isStudioMode && currentPage !== Page.Home && isAtInitialPage) {
+        setHistory([Page.Home]);
+      } else if (!isStudioMode) {
+          if (actualRole === 'systemowner' && currentPage !== Page.SystemOwner && isAtInitialPage) {
+            setHistory([Page.SystemOwner]);
+          } else if (actualRole === 'organizationadmin' && currentPage !== Page.SuperAdmin && isAtInitialPage) {
+            setHistory([Page.SuperAdmin]);
+          } else if (actualRole === 'coach' && currentPage !== Page.Coach && isAtInitialPage) {
+            setHistory([Page.Coach]);
+          } else if (actualRole === 'member' && currentPage !== Page.Home && isAtInitialPage) {
+            setHistory([Page.Home]);
+          }
       }
     }
   }, [role, userData, authLoading, isStudioMode, history.length, currentUser]);
@@ -1518,6 +1521,19 @@ const App: React.FC = () => {
        )}
 
        <PWAInstallPrompt />
+
+       {isImpersonating && (
+        <div className="fixed top-6 right-6 z-[100] sm:bottom-6 sm:top-auto sm:right-6">
+           <button 
+             onClick={() => {
+                 stopImpersonation();
+             }} 
+             className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl px-4 py-2 sm:px-6 sm:py-3 rounded-full text-sm sm:text-base font-bold flex items-center gap-2 border-2 border-white dark:border-gray-800 transition-transform hover:scale-105 animate-fade-in"
+           >
+             <span>Avbryt förhandsvisning</span>
+           </button>
+        </div>
+      )}
     </div>
   );
 }
