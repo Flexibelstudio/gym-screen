@@ -98,6 +98,7 @@ interface AppRouterProps {
         
         editStudioConfig: (studio: any) => void;
         switchToStudioView: (studio: any) => void;
+        lockStudioDevice?: (studio: any) => void;
         
         handleCoachAccessRequest: () => void;
         handleReturnToAdmin: () => void;
@@ -384,6 +385,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 onUpdateOrganization={functions.updateOrganization}
                 onUpdateCustomPages={functions.updateCustomPages}
                 onSwitchToStudioView={functions.switchToStudioView}
+                onLockStudioDevice={functions.lockStudioDevice}
                 onEditCustomPage={functions.editCustomPage}
                 onDeleteCustomPage={functions.deleteCustomPage}
                 onUpdateInfoCarousel={functions.updateInfoCarousel}

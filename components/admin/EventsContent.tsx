@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Organization, HyroxRace, StartGroup, RaceParticipant } from '../../types';
+import { Organization, HyroxRace, StartGroup, RaceParticipant, HyroxRaceResult } from '../../types';
 import { getPastRaces, saveRace, deleteRace } from '../../services/firebaseService';
 import { PlusIcon, CalendarIcon, UsersIcon, TrashIcon, PencilIcon, SaveIcon } from '../icons';
 import { motion } from 'framer-motion';

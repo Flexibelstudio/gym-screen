@@ -574,6 +574,7 @@ interface TimerScreenProps {
     organization: Organization | null;
     onBackToGroups: () => void;
     isAutoTransition?: boolean;
+    remoteCommand?: { type: string, timestamp: number } | null | any;
 }
 
 interface FinishData { time: number; placement: number | null; }
@@ -1237,7 +1238,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       
       if (mode === TimerMode.Custom) {
           if (nextSegment) {
-              return nextSegment.type === 'rest' ? 'Vila' : (nextSegment.name || 'Nästa övning');
+              return nextSegment.type === 'rest' ? 'Vila' : (nextSegment.title || 'Nästa övning');
           }
       } else if (mode === TimerMode.Interval || mode === TimerMode.Tabata || mode === TimerMode.EMOM) {
           if (completedWorkIntervals + 1 >= totalWorkIntervals) return null;

@@ -59,6 +59,7 @@ export enum Page {
   MyStrength, 
   WorkoutGamesHub, // NYTT: Träningslekar
   CoachNotes, // NYTT: Anteckningar för coacher
+  RemoteControl,
 }
 
 export enum TimerMode {
@@ -364,6 +365,7 @@ export interface BankExercise {
   description?: string;
   tags?: string[];
   imageUrl?: string;
+  category?: string;
   organizationId?: string; // NYTT: Om den tillhör en specifik org (custom)
 }
 

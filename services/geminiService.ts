@@ -548,6 +548,27 @@ const transformInsightContent = (data: any): InsightContent => {
     return { ...data, suggestions, scaling };
 }
 
+export async function generateSingleMemberInsight(
+    logs: WorkoutLog[], 
+    title: string, 
+    exercises: string[],
+    feeling: 'good' | 'neutral' | 'bad',
+    aiProgressionPrompt?: string,
+    specificHistory?: Record<string, { weight: number, reps: string }>
+): Promise<InsightContent> {
+    const logStr = JSON.stringify(logs.slice(0, 5));
+    const specificHistoryStr = specificHistory && Object.keys(specificHistory).length > 0 ? JSON.stringify(specificHistory) : undefined;
+    
+    // Använd proxy-klienten
+    const data = await _callGeminiJSON<any>(
+        TEXT_MODEL, 
+        Prompts.SINGLE_MEMBER_INSIGHT_PROMPT(title, exercises, logStr, feeling, specificHistoryStr, aiProgressionPrompt), 
+        singleInsightSchema
+    );
+    
+    return transformInsightContent(data);
+}
+
 export async function generateMemberInsights(
     logs: WorkoutLog[], 
     title: string, 

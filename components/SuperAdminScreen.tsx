@@ -70,6 +70,7 @@ interface SuperAdminScreenProps {
     onUpdateOrganizationCompanyDetails?: (organizationId: string, details: CompanyDetails) => Promise<void>;
     onUpdateCustomPages: (organizationId: string, pages: CustomPage[]) => Promise<void>;
     onSwitchToStudioView: (studio: Studio) => void;
+    onLockStudioDevice?: (studio: Studio) => void;
     onEditCustomPage: (page: CustomPage | null) => void;
     onDeleteCustomPage: (pageId: string) => Promise<void>;
     onUpdateInfoCarousel: (organizationId: string, infoCarousel: InfoCarousel) => Promise<void>;
@@ -465,7 +466,7 @@ export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {
             case 'globala-installningar':
                 return <GlobalSettingsContent {...props} config={config} isSavingConfig={isSavingConfig} isConfigDirty={isConfigDirty} handleUpdateConfigField={handleUpdateConfigField} handleSaveConfig={handleSaveConfig} onTriggerUpgrade={() => setIsUpgradeModalOpen(true)} />;
             case 'studios':
-                return <StudiosContent {...props} />;
+                return <StudiosContent {...props} onLockStudioDevice={props.onLockStudioDevice} />;
             case 'varumarke':
                 return <VarumarkeContent organization={organization} onUpdatePasswords={props.onUpdatePasswords} onUpdateLogos={props.onUpdateLogos} onUpdateFavicon={props.onUpdateFavicon} onUpdatePrimaryColor={props.onUpdatePrimaryColor} onShowToast={(msg) => setToast({ message: msg, visible: true })} />;
             case 'company-info':

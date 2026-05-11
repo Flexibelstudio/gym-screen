@@ -1037,6 +1037,28 @@ const App: React.FC = () => {
     setHistory([Page.Home]);
   };
 
+  const handleLockStudioDevice = async (studio: Studio) => {
+    if (!selectedOrganization) return;
+    
+    // Clear standard impersonation logic 
+    stopImpersonation();
+    
+    // Set permanent localStorage locks
+    localStorage.setItem('ny-screen-device-locked', 'true');
+    localStorage.setItem('ny-screen-selected-org', JSON.stringify({ id: selectedOrganization.id, name: selectedOrganization.name }));
+    localStorage.setItem('ny-screen-selected-studio_' + 'anonymous_soon', JSON.stringify(studio)); // Just in case, it will be properly saved later
+    
+    // We must sign out the admin smoothly, clear the manual signout flag, and sign in anonymously.
+    // We can do this by redirecting with a query parameter so AuthContext handles it freshly, 
+    // BUT we must avoid the MANUAL_SIGNOUT_FLAG. 
+    // The easiest robust way is just to clear the flag after calling signOut, then reload the page!
+    await signOut();
+    sessionStorage.removeItem('smart-skarm-manual-signout');
+    
+    // Reload to let AuthContext pick up DEVICE_LOCKED_KEY and do the actual anonymous login!
+    window.location.href = '/';
+  };
+
   const handleSelectRace = (raceId: string) => {
     setActiveRaceId(raceId);
     navigateTo(Page.HyroxRaceDetail);
@@ -1292,6 +1314,7 @@ const App: React.FC = () => {
                     
                     editStudioConfig: handleEditStudioConfig,
                     switchToStudioView: handleSwitchToStudioView,
+                    lockStudioDevice: handleLockStudioDevice,
                     
                     handleCoachAccessRequest: handleCoachAccessRequest,
                     handleReturnToAdmin: handleReturnToAdminRequest, 

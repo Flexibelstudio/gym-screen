@@ -10,9 +10,10 @@ interface StudiosContentProps {
     onUpdateStudio: (organizationId: string, studioId: string, name: string, locationId?: string) => Promise<void>;
     onDeleteStudio: (organizationId: string, studioId: string) => Promise<void>;
     onSwitchToStudioView: (studio: Studio) => void;
+    onLockStudioDevice?: (studio: Studio) => void;
 }
 
-export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, onEditStudioConfig, onCreateStudio, onUpdateStudio, onDeleteStudio, onSwitchToStudioView }) => {
+export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, onEditStudioConfig, onCreateStudio, onUpdateStudio, onDeleteStudio, onSwitchToStudioView, onLockStudioDevice }) => {
     const { signOut } = useAuth();
     const [newStudioName, setNewStudioName] = useState('');
     const [isCreating, setIsCreating] = useState(false);
@@ -79,8 +80,20 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
                             </div>
                         </div>
                         <div className="flex flex-wrap gap-2 w-full xl:w-auto justify-end">
+                            <button 
+                                onClick={() => {
+                                    if (window.confirm(`Vill du ställa in DENNA enhet (den du klickar på just nu) som skärmen "${studio.name}"?\n\nKlicka OK för att permanent låsa denna enhet till skärm-läge.`)) {
+                                        if (onLockStudioDevice) {
+                                            onLockStudioDevice(studio);
+                                        }
+                                    }
+                                }}
+                                className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm shadow-sm flex items-center gap-2"
+                            >
+                                Lås enhet 📺
+                            </button>
                             <button onClick={() => onSwitchToStudioView(studio)} className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm shadow-sm flex items-center gap-2">
-                                Växla till skärm vy
+                                Förhandsgranska (Preview)
                             </button>
                             <button onClick={() => onEditStudioConfig(studio)} className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm">Inställningar</button>
                             <button onClick={() => handleDelete(studio.id, studio.name)} className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-semibold py-2 px-4 rounded-lg transition-colors text-sm border border-red-100 dark:border-red-900/30">Ta bort</button>
