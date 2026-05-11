@@ -61,7 +61,7 @@ const App: React.FC = () => {
     selectedOrganization, selectOrganization, allOrganizations, setAllOrganizations,
     studioConfig, studioLoading
   } = useStudio();
-  const { role, userData, isStudioMode, signOut, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, currentUser, authLoading } = useAuth();
+  const { role, userData, isStudioMode, signOut, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, currentUser, authLoading, clearDeviceProvisioning } = useAuth();
   const { workouts, activeWorkout, setActiveWorkout, saveWorkout, deleteWorkout } = useWorkout();
   
   const [sessionRole, setSessionRole] = useState<UserRole>(role);
@@ -1037,28 +1037,6 @@ const App: React.FC = () => {
     setHistory([Page.Home]);
   };
 
-  const handleLockStudioDevice = async (studio: Studio) => {
-    if (!selectedOrganization) return;
-    
-    // Clear standard impersonation logic 
-    stopImpersonation();
-    
-    // Set permanent localStorage locks
-    localStorage.setItem('ny-screen-device-locked', 'true');
-    localStorage.setItem('ny-screen-selected-org', JSON.stringify({ id: selectedOrganization.id, name: selectedOrganization.name }));
-    localStorage.setItem('ny-screen-selected-studio_' + 'anonymous_soon', JSON.stringify(studio)); // Just in case, it will be properly saved later
-    
-    // We must sign out the admin smoothly, clear the manual signout flag, and sign in anonymously.
-    // We can do this by redirecting with a query parameter so AuthContext handles it freshly, 
-    // BUT we must avoid the MANUAL_SIGNOUT_FLAG. 
-    // The easiest robust way is just to clear the flag after calling signOut, then reload the page!
-    await signOut();
-    sessionStorage.removeItem('smart-skarm-manual-signout');
-    
-    // Reload to let AuthContext pick up DEVICE_LOCKED_KEY and do the actual anonymous login!
-    window.location.href = '/';
-  };
-
   const handleSelectRace = (raceId: string) => {
     setActiveRaceId(raceId);
     navigateTo(Page.HyroxRaceDetail);
@@ -1139,30 +1117,6 @@ const App: React.FC = () => {
         </div>
       );
   }
-
-  // --- DIN NYA FALLBACK-SPÄRR FÖR SKÄRMAR ---
-  const savedOrgId = localStorage.getItem('ny-screen-selected-org');
-  const isAmnesiaScreen = isStudioMode && !savedOrgId;
-
-  if (isAmnesiaScreen) {
-      return (
-          <div className="min-h-screen bg-white dark:bg-black flex flex-col items-center justify-center p-8 text-center">
-              <img src="/favicon.png" alt="SmartStudio" className="w-24 h-24 mb-6 rounded-2xl shadow-lg opacity-50" />
-              <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Skärmens koppling saknas</h2>
-              <p className="text-gray-500 max-w-md mx-auto mb-8 text-lg">
-                  Webbläsarens historik har rensats och skärmen vet inte längre vilket gym den tillhör. 
-                  Vänligen logga ut för att ställa in skärmen på nytt.
-              </p>
-              <button 
-                  onClick={() => signOut()} 
-                  className="px-8 py-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-2xl text-lg shadow-xl transition-all"
-              >
-                  Logga ut och ställ in på nytt
-              </button>
-          </div>
-      );
-  }
-  // --- SLUT PÅ SPÄRR ---
 
   const showUserBackground = page === Page.MemberProfile && !!userData?.backgroundImageUrl;
   const backgroundOverlayOpacity = userData?.backgroundOverlayOpacity ?? 20;
@@ -1314,7 +1268,6 @@ const App: React.FC = () => {
                     
                     editStudioConfig: handleEditStudioConfig,
                     switchToStudioView: handleSwitchToStudioView,
-                    lockStudioDevice: handleLockStudioDevice,
                     
                     handleCoachAccessRequest: handleCoachAccessRequest,
                     handleReturnToAdmin: handleReturnToAdminRequest, 

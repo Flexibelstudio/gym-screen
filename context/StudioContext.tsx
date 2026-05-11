@@ -117,7 +117,9 @@ export const StudioProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                             fetchedOrgs = [org];
                             orgToUse = org;
                         } else {
-                            localStorage.removeItem(LOCAL_STORAGE_ORG_KEY);
+                            console.warn("Kunde inte ladda organisationen från cache/nätverk. Kanske tillfälligt fel.");
+                            // VI TAR INTE BORT NYCKELN DIREKT. Det kan vara tillfälligt nätverksfel eller permission-cache-bugg.
+                            // localStorage.removeItem(LOCAL_STORAGE_ORG_KEY);
                         }
                     }
                 }

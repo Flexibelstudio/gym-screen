@@ -146,6 +146,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const clearDeviceProvisioning = useCallback(() => {
         localStorage.removeItem(DEVICE_LOCKED_KEY);
         localStorage.removeItem(LOCAL_STORAGE_ORG_KEY);
+        
+        // Rensa alla eventuella stundio-nycklar också:
+        Object.keys(localStorage).forEach(key => {
+            if (key.startsWith('ny-screen-selected-studio')) {
+                localStorage.removeItem(key);
+            }
+        });
+
         // Vid nollställning vill vi definitivt inte loggas in automatiskt igen
         sessionStorage.setItem(MANUAL_SIGNOUT_FLAG, 'true');
     }, []);

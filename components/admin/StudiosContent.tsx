@@ -19,7 +19,6 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
     const [isCreating, setIsCreating] = useState(false);
     
     // Custom Modals State
-    const [studioToLock, setStudioToLock] = useState<Studio | null>(null);
     const [studioToDelete, setStudioToDelete] = useState<{id: string, name: string} | null>(null);
 
     const handleCreate = async (e: React.FormEvent) => {
@@ -50,12 +49,6 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
         setStudioToDelete(null);
     };
 
-    const confirmLockDevice = () => {
-        if (!studioToLock || !onLockStudioDevice) return;
-        onLockStudioDevice(studioToLock);
-        setStudioToLock(null);
-    };
-
     return (
          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden relative">
             <div className="p-6 sm:p-8 border-b border-gray-100 dark:border-gray-700">
@@ -84,14 +77,8 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
                             </div>
                         </div>
                         <div className="flex flex-wrap gap-2 w-full xl:w-auto justify-end">
-                            <button 
-                                onClick={() => setStudioToLock(studio)}
-                                className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm shadow-sm flex items-center gap-2"
-                            >
-                                Lås enhet 📺
-                            </button>
                             <button onClick={() => onSwitchToStudioView(studio)} className="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm shadow-sm flex items-center gap-2">
-                                Förhandsgranska (Preview)
+                                Växla till skärmvy 📺
                             </button>
                             <button onClick={() => onEditStudioConfig(studio)} className="bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-semibold py-2 px-4 rounded-lg transition-colors text-sm">Inställningar</button>
                             <button onClick={() => setStudioToDelete({id: studio.id, name: studio.name})} className="bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 font-semibold py-2 px-4 rounded-lg transition-colors text-sm border border-red-100 dark:border-red-900/30">Ta bort</button>
@@ -117,42 +104,6 @@ export const StudiosContent: React.FC<StudiosContentProps> = ({ organization, on
                     </button>
                 </form>
             </div>
-
-            {/* Lock Device Modal */}
-            {studioToLock && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-md w-full overflow-hidden border border-gray-100 dark:border-gray-700 transform transition-all">
-                        <div className="px-6 py-8 border-b border-gray-200 dark:border-gray-700 text-center">
-                            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 dark:bg-blue-900/30 mb-6">
-                                <span className="text-3xl">📺</span>
-                            </div>
-                            <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-2">Lås denna skärm</h3>
-                            <p className="text-gray-500 dark:text-gray-400">
-                                Vill du ställa in <strong>DENNA</strong> enhet (den du klickar på just nu) som skärmen <strong className="text-gray-900 dark:text-white">"{studioToLock.name}"</strong>?
-                            </p>
-                        </div>
-                        <div className="px-6 py-6 bg-gray-50 dark:bg-gray-800/50">
-                            <div className="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 p-4 rounded-xl text-sm mb-6 border border-blue-200 dark:border-blue-800/50">
-                                <strong>Viktigt:</strong> Detta kommer logga ut din admin-användare och permanent låsa denna webbläsare till skärm-läget. Perfekt för TV-skärmen i gymmet!
-                            </div>
-                            <div className="flex flex-col sm:flex-row gap-3">
-                                <button
-                                    onClick={() => setStudioToLock(null)}
-                                    className="flex-1 px-4 py-3 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 text-base font-medium rounded-xl hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                                >
-                                    Avbryt
-                                </button>
-                                <button
-                                    onClick={confirmLockDevice}
-                                    className="flex-1 px-4 py-3 bg-blue-600 outline-none text-white text-base font-bold rounded-xl hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-md transition-colors"
-                                >
-                                    Ja, lås enhet
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Delete Device Modal */}
             {studioToDelete && (

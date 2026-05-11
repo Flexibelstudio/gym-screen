@@ -70,7 +70,6 @@ interface SuperAdminScreenProps {
     onUpdateOrganizationCompanyDetails?: (organizationId: string, details: CompanyDetails) => Promise<void>;
     onUpdateCustomPages: (organizationId: string, pages: CustomPage[]) => Promise<void>;
     onSwitchToStudioView: (studio: Studio) => void;
-    onLockStudioDevice?: (studio: Studio) => void;
     onEditCustomPage: (page: CustomPage | null) => void;
     onDeleteCustomPage: (pageId: string) => Promise<void>;
     onUpdateInfoCarousel: (organizationId: string, infoCarousel: InfoCarousel) => Promise<void>;
