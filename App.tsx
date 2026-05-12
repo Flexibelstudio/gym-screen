@@ -106,11 +106,11 @@ const App: React.FC = () => {
       return sessionStorage.getItem('optimisticSubActive') === 'true';
   });
 
-  const hasActiveSubscription = useMemo(() => {
-      if (actualRole === 'systemowner' || actualRole === 'organizationadmin' || actualRole === 'coach') return true;
+const hasActiveSubscription = useMemo(() => {
+      if (sessionRole === 'systemowner' || sessionRole === 'organizationadmin' || sessionRole === 'coach') return true;
       if (userData?.subscriptionStatus === 'active' || optimisticSubActive) return true;
       return false;
-  }, [actualRole, userData?.subscriptionStatus, optimisticSubActive]);
+  }, [sessionRole, userData?.subscriptionStatus, optimisticSubActive]);
 
   const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription && !showWelcomePaywall;
   const showPendingCoach = currentUser && !isStudioMode && userData?.status === 'pending_coach';
