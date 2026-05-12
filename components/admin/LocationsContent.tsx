@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Organization, Location } from '../../types';
 import { updateOrganizationLocations } from '../../services/firebaseService';
-import { CopyIcon, QrCodeIcon, SparklesIcon } from '../icons';
+import { CopyIcon, QrCodeIcon, SparklesIcon, PencilIcon } from '../icons';
 import { Toast } from '../ui/ToastNotification';
 import { PrintablePoster } from '../PrintablePoster';
 
@@ -22,6 +22,8 @@ export const LocationsContent: React.FC<LocationsContentProps> = ({ organization
     const [locations, setLocations] = useState<Location[]>(organization.locations || []);
     const [newLocationName, setNewLocationName] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [editingLocationId, setEditingLocationId] = useState<string | null>(null);
+    const [editingLocationName, setEditingLocationName] = useState('');
     
     const [toast, setToast] = useState<{message: string, visible: boolean}>({ message: '', visible: false });
     const [posterToPrint, setPosterToPrint] = useState<{type: 'member'|'coach', loc: Location} | null>(null);
@@ -90,6 +92,25 @@ export const LocationsContent: React.FC<LocationsContentProps> = ({ organization
         }
     };
 
+    const handleSaveEdit = async (locId: string) => {
+        if (!editingLocationName.trim()) return;
+        setIsSaving(true);
+        try {
+            const updatedLocations = locations.map(l => 
+                l.id === locId ? { ...l, name: editingLocationName.trim() } : l
+            );
+            await updateOrganizationLocations(organization.id, updatedLocations);
+            setLocations(updatedLocations);
+            setEditingLocationId(null);
+            setToast({ message: "Ort uppdaterad!", visible: true });
+        } catch (e) {
+            console.error(e);
+            alert("Kunde inte uppdatera ort.");
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
     const handleGenerateMissingCodes = async (locId: string) => {
         setIsSaving(true);
         try {
@@ -136,7 +157,42 @@ export const LocationsContent: React.FC<LocationsContentProps> = ({ organization
                         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
                             <div className="flex items-center gap-4 flex-grow">
                                 <div>
-                                    <p className="font-bold text-2xl text-gray-900 dark:text-white">{loc.name}</p>
+                                    {editingLocationId === loc.id ? (
+                                        <div className="flex items-center gap-2">
+                                            <input 
+                                                type="text" 
+                                                value={editingLocationName}
+                                                onChange={(e) => setEditingLocationName(e.target.value)}
+                                                className="bg-gray-50 dark:bg-gray-900 text-black dark:text-white px-3 py-1 rounded-lg border border-gray-200 dark:border-gray-700 focus:ring-2 focus:ring-primary focus:outline-none"
+                                                autoFocus
+                                            />
+                                            <button 
+                                                onClick={() => handleSaveEdit(loc.id)}
+                                                disabled={isSaving || !editingLocationName.trim()}
+                                                className="text-xs font-bold text-white bg-primary hover:brightness-95 px-3 py-1.5 rounded-lg transition-colors"
+                                            >
+                                                SPARA
+                                            </button>
+                                            <button 
+                                                onClick={() => setEditingLocationId(null)}
+                                                disabled={isSaving}
+                                                className="text-xs font-bold text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg transition-colors border border-gray-200 dark:border-gray-700"
+                                            >
+                                                AVBRYT
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-3">
+                                            <p className="font-bold text-2xl text-gray-900 dark:text-white">{loc.name}</p>
+                                            <button 
+                                                onClick={() => { setEditingLocationId(loc.id); setEditingLocationName(loc.name); }} 
+                                                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors p-1"
+                                                title="Redigera namn"
+                                            >
+                                                <PencilIcon className="w-5 h-5" />
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             
