@@ -105,13 +105,13 @@ const App: React.FC = () => {
 
   const hasActiveSubscription = useMemo(() => {
       if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
-      if (userData?.subscriptionStatus === 'active' || optimisticSubActive) return true;
+      if (userData?.subscriptionStatus === 'active' || userData?.status === 'active' || optimisticSubActive) return true;
       return false;
-  }, [role, userData?.subscriptionStatus, optimisticSubActive]);
+  }, [role, userData?.subscriptionStatus, userData?.status, optimisticSubActive]);
 
   const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription && !showWelcomePaywall;
   const showPendingCoach = currentUser && !isStudioMode && userData?.status === 'pending_coach';
-  const isGlobalLoading = authLoading || studioLoading || (currentUser && !userData && !isStudioMode);
+  const isGlobalLoading = authLoading || studioLoading;
   
   const isOrgMismatch = useMemo(() => {
       if (!currentUser || !userData?.organizationId || !selectedOrganization) return false;
@@ -145,8 +145,8 @@ const App: React.FC = () => {
         setHistory([Page.SuperAdmin]);
       } else if (actualRole === 'coach' && currentPage !== Page.Coach && isAtInitialPage) {
         setHistory([Page.Coach]);
-      } else if (actualRole === 'member' && currentPage !== Page.Home && isAtInitialPage) {
-        setHistory([Page.Home]); // Changed back to Home to prevent trapping users in MemberProfile
+      } else if (actualRole === 'member' && currentPage !== Page.MemberProfile && isAtInitialPage) {
+        setHistory([Page.MemberProfile]);
       }
     }
   }, [role, userData, authLoading, isStudioMode, history.length, currentUser]);
