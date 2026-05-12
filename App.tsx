@@ -147,8 +147,8 @@ const App: React.FC = () => {
             setHistory([Page.SuperAdmin]);
           } else if (actualRole === 'coach' && currentPage !== Page.Coach && isAtInitialPage) {
             setHistory([Page.Coach]);
-          } else if (actualRole === 'member' && currentPage !== Page.Home && isAtInitialPage) {
-            setHistory([Page.Home]);
+          } else if (actualRole === 'member' && currentPage !== Page.MemberProfile && isAtInitialPage) {
+            setHistory([Page.MemberProfile]);
           }
       }
     }
