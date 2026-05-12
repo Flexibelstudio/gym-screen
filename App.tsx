@@ -131,22 +131,26 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  // --- FIXEN: Vi tillåter denna effekt att köras även i StudioMode! ---
   useEffect(() => {
-    if (!authLoading && !isStudioMode && currentUser) {
+    if (!authLoading && currentUser) {
       const isAtInitialPage = history.length === 1;
       const currentPage = history[history.length - 1];
       
-      // Use userData.role directly to avoid race conditions with impersonation state context
       const actualRole = userData?.role || role;
 
-      if (actualRole === 'systemowner' && currentPage !== Page.SystemOwner && isAtInitialPage) {
-        setHistory([Page.SystemOwner]);
-      } else if (actualRole === 'organizationadmin' && currentPage !== Page.SuperAdmin && isAtInitialPage) {
-        setHistory([Page.SuperAdmin]);
-      } else if (actualRole === 'coach' && currentPage !== Page.Coach && isAtInitialPage) {
-        setHistory([Page.Coach]);
-      } else if (actualRole === 'member' && currentPage !== Page.MemberProfile && isAtInitialPage) {
-        setHistory([Page.MemberProfile]);
+      if (isStudioMode && currentPage !== Page.Home && isAtInitialPage) {
+        setHistory([Page.Home]); // Tvinga in studiovyn
+      } else if (!isStudioMode) {
+        if (actualRole === 'systemowner' && currentPage !== Page.SystemOwner && isAtInitialPage) {
+          setHistory([Page.SystemOwner]);
+        } else if (actualRole === 'organizationadmin' && currentPage !== Page.SuperAdmin && isAtInitialPage) {
+          setHistory([Page.SuperAdmin]);
+        } else if (actualRole === 'coach' && currentPage !== Page.Coach && isAtInitialPage) {
+          setHistory([Page.Coach]);
+        } else if (actualRole === 'member' && currentPage !== Page.MemberProfile && isAtInitialPage) {
+          setHistory([Page.MemberProfile]);
+        }
       }
     }
   }, [role, userData, authLoading, isStudioMode, history.length, currentUser]);
@@ -1182,7 +1186,7 @@ const App: React.FC = () => {
             onSignOut={isStudioMode ? undefined : signOut}
             role={role}
             historyLength={history.length}
-            showClock={isStudioMode && (page === Page.WorkoutDetail)}
+            showClock={isStudioMode && (page === WorkoutDetailScreen)}
             hideBackButton={isBackButtonHidden}
             onCoachAccessRequest={handleCoachAccessRequest}
             onPreviewWorkoutsRequest={isAdminOrCoach ? handlePreviewWorkoutsRequest : undefined}
