@@ -450,9 +450,8 @@ const App: React.FC = () => {
           setReAuthPurpose('profile');
           setIsReAuthModalOpen(true);
       } else {
-          setProfileEditTrigger(0); 
-          if (page !== Page.MemberProfile) {
-              navigateTo(Page.MemberProfile);
+          if (page !== Page.Home) {
+              navigateTo(Page.Home);
           }
       }
   };
