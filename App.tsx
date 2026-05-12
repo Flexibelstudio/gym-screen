@@ -64,7 +64,10 @@ const App: React.FC = () => {
   const { role, userData, isStudioMode, signOut, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, currentUser, authLoading, clearDeviceProvisioning } = useAuth();
   const { workouts, activeWorkout, setActiveWorkout, saveWorkout, deleteWorkout } = useWorkout();
   
-  const [sessionRole, setSessionRole] = useState<UserRole>(role);
+  // FIX: Säkra upp så att vi kollar mot databasen i första hand, annars token.
+  const actualRole = (userData?.role || role) as UserRole;
+
+  const [sessionRole, setSessionRole] = useState<UserRole>(actualRole);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegisterGym, setShowRegisterGym] = useState(false); 
   const [minSplashTimeElapsed, setMinSplashTimeElapsed] = useState(false);
@@ -78,9 +81,9 @@ const App: React.FC = () => {
   
   const [history, setHistory] = useState<Page[]>(() => {
       if (isStudioMode) return [Page.Home];
-      if (role === 'systemowner') return [Page.SystemOwner];
-      if (role === 'organizationadmin') return [Page.SuperAdmin];
-      if (role === 'coach') return [Page.Coach];
+      if (actualRole === 'systemowner') return [Page.SystemOwner];
+      if (actualRole === 'organizationadmin') return [Page.SuperAdmin];
+      if (actualRole === 'coach') return [Page.Coach];
       return [Page.MemberProfile];
   });
 
@@ -95,19 +98,19 @@ const App: React.FC = () => {
   }, [page]);
 
   const showWelcomePaywall = useMemo(() => {
-      if (!currentUser || role !== 'organizationadmin' || isStudioMode) return false;
+      if (!currentUser || actualRole !== 'organizationadmin' || isStudioMode) return false;
       return selectedOrganization?.systemFeePaid === false;
-  }, [role, selectedOrganization?.systemFeePaid, isStudioMode, currentUser]);
+  }, [actualRole, selectedOrganization?.systemFeePaid, isStudioMode, currentUser]);
 
   const [optimisticSubActive, setOptimisticSubActive] = useState(() => {
       return sessionStorage.getItem('optimisticSubActive') === 'true';
   });
 
   const hasActiveSubscription = useMemo(() => {
-      if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
+      if (actualRole === 'systemowner' || actualRole === 'organizationadmin' || actualRole === 'coach') return true;
       if (userData?.subscriptionStatus === 'active' || optimisticSubActive) return true;
       return false;
-  }, [role, userData?.subscriptionStatus, optimisticSubActive]);
+  }, [actualRole, userData?.subscriptionStatus, optimisticSubActive]);
 
   const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription && !showWelcomePaywall;
   const showPendingCoach = currentUser && !isStudioMode && userData?.status === 'pending_coach';
@@ -115,9 +118,10 @@ const App: React.FC = () => {
   
   const isOrgMismatch = useMemo(() => {
       if (!currentUser || !userData?.organizationId || !selectedOrganization) return false;
-      if (role === 'systemowner') return false;
+      if (actualRole === 'systemowner') return false;
       return userData.organizationId !== selectedOrganization.id;
-  }, [userData?.organizationId, selectedOrganization?.id, currentUser, role]);
+  }, [userData?.organizationId, selectedOrganization?.id, currentUser, actualRole]);
+  
   const [pushToast, setPushToast] = useState<{ message: string, isVisible: boolean }>({ message: '', isVisible: false });
 
   // Push notification foreground listener
@@ -135,8 +139,6 @@ const App: React.FC = () => {
     if (!authLoading && currentUser) {
       const isAtInitialPage = history.length === 1;
       const currentPage = history[history.length - 1];
-      
-      const actualRole = userData?.role || role;
 
       if (isStudioMode && currentPage !== Page.Home && isAtInitialPage) {
         setHistory([Page.Home]);
@@ -152,7 +154,7 @@ const App: React.FC = () => {
           }
       }
     }
-  }, [role, userData, authLoading, isStudioMode, history.length, currentUser]);
+  }, [actualRole, authLoading, isStudioMode, history.length, currentUser]);
 
   const [activeBlock, setActiveBlock] = useState<WorkoutBlock | null>(null);
   const lastLocalNavigationRef = useRef<number>(0);
@@ -390,8 +392,8 @@ const App: React.FC = () => {
   const isInfoBannerVisible = (page === Page.Home || isScreensaverActive) && activeInfoMessages.length > 0;
 
   useEffect(() => {
-    setSessionRole(role);
-  }, [role]);
+    setSessionRole(actualRole);
+  }, [actualRole]);
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
@@ -411,8 +413,6 @@ const App: React.FC = () => {
     else root.style.removeProperty('--color-primary');
   }, [selectedOrganization]);
 
-
-
   const handleBack = useCallback(() => {
     if (customBackHandlerRef.current) {
       customBackHandlerRef.current();
@@ -425,7 +425,7 @@ const App: React.FC = () => {
     const newHistory = history.slice(0, -1);
     const targetPage = newHistory[newHistory.length - 1];
     
-    if (currentPage === Page.Coach && role === 'member') {
+    if (currentPage === Page.Coach && actualRole === 'member') {
         setSessionRole('member');
     }
     
@@ -446,7 +446,7 @@ const App: React.FC = () => {
     }
     
     setHistory(newHistory);
-  }, [history, role, isImpersonating, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock]);;
+  }, [history, actualRole, isImpersonating, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock]);
 
   const handleMemberProfileRequest = () => {
       if (isStudioMode) {
@@ -1052,7 +1052,7 @@ const App: React.FC = () => {
   const isAdminDashboardMode = page === Page.SuperAdmin || page === Page.SystemOwner;
   const paddingClass = (isFullScreenPage || isAdminDashboardMode) ? '' : 'p-4 sm:p-6 lg:p-8';
   
-  const isAdminOrCoach = role === 'systemowner' || role === 'organizationadmin' || role === 'coach';
+  const isAdminOrCoach = actualRole === 'systemowner' || actualRole === 'organizationadmin' || actualRole === 'coach';
   const isMemberFacingPage = [Page.Home, Page.WorkoutDetail, Page.SavedWorkouts, Page.MemberProfile, Page.WorkoutList, Page.WorkoutGamesHub].includes(page);
   const isAdminFacingPage = [Page.Coach, Page.SuperAdmin, Page.SystemOwner, Page.AdminAnalytics, Page.MemberRegistry].includes(page);
 
@@ -1183,7 +1183,7 @@ const App: React.FC = () => {
             isVisible={isTimerHeaderVisible}
             activeCustomPageTitle={page === Page.CustomContent ? activeCustomPage?.title : undefined}
             onSignOut={isStudioMode ? undefined : signOut}
-            role={role}
+            role={actualRole}
             historyLength={history.length}
             showClock={isStudioMode && (page === Page.WorkoutDetail)}
             hideBackButton={isBackButtonHidden}
