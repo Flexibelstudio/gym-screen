@@ -64,10 +64,7 @@ const App: React.FC = () => {
   const { role, userData, isStudioMode, signOut, isImpersonating, startImpersonation, stopImpersonation, showTerms, acceptTerms, currentUser, authLoading, clearDeviceProvisioning } = useAuth();
   const { workouts, activeWorkout, setActiveWorkout, saveWorkout, deleteWorkout } = useWorkout();
   
-  // FIX: Säkra upp så att vi kollar mot databasen i första hand, annars token.
-  const actualRole = (userData?.role || role) as UserRole;
-
-  const [sessionRole, setSessionRole] = useState<UserRole>(actualRole);
+  const [sessionRole, setSessionRole] = useState<UserRole>(role);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegisterGym, setShowRegisterGym] = useState(false); 
   const [minSplashTimeElapsed, setMinSplashTimeElapsed] = useState(false);
@@ -81,9 +78,9 @@ const App: React.FC = () => {
   
   const [history, setHistory] = useState<Page[]>(() => {
       if (isStudioMode) return [Page.Home];
-      if (actualRole === 'systemowner') return [Page.SystemOwner];
-      if (actualRole === 'organizationadmin') return [Page.SuperAdmin];
-      if (actualRole === 'coach') return [Page.Coach];
+      if (role === 'systemowner') return [Page.SystemOwner];
+      if (role === 'organizationadmin') return [Page.SuperAdmin];
+      if (role === 'coach') return [Page.Coach];
       return [Page.MemberProfile];
   });
 
@@ -98,19 +95,19 @@ const App: React.FC = () => {
   }, [page]);
 
   const showWelcomePaywall = useMemo(() => {
-      if (!currentUser || actualRole !== 'organizationadmin' || isStudioMode) return false;
+      if (!currentUser || role !== 'organizationadmin' || isStudioMode) return false;
       return selectedOrganization?.systemFeePaid === false;
-  }, [actualRole, selectedOrganization?.systemFeePaid, isStudioMode, currentUser]);
+  }, [role, selectedOrganization?.systemFeePaid, isStudioMode, currentUser]);
 
   const [optimisticSubActive, setOptimisticSubActive] = useState(() => {
       return sessionStorage.getItem('optimisticSubActive') === 'true';
   });
 
-const hasActiveSubscription = useMemo(() => {
-      if (sessionRole === 'systemowner' || sessionRole === 'organizationadmin' || sessionRole === 'coach') return true;
+  const hasActiveSubscription = useMemo(() => {
+      if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
       if (userData?.subscriptionStatus === 'active' || optimisticSubActive) return true;
       return false;
-  }, [sessionRole, userData?.subscriptionStatus, optimisticSubActive]);
+  }, [role, userData?.subscriptionStatus, optimisticSubActive]);
 
   const showPaywall = currentUser && !isStudioMode && !hasActiveSubscription && !showWelcomePaywall;
   const showPendingCoach = currentUser && !isStudioMode && userData?.status === 'pending_coach';
@@ -118,10 +115,9 @@ const hasActiveSubscription = useMemo(() => {
   
   const isOrgMismatch = useMemo(() => {
       if (!currentUser || !userData?.organizationId || !selectedOrganization) return false;
-      if (actualRole === 'systemowner') return false;
+      if (role === 'systemowner') return false;
       return userData.organizationId !== selectedOrganization.id;
-  }, [userData?.organizationId, selectedOrganization?.id, currentUser, actualRole]);
-  
+  }, [userData?.organizationId, selectedOrganization?.id, currentUser, role]);
   const [pushToast, setPushToast] = useState<{ message: string, isVisible: boolean }>({ message: '', isVisible: false });
 
   // Push notification foreground listener
@@ -136,25 +132,24 @@ const hasActiveSubscription = useMemo(() => {
   }, []);
 
   useEffect(() => {
-    if (!authLoading && currentUser) {
+    if (!authLoading && !isStudioMode && currentUser) {
       const isAtInitialPage = history.length === 1;
       const currentPage = history[history.length - 1];
+      
+      // Use userData.role directly to avoid race conditions with impersonation state context
+      const actualRole = userData?.role || role;
 
-      if (isStudioMode && currentPage !== Page.Home && isAtInitialPage) {
-        setHistory([Page.Home]);
-      } else if (!isStudioMode) {
-          if (actualRole === 'systemowner' && currentPage !== Page.SystemOwner && isAtInitialPage) {
-            setHistory([Page.SystemOwner]);
-          } else if (actualRole === 'organizationadmin' && currentPage !== Page.SuperAdmin && isAtInitialPage) {
-            setHistory([Page.SuperAdmin]);
-          } else if (actualRole === 'coach' && currentPage !== Page.Coach && isAtInitialPage) {
-            setHistory([Page.Coach]);
-          } else if (actualRole === 'member' && currentPage !== Page.Home && isAtInitialPage) {
-            setHistory([Page.Home]);
-          }
+      if (actualRole === 'systemowner' && currentPage !== Page.SystemOwner && isAtInitialPage) {
+        setHistory([Page.SystemOwner]);
+      } else if (actualRole === 'organizationadmin' && currentPage !== Page.SuperAdmin && isAtInitialPage) {
+        setHistory([Page.SuperAdmin]);
+      } else if (actualRole === 'coach' && currentPage !== Page.Coach && isAtInitialPage) {
+        setHistory([Page.Coach]);
+      } else if (actualRole === 'member' && currentPage !== Page.Home && isAtInitialPage) {
+        setHistory([Page.Home]); // Changed back to Home to prevent trapping users in MemberProfile
       }
     }
-  }, [actualRole, authLoading, isStudioMode, history.length, currentUser]);
+  }, [role, userData, authLoading, isStudioMode, history.length, currentUser]);
 
   const [activeBlock, setActiveBlock] = useState<WorkoutBlock | null>(null);
   const lastLocalNavigationRef = useRef<number>(0);
@@ -392,8 +387,8 @@ const hasActiveSubscription = useMemo(() => {
   const isInfoBannerVisible = (page === Page.Home || isScreensaverActive) && activeInfoMessages.length > 0;
 
   useEffect(() => {
-    setSessionRole(actualRole);
-  }, [actualRole]);
+    setSessionRole(role);
+  }, [role]);
 
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
@@ -413,6 +408,8 @@ const hasActiveSubscription = useMemo(() => {
     else root.style.removeProperty('--color-primary');
   }, [selectedOrganization]);
 
+
+
   const handleBack = useCallback(() => {
     if (customBackHandlerRef.current) {
       customBackHandlerRef.current();
@@ -425,7 +422,7 @@ const hasActiveSubscription = useMemo(() => {
     const newHistory = history.slice(0, -1);
     const targetPage = newHistory[newHistory.length - 1];
     
-    if (currentPage === Page.Coach && actualRole === 'member') {
+    if (currentPage === Page.Coach && role === 'member') {
         setSessionRole('member');
     }
     
@@ -446,7 +443,7 @@ const hasActiveSubscription = useMemo(() => {
     }
     
     setHistory(newHistory);
-  }, [history, actualRole, isImpersonating, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock]);
+  }, [history, role, isImpersonating, setActiveWorkout, isPickingForLog, isStudioMode, selectedOrganization, selectedStudio, activeWorkout, activeBlock]);;
 
   const handleMemberProfileRequest = () => {
       if (isStudioMode) {
@@ -1052,7 +1049,7 @@ const hasActiveSubscription = useMemo(() => {
   const isAdminDashboardMode = page === Page.SuperAdmin || page === Page.SystemOwner;
   const paddingClass = (isFullScreenPage || isAdminDashboardMode) ? '' : 'p-4 sm:p-6 lg:p-8';
   
-  const isAdminOrCoach = actualRole === 'systemowner' || actualRole === 'organizationadmin' || actualRole === 'coach';
+  const isAdminOrCoach = role === 'systemowner' || role === 'organizationadmin' || role === 'coach';
   const isMemberFacingPage = [Page.Home, Page.WorkoutDetail, Page.SavedWorkouts, Page.MemberProfile, Page.WorkoutList, Page.WorkoutGamesHub].includes(page);
   const isAdminFacingPage = [Page.Coach, Page.SuperAdmin, Page.SystemOwner, Page.AdminAnalytics, Page.MemberRegistry].includes(page);
 
@@ -1183,7 +1180,7 @@ const hasActiveSubscription = useMemo(() => {
             isVisible={isTimerHeaderVisible}
             activeCustomPageTitle={page === Page.CustomContent ? activeCustomPage?.title : undefined}
             onSignOut={isStudioMode ? undefined : signOut}
-            role={actualRole}
+            role={role}
             historyLength={history.length}
             showClock={isStudioMode && (page === Page.WorkoutDetail)}
             hideBackButton={isBackButtonHidden}
@@ -1521,19 +1518,6 @@ const hasActiveSubscription = useMemo(() => {
        )}
 
        <PWAInstallPrompt />
-
-       {isImpersonating && (
-        <div className="fixed top-6 right-6 z-[100] sm:bottom-6 sm:top-auto sm:right-6">
-           <button 
-             onClick={() => {
-                 stopImpersonation();
-             }} 
-             className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl px-4 py-2 sm:px-6 sm:py-3 rounded-full text-sm sm:text-base font-bold flex items-center gap-2 border-2 border-white dark:border-gray-800 transition-transform hover:scale-105 animate-fade-in"
-           >
-             <span>Avbryt förhandsvisning</span>
-           </button>
-        </div>
-      )}
     </div>
   );
 }
