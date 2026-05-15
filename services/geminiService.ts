@@ -57,6 +57,37 @@ const callGeminiProxy = async (model: string, contents: any, config?: any) => {
     return response.data;
 };
 
+// --- BILD-KOMPRESSOR (Förhindrar 10MB-kraschar i Firebase) ---
+const compressImage = async (base64Str: string, maxWidth = 1024): Promise<string> => {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            // Minska storleken om den är för stor
+            if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(img, 0, 0, width, height);
+                // Konvertera till JPEG med 70% kvalitet (Krymper storleken enormt!)
+                resolve(canvas.toDataURL('image/jpeg', 0.7));
+            } else {
+                resolve(base64Str); // Fallback om något går snett
+            }
+        };
+        // Se till att strängen har rätt format för att kunna laddas
+        img.src = base64Str.startsWith('data:') ? base64Str : `data:image/png;base64,${base64Str}`;
+    });
+};
+
 // --- SCHEMAS ---
 
 const workoutSchema = {
@@ -413,7 +444,8 @@ export async function enhancePageWithAI(content: string): Promise<string> {
 // --- VISION & IMAGE HANDLERS (Säkrad via Proxy) ---
 
 export async function parseWorkoutFromImage(base64Image: string, additionalText?: string, isDraft: boolean = false, availableExercises: string[] = []): Promise<Workout> {
-    const cleanBase64 = base64Image.includes('base64,') ? base64Image.split('base64,')[1] : base64Image;
+    const compressedImage = await compressImage(base64Image);
+    const cleanBase64 = compressedImage.includes('base64,') ? compressedImage.split('base64,')[1] : compressedImage;
 
     const contents = [
         {
@@ -437,6 +469,7 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
 }
 
 export async function beautifyDrawing(base64Image: string, width: number, height: number): Promise<any[]> {
+    const compressedImage = await compressImage(base64Image);
     const prompt = `Analysera denna handritade whiteboard-bild. Identifiera former (rutor, cirklar), text och pilar. 
     Returnera en JSON-array med objekt. Varje objekt måste ha:
     - type: "rect", "circle", "text" eller "arrow"
@@ -451,7 +484,7 @@ export async function beautifyDrawing(base64Image: string, width: number, height
     
     Returnera ENDAST JSON-arrayen.`;
 
-    const cleanBase64 = base64Image.includes('base64,') ? base64Image.split('base64,')[1] : base64Image;
+    const cleanBase64 = compressedImage.includes('base64,') ? compressedImage.split('base64,')[1] : compressedImage;
 
     const contents = [
         {
@@ -525,7 +558,8 @@ export async function generateCarouselImage(prompt: string): Promise<string> {
 }
 
 export async function interpretHandwriting(base64Image: string): Promise<string> {
-    const cleanBase64 = base64Image.includes('base64,') ? base64Image.split('base64,')[1] : base64Image;
+    const compressedImage = await compressImage(base64Image);
+    const cleanBase64 = compressedImage.includes('base64,') ? compressedImage.split('base64,')[1] : compressedImage;
     const contents = [
         {
             role: 'user',
