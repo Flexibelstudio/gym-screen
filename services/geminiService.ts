@@ -56,7 +56,7 @@ const callGeminiProxy = async (model: string, contents: any, config?: any) => {
     return response.data;
 };
 
-// --- BILD-KOMPRESSOR (Krymper både bredd OCH höjd) ---
+// --- BILD-KOMPRESSOR ---
 const compressImage = async (base64Str: string, maxDim = 1024): Promise<string> => {
     return new Promise((resolve, reject) => {
         if (!base64Str || base64Str.trim() === '') return resolve("");
@@ -69,7 +69,6 @@ const compressImage = async (base64Str: string, maxDim = 1024): Promise<string> 
                 let width = img.width;
                 let height = img.height;
 
-                // FIX: Kollar den längsta sidan för att förhindra långa skärmdumpar (som ger Error 400)
                 if (width > height && width > maxDim) {
                     height = Math.round((height * maxDim) / width);
                     width = maxDim;
@@ -86,7 +85,7 @@ const compressImage = async (base64Str: string, maxDim = 1024): Promise<string> 
                     ctx.fillStyle = '#ffffff';
                     ctx.fillRect(0, 0, width, height);
                     ctx.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.7));
+                    resolve(canvas.toDataURL('image/jpeg', 0.8));
                 } else {
                     reject(new Error("Kunde inte skapa canvas-kontext."));
                 }
@@ -99,7 +98,8 @@ const compressImage = async (base64Str: string, maxDim = 1024): Promise<string> 
             reject(new Error("Bilden kunde inte läsas. Prova att ladda upp i ett annat format."));
         };
 
-        img.src = base64Str.startsWith('data:') ? base64Str : `data:image/png;base64,${base64Str}`;
+        const prefix = base64Str.startsWith('data:') ? '' : 'data:image/jpeg;base64,';
+        img.src = `${prefix}${base64Str}`;
     });
 };
 
@@ -477,42 +477,24 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
     const compressedImage = await compressImage(base64Image);
     const cleanBase64 = compressedImage.includes(',') ? compressedImage.split(',')[1] : compressedImage;
 
-    const basePrompt = Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises);
-    
-    const jsonTemplate = `{
-      "title": "Passets namn",
-      "coachTips": "Ett peppande tips",
-      "aiCoachSummary": "Kort sammanfattning",
-      "blocks": [
-        {
-          "title": "Blockets namn",
-          "tag": "Styrka",
-          "setupDescription": "Beskrivning av upplägg",
-          "followMe": false,
-          "aiCoachNotes": "Coachnoteringar",
-          "aiMagicPenSuggestions": [],
-          "settings": { "mode": "Standard", "workTime": 0, "restTime": 0, "rounds": 1 },
-          "exercises": [
-            { "name": "Övningsnamn", "reps": "10", "description": "Tekniktips" }
-          ]
-        }
-      ]
-    }`;
-
-    const enforcedPrompt = basePrompt + "\n\nVIKTIGT: Du MÅSTE svara ENDAST med ett exakt JSON-objekt. Inga markdown-taggar eller annan text. Formatet MÅSTE se ut exakt så här:\n" + jsonTemplate;
-
     const contents = [
         {
             role: 'user',
             parts: [
                 { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-                { text: enforcedPrompt }
+                { text: Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises) }
             ]
         }
     ];
 
-    // FIX: Skickar iväg UTAN config för att undvika Googles API-bugg för 400 Bad Request
-    const data = await callGeminiProxy(VISION_MODEL, contents);
+    // FIX: Exakt så här såg din kod ut när den låg i frontend! 
+    const config = {
+        systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,
+        responseMimeType: "application/json",
+        responseSchema: workoutSchema,
+    };
+
+    const data = await callGeminiProxy(VISION_MODEL, contents, config);
     let textResponse = data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
 
     try {
@@ -545,14 +527,7 @@ export async function beautifyDrawing(base64Image: string, width: number, height
     - endX: Endast för pilar, X-koordinat för slutpunkten (där spetsen är).
     - endY: Endast för pilar, Y-koordinat för slutpunkten (där spetsen är).
     - text: Om det är text, eller text inuti en form. Annars tom sträng.
-    - color: Hex-färgkod som matchar ritningens färg. Standard är "#FFFFFF".
-    
-    VIKTIGT: Svara ENDAST med ett giltigt JSON-objekt i detta format, inget annat skitsnack:
-    {
-      "shapes": [
-        { "type": "rect", "x": 10, "y": 10, "width": 100, "height": 100, "text": "Exempel", "color": "#FFFFFF" }
-      ]
-    }`;
+    - color: Hex-färgkod som matchar ritningens färg. Standard är "#FFFFFF".`;
 
     const cleanBase64 = compressedImage.includes(',') ? compressedImage.split(',')[1] : compressedImage;
 
@@ -566,8 +541,34 @@ export async function beautifyDrawing(base64Image: string, width: number, height
         }
     ];
 
-    // FIX: Skickar iväg UTAN config
-    const data = await callGeminiProxy(VISION_MODEL, contents);
+    // FIX: Återställt till strikt Type.OBJECT schema, samma vinnande koncept!
+    const config = {
+        responseMimeType: "application/json",
+        responseSchema: {
+            type: Type.OBJECT,
+            required: ["shapes"],
+            properties: {
+                shapes: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            type: { type: Type.STRING, enum: ["rect", "circle", "text", "arrow"] },
+                            x: { type: Type.NUMBER },
+                            y: { type: Type.NUMBER },
+                            width: { type: Type.NUMBER },
+                            height: { type: Type.NUMBER },
+                            text: { type: Type.STRING },
+                            color: { type: Type.STRING }
+                        },
+                        required: ["type", "x", "y", "width", "height", "color"]
+                    }
+                }
+            }
+        }
+    };
+
+    const data = await callGeminiProxy(VISION_MODEL, contents, config);
     let textResponse = data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
 
     try {
