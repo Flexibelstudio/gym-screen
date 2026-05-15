@@ -56,8 +56,8 @@ const callGeminiProxy = async (model: string, contents: any, config?: any) => {
     return response.data;
 };
 
-// --- BILD-KOMPRESSOR ---
-const compressImage = async (base64Str: string, maxWidth = 800): Promise<string> => {
+// --- BILD-KOMPRESSOR (Krymper både bredd OCH höjd) ---
+const compressImage = async (base64Str: string, maxDim = 1024): Promise<string> => {
     return new Promise((resolve, reject) => {
         if (!base64Str || base64Str.trim() === '') return resolve("");
 
@@ -69,9 +69,13 @@ const compressImage = async (base64Str: string, maxWidth = 800): Promise<string>
                 let width = img.width;
                 let height = img.height;
 
-                if (width > maxWidth) {
-                    height = Math.round((height * maxWidth) / width);
-                    width = maxWidth;
+                // FIX: Kollar den längsta sidan för att förhindra långa skärmdumpar (som ger Error 400)
+                if (width > height && width > maxDim) {
+                    height = Math.round((height * maxDim) / width);
+                    width = maxDim;
+                } else if (height > maxDim) {
+                    width = Math.round((width * maxDim) / height);
+                    height = maxDim;
                 }
 
                 canvas.width = width;
@@ -460,7 +464,7 @@ export async function enhancePageWithAI(content: string): Promise<string> {
     return data.text.trim();
 }
 
-// --- VISION & IMAGE HANDLERS (Säkrad via Proxy, utan config.schema för att undvika Error 400) ---
+// --- VISION & IMAGE HANDLERS (Säkrad via Proxy) ---
 
 export async function parseWorkoutFromImage(base64Image: string, additionalText?: string, isDraft: boolean = false, availableExercises: string[] = []): Promise<Workout> {
     if (!base64Image || base64Image.trim() === '') {
@@ -475,7 +479,6 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
 
     const basePrompt = Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises);
     
-    // FIX: Tvingar in strukturen som en ren och enkel textmall istället för att skicka in en kraschande JSON-sträng
     const jsonTemplate = `{
       "title": "Passets namn",
       "coachTips": "Ett peppande tips",
@@ -508,12 +511,8 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
         }
     ];
 
-    const config = {
-        responseMimeType: "application/json",
-        // INGEN systemInstruction eller responseSchema här för bilder, Google kraschar av det.
-    };
-
-    const data = await callGeminiProxy(VISION_MODEL, contents, config);
+    // FIX: Skickar iväg UTAN config för att undvika Googles API-bugg för 400 Bad Request
+    const data = await callGeminiProxy(VISION_MODEL, contents);
     let textResponse = data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
 
     try {
@@ -527,7 +526,7 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
         return transformWorkout(parsedData, '', isDraft);
     } catch (e) {
         console.error("Fel vid tolkning av AI-svar:", textResponse, e);
-        return transformWorkout({ blocks: [] }, '', isDraft); // Fail safe!
+        return transformWorkout({ blocks: [] }, '', isDraft);
     }
 }
 
@@ -567,11 +566,8 @@ export async function beautifyDrawing(base64Image: string, width: number, height
         }
     ];
 
-    const config = {
-        responseMimeType: "application/json",
-    };
-
-    const data = await callGeminiProxy(VISION_MODEL, contents, config);
+    // FIX: Skickar iväg UTAN config
+    const data = await callGeminiProxy(VISION_MODEL, contents);
     let textResponse = data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
 
     try {
