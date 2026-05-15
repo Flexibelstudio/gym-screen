@@ -57,19 +57,20 @@ const callGeminiProxy = async (model: string, contents: any, config?: any) => {
     return response.data;
 };
 
-// --- BILD-KOMPRESSOR (Skottsäker version) ---
-const compressImage = async (base64Str: string, maxWidth = 800): Promise<string> => {
-    return new Promise((resolve) => {
+// --- BILD-KOMPRESSOR (Skottsäker version med vit bakgrund) ---
+const compressImage = async (base64Str: string, maxWidth = 1000): Promise<string> => {
+    return new Promise((resolve, reject) => {
         if (!base64Str || base64Str.trim() === '') return resolve("");
 
         const img = new Image();
-        
+
         img.onload = () => {
             try {
                 const canvas = document.createElement('canvas');
                 let width = img.width;
                 let height = img.height;
 
+                // Förminska proportionerligt om bilden är för bred
                 if (width > maxWidth) {
                     height = Math.round((height * maxWidth) / width);
                     width = maxWidth;
@@ -78,23 +79,33 @@ const compressImage = async (base64Str: string, maxWidth = 800): Promise<string>
                 canvas.width = width;
                 canvas.height = height;
                 const ctx = canvas.getContext('2d');
+                
                 if (ctx) {
+                    // FIX: Måla canvasen vit först! 
+                    // Transparenta whiteboard-ritningar blir annars svarta när de görs till JPEG.
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, width, height);
+                    
+                    // Rita bilden ovanpå den vita bakgrunden
                     ctx.drawImage(img, 0, 0, width, height);
-                    resolve(canvas.toDataURL('image/jpeg', 0.6));
+                    
+                    // Komprimera till JPEG med 80% kvalitet
+                    resolve(canvas.toDataURL('image/jpeg', 0.8));
                 } else {
-                    resolve(base64Str);
+                    reject(new Error("Kunde inte skapa canvas-kontext."));
                 }
             } catch (e) {
-                resolve(base64Str);
+                reject(new Error("Ett fel uppstod vid bildkomprimeringen."));
             }
         };
 
         img.onerror = () => {
-            resolve(base64Str); // Vid problem, t.ex. konstigt format, returnera originalet
+            // FIX: Skicka aldrig vidare originalsträngen om inläsningen misslyckas. Det orsakar 400 Bad Request (10MB limit).
+            reject(new Error("Bilden kunde inte läsas. Prova att ladda upp i ett annat format (t.ex. JPEG/PNG) eller en mindre fil."));
         };
-        
-        // Säkerställ att bilden kan laddas
-        img.src = base64Str.includes(',') ? base64Str : `data:image/jpeg;base64,${base64Str}`;
+
+        // Hantera format och ladda in bilden
+        img.src = base64Str.startsWith('data:') ? base64Str : `data:image/png;base64,${base64Str}`;
     });
 };
 
@@ -454,7 +465,7 @@ export async function enhancePageWithAI(content: string): Promise<string> {
 // --- VISION & IMAGE HANDLERS (Säkrad via Proxy) ---
 
 export async function parseWorkoutFromImage(base64Image: string, additionalText?: string, isDraft: boolean = false, availableExercises: string[] = []): Promise<Workout> {
-    // Om ingen bild skickas med (användaren skrev bara text), skicka till text-funktionen direkt
+    // Om användaren skriver text men struntar i att rita/ladda upp
     if (!base64Image || base64Image.trim() === '') {
         if (additionalText) {
             return parseWorkoutFromText(additionalText, availableExercises);
