@@ -269,7 +269,6 @@ async function _callGeminiJSON<T>(modelName: string, prompt: string, schema: any
     }
 }
 
-// FIX: Krockkuddar för map() är inlagda (data.blocks || []) så appen ALDRIG kraschar.
 const transformWorkout = (data: any, orgId: string, isDraft: boolean = false): Workout => ({
     ...data,
     id: data.id || `ai-${Date.now()}`,
@@ -474,9 +473,30 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
     const compressedImage = await compressImage(base64Image);
     const cleanBase64 = compressedImage.includes(',') ? compressedImage.split(',')[1] : compressedImage;
 
-    // FIX: Vi tvingar in schemat som TEXT i prompten istället för i config-objektet.
     const basePrompt = Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises);
-    const enforcedPrompt = basePrompt + "\n\nVIKTIGT: Du MÅSTE svara med ett exakt JSON-objekt. Objektet måste innehålla en array som heter 'blocks'. Följ detta schema exakt:\n" + JSON.stringify(workoutSchema);
+    
+    // FIX: Tvingar in strukturen som en ren och enkel textmall istället för att skicka in en kraschande JSON-sträng
+    const jsonTemplate = `{
+      "title": "Passets namn",
+      "coachTips": "Ett peppande tips",
+      "aiCoachSummary": "Kort sammanfattning",
+      "blocks": [
+        {
+          "title": "Blockets namn",
+          "tag": "Styrka",
+          "setupDescription": "Beskrivning av upplägg",
+          "followMe": false,
+          "aiCoachNotes": "Coachnoteringar",
+          "aiMagicPenSuggestions": [],
+          "settings": { "mode": "Standard", "workTime": 0, "restTime": 0, "rounds": 1 },
+          "exercises": [
+            { "name": "Övningsnamn", "reps": "10", "description": "Tekniktips" }
+          ]
+        }
+      ]
+    }`;
+
+    const enforcedPrompt = basePrompt + "\n\nVIKTIGT: Du MÅSTE svara ENDAST med ett exakt JSON-objekt. Inga markdown-taggar eller annan text. Formatet MÅSTE se ut exakt så här:\n" + jsonTemplate;
 
     const contents = [
         {
@@ -489,16 +509,14 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
     ];
 
     const config = {
-        systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,
         responseMimeType: "application/json",
-        // INGEN responseSchema här = Ingen 400 Bad Request från Google!
+        // INGEN systemInstruction eller responseSchema här för bilder, Google kraschar av det.
     };
 
     const data = await callGeminiProxy(VISION_MODEL, contents, config);
     let textResponse = data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
 
     try {
-        // AI:n returnerar ibland Markdown trots application/json, så vi städar den:
         let text = textResponse.trim();
         if (text.startsWith("```json")) text = text.replace(/^```json\n?/, "").replace(/\n?```$/, "");
         else if (text.startsWith("```")) text = text.replace(/^```\n?/, "").replace(/\n?```$/, "");
@@ -518,7 +536,6 @@ export async function beautifyDrawing(base64Image: string, width: number, height
     
     const compressedImage = await compressImage(base64Image);
     
-    // FIX: Tvinga JSON-strukturen direkt i prompten.
     const prompt = `Analysera denna handritade whiteboard-bild. Identifiera former (rutor, cirklar), text och pilar. 
     Returnera ett JSON-objekt med en array "shapes" som innehåller resultatet. Varje objekt i arrayen måste ha:
     - type: "rect", "circle", "text" eller "arrow"
@@ -552,7 +569,6 @@ export async function beautifyDrawing(base64Image: string, width: number, height
 
     const config = {
         responseMimeType: "application/json",
-        // INGEN responseSchema här heller.
     };
 
     const data = await callGeminiProxy(VISION_MODEL, contents, config);
