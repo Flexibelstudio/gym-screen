@@ -103,7 +103,7 @@ const compressImage = async (base64Str: string, maxDim = 1024): Promise<string> 
     });
 };
 
-// --- SCHEMAS ---
+// --- SCHEMAS (Putsade från Enums för att hindra Backend 400 Bad Request) ---
 
 const workoutSchema = {
     type: Type.OBJECT,
@@ -119,7 +119,7 @@ const workoutSchema = {
                 required: ['title', 'tag', 'setupDescription', 'followMe', 'settings', 'exercises'],
                 properties: {
                     title: { type: Type.STRING },
-                    tag: { type: Type.STRING, enum: ["Styrka", "Kondition", "Rörlighet", "Teknik", "Core/Bål", "Balans", "Uppvärmning"] },
+                    tag: { type: Type.STRING }, // FIX: Enum borttaget för stabilitet
                     setupDescription: { type: Type.STRING },
                     followMe: { type: Type.BOOLEAN },
                     aiCoachNotes: { type: Type.STRING },
@@ -128,7 +128,7 @@ const workoutSchema = {
                         type: Type.OBJECT,
                         required: ['mode', 'workTime', 'restTime', 'rounds'],
                         properties: {
-                            mode: { type: Type.STRING, enum: Object.values(TimerMode) },
+                            mode: { type: Type.STRING }, // FIX: Enum borttaget för stabilitet
                             workTime: { type: Type.NUMBER },
                             restTime: { type: Type.NUMBER },
                             rounds: { type: Type.NUMBER },
@@ -160,7 +160,7 @@ const singleInsightSchema = {
             type: Type.OBJECT,
             required: ['status', 'message'],
             properties: {
-                status: { type: Type.STRING, enum: ['high', 'moderate', 'low'] },
+                status: { type: Type.STRING }, // FIX: Enum borttaget
                 message: { type: Type.STRING }
             }
         },
@@ -477,21 +477,19 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
     const compressedImage = await compressImage(base64Image);
     const cleanBase64 = compressedImage.includes(',') ? compressedImage.split(',')[1] : compressedImage;
 
-    // FIX: Vi lägger SystemInstruction i prompten istället för config, eftersom Google API kraschar med 400 när man kombinerar Bild + Schema + SystemInstruction i backend-anrop.
-    const combinedPrompt = `${Prompts.SYSTEM_COACH_CONTEXT}\n\n${Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises)}`;
-
     const contents = [
         {
             role: 'user',
             parts: [
                 { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-                { text: combinedPrompt }
+                { text: Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises) }
             ]
         }
     ];
 
-    // FIX: Vi har kvar responseSchema för att tvinga fram perfekt JSON så appen inte kraschar! (Bara systemInstruction är borta).
+    // FIX: Exakt som din ursprungliga, men med det städade (enum-fria) schemat!
     const config = {
+        systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,
         responseMimeType: "application/json",
         responseSchema: workoutSchema,
     };
@@ -554,7 +552,7 @@ export async function beautifyDrawing(base64Image: string, width: number, height
                     items: {
                         type: Type.OBJECT,
                         properties: {
-                            type: { type: Type.STRING, enum: ["rect", "circle", "text", "arrow"] },
+                            type: { type: Type.STRING }, // FIX: Enum borttaget
                             x: { type: Type.NUMBER },
                             y: { type: Type.NUMBER },
                             width: { type: Type.NUMBER },
