@@ -5,11 +5,11 @@ import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise
 import { getExerciseBank } from './firebaseService';
 import * as Prompts from '../data/aiPrompts';
 
-// MODELLER - Stabilt läge för Kostloggens lånade nyckel
-const TEXT_MODEL = 'gemini-1.5-flash'; 
-const VISION_MODEL = 'gemini-1.5-flash';
-const IMAGE_GEN_MODEL = 'imagen-3.0-generate-001';
-const PRO_MODEL = 'gemini-1.5-pro';
+// MODELLER
+const TEXT_MODEL = 'gemini-3-flash-preview'; 
+const VISION_MODEL = 'gemini-3-flash-preview';
+const IMAGE_GEN_MODEL = 'gemini-2.5-flash-image';
+const PRO_MODEL = 'gemini-3-pro-preview';
 
 // TYPER
 
@@ -58,7 +58,7 @@ const callGeminiProxy = async (model: string, contents: any, config?: any) => {
 };
 
 // --- BILD-KOMPRESSOR (Skottsäker version med vit bakgrund) ---
-const compressImage = async (base64Str: string, maxWidth = 1000): Promise<string> => {
+const compressImage = async (base64Str: string, maxWidth = 800): Promise<string> => {
     return new Promise((resolve, reject) => {
         if (!base64Str || base64Str.trim() === '') return resolve("");
 
@@ -70,7 +70,6 @@ const compressImage = async (base64Str: string, maxWidth = 1000): Promise<string
                 let width = img.width;
                 let height = img.height;
 
-                // Förminska proportionerligt om bilden är för bred
                 if (width > maxWidth) {
                     height = Math.round((height * maxWidth) / width);
                     width = maxWidth;
@@ -81,16 +80,10 @@ const compressImage = async (base64Str: string, maxWidth = 1000): Promise<string
                 const ctx = canvas.getContext('2d');
                 
                 if (ctx) {
-                    // FIX: Måla canvasen vit först! 
-                    // Transparenta whiteboard-ritningar blir annars svarta när de görs till JPEG.
                     ctx.fillStyle = '#ffffff';
                     ctx.fillRect(0, 0, width, height);
-                    
-                    // Rita bilden ovanpå den vita bakgrunden
                     ctx.drawImage(img, 0, 0, width, height);
-                    
-                    // Komprimera till JPEG med 80% kvalitet
-                    resolve(canvas.toDataURL('image/jpeg', 0.8));
+                    resolve(canvas.toDataURL('image/jpeg', 0.7));
                 } else {
                     reject(new Error("Kunde inte skapa canvas-kontext."));
                 }
@@ -100,11 +93,9 @@ const compressImage = async (base64Str: string, maxWidth = 1000): Promise<string
         };
 
         img.onerror = () => {
-            // FIX: Skicka aldrig vidare originalsträngen om inläsningen misslyckas. Det orsakar 400 Bad Request (10MB limit).
-            reject(new Error("Bilden kunde inte läsas. Prova att ladda upp i ett annat format (t.ex. JPEG/PNG) eller en mindre fil."));
+            reject(new Error("Bilden kunde inte läsas. Prova att ladda upp i ett annat format."));
         };
 
-        // Hantera format och ladda in bilden
         img.src = base64Str.startsWith('data:') ? base64Str : `data:image/png;base64,${base64Str}`;
     });
 };
@@ -237,15 +228,22 @@ const diplomaSchema = {
     }
 };
 
+// FIX: Root måste vara OBJECT, inte ARRAY.
 const exerciseBankSchema = {
-    type: Type.ARRAY,
-    items: {
-        type: Type.OBJECT,
-        required: ['name', 'description', 'tags'],
-        properties: {
-            name: { type: Type.STRING },
-            description: { type: Type.STRING },
-            tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+    type: Type.OBJECT,
+    required: ['exercises'],
+    properties: {
+        exercises: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                required: ['name', 'description', 'tags'],
+                properties: {
+                    name: { type: Type.STRING },
+                    description: { type: Type.STRING },
+                    tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+                }
+            }
         }
     }
 };
@@ -454,7 +452,8 @@ export async function generateExerciseDescription(name: string): Promise<string>
 }
 
 export async function generateExerciseSuggestions(prompt: string): Promise<Partial<BankExercise>[]> {
-    return await _callGeminiJSON<any[]>(TEXT_MODEL, `Föreslå övningar för: ${prompt}`, exerciseBankSchema);
+    const data = await _callGeminiJSON<any>(TEXT_MODEL, `Föreslå övningar för: ${prompt}. Returnera ett JSON-objekt med en array "exercises".`, exerciseBankSchema);
+    return data.exercises || [];
 }
 
 export async function enhancePageWithAI(content: string): Promise<string> {
@@ -465,7 +464,6 @@ export async function enhancePageWithAI(content: string): Promise<string> {
 // --- VISION & IMAGE HANDLERS (Säkrad via Proxy) ---
 
 export async function parseWorkoutFromImage(base64Image: string, additionalText?: string, isDraft: boolean = false, availableExercises: string[] = []): Promise<Workout> {
-    // Om användaren skriver text men struntar i att rita/ladda upp
     if (!base64Image || base64Image.trim() === '') {
         if (additionalText) {
             return parseWorkoutFromText(additionalText, availableExercises);
@@ -501,8 +499,10 @@ export async function beautifyDrawing(base64Image: string, width: number, height
     if (!base64Image || base64Image.trim() === '') return [];
     
     const compressedImage = await compressImage(base64Image);
+    
+    // FIX: Anpassade prompten för det nya godkända schemat
     const prompt = `Analysera denna handritade whiteboard-bild. Identifiera former (rutor, cirklar), text och pilar. 
-    Returnera en JSON-array med objekt. Varje objekt måste ha:
+    Returnera ett JSON-objekt med en array "shapes" som innehåller resultatet. Varje objekt i arrayen måste ha:
     - type: "rect", "circle", "text" eller "arrow"
     - x: X-koordinat i pixlar (bilden är ${width}x${height}). För pilar är detta startpunkten.
     - y: Y-koordinat i pixlar. För pilar är detta startpunkten.
@@ -513,7 +513,7 @@ export async function beautifyDrawing(base64Image: string, width: number, height
     - text: Om det är text, eller text inuti en form. Annars tom sträng. Använd \\n för radbrytningar om texten är på flera rader.
     - color: Hex-färgkod som matchar ritningens färg (t.ex. "#FFFFFF", "#FACC15", "#3B82F6", "#4ADE80", "#EF4444"). Standard är "#FFFFFF".
     
-    Returnera ENDAST JSON-arrayen.`;
+    Returnera ENDAST JSON-objektet.`;
 
     const cleanBase64 = compressedImage.includes(',') ? compressedImage.split(',')[1] : compressedImage;
 
@@ -527,28 +527,35 @@ export async function beautifyDrawing(base64Image: string, width: number, height
         }
     ];
 
+    // FIX: Roten måste vara Type.OBJECT för att undvika Error 400 från Google.
     const config = {
         responseMimeType: "application/json",
         responseSchema: {
-            type: Type.ARRAY,
-            items: {
-                type: Type.OBJECT,
-                properties: {
-                    type: { type: Type.STRING, enum: ["rect", "circle", "text", "arrow"] },
-                    x: { type: Type.NUMBER },
-                    y: { type: Type.NUMBER },
-                    width: { type: Type.NUMBER },
-                    height: { type: Type.NUMBER },
-                    text: { type: Type.STRING },
-                    color: { type: Type.STRING }
-                },
-                required: ["type", "x", "y", "width", "height", "color"]
+            type: Type.OBJECT,
+            required: ["shapes"],
+            properties: {
+                shapes: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            type: { type: Type.STRING, enum: ["rect", "circle", "text", "arrow"] },
+                            x: { type: Type.NUMBER },
+                            y: { type: Type.NUMBER },
+                            width: { type: Type.NUMBER },
+                            height: { type: Type.NUMBER },
+                            text: { type: Type.STRING },
+                            color: { type: Type.STRING }
+                        },
+                        required: ["type", "x", "y", "width", "height", "color"]
+                    }
+                }
             }
         }
     };
 
     const data = await callGeminiProxy(VISION_MODEL, contents, config);
-    const textResponse = data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
+    const textResponse = data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
 
     try {
         let text = textResponse.trim();
@@ -557,7 +564,9 @@ export async function beautifyDrawing(base64Image: string, width: number, height
         } else if (text.startsWith("```")) {
             text = text.replace(/^```\n/, "").replace(/\n```$/, "");
         }
-        return JSON.parse(text);
+        
+        let parsed = JSON.parse(text);
+        return parsed.shapes || []; // Returnera shapes-arrayen från objektet
     } catch (e) {
         console.error("Failed to parse beautified drawing:", e);
         return [];
