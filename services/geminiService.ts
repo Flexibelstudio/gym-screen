@@ -57,34 +57,44 @@ const callGeminiProxy = async (model: string, contents: any, config?: any) => {
     return response.data;
 };
 
-// --- BILD-KOMPRESSOR (Förhindrar 10MB-kraschar i Firebase) ---
-const compressImage = async (base64Str: string, maxWidth = 1024): Promise<string> => {
+// --- BILD-KOMPRESSOR (Skottsäker version) ---
+const compressImage = async (base64Str: string, maxWidth = 800): Promise<string> => {
     return new Promise((resolve) => {
+        if (!base64Str || base64Str.trim() === '') return resolve("");
+
         const img = new Image();
+        
         img.onload = () => {
-            const canvas = document.createElement('canvas');
-            let width = img.width;
-            let height = img.height;
+            try {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
 
-            // Minska storleken om den är för stor
-            if (width > maxWidth) {
-                height = Math.round((height * maxWidth) / width);
-                width = maxWidth;
-            }
+                if (width > maxWidth) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                }
 
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-                ctx.drawImage(img, 0, 0, width, height);
-                // Konvertera till JPEG med 70% kvalitet (Krymper storleken enormt!)
-                resolve(canvas.toDataURL('image/jpeg', 0.7));
-            } else {
-                resolve(base64Str); // Fallback om något går snett
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                if (ctx) {
+                    ctx.drawImage(img, 0, 0, width, height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.6));
+                } else {
+                    resolve(base64Str);
+                }
+            } catch (e) {
+                resolve(base64Str);
             }
         };
-        // Se till att strängen har rätt format för att kunna laddas
-        img.src = base64Str.startsWith('data:') ? base64Str : `data:image/png;base64,${base64Str}`;
+
+        img.onerror = () => {
+            resolve(base64Str); // Vid problem, t.ex. konstigt format, returnera originalet
+        };
+        
+        // Säkerställ att bilden kan laddas
+        img.src = base64Str.includes(',') ? base64Str : `data:image/jpeg;base64,${base64Str}`;
     });
 };
 
@@ -444,8 +454,16 @@ export async function enhancePageWithAI(content: string): Promise<string> {
 // --- VISION & IMAGE HANDLERS (Säkrad via Proxy) ---
 
 export async function parseWorkoutFromImage(base64Image: string, additionalText?: string, isDraft: boolean = false, availableExercises: string[] = []): Promise<Workout> {
+    // Om ingen bild skickas med (användaren skrev bara text), skicka till text-funktionen direkt
+    if (!base64Image || base64Image.trim() === '') {
+        if (additionalText) {
+            return parseWorkoutFromText(additionalText, availableExercises);
+        }
+        throw new Error("Ingen bild eller text angavs.");
+    }
+
     const compressedImage = await compressImage(base64Image);
-    const cleanBase64 = compressedImage.includes('base64,') ? compressedImage.split('base64,')[1] : compressedImage;
+    const cleanBase64 = compressedImage.includes(',') ? compressedImage.split(',')[1] : compressedImage;
 
     const contents = [
         {
@@ -469,6 +487,8 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
 }
 
 export async function beautifyDrawing(base64Image: string, width: number, height: number): Promise<any[]> {
+    if (!base64Image || base64Image.trim() === '') return [];
+    
     const compressedImage = await compressImage(base64Image);
     const prompt = `Analysera denna handritade whiteboard-bild. Identifiera former (rutor, cirklar), text och pilar. 
     Returnera en JSON-array med objekt. Varje objekt måste ha:
@@ -484,13 +504,13 @@ export async function beautifyDrawing(base64Image: string, width: number, height
     
     Returnera ENDAST JSON-arrayen.`;
 
-    const cleanBase64 = compressedImage.includes('base64,') ? compressedImage.split('base64,')[1] : compressedImage;
+    const cleanBase64 = compressedImage.includes(',') ? compressedImage.split(',')[1] : compressedImage;
 
     const contents = [
         {
             role: 'user',
             parts: [
-                { inlineData: { mimeType: 'image/png', data: cleanBase64 } },
+                { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
                 { text: prompt }
             ]
         }
@@ -558,13 +578,15 @@ export async function generateCarouselImage(prompt: string): Promise<string> {
 }
 
 export async function interpretHandwriting(base64Image: string): Promise<string> {
+    if (!base64Image || base64Image.trim() === '') return "";
+    
     const compressedImage = await compressImage(base64Image);
-    const cleanBase64 = compressedImage.includes('base64,') ? compressedImage.split('base64,')[1] : compressedImage;
+    const cleanBase64 = compressedImage.includes(',') ? compressedImage.split(',')[1] : compressedImage;
     const contents = [
         {
             role: 'user',
             parts: [
-                { inlineData: { mimeType: 'image/png', data: cleanBase64 } },
+                { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
                 { text: "Transkribera texten i bilden exakt till svenska. Inget snack." }
             ]
         }
