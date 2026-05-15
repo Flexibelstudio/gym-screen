@@ -6,10 +6,10 @@ import { getExerciseBank } from './firebaseService';
 import * as Prompts from '../data/aiPrompts';
 
 // MODELLER
-const TEXT_MODEL = 'gemini-1.5-flash'; 
-const VISION_MODEL = 'gemini-1.5-flash';
-const IMAGE_GEN_MODEL = 'imagen-3.0-generate-001';
-const PRO_MODEL = 'gemini-1.5-pro';
+const TEXT_MODEL = 'gemini-3-flash-preview'; 
+const VISION_MODEL = 'gemini-3-flash-preview';
+const IMAGE_GEN_MODEL = 'gemini-2.5-flash-image';
+const PRO_MODEL = 'gemini-3-pro-preview';
 
 // TYPER
 
