@@ -228,7 +228,6 @@ const diplomaSchema = {
     }
 };
 
-// FIX: Root måste vara OBJECT, inte ARRAY.
 const exerciseBankSchema = {
     type: Type.OBJECT,
     required: ['exercises'],
@@ -484,10 +483,10 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
         }
     ];
 
+    // FIX: Vi tar bort responseSchema helt för att undvika 400 Bad Request från Gemini API
     const config = {
         systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,
         responseMimeType: "application/json",
-        responseSchema: workoutSchema,
     };
 
     const data = await callGeminiProxy(VISION_MODEL, contents, config);
@@ -500,7 +499,6 @@ export async function beautifyDrawing(base64Image: string, width: number, height
     
     const compressedImage = await compressImage(base64Image);
     
-    // FIX: Anpassade prompten för det nya godkända schemat
     const prompt = `Analysera denna handritade whiteboard-bild. Identifiera former (rutor, cirklar), text och pilar. 
     Returnera ett JSON-objekt med en array "shapes" som innehåller resultatet. Varje objekt i arrayen måste ha:
     - type: "rect", "circle", "text" eller "arrow"
@@ -527,31 +525,9 @@ export async function beautifyDrawing(base64Image: string, width: number, height
         }
     ];
 
-    // FIX: Roten måste vara Type.OBJECT för att undvika Error 400 från Google.
+    // FIX: Vi tar bort responseSchema helt för att undvika 400 Bad Request från Gemini API
     const config = {
         responseMimeType: "application/json",
-        responseSchema: {
-            type: Type.OBJECT,
-            required: ["shapes"],
-            properties: {
-                shapes: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            type: { type: Type.STRING, enum: ["rect", "circle", "text", "arrow"] },
-                            x: { type: Type.NUMBER },
-                            y: { type: Type.NUMBER },
-                            width: { type: Type.NUMBER },
-                            height: { type: Type.NUMBER },
-                            text: { type: Type.STRING },
-                            color: { type: Type.STRING }
-                        },
-                        required: ["type", "x", "y", "width", "height", "color"]
-                    }
-                }
-            }
-        }
     };
 
     const data = await callGeminiProxy(VISION_MODEL, contents, config);
