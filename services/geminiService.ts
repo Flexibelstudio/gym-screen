@@ -103,7 +103,7 @@ const compressImage = async (base64Str: string, maxDim = 1024): Promise<string> 
     });
 };
 
-// --- SCHEMAS (Putsade från Enums för att hindra Backend 400 Bad Request) ---
+// --- SCHEMAS ---
 
 const workoutSchema = {
     type: Type.OBJECT,
@@ -119,7 +119,7 @@ const workoutSchema = {
                 required: ['title', 'tag', 'setupDescription', 'followMe', 'settings', 'exercises'],
                 properties: {
                     title: { type: Type.STRING },
-                    tag: { type: Type.STRING }, // FIX: Enum borttaget för stabilitet
+                    tag: { type: Type.STRING }, 
                     setupDescription: { type: Type.STRING },
                     followMe: { type: Type.BOOLEAN },
                     aiCoachNotes: { type: Type.STRING },
@@ -128,7 +128,7 @@ const workoutSchema = {
                         type: Type.OBJECT,
                         required: ['mode', 'workTime', 'restTime', 'rounds'],
                         properties: {
-                            mode: { type: Type.STRING }, // FIX: Enum borttaget för stabilitet
+                            mode: { type: Type.STRING }, 
                             workTime: { type: Type.NUMBER },
                             restTime: { type: Type.NUMBER },
                             rounds: { type: Type.NUMBER },
@@ -160,7 +160,7 @@ const singleInsightSchema = {
             type: Type.OBJECT,
             required: ['status', 'message'],
             properties: {
-                status: { type: Type.STRING }, // FIX: Enum borttaget
+                status: { type: Type.STRING }, 
                 message: { type: Type.STRING }
             }
         },
@@ -477,24 +477,53 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
     const compressedImage = await compressImage(base64Image);
     const cleanBase64 = compressedImage.includes(',') ? compressedImage.split(',')[1] : compressedImage;
 
+    // BRUTAL LÖSNING: Vi bakar in hela schemat och kontexten som ren text i prompten.
+    // Inga konfigurationsobjekt kan trigga 400 Bad Request från Googles backend-validering nu.
+    const strictJSONTemplate = `
+    VIKTIGT: Du MÅSTE svara med ett giltigt JSON-objekt exakt enligt denna struktur. Returnera INGENTING annat än JSON. Inga förklaringar.
+    {
+      "title": "Passets namn",
+      "coachTips": "Ett peppande tips från coachen",
+      "aiCoachSummary": "Kort sammanfattning av passet",
+      "blocks": [
+        {
+          "title": "Blockets namn (t.ex. Uppvärmning)",
+          "tag": "Styrka",
+          "setupDescription": "Beskrivning av upplägget",
+          "followMe": false,
+          "aiCoachNotes": "Noteringar till coachen",
+          "aiMagicPenSuggestions": [],
+          "settings": {
+            "mode": "Standard",
+            "workTime": 0,
+            "restTime": 0,
+            "rounds": 1
+          },
+          "exercises": [
+            {
+              "name": "Övningsnamn",
+              "reps": "10",
+              "description": "Kort beskrivning eller tekniktips"
+            }
+          ]
+        }
+      ]
+    }`;
+
+    const combinedPrompt = `${Prompts.SYSTEM_COACH_CONTEXT}\n\n${Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises)}\n\n${strictJSONTemplate}`;
+
     const contents = [
         {
             role: 'user',
             parts: [
                 { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-                { text: Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises) }
+                { text: combinedPrompt }
             ]
         }
     ];
 
-    // FIX: Exakt som din ursprungliga, men med det städade (enum-fria) schemat!
-    const config = {
-        systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,
-        responseMimeType: "application/json",
-        responseSchema: workoutSchema,
-    };
-
-    const data = await callGeminiProxy(VISION_MODEL, contents, config);
+    // INGEN CONFIG! Vi låter API:et hantera det som ett rent text+bild anrop.
+    const data = await callGeminiProxy(VISION_MODEL, contents);
     let textResponse = data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
 
     try {
@@ -512,6 +541,7 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
     }
 }
 
+// Denna rör vi INTE eftersom vi vet att den fungerar felfritt via proxyn (gav 200 OK)!
 export async function beautifyDrawing(base64Image: string, width: number, height: number): Promise<any[]> {
     if (!base64Image || base64Image.trim() === '') return [];
     
@@ -552,7 +582,7 @@ export async function beautifyDrawing(base64Image: string, width: number, height
                     items: {
                         type: Type.OBJECT,
                         properties: {
-                            type: { type: Type.STRING }, // FIX: Enum borttaget
+                            type: { type: Type.STRING },
                             x: { type: Type.NUMBER },
                             y: { type: Type.NUMBER },
                             width: { type: Type.NUMBER },
