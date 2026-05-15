@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai"; 
+import { Type } from "@google/genai"; 
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { getApp } from 'firebase/app';
 import { Workout, WorkoutBlock, Exercise, TimerMode, TimerSettings, BankExercise, SuggestedExercise, CustomCategoryWithPrompt, WorkoutLog, MemberGoals, WorkoutDiploma } from '../types';
@@ -6,10 +6,10 @@ import { getExerciseBank } from './firebaseService';
 import * as Prompts from '../data/aiPrompts';
 
 // MODELLER
-const TEXT_MODEL = 'gemini-3-flash-preview'; 
-const VISION_MODEL = 'gemini-3-flash-preview';
-const IMAGE_GEN_MODEL = 'gemini-2.5-flash-image';
-const PRO_MODEL = 'gemini-3-pro-preview';
+const TEXT_MODEL = 'gemini-1.5-flash'; 
+const VISION_MODEL = 'gemini-1.5-flash';
+const IMAGE_GEN_MODEL = 'imagen-3.0-generate-001';
+const PRO_MODEL = 'gemini-1.5-pro';
 
 // TYPER
 
@@ -49,19 +49,12 @@ export interface ExerciseDagsformAdvice {
 
 // --- KLIENTER & PROXYS ---
 
-// 1. Backend Proxy (För text och JSON - Bypassar frontend-nyckeln)
+// 1. Backend Proxy (Denna används nu för ALLT för att skydda API-nyckeln)
 const callGeminiProxy = async (model: string, contents: any, config?: any) => {
     const functions = getFunctions(getApp(), 'us-central1');
     const flexGeminiProxy = httpsCallable<any, any>(functions, 'flexGeminiProxy');
     const response = await flexGeminiProxy({ model, contents, config });
     return response.data;
-};
-
-// 2. Direktklient (Endast för TUNGA Base64-bilder för att undvika Firebases storleksgräns på 10MB)
-const getAIClient = () => {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error("API-nyckel saknas.");
-    return new GoogleGenAI({ apiKey });
 };
 
 // --- SCHEMAS ---
@@ -220,7 +213,8 @@ async function _callGeminiJSON<T>(modelName: string, prompt: string, schema: any
         }
 
         const data = await callGeminiProxy(modelName, [{ role: 'user', parts: [{ text: prompt }] }], config);
-        return JSON.parse(data.text.trim()) as T;
+        const textResponse = data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        return JSON.parse(textResponse.trim()) as T;
     } catch (error) {
         console.error("AI Service Error:", error);
         throw new Error("Just nu genomgår vi ett planerat underhåll av AI-tjänsten. Vänligen försök igen om en liten stund.");
@@ -416,29 +410,33 @@ export async function enhancePageWithAI(content: string): Promise<string> {
     return data.text.trim();
 }
 
-// --- EXPORTED FUNCTIONS (IMAGE/VISION VIA DIRECT CLIENT TO AVOID PAYLOAD LIMITS) ---
+// --- VISION & IMAGE HANDLERS (Säkrad via Proxy) ---
 
 export async function parseWorkoutFromImage(base64Image: string, additionalText?: string, isDraft: boolean = false, availableExercises: string[] = []): Promise<Workout> {
-    const ai = getAIClient();
     const cleanBase64 = base64Image.includes('base64,') ? base64Image.split('base64,')[1] : base64Image;
 
-    const response = await ai.models.generateContent({
-        model: VISION_MODEL,
-        contents: [
-            { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-            { text: Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises) }
-        ],
-        config: {
-            systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,
-            responseMimeType: "application/json",
-            responseSchema: workoutSchema,
+    const contents = [
+        {
+            role: 'user',
+            parts: [
+                { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
+                { text: Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises) }
+            ]
         }
-    });
-    return transformWorkout(JSON.parse(response.text.trim()), '', isDraft);
+    ];
+
+    const config = {
+        systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,
+        responseMimeType: "application/json",
+        responseSchema: workoutSchema,
+    };
+
+    const data = await callGeminiProxy(VISION_MODEL, contents, config);
+    const textResponse = data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    return transformWorkout(JSON.parse(textResponse.trim()), '', isDraft);
 }
 
 export async function beautifyDrawing(base64Image: string, width: number, height: number): Promise<any[]> {
-    const ai = getAIClient();
     const prompt = `Analysera denna handritade whiteboard-bild. Identifiera former (rutor, cirklar), text och pilar. 
     Returnera en JSON-array med objekt. Varje objekt måste ha:
     - type: "rect", "circle", "text" eller "arrow"
@@ -455,35 +453,41 @@ export async function beautifyDrawing(base64Image: string, width: number, height
 
     const cleanBase64 = base64Image.includes('base64,') ? base64Image.split('base64,')[1] : base64Image;
 
-    const response = await ai.models.generateContent({
-        model: VISION_MODEL,
-        contents: [
-            { inlineData: { mimeType: 'image/png', data: cleanBase64 } },
-            { text: prompt }
-        ],
-        config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-                type: Type.ARRAY,
-                items: {
-                    type: Type.OBJECT,
-                    properties: {
-                        type: { type: Type.STRING, enum: ["rect", "circle", "text"] },
-                        x: { type: Type.NUMBER },
-                        y: { type: Type.NUMBER },
-                        width: { type: Type.NUMBER },
-                        height: { type: Type.NUMBER },
-                        text: { type: Type.STRING },
-                        color: { type: Type.STRING }
-                    },
-                    required: ["type", "x", "y", "width", "height", "color"]
-                }
+    const contents = [
+        {
+            role: 'user',
+            parts: [
+                { inlineData: { mimeType: 'image/png', data: cleanBase64 } },
+                { text: prompt }
+            ]
+        }
+    ];
+
+    const config = {
+        responseMimeType: "application/json",
+        responseSchema: {
+            type: Type.ARRAY,
+            items: {
+                type: Type.OBJECT,
+                properties: {
+                    type: { type: Type.STRING, enum: ["rect", "circle", "text", "arrow"] },
+                    x: { type: Type.NUMBER },
+                    y: { type: Type.NUMBER },
+                    width: { type: Type.NUMBER },
+                    height: { type: Type.NUMBER },
+                    text: { type: Type.STRING },
+                    color: { type: Type.STRING }
+                },
+                required: ["type", "x", "y", "width", "height", "color"]
             }
         }
-    });
+    };
+
+    const data = await callGeminiProxy(VISION_MODEL, contents, config);
+    const textResponse = data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
 
     try {
-        let text = response.text?.trim() || "[]";
+        let text = textResponse.trim();
         if (text.startsWith("```json")) {
             text = text.replace(/^```json\n/, "").replace(/\n```$/, "");
         } else if (text.startsWith("```")) {
@@ -497,41 +501,43 @@ export async function beautifyDrawing(base64Image: string, width: number, height
 }
 
 export async function generateImage(prompt: string): Promise<string | null> {
-    const ai = getAIClient();
     try {
-        const response = await ai.models.generateContent({
-            model: IMAGE_GEN_MODEL,
-            contents: `A stylized 3D render of a workout achievement icon: ${prompt}. Clean, cinematic lighting, dark background.`,
-            config: { imageConfig: { aspectRatio: "1:1" } } as any
-        });
-        const part = response.candidates[0].content.parts.find(p => p.inlineData);
+        const contents = [{ 
+            role: 'user', 
+            parts: [{ text: `A stylized 3D render of a workout achievement icon: ${prompt}. Clean, cinematic lighting, dark background.` }] 
+        }];
+        const config = { imageConfig: { aspectRatio: "1:1" } };
+
+        const data = await callGeminiProxy(IMAGE_GEN_MODEL, contents, config);
+        const part = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
         return part ? `data:image/png;base64,${part.inlineData.data}` : null;
     } catch (e) { return null; }
 }
 
 export async function generateCarouselImage(prompt: string): Promise<string> {
-    const ai = getAIClient();
-    const response = await ai.models.generateContent({
-        model: IMAGE_GEN_MODEL,
-        contents: prompt,
-        config: { imageConfig: { aspectRatio: "16:9" } } as any
-    });
-    const part = response.candidates[0].content.parts.find(p => p.inlineData);
+    const contents = [{ role: 'user', parts: [{ text: prompt }] }];
+    const config = { imageConfig: { aspectRatio: "16:9" } };
+
+    const data = await callGeminiProxy(IMAGE_GEN_MODEL, contents, config);
+    const part = data.candidates?.[0]?.content?.parts?.find((p: any) => p.inlineData);
     if (!part) throw new Error("Ingen bild genererades.");
     return `data:image/png;base64,${part.inlineData.data}`;
 }
 
 export async function interpretHandwriting(base64Image: string): Promise<string> {
-    const ai = getAIClient();
     const cleanBase64 = base64Image.includes('base64,') ? base64Image.split('base64,')[1] : base64Image;
-    const response = await ai.models.generateContent({
-        model: VISION_MODEL,
-        contents: [
-            { inlineData: { mimeType: 'image/png', data: cleanBase64 } },
-            { text: "Transkribera texten i bilden exakt till svenska. Inget snack." }
-        ],
-    });
-    return response.text.trim();
+    const contents = [
+        {
+            role: 'user',
+            parts: [
+                { inlineData: { mimeType: 'image/png', data: cleanBase64 } },
+                { text: "Transkribera texten i bilden exakt till svenska. Inget snack." }
+            ]
+        }
+    ];
+
+    const data = await callGeminiProxy(VISION_MODEL, contents);
+    return (data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
 }
 
 // --- INSIGHT & DATA HANDLERS ---
@@ -559,7 +565,6 @@ export async function generateSingleMemberInsight(
     const logStr = JSON.stringify(logs.slice(0, 5));
     const specificHistoryStr = specificHistory && Object.keys(specificHistory).length > 0 ? JSON.stringify(specificHistory) : undefined;
     
-    // Använd proxy-klienten
     const data = await _callGeminiJSON<any>(
         TEXT_MODEL, 
         Prompts.SINGLE_MEMBER_INSIGHT_PROMPT(title, exercises, logStr, feeling, specificHistoryStr, aiProgressionPrompt), 
@@ -621,12 +626,12 @@ export async function analyzeMemberProgress(logs: WorkoutLog[], name: string, go
 export async function askAdminAnalytics(question: string, logs: WorkoutLog[]): Promise<string> {
     const logSummary = JSON.stringify(logs.slice(0, 50).map(l => ({ date: l.date, title: l.workoutTitle, comment: l.comment })));
     const data = await callGeminiProxy(TEXT_MODEL, [{ role: 'user', parts: [{ text: Prompts.ADMIN_ANALYTICS_CHAT_PROMPT(question, logSummary) }] }], { systemInstruction: Prompts.SYSTEM_COACH_CONTEXT });
-    return data.text.trim();
+    return (data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
 }
 
 export async function generateBusinessActions(logs: WorkoutLog[]): Promise<string> {
     const data = await callGeminiProxy(TEXT_MODEL, [{ role: 'user', parts: [{ text: "Baserat på all träningsdata, ge 3 konkreta affärsåtgärder för gymmet för att öka retention och försäljning. Svara på svenska." }] }], { systemInstruction: Prompts.SYSTEM_COACH_CONTEXT });
-    return data.text.trim();
+    return (data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "").trim();
 }
 
 export async function generateWorkoutDiploma(logData: any): Promise<WorkoutDiploma> {
