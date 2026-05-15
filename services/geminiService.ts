@@ -477,19 +477,21 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
     const compressedImage = await compressImage(base64Image);
     const cleanBase64 = compressedImage.includes(',') ? compressedImage.split(',')[1] : compressedImage;
 
+    // FIX: Vi lägger in SystemInstruction-texten direkt i promten för att undvika 400 Bad Request från buggiga backends
+    const combinedPrompt = `${Prompts.SYSTEM_COACH_CONTEXT}\n\n${Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises)}`;
+
     const contents = [
         {
             role: 'user',
             parts: [
                 { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-                { text: Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises) }
+                { text: combinedPrompt }
             ]
         }
     ];
 
-    // FIX: Exakt så här såg din kod ut när den låg i frontend! 
+    // FIX: responseSchema bibehålls för perfekt JSON, men systemInstruction är bortplockat från config!
     const config = {
-        systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,
         responseMimeType: "application/json",
         responseSchema: workoutSchema,
     };
@@ -541,7 +543,6 @@ export async function beautifyDrawing(base64Image: string, width: number, height
         }
     ];
 
-    // FIX: Återställt till strikt Type.OBJECT schema, samma vinnande koncept!
     const config = {
         responseMimeType: "application/json",
         responseSchema: {
