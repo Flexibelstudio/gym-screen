@@ -477,7 +477,7 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
     const compressedImage = await compressImage(base64Image);
     const cleanBase64 = compressedImage.includes(',') ? compressedImage.split(',')[1] : compressedImage;
 
-    // FIX: Vi lägger in SystemInstruction-texten direkt i promten för att undvika 400 Bad Request från buggiga backends
+    // FIX: Vi lägger SystemInstruction i prompten istället för config, eftersom Google API kraschar med 400 när man kombinerar Bild + Schema + SystemInstruction i backend-anrop.
     const combinedPrompt = `${Prompts.SYSTEM_COACH_CONTEXT}\n\n${Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises)}`;
 
     const contents = [
@@ -490,7 +490,7 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
         }
     ];
 
-    // FIX: responseSchema bibehålls för perfekt JSON, men systemInstruction är bortplockat från config!
+    // FIX: Vi har kvar responseSchema för att tvinga fram perfekt JSON så appen inte kraschar! (Bara systemInstruction är borta).
     const config = {
         responseMimeType: "application/json",
         responseSchema: workoutSchema,
