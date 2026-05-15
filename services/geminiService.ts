@@ -49,7 +49,6 @@ export interface ExerciseDagsformAdvice {
 
 // --- KLIENTER & PROXYS ---
 
-// 1. Backend Proxy (Denna används nu för ALLT för att skydda API-nyckeln)
 const callGeminiProxy = async (model: string, contents: any, config?: any) => {
     const functions = getFunctions(getApp(), 'us-central1');
     const flexGeminiProxy = httpsCallable<any, any>(functions, 'flexGeminiProxy');
@@ -57,7 +56,7 @@ const callGeminiProxy = async (model: string, contents: any, config?: any) => {
     return response.data;
 };
 
-// --- BILD-KOMPRESSOR (Skottsäker version med vit bakgrund) ---
+// --- BILD-KOMPRESSOR ---
 const compressImage = async (base64Str: string, maxWidth = 800): Promise<string> => {
     return new Promise((resolve, reject) => {
         if (!base64Str || base64Str.trim() === '') return resolve("");
@@ -270,6 +269,7 @@ async function _callGeminiJSON<T>(modelName: string, prompt: string, schema: any
     }
 }
 
+// FIX: Krockkuddar för map() är inlagda (data.blocks || []) så appen ALDRIG kraschar.
 const transformWorkout = (data: any, orgId: string, isDraft: boolean = false): Workout => ({
     ...data,
     id: data.id || `ai-${Date.now()}`,
@@ -277,8 +277,9 @@ const transformWorkout = (data: any, orgId: string, isDraft: boolean = false): W
     createdAt: Date.now(),
     isPublished: false,
     isMemberDraft: isDraft,
+    title: data.title || 'AI-Genererat Pass',
     category: data.category || 'AI Genererat',
-    blocks: data.blocks.map((b: any, i: number) => {
+    blocks: (data.blocks || []).map((b: any, i: number) => {
         const exerciseCount = b.exercises?.length || 0;
         let settings = { ...b.settings };
         
@@ -290,7 +291,7 @@ const transformWorkout = (data: any, orgId: string, isDraft: boolean = false): W
             ...b,
             id: b.id || `block-${Date.now()}-${i}`,
             settings,
-            exercises: b.exercises.map((ex: any, j: number) => {
+            exercises: (b.exercises || []).map((ex: any, j: number) => {
                 let cleanReps = ex.reps || '';
 
                 if (['Interval', 'Tabata', 'EMOM'].includes(settings.mode)) {
@@ -460,7 +461,7 @@ export async function enhancePageWithAI(content: string): Promise<string> {
     return data.text.trim();
 }
 
-// --- VISION & IMAGE HANDLERS (Säkrad via Proxy) ---
+// --- VISION & IMAGE HANDLERS (Säkrad via Proxy, utan config.schema för att undvika Error 400) ---
 
 export async function parseWorkoutFromImage(base64Image: string, additionalText?: string, isDraft: boolean = false, availableExercises: string[] = []): Promise<Workout> {
     if (!base64Image || base64Image.trim() === '') {
@@ -473,25 +474,43 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
     const compressedImage = await compressImage(base64Image);
     const cleanBase64 = compressedImage.includes(',') ? compressedImage.split(',')[1] : compressedImage;
 
+    // FIX: Vi tvingar in schemat som TEXT i prompten istället för i config-objektet.
+    const basePrompt = Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises);
+    const enforcedPrompt = basePrompt + "\n\nVIKTIGT: Du MÅSTE svara med ett exakt JSON-objekt. Objektet måste innehålla en array som heter 'blocks'. Följ detta schema exakt:\n" + JSON.stringify(workoutSchema);
+
     const contents = [
         {
             role: 'user',
             parts: [
                 { inlineData: { mimeType: 'image/jpeg', data: cleanBase64 } },
-                { text: Prompts.IMAGE_INTERPRETER_PROMPT(additionalText, availableExercises) }
+                { text: enforcedPrompt }
             ]
         }
     ];
 
-    // FIX: Vi tar bort responseSchema helt för att undvika 400 Bad Request från Gemini API
     const config = {
         systemInstruction: Prompts.SYSTEM_COACH_CONTEXT,
         responseMimeType: "application/json",
+        // INGEN responseSchema här = Ingen 400 Bad Request från Google!
     };
 
     const data = await callGeminiProxy(VISION_MODEL, contents, config);
-    const textResponse = data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    return transformWorkout(JSON.parse(textResponse.trim()), '', isDraft);
+    let textResponse = data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+
+    try {
+        // AI:n returnerar ibland Markdown trots application/json, så vi städar den:
+        let text = textResponse.trim();
+        if (text.startsWith("```json")) text = text.replace(/^```json\n?/, "").replace(/\n?```$/, "");
+        else if (text.startsWith("```")) text = text.replace(/^```\n?/, "").replace(/\n?```$/, "");
+        
+        let parsedData = JSON.parse(text);
+        if (!parsedData.blocks) parsedData.blocks = [];
+        
+        return transformWorkout(parsedData, '', isDraft);
+    } catch (e) {
+        console.error("Fel vid tolkning av AI-svar:", textResponse, e);
+        return transformWorkout({ blocks: [] }, '', isDraft); // Fail safe!
+    }
 }
 
 export async function beautifyDrawing(base64Image: string, width: number, height: number): Promise<any[]> {
@@ -499,19 +518,25 @@ export async function beautifyDrawing(base64Image: string, width: number, height
     
     const compressedImage = await compressImage(base64Image);
     
+    // FIX: Tvinga JSON-strukturen direkt i prompten.
     const prompt = `Analysera denna handritade whiteboard-bild. Identifiera former (rutor, cirklar), text och pilar. 
     Returnera ett JSON-objekt med en array "shapes" som innehåller resultatet. Varje objekt i arrayen måste ha:
     - type: "rect", "circle", "text" eller "arrow"
-    - x: X-koordinat i pixlar (bilden är ${width}x${height}). För pilar är detta startpunkten.
-    - y: Y-koordinat i pixlar. För pilar är detta startpunkten.
+    - x: X-koordinat i pixlar (bilden är ${width}x${height}). För pilar är startpunkten.
+    - y: Y-koordinat i pixlar. För pilar är startpunkten.
     - width: Bredd i pixlar (används ej för pilar, sätt till 0)
     - height: Höjd i pixlar (används ej för pilar, sätt till 0)
     - endX: Endast för pilar, X-koordinat för slutpunkten (där spetsen är).
     - endY: Endast för pilar, Y-koordinat för slutpunkten (där spetsen är).
-    - text: Om det är text, eller text inuti en form. Annars tom sträng. Använd \\n för radbrytningar om texten är på flera rader.
-    - color: Hex-färgkod som matchar ritningens färg (t.ex. "#FFFFFF", "#FACC15", "#3B82F6", "#4ADE80", "#EF4444"). Standard är "#FFFFFF".
+    - text: Om det är text, eller text inuti en form. Annars tom sträng.
+    - color: Hex-färgkod som matchar ritningens färg. Standard är "#FFFFFF".
     
-    Returnera ENDAST JSON-objektet.`;
+    VIKTIGT: Svara ENDAST med ett giltigt JSON-objekt i detta format, inget annat skitsnack:
+    {
+      "shapes": [
+        { "type": "rect", "x": 10, "y": 10, "width": 100, "height": 100, "text": "Exempel", "color": "#FFFFFF" }
+      ]
+    }`;
 
     const cleanBase64 = compressedImage.includes(',') ? compressedImage.split(',')[1] : compressedImage;
 
@@ -525,24 +550,21 @@ export async function beautifyDrawing(base64Image: string, width: number, height
         }
     ];
 
-    // FIX: Vi tar bort responseSchema helt för att undvika 400 Bad Request från Gemini API
     const config = {
         responseMimeType: "application/json",
+        // INGEN responseSchema här heller.
     };
 
     const data = await callGeminiProxy(VISION_MODEL, contents, config);
-    const textResponse = data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
+    let textResponse = data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
 
     try {
         let text = textResponse.trim();
-        if (text.startsWith("```json")) {
-            text = text.replace(/^```json\n/, "").replace(/\n```$/, "");
-        } else if (text.startsWith("```")) {
-            text = text.replace(/^```\n/, "").replace(/\n```$/, "");
-        }
+        if (text.startsWith("```json")) text = text.replace(/^```json\n?/, "").replace(/\n?```$/, "");
+        else if (text.startsWith("```")) text = text.replace(/^```\n?/, "").replace(/\n?```$/, "");
         
         let parsed = JSON.parse(text);
-        return parsed.shapes || []; // Returnera shapes-arrayen från objektet
+        return parsed.shapes || [];
     } catch (e) {
         console.error("Failed to parse beautified drawing:", e);
         return [];
