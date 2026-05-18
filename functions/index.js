@@ -1274,7 +1274,8 @@ exports.flexGeminiProxy = onCall({
   }
 
   // 3. MEDDELANDELÄNGD (Extra säkerhet i backend)
-  if (JSON.stringify(contents).length > 50000) { 
+  // För att tillåta bilder ökar vi gränsen till 8MB
+  if (JSON.stringify(contents).length > 8000000) { 
        throw new HttpsError('invalid-argument', 'Meddelandet är för långt.');
   }
 
