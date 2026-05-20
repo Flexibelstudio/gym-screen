@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { WorkoutBlock, TimerMode, TimerSettings, Exercise } from '../types';
-import { ValueAdjuster, ChevronDownIcon, ChevronUpIcon } from './icons';
+import { ValueAdjuster, ChevronDownIcon, ChevronUpIcon, SparklesIcon, TrashIcon } from './icons';
 import { useStudio } from '../context/StudioContext';
 
 interface FreestandingTimerScreenProps {
@@ -12,14 +12,16 @@ interface FreestandingTimerScreenProps {
 type CountMode = 'laps' | 'rounds';
 
 export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = ({ onStart, onCancel }) => {
-    const { studioConfig } = useStudio();
+    const { studioConfig, selectedOrganization } = useStudio();
+    const orgId = selectedOrganization?.id || 'global';
+
     const [mode, setMode] = useState<TimerMode>(TimerMode.Interval);
   
     // State for different timer modes
-    const [countMode, setCountMode] = useState<CountMode>('laps');
+    const [countMode, setCountMode] = useState<CountMode>('rounds');
     
     // Interval specific states
-    const [rounds, setRounds] = useState(12); // Total rounds (Simple mode)
+    const [rounds, setRounds] = useState(10); // Total rounds (Simple mode)
     const [laps, setLaps] = useState(3); // Varv
     const [intervalsPerLap, setIntervalsPerLap] = useState(4); // Stationer per varv
 
@@ -31,6 +33,146 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
     
     // New state for direction
     const [direction, setDirection] = useState<'up' | 'down'>('down');
+
+    // --- Saved Timer Templates ---
+    interface SavedTimerTemplate {
+        id: string;
+        name: string;
+        mode: TimerMode;
+        direction: 'up' | 'down';
+        countMode: CountMode;
+        rounds: number;
+        laps: number;
+        intervalsPerLap: number;
+        totalMinutes: number;
+        workMinutes: number;
+        workSeconds: number;
+        restMinutes: number;
+        restSeconds: number;
+    }
+
+    const [savedTemplates, setSavedTemplates] = useState<SavedTimerTemplate[]>([]);
+    const [newTemplateName, setNewTemplateName] = useState('');
+
+    // Load templates for this organization
+    useEffect(() => {
+        const key = `stored_freestanding_templates_${orgId}`;
+        const stored = localStorage.getItem(key);
+        if (stored) {
+            try {
+                setSavedTemplates(JSON.parse(stored));
+            } catch (e) {
+                console.error(e);
+            }
+        } else {
+            // Default freestanding templates matching popular timers
+            const defaults: SavedTimerTemplate[] = [
+                {
+                    id: 'freestand-tabata',
+                    name: 'Klassisk Tabata',
+                    mode: TimerMode.Tabata,
+                    direction: 'down',
+                    countMode: 'rounds',
+                    rounds: 8,
+                    laps: 1,
+                    intervalsPerLap: 8,
+                    totalMinutes: 4,
+                    workMinutes: 0,
+                    workSeconds: 20,
+                    restMinutes: 0,
+                    restSeconds: 10
+                },
+                {
+                    id: 'freestand-emom10',
+                    name: 'EMOM 10 Min',
+                    mode: TimerMode.EMOM,
+                    direction: 'down',
+                    countMode: 'rounds',
+                    rounds: 10,
+                    laps: 1,
+                    intervalsPerLap: 1,
+                    totalMinutes: 10,
+                    workMinutes: 1,
+                    workSeconds: 0,
+                    restMinutes: 0,
+                    restSeconds: 0
+                }
+            ];
+            setSavedTemplates(defaults);
+            localStorage.setItem(key, JSON.stringify(defaults));
+        }
+    }, [orgId]);
+
+    const handleSaveTemplate = () => {
+        if (!newTemplateName.trim()) {
+            alert("Skriv ett namn för din mall.");
+            return;
+        }
+        const newTemplate: SavedTimerTemplate = {
+            id: Date.now().toString(),
+            name: newTemplateName.trim(),
+            mode,
+            direction,
+            countMode,
+            rounds,
+            laps,
+            intervalsPerLap,
+            totalMinutes,
+            workMinutes,
+            workSeconds,
+            restMinutes,
+            restSeconds
+        };
+
+        const updated = [...savedTemplates, newTemplate];
+        setSavedTemplates(updated);
+        localStorage.setItem(`stored_freestanding_templates_${orgId}`, JSON.stringify(updated));
+        setNewTemplateName('');
+    };
+
+    const handleDeleteTemplate = (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        const updated = savedTemplates.filter(t => t.id !== id);
+        setSavedTemplates(updated);
+        localStorage.setItem(`stored_freestanding_templates_${orgId}`, JSON.stringify(updated));
+    };
+
+    const handleLoadTemplate = (t: SavedTimerTemplate) => {
+        setMode(t.mode);
+        setDirection(t.direction || 'down');
+        setCountMode(t.countMode || 'rounds');
+        setRounds(t.rounds);
+        setLaps(t.laps);
+        setIntervalsPerLap(t.intervalsPerLap);
+        setTotalMinutes(t.totalMinutes);
+        setWorkMinutes(t.workMinutes);
+        setWorkSeconds(t.workSeconds);
+        setRestMinutes(t.restMinutes);
+        setRestSeconds(t.restSeconds);
+    };
+
+    const getTemplateDescription = (t: SavedTimerTemplate) => {
+        switch (t.mode) {
+            case TimerMode.Interval:
+                if (t.countMode === 'laps') {
+                    return `Int: ${t.laps} varv x ${t.intervalsPerLap} int (${t.workMinutes}m ${t.workSeconds}s / ${t.restMinutes}m ${t.restSeconds}s)`;
+                } else {
+                    return `Int: ${t.rounds} omg (${t.workMinutes}m ${t.workSeconds}s / ${t.restMinutes}m ${t.restSeconds}s)`;
+                }
+            case TimerMode.Tabata:
+                return 'Tabata: 8x (20s / 10s)';
+            case TimerMode.AMRAP:
+                return `AMRAP: ${t.totalMinutes} min`;
+            case TimerMode.EMOM:
+                return `EMOM: ${t.rounds} min`;
+            case TimerMode.TimeCap:
+                return `TimeCap: ${t.totalMinutes} min`;
+            case TimerMode.Stopwatch:
+                return 'Stoppur';
+            default:
+                return '';
+        }
+    };
 
     // Load saved settings on mount
     useEffect(() => {
@@ -99,10 +241,10 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
 
         switch(newMode) {
             case TimerMode.Interval: 
-                setCountMode('laps');
+                setCountMode('rounds');
                 setLaps(3);
                 setIntervalsPerLap(4);
-                setRounds(12);
+                setRounds(10);
                 setWorkMinutes(0); 
                 setWorkSeconds(30); 
                 setRestMinutes(0); 
@@ -319,6 +461,74 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
                 </div>
                 {mode !== TimerMode.Stopwatch && (
                     <p className="text-center text-xs text-gray-400 dark:text-gray-500 mt-4">Alla timers inkluderar 10s 'Gör dig redo'-tid.</p>
+                )}
+            </section>
+
+            {/* Sparade mallar */}
+            <section className="w-full bg-white dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-800 shadow-sm">
+                <div className="flex items-center gap-2 mb-4">
+                    <SparklesIcon className="w-5 h-5 text-primary" />
+                    <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Sparade timermallar</h3>
+                </div>
+
+                <div className="flex gap-2 mb-4">
+                    <input
+                        type="text"
+                        placeholder="Namnge denna inställning (t.ex. AMRAP 12min)"
+                        value={newTemplateName}
+                        onChange={(e) => setNewTemplateName(e.target.value)}
+                        className="flex-grow bg-gray-50 dark:bg-black border border-gray-200 dark:border-gray-700 rounded-lg px-4 py-2.5 text-sm font-semibold focus:ring-2 focus:ring-primary outline-none transition-all placeholder-gray-400 dark:placeholder-gray-500 text-gray-900 dark:text-white"
+                    />
+                    <button
+                        type="button"
+                        onClick={handleSaveTemplate}
+                        className="bg-primary hover:brightness-95 text-white font-bold text-sm px-5 rounded-lg uppercase tracking-wider transition-all shadow-md shrink-0 active:scale-95"
+                    >
+                        Spara klocka
+                    </button>
+                </div>
+
+                {savedTemplates.length === 0 ? (
+                    <p className="text-xs text-gray-400 dark:text-gray-500 italic text-center py-4">
+                        Inga sparade klockor för denna organisation ännu.
+                    </p>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[180px] overflow-y-auto pr-1">
+                        {savedTemplates.map((t) => (
+                            <div
+                                key={t.id}
+                                onClick={() => handleLoadTemplate(t)}
+                                className={`group flex justify-between items-center bg-gray-50 dark:bg-black/45 p-3 rounded-lg border cursor-pointer transition-all shadow-sm ${
+                                    mode === t.mode && 
+                                    direction === t.direction && 
+                                    countMode === t.countMode && 
+                                    rounds === t.rounds && 
+                                    laps === t.laps && 
+                                    intervalsPerLap === t.intervalsPerLap && 
+                                    totalMinutes === t.totalMinutes && 
+                                    workMinutes === t.workMinutes && 
+                                    workSeconds === t.workSeconds && 
+                                    restMinutes === t.restMinutes && 
+                                    restSeconds === t.restSeconds
+                                        ? 'border-primary ring-1 ring-primary/30' 
+                                        : 'border-gray-250 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-900'
+                                }`}
+                            >
+                                <div className="flex flex-col min-w-0 pr-2">
+                                    <span className="text-sm font-bold text-gray-900 dark:text-white truncate">{t.name}</span>
+                                    <span className="text-[10px] text-gray-400 dark:text-gray-500 font-semibold uppercase tracking-wider truncate">{getTemplateDescription(t)}</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={(e) => handleDeleteTemplate(t.id, e)}
+                                    className="p-1.5 text-gray-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-lg transition-all"
+                                    title="Ta bort mall"
+                                >
+                                    <TrashIcon className="w-4 h-4" />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
                 )}
             </section>
 
