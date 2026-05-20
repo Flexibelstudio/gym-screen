@@ -61,6 +61,23 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
                 const personalBests = pbs.map(pb => `${pb.exerciseName}: ${pb.weight}kg`);
 
+                // Format goals context nicely to avoid [object Object]
+                let goalsContext = 'Inga specifika angivna.';
+                if (userData?.goals) {
+                    const mGoals = userData.goals;
+                    if (mGoals.hasSpecificGoals) {
+                        goalsContext = `
+                        Målkategorier: ${mGoals.selectedGoals?.join(', ') || 'Inga'}
+                        Måldatum/Deadline: ${mGoals.targetDate || 'Inget specifikt måldatum'}
+                        SMART-kriterier:
+                          - Specifikt: ${mGoals.smartCriteria?.specific || 'Ej angivet'}
+                          - Mätbart: ${mGoals.smartCriteria?.measurable || 'Ej angivet'}
+                          - Accepterat: ${mGoals.smartCriteria?.achievable || 'Ej angivet'}
+                          - Relevant: ${mGoals.smartCriteria?.relevant || 'Ej angivet'}
+                        `;
+                    }
+                }
+
                 memberContext = `
                 MEDLEMSDATA FÖR ${userName.toUpperCase()}:
                 
@@ -70,10 +87,11 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 Personbästa (PB):
                 ${personalBests.length > 0 ? personalBests.join('\n') : 'Inga PB loggade ännu.'}
                 
-                Fysiska begränsningar/mål: ${userData?.goals || 'Inga specifika angivna.'}
+                Uppsatta träningsmål (SMART):
+                ${goalsContext}
                 `;
             }
-                   setLoadingMessage('Tänker...');
+            setLoadingMessage('Tänker...');
 
             const { getFunctions, httpsCallable } = await import('firebase/functions');
             const { getApp } = await import('firebase/app');
@@ -94,10 +112,15 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             - Använd inte emojis i överflöd, max 1-2 per svar.
 
             UPPDRAG: COACH ASSISTENT (Integrerad med medlemsdatabasen)
-            Du har tillgång till medlemmens träningshistorik, personbästa (PB) och profil.
+            Du har tillgång till medlemmens träningshistorik, personbästa (PB), profil och uppsatta träningsmål (SMART).
+
+            VÄGLEDNING OM TRÄNINGSVAL (STYRKA / KONDITION):
+            - Du ska proaktivt vägleda medlemmen om vilken träningsform som bäst stöder deras uppsatta mål under den aktuella tidsramen.
+            - Förklara enkelt och motiverande om de bör lägga sitt primära fokus på styrketräning, konditionsträning eller en välbalanserad kombination av båda för att nå sitt utsatta måldatum.
+            - Anpassa dina tips utifrån de pass de faktiskt har loggat nyligen. Om de t.ex. vill bygga styrka men bara kört kondition, pusha dem försiktigt att lägga in ett styrkepass.
 
             Logik för personifiering:
-            - Söka först: Innan ett svar genereras, utgå från medlemmens historik och relevanta värden.
+            - Söka först: Innan et svar genereras, utgå från medlemmens historik och relevanta värden.
             - Referera till fakta: Istället för att ge generella råd, ska du svara med konkreta siffror från deras historik (t.ex. "Ditt rekord är 22,5 kg").
             - Proaktiv analys: Om en medlem frågar "Vad ska jag köra idag?", ska du analysera vad som kördes senast och föreslå nästa steg i progressionen.
             - Felhantering: Om data saknas för en specifik övning, ska du INTE svara att du "inte har tillgång" eller "inte vet". Istället ska du instruera medlemmen att: "Jag hittar inget loggat rekord på det än – kör ett set nu och logga det, så har jag stenkoll till nästa gång!"
@@ -107,7 +130,7 @@ const MemberChatModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             ${memberContext}
 
             Hantering av frågor:
-            - Om en användare frågar om träning: Ge ett konkret, direkt tips baserat på deras data.
+            - Om en användare frågar om träning: Ge ett konkret, direkt tips baserat på deras data, och vägled dem om fördelningen av styrka/kondition i förhållande till deras mål.
             - Om en användare verkar omotiverad: Ge en kort, kraftfull "push".
             - Om en medlem frågar om specifika skador: Ge ett generellt svar men rekommendera kort att prata med personalen på plats.
             - Språk: Svenska.

@@ -1169,20 +1169,50 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             </div>
 
                                             {daysLeft !== null && (
-                                                <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl">
-                                                    <div className="flex-grow">
-                                                        <div className="flex justify-between text-xs font-bold text-gray-500 mb-1"><span>Framsteg</span><span>{userData.goals.targetDate}</span></div>
-                                                        <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden p-0.5 border border-gray-100 dark:border-gray-800">
-                                                            <div 
-                                                                className="h-full bg-primary rounded-full transition-all duration-1000 relative shadow-[0_0_10px_rgba(20,184,166,0.5)]" 
-                                                                style={{ width: `${Math.max(1.5, progressPercentage)}%` }}
-                                                            >
-                                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+                                                daysLeft <= 0 ? (
+                                                    <div className="space-y-4 pt-1">
+                                                        <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 dark:from-emerald-500/5 dark:to-teal-500/5 p-5 rounded-2xl border border-emerald-500/20 dark:border-emerald-500/10 text-center space-y-3">
+                                                            <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-950/50 rounded-full flex items-center justify-center mx-auto text-2xl">
+                                                                🏁
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <h4 className="font-extrabold text-gray-900 dark:text-white uppercase tracking-tight text-sm">Måldatum nått!</h4>
+                                                                <p className="text-xs text-gray-500 dark:text-gray-400">Deadlinet för ditt uppsatta mål ({userData.goals.targetDate}) har nåtts.</p>
+                                                            </div>
+                                                            <div className="bg-white dark:bg-gray-800 p-3.5 rounded-xl border border-gray-100 dark:border-gray-800 text-left">
+                                                                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+                                                                    <span>💡</span> Feedback från coachen
+                                                                </p>
+                                                                <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-semibold">
+                                                                    Snyggt jobbat att du kämpat på mot ditt mål! Nu när måldatumet är nått är det ett perfekt tillfälle att stanna upp, utvärdera och fira dina framsteg tillsammans med din personliga PT i fickformat. Fråga PT-coachen i chatten vad nästa steg bör bli för att hålla kontinuiteten uppe!
+                                                                 </p>
+                                                            </div>
+                                                            <div className="flex gap-2">
+                                                                <button
+                                                                    onClick={() => setIsEditingGoals(true)}
+                                                                    className="flex-grow px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-emerald-500/10 uppercase tracking-wider"
+                                                                >
+                                                                    Sätt ett nytt spännande mål!
+                                                                </button>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <div className="text-center min-w-[60px]"><span className="block text-xl font-black text-gray-900 dark:text-white leading-none">{daysLeft}</span><span className="text-[9px] uppercase font-bold text-gray-400">Dagar kvar</span></div>
-                                                </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl">
+                                                        <div className="flex-grow">
+                                                            <div className="flex justify-between text-xs font-bold text-gray-500 mb-1"><span>Framsteg</span><span>{userData.goals.targetDate}</span></div>
+                                                            <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden p-0.5 border border-gray-100 dark:border-gray-800">
+                                                                <div 
+                                                                    className="h-full bg-primary rounded-full transition-all duration-1000 relative shadow-[0_0_10px_rgba(20,184,166,0.5)]" 
+                                                                    style={{ width: `${Math.max(1.5, progressPercentage)}%` }}
+                                                                >
+                                                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-center min-w-[60px]"><span className="block text-xl font-black text-gray-900 dark:text-white leading-none">{daysLeft}</span><span className="text-[9px] uppercase font-bold text-gray-400">Dagar kvar</span></div>
+                                                    </div>
+                                                )
                                             )}
                                         </div>
                                     </div>
