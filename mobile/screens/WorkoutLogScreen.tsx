@@ -438,7 +438,8 @@ const ExerciseLogCard: React.FC<{
         onUpdate({ setDetails: result.setDetails.filter((_, i) => i !== index) });
     };
 
-    const [showTip, setShowTip] = useState(false);
+    const [showTip, setShowTip] = useState(true);
+    const [showScaling, setShowScaling] = useState(false);
     const [isEditingFields, setIsEditingFields] = useState(false);
 
     const toggleField = (field: 'reps' | 'weight' | 'time' | 'distance' | 'kcal') => {
@@ -519,7 +520,7 @@ const ExerciseLogCard: React.FC<{
                                     trackingFields.includes(f.id as any) 
                                         ? 'bg-primary text-white shadow-sm' 
                                         : 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-600'
-                                }`}
+                                 }`}
                             >
                                 {f.label}
                             </button>
@@ -531,11 +532,31 @@ const ExerciseLogCard: React.FC<{
                 {(aiSuggestion || scaling) && (
                     <div className="flex flex-col gap-2">
                         {scaling && (
-                            <div className="flex items-center gap-2 bg-yellow-50 dark:bg-yellow-900/20 px-3 py-2 rounded-lg border border-yellow-100 dark:border-yellow-800/30">
-                                <LightningIcon className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
-                                <p className="text-xs text-yellow-800 dark:text-yellow-200 font-medium leading-tight">
-                                    <span className="font-bold">Alternativ:</span> {scaling}
-                                </p>
+                            <div className="relative">
+                                <button 
+                                    onClick={() => setShowScaling(!showScaling)}
+                                    className="flex items-center gap-2 text-yellow-700 dark:text-yellow-400 text-xs font-bold bg-yellow-50/70 dark:bg-yellow-950/20 px-3 py-1.5 rounded-lg hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition-colors w-full sm:w-auto"
+                                >
+                                    <LightningIcon className="w-3.5 h-3.5" />
+                                    <span>{showScaling ? 'Dölj alternativ' : 'Visa alternativ'}</span>
+                                </button>
+                                <AnimatePresence>
+                                    {showScaling && (
+                                        <motion.div 
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                            exit={{ opacity: 0, height: 0 }}
+                                            className="overflow-hidden"
+                                        >
+                                            <div className="mt-2 flex items-center gap-2 bg-yellow-50 dark:bg-yellow-900/20 px-3 py-2 rounded-lg border border-yellow-100 dark:border-yellow-800/30">
+                                                <LightningIcon className="w-4 h-4 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
+                                                <p className="text-xs text-yellow-800 dark:text-yellow-200 font-medium leading-tight">
+                                                    <span className="font-bold">Alternativ:</span> {scaling}
+                                                </p>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
                         )}
                         

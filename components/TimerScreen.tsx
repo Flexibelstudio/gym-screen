@@ -1068,8 +1068,16 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       
       setIsSavingRace(true);
       const sortedFinishers = Object.entries(finishedParticipants).sort(([, a], [, b]) => (a as FinishData).time - (b as FinishData).time);
-      const winner = sortedFinishers.length > 0 ? sortedFinishers[0][0] : null;
-      setWinnerName(winner);
+      const winnerId = sortedFinishers.length > 0 ? sortedFinishers[0][0] : null;
+      
+      let winnerDisplayName = winnerId;
+      if (winnerId) {
+          const found = startedParticipants.find(p => p.id === winnerId);
+          if (found) {
+              winnerDisplayName = found.name;
+          }
+      }
+      setWinnerName(winnerDisplayName);
       
       const raceResults = sortedFinishers.map(([participant, data], index) => {
           const group = startGroups.find(g => g.participants.includes(participant));
@@ -1099,7 +1107,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           if (savedRace && savedRace.id) {
               setFinalRaceId(savedRace.id);
               setShowFinishAnimation(true);
-              if (winner) speak(`Och vinnaren är ${winner}! Bra jobbat alla!`);
+              if (winnerDisplayName) speak(`Och vinnaren är ${winnerDisplayName}! Bra jobbat alla!`);
           } else {
               throw new Error("Missing raceId from server response");
           }
@@ -1109,7 +1117,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       } finally {
           setIsSavingRace(false);
       }
-  }, [isHyroxRace, activeWorkout, finishedParticipants, block.exercises, startGroups, organization, speak]);
+  }, [isHyroxRace, activeWorkout, finishedParticipants, block.exercises, startGroups, organization, speak, startedParticipants]);
 
   const timerStyle = getTimerStyle(status, block.settings.mode, isHyroxRace, isTransitioning, currentSegment);
   
@@ -1350,12 +1358,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       {/* MAIN TIMER CARD */}
       <div 
           className={`absolute flex flex-col items-center transition-all duration-500 z-10 left-0 
-              ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] pr-10` : 'right-0'} 
+              ${isHyroxRace ? 'pr-10' : 'right-0'} 
               ${showFullScreenColor 
                   ? `top-[12%] min-h-[50%] justify-center` 
                   : `${isAutostartMode ? (controlsVisible ? 'pt-4 pb-4 min-h-[25%]' : 'pt-4 pb-2 min-h-[20%]') : 'pt-6 pb-6 min-h-[25%]'} top-4 mx-4 sm:mx-6 rounded-[3rem] shadow-2xl ${timerStyle.bg}`
               }`}
-          style={!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } as React.CSSProperties : undefined}
+          style={{
+              ...(!showFullScreenColor ? { '--pulse-color-rgb': timerStyle.pulseRgb } : {}),
+              right: isHyroxRace ? HYROX_RIGHT_PANEL_WIDTH : '0px'
+          } as React.CSSProperties}
       >
         {/* LOBBY START BUTTON OVERLAY */}
             {isLobbyMode && (
@@ -1439,9 +1450,12 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       </div>
 
       {/* CONTENT AREA (Under Clock) */}
-      <div className={`absolute bottom-4 left-0 flex flex-col items-center justify-start z-0 pt-2 transition-all duration-500
-          ${showFullScreenColor ? 'top-[65%]' : (isAutostartMode ? (controlsVisible ? 'top-[26%]' : 'top-[24%]') : 'top-[28%]')} 
-          ${isHyroxRace ? `right-[${HYROX_RIGHT_PANEL_WIDTH}] px-6` : 'right-0 px-6'}`}>
+      <div 
+          className={`absolute bottom-4 left-0 flex flex-col items-center justify-start z-0 pt-2 transition-all duration-500 px-6
+              ${showFullScreenColor ? 'top-[65%]' : (isAutostartMode ? (controlsVisible ? 'top-[26%]' : 'top-[24%]') : 'top-[28%]')} 
+              ${isHyroxRace ? '' : 'right-0'}`}
+          style={{ right: isHyroxRace ? HYROX_RIGHT_PANEL_WIDTH : '0px' }}
+      >
           
           <div className="w-full max-w-[1500px] h-full flex flex-col">
               <div className="flex flex-col h-full w-full">
