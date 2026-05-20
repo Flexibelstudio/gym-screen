@@ -1756,7 +1756,8 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 
                 {/* Timer Zone Marker */}
                 <div 
-                    className="absolute left-0 right-0 pointer-events-none flex justify-between px-0 opacity-40 z-0 transition-all duration-300 top-[270px] sm:top-[315px]"
+                    className="absolute left-0 right-0 pointer-events-none flex justify-between px-0 opacity-40 z-0 transition-all duration-300"
+                    style={{ top: timerBlock ? '32%' : '10%' }}
                 >
                     <div className="flex items-center">
                         <div className="w-4 h-[2px] bg-gray-400 dark:bg-gray-500 rounded-r-full"></div>
@@ -1767,6 +1768,8 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                         <div className="w-4 h-[2px] bg-gray-400 dark:bg-gray-500 rounded-l-full"></div>
                     </div>
                 </div>
+                
+
                 
                 {/* Render Smart Objects */}
                 {smartObjects.map(obj => {
