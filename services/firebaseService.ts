@@ -573,7 +573,7 @@ export const saveWorkoutLog = async (logData: any): Promise<{ log: any, newRecor
                     id: eventRef.id,
                     type: 'pb',
                     organizationId: logData.organizationId,
-                    locationId: logData.locationId, 
+                    locationId: newLog.locationId || logData.locationId || null, 
                     timestamp: Date.now(),
                     data: { 
                         userName: newLog.memberName || 'En medlem', 

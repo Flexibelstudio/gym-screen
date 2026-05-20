@@ -861,6 +861,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const [blockForCircuit, setBlockForCircuit] = useState<WorkoutBlock | null>(null);
     const [lastDrawnBlock, setLastDrawnBlock] = useState<WorkoutBlock | null>(null);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
     const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
 
     // --- COACH NOTES ON IDEA BOARD ---
@@ -1754,21 +1755,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 )}
                 <canvas ref={canvasRef} className="w-full h-full block" />
                 
-                {/* Timer Zone Marker */}
-                <div 
-                    className="absolute left-0 right-0 pointer-events-none flex justify-between px-0 opacity-40 z-0 transition-all duration-300"
-                    style={{ top: timerBlock ? '32%' : '10%' }}
-                >
-                    <div className="flex items-center">
-                        <div className="w-4 h-[2px] bg-gray-400 dark:bg-gray-500 rounded-r-full"></div>
-                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-2 rotate-90 origin-left translate-y-6">Timer</span>
-                    </div>
-                    <div className="flex items-center">
-                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mr-2 -rotate-90 origin-right translate-y-6">Timer</span>
-                        <div className="w-4 h-[2px] bg-gray-400 dark:bg-gray-500 rounded-l-full"></div>
-                    </div>
-                </div>
-                
 
                 
                 {/* Render Smart Objects */}
@@ -1912,12 +1898,18 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                                 {lastDrawnBlock && (
                                     <button onClick={() => { setBlockForCircuit(lastDrawnBlock); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors">Justera</button>
                                 )}
-                                <button onClick={() => { setIsInfoModalVisible(true); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors border-t border-gray-700 mt-2 rounded-b-xl">Om AI Whiteboard</button>
+                                <button onClick={() => { setIsConfirmClearOpen(true); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-red-400 hover:bg-gray-700 font-semibold transition-colors border-t border-gray-700 mt-2 flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4 text-red-400">
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                                    </svg>
+                                    Rensa tavlan
+                                </button>
+                                <button onClick={() => { setIsInfoModalVisible(true); setIsMenuOpen(false); }} className="px-4 py-3 text-left text-white hover:bg-gray-700 font-semibold transition-colors border-t border-gray-700 rounded-b-xl">Om AI Whiteboard</button>
                             </div>
                         )}
                     </div>
 
-                    {/* 2. Undo & Clear & Eraser */}
+                    {/* 2. Undo & Eraser */}
                     <div className="flex flex-col gap-2">
                         <button onClick={handleUndo} disabled={history.length === 0} className="p-3 text-gray-300 hover:bg-gray-700 hover:text-white rounded-xl disabled:opacity-30 disabled:cursor-not-allowed transition-colors" title="Ångra">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
@@ -1932,11 +1924,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
   <path fillRule="evenodd" d="M2.515 10.674a1.875 1.875 0 0 0 0 2.652L8.89 19.7c.352.351.829.549 1.326.549H19.5a3 3 0 0 0 3-3V15a3 3 0 0 0-3-3h-1.66l-5.632-5.632a1.875 1.875 0 0 0-2.652 0l-6.041 6.041ZM17.84 15h1.66a1.5 1.5 0 0 1 1.5 1.5v2.25a1.5 1.5 0 0 1-1.5 1.5h-9.284l6.124-6.124ZM9.37 18.17l-5.63-5.631a.375.375 0 0 1 0-.53l5.63-5.631a.375.375 0 0 1 .531 0l5.631 5.631-6.162 6.162Z" clipRule="evenodd" />
 </svg>
-                        </button>
-                        <button onClick={clearCanvas} className="p-3 text-gray-300 hover:bg-red-500/20 hover:text-red-400 rounded-xl transition-colors" title="Rensa">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                            </svg>
                         </button>
                     </div>
 
@@ -1996,6 +1983,32 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             {interpretedWorkout && showBlockSelector && <BlockSelectionModal workout={interpretedWorkout} onSelect={(idx) => { setBlockForCircuit(interpretedWorkout.blocks[idx]); setShowBlockSelector(false); }} onCancel={() => setShowBlockSelector(false)} />}
             {blockForCircuit && <CircuitReorderModal block={blockForCircuit} onConfirm={drawCircuitOnCanvas} onCancel={() => setBlockForCircuit(null)} />}
             {isInfoModalVisible && <IdeaBoardInfoModal onClose={() => setIsInfoModalVisible(false)} />}
+            {isConfirmClearOpen && (
+                <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-md flex flex-col items-center justify-center z-[9999] p-4 text-center animate-fade-in">
+                    <div className="bg-gray-800 p-8 rounded-2xl max-w-sm border border-gray-700 shadow-2xl relative">
+                        <div className="text-red-500 text-5xl mb-4">⚠️</div>
+                        <h2 className="text-2xl font-bold text-white mb-3">Rensa whiteboard?</h2>
+                        <p className="text-gray-300 font-medium mb-6 text-sm">Detta tar bort alla ritade linjer samt smarta text- och form-objekt på din whiteboard. Detta går inte att ångra.</p>
+                        <div className="flex gap-4">
+                            <button 
+                                onClick={() => setIsConfirmClearOpen(false)} 
+                                className="flex-1 bg-gray-700 hover:bg-gray-650 text-white font-bold py-3 rounded-xl transition-colors text-sm"
+                            >
+                                Avbryt
+                            </button>
+                            <button 
+                                onClick={() => { 
+                                    clearCanvas(); 
+                                    setIsConfirmClearOpen(false); 
+                                }} 
+                                className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-3 rounded-xl transition-colors text-sm"
+                            >
+                                Ja, rensa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {isTimerSetupVisible && <IdeaBoardTimerSetupModal onStart={handleStartTimerSetup} onClose={() => setIsTimerSetupVisible(false)} block={lastDrawnBlock || { exercises: [] } as any} />}
             {completionInfo && <WorkoutCompleteModal isOpen={!!completionInfo} onClose={() => { setCompletionInfo(null); handleCloseTimer(); }} workout={completionInfo.workout} isFinalBlock={completionInfo.isFinal} blockTag={completionInfo.blockTag} finishTime={completionInfo.finishTime} organizationId={selectedOrganization?.id || ''} />}
 

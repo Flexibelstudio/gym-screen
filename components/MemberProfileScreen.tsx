@@ -134,6 +134,116 @@ const calculateWeeklyStreak = (logs: WorkoutLog[], migratedStats?: { totalWorkou
     return streak;
 };
 
+const getGoalCoachingAdvice = (goals: MemberGoals, logs: WorkoutLog[]): { status: string, advice: string, color: string } => {
+    if (!goals || !goals.hasSpecificGoals || !goals.selectedGoals || goals.selectedGoals.length === 0) {
+        return {
+            status: "Sätt ett mål för att få coaching",
+            advice: "Klicka på 'Redigera mål' för att ställa in dina SMART-mål, så kan jag analysera din träning och ge dig skräddarsydda tips!",
+            color: "blue"
+        };
+    }
+
+    let strengthCount = 0;
+    let conditioningCount = 0;
+    
+    // Sort logs to check the most recent 10 workouts
+    const recentLogs = [...logs].sort((a, b) => b.date - a.date).slice(0, 10);
+    
+    recentLogs.forEach(log => {
+        const titleLower = (log.workoutTitle || '').toLowerCase();
+        const hasCardioTag = log.tags?.some(tag => ['kondition', 'cardio', 'utmaning', 'löpning', 'intervaller'].includes(tag.toLowerCase()));
+        const hasStrengthTag = log.tags?.some(tag => ['styrka', 'gym', 'tyngdlyftning', 'skivstång', 'kraft', 'gym_workout'].includes(tag.toLowerCase()));
+        
+        const isStrengthWord = titleLower.includes('styrka') || titleLower.includes('barbell') || titleLower.includes('kraft') || titleLower.includes('gym');
+        const isConditioningWord = titleLower.includes('kondition') || titleLower.includes('cardio') || titleLower.includes('löpning') || titleLower.includes('intervall') || titleLower.includes('cykel') || titleLower.includes('rodd') || titleLower.includes('hiit') || titleLower.includes('pulspass');
+        
+        if (hasStrengthTag || isStrengthWord) {
+            strengthCount++;
+        }
+        if (hasCardioTag || isConditioningWord) {
+            conditioningCount++;
+        }
+    });
+
+    const wantsStrength = goals.selectedGoals.some(g => g.toLowerCase().includes('styrka') || g.toLowerCase().includes('muskel'));
+    const wantsConditioning = goals.selectedGoals.some(g => g.toLowerCase().includes('kondition') || g.toLowerCase().includes('uthållighet') || g.toLowerCase().includes('hjärthälsa') || g.toLowerCase().includes('viktminskning'));
+
+    if (wantsStrength && wantsConditioning) {
+        const ratio = strengthCount === 0 && conditioningCount === 0 ? 0.5 : strengthCount / (strengthCount + conditioningCount || 1);
+        if (ratio >= 0.4 && ratio <= 0.6 && (strengthCount > 0 || conditioningCount > 0)) {
+            return {
+                status: "Perfekt balans i träningen! 🎉",
+                advice: `Du balanserar din styrketräning (${strengthCount} st pass nyligen) och din konditionsträning (${conditioningCount} st pass nyligen) helt enligt plan! Fortsätt med denna jämna fördelning för att nå ditt mål optimalt och bibehålla en stark och uthållig kropp.`,
+                color: "emerald"
+            };
+        } else if (strengthCount > conditioningCount + 2) {
+            return {
+                status: "Fokus på återstående kondition 🏃‍♂️",
+                advice: `Du bygger fantastisk styrka just nu (${strengthCount} st styrkebaserade pass nyligen)! Men eftersom du också har mål inom kondition, glöm inte att smyga in lite flås. Prova att lägga till 1-2 dedikerade konditionspass eller pulshöjande avslutningar denna vecka.`,
+                color: "orange"
+            };
+        } else if (conditioningCount > strengthCount + 2) {
+            return {
+                status: "Dags för tunga lyft 💪",
+                advice: `Otrolig uthållighet! Din kondition (${conditioningCount} st pass nyligen) är på topp. För att komplettera din profil och stödja dina styrkemål, se till att lägga in ett fokuserat styrkepass den här veckan där du utmanar musklerna med lite tyngre belastning.`,
+                color: "orange"
+            };
+        } else {
+            return {
+                status: "Sätt igång träningsmaskinen! 🚀",
+                advice: `Du har inte loggat så många pass nyligen än. För en balanserad utveckling, kom igång denna vecka med ett kort, peppande styrkepass och ett skönt konditionspass. Fråga vår AI-coach i chatten nedan om du vill ha hjälp att lägga upp det!`,
+                color: "blue"
+            };
+        }
+    } else if (wantsStrength) {
+        if (strengthCount > 0 && conditioningCount > strengthCount + 1) {
+            return {
+                status: "Uppmärksamma ditt styrkemål! 💪",
+                advice: `Du har loggat ${conditioningCount} st konditionspass nyligen, men ditt primära mål är att bygga styrka. För bästa resultat och muskelutveckling, försök skifta om balansen och lägg in ett styrkepass där du fokuserar på progressiv överbelastning nyligen.`,
+                color: "orange"
+            };
+        } else if (strengthCount > 2) {
+            return {
+                status: "Styrkeprogression på rätt spår! 🔥",
+                advice: `Brutalt bra jobbat! Du har kört ${strengthCount} st styrkepass nyligen och håller en utmärkt riktning mot ditt styrkemål. Kom ihåg att logga dina vikter i appen så vi kan hålla koll på dina personliga rekord till nästa vecka!`,
+                color: "emerald"
+            };
+        } else {
+            return {
+                status: "Dags att väcka musklerna! 🏋️‍♂️",
+                advice: "För att starta din resa mot ökad styrka, boka in veckans första styrkepass redan idag. Fokusera på basövningar med bra teknik och rörlighet, och glöm inte att söka guidning av AI-coachen i chatten vid minsta osäkerhet!",
+                color: "blue"
+            };
+        }
+    } else if (wantsConditioning) {
+        if (conditioningCount > 0 && strengthCount > conditioningCount + 1) {
+            return {
+                status: "Glöm inte flåset! 💓",
+                advice: `Du bygger en stark grund med styrkepass (${strengthCount} st nyligen), men kom ihåg att ditt hjärta och flås är i fokus för ditt mål. Försök byta ut ett av styrkepassen mot ett roligt intervallpass, cykling eller löpning denna vecka för att maximera uthålligheten!`,
+                color: "orange"
+            };
+        } else if (conditioningCount > 2) {
+            return {
+                status: "Konditionen frodas! 🐆",
+                advice: `Snyggt flåsat! Med hela ${conditioningCount} st utförda konditionspass i din senaste historik är din puls på precis rätt nivå för att slå dina uthållighetsmål. Håll uppe kontinuiteten och våga utmana tempot lite extra på nästa pass!`,
+                color: "emerald"
+            };
+        } else {
+            return {
+                status: "Boka in veckans flåspass 🏃‍♀️",
+                advice: "Att förbättra konditionen handlar om regelbundenhet. Kör igång denna vecka med ett lättillgängligt konditionspass, t.ex. ett 20-30 minuters HIIT-pass, cykel- eller raska intervaller. Ta det i din egen takt och känn glädjen när flåset ökar!",
+                color: "blue"
+            };
+        }
+    }
+
+    return {
+        status: "Nå dina mål tillsammans med coachen 🌟",
+        advice: `Grymt jobbat med dina uppsatta mål. Försök att planera in 2-3 pass i veckan som stöder dina delmål. Vår AI-coach i chatten står alltid redo med personliga rekommendationer utifrån vad du körde senast!`,
+        color: "blue"
+    };
+};
+
 const getLevelInfo = (count: number) => {
     const workoutsPerLevel = 10;
     const level = Math.floor(count / workoutsPerLevel) + 1;
@@ -1169,21 +1279,92 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             </div>
 
                                             {daysLeft !== null && (
-                                                <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl">
-                                                    <div className="flex-grow">
-                                                        <div className="flex justify-between text-xs font-bold text-gray-500 mb-1"><span>Framsteg</span><span>{userData.goals.targetDate}</span></div>
-                                                        <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden p-0.5 border border-gray-100 dark:border-gray-800">
-                                                            <div 
-                                                                className="h-full bg-primary rounded-full transition-all duration-1000 relative shadow-[0_0_10px_rgba(20,184,166,0.5)]" 
-                                                                style={{ width: `${Math.max(1.5, progressPercentage)}%` }}
-                                                            >
-                                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+                                                daysLeft <= 0 ? (
+                                                    <div className="space-y-4 pt-1">
+                                                        <div className="bg-gradient-to-r from-emerald-500/10 to-teal-500/10 dark:from-emerald-500/5 dark:to-teal-500/5 p-5 rounded-2xl border border-emerald-500/20 dark:border-emerald-500/10 text-center space-y-3">
+                                                            <div className="w-12 h-12 bg-emerald-100 dark:bg-emerald-950/50 rounded-full flex items-center justify-center mx-auto text-2xl">
+                                                                🏁
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <h4 className="font-extrabold text-gray-900 dark:text-white uppercase tracking-tight text-sm">Måldatum nått!</h4>
+                                                                <p className="text-xs text-gray-500 dark:text-gray-400">Deadlinet för ditt uppsatta mål ({userData.goals.targetDate}) har nåtts.</p>
+                                                            </div>
+                                                            <div className="bg-white dark:bg-gray-800 p-3.5 rounded-xl border border-gray-100 dark:border-gray-800 text-left">
+                                                                <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+                                                                    <span>💡</span> Feedback från coachen
+                                                                </p>
+                                                                <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-semibold">
+                                                                    Snyggt jobbat att du kämpat på mot ditt mål! Nu när måldatumet är nått är det ett perfekt tillfälle att stanna upp, utvärdera och fira dina framsteg tillsammans med din personliga PT i fickformat. Fråga PT-coachen i chatten vad nästa steg bör bli för att hålla kontinuiteten uppe!
+                                                                 </p>
+                                                            </div>
+                                                            <div className="flex gap-2">
+                                                                <button
+                                                                    onClick={() => setIsEditingGoals(true)}
+                                                                    className="flex-grow px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-emerald-500/10 uppercase tracking-wider"
+                                                                >
+                                                                    Sätt ett nytt spännande mål!
+                                                                </button>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <div className="text-center min-w-[60px]"><span className="block text-xl font-black text-gray-900 dark:text-white leading-none">{daysLeft}</span><span className="text-[9px] uppercase font-bold text-gray-400">Dagar kvar</span></div>
-                                                </div>
+                                                ) : (
+                                                    <div className="flex items-center gap-3 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-xl">
+                                                        <div className="flex-grow">
+                                                            <div className="flex justify-between text-xs font-bold text-gray-500 mb-1"><span>Framsteg</span><span>{userData.goals.targetDate}</span></div>
+                                                            <div className="h-4 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden p-0.5 border border-gray-100 dark:border-gray-800">
+                                                                <div 
+                                                                    className="h-full bg-primary rounded-full transition-all duration-1000 relative shadow-[0_0_10px_rgba(20,184,166,0.5)]" 
+                                                                    style={{ width: `${Math.max(1.5, progressPercentage)}%` }}
+                                                                >
+                                                                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div className="text-center min-w-[60px]"><span className="block text-xl font-black text-gray-900 dark:text-white leading-none">{daysLeft}</span><span className="text-[9px] uppercase font-bold text-gray-400">Dagar kvar</span></div>
+                                                    </div>
+                                                )
                                             )}
+
+                                            {/* AI-Coach Insight Card (Steg 3) */}
+                                            {daysLeft !== null && daysLeft > 0 && (() => {
+                                                const adviceData = getGoalCoachingAdvice(userData.goals!, logs);
+                                                const bgCol = adviceData.color === 'emerald' 
+                                                    ? 'from-emerald-500/10 to-teal-500/10 dark:from-emerald-500/5 dark:to-teal-500/5 border-emerald-500/20 dark:border-emerald-500/10'
+                                                    : adviceData.color === 'orange'
+                                                    ? 'from-orange-500/10 to-amber-500/10 dark:from-orange-500/5 dark:to-amber-500/5 border-orange-500/20 dark:border-orange-500/10'
+                                                    : 'from-blue-500/10 to-indigo-500/10 dark:from-blue-500/5 dark:to-indigo-500/5 border-blue-500/20 dark:border-blue-500/10';
+
+                                                const iconCol = adviceData.color === 'emerald' ? 'text-emerald-500 dark:text-emerald-400'
+                                                    : adviceData.color === 'orange' ? 'text-orange-500 dark:text-orange-400'
+                                                    : 'text-blue-500 dark:text-blue-400';
+
+                                                return (
+                                                    <div className={`bg-gradient-to-r ${bgCol} p-5 rounded-3xl border text-left space-y-3 relative overflow-hidden backdrop-blur-sm shadow-sm animate-fade-in`}>
+                                                        <div className="absolute top-0 right-0 p-4 opacity-10">
+                                                            <SparklesIcon className="w-20 h-20 text-primary" />
+                                                        </div>
+                                                        <div className="flex items-center gap-2 relative z-10">
+                                                            <SparklesIcon className={`w-5 h-5 ${iconCol}`} />
+                                                            <h4 className="font-extrabold text-xs text-gray-900 dark:text-white uppercase tracking-tight leading-none">
+                                                                AI-Coachens analys & rekommendation
+                                                            </h4>
+                                                        </div>
+                                                        <div className="space-y-2 relative z-10">
+                                                            <p className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-wider">
+                                                                {adviceData.status}
+                                                              </p>
+                                                            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-semibold">
+                                                                {adviceData.advice}
+                                                            </p>
+                                                        </div>
+                                                        <div className="pt-1 flex justify-end relative z-10">
+                                                            <p className="text-[10px] text-gray-400 uppercase tracking-widest font-black flex items-center gap-1">
+                                                                Öppna coach-chatten nere till höger för din fullständiga plan ↗
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     </div>
                                 </div>
