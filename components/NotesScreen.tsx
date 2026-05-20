@@ -67,6 +67,18 @@ const BoilingCauldron: React.FC<{ className?: string }> = ({ className }) => (
     </div>
 );
 
+const getSnugTextSize = (text: string, fontSize: number) => {
+    const lines = text.split('\n');
+    const longestLine = lines.reduce((max, line) => Math.max(max, line.length), 0);
+    // Kalam har ganska smala men varierande bokstavsbredder i genomsnitt. Ca 0.5 * fontSize är väldigt lagom.
+    // Vi lägger till 24px extra för lite höger-vänster padding.
+    const charWidth = 0.52 * fontSize;
+    const computedWidth = Math.max(100, longestLine * charWidth + 24);
+    // Höjden är raderna gånger fontSize plus radavstånd (lineHeight 1.25)
+    const computedHeight = Math.max(40, lines.length * (fontSize * 1.22) + 12);
+    return { width: computedWidth, height: computedHeight };
+};
+
 // New modal component for the archive
 const ResizeHandle: React.FC<{ onResize: (dx: number, dy: number) => void, isArrow?: boolean }> = ({ onResize, isArrow }) => {
     return (
@@ -801,7 +813,25 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
     const [smartObjects, setSmartObjects] = useState<SmartObject[]>([]);
     
     const updateSmartObject = (id: string, updates: Partial<SmartObject>) => {
-        setSmartObjects(prev => prev.map(obj => obj.id === id ? { ...obj, ...updates } : obj));
+        setSmartObjects(prev => prev.map(obj => {
+            if (obj.id !== id) return obj;
+            const updated = { ...obj, ...updates };
+            
+            // Anpassa storleken dynamiskt om texten uppdateras i ett text-objekt
+            if (obj.type === 'text' && updates.text !== undefined) {
+                const fontSize = obj.fontSize || 36;
+                const size = getSnugTextSize(updates.text, fontSize);
+                
+                // Mittenbehållande uppdatering för x och y
+                const dx = obj.width - size.width;
+                const dy = obj.height - size.height;
+                updated.x = obj.x + (dx / 2);
+                updated.y = obj.y + (dy / 2);
+                updated.width = size.width;
+                updated.height = size.height;
+            }
+            return updated;
+        }));
     };
 
     const removeSmartObject = (id: string) => {
@@ -854,14 +884,16 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             setActiveCoachNote(note);
         } else if (note.text) {
             // Put text on canvas as a smart object
+            const rawText = note.title ? `${note.title}\n\n${note.text}` : note.text;
+            const size = getSnugTextSize(rawText, 36);
             const newObj: SmartObject = {
                 id: `smart-text-${Date.now()}`,
                 type: 'text',
-                x: 100,
-                y: 100,
-                width: 400,
-                height: 200,
-                text: note.title ? `${note.title}\n\n${note.text}` : note.text,
+                x: 150,
+                y: 150,
+                width: size.width,
+                height: size.height,
+                text: rawText,
                 color: '#FFFFFF',
                 fontSize: 36
             };
@@ -1403,18 +1435,37 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             
             if (objects && objects.length > 0) {
                 // Skapa SmartObjects från AI-svaret
-                const newSmartObjects: SmartObject[] = objects.map((obj, i) => ({
-                    id: `smart-${Date.now()}-${i}`,
-                    type: obj.type as SmartObjectType,
-                    x: obj.x,
-                    y: obj.y,
-                    width: obj.width,
-                    height: obj.height,
-                    endX: obj.endX !== undefined ? obj.endX : (obj.type === 'arrow' ? obj.x + obj.width : undefined),
-                    endY: obj.endY !== undefined ? obj.endY : (obj.type === 'arrow' ? obj.y + obj.height : undefined),
-                    text: obj.text || '',
-                    color: obj.color || '#FFFFFF'
-                }));
+                const newSmartObjects: SmartObject[] = objects.map((obj, i) => {
+                    const isText = obj.type === 'text';
+                    const fontSize = obj.fontSize || 36;
+                    let width = obj.width;
+                    let height = obj.height;
+                    let x = obj.x;
+                    let y = obj.y;
+
+                    if (isText && obj.text) {
+                        const snug = getSnugTextSize(obj.text, fontSize);
+                        // Håll mittpunkten exakt intakt
+                        x = obj.x + (obj.width - snug.width) / 2;
+                        y = obj.y + (obj.height - snug.height) / 2;
+                        width = snug.width;
+                        height = snug.height;
+                    }
+
+                    return {
+                        id: `smart-${Date.now()}-${i}`,
+                        type: obj.type as SmartObjectType,
+                        x,
+                        y,
+                        width,
+                        height,
+                        endX: obj.endX !== undefined ? obj.endX : (obj.type === 'arrow' ? obj.x + obj.width : undefined),
+                        endY: obj.endY !== undefined ? obj.endY : (obj.type === 'arrow' ? obj.y + obj.height : undefined),
+                        text: obj.text || '',
+                        color: obj.color || '#FFFFFF',
+                        fontSize
+                    };
+                });
                 
                 // Rensa handritade streck (behåll historik för ångra om man vill, men enklast är att rensa)
                 const canvas = canvasRef.current;
@@ -1704,7 +1755,9 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 <canvas ref={canvasRef} className="w-full h-full block" />
                 
                 {/* Timer Zone Marker */}
-                <div className="absolute top-[32%] left-0 right-0 pointer-events-none flex justify-between px-0 opacity-40 z-0">
+                <div 
+                    className="absolute left-0 right-0 pointer-events-none flex justify-between px-0 opacity-40 z-0 transition-all duration-300 top-[270px] sm:top-[315px]"
+                >
                     <div className="flex items-center">
                         <div className="w-4 h-[2px] bg-gray-400 dark:bg-gray-500 rounded-r-full"></div>
                         <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-2 rotate-90 origin-left translate-y-6">Timer</span>
@@ -1751,7 +1804,7 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                                 justifyContent: 'center',
                                 zIndex: 20,
                             }}
-                            className="active:cursor-grabbing cursor-grab group"
+                            className={`active:cursor-grabbing cursor-grab group transition-all duration-150 ${obj.type !== 'arrow' ? 'border border-transparent hover:border-white/20 hover:border-dashed rounded-lg' : ''}`}
                         >
                             <ColorPicker currentColor={obj.color} onColorSelect={(c) => updateSmartObject(obj.id, { color: c })} />
                             

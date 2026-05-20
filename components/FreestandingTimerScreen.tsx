@@ -314,6 +314,26 @@ export const FreestandingTimerScreen: React.FC<FreestandingTimerScreenProps> = (
                 exercises = [{ id: 'ex-dummy', name: 'Tid' }];
                 break;
         }
+
+        // Om inställningarna matchar en sparad mall, använd mallens namn som titel på timern
+        const matchingTemplate = savedTemplates.find(t => 
+            t.mode === mode &&
+            (t.direction || 'down') === direction &&
+            (t.countMode || 'rounds') === countMode &&
+            t.rounds === rounds &&
+            t.laps === laps &&
+            t.intervalsPerLap === intervalsPerLap &&
+            t.totalMinutes === totalMinutes &&
+            (t.workMinutes ?? 0) === workMinutes &&
+            (t.workSeconds ?? 0) === workSeconds &&
+            (t.restMinutes ?? 0) === restMinutes &&
+            (t.restSeconds ?? 0) === restSeconds
+        );
+
+        if (matchingTemplate) {
+            title = matchingTemplate.name;
+        }
+
         const blockToStart: WorkoutBlock = { 
             id: `freestanding-${Date.now()}`, 
             title, 
