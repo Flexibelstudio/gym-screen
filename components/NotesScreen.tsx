@@ -1754,21 +1754,6 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
                 )}
                 <canvas ref={canvasRef} className="w-full h-full block" />
                 
-                {/* Timer Zone Marker */}
-                <div 
-                    className="absolute left-0 right-0 pointer-events-none flex justify-between px-0 opacity-40 z-0 transition-all duration-300"
-                    style={{ top: timerBlock ? '32%' : '10%' }}
-                >
-                    <div className="flex items-center">
-                        <div className="w-4 h-[2px] bg-gray-400 dark:bg-gray-500 rounded-r-full"></div>
-                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest ml-2 rotate-90 origin-left translate-y-6">Timer</span>
-                    </div>
-                    <div className="flex items-center">
-                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mr-2 -rotate-90 origin-right translate-y-6">Timer</span>
-                        <div className="w-4 h-[2px] bg-gray-400 dark:bg-gray-500 rounded-l-full"></div>
-                    </div>
-                </div>
-                
 
                 
                 {/* Render Smart Objects */}
