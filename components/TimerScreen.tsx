@@ -1079,9 +1079,29 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       }
       setWinnerName(winnerDisplayName);
       
-      const raceResults = sortedFinishers.map(([participant, data], index) => {
-          const group = startGroups.find(g => g.participants.includes(participant));
-          return { participant, time: (data as FinishData).time, groupId: group?.id || 'unknown' };
+      const raceResults = sortedFinishers.map(([participantId, data]) => {
+          const group = startGroups.find(g => {
+              if (g.participantList && g.participantList.length > 0) {
+                  return g.participantList.some(p => p.id === participantId);
+              }
+              return participantId.startsWith(`legacy-${g.id}`);
+          });
+          
+          let displayName = participantId;
+          let partnerName: string | undefined = undefined;
+          
+          const found = startedParticipants.find(p => p.id === participantId);
+          if (found) {
+              displayName = found.name;
+              partnerName = found.partnerName;
+          }
+          
+          return { 
+              participant: partnerName ? `${displayName} & ${partnerName}` : displayName, 
+              time: (data as FinishData).time, 
+              groupId: group?.id || 'unknown',
+              ...(partnerName ? { partnerName } : {})
+          };
       });
 
       try {
