@@ -543,7 +543,11 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
 
 // Denna rör vi INTE eftersom vi vet att den fungerar felfritt via proxyn (gav 200 OK)!
 export async function beautifyDrawing(base64Image: string, width: number, height: number): Promise<any[]> {
-    if (!base64Image || base64Image.trim(    const prompt = `Du är en avancerad bildanalysator och whiteboard-layout-tolk. Din uppgift är att identifiera ritade former, pilar och handskriven text på denna whiteboard-bild.
+    if (!base64Image || base64Image.trim().length === 0) {
+        throw new Error("Ingen bilddata skickad.");
+    }    
+        
+    const prompt = `Du är en avancerad bildanalysator och whiteboard-layout-tolk. Din uppgift är att identifiera ritade former, pilar och handskriven text på denna whiteboard-bild.
     
     CRITICAL TEXT GROUPING & LAYOUT RULES (VÄLDIGT VIKTIGT):
     1. GRUPPERA FLERA RADER TILL SAMMANHÄNGANDE BLOCK: Om det finns flera rader av text som är skrivna under varandra (till exempel en lista med övningar såsom: "10 situps", "10 pushups", "15 squats"), ska du hålla ihop dem i ETT ENDA "text"-objekt! Dela inte upp varje rad i en egen ruta. Returnera dem i en och samma textruta med radbrytningar ("\n") mellan raderna. Hela träningsblocket ska kunna flyttas och hanteras som en enhet.
