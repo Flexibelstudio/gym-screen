@@ -15,25 +15,6 @@ interface TimerSetupModalProps {
 
 type CountMode = 'laps' | 'rounds';
 
-interface SavedTimerTemplate {
-  id: string;
-  name: string;
-  mode: TimerMode;
-  direction: 'up' | 'down';
-  countMode: CountMode;
-  varv: number;
-  intervallerPerVarv: number;
-  totalOmgångar: number;
-  totalMinutes: number;
-  workMinutes: number;
-  workSeconds: number;
-  restMinutes: number;
-  restSeconds: number;
-  autoAdvance: boolean;
-  transitionTime: number;
-  sequence: TimerSegment[];
-}
-
 const secondsToMinSec = (totalSeconds: number) => {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -53,7 +34,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
       let iVarv = 1;
       let iIntervallerPerVarv = 1;
       let iTotalOmgångar = 1;
-      let iCountMode: CountMode = 'rounds'; // Default to 'rounds' instead of 'laps'
+      let iCountMode: CountMode = 'laps';
       let iTotalMinutes = 10;
 
       if (mode === TimerMode.Interval) {
@@ -117,144 +98,6 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
 
   // State for Custom Sequence
   const [sequence, setSequence] = useState<TimerSegment[]>(initialState.sequence);
-
-  // --- Saved Timer Templates Local State ---
-  const [savedTemplates, setSavedTemplates] = useState<SavedTimerTemplate[]>([]);
-  const [newTemplateName, setNewTemplateName] = useState('');
-
-  // Handle Loading/Saving templates from LocalStorage
-  useEffect(() => {
-    const key = `stored_timer_templates_${orgId}`;
-    const stored = localStorage.getItem(key);
-    if (stored) {
-      try {
-        setSavedTemplates(JSON.parse(stored));
-      } catch (e) {
-        console.error(e);
-      }
-    } else {
-      // Default templates
-      const defaults: SavedTimerTemplate[] = [
-         {
-            id: 'default-tabata',
-            name: 'Standard Tabata',
-            mode: TimerMode.Tabata,
-            direction: 'down',
-            countMode: 'rounds',
-            varv: 8,
-            intervallerPerVarv: 1,
-            totalOmgångar: 8,
-            totalMinutes: 4,
-            workMinutes: 0,
-            workSeconds: 20,
-            restMinutes: 0,
-            restSeconds: 10,
-            autoAdvance: false,
-            transitionTime: 0,
-            sequence: []
-         },
-         {
-            id: 'default-emom',
-            name: 'EMOM 10 Min',
-            mode: TimerMode.EMOM,
-            direction: 'down',
-            countMode: 'rounds',
-            varv: 1,
-            intervallerPerVarv: 1,
-            totalOmgångar: 10,
-            totalMinutes: 10,
-            workMinutes: 1,
-            workSeconds: 0,
-            restMinutes: 0,
-            restSeconds: 0,
-            autoAdvance: false,
-            transitionTime: 0,
-            sequence: []
-         }
-      ];
-      setSavedTemplates(defaults);
-      localStorage.setItem(key, JSON.stringify(defaults));
-    }
-  }, [orgId]);
-
-  const handleSaveTemplate = () => {
-    if (!newTemplateName.trim()) {
-      alert("Skriv ett namn för din mall.");
-      return;
-    }
-    const newTemplate: SavedTimerTemplate = {
-      id: Date.now().toString(),
-      name: newTemplateName.trim(),
-      mode,
-      direction,
-      countMode,
-      varv,
-      intervallerPerVarv,
-      totalOmgångar,
-      totalMinutes,
-      workMinutes,
-      workSeconds,
-      restMinutes,
-      restSeconds,
-      autoAdvance,
-      transitionTime,
-      sequence
-    };
-
-    const updated = [...savedTemplates, newTemplate];
-    setSavedTemplates(updated);
-    localStorage.setItem(`stored_timer_templates_${orgId}`, JSON.stringify(updated));
-    setNewTemplateName('');
-  };
-
-  const handleDeleteTemplate = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const updated = savedTemplates.filter(t => t.id !== id);
-    setSavedTemplates(updated);
-    localStorage.setItem(`stored_timer_templates_${orgId}`, JSON.stringify(updated));
-  };
-
-  const handleLoadTemplate = (template: SavedTimerTemplate) => {
-    setMode(template.mode);
-    setDirection(template.direction);
-    setCountMode(template.countMode);
-    setVarv(template.varv);
-    setIntervallerPerVarv(template.intervallerPerVarv);
-    setTotalOmgångar(template.totalOmgångar);
-    setTotalMinutes(template.totalMinutes);
-    setWorkMinutes(template.workMinutes);
-    setWorkSeconds(template.workSeconds);
-    setRestMinutes(template.restMinutes);
-    setRestSeconds(template.restSeconds);
-    setAutoAdvance(template.autoAdvance);
-    setTransitionTime(template.transitionTime);
-    setSequence(template.sequence || []);
-  };
-
-  const getTemplateDescription = (t: SavedTimerTemplate) => {
-    switch (t.mode) {
-      case TimerMode.Interval:
-        if (t.countMode === 'laps') {
-          return `Int: ${t.varv} varv x ${t.intervallerPerVarv} int (${t.workMinutes}m ${t.workSeconds}s / ${t.restMinutes}m ${t.restSeconds}s)`;
-        } else {
-          return `Int: ${t.totalOmgångar} omg (${t.workMinutes}m ${t.workSeconds}s / ${t.restMinutes}m ${t.restSeconds}s)`;
-        }
-      case TimerMode.Tabata:
-        return 'Tabata: 8x (20s / 10s)';
-      case TimerMode.AMRAP:
-        return `AMRAP: ${t.totalMinutes} min`;
-      case TimerMode.EMOM:
-        return `EMOM: ${t.totalMinutes} min`;
-      case TimerMode.TimeCap:
-        return `TimeCap: ${t.totalMinutes} min`;
-      case TimerMode.Stopwatch:
-        return 'Stoppur';
-      case TimerMode.Custom:
-        return `Sekvens: ${t.varv} varv (${t.sequence?.length || 0} steg)`;
-      default:
-        return 'Ingen timer';
-    }
-  };
 
   const hasUnsavedChanges = useMemo(() => {
       if (mode !== initialState.mode) return true;
@@ -732,62 +575,6 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
         <div className="bg-white dark:bg-black rounded-3xl p-6 border border-gray-200 dark:border-gray-700 min-h-[300px] flex flex-col justify-center items-center">
             {renderDirectionToggle()}
             {renderSettingsInputs()}
-        </div>
-
-        {/* --- SPARADE TIMERS MALLAR --- */}
-        <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-2 mb-3">
-            <SparklesIcon className="w-5 h-5 text-primary" />
-            <h3 className="text-sm font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">Sparade mallar</h3>
-          </div>
-          
-          {/* Spara nuvarande inställning */}
-          <div className="flex gap-2 mb-4">
-            <input
-              type="text"
-              placeholder="Namnge mall (t.ex. Uppvärmning 40s/20s)"
-              value={newTemplateName}
-              onChange={(e) => setNewTemplateName(e.target.value)}
-              className="flex-grow bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm placeholder-gray-450 dark:placeholder-gray-500"
-            />
-            <button
-              type="button"
-              onClick={handleSaveTemplate}
-              className="bg-primary text-white font-black text-xs px-5 rounded-xl uppercase tracking-wider hover:brightness-95 transition-all shadow-md shrink-0 active:scale-95"
-            >
-              Spara mall
-            </button>
-          </div>
-
-          {/* Lista på sparade mallar */}
-          {savedTemplates.length === 0 ? (
-            <p className="text-xs text-gray-400 dark:text-gray-500 italic text-center py-2">
-              Inga sparade mallar ännu. Skriv ett namn ovan och klicka på "Spara mall"!
-            </p>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[170px] overflow-y-auto pr-1">
-              {savedTemplates.map((t) => (
-                <div
-                  key={t.id}
-                  onClick={() => handleLoadTemplate(t)}
-                  className="group flex justify-between items-center bg-white dark:bg-black/60 p-3 rounded-2xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition-all shadow-sm"
-                >
-                  <div className="flex flex-col min-w-0 pr-2">
-                    <span className="text-xs font-black text-gray-900 dark:text-white truncate">{t.name}</span>
-                    <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider truncate">{getTemplateDescription(t)}</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={(e) => handleDeleteTemplate(t.id, e)}
-                    className="p-1.5 text-gray-450 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl transition-all"
-                    title="Ta bort mall"
-                  >
-                    <TrashIcon className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
 
         {/* --- AUTO ADVANCE SETTINGS --- */}
