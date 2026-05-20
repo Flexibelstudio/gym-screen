@@ -557,7 +557,12 @@ export async function beautifyDrawing(base64Image: string, width: number, height
     - endX: Endast för pilar, X-koordinat för slutpunkten (där spetsen är).
     - endY: Endast för pilar, Y-koordinat för slutpunkten (där spetsen är).
     - text: Om det är text, eller text inuti en form. Annars tom sträng.
-    - color: Hex-färgkod som matchar ritningens färg. Standard är "#FFFFFF".`;
+    - color: Hex-färgkod som matchar ritningens färg. Standard är "#FFFFFF".
+    
+    CRITICAL TEXT GROUPING RULE:
+    Dela ALDRIG upp rader med text, listpunkter eller intilliggande ord (t.ex. "5x5 Backsquats", "10 Kettlebell Swings" eller "AMRAP 12 min") i enskilda objekt för varje ord. 
+    Identifiera hela textfrasen eller hela raden som skrivits tillsammans och returnera den som ETT enda "text"-objekt med korrekta koordinater (x, y) och dimensioner (width, height) som spänner över hela texten. 
+    Endast om två rader eller ord är helt åtskilda på whiteboarden (t.ex. i olika kolumner eller långt ifrån varandra) ska de vara separerade.`;
 
     const cleanBase64 = compressedImage.includes(',') ? compressedImage.split(',')[1] : compressedImage;
 
