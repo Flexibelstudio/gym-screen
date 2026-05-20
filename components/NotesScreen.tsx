@@ -746,7 +746,7 @@ const CompactTimer: React.FC<{
                     </div>
                 </div>
 
-                {timer.totalBlockDuration > 0 && (
+                {timer.totalBlockDuration > 0 && block.settings.mode !== TimerMode.Stopwatch && (
                     <div className="w-full h-2 bg-black/30 rounded-full overflow-hidden backdrop-blur-md border border-white/20 shadow-inner mt-6">
                         <motion.div 
                             className="h-full bg-white shadow-[0_0_15px_rgba(255,255,255,0.8)] relative"

@@ -281,7 +281,7 @@ export const calculateBlockDuration = (settings: TimerSettings, exercisesCount: 
         case TimerMode.AMRAP:
         case TimerMode.TimeCap:
         case TimerMode.Stopwatch:
-            return workTime;
+            return workTime || 86400;
         case TimerMode.EMOM:
             return rounds * 60;
         default:
@@ -378,7 +378,8 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
   
   const startNextInterval = useCallback(() => {
     if (!block) return;
-    const { workTime, restTime, mode } = block.settings;
+    const { restTime, mode } = block.settings;
+    const workTime = mode === TimerMode.Stopwatch ? (block.settings.workTime || 86400) : (block.settings.workTime || 0);
 
     if (mode === TimerMode.Custom) {
         if (!currentSegment) {
@@ -534,7 +535,9 @@ export const useWorkoutTimer = (block: WorkoutBlock | null, soundProfile: TimerS
              setCurrentPhaseDuration(firstSeg.duration);
         } else {
              setStatus(TimerStatus.Running);
-             const workTime = block.settings.workTime || 60;
+             const workTime = block.settings.mode === TimerMode.Stopwatch 
+                 ? (block.settings.workTime || 86400) 
+                 : (block.settings.workTime || 60);
              setCurrentTime(workTime);
              setCurrentPhaseDuration(workTime);
         }
