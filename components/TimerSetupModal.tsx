@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { WorkoutBlock, TimerMode, TimerSegment } from '../types';
 import { ValueAdjuster, ChevronDownIcon, ChevronUpIcon, ToggleSwitch, SparklesIcon, TrashIcon, PlusIcon } from './icons';
+import { useStudio } from '../context/StudioContext';
 
 interface TimerSetupModalProps {
   isOpen: boolean;
@@ -14,6 +15,25 @@ interface TimerSetupModalProps {
 
 type CountMode = 'laps' | 'rounds';
 
+interface SavedTimerTemplate {
+  id: string;
+  name: string;
+  mode: TimerMode;
+  direction: 'up' | 'down';
+  countMode: CountMode;
+  varv: number;
+  intervallerPerVarv: number;
+  totalOmgångar: number;
+  totalMinutes: number;
+  workMinutes: number;
+  workSeconds: number;
+  restMinutes: number;
+  restSeconds: number;
+  autoAdvance: boolean;
+  transitionTime: number;
+  sequence: TimerSegment[];
+}
+
 const secondsToMinSec = (totalSeconds: number) => {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
@@ -21,6 +41,9 @@ const secondsToMinSec = (totalSeconds: number) => {
 };
 
 export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClose, block, onSave, isLastBlock = false }) => {
+  const { selectedOrganization } = useStudio();
+  const orgId = selectedOrganization?.id || 'global';
+
   // --- Initialize State Lazily from Props ---
   const [initialState] = useState(() => {
       const { mode, workTime, restTime, rounds, specifiedLaps, specifiedIntervalsPerLap, direction, sequence } = block.settings;
@@ -30,7 +53,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
       let iVarv = 1;
       let iIntervallerPerVarv = 1;
       let iTotalOmgångar = 1;
-      let iCountMode: CountMode = 'laps';
+      let iCountMode: CountMode = 'rounds'; // Default to 'rounds' instead of 'laps'
       let iTotalMinutes = 10;
 
       if (mode === TimerMode.Interval) {
@@ -38,26 +61,17 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                iCountMode = 'laps';
                iVarv = specifiedLaps;
                iIntervallerPerVarv = specifiedIntervalsPerLap;
-          } else if (specifiedLaps === null) {
-               iCountMode = 'rounds';
-               iTotalOmgångar = rounds > 0 ? rounds : 1;
           } else {
-              const numExercises = (block.exercises?.length || 0) > 0 ? (block.exercises?.length || 1) : 1;
-              if (rounds > 0 && rounds % numExercises === 0) {
-                  iCountMode = 'laps';
-                  iIntervallerPerVarv = numExercises;
-                  iVarv = rounds / numExercises;
-              } else {
-                  iCountMode = 'rounds';
-                  iTotalOmgångar = rounds > 0 ? rounds : 1;
-              }
+               // Default to rounds (omgångar)
+               iCountMode = 'rounds';
+               iTotalOmgångar = rounds > 0 ? rounds : 10;
           }
       } else if (mode === TimerMode.EMOM) {
-           iTotalMinutes = rounds;
+            iTotalMinutes = rounds;
       } else if (mode === TimerMode.AMRAP || mode === TimerMode.TimeCap) {
-           iTotalMinutes = Math.floor(workTime / 60);
+            iTotalMinutes = Math.floor(workTime / 60);
       } else if (mode === TimerMode.Custom) {
-           iVarv = rounds || 1; // Reuse 'varv' variable for custom sequence loops
+            iVarv = rounds || 1; // Reuse 'varv' variable for custom sequence loops
       }
 
       return {
@@ -103,6 +117,144 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
 
   // State for Custom Sequence
   const [sequence, setSequence] = useState<TimerSegment[]>(initialState.sequence);
+
+  // --- Saved Timer Templates Local State ---
+  const [savedTemplates, setSavedTemplates] = useState<SavedTimerTemplate[]>([]);
+  const [newTemplateName, setNewTemplateName] = useState('');
+
+  // Handle Loading/Saving templates from LocalStorage
+  useEffect(() => {
+    const key = `stored_timer_templates_${orgId}`;
+    const stored = localStorage.getItem(key);
+    if (stored) {
+      try {
+        setSavedTemplates(JSON.parse(stored));
+      } catch (e) {
+        console.error(e);
+      }
+    } else {
+      // Default templates
+      const defaults: SavedTimerTemplate[] = [
+         {
+            id: 'default-tabata',
+            name: 'Standard Tabata',
+            mode: TimerMode.Tabata,
+            direction: 'down',
+            countMode: 'rounds',
+            varv: 8,
+            intervallerPerVarv: 1,
+            totalOmgångar: 8,
+            totalMinutes: 4,
+            workMinutes: 0,
+            workSeconds: 20,
+            restMinutes: 0,
+            restSeconds: 10,
+            autoAdvance: false,
+            transitionTime: 0,
+            sequence: []
+         },
+         {
+            id: 'default-emom',
+            name: 'EMOM 10 Min',
+            mode: TimerMode.EMOM,
+            direction: 'down',
+            countMode: 'rounds',
+            varv: 1,
+            intervallerPerVarv: 1,
+            totalOmgångar: 10,
+            totalMinutes: 10,
+            workMinutes: 1,
+            workSeconds: 0,
+            restMinutes: 0,
+            restSeconds: 0,
+            autoAdvance: false,
+            transitionTime: 0,
+            sequence: []
+         }
+      ];
+      setSavedTemplates(defaults);
+      localStorage.setItem(key, JSON.stringify(defaults));
+    }
+  }, [orgId]);
+
+  const handleSaveTemplate = () => {
+    if (!newTemplateName.trim()) {
+      alert("Skriv ett namn för din mall.");
+      return;
+    }
+    const newTemplate: SavedTimerTemplate = {
+      id: Date.now().toString(),
+      name: newTemplateName.trim(),
+      mode,
+      direction,
+      countMode,
+      varv,
+      intervallerPerVarv,
+      totalOmgångar,
+      totalMinutes,
+      workMinutes,
+      workSeconds,
+      restMinutes,
+      restSeconds,
+      autoAdvance,
+      transitionTime,
+      sequence
+    };
+
+    const updated = [...savedTemplates, newTemplate];
+    setSavedTemplates(updated);
+    localStorage.setItem(`stored_timer_templates_${orgId}`, JSON.stringify(updated));
+    setNewTemplateName('');
+  };
+
+  const handleDeleteTemplate = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const updated = savedTemplates.filter(t => t.id !== id);
+    setSavedTemplates(updated);
+    localStorage.setItem(`stored_timer_templates_${orgId}`, JSON.stringify(updated));
+  };
+
+  const handleLoadTemplate = (template: SavedTimerTemplate) => {
+    setMode(template.mode);
+    setDirection(template.direction);
+    setCountMode(template.countMode);
+    setVarv(template.varv);
+    setIntervallerPerVarv(template.intervallerPerVarv);
+    setTotalOmgångar(template.totalOmgångar);
+    setTotalMinutes(template.totalMinutes);
+    setWorkMinutes(template.workMinutes);
+    setWorkSeconds(template.workSeconds);
+    setRestMinutes(template.restMinutes);
+    setRestSeconds(template.restSeconds);
+    setAutoAdvance(template.autoAdvance);
+    setTransitionTime(template.transitionTime);
+    setSequence(template.sequence || []);
+  };
+
+  const getTemplateDescription = (t: SavedTimerTemplate) => {
+    switch (t.mode) {
+      case TimerMode.Interval:
+        if (t.countMode === 'laps') {
+          return `Int: ${t.varv} varv x ${t.intervallerPerVarv} int (${t.workMinutes}m ${t.workSeconds}s / ${t.restMinutes}m ${t.restSeconds}s)`;
+        } else {
+          return `Int: ${t.totalOmgångar} omg (${t.workMinutes}m ${t.workSeconds}s / ${t.restMinutes}m ${t.restSeconds}s)`;
+        }
+      case TimerMode.Tabata:
+        return 'Tabata: 8x (20s / 10s)';
+      case TimerMode.AMRAP:
+        return `AMRAP: ${t.totalMinutes} min`;
+      case TimerMode.EMOM:
+        return `EMOM: ${t.totalMinutes} min`;
+      case TimerMode.TimeCap:
+        return `TimeCap: ${t.totalMinutes} min`;
+      case TimerMode.Stopwatch:
+        return 'Stoppur';
+      case TimerMode.Custom:
+        return `Sekvens: ${t.varv} varv (${t.sequence?.length || 0} steg)`;
+      default:
+        return 'Ingen timer';
+    }
+  };
 
   const hasUnsavedChanges = useMemo(() => {
       if (mode !== initialState.mode) return true;
@@ -241,7 +393,8 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
     if (newMode === TimerMode.NoTimer) {
         setAutoAdvance(false);
     } else if (newMode === TimerMode.Interval) {
-        setCountMode('laps');
+        setCountMode('rounds'); // Default is now "rounds" (omgångar)
+        setTotalOmgångar(10);
         setVarv(3);
         setIntervallerPerVarv((block.exercises?.length || 0) > 0 ? (block.exercises?.length || 1) : 1);
     } else if (newMode === TimerMode.AMRAP || newMode === TimerMode.TimeCap || newMode === TimerMode.EMOM) {
@@ -319,7 +472,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                          <ValueAdjuster label="ANTAL VARV (LOOP)" value={varv} onchange={setVarv} />
                     </div>
 
-                    <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar p-1">
+                    <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar p-1">
                         {sequence.map((seg, i) => {
                             const { minutes, seconds } = secondsToMinSec(seg.duration);
                             return (
@@ -464,7 +617,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
         aria-labelledby="timer-setup-title"
     >
       <div 
-        className="bg-gray-100 dark:bg-gray-800 rounded-xl p-6 sm:p-8 w-full max-w-lg text-gray-900 dark:text-white shadow-2xl border border-gray-200 dark:border-gray-700 max-h-[calc(100dvh-2rem)] overflow-y-auto z-[1001]" 
+        className="bg-gray-100 dark:bg-gray-800 rounded-[2rem] p-6 sm:p-8 w-full max-w-xl text-gray-900 dark:text-white shadow-2xl border border-gray-200 dark:border-gray-700 max-h-[calc(100dvh-2rem)] overflow-y-auto z-[1001] custom-scrollbar" 
         onClick={e => e.stopPropagation()}
       >
         <h2 id="timer-setup-title" className="text-2xl font-bold mb-1">Anpassa klocka</h2>
@@ -474,56 +627,62 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
           <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Timertyp</label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <button
+              type="button"
               onClick={() => handleModeChange(TimerMode.Interval)}
               className={`px-4 py-3 text-sm font-bold rounded-xl transition-all duration-200 border-2 ${
                   mode === TimerMode.Interval 
                   ? 'bg-orange-600 text-white border-orange-600 shadow-md shadow-orange-600/20 scale-105' 
-                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-orange-400 hover:text-orange-600 dark:hover:text-orange-400'
-              }`}
+                  : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-orange-400 hover:text-orange-600 dark:hover:text-orange-400'
+               }`}
             >
               Interval
             </button>
             <button
+              type="button"
               onClick={() => handleModeChange(TimerMode.Tabata)}
               className={`px-4 py-3 text-sm font-bold rounded-xl transition-all duration-200 border-2 ${
                   mode === TimerMode.Tabata 
                   ? 'bg-red-600 text-white border-red-600 shadow-md shadow-red-600/20 scale-105' 
-                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-red-400 hover:text-red-600 dark:hover:text-red-400'
+                  : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-red-400 hover:text-red-600 dark:hover:text-red-400'
               }`}
             >
               Tabata
             </button>
             <button
+              type="button"
               onClick={() => handleModeChange(TimerMode.AMRAP)}
               className={`px-4 py-3 text-sm font-bold rounded-xl transition-all duration-200 border-2 ${
                   mode === TimerMode.AMRAP 
                   ? 'bg-pink-600 text-white border-pink-600 shadow-md shadow-pink-600/20 scale-105' 
-                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-pink-400 hover:text-pink-600 dark:hover:text-pink-400'
+                  : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-pink-400 hover:text-pink-600 dark:hover:text-pink-400'
               }`}
             >
               AMRAP
             </button>
             <button
+              type="button"
               onClick={() => handleModeChange(TimerMode.EMOM)}
               className={`px-4 py-3 text-sm font-bold rounded-xl transition-all duration-200 border-2 ${
                   mode === TimerMode.EMOM 
                   ? 'bg-purple-600 text-white border-purple-600 shadow-md shadow-purple-600/20 scale-105' 
-                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-purple-400 hover:text-purple-600 dark:hover:text-purple-400'
+                  : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-purple-400 hover:text-purple-600 dark:hover:text-purple-400'
               }`}
             >
               EMOM
             </button>
             <button
+              type="button"
               onClick={() => handleModeChange(TimerMode.TimeCap)}
               className={`px-4 py-3 text-sm font-bold rounded-xl transition-all duration-200 border-2 ${
                   mode === TimerMode.TimeCap 
                   ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-600/20 scale-105' 
-                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400'
+                  : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400'
               }`}
             >
               TimeCap
             </button>
             <button
+              type="button"
               onClick={() => !block.followMe && handleModeChange(TimerMode.Stopwatch)}
               disabled={!!block.followMe}
               title={block.followMe ? "Kan inte kombineras med Följ mig-läge" : undefined}
@@ -532,12 +691,13 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                   ? 'bg-gray-100 dark:bg-gray-900 text-gray-400 dark:text-gray-600 border-gray-200 dark:border-gray-800 cursor-not-allowed opacity-60' 
                   : mode === TimerMode.Stopwatch 
                   ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-600/20 scale-105' 
-                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400'
+                  : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-blue-400 hover:text-blue-600 dark:hover:text-blue-400'
               }`}
             >
               Stoppur
             </button>
             <button
+              type="button"
               onClick={() => !block.followMe && handleModeChange(TimerMode.Custom)}
               disabled={!!block.followMe}
               title={block.followMe ? "Kan inte kombineras med Följ mig-läge" : undefined}
@@ -546,12 +706,13 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                   ? 'bg-gray-100 dark:bg-gray-900 text-gray-400 dark:text-gray-600 border-gray-200 dark:border-gray-800 cursor-not-allowed opacity-60' 
                   : mode === TimerMode.Custom 
                     ? 'bg-teal-500 text-white border-teal-500 shadow-md shadow-teal-500/20 scale-105' 
-                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-teal-400 hover:text-teal-500 dark:hover:text-teal-400'
+                    : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-teal-400 hover:text-teal-500 dark:hover:text-teal-400'
               }`}
             >
               Sekvens
             </button>
             <button
+              type="button"
               onClick={() => !block.followMe && handleModeChange(TimerMode.NoTimer)}
               disabled={!!block.followMe}
               title={block.followMe ? "Kan inte kombineras med Följ mig-läge" : undefined}
@@ -560,7 +721,7 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                   ? 'bg-gray-100 dark:bg-gray-900 text-gray-400 dark:text-gray-600 border-gray-200 dark:border-gray-800 cursor-not-allowed opacity-60' 
                   : mode === TimerMode.NoTimer 
                     ? 'bg-slate-700 text-white border-slate-700 shadow-md shadow-slate-700/20 scale-105' 
-                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-slate-500 hover:text-slate-700 dark:hover:text-slate-400'
+                    : 'bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-slate-500 hover:text-slate-700 dark:hover:text-slate-400'
               }`}
             >
               Ingen Timer
@@ -568,9 +729,65 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
           </div>
         </div>
 
-        <div className="bg-white dark:bg-black rounded-lg p-6 border border-gray-200 dark:border-gray-700 min-h-[350px] flex flex-col justify-center items-center">
+        <div className="bg-white dark:bg-black rounded-3xl p-6 border border-gray-200 dark:border-gray-700 min-h-[300px] flex flex-col justify-center items-center">
             {renderDirectionToggle()}
             {renderSettingsInputs()}
+        </div>
+
+        {/* --- SPARADE TIMERS MALLAR --- */}
+        <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+          <div className="flex items-center gap-2 mb-3">
+            <SparklesIcon className="w-5 h-5 text-primary" />
+            <h3 className="text-sm font-black uppercase tracking-wider text-gray-500 dark:text-gray-400">Sparade mallar</h3>
+          </div>
+          
+          {/* Spara nuvarande inställning */}
+          <div className="flex gap-2 mb-4">
+            <input
+              type="text"
+              placeholder="Namnge mall (t.ex. Uppvärmning 40s/20s)"
+              value={newTemplateName}
+              onChange={(e) => setNewTemplateName(e.target.value)}
+              className="flex-grow bg-white dark:bg-black border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2 text-sm font-bold focus:ring-2 focus:ring-primary outline-none transition-all shadow-sm placeholder-gray-450 dark:placeholder-gray-500"
+            />
+            <button
+              type="button"
+              onClick={handleSaveTemplate}
+              className="bg-primary text-white font-black text-xs px-5 rounded-xl uppercase tracking-wider hover:brightness-95 transition-all shadow-md shrink-0 active:scale-95"
+            >
+              Spara mall
+            </button>
+          </div>
+
+          {/* Lista på sparade mallar */}
+          {savedTemplates.length === 0 ? (
+            <p className="text-xs text-gray-400 dark:text-gray-500 italic text-center py-2">
+              Inga sparade mallar ännu. Skriv ett namn ovan och klicka på "Spara mall"!
+            </p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[170px] overflow-y-auto pr-1">
+              {savedTemplates.map((t) => (
+                <div
+                  key={t.id}
+                  onClick={() => handleLoadTemplate(t)}
+                  className="group flex justify-between items-center bg-white dark:bg-black/60 p-3 rounded-2xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer transition-all shadow-sm"
+                >
+                  <div className="flex flex-col min-w-0 pr-2">
+                    <span className="text-xs font-black text-gray-900 dark:text-white truncate">{t.name}</span>
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider truncate">{getTemplateDescription(t)}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteTemplate(t.id, e)}
+                    className="p-1.5 text-gray-450 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 rounded-xl transition-all"
+                    title="Ta bort mall"
+                  >
+                    <TrashIcon className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* --- AUTO ADVANCE SETTINGS --- */}
@@ -596,23 +813,23 @@ export const TimerSetupModal: React.FC<TimerSetupModalProps> = ({ isOpen, onClos
                  
                  {autoAdvance && mode !== TimerMode.NoTimer && (
                      <div className="animate-fade-in p-4 bg-white dark:bg-black/40 rounded-2xl border border-gray-200 dark:border-gray-700">
-                         <ValueAdjuster 
-                            label="Vila inför nästa del (sekunder)" 
-                            value={transitionTime} 
-                            onchange={setTransitionTime} 
-                            step={5}
-                         />
-                         <p className="text-[10px] text-gray-500 mt-2 text-center uppercase tracking-widest font-bold italic">
-                            Nästa block startar automatiskt efter denna tid.
-                         </p>
+                          <ValueAdjuster 
+                             label="Vila inför nästa del (sekunder)" 
+                             value={transitionTime} 
+                             onchange={setTransitionTime} 
+                             step={5}
+                          />
+                          <p className="text-[10px] text-gray-500 mt-2 text-center uppercase tracking-widest font-bold italic">
+                             Nästa block startar automatiskt efter denna tid.
+                          </p>
                      </div>
                  )}
             </div>
         )}
 
         <div className="mt-8 flex gap-4">
-          <button type="button" onClick={handleSave} className="flex-1 bg-primary hover:brightness-95 text-white font-bold py-3 rounded-lg transition-colors shadow-sm">Spara</button>
-          <button type="button" onClick={() => { if (!hasUnsavedChanges || window.confirm("Avbryt och kasta ändringar?")) onClose(); }} className="flex-1 bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 rounded-lg transition-colors">Avbryt</button>
+          <button type="button" onClick={handleSave} className="flex-1 bg-primary hover:brightness-95 text-white font-bold py-3.5 rounded-xl transition-colors shadow-md">Spara</button>
+          <button type="button" onClick={() => { if (!hasUnsavedChanges || window.confirm("Avbryt och kasta ändringar?")) onClose(); }} className="flex-1 bg-gray-650 hover:bg-gray-500 dark:bg-gray-700 text-white font-bold py-3.5 rounded-xl transition-colors">Avbryt</button>
         </div>
       </div>
     </div>,

@@ -86,6 +86,7 @@ interface SuperAdminScreenProps {
     initialTab?: string;
     setCustomBackHandler?: (handler: (() => void) | null) => void;
     checkUnsavedChanges?: () => boolean;
+    onLockStudioDevice?: (studio: any) => void;
 }
 
 export const SuperAdminScreen: React.FC<SuperAdminScreenProps> = (props) => {

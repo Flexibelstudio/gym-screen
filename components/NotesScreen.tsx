@@ -1361,7 +1361,23 @@ export const NotesScreen: React.FC<NotesScreenProps> = ({ onWorkoutInterpreted, 
             }
             
             const workout = await parseWorkoutFromImage(base64Image, undefined, true, exerciseNames);
-            setInterpretedWorkout(workout);
+            if (workout && selectedOrganization) {
+                setIsResolving(true);
+                try {
+                    // Match directly with exercise bank (skapar inte nya övningar om de saknas = false)
+                    const resolved = await resolveAndCreateExercises(selectedOrganization.id, workout, false);
+                    onWorkoutInterpreted(resolved);
+                    clearCanvas();
+                    setInterpretedWorkout(null);
+                } catch (e) {
+                    console.error("Resolve error:", e);
+                    onWorkoutInterpreted(workout);
+                    clearCanvas();
+                    setInterpretedWorkout(null);
+                } finally {
+                    setIsResolving(false);
+                }
+            }
         } catch(e) {
             const errMsg = e instanceof Error ? e.message : 'Ett okänt fel inträffade.';
             if (errMsg.includes('403') || errMsg.includes('PERMISSION_DENIED') || errMsg.includes('denied access')) {

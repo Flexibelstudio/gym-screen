@@ -1186,7 +1186,7 @@ const App: React.FC = () => {
             onSignOut={isStudioMode ? undefined : signOut}
             role={role}
             historyLength={history.length}
-            showClock={isStudioMode && (page === WorkoutDetailScreen)}
+            showClock={isStudioMode && (page === Page.WorkoutDetail)}
             hideBackButton={isBackButtonHidden}
             onCoachAccessRequest={handleCoachAccessRequest}
             onPreviewWorkoutsRequest={isAdminOrCoach ? handlePreviewWorkoutsRequest : undefined}
