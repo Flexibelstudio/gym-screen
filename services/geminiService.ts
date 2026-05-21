@@ -403,7 +403,7 @@ VIKTIGA REGLER KRING FORMATERING:
 2. Presentera alltid passet/upplägget som enkla raka listor utan krångel och brödtext. Exempel:
    3 varv:
    10 knäböj
-   10 pushups
+   10 situps
    ELLER
    30/15 i 10 min:
    Kb svingar
@@ -477,6 +477,8 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
     const compressedImage = await compressImage(base64Image);
     const cleanBase64 = compressedImage.includes(',') ? compressedImage.split(',')[1] : compressedImage;
 
+    // BRUTAL LÖSNING: Vi bakar in hela schemat och kontexten som ren text i prompten.
+    // Inga konfigurationsobjekt kan trigga 400 Bad Request från Googles backend-validering nu.
     const strictJSONTemplate = `
     VIKTIGT: Du MÅSTE svara med ett giltigt JSON-objekt exakt enligt denna struktur. Returnera INGENTING annat än JSON. Inga förklaringar.
     {
@@ -520,6 +522,7 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
         }
     ];
 
+    // INGEN CONFIG! Vi låter API:et hantera det som ett rent text+bild anrop.
     const data = await callGeminiProxy(VISION_MODEL, contents);
     let textResponse = data.text || data.candidates?.[0]?.content?.parts?.[0]?.text || "{}";
 
@@ -538,16 +541,15 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
     }
 }
 
-// Denna rör vi INTE eftersom vi vet att den fungerar felfritt via proxyn (gav 200 OK)!
 export async function beautifyDrawing(base64Image: string, width: number, height: number): Promise<any[]> {
-    if (!base64Image || base64Image.trim().length === 0) {
-        throw new Error("Ingen bilddata skickad.");
-    }    
-        
+    if (!base64Image || base64Image.trim() === '') return [];
+    
+    const compressedImage = await compressImage(base64Image);
+    
     const prompt = `Du är en avancerad bildanalysator och whiteboard-layout-tolk. Din uppgift är att identifiera ritade former, pilar och handskriven text på denna whiteboard-bild.
     
     CRITICAL TEXT GROUPING & LAYOUT RULES (VÄLDIGT VIKTIGT):
-    1. GRUPPERA FLERA RADER TILL SAMMANHÄNGANDE BLOCK: Om finns flera rader av text som är skrivna under varandra (till exempel en lista med övningar såsom: "10 situps", "10 pushups", "15 squats"), ska du hålla ihop dem i ETT ENDA "text"-objekt! Dela inte upp varje rad i en egen ruta. Returnera dem i en och samma textruta med radbrytningar ("\n") mellan raderna. Hela träningsblocket ska kunna flyttas och hanteras som en enhet.
+    1. GRUPPERA FLERA RADER TILL SAMMANHÄNGANDE BLOCK: Om det finns flera rader av text som är skrivna under varandra (till exempel en lista med övningar såsom: "10 situps", "10 pushups", "15 squats"), ska du hålla ihop dem i ETT ENDA "text"-objekt! Dela inte upp varje rad i en egen ruta. Returnera dem i en och samma textruta med radbrytningar ("\n") mellan raderna. Hela träningsblocket ska kunna flyttas och hanteras som en enhet.
     2. DELA ALDRIG UPP ORD PÅ SAMMA RAD: Ord som hör till samma mening/övning (t.ex. "5x5 Backsquats", "10 Kettlebell Swings" eller "AMRAP 12 min") ska absolut ALLTID returneras som ETT ENDA "text"-objekt (aldrig ett objekt för "10" och ett för "situps").
     3. INRAMADE BLOCK: Om användaren har ritat en rektangel/ruta runt flera rader av text, ska all text inuti den rutan grupperas ihop till ett och samma "text"-objekt (med radbrytningar) inuti den rutan eller så representerar du den som en "rect" med "text"-egenskapen satt till hela det flerradiga blocket.
     4. SÄRSTRILDA SPALTER/KOLUMNER: Endast om textblock är helt åtskilda horisontellt (t.ex. i helt olika kolumner eller i olika ändar av tavlan) ska de delas upp i olika "text"-objekt.
@@ -563,7 +565,6 @@ export async function beautifyDrawing(base64Image: string, width: number, height
     - text: Textinnehåll med radbrytningar ("\n") intakta för flerradiga block av övningar. Tom sträng för rena former utan text.
     - color: Hex-färgkod som matchar ritningens färg på tavlan (default är "#FFFFFF").`;
 
-    const compressedImage = await compressImage(base64Image);
     const cleanBase64 = compressedImage.includes(',') ? compressedImage.split(',')[1] : compressedImage;
 
     const contents = [
