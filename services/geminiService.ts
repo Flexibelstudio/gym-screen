@@ -541,28 +541,29 @@ export async function parseWorkoutFromImage(base64Image: string, additionalText?
     }
 }
 
-// Denna rör vi INTE eftersom vi vet att den fungerar felfritt via proxyn (gav 200 OK)!
 export async function beautifyDrawing(base64Image: string, width: number, height: number): Promise<any[]> {
     if (!base64Image || base64Image.trim() === '') return [];
     
     const compressedImage = await compressImage(base64Image);
     
-    const prompt = `Analysera denna handritade whiteboard-bild. Identifiera former (rutor, cirklar), text och pilar. 
-    Returnera ett JSON-objekt med en array "shapes" som innehåller resultatet. Varje objekt i arrayen måste ha:
-    - type: "rect", "circle", "text" eller "arrow"
-    - x: X-koordinat i pixlar (bilden är ${width}x${height}). För pilar är startpunkten.
-    - y: Y-koordinat i pixlar. För pilar är startpunkten.
-    - width: Bredd i pixlar (används ej för pilar, sätt till 0)
-    - height: Höjd i pixlar (används ej för pilar, sätt till 0)
-    - endX: Endast för pilar, X-koordinat för slutpunkten (där spetsen är).
-    - endY: Endast för pilar, Y-koordinat för slutpunkten (där spetsen är).
-    - text: Om det är text, eller text inuti en form. Annars tom sträng.
-    - color: Hex-färgkod som matchar ritningens färg. Standard är "#FFFFFF".
+    const prompt = `Du är en avancerad bildanalysator och whiteboard-layout-tolk. Din uppgift är att identifiera ritade former, pilar och handskriven text på denna whiteboard-bild.
     
-    CRITICAL TEXT GROUPING RULE:
-    Dela ALDRIG upp rader med text, listpunkter eller intilliggande ord (t.ex. "5x5 Backsquats", "10 Kettlebell Swings" eller "AMRAP 12 min") i enskilda objekt för varje ord. 
-    Identifiera hela textfrasen eller hela raden som skrivits tillsammans och returnera den som ETT enda "text"-objekt med korrekta koordinater (x, y) och dimensioner (width, height) som spänner över hela texten. 
-    Endast om två rader eller ord är helt åtskilda på whiteboarden (t.ex. i olika kolumner eller långt ifrån varandra) ska de vara separerade.`;
+    CRITICAL TEXT GROUPING & LAYOUT RULES (VÄLDIGT VIKTIGT):
+    1. GRUPPERA FLERA RADER TILL SAMMANHÄNGANDE BLOCK: Om det finns flera rader av text som är skrivna under varandra (till exempel en lista med övningar såsom: "10 situps", "10 pushups", "15 squats"), ska du hålla ihop dem i ETT ENDA "text"-objekt! Dela inte upp varje rad i en egen ruta. Returnera dem i en och samma textruta med radbrytningar ("\n") mellan raderna. Hela träningsblocket ska kunna flyttas och hanteras som en enhet.
+    2. DELA ALDRIG UPP ORD PÅ SAMMA RAD: Ord som hör till samma mening/övning (t.ex. "5x5 Backsquats", "10 Kettlebell Swings" eller "AMRAP 12 min") ska absolut ALLTID returneras som ETT ENDA "text"-objekt (aldrig ett objekt för "10" och ett för "situps").
+    3. INRAMADE BLOCK: Om användaren har ritat en rektangel/ruta runt flera rader av text, ska all text inuti den rutan grupperas ihop till ett och samma "text"-objekt (med radbrytningar) inuti den rutan eller så representerar du den som en "rect" med "text"-egenskapen satt till hela det flerradiga blocket.
+    4. SÄRSTRILDA SPALTER/KOLUMNER: Endast om textblock är helt åtskilda horisontellt (t.ex. i helt olika kolumner eller i olika ändar av tavlan) ska de delas upp i olika "text"-objekt.
+
+    OBJEKTTYPER:
+    - type: "rect" (rektanglar/rutor), "circle" (cirklar), "text" (för all handskriven text) eller "arrow" (pilar)
+    - x: X-koordinat i pixlar (bilden är ${width}x${height}). För pilar är detta startpunkten.
+    - y: Y-koordinat i pixlar. För pilar är detta startpunkten.
+    - width: Bredd på objektets bounding box i pixlar (0 för pilar).
+    - height: Höjd på objektets bounding box i pixlar (0 för pilar).
+    - endX: Endast för pilar, X-koordinat för pilens spets/slutpunkt.
+    - endY: Endast för pilar, Y-koordinat för pilens spets/slutpunkt.
+    - text: Textinnehåll med radbrytningar ("\n") intakta för flerradiga block av övningar. Tom sträng för rena former utan text.
+    - color: Hex-färgkod som matchar ritningens färg på tavlan (default är "#FFFFFF").`;
 
     const cleanBase64 = compressedImage.includes(',') ? compressedImage.split(',')[1] : compressedImage;
 
@@ -592,6 +593,8 @@ export async function beautifyDrawing(base64Image: string, width: number, height
                             y: { type: Type.NUMBER },
                             width: { type: Type.NUMBER },
                             height: { type: Type.NUMBER },
+                            endX: { type: Type.NUMBER },
+                            endY: { type: Type.NUMBER },
                             text: { type: Type.STRING },
                             color: { type: Type.STRING }
                         },
