@@ -943,15 +943,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   useEffect(() => {
     if (isHyroxRace) {
         if (activeWorkout?.startGroups && activeWorkout.startGroups.length > 0) {
-            setStartGroups(activeWorkout.startGroups.map((g, index) => ({ ...g, startTime: index === 0 ? 0 : undefined })));
+            setStartGroups(activeWorkout.startGroups.map(g => ({ ...g, startTime: undefined })));
         } else if (activeWorkout) { 
-            setStartGroups([{ id: `group-${Date.now()}`, name: 'Startgrupp 1', participants: (activeWorkout.participants || []).join('\n'), startTime: 0 }]);
+            setStartGroups([{ id: `group-${Date.now()}`, name: 'Startgrupp 1', participants: (activeWorkout.participants || []).join('\n'), startTime: undefined }]);
         } else { setStartGroups([]); }
     } else { setStartGroups([]); }
   }, [isHyroxRace, activeWorkout]);
 
   useEffect(() => {
-      if (!isHyroxRace || (status !== TimerStatus.Running && status !== TimerStatus.Preparing)) return;
+      if (!isHyroxRace || status !== TimerStatus.Running) return;
       const groupsToStart = startGroups.filter((group, index) => { const expectedStartTime = index * startIntervalSeconds; return group.startTime === undefined && totalTimeElapsed >= expectedStartTime; });
       if (groupsToStart.length > 0) {
           setStartGroups(prevGroups => {
@@ -1114,7 +1114,12 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           const raceData: any = {
               raceName: activeWorkout.title,
               exercises: block.exercises?.map(e => `${e.reps || ''} ${e.name}`.trim()) || [],
-              startGroups: startGroups.map(g => ({ id: g.id, name: g.name, participants: g.participants.split('\n').map(p => p.trim()).filter(Boolean) })),
+              startGroups: startGroups.map(g => ({
+                  id: g.id,
+                  name: g.name,
+                  participants: g.participants,
+                  participantList: g.participantList || []
+              })),
               results: raceResults,
               status: 'completed'
           };

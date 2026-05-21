@@ -173,11 +173,18 @@ const StartGroupPrepModal: React.FC<{
     initialGroups?: StartGroup[];
     initialInterval?: number;
 }> = ({ isOpen, onClose, onStart, initialGroups, initialInterval }) => {
-    const [groups, setGroups] = useState<StartGroup[]>(() =>
-        initialGroups && initialGroups.length > 0
-            ? initialGroups
-            : [{ id: `group-${Date.now()}`, name: 'Startgrupp 1', participants: '' }]
-    );
+    const [groups, setGroups] = useState<StartGroup[]>(() => {
+        if (initialGroups && initialGroups.length > 0) {
+            return initialGroups.map(g => {
+                const legacyParticipantsText = g.participants || (g.participantList ? g.participantList.map(p => p.name).join('\n') : '');
+                return {
+                    ...g,
+                    participants: legacyParticipantsText
+                };
+            });
+        }
+        return [{ id: `group-${Date.now()}`, name: 'Startgrupp 1', participants: '' }];
+    });
     const [startInterval, setStartInterval] = useState(initialInterval || 2);
 
     const handleAddGroup = () => {
@@ -295,7 +302,26 @@ const createCustomRaceWorkout = (
         exercises: processedExercises,
     };
 
-    const allParticipants = groups.flatMap(g => g.participants.split('\n').map(p => p.trim()).filter(Boolean));
+    const processedGroups = groups.map(g => {
+        const names = g.participants.split('\n').map(p => p.trim()).filter(Boolean);
+        const oldParticipants = g.participantList || [];
+        const newParticipantList = names.map((name, index) => {
+            const existing = oldParticipants.find(p => p.name.toLowerCase() === name.toLowerCase());
+            if (existing) return existing;
+            return {
+                id: `p-new-${Date.now()}-${index}`,
+                name,
+                startNumber: index + 1
+            };
+        });
+
+        return {
+            ...g,
+            participantList: newParticipantList
+        };
+    });
+
+    const allParticipants = processedGroups.flatMap(g => g.participantList || []).map(p => p.name);
 
     const workout: Workout = {
         id: `custom-race-${now}`,
@@ -305,7 +331,7 @@ const createCustomRaceWorkout = (
         category: 'HYROX',
         isPublished: false,
         participants: allParticipants,
-        startGroups: groups.map(g => ({ ...g })),
+        startGroups: processedGroups,
         startIntervalMinutes: interval,
         createdAt: now,
         organizationId: organizationId 
