@@ -20,7 +20,18 @@ const EventEditor: React.FC<{
         event?.scheduledDate ? new Date(event.scheduledDate).toISOString().split('T')[0] : ''
     );
     const [studioId, setStudioId] = useState(event?.studioId || '');
-    const [startIntervalMinutes, setStartIntervalMinutes] = useState<number>(event?.startIntervalMinutes || 2);
+    const [startIntervalMinutes, setStartIntervalMinutes] = useState<number>(() => {
+        if (event?.startIntervalMinutes !== undefined) {
+            return Math.floor(event.startIntervalMinutes);
+        }
+        return 2;
+    });
+    const [startIntervalSeconds, setStartIntervalSeconds] = useState<number>(() => {
+        if (event?.startIntervalMinutes !== undefined) {
+            return Math.round((event.startIntervalMinutes % 1) * 60);
+        }
+        return 0;
+    });
     const [participantsText, setParticipantsText] = useState('');
     const [participants, setParticipants] = useState<RaceParticipant[]>(
         event?.startGroups?.flatMap(g => g.participantList || []) || []
@@ -246,7 +257,7 @@ const EventEditor: React.FC<{
             exercises: event?.exercises || [], 
             startGroups: updatedGroups,
             results: results,
-            startIntervalMinutes: startIntervalMinutes
+            startIntervalMinutes: startIntervalMinutes + (startIntervalSeconds / 60)
         };
 
         onSave(newEvent);
@@ -323,15 +334,31 @@ const EventEditor: React.FC<{
                     </select>
                 </div>
                 <div>
-                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Tid mellan heat (min)</label>
-                    <input 
-                        type="number" 
-                        min="1"
-                        max="60"
-                        value={startIntervalMinutes}
-                        onChange={(e) => setStartIntervalMinutes(Math.max(1, parseInt(e.target.value, 10) || 2))}
-                        className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none font-bold"
-                    />
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Tid mellan heat</label>
+                    <div className="flex gap-2">
+                        <div className="flex-1 flex items-center justify-between bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3">
+                            <input 
+                                type="number" 
+                                min="0"
+                                max="60"
+                                value={startIntervalMinutes}
+                                onChange={(e) => setStartIntervalMinutes(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                                className="w-full bg-transparent text-gray-900 dark:text-white outline-none font-bold"
+                            />
+                            <span className="text-xs text-gray-400 dark:text-gray-500 font-bold uppercase ml-2 select-none">min</span>
+                        </div>
+                        <div className="flex-1 flex items-center justify-between bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3">
+                            <input 
+                                type="number" 
+                                min="0"
+                                max="59"
+                                value={startIntervalSeconds}
+                                onChange={(e) => setStartIntervalSeconds(Math.max(0, Math.min(59, parseInt(e.target.value, 10) || 0)))}
+                                className="w-full bg-transparent text-gray-900 dark:text-white outline-none font-bold"
+                            />
+                            <span className="text-xs text-gray-400 dark:text-gray-500 font-bold uppercase ml-2 select-none">sek</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 

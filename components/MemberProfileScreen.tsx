@@ -1280,21 +1280,21 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                     {/* --- MINA HYROX & EVENT-RESULTAT --- */}
                     {personalHyroxResults.length > 0 && (
-                        <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 border border-slate-800 rounded-[2rem] p-6 shadow-xl relative overflow-hidden animate-fade-in text-white mt-6">
-                            <div className="absolute top-0 right-0 p-8 opacity-[0.03]">
-                                <TrophyIcon className="w-48 h-48 text-yellow-500" />
+                        <div className="bg-gradient-to-br from-indigo-50/70 via-white to-amber-50/30 dark:from-slate-900 dark:via-slate-950 dark:to-indigo-950 border border-indigo-100 dark:border-slate-800 rounded-[2rem] p-6 shadow-xl relative overflow-hidden animate-fade-in text-gray-900 dark:text-white mt-6">
+                            <div className="absolute top-0 right-0 p-8 opacity-[0.06] dark:opacity-[0.03]">
+                                <TrophyIcon className="w-48 h-48 text-indigo-500 dark:text-yellow-500" />
                             </div>
                             
                             <div className="relative z-10">
                                 <div className="flex items-center justify-between mb-4">
                                     <div className="flex items-center gap-2">
                                         <span className="px-2 py-0.5 rounded bg-amber-400 text-black font-black text-[9px] uppercase tracking-wider">Mina Resultat</span>
-                                        <h3 className="text-lg font-black uppercase tracking-tight">HYROX & Eventlopp</h3>
+                                        <h3 className="text-lg font-black uppercase tracking-tight text-gray-950 dark:text-white">HYROX & Eventlopp</h3>
                                     </div>
-                                    <span className="text-[10px] text-indigo-400 font-bold">Kopplad via e-post</span>
+                                    <span className="text-[10px] text-indigo-600 dark:text-indigo-450 font-bold">Kopplad via e-post</span>
                                 </div>
                                 
-                                <p className="text-xs text-slate-300 mb-5 leading-relaxed">
+                                <p className="text-xs text-slate-550 dark:text-slate-300 mb-5 leading-relaxed">
                                     Här presenteras dina officiella tider och placeringar från alla genomförda utmaningar och event du deltagit i hos oss.
                                 </p>
                                 
@@ -1302,25 +1302,25 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                     {personalHyroxResults.map(res => (
                                         <div 
                                             key={res.id}
-                                            className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-col sm:flex-row justify-between sm:items-center gap-3 hover:bg-white/10 transition-all duration-150"
+                                            className="p-4 rounded-2xl bg-white/60 dark:bg-white/5 border border-slate-150 dark:border-white/10 flex flex-col sm:flex-row justify-between sm:items-center gap-3 hover:bg-white dark:hover:bg-white/10 shadow-sm dark:shadow-none transition-all duration-150"
                                         >
                                             <div>
                                                 <div className="flex items-center gap-2">
-                                                    <span className="font-extrabold text-xs text-amber-400">Plats #{res.placement}</span>
-                                                    <h4 className="font-bold text-sm text-slate-150">{res.raceName}</h4>
+                                                    <span className="font-extrabold text-xs text-indigo-600 dark:text-amber-400">Plats #{res.placement}</span>
+                                                    <h4 className="font-bold text-sm text-slate-800 dark:text-slate-150">{res.raceName}</h4>
                                                 </div>
                                                 <div className="flex items-center gap-2 mt-1">
-                                                    <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                                                    <span className="text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-500/30">
                                                         {res.division}
                                                     </span>
-                                                    <span className="text-[10px] text-slate-400">
+                                                    <span className="text-[10px] text-slate-500 dark:text-slate-400">
                                                         {new Date(res.date).toLocaleDateString('sv-SE', { year: 'numeric', month: 'long', day: 'numeric' })}
                                                     </span>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-2 sm:pt-0 border-white/5">
-                                                <span className="text-xs text-slate-400 block sm:hidden">Din Sluttid</span>
-                                                <span className="font-mono font-black text-lg text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-xl border border-emerald-500/20">
+                                            <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100 dark:border-white/5">
+                                                <span className="text-xs text-slate-400 dark:text-slate-500 block sm:hidden">Din Sluttid</span>
+                                                <span className="font-mono font-black text-lg text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 px-3 py-1 rounded-xl border border-emerald-100 dark:border-emerald-500/20">
                                                     {Math.floor(res.time / 60)}:{String(res.time % 60).padStart(2, '0')}
                                                 </span>
                                             </div>

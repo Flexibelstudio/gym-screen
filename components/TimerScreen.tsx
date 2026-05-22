@@ -1966,6 +1966,17 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                         </div>
                     );
                 })()}
+
+                {participantToEdit && (
+                    <EditResultModal 
+                        participantName={startedParticipants.find(p => p.id === participantToEdit)?.name || participantToEdit}
+                        currentTime={finishedParticipants[participantToEdit]?.time || 0}
+                        onSave={handleUpdateResult}
+                        onAddPenalty={handleAddPenalty}
+                        onUndo={handleRemoveResult}
+                        onCancel={() => setParticipantToEdit(null)}
+                    />
+                )}
             </div>
         );
     }
