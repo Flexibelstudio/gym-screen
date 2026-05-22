@@ -548,9 +548,11 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
 
     return (
         <div className="w-full max-w-5xl mx-auto text-center animate-fade-in pb-12">
-            <p className="text-lg text-gray-500 dark:text-gray-400 mb-10 max-w-2xl mx-auto">
-                Kör hela loppet, delar av ett HYROX-pass eller en annan tävling – från första löpningen till sista repetitionen.
-            </p>
+            {isStudioMode && (
+                <p className="text-lg text-gray-500 dark:text-gray-400 mb-10 max-w-2xl mx-auto">
+                    Kör hela loppet, delar av ett HYROX-pass eller en annan tävling – från första löpningen till sista repetitionen.
+                </p>
+            )}
             
             {plannedRaces.length > 0 && (
                 <div className="mb-12 text-left">
@@ -583,22 +585,24 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
                 </div>
             )}
 
-            <div className="flex flex-col items-center gap-6">
-                <button
-                    onClick={handleSimulateFullRaceClick}
-                    className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 p-6 rounded-xl transition-colors duration-200 flex flex-col items-center justify-center shadow-lg border border-gray-200 dark:border-gray-700 h-72 w-full max-w-lg"
-                >
-                    <h3 className="text-4xl font-extrabold text-primary">🏁 Simulera Hela Loppet</h3>
-                    <p className="text-lg font-normal text-gray-500 dark:text-gray-400 mt-4">Kör hela loppet "For Time" i ett enda svep.</p>
-                </button>
+            {isStudioMode && (
+                <div className="flex flex-col items-center gap-6">
+                    <button
+                        onClick={handleSimulateFullRaceClick}
+                        className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 p-6 rounded-xl transition-colors duration-200 flex flex-col items-center justify-center shadow-lg border border-gray-200 dark:border-gray-700 h-72 w-full max-w-lg"
+                    >
+                        <h3 className="text-4xl font-extrabold text-primary">🏁 Simulera Hela Loppet</h3>
+                        <p className="text-lg font-normal text-gray-500 dark:text-gray-400 mt-4">Kör hela loppet "For Time" i ett enda svep.</p>
+                    </button>
 
-                <button
-                    onClick={() => navigateTo(Page.HyroxRaceList)}
-                    className="w-full max-w-lg bg-gray-100/50 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-white font-semibold py-4 px-6 rounded-xl transition-colors border border-gray-200 dark:border-gray-700"
-                >
-                    Visa tidigare lopp
-                </button>
-            </div>
+                    <button
+                        onClick={() => navigateTo(Page.HyroxRaceList)}
+                        className="w-full max-w-lg bg-gray-100/50 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-white font-semibold py-4 px-6 rounded-xl transition-colors border border-gray-200 dark:border-gray-700"
+                    >
+                        Visa tidigare lopp
+                    </button>
+                </div>
+            )}
 
             <AnimatePresence>
                 {view === 'prep' && (

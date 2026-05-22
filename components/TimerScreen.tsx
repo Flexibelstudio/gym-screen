@@ -975,7 +975,19 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     if (!isHyroxRace || !selectedStudio?.remoteState) return;
     
     const remoteState = selectedStudio.remoteState;
-    const isSameWorkout = remoteState.activeWorkoutId === activeWorkout?.id || remoteState.raceName === activeWorkout?.title;
+    
+    const cleanId = (id: string) => {
+      if (!id) return '';
+      return id.replace('block-custom-race-', '').replace('custom-race-', '').replace('workout-', '');
+    };
+    
+    const remoteIdClean = cleanId(remoteState.activeWorkoutId);
+    const localIdClean = cleanId(activeWorkout?.id);
+    
+    const isSameWorkout = (remoteIdClean && remoteIdClean === localIdClean) || 
+                          (remoteState.raceName && remoteState.raceName === activeWorkout?.title) ||
+                          (activeWorkout?.title && remoteState.raceName?.toLowerCase() === activeWorkout.title.toLowerCase());
+                          
     if (!isSameWorkout) return;
 
     // Fast check to see if we already applied this specific database snapshot
@@ -1200,6 +1212,12 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   useEffect(() => { return () => stopAllAudio(); }, [stopAllAudio]);
 
   useEffect(() => {
+    // If the race is already running (locally or remotely), do not overwrite with unstarted groups!
+    const isRunningRemotely = selectedStudio?.remoteState?.status === 'running' || selectedStudio?.remoteState?.status === 'paused';
+    if (status === TimerStatus.Running || status === TimerStatus.Paused || isRunningRemotely) {
+        return;
+    }
+
     if (isHyroxRace) {
         if (activeWorkout?.startGroups && activeWorkout.startGroups.length > 0) {
             setStartGroups(activeWorkout.startGroups.map(g => ({ ...g, startTime: undefined })));
@@ -1207,10 +1225,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             setStartGroups([{ id: `group-${Date.now()}`, name: 'Startgrupp 1', participants: (activeWorkout.participants || []).join('\n'), startTime: undefined }]);
         } else { setStartGroups([]); }
     } else { setStartGroups([]); }
-  }, [isHyroxRace, activeWorkout]);
+  }, [isHyroxRace, activeWorkout, status, selectedStudio?.remoteState?.status]);
 
   useEffect(() => {
-      if (!isHyroxRace || status !== TimerStatus.Running) return;
+      if (!isHyroxRace || status !== TimerStatus.Running || screenMode !== 'tv') return;
       const groupsToStart = startGroups.filter((group, index) => { const expectedStartTime = index * startIntervalSeconds; return group.startTime === undefined && totalTimeElapsed >= expectedStartTime; });
       if (groupsToStart.length > 0) {
           setStartGroups(prevGroups => {
