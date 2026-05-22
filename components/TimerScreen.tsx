@@ -821,6 +821,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   // Hyrox premium states
   const [screenMode, setScreenMode] = useState<'tv' | 'official'>(() => {
+    if (activeWorkout?.openAsOfficial) return 'official';
     if (isStudioMode) return 'tv';
     return 'official';
   });
@@ -872,6 +873,10 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     }
   }, [selectedOrganization, selectedStudio]);
 
+  // Refs to prevent recursive feedback loops during Firestore syncing
+  const lastProcessedRemoteStateRef = useRef<string>('');
+  const lastPublishedStateRef = useRef<string>('');
+
   // TV Publisher: Automatically keep the Firestore remoteState updated when TV state changes
   useEffect(() => {
     if (!isHyroxRace || screenMode !== 'tv') return;
@@ -890,6 +895,31 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     
     const currentMappedStatus = statusMap[status] || 'idle';
     
+    const currentStateStr = JSON.stringify({
+      status: currentMappedStatus,
+      startGroups,
+      finishedParticipants,
+      activeWorkoutId: activeWorkout?.id
+    });
+
+    // If it matches what we last published, do not publish again to avoid spamming
+    if (lastPublishedStateRef.current === currentStateStr) {
+      return;
+    }
+
+    // Also compare against incoming remoteState to prevent duplicate writes
+    const remoteStateStr = JSON.stringify({
+      status: remoteState.status || 'idle',
+      startGroups: remoteState.startGroups || [],
+      finishedParticipants: remoteState.finishedParticipants || {},
+      activeWorkoutId: remoteState.activeWorkoutId
+    });
+
+    if (remoteStateStr === currentStateStr) {
+      lastPublishedStateRef.current = currentStateStr; // sync ref
+      return;
+    }
+
     // Prepare updates
     const updates: any = {};
     let hasChanges = false;
@@ -926,6 +956,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     }
 
     if (hasChanges) {
+      lastPublishedStateRef.current = currentStateStr;
       publishRaceState(updates);
     }
   }, [
@@ -935,12 +966,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     isHyroxRace, 
     screenMode, 
     activeWorkout, 
-    totalTimeElapsed, 
     publishRaceState, 
     selectedStudio?.remoteState
   ]);
 
-  // Sync state from remoteState
+  // Sync state from remoteState (Subscriber)
   useEffect(() => {
     if (!isHyroxRace || !selectedStudio?.remoteState) return;
     
@@ -948,18 +978,26 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     const isSameWorkout = remoteState.activeWorkoutId === activeWorkout?.id || remoteState.raceName === activeWorkout?.title;
     if (!isSameWorkout) return;
 
+    // Fast check to see if we already applied this specific database snapshot
+    const remoteStateStr = JSON.stringify({
+      status: remoteState.status,
+      startGroups: remoteState.startGroups,
+      finishedParticipants: remoteState.finishedParticipants
+    });
+
+    if (lastProcessedRemoteStateRef.current === remoteStateStr) {
+      return;
+    }
+    lastProcessedRemoteStateRef.current = remoteStateStr;
+
     // 1. Sync finishedParticipants (both TV and official panels!)
     if (remoteState.finishedParticipants) {
-      if (JSON.stringify(remoteState.finishedParticipants) !== JSON.stringify(finishedParticipants)) {
-        setFinishedParticipants(remoteState.finishedParticipants);
-      }
+      setFinishedParticipants(remoteState.finishedParticipants);
     }
 
     // 2. Sync startGroups
     if (remoteState.startGroups) {
-      if (JSON.stringify(remoteState.startGroups) !== JSON.stringify(startGroups)) {
-        setStartGroups(remoteState.startGroups);
-      }
+      setStartGroups(remoteState.startGroups);
     }
 
     // 3. Sync status / controls for official/viewer mode
@@ -983,8 +1021,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     isHyroxRace, 
     activeWorkout, 
     screenMode, 
-    finishedParticipants, 
-    startGroups, 
     status, 
     start, 
     pause, 
