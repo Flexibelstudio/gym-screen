@@ -805,6 +805,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [finishedParticipants, setFinishedParticipants] = useState<Record<string, FinishData>>({});
   const [savingParticipant, setSavingParticipant] = useState<string | null>(null);
   const [showConfetti, setShowConfetti] = React.useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
   const [participantToEdit, setParticipantToEdit] = useState<string | null>(null);
   const [showResetConfirmation, setShowResetConfirmation] = useState(false);
   const [showBackToPrepConfirmation, setShowBackToPrepConfirmation] = useState(false);
@@ -814,6 +815,20 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [finalRaceId, setFinalRaceId] = useState<string | null>(null);
   const [isClockFrozen, setIsClockFrozen] = useState(false);
   const [frozenTime, setFrozenTime] = useState(0);
+
+  // Hyrox premium states
+  const [screenMode, setScreenMode] = useState<'tv' | 'official'>('tv');
+  const [isDarkTheme, setIsDarkTheme] = useState(true);
+  const [currentTimeOfDay, setCurrentTimeOfDay] = useState(new Date());
+  const [officialSearchQuery, setOfficialSearchQuery] = useState('');
+  const [officialActiveTab, setOfficialActiveTab] = useState<'running' | 'finished'>('running');
+  const [confirmFinishId, setConfirmFinishId] = useState<string | null>(null);
+  const [confirmUndoId, setConfirmUndoId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTimeOfDay(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Hyrox and Mode setup
   const isHyroxRace = useMemo(() => activeWorkout?.id.startsWith('hyrox-full-race') || activeWorkout?.id.startsWith('custom-race'), [activeWorkout]);
@@ -1284,6 +1299,623 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       }
       return null;
   }, [status, currentTime, block.settings, nextSegment, nextExercise, completedWorkIntervals, totalWorkIntervals]);
+
+  // --- HYROX PRESTIGE VIEW RENDERING ---
+  const renderHyroxPremiumView = () => {
+    const allRaceParticipants = startGroups.flatMap(g => g.participantList || []);
+    const totalRegistered = allRaceParticipants.length;
+    const startedTotal = startedParticipants.length;
+    const finishedTotal = Object.keys(finishedParticipants).length;
+    const runningTotal = Math.max(0, startedTotal - finishedTotal);
+
+    const formattedTimeOfDay = currentTimeOfDay.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const raceElapsedMin = Math.floor(totalTimeElapsed / 60).toString().padStart(2, '0');
+    const raceElapsedSec = (totalTimeElapsed % 60).toString().padStart(2, '0');
+
+    // Theme values
+    const themeBg = isDarkTheme ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900';
+    const cardBg = isDarkTheme ? 'bg-slate-900/60 border-slate-800/80' : 'bg-white border-slate-200/80 shadow-md';
+    const textMuted = isDarkTheme ? 'text-slate-400' : 'text-slate-500';
+    const borderTheme = isDarkTheme ? 'border-slate-800' : 'border-slate-200';
+
+    const getDivisionColor = (div?: string) => {
+        const d = div || 'Singel Herr';
+        if (d === 'Singel Herr') return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+        if (d === 'Singel Dam') return 'bg-pink-500/10 text-pink-500 border-pink-500/20';
+        if (d === 'Dubbel Herr') return 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20';
+        if (d === 'Dubbel Dam') return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
+        if (d === 'Dubbel Mix') return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+        return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+    };
+
+    if (screenMode === 'official') {
+        // --- FUNKTIONÄRSVY (MOBIL/IPAD) ---
+        const uncompletedStartedParticipants = startedParticipants.filter(p => !finishedParticipants[p.id]);
+        
+        const filteredRunning = uncompletedStartedParticipants.filter(p => {
+            const query = officialSearchQuery.toLowerCase().trim();
+            if (!query) return true;
+            return p.name.toLowerCase().includes(query) || 
+                   p.startNumber?.toString().includes(query) || 
+                   (p.partnerName && p.partnerName.toLowerCase().includes(query));
+        });
+
+        const finishedList = Object.entries(finishedParticipants)
+            .map(([id, data]) => {
+                const found = allRaceParticipants.find(p => p.id === id);
+                return { id, name: found?.name || 'Okänd', division: found?.division || 'Singel Herr', partnerName: found?.partnerName, ...data };
+            })
+            .sort((a, b) => a.time - b.time);
+
+        return (
+            <div className={`fixed inset-0 w-full h-full flex flex-col ${themeBg} overflow-hidden z-[45]`}>
+                {/* Header */}
+                <header className={`px-4 py-3 flex justify-between items-center border-b ${borderTheme}`}>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></span>
+                            <span className="text-xs uppercase font-extrabold tracking-widest text-indigo-500">Funktionärspanel</span>
+                        </div>
+                        <h2 className="text-sm font-black truncate max-w-[200px] sm:max-w-xs">{activeWorkout?.title || 'Hyrox-simulering'}</h2>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button 
+                            onClick={() => setScreenMode('tv')} 
+                            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                            <span>TV-Skärm</span>
+                        </button>
+                        <button 
+                            onClick={handleExit}
+                            className="bg-slate-500/10 hover:bg-slate-500/20 font-bold text-xs px-2.5 py-1.5 rounded-lg"
+                        >
+                            Avsluta
+                        </button>
+                    </div>
+                </header>
+
+                {/* Sub-header containing actual global clock & stopwatch */}
+                <div className={`px-4 py-2 border-b ${borderTheme} flex justify-between items-center text-xs bg-slate-500/5`}>
+                    <div className="flex items-center gap-3 text-slate-900 dark:text-slate-100">
+                        <span className="font-mono font-bold tracking-tight">Klockslag: {formattedTimeOfDay}</span>
+                        <span className="text-slate-300">|</span>
+                        <span className="font-mono font-bold text-indigo-500">Tävlingstid: {raceElapsedMin}:{raceElapsedSec}</span>
+                    </div>
+                    <button 
+                        onClick={() => setIsDarkTheme(!isDarkTheme)} 
+                        className="p-1 rounded bg-slate-500/10 hover:bg-slate-500/20 text-[11px] text-slate-800 dark:text-slate-200"
+                    >
+                        {isDarkTheme ? '☀️ Ljust' : '🌙 Mörkt'}
+                    </button>
+                </div>
+
+                {/* Tab selector */}
+                <div className="flex border-b border-indigo-500/10 text-sm font-bold">
+                    <button
+                        onClick={() => setOfficialActiveTab('running')}
+                        className={`flex-1 py-3 text-center border-b-2 transition-colors ${officialActiveTab === 'running' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-100'}`}
+                    >
+                        Ute på banan ({uncompletedStartedParticipants.length})
+                    </button>
+                    <button
+                        onClick={() => setOfficialActiveTab('finished')}
+                        className={`flex-1 py-3 text-center border-b-2 transition-colors ${officialActiveTab === 'finished' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-100'}`}
+                    >
+                        I Mål ({finishedList.length})
+                    </button>
+                </div>
+
+                {/* Search Bar */}
+                {officialActiveTab === 'running' && (
+                    <div className="p-3">
+                        <div className="relative">
+                            <input 
+                                type="text"
+                                placeholder="Sök efter deltagare eller startnummer..."
+                                value={officialSearchQuery}
+                                onChange={e => setOfficialSearchQuery(e.target.value)}
+                                className="w-full text-sm bg-slate-500/5 dark:bg-slate-900 border border-slate-700/60 rounded-xl px-4 py-3 pl-10 focus:ring-1 focus:ring-indigo-500 outline-none text-slate-900 dark:text-slate-100"
+                            />
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute left-3.5 top-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                )}
+
+                {/* Lists Content */}
+                <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                    {officialActiveTab === 'running' ? (
+                        filteredRunning.length === 0 ? (
+                            <div className="text-center py-12 text-sm text-slate-500 italic">
+                                {isLobbyMode 
+                                    ? "Eventet har inte startats ännu. Starta i TV-vyn först."
+                                    : "Inga aktiva löpare ute på banan för tillfället eller hittades ej."}
+                            </div>
+                        ) : (
+                            filteredRunning.map(p => (
+                                <div 
+                                    key={p.id}
+                                    className={`p-3.5 rounded-xl border flex justify-between items-center bg-white dark:bg-slate-900 ${borderTheme}`}
+                                >
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-extrabold text-sm text-indigo-500">#{p.startNumber}</span>
+                                            <span className="font-black text-sm text-slate-900 dark:text-slate-100">
+                                                {p.name} {p.partnerName && <span className="font-normal text-slate-400">& {p.partnerName}</span>}
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 mt-1.5 items-center">
+                                            <span className={`text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded border ${getDivisionColor(p.division)}`}>
+                                                {p.division || 'Singel Herr'}
+                                            </span>
+                                            {p.email && <span className="text-[10px] text-slate-400 truncate max-w-[120px]">{p.email}</span>}
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setConfirmFinishId(p.id)}
+                                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md uppercase tracking-wider"
+                                    >
+                                        MÅL
+                                    </button>
+                                </div>
+                            ))
+                        )
+                    ) : (
+                        finishedList.length === 0 ? (
+                            <div className="text-center py-12 text-sm text-slate-500 italic">
+                                Inga deltagare i mål ännu.
+                            </div>
+                        ) : (
+                            finishedList.map((res, index) => (
+                                <div 
+                                    key={res.id}
+                                    className={`p-3.5 rounded-xl border flex justify-between items-center bg-green-500/5 ${borderTheme}`}
+                                >
+                                    <div>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="font-black text-sm text-green-500">#{index+1}</span>
+                                            <span className="font-black text-sm text-slate-900 dark:text-slate-100">
+                                                {res.name} {res.partnerName && <span className="font-normal text-slate-400">& {res.partnerName}</span>}
+                                            </span>
+                                        </div>
+                                        <div className="flex gap-2 mt-1 items-center">
+                                            <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded border ${getDivisionColor(res.division)}`}>
+                                                {res.division}
+                                            </span>
+                                            <span className="text-[10px] font-mono text-slate-400">Placering i klass</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-mono font-black text-lg text-slate-900 dark:text-slate-100">
+                                            {Math.floor(res.time / 60)}:{String(res.time % 60).padStart(2, '0')}
+                                        </span>
+                                        <button
+                                            onClick={() => setConfirmUndoId(res.id)}
+                                            className="text-red-500 hover:bg-red-500/10 text-xs font-bold p-2 rounded-xl border border-red-500/20"
+                                            title="Placera tillbaka i loppet"
+                                        >
+                                            Ångra
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        )
+                    )}
+                </div>
+
+                {/* CONFIRM FINISH POPUP MODAL */}
+                {confirmFinishId && (() => {
+                    const runner = allRaceParticipants.find(p => p.id === confirmFinishId);
+                    if (!runner) return null;
+                    return (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+                            <div className={`w-full max-w-sm rounded-2xl p-6 border ${cardBg}`}>
+                                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-2">Bekräfta målgång</h3>
+                                <p className="text-sm mb-4 leading-relaxed">
+                                    Vill du registrera målgång för <strong className="text-indigo-500">{runner.name}</strong> nu? <br />
+                                    Tävlingstid: <span className="font-mono font-bold text-lg text-indigo-500">{raceElapsedMin}:{raceElapsedSec}</span>
+                                </p>
+                                <div className="flex gap-2.5">
+                                    <button
+                                        onClick={() => {
+                                            handleParticipantFinish(confirmFinishId);
+                                            setConfirmFinishId(null);
+                                        }}
+                                        className="flex-1 bg-green-600 hover:bg-green-500 text-white font-extrabold text-sm py-3 rounded-xl uppercase tracking-wider shadow"
+                                    >
+                                        Ja, Registrera
+                                    </button>
+                                    <button
+                                        onClick={() => setConfirmFinishId(null)}
+                                        className="bg-slate-500/20 hover:bg-slate-500/30 font-bold text-sm px-4 py-3 rounded-xl dark:text-white"
+                                    >
+                                        Avbryt
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
+
+                {/* CONFIRM UNDO POPUP MODAL */}
+                {confirmUndoId && (() => {
+                    const runner = finishedList.find(r => r.id === confirmUndoId);
+                    if (!runner) return null;
+                    return (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+                            <div className={`w-full max-w-sm rounded-2xl p-6 border ${cardBg}`}>
+                                <h3 className="text-lg font-black text-red-500 mb-2">Ångra målgång?</h3>
+                                <p className="text-sm mb-4 leading-relaxed text-slate-700 dark:text-slate-300">
+                                    Vill du ta bort målgången för <strong>{runner.name}</strong> och placera dem ute på banan igen? Deras tidmätning kommer att återupptas.
+                                </p>
+                                <div className="flex gap-2.5">
+                                    <button
+                                        onClick={() => {
+                                            setFinishedParticipants(prev => {
+                                                const next = { ...prev };
+                                                delete next[confirmUndoId];
+                                                return next;
+                                            });
+                                            setConfirmUndoId(null);
+                                        }}
+                                        className="flex-1 bg-red-600 hover:bg-red-500 text-white font-extrabold text-sm py-3 rounded-xl uppercase tracking-wider shadow"
+                                    >
+                                        Ja, Återställ till lopp
+                                    </button>
+                                    <button
+                                        onClick={() => setConfirmUndoId(null)}
+                                        className="bg-slate-500/20 hover:bg-slate-500/30 font-bold text-sm px-4 py-3 rounded-xl dark:text-white"
+                                    >
+                                        Avbryt
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
+            </div>
+        );
+    }
+
+    // --- TV / STORSKÄRM (BENTO-GRID) ---
+    // Calculate live division standings
+    const activeDivisions = Array.from(new Set(allRaceParticipants.map(p => p.division || 'Singel Herr')));
+    
+    // Sort and rank participants within each division
+    const divisionStandings = activeDivisions.map(div => {
+        const runners = allRaceParticipants.filter(p => (p.division || 'Singel Herr') === div);
+        
+        const rankedRunners = runners.map(p => {
+            const isFinished = !!finishedParticipants[p.id];
+            let netTime = 999999;
+            let statusStr: 'unstarted' | 'running' | 'finished' = 'unstarted';
+
+            if (isFinished) {
+                netTime = finishedParticipants[p.id].time;
+                statusStr = 'finished';
+            } else {
+                const group = startGroups.find(g => g.participantList?.some(x => x.id === p.id));
+                if (group && group.startTime !== undefined) {
+                    netTime = Math.max(0, totalTimeElapsed - group.startTime);
+                    statusStr = 'running';
+                }
+            }
+
+            return { p, time: netTime, status: statusStr };
+        });
+
+        // Sort: finished (by time asc), then running (by time asc), then unstarted
+        rankedRunners.sort((a, b) => {
+            if (a.status === 'finished' && b.status === 'finished') return a.time - b.time;
+            if (a.status === 'finished') return -1;
+            if (b.status === 'finished') return 1;
+            if (a.status === 'running' && b.status === 'running') return a.time - b.time;
+            if (a.status === 'running') return -1;
+            if (b.status === 'running') return 1;
+            return 0;
+        });
+
+        return { division: div, stand: rankedRunners.slice(0, 3) };
+    });
+
+    const latestFinisherList = Object.entries(finishedParticipants)
+        .map(([id, data]) => {
+            const found = allRaceParticipants.find(p => p.id === id);
+            return { id, name: found?.name || 'Okänd', division: found?.division || 'Singel Herr', partnerName: found?.partnerName, ...data };
+        })
+        .sort((a, b) => (b.placement || 0) - (a.placement || 0))
+        .slice(0, 4);
+
+    return (
+        <div className={`fixed inset-0 w-full h-full flex flex-col p-6 overflow-y-auto ${themeBg} transition-colors duration-500 z-[45]`}>
+            {/* Header Control Panel */}
+            <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                <div>
+                    <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded bg-amber-500 text-black font-black text-[9px] uppercase tracking-widest">Live Event</span>
+                        <h1 className="text-xl font-black uppercase tracking-tight">{activeWorkout?.title || 'HYROX Tävlingssimulering'}</h1>
+                    </div>
+                </div>
+                <div className="flex items-center gap-3">
+                    <button 
+                        onClick={() => setScreenMode('official')} 
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md flex items-center gap-1.5 transition-all"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        <span>📱 Öppna Funktionärsvy (Mobil/iPad)</span>
+                    </button>
+                    <button 
+                        onClick={() => setIsDarkTheme(!isDarkTheme)} 
+                        className="p-2.5 rounded-xl border border-slate-700/60 bg-slate-500/5 hover:bg-slate-500/10 text-xs font-bold text-slate-800 dark:text-slate-200"
+                    >
+                        {isDarkTheme ? '☀️ Ljust' : '🌙 Mörkt'}
+                    </button>
+                    <button 
+                        onClick={handleExit}
+                        className="bg-slate-500/10 hover:bg-slate-500/20 font-bold text-xs px-4 py-2.5 rounded-xl transition-all"
+                    >
+                        Tillbaka
+                    </button>
+                </div>
+            </div>
+
+            {/* BENTO GRID MAIN CONTAINER */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-grow items-start">
+                
+                {/* COLUMN 1: KLOCKA & NEDRÄKNING (Or Central Stats) */}
+                <div className="lg:col-span-2 space-y-6">
+                    {/* BENTO 1: Main Clock Row */}
+                    <div className={`p-8 rounded-3xl border ${cardBg} text-center flex flex-col justify-center items-center shadow-lg relative overflow-hidden h-72`}>
+                        <div className="absolute top-4 left-6 flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
+                            <span className={`text-[10px] font-bold uppercase tracking-widest ${textMuted}`}>REALTIDSKLOCKA (AKTUELL TID)</span>
+                        </div>
+                        <div className="font-mono font-black text-6xl tracking-tight select-none tabular-nums text-slate-900 dark:text-amber-400 mt-2">
+                            {currentTimeOfDay.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
+                            <span className="text-3xl font-normal ml-1 text-slate-400">{currentTimeOfDay.toLocaleTimeString('sv-SE', { second: '2-digit' })}</span>
+                        </div>
+                        
+                        <div className="mt-4 flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20">
+                            <span className="text-xs uppercase font-extrabold tracking-widest text-indigo-500">TOTAL PROGRESSTID:</span>
+                            <span className="font-mono font-black text-lg text-slate-800 dark:text-slate-100">{raceElapsedMin}:{raceElapsedSec}</span>
+                        </div>
+
+                        {/* Controls underneath */}
+                        <div className="absolute bottom-4 right-6 flex gap-2">
+                            {isLobbyMode ? (
+                                <button 
+                                    onClick={handleLobbyStart}
+                                    className="bg-green-600 hover:bg-green-500 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-md uppercase tracking-wide"
+                                >
+                                    Starta Event
+                                </button>
+                            ) : (
+                                <>
+                                    {status === TimerStatus.Running ? (
+                                        <button 
+                                            onClick={() => handleRemoteAction('pause')}
+                                            className="bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl"
+                                        >
+                                            Pausa lopp
+                                        </button>
+                                    ) : (
+                                        <button 
+                                            onClick={() => handleRemoteAction('resume')}
+                                            className="bg-green-600 hover:bg-green-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl"
+                                        >
+                                            Fortsätt lopp
+                                        </button>
+                                    )}
+                                    <button 
+                                        onClick={() => setShowResetConfirmation(true)}
+                                        className="bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold text-xs px-4 py-2 rounded-xl border border-red-500/20"
+                                    >
+                                        Nollställ
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* BENTO 2: STARTCOUNTDOWNS OR STATISTICS SUMMARY */}
+                    <div className={`p-6 rounded-3xl border ${cardBg} shadow-lg min-h-36 flex flex-col justify-center`}>
+                        {isLobbyMode ? (
+                            <div className="text-center py-4">
+                                <h4 className="font-black text-sm tracking-widest text-indigo-500 uppercase mb-2">Väntar på startskott...</h4>
+                                <p className={`text-xs ${textMuted}`}>Totalt {totalRegistered} deltagare fördelade på {startGroups.length} startgrupper ligger laddade i loppet.</p>
+                            </div>
+                        ) : groupForCountdownDisplay && timeForCountdownDisplay > 0 ? (
+                            <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-4">
+                                <div>
+                                    <span className="inline-block px-2.5 py-1 rounded bg-orange-500/10 text-orange-500 text-[10px] uppercase font-bold tracking-widest mb-1 animate-pulse border border-orange-500/20">Nedräkning startar</span>
+                                    <h3 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{groupForCountdownDisplay.name}</h3>
+                                    <p className={`text-xs ${textMuted} mt-0.5`}>{remainingGroupsCount} av {startGroups.length} startgrupper är kvar att starta.</p>
+                                </div>
+                                <div className="font-mono text-5xl font-black text-orange-500 animate-pulse bg-orange-500/5 px-6 py-4 rounded-2xl border border-orange-500/10">
+                                    {Math.floor(timeForCountdownDisplay / 60)}:{String(timeForCountdownDisplay % 60).padStart(2, '0')}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-3 gap-4 text-center">
+                                <div className="p-4 bg-blue-500/5 rounded-2xl border border-blue-500/10">
+                                    <span className="block text-2xl sm:text-3xl font-black text-blue-500">{runningTotal}</span>
+                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Ute på banan</span>
+                                </div>
+                                <div className="p-4 bg-green-500/5 rounded-2xl border border-green-500/10">
+                                    <span className="block text-2xl sm:text-3xl font-black text-green-500">{finishedTotal}</span>
+                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>I Mål</span>
+                                </div>
+                                <div className="p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/10">
+                                    <span className="block text-2xl sm:text-3xl font-black text-indigo-500">{startedTotal}</span>
+                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Startade tot</span>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* BENTO 3: CLASS LEADERBOARDS (Topplistor efter divisioner) */}
+                    <div className={`p-6 rounded-3xl border ${cardBg} shadow-lg space-y-4`}>
+                        <div className="flex justify-between items-center pb-2 border-b border-indigo-500/10">
+                            <h3 className="font-extrabold text-sm uppercase tracking-wider text-indigo-500">Live-Topplistor per klass</h3>
+                            <span className={`text-xs ${textMuted}`}>Sorterat efter nettotid</span>
+                        </div>
+                        
+                        {divisionStandings.length === 0 ? (
+                            <p className="text-center text-xs text-slate-500 py-8">Registrera deltagare i administrationspanelen för att se topplistor.</p>
+                        ) : (
+                            <div className="space-y-6">
+                                {divisionStandings.map(({ division, stand }) => (
+                                    <div key={division} className="space-y-2">
+                                        <h4 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200 tracking-wider flex items-center gap-2">
+                                            <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
+                                            {division}
+                                        </h4>
+                                        <div className="space-y-1.5">
+                                            {stand.map((res, idx) => {
+                                                const placementBg = idx === 0 ? 'bg-yellow-500 text-black' : idx === 1 ? 'bg-slate-300 text-black' : 'bg-amber-700 text-white';
+                                                const isUnstarted = res.status === 'unstarted';
+                                                
+                                                return (
+                                                    <div 
+                                                        key={res.p.id}
+                                                        className={`flex justify-between items-center text-xs p-2.5 rounded-xl border ${borderTheme} bg-slate-500/5`}
+                                                    >
+                                                        <div className="flex items-center gap-2 max-w-[70%]">
+                                                            <span className={`w-5 h-5 rounded-full flex items-center justify-center font-black ${placementBg} text-[10px]`}>
+                                                                {idx + 1}
+                                                            </span>
+                                                            <span className="font-black truncate">
+                                                                {res.p.name} {res.p.partnerName && <span className="text-slate-400 font-normal">& {res.p.partnerName}</span>}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 text-slate-900 dark:text-slate-100">
+                                                            {res.status === 'finished' && (
+                                                                <span className="text-[9px] font-bold text-green-500 border border-green-500/20 px-1 py-0.5 rounded uppercase">I Mål</span>
+                                                            )}
+                                                            {res.status === 'running' && (
+                                                                <span className="text-[9px] font-bold text-blue-500 border border-blue-500/20 px-1 py-0.5 rounded uppercase">Löper</span>
+                                                            )}
+                                                            <span className="font-mono font-black text-slate-800 dark:text-slate-100">
+                                                                {isUnstarted ? 'Ej startad' : `${Math.floor(res.time / 60)}:${String(res.time % 60).padStart(2, '0')}`}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* COLUMN 2: QR CODE & SENASTE MÅLGÅNGAR */}
+                <div className="space-y-6">
+                    {/* BENTO 4: LIVERESULTAT QR-KOD */}
+                    <div className={`p-6 rounded-3xl border ${cardBg} text-center flex flex-col items-center justify-center shadow-lg`}>
+                        <h3 className="font-extrabold text-sm uppercase tracking-wider text-indigo-500 mb-2">Mobil liveresultat</h3>
+                        <p className={`text-xs ${textMuted} mb-4 max-w-[200px] leading-tight`}>
+                            Skanna koden för att följa placeringar och tider live på din mobiltelefon!
+                        </p>
+                        
+                        <div className="bg-white p-4 rounded-2xl shadow-inner border border-slate-200/60 flex items-center justify-center mb-3">
+                            <svg width="120" height="120" viewBox="0 0 100 100" className="text-indigo-600 dark:text-slate-900 fill-current">
+                                <path d="M 5 5 L 25 5" stroke="currentColor" strokeWidth="4.5" fill="none" />
+                                <path d="M 5 5 L 5 25" stroke="currentColor" strokeWidth="4.5" fill="none" />
+                                <path d="M 95 5 L 75 5" stroke="currentColor" strokeWidth="4.5" fill="none" />
+                                <path d="M 95 5 L 95 25" stroke="currentColor" strokeWidth="4.5" fill="none" />
+                                <path d="M 5 95 L 25 95" stroke="currentColor" strokeWidth="4.5" fill="none" />
+                                <path d="M 5 95 L 5 75" stroke="currentColor" strokeWidth="4.5" fill="none" />
+                                <path d="M 95 95 L 75 95" stroke="currentColor" strokeWidth="4.5" fill="none" />
+                                <path d="M 95 95 L 95 75" stroke="currentColor" strokeWidth="4.5" fill="none" />
+                                
+                                <rect x="15" y="15" width="18" height="18" stroke="currentColor" strokeWidth="4.5" fill="none" />
+                                <rect x="21" y="21" width="6" height="6" fill="currentColor" />
+                                
+                                <rect x="67" y="15" width="18" height="18" stroke="currentColor" strokeWidth="4.5" fill="none" />
+                                <rect x="73" y="21" width="6" height="6" fill="currentColor" />
+                                
+                                <rect x="15" y="67" width="18" height="18" stroke="currentColor" strokeWidth="4.5" fill="none" />
+                                <rect x="21" y="73" width="6" height="6" fill="currentColor" />
+                                
+                                <path d="M 42 42 L 52 42 L 52 52 L 62 50 L 58 58" stroke="currentColor" strokeWidth="3" fill="none" />
+                                <rect x="73" y="73" width="7" height="7" fill="currentColor" />
+                                <rect x="42" y="73" width="10" height="10" fill="currentColor" />
+                                <rect x="73" y="42" width="10" height="10" fill="currentColor" />
+                                <rect x="52" y="60" width="8" height="8" fill="currentColor" />
+                            </svg>
+                        </div>
+                        <span className="text-[10px] font-mono tracking-widest text-slate-400">WWW.MINDMOTE.SE/LIVE</span>
+                    </div>
+
+                    {/* BENTO 5: SENASTE MÅLGÅNGAR */}
+                    <div className={`p-6 rounded-3xl border ${cardBg} shadow-lg space-y-4`}>
+                        <div className="pb-2 border-b border-indigo-500/10">
+                            <h3 className="font-extrabold text-sm uppercase tracking-wider text-indigo-500">Senaste Målgångar</h3>
+                        </div>
+
+                        {latestFinisherList.length === 0 ? (
+                            <p className="text-center text-xs text-slate-500 py-6 italic">Målgångar rapporteras här i realtid efter hand.</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {latestFinisherList.map((f, index) => (
+                                    <div 
+                                        key={f.id + index}
+                                        className="flex flex-col p-3 rounded-2xl bg-slate-500/5 border border-green-500/20 relative overflow-hidden"
+                                    >
+                                        <div className="absolute top-0 right-0 h-full w-1 bg-green-500"></div>
+                                        <div className="flex justify-between items-start">
+                                            <span className="font-black text-xs text-slate-900 dark:text-slate-100">
+                                                {f.name} {f.partnerName && <span className="text-slate-400 font-normal">& {f.partnerName}</span>}
+                                            </span>
+                                            <span className="font-mono font-black text-sm text-green-500">
+                                                {Math.floor(f.time / 60)}:{String(f.time % 60).padStart(2, '0')}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between items-center mt-1 text-[10px]">
+                                            <span className={`px-1.5 py-0.5 rounded border ${getDivisionColor(f.division)} uppercase text-[8px] font-extrabold`}>
+                                                {f.division}
+                                            </span>
+                                            <span className="text-slate-400">Plats {f.placement} totalt</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    
+                    {/* Finish race early */}
+                    {!isLobbyMode && (
+                        <div className="p-4 rounded-3xl border border-red-500/10 bg-red-500/5">
+                            <button 
+                                onClick={handleRaceComplete}
+                                disabled={isSavingRace}
+                                className="w-full bg-red-600 hover:bg-red-500 text-white font-extrabold py-4 rounded-2xl uppercase tracking-wider text-xs shadow-md"
+                            >
+                                {isSavingRace ? 'Sparar...' : 'Stoppa & spara eventet'}
+                            </button>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* CONFIRMATION OVERLAYS ACCESSIBLE IN TV VIEW */}
+            {showResetConfirmation && <RaceResetConfirmationModal onConfirm={handleConfirmReset} onCancel={() => setShowResetConfirmation(false)} onExit={() => onFinish({ isNatural: false })} />}
+        </div>
+    );
+  };
+
+  // --- HYROX PRESTIGE VIEW RENDERING ---
+  if (isHyroxRace) {
+      return renderHyroxPremiumView();
+  }
 
   return (
     <div 

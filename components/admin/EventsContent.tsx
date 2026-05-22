@@ -92,35 +92,119 @@ const EventEditor: React.FC<{
     const [editResultTime, setEditResultTime] = useState<number>(0);
     const [results, setResults] = useState<HyroxRaceResult[]>(event?.results || []);
 
+    const [addMethod, setAddMethod] = useState<'manual' | 'import'>('manual');
+    const [manualName, setManualName] = useState('');
+    const [manualEmail, setManualEmail] = useState('');
+    const [manualDivision, setManualDivision] = useState('Singel Herr');
+    const [manualPartnerName, setManualPartnerName] = useState('');
+    const [manualPartnerEmail, setManualPartnerEmail] = useState('');
+    const [importDivision, setImportDivision] = useState('Singel Herr');
+    const [editingParticipant, setEditingParticipant] = useState<RaceParticipant | null>(null);
+
+    const divisions = [
+        'Singel Herr',
+        'Singel Dam',
+        'Dubbel Herr',
+        'Dubbel Dam',
+        'Dubbel Mix',
+        'Stafett/Lag'
+    ];
+
+    const getDivisionColor = (div?: string) => {
+        const d = div || 'Singel Herr';
+        if (d === 'Singel Herr') return 'bg-blue-50 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800';
+        if (d === 'Singel Dam') return 'bg-pink-50 dark:bg-pink-900/40 text-pink-700 dark:text-pink-300 border-pink-200 dark:border-pink-800';
+        if (d === 'Dubbel Herr') return 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800';
+        if (d === 'Dubbel Dam') return 'bg-purple-50 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800';
+        if (d === 'Dubbel Mix') return 'bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800';
+        return 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
+    };
+
+    const handleAddManualParticipant = () => {
+        if (!manualName.trim()) {
+            alert('Fyll i deltagarnamn.');
+            return;
+        }
+
+        const isDouble = manualDivision.includes('Dubbel') || manualDivision.includes('Mix');
+        if (isDouble && !manualPartnerName.trim()) {
+            alert('Fyll i partnerns namn.');
+            return;
+        }
+
+        const newP: RaceParticipant = {
+            id: `p-${Date.now()}`,
+            name: manualName.trim(),
+            email: manualEmail.trim() || undefined,
+            division: manualDivision,
+            partnerName: isDouble ? manualPartnerName.trim() : undefined,
+            partnerEmail: (isDouble && manualPartnerEmail.trim()) ? manualPartnerEmail.trim() : undefined,
+            startNumber: participants.length + 1
+        };
+
+        setParticipants([...participants, newP]);
+        setManualName('');
+        setManualEmail('');
+        setManualPartnerName('');
+        setManualPartnerEmail('');
+    };
+
+    const handleStartEditParticipant = (p: RaceParticipant) => {
+        setEditingParticipant({ ...p });
+    };
+
+    const handleUpdateParticipant = () => {
+        if (!editingParticipant) return;
+        if (!editingParticipant.name.trim()) {
+            alert('Deltagarnamn får inte vara tomt.');
+            return;
+        }
+
+        const isDouble = editingParticipant.division?.includes('Dubbel') || editingParticipant.division?.includes('Mix');
+        const updatedP: RaceParticipant = {
+            ...editingParticipant,
+            name: editingParticipant.name.trim(),
+            email: editingParticipant.email?.trim() || undefined,
+            partnerName: isDouble ? editingParticipant.partnerName?.trim() : undefined,
+            partnerEmail: (isDouble && editingParticipant.partnerEmail?.trim()) ? editingParticipant.partnerEmail.trim() : undefined,
+        };
+
+        setParticipants(prev => prev.map(p => p.id === updatedP.id ? updatedP : p));
+
+        setStartGroups(prevGroups => prevGroups.map(g => ({
+            ...g,
+            participantList: (g.participantList || []).map(p => p.id === updatedP.id ? updatedP : p)
+        })));
+
+        setEditingParticipant(null);
+    };
+
     const handleImportParticipants = () => {
         if (!participantsText.trim()) return;
         const lines = participantsText.split('\n').map(l => l.trim()).filter(Boolean);
         
         const newParticipants: RaceParticipant[] = lines.map((line, index) => {
-            // Simple parsing: "Name - Email - PartnerName - PartnerEmail"
             const parts = line.split(/[-;,]/).map(p => p.trim());
-            const name = parts[0];
-            const email = parts.length > 1 && parts[1].includes('@') ? parts[1] : undefined;
-            
-            let partnerName = undefined;
-            let partnerEmail = undefined;
+            const emails = parts.filter(p => p.includes('@'));
+            const nonEmails = parts.filter(p => !p.includes('@') && p !== '');
 
-            if (parts.length > 2 && !parts[1].includes('@')) {
-                 // If format is "Name - PartnerName"
-                 partnerName = parts[1];
-            } else if (parts.length > 2) {
-                 partnerName = parts[2];
-                 if (parts.length > 3 && parts[3].includes('@')) {
-                     partnerEmail = parts[3];
-                 }
-            }
+            const name = nonEmails[0] || 'Deltagare';
+            const email = emails[0] || undefined;
+            const partnerName = nonEmails[1] || undefined;
+            const partnerEmail = emails[1] || undefined;
             
+            let division = importDivision;
+            if (partnerName && division.startsWith('Singel')) {
+                division = 'Dubbel Mix';
+            }
+
             return {
                 id: `p-${Date.now()}-${index}`,
                 name,
                 email,
                 partnerName,
                 partnerEmail,
+                division,
                 startNumber: participants.length + index + 1
             };
         });
@@ -135,8 +219,6 @@ const EventEditor: React.FC<{
             return;
         }
 
-        // For now, put all unassigned participants in the first group if they aren't assigned
-        // In a real app, we'd have drag-and-drop. Here we just do a simple assignment.
         const updatedGroups = [...startGroups];
         if (updatedGroups.length > 0) {
             const assignedIds = new Set(updatedGroups.flatMap(g => g.participantList?.map(p => p.id) || []));
@@ -154,7 +236,7 @@ const EventEditor: React.FC<{
             createdAt: event?.createdAt || Date.now(),
             scheduledDate: scheduledDate ? new Date(scheduledDate).getTime() : undefined,
             status: event?.status || 'planned',
-            exercises: event?.exercises || [], // We can let them select exercises later
+            exercises: event?.exercises || [], 
             startGroups: updatedGroups,
             results: results
         };
@@ -237,39 +319,228 @@ const EventEditor: React.FC<{
             <div className="border-t border-gray-200 dark:border-gray-800 pt-8">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Deltagare & Startlista</h3>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div>
-                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Importera deltagare (Klistra in från Excel)</label>
-                        <p className="text-xs text-gray-500 mb-2">Format: Namn - E-post - Partner Namn - Partner E-post (en per rad)</p>
-                        <textarea 
-                            value={participantsText}
-                            onChange={(e) => setParticipantsText(e.target.value)}
-                            placeholder="Anna Andersson - anna@exempel.se&#10;Johan Karlsson - johan@exempel.se - Erik Svensson - erik@exempel.se"
-                            className="w-full h-32 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none resize-none mb-4"
-                        />
-                        <button 
-                            onClick={handleImportParticipants}
-                            className="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-sm"
-                        >
-                            Lägg till i listan
-                        </button>
+                    
+                    {/* LEFT COLUMN: Add or Edit Participant */}
+                    <div className="space-y-4">
+                        {editingParticipant ? (
+                            <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 space-y-4 relative">
+                                <h4 className="font-bold text-gray-900 dark:text-white text-md">Ändra deltagaruppgifter</h4>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Deltagarnamn / Lagmedlem 1 (Krav)</label>
+                                    <input 
+                                        type="text"
+                                        value={editingParticipant.name}
+                                        onChange={e => setEditingParticipant({ ...editingParticipant, name: e.target.value })}
+                                        className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">E-post (Kopplar resultat till medlemskonto)</label>
+                                    <input 
+                                        type="email"
+                                        value={editingParticipant.email || ''}
+                                        onChange={e => setEditingParticipant({ ...editingParticipant, email: e.target.value || undefined })}
+                                        className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary outline-none"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Division / Klass</label>
+                                    <select 
+                                        value={editingParticipant.division || 'Singel Herr'}
+                                        onChange={e => setEditingParticipant({ ...editingParticipant, division: e.target.value })}
+                                        className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary outline-none"
+                                    >
+                                        {divisions.map(d => (
+                                            <option key={d} value={d}>{d}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {(editingParticipant.division?.includes('Dubbel') || editingParticipant.division?.includes('Mix') || editingParticipant.division?.includes('Lag')) && (
+                                    <div className="pt-2 border-t border-gray-150 dark:border-gray-800 space-y-3">
+                                        <p className="text-xs font-semibold text-gray-500">Partneruppgifter (Lagmedlem 2)</p>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Partnerns Namn</label>
+                                            <input 
+                                                type="text"
+                                                value={editingParticipant.partnerName || ''}
+                                                onChange={e => setEditingParticipant({ ...editingParticipant, partnerName: e.target.value || undefined })}
+                                                className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Partnerns E-post</label>
+                                            <input 
+                                                type="email"
+                                                value={editingParticipant.partnerEmail || ''}
+                                                onChange={e => setEditingParticipant({ ...editingParticipant, partnerEmail: e.target.value || undefined })}
+                                                className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary outline-none"
+                                            />
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="flex gap-2 pt-2">
+                                    <button 
+                                        onClick={handleUpdateParticipant}
+                                        className="flex-1 bg-primary text-white text-sm font-bold py-2 rounded-lg hover:brightness-105"
+                                    >
+                                        Spara ändringar
+                                    </button>
+                                    <button 
+                                        onClick={() => setEditingParticipant(null)}
+                                        className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 text-sm font-bold px-4 py-2 rounded-lg"
+                                    >
+                                        Avbryt
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div>
+                                <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mb-4 text-xs font-semibold">
+                                    <button
+                                        onClick={() => setAddMethod('manual')}
+                                        className={`flex-1 py-2 text-center rounded-lg transition-colors ${addMethod === 'manual' ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                                    >
+                                        Lägg till manuellt
+                                    </button>
+                                    <button
+                                        onClick={() => setAddMethod('import')}
+                                        className={`flex-1 py-2 text-center rounded-lg transition-colors ${addMethod === 'import' ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-900'}`}
+                                    >
+                                        Importera (Excel-lista)
+                                    </button>
+                                </div>
+
+                                {addMethod === 'manual' ? (
+                                    <div className="bg-gray-50 dark:bg-gray-850 border border-gray-100 dark:border-gray-800 rounded-xl p-5 space-y-4">
+                                        <h4 className="font-bold text-gray-900 dark:text-white text-sm">Registrera person eller lag</h4>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Deltagarnamn / Lagmedlem 1 *</label>
+                                            <input 
+                                                type="text" 
+                                                placeholder="T.ex. Karin Svensson"
+                                                value={manualName}
+                                                onChange={e => setManualName(e.target.value)}
+                                                className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">E-post * (Kopplar resultat automatiskt)</label>
+                                            <input 
+                                                type="email" 
+                                                placeholder="karin@mindmote.se"
+                                                value={manualEmail}
+                                                onChange={e => setManualEmail(e.target.value)}
+                                                className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Division / Klass</label>
+                                            <select 
+                                                value={manualDivision}
+                                                onChange={e => setManualDivision(e.target.value)}
+                                                className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary outline-none"
+                                            >
+                                                {divisions.map(d => (
+                                                    <option key={d} value={d}>{d}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {(manualDivision.includes('Dubbel') || manualDivision.includes('Mix') || manualDivision.includes('Lag')) && (
+                                            <div className="pt-2 border-t border-gray-150 dark:border-gray-800 space-y-3">
+                                                <p className="text-xs font-semibold text-gray-500">Partner (Lagmedlem 2)</p>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Namn *</label>
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="T.ex. Maria Nilsson"
+                                                        value={manualPartnerName}
+                                                        onChange={e => setManualPartnerName(e.target.value)}
+                                                        className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary outline-none"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">E-post</label>
+                                                    <input 
+                                                        type="email" 
+                                                        placeholder="maria@mindmote.se"
+                                                        value={manualPartnerEmail}
+                                                        onChange={e => setManualPartnerEmail(e.target.value)}
+                                                        className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary outline-none"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <button 
+                                            onClick={handleAddManualParticipant}
+                                            className="w-full bg-primary text-white text-sm font-bold py-2 rounded-lg hover:brightness-105"
+                                        >
+                                            Lägg till deltagare
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="bg-gray-50 dark:bg-gray-850 border border-gray-100 dark:border-gray-800 rounded-xl p-5 space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <h4 className="font-bold text-gray-900 dark:text-white text-sm">Massimport från Excel / Text</h4>
+                                            <select 
+                                                value={importDivision}
+                                                onChange={e => setImportDivision(e.target.value)}
+                                                className="text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2 py-1 text-gray-900 dark:text-white outline-none"
+                                            >
+                                                {divisions.map(d => (
+                                                    <option key={d} value={d}>{d}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                        <p className="text-xs text-gray-500">
+                                            Klistra in rader. Vi letar automatiskt upp namn och e-post (om det finns en @). <br />
+                                            Format standard: <code className="bg-gray-100 dark:bg-gray-900 p-0.5 rounded text-red-500">Namn - E-post</code>
+                                        </p>
+                                        <textarea 
+                                            value={participantsText}
+                                            onChange={(e) => setParticipantsText(e.target.value)}
+                                            placeholder="Anna Andersson - anna@exempel.se&#10;Johan Karlsson - johan@exempel.se - Erik Svensson - erik@exempel.se"
+                                            className="w-full h-32 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none resize-none"
+                                        />
+                                        <button 
+                                            onClick={handleImportParticipants}
+                                            className="w-full bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2.5 rounded-lg font-bold hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors text-xs"
+                                        >
+                                            Importera till deltagarlistan ({importDivision})
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                     
+                    {/* RIGHT COLUMN: Participant list */}
                     <div>
-                        <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Alla Deltagare ({unassignedParticipants.length} otilldelade)</label>
+                        <div className="flex justify-between items-center mb-2">
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300">
+                                Alla Deltagare ({unassignedParticipants.length} otilldelade)
+                            </label>
+                            <span className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-500 px-2 py-0.5 rounded font-mono">
+                                Totalt: {participants.length}
+                            </span>
+                        </div>
                         <div 
-                            className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 h-48 overflow-y-auto space-y-2"
+                            className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 h-[350px] overflow-y-auto space-y-2"
                             onDrop={handleDropToUnassigned}
                             onDragOver={handleDragOver}
                         >
                             {unassignedParticipants.length === 0 ? (
-                                <p className="text-gray-500 text-sm text-center mt-8">Alla deltagare är tilldelade heat.</p>
+                                <p className="text-gray-500 text-xs text-center mt-12">Alla deltagare är tilldelade heat, eller så finns inga deltagare registrerade.</p>
                             ) : (
                                 unassignedParticipants.map(p => (
                                     <div 
                                         key={p.id} 
                                         draggable
                                         onDragStart={(e) => handleDragStart(e, p.id)}
-                                        className="flex justify-between items-center bg-white dark:bg-gray-900 p-2 rounded-lg border border-gray-100 dark:border-gray-800 cursor-grab active:cursor-grabbing hover:border-primary/50 transition-colors"
+                                        className="flex justify-between items-center bg-white dark:bg-gray-900 p-2.5 rounded-xl border border-gray-100 dark:border-gray-800 cursor-grab active:cursor-grabbing hover:border-primary/50 transition-all shadow-xs"
                                     >
                                         <div className="flex items-center gap-3">
                                             <span className="bg-primary/10 text-primary font-bold text-xs px-2 py-1 rounded-md">#{p.startNumber}</span>
@@ -277,18 +548,30 @@ const EventEditor: React.FC<{
                                                 <p className="text-sm font-bold text-gray-900 dark:text-white">
                                                     {p.name} {p.partnerName && <span className="text-gray-500 font-normal">& {p.partnerName}</span>}
                                                 </p>
-                                                <div className="flex gap-2">
-                                                    {p.email && <p className="text-xs text-gray-500">{p.email}</p>}
-                                                    {p.partnerEmail && <p className="text-xs text-gray-500">({p.partnerEmail})</p>}
+                                                <div className="flex flex-wrap gap-2 mt-1 items-center">
+                                                    <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded border ${getDivisionColor(p.division)}`}>
+                                                        {p.division || 'Singel Herr'}
+                                                    </span>
+                                                    {p.email && <span className="text-[11px] text-gray-400 truncate max-w-[140px]" title={p.email}>{p.email}</span>}
                                                 </div>
                                             </div>
                                         </div>
-                                        <button 
-                                            onClick={() => handleDeleteParticipant(p.id)}
-                                            className="text-red-500 hover:bg-red-50 p-1 rounded-md"
-                                        >
-                                            <TrashIcon className="w-4 h-4" />
-                                        </button>
+                                        <div className="flex gap-1">
+                                            <button 
+                                                onClick={() => handleStartEditParticipant(p)}
+                                                className="text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-850 p-1 rounded-lg"
+                                                title="Redigera deltagare"
+                                            >
+                                                <PencilIcon className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button 
+                                                onClick={() => handleDeleteParticipant(p.id)}
+                                                className="text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 p-1 rounded-lg"
+                                                title="Ta bort deltagare"
+                                            >
+                                                <TrashIcon className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
                                     </div>
                                 ))
                             )}
@@ -298,6 +581,7 @@ const EventEditor: React.FC<{
             </div>
 
             <div className="border-t border-gray-200 dark:border-gray-800 pt-8">
+
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">Heat (Startgrupper)</h3>
                     <button 
