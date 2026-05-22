@@ -857,21 +857,60 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   // Real-time synchronization state for official/functionary view
   const [syncedElapsedSeconds, setSyncedElapsedSeconds] = useState(0);
 
+  // Find the studio that is actually broadcasting or linked to this race
+  const activeRaceStudio = useMemo(() => {
+    if (!isHyroxRace) return selectedStudio;
+    
+    // Default fallback to manually selected studio
+    const fallback = selectedStudio;
+    if (!selectedOrganization?.studios || !activeWorkout?.id) return fallback;
+    
+    const cleanId = (id: string) => {
+      if (!id) return '';
+      return id.replace('block-custom-race-', '').replace('custom-race-', '').replace('workout-', '');
+    };
+    
+    const localIdClean = cleanId(activeWorkout.id);
+    
+    // First, check if selectedStudio is active with this workout
+    if (selectedStudio?.remoteState) {
+      const remoteIdClean = cleanId(selectedStudio.remoteState.activeWorkoutId || '');
+      const isSameInstance = (remoteIdClean && remoteIdClean === localIdClean) ||
+                            (selectedStudio.remoteState.raceName === activeWorkout.title);
+      if (isSameInstance) return selectedStudio;
+    }
+    
+    // Otherwise scan other studios in organization to find any actively broadcasting studio
+    for (const s of selectedOrganization.studios) {
+      if (!s.remoteState) continue;
+      const remoteIdClean = cleanId(s.remoteState.activeWorkoutId || '');
+      const isSameInstance = (remoteIdClean && remoteIdClean === localIdClean) ||
+                            (s.remoteState.raceName === activeWorkout.title);
+      if (isSameInstance) {
+        return s;
+      }
+    }
+    
+    return fallback;
+  }, [selectedOrganization?.studios, selectedStudio, activeWorkout, isHyroxRace]);
+
   // Helper to publish current race state to Firestore under selectedStudio's remoteState
   const publishRaceState = useCallback(async (updates: any) => {
-    if (!selectedOrganization?.id || !selectedStudio?.id) return;
+    // If we have an activeRaceStudio, target that one. This ensures functionary edits write to the TV's active studio.
+    const targetStudio = activeRaceStudio || selectedStudio;
+    if (!selectedOrganization?.id || !targetStudio?.id) return;
     try {
-      const currentRemote = selectedStudio.remoteState || {};
+      const currentRemote = targetStudio.remoteState || {};
       const mergedState = {
         ...currentRemote,
         ...updates,
         updatedAt: Date.now()
       };
-      await updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, mergedState);
+      await updateStudioRemoteState(selectedOrganization.id, targetStudio.id, mergedState);
     } catch (err) {
       console.error("Failed to publish race state:", err);
     }
-  }, [selectedOrganization, selectedStudio]);
+  }, [selectedOrganization, selectedStudio, activeRaceStudio]);
 
   // Refs to prevent recursive feedback loops during Firestore syncing
   const lastProcessedRemoteStateRef = useRef<string>('');
@@ -881,7 +920,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   useEffect(() => {
     if (!isHyroxRace || screenMode !== 'tv') return;
 
-    const remoteState = selectedStudio?.remoteState || {};
+    const remoteState = activeRaceStudio?.remoteState || {};
     
     // Check if we need to update
     const statusMap: Record<TimerStatus, string> = {
@@ -967,14 +1006,14 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     screenMode, 
     activeWorkout, 
     publishRaceState, 
-    selectedStudio?.remoteState
+    activeRaceStudio?.remoteState
   ]);
 
   // Sync state from remoteState (Subscriber)
   useEffect(() => {
-    if (!isHyroxRace || !selectedStudio?.remoteState) return;
+    if (!isHyroxRace || !activeRaceStudio?.remoteState) return;
     
-    const remoteState = selectedStudio.remoteState;
+    const remoteState = activeRaceStudio.remoteState;
     
     const cleanId = (id: string) => {
       if (!id) return '';
@@ -1029,7 +1068,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       }
     }
   }, [
-    selectedStudio?.remoteState, 
+    activeRaceStudio?.remoteState, 
     isHyroxRace, 
     activeWorkout, 
     screenMode, 
@@ -1044,7 +1083,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     if (screenMode !== 'official') return;
 
     const updateTime = () => {
-      const remoteState = selectedStudio?.remoteState;
+      const remoteState = activeRaceStudio?.remoteState;
       if (!remoteState) {
         setSyncedElapsedSeconds(0);
         return;
@@ -1061,12 +1100,12 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
     updateTime();
 
-    const remoteState = selectedStudio?.remoteState;
+    const remoteState = activeRaceStudio?.remoteState;
     if (remoteState?.status === 'running') {
       const intervalId = setInterval(updateTime, 250);
       return () => clearInterval(intervalId);
     }
-  }, [selectedStudio?.remoteState, screenMode]);
+  }, [activeRaceStudio?.remoteState, screenMode]);
 
   const groupForCountdownDisplay = useMemo(() => {
     if (!isHyroxRace) return null;
@@ -1213,7 +1252,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   useEffect(() => {
     // If the race is already running (locally or remotely), do not overwrite with unstarted groups!
-    const isRunningRemotely = selectedStudio?.remoteState?.status === 'running' || selectedStudio?.remoteState?.status === 'paused';
+    const isRunningRemotely = activeRaceStudio?.remoteState?.status === 'running' || activeRaceStudio?.remoteState?.status === 'paused';
     if (status === TimerStatus.Running || status === TimerStatus.Paused || isRunningRemotely) {
         return;
     }
@@ -1225,7 +1264,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             setStartGroups([{ id: `group-${Date.now()}`, name: 'Startgrupp 1', participants: (activeWorkout.participants || []).join('\n'), startTime: undefined }]);
         } else { setStartGroups([]); }
     } else { setStartGroups([]); }
-  }, [isHyroxRace, activeWorkout, status, selectedStudio?.remoteState?.status]);
+  }, [isHyroxRace, activeWorkout, status, activeRaceStudio?.remoteState?.status]);
 
   useEffect(() => {
       if (!isHyroxRace || status !== TimerStatus.Running || screenMode !== 'tv') return;
