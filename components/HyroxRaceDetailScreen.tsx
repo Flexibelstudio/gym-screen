@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { HyroxRace } from '../types';
-import { getRace } from '../services/firebaseService';
+import { getRace, listenToRace } from '../services/firebaseService';
 
 interface HyroxRaceDetailScreenProps {
     raceId: string;
@@ -27,24 +27,18 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const fetchRace = async () => {
-            setIsLoading(true);
-            setError(null);
-            try {
-                const raceData = await getRace(raceId);
-                if (!raceData) {
-                    throw new Error("Loppet kunde inte hittas.");
-                }
+        setIsLoading(true);
+        setError(null);
+        const unsubscribe = listenToRace(raceId, (raceData) => {
+            setIsLoading(false);
+            if (!raceData) {
+                setError("Loppet kunde inte hittas.");
+            } else {
                 setRace(raceData);
-            } catch (e) {
-                setError(e instanceof Error ? e.message : "Ett okänt fel inträffade.");
-                console.error(e);
-            } finally {
-                setIsLoading(false);
+                setError(null);
             }
-        };
-
-        fetchRace();
+        });
+        return () => unsubscribe();
     }, [raceId]);
 
     const sortedResults = useMemo(() => {

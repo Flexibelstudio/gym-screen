@@ -1052,7 +1052,13 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     }
 
     // 3. Sync status / controls for official/viewer mode
-    if (screenMode === 'official') {
+    if (remoteState.status === 'completed') {
+      if (!showFinishAnimation) {
+        setWinnerName(remoteState.winnerName || '');
+        setFinalRaceId(remoteState.finalRaceId || '');
+        setShowFinishAnimation(true);
+      }
+    } else if (screenMode === 'official') {
       if (remoteState.status === 'running') {
         setIsLobbyMode(false);
         if (status !== TimerStatus.Running) {
@@ -1075,7 +1081,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     status, 
     start, 
     pause, 
-    reset
+    reset,
+    showFinishAnimation
   ]);
 
   // Sync elapsed seconds for official/functionary view
@@ -1466,7 +1473,18 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           const savedRace = await saveRace(raceData, organization.id);
           if (savedRace && savedRace.id) {
               setFinalRaceId(savedRace.id);
+              if (winnerDisplayName) {
+                  setWinnerName(winnerDisplayName);
+              }
               setShowFinishAnimation(true);
+              
+              // Publish the completed state to firebase studio remote state so TV/viewer screens update
+              publishRaceState({
+                  status: 'completed',
+                  finalRaceId: savedRace.id,
+                  winnerName: winnerDisplayName || ''
+              });
+
               if (winnerDisplayName) speak(`Och vinnaren är ${winnerDisplayName}! Bra jobbat alla!`);
           } else {
               throw new Error("Missing raceId from server response");

@@ -1662,6 +1662,17 @@ export const getRace = async (id: string) => {
     } catch (e) { return null; }
 };
 
+export const listenToRace = (id: string, onUpdate: (race: HyroxRace | null) => void) => {
+    if (isOffline || !db || !id) return () => {};
+    return onSnapshot(doc(db, 'races', id), (snap) => {
+        if (snap.exists()) {
+            onUpdate(snap.data() as HyroxRace);
+        } else {
+            onUpdate(null);
+        }
+    }, (err) => console.error("listenToRace failed", err));
+};
+
 export const saveWorkoutResult = async (result: WorkoutResult) => {
     if (isOffline || !db) return;
     try {
