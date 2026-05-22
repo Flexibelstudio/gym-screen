@@ -843,7 +843,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   }, []);
 
   // Hyrox and Mode setup
-  const isHyroxRace = useMemo(() => activeWorkout?.id.startsWith('hyrox-full-race') || activeWorkout?.id.startsWith('custom-race'), [activeWorkout]);
+  const isHyroxRace = useMemo(() => activeWorkout?.id.startsWith('hyrox-full-race') || activeWorkout?.id.includes('custom-race'), [activeWorkout]);
   const isFreestanding = block.tag === 'Fristående';
   const showFullScreenColor = isFreestanding;
 
@@ -1342,7 +1342,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       let participantName = participantId;
       if (group.participantList && group.participantList.length > 0) {
           const p = group.participantList.find(p => p.id === participantId);
-          if (p) participantName = p.name;
+          if (p) {
+              if (p.teamName) {
+                  participantName = p.teamName;
+              } else if (p.partnerName) {
+                  participantName = `${p.name} och ${p.partnerName}`;
+              } else {
+                  participantName = p.name;
+              }
+          }
       } else {
           // Extract name from legacy participants based on index
           const match = participantId.match(/legacy-.*-(\d+)/);
@@ -1416,7 +1424,13 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       if (winnerId) {
           const found = startedParticipants.find(p => p.id === winnerId);
           if (found) {
-              winnerDisplayName = found.name;
+              if (found.teamName) {
+                  winnerDisplayName = found.teamName;
+              } else if (found.partnerName) {
+                  winnerDisplayName = `${found.name} och ${found.partnerName}`;
+              } else {
+                  winnerDisplayName = found.name;
+              }
           }
       }
       setWinnerName(winnerDisplayName);
@@ -2126,14 +2140,34 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                                             </span>
                                                         </div>
                                                         <div className={`space-y-2 mt-4`}>
-                                                            {participantNames.map((name, idx2) => (
-                                                                <div key={name + idx2} className={`flex items-center gap-2 border-b border-slate-500/5 last:border-b-0 text-slate-700 dark:text-gray-300 ${isLargeCard ? 'text-sm py-2 px-1' : 'text-xs py-1'}`}>
-                                                                    <span className={`rounded-full bg-slate-500/10 flex items-center justify-center font-bold text-slate-500 ${isLargeCard ? 'w-6 h-6 text-xs' : 'w-5 h-5 text-[10px]'}`}>
-                                                                        {idx2 + 1}
-                                                                    </span>
-                                                                    <span className="font-semibold truncate">{name}</span>
-                                                                </div>
-                                                            ))}
+                                                            {group.participantList && group.participantList.length > 0 ? (
+                                                                group.participantList.map((p, idx2) => (
+                                                                    <div key={p.id || idx2} className={`flex items-center gap-2 border-b border-slate-500/5 last:border-b-0 text-slate-700 dark:text-gray-300 ${isLargeCard ? 'text-sm py-2 px-1' : 'text-xs py-1'}`}>
+                                                                        <span className={`rounded-full bg-slate-500/10 flex items-center justify-center font-bold text-slate-500 flex-shrink-0 ${isLargeCard ? 'w-6 h-6 text-xs' : 'w-5 h-5 text-[10px]'}`}>
+                                                                            {idx2 + 1}
+                                                                        </span>
+                                                                        <div className="flex flex-col min-w-0">
+                                                                            {p.teamName && !p.division?.toLowerCase().includes('singel') && (
+                                                                                <span className="text-xs font-black text-indigo-500 dark:text-indigo-450 leading-tight">
+                                                                                    {p.teamName}
+                                                                                </span>
+                                                                            )}
+                                                                            <span className="font-semibold truncate">
+                                                                                {p.partnerName ? `${p.name} & ${p.partnerName}` : p.name}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                ))
+                                                            ) : (
+                                                                participantNames.map((name, idx2) => (
+                                                                    <div key={name + idx2} className={`flex items-center gap-2 border-b border-slate-500/5 last:border-b-0 text-slate-700 dark:text-gray-300 ${isLargeCard ? 'text-sm py-2 px-1' : 'text-xs py-1'}`}>
+                                                                        <span className={`rounded-full bg-slate-500/10 flex items-center justify-center font-bold text-slate-500 flex-shrink-0 ${isLargeCard ? 'w-6 h-6 text-xs' : 'w-5 h-5 text-[10px]'}`}>
+                                                                            {idx2 + 1}
+                                                                        </span>
+                                                                        <span className="font-semibold truncate">{name}</span>
+                                                                    </div>
+                                                                ))
+                                                            )}
                                                             {participantNames.length === 0 && (
                                                                 <p className="text-[10px] text-slate-550 italic">Inga deltagare registrerade.</p>
                                                             )}

@@ -654,7 +654,7 @@ const App: React.FC = () => {
     }
 
     setActiveWorkout(workout);
-    if ((workout.id.startsWith('hyrox-full-race') || workout.id.startsWith('custom-race')) && workout.blocks.length > 0) {
+    if ((workout.id.startsWith('hyrox-full-race') || workout.id.includes('custom-race')) && workout.blocks.length > 0) {
       handleStartBlock(workout.blocks[0], workout);
     } else {
       navigateTo(Page.WorkoutDetail);
@@ -729,7 +729,7 @@ const App: React.FC = () => {
   };
   
   const handleReturnToGroupPrep = useCallback(() => {
-    if (activeWorkout && (activeWorkout.id.startsWith('hyrox-full-race') || activeWorkout.id.startsWith('custom-race'))) {
+    if (activeWorkout && (activeWorkout.id.startsWith('hyrox-full-race') || activeWorkout.id.includes('custom-race'))) {
         setRacePrepState({
             groups: activeWorkout.startGroups || [],
             interval: activeWorkout.startIntervalMinutes || 2,

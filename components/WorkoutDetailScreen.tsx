@@ -407,7 +407,7 @@ const WorkoutDetailScreen: React.FC<WorkoutDetailScreenProps> = ({
   
   const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const personalBestName = useMemo(() => localStorage.getItem('hyrox-participant-name'), []);
-  const isHyroxRace = useMemo(() => workout.id.startsWith('hyrox-full-race') || workout.id.startsWith('custom-race'), [workout.id]);
+  const isHyroxRace = useMemo(() => workout.id.startsWith('hyrox-full-race') || workout.id.includes('custom-race'), [workout.id]);
 
   // Scroll to top on mount
   useEffect(() => {
