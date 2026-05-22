@@ -219,14 +219,14 @@ const StartGroupPrepModal: React.FC<{
                         onClick={() => handleStartRace(false)} 
                         className="flex-1 bg-primary hover:brightness-95 text-white font-black py-3 px-4 rounded-xl transition-all shadow-md text-sm flex items-center justify-center gap-1.5"
                     >
-                        🖥️ Starta TV-tavla
+                        Till startsida
                     </button>
                 ) : (
                     <button 
                         onClick={() => handleStartRace(true)} 
                         className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-black py-3 px-4 rounded-xl transition-all shadow-md text-sm flex items-center justify-center gap-1.5"
                     >
-                        📱 Öppna som Funktionär
+                        Öppna som Funktionär
                     </button>
                 )}
             </div>
