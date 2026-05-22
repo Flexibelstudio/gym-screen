@@ -5,6 +5,7 @@ import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organizatio
 import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration, playTimerSound } from '../hooks/useWorkoutTimer';
 import { useWorkout } from '../context/WorkoutContext';
 import { saveRace, updateOrganizationActivity } from '../services/firebaseService';
+import QRCode from 'react-qr-code';
 import { Confetti } from './WorkoutCompleteModal';
 import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmationModal, RaceFinishAnimation, PauseOverlay } from './timer/TimerModals';
 import { ParticipantFinishList } from './timer/ParticipantFinishList';
@@ -1313,6 +1314,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   // --- HYROX PRESTIGE VIEW RENDERING ---
   const renderHyroxPremiumView = () => {
+    const raceId = activeWorkout ? (activeWorkout.id.startsWith('custom-race-') && activeWorkout.id !== 'custom-race' ? activeWorkout.id.replace('custom-race-', '') : activeWorkout.id) : '';
     const allRaceParticipants = startGroups.flatMap(g => g.participantList || []);
     const totalRegistered = allRaceParticipants.length;
     const startedTotal = startedParticipants.length;
@@ -1639,28 +1641,23 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         <div className={`fixed inset-0 w-full h-full flex flex-col p-6 overflow-y-auto ${themeBg} transition-colors duration-500 z-[45]`}>
             {/* Header Control Panel */}
             <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
-                <div>
+                <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
+                    {/* Tillbaka-knapp i vänstra hörnet, men bara tills eventet startat (lobby mode) */}
+                    {isLobbyMode && (
+                        <button 
+                            onClick={handleExit}
+                            className="bg-slate-500/10 hover:bg-slate-500/20 text-slate-800 dark:text-slate-200 font-extrabold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                            </svg>
+                            Tillbaka
+                        </button>
+                    )}
                     <div className="flex items-center gap-2">
                         <span className="px-2 py-0.5 rounded bg-amber-500 text-black font-black text-[9px] uppercase tracking-widest">Live Event</span>
                         <h1 className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-white">{activeWorkout?.title || 'HYROX Tävlingssimulering'}</h1>
                     </div>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button 
-                        onClick={() => setScreenMode('official')} 
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md flex items-center gap-1.5 transition-all"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
-                        <span>📱 Öppna Funktionärsvy (Mobil/iPad)</span>
-                    </button>
-                    <button 
-                        onClick={handleExit}
-                        className="bg-slate-500/10 hover:bg-slate-500/20 font-bold text-xs px-4 py-2.5 rounded-xl transition-all"
-                    >
-                        Tillbaka
-                    </button>
                 </div>
             </div>
 
@@ -1670,14 +1667,14 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 {/* ROW 1: MASSIVE REAL-TIME CLOCK (KLOCKA SOM TAR HELA BREDDEN) */}
                 <div className={`p-8 rounded-3xl border ${cardBg} text-center flex flex-col justify-center items-center shadow-lg relative overflow-hidden`}>
                     <div className="absolute top-4 left-6 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${textMuted}`}>AKTUELL TID (KLOCKA)</span>
+                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                        <span className={`text-[11px] font-black uppercase tracking-widest ${textMuted}`}>AKTUELL TID (KLOCKA)</span>
                     </div>
 
-                    <div className="font-mono font-black text-7xl sm:text-8xl tracking-tight select-none tabular-nums text-slate-900 dark:text-amber-400 my-2">
+                    <div className="font-mono font-black text-8xl sm:text-9xl md:text-[11rem] tracking-tighter select-none tabular-nums text-slate-900 dark:text-amber-400 my-4 drop-shadow-sm leading-none flex items-baseline justify-center">
                         {currentTimeOfDay.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
-                        <span className="text-4xl font-light ml-1.5 text-slate-400 dark:text-slate-500">
-                            {currentTimeOfDay.toLocaleTimeString('sv-SE', { second: '2-digit' })}
+                        <span className="text-4xl sm:text-5xl md:text-7xl font-light ml-2 text-slate-400 dark:text-slate-500">
+                            :{currentTimeOfDay.toLocaleTimeString('sv-SE', { second: '2-digit' })}
                         </span>
                     </div>
                     
@@ -1749,40 +1746,53 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                         {/* Remaining Upcoming groups list with members (som försvinner en efter en) */}
                         <div className={`p-6 rounded-3xl border ${cardBg} shadow-lg`}>
                             <h3 className="text-xs font-black tracking-widest text-indigo-500 uppercase mb-4 pl-1">Kommande startgrupper</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {startGroups.filter(g => g.startTime === undefined).map((group, groupIndex) => {
-                                    const expectedStartTime = groupIndex * startIntervalSeconds;
-                                    const participantNames = group.participantList && group.participantList.length > 0
-                                        ? group.participantList.map(p => p.partnerName ? `${p.name} & ${p.partnerName}` : p.name)
-                                        : group.participants.split('\n').map(p => p.trim()).filter(Boolean);
-                                    
-                                    return (
-                                        <div key={group.id} className="p-5 rounded-2xl border border-slate-500/10 bg-slate-500/5 flex flex-col justify-between h-full">
-                                            <div>
-                                                <div className="flex justify-between items-start mb-3">
-                                                    <h4 className="font-black text-base text-slate-900 dark:text-white uppercase">{group.name}</h4>
-                                                    <span className="text-[10px] font-mono font-bold text-indigo-500 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded-full">
-                                                        +{Math.floor(expectedStartTime / 60)}:{String(expectedStartTime % 60).padStart(2, '0')} s
-                                                    </span>
-                                                </div>
-                                                <div className="space-y-1.5 mt-3">
-                                                    {participantNames.map((name, idx2) => (
-                                                        <div key={name + idx2} className="flex items-center gap-2 text-xs py-1 border-b border-slate-500/5 last:border-b-0 text-slate-700 dark:text-gray-300">
-                                                            <span className="w-5 h-5 rounded-full bg-slate-500/10 flex items-center justify-center text-[10px] font-bold text-slate-500">
-                                                                {idx2 + 1}
+                            {(() => {
+                                const upcomingGroups = startGroups.filter(g => g.startTime === undefined);
+                                const gridCols = upcomingGroups.length === 1 
+                                    ? 'grid-cols-1 max-w-2xl mx-auto' 
+                                    : upcomingGroups.length === 2 
+                                        ? 'grid-cols-1 md:grid-cols-2 max-w-5xl mx-auto' 
+                                        : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+                                
+                                return (
+                                    <div className={`grid gap-6 ${gridCols}`}>
+                                        {upcomingGroups.map((group, groupIndex) => {
+                                            const expectedStartTime = groupIndex * startIntervalSeconds;
+                                            const participantNames = group.participantList && group.participantList.length > 0
+                                                ? group.participantList.map(p => p.partnerName ? `${p.name} & ${p.partnerName}` : p.name)
+                                                : group.participants.split('\n').map(p => p.trim()).filter(Boolean);
+                                            
+                                            const isLargeCard = upcomingGroups.length <= 2;
+                                            
+                                            return (
+                                                <div key={group.id} className={`rounded-2xl border border-slate-500/10 bg-slate-500/5 flex flex-col justify-between h-full transition-all ${isLargeCard ? 'p-8 shadow-md' : 'p-5'}`}>
+                                                    <div>
+                                                        <div className="flex justify-between items-start mb-3">
+                                                            <h4 className={`font-black text-slate-900 dark:text-white uppercase ${isLargeCard ? 'text-2xl tracking-tight' : 'text-base'}`}>{group.name}</h4>
+                                                            <span className={`font-mono font-bold text-indigo-500 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded-full ${isLargeCard ? 'text-xs px-3 py-1.5' : 'text-[10px]'}`}>
+                                                                +{Math.floor(expectedStartTime / 60)}:{String(expectedStartTime % 60).padStart(2, '0')} s
                                                             </span>
-                                                            <span className="font-semibold truncate">{name}</span>
                                                         </div>
-                                                    ))}
-                                                    {participantNames.length === 0 && (
-                                                        <p className="text-[10px] text-slate-550 italic">Inga deltagare registrerade.</p>
-                                                    )}
+                                                        <div className={`space-y-2 mt-4`}>
+                                                            {participantNames.map((name, idx2) => (
+                                                                <div key={name + idx2} className={`flex items-center gap-2 border-b border-slate-500/5 last:border-b-0 text-slate-700 dark:text-gray-300 ${isLargeCard ? 'text-sm py-2 px-1' : 'text-xs py-1'}`}>
+                                                                    <span className={`rounded-full bg-slate-500/10 flex items-center justify-center font-bold text-slate-500 ${isLargeCard ? 'w-6 h-6 text-xs' : 'w-5 h-5 text-[10px]'}`}>
+                                                                        {idx2 + 1}
+                                                                    </span>
+                                                                    <span className="font-semibold truncate">{name}</span>
+                                                                </div>
+                                                            ))}
+                                                            {participantNames.length === 0 && (
+                                                                <p className="text-[10px] text-slate-550 italic">Inga deltagare registrerade.</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
                 )}
@@ -1953,49 +1963,40 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 </div>
 
                 {/* FOOTER QR-CODE & SHUTDOWN PANEL */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
-                    {/* Compact layout QR-code */}
-                    <div className={`p-4 rounded-2xl border ${cardBg} shadow flex items-center gap-4 lg:col-span-2`}>
-                        <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex-shrink-0">
-                            <svg width="60" height="60" viewBox="0 0 100 100" className="text-slate-900 fill-current">
-                                <path d="M 5 5 L 25 5" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <path d="M 5 5 L 5 25" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <path d="M 95 5 L 75 5" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <path d="M 95 5 L 95 25" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <path d="M 5 95 L 25 95" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <path d="M 5 95 L 5 75" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <path d="M 95 95 L 75 95" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <path d="M 95 95 L 95 75" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <rect x="15" y="15" width="18" height="18" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <rect x="21" y="21" width="6" height="6" fill="currentColor" />
-                                <rect x="67" y="15" width="18" height="18" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <rect x="73" y="21" width="6" height="6" fill="currentColor" />
-                                <rect x="15" y="67" width="18" height="18" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <rect x="21" y="73" width="6" height="6" fill="currentColor" />
-                                <path d="M 42 42 L 52 42 L 52 52 L 62 50 L 58 58" stroke="currentColor" strokeWidth="3.5" fill="none" />
-                                <rect x="73" y="73" width="7" height="7" fill="currentColor" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h4 className="font-extrabold text-xs uppercase text-indigo-500">Liveresultat i mobilen</h4>
-                            <p className="text-[11px] text-slate-500 leading-tight max-w-sm mt-0.5">
-                                Scanna QR-koden på skärmen för att följa placeringar och tider live på din mobiltelefon eller surfplatta.
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Finish early button */}
-                    {!isLobbyMode && (
-                        <div className="p-3.5 rounded-2xl border border-red-500/10 bg-red-500/5">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-6 mt-auto pt-4 border-t border-slate-500/10">
+                    {/* Left Side: Finish Early button (Stoppa & spara eventet) */}
+                    <div className="flex-grow flex items-center justify-start w-full md:w-auto">
+                        {!isLobbyMode && (
                             <button 
                                 onClick={handleRaceComplete}
                                 disabled={isSavingRace}
-                                className="w-full bg-red-600 hover:bg-red-500 text-white font-extrabold py-3 rounded-xl uppercase tracking-wider text-xs shadow-md transition-colors"
+                                className="bg-red-650 hover:bg-red-600 text-white font-extrabold py-3.5 px-6 rounded-2xl uppercase tracking-wider text-xs shadow-lg shadow-red-500/10 hover:shadow-red-500/20 active:scale-[0.98] transition-all w-full md:w-auto"
                             >
                                 {isSavingRace ? 'Sparar...' : 'Stoppa & spara eventet'}
                             </button>
+                        )}
+                    </div>
+
+                    {/* Right Side: Compact QR code Widget */}
+                    <div className={`p-4 rounded-3xl border ${cardBg} shadow-md flex items-center gap-4 max-w-sm w-full md:w-auto self-end`}>
+                        <div className="bg-white p-2 rounded-xl flex-shrink-0 flex items-center justify-center border border-slate-200 shadow-inner">
+                            <QRCode 
+                                value={typeof window !== 'undefined' ? `${window.location.origin}/live/${raceId || ''}` : 'https://mindmote.se/live'} 
+                                size={60}
+                                style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                                level="M"
+                            />
                         </div>
-                    )}
+                        <div className="text-left">
+                            <h4 className="font-extrabold text-[11px] uppercase text-indigo-500 tracking-wider flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                                Liveresultat i mobilen
+                            </h4>
+                            <p className="text-[10px] text-slate-550 leading-tight mt-0.5">
+                                Skanna koden för att följa placeringar och tider live.
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
             </div>
