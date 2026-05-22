@@ -820,9 +820,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   // Hyrox premium states
   const [screenMode, setScreenMode] = useState<'tv' | 'official'>(() => {
     if (activeWorkout?.openAsOfficial) return 'official';
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-      return 'official';
-    }
     return 'tv';
   });
   const [isDarkTheme] = useState(() => {
