@@ -817,8 +817,19 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [frozenTime, setFrozenTime] = useState(0);
 
   // Hyrox premium states
-  const [screenMode, setScreenMode] = useState<'tv' | 'official'>('tv');
-  const [isDarkTheme, setIsDarkTheme] = useState(true);
+  const [screenMode, setScreenMode] = useState<'tv' | 'official'>(() => {
+    if (activeWorkout?.openAsOfficial) return 'official';
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      return 'official';
+    }
+    return 'tv';
+  });
+  const [isDarkTheme] = useState(() => {
+    if (typeof document !== 'undefined') {
+      return document.documentElement.classList.contains('dark');
+    }
+    return true;
+  });
   const [currentTimeOfDay, setCurrentTimeOfDay] = useState(new Date());
   const [officialSearchQuery, setOfficialSearchQuery] = useState('');
   const [officialActiveTab, setOfficialActiveTab] = useState<'running' | 'finished'>('running');
@@ -1384,12 +1395,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                         <span className="text-slate-300">|</span>
                         <span className="font-mono font-bold text-indigo-500">Tävlingstid: {raceElapsedMin}:{raceElapsedSec}</span>
                     </div>
-                    <button 
-                        onClick={() => setIsDarkTheme(!isDarkTheme)} 
-                        className="p-1 rounded bg-slate-500/10 hover:bg-slate-500/20 text-[11px] text-slate-800 dark:text-slate-200"
-                    >
-                        {isDarkTheme ? '☀️ Ljust' : '🌙 Mörkt'}
-                    </button>
                 </div>
 
                 {/* Tab selector */}
@@ -1637,7 +1642,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 <div>
                     <div className="flex items-center gap-2">
                         <span className="px-2 py-0.5 rounded bg-amber-500 text-black font-black text-[9px] uppercase tracking-widest">Live Event</span>
-                        <h1 className="text-xl font-black uppercase tracking-tight">{activeWorkout?.title || 'HYROX Tävlingssimulering'}</h1>
+                        <h1 className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-white">{activeWorkout?.title || 'HYROX Tävlingssimulering'}</h1>
                     </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -1651,12 +1656,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                         <span>📱 Öppna Funktionärsvy (Mobil/iPad)</span>
                     </button>
                     <button 
-                        onClick={() => setIsDarkTheme(!isDarkTheme)} 
-                        className="p-2.5 rounded-xl border border-slate-700/60 bg-slate-500/5 hover:bg-slate-500/10 text-xs font-bold text-slate-800 dark:text-slate-200"
-                    >
-                        {isDarkTheme ? '☀️ Ljust' : '🌙 Mörkt'}
-                    </button>
-                    <button 
                         onClick={handleExit}
                         className="bg-slate-500/10 hover:bg-slate-500/20 font-bold text-xs px-4 py-2.5 rounded-xl transition-all"
                     >
@@ -1665,245 +1664,340 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 </div>
             </div>
 
-            {/* BENTO GRID MAIN CONTAINER */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-grow items-start">
+            {/* STACKED FULL-WIDTH BENTO ROWS CONTAINER */}
+            <div className="flex flex-col gap-6 w-full flex-grow">
                 
-                {/* COLUMN 1: KLOCKA & NEDRÄKNING (Or Central Stats) */}
-                <div className="lg:col-span-2 space-y-6">
-                    {/* BENTO 1: Main Clock Row */}
-                    <div className={`p-8 rounded-3xl border ${cardBg} text-center flex flex-col justify-center items-center shadow-lg relative overflow-hidden h-72`}>
-                        <div className="absolute top-4 left-6 flex items-center gap-2">
-                            <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></span>
-                            <span className={`text-[10px] font-bold uppercase tracking-widest ${textMuted}`}>REALTIDSKLOCKA (AKTUELL TID)</span>
-                        </div>
-                        <div className="font-mono font-black text-6xl tracking-tight select-none tabular-nums text-slate-900 dark:text-amber-400 mt-2">
-                            {currentTimeOfDay.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
-                            <span className="text-3xl font-normal ml-1 text-slate-400">{currentTimeOfDay.toLocaleTimeString('sv-SE', { second: '2-digit' })}</span>
-                        </div>
-                        
-                        <div className="mt-4 flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20">
-                            <span className="text-xs uppercase font-extrabold tracking-widest text-indigo-500">TOTAL PROGRESSTID:</span>
-                            <span className="font-mono font-black text-lg text-slate-800 dark:text-slate-100">{raceElapsedMin}:{raceElapsedSec}</span>
-                        </div>
+                {/* ROW 1: MASSIVE REAL-TIME CLOCK (KLOCKA SOM TAR HELA BREDDEN) */}
+                <div className={`p-8 rounded-3xl border ${cardBg} text-center flex flex-col justify-center items-center shadow-lg relative overflow-hidden`}>
+                    <div className="absolute top-4 left-6 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                        <span className={`text-[10px] font-black uppercase tracking-widest ${textMuted}`}>AKTUELL TID (KLOCKA)</span>
+                    </div>
 
-                        {/* Controls underneath */}
-                        <div className="absolute bottom-4 right-6 flex gap-2">
-                            {isLobbyMode ? (
-                                <button 
-                                    onClick={handleLobbyStart}
-                                    className="bg-green-600 hover:bg-green-500 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-md uppercase tracking-wide"
-                                >
-                                    Starta Event
-                                </button>
-                            ) : (
-                                <>
-                                    {status === TimerStatus.Running ? (
-                                        <button 
-                                            onClick={() => handleRemoteAction('pause')}
-                                            className="bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl"
-                                        >
-                                            Pausa lopp
-                                        </button>
-                                    ) : (
-                                        <button 
-                                            onClick={() => handleRemoteAction('resume')}
-                                            className="bg-green-600 hover:bg-green-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl"
-                                        >
-                                            Fortsätt lopp
-                                        </button>
-                                    )}
-                                    <button 
-                                        onClick={() => setShowResetConfirmation(true)}
-                                        className="bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold text-xs px-4 py-2 rounded-xl border border-red-500/20"
-                                    >
-                                        Nollställ
-                                    </button>
-                                </>
-                            )}
+                    <div className="font-mono font-black text-7xl sm:text-8xl tracking-tight select-none tabular-nums text-slate-900 dark:text-amber-400 my-2">
+                        {currentTimeOfDay.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
+                        <span className="text-4xl font-light ml-1.5 text-slate-400 dark:text-slate-500">
+                            {currentTimeOfDay.toLocaleTimeString('sv-SE', { second: '2-digit' })}
+                        </span>
+                    </div>
+                    
+                    <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
+                        <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20">
+                            <span className="text-[10px] uppercase font-bold text-indigo-500 tracking-wider">TÄVLINGSTID:</span>
+                            <span className="font-mono font-black text-xl text-slate-800 dark:text-slate-100">{raceElapsedMin}:{raceElapsedSec}</span>
+                        </div>
+                        <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                            <span className="text-[10px] uppercase font-bold text-emerald-500 tracking-wider">LIVERESULTAT:</span>
+                            <span className="font-mono text-xs font-black text-slate-700 dark:text-slate-300">MINDMOTE.SE/LIVE</span>
                         </div>
                     </div>
 
-                    {/* BENTO 2: STARTCOUNTDOWNS OR STATISTICS SUMMARY */}
-                    <div className={`p-6 rounded-3xl border ${cardBg} shadow-lg min-h-36 flex flex-col justify-center`}>
+                    {/* Controls on the top right */}
+                    <div className="absolute bottom-4 right-6 flex gap-2">
                         {isLobbyMode ? (
-                            <div className="text-center py-4">
-                                <h4 className="font-black text-sm tracking-widest text-indigo-500 uppercase mb-2">Väntar på startskott...</h4>
-                                <p className={`text-xs ${textMuted}`}>Totalt {totalRegistered} deltagare fördelade på {startGroups.length} startgrupper ligger laddade i loppet.</p>
-                            </div>
-                        ) : groupForCountdownDisplay && timeForCountdownDisplay > 0 ? (
-                            <div className="flex flex-col sm:flex-row items-center justify-between gap-6 px-4">
-                                <div>
-                                    <span className="inline-block px-2.5 py-1 rounded bg-orange-500/10 text-orange-500 text-[10px] uppercase font-bold tracking-widest mb-1 animate-pulse border border-orange-500/20">Nedräkning startar</span>
-                                    <h3 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{groupForCountdownDisplay.name}</h3>
-                                    <p className={`text-xs ${textMuted} mt-0.5`}>{remainingGroupsCount} av {startGroups.length} startgrupper är kvar att starta.</p>
-                                </div>
-                                <div className="font-mono text-5xl font-black text-orange-500 animate-pulse bg-orange-500/5 px-6 py-4 rounded-2xl border border-orange-500/10">
-                                    {Math.floor(timeForCountdownDisplay / 60)}:{String(timeForCountdownDisplay % 60).padStart(2, '0')}
-                                </div>
-                            </div>
+                            <button 
+                                onClick={handleLobbyStart}
+                                className="bg-green-600 hover:bg-green-500 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-md uppercase tracking-wide"
+                            >
+                                Starta Event
+                            </button>
                         ) : (
-                            <div className="grid grid-cols-3 gap-4 text-center">
-                                <div className="p-4 bg-blue-500/5 rounded-2xl border border-blue-500/10">
-                                    <span className="block text-2xl sm:text-3xl font-black text-blue-500">{runningTotal}</span>
-                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Ute på banan</span>
-                                </div>
-                                <div className="p-4 bg-green-500/5 rounded-2xl border border-green-500/10">
-                                    <span className="block text-2xl sm:text-3xl font-black text-green-500">{finishedTotal}</span>
-                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>I Mål</span>
-                                </div>
-                                <div className="p-4 bg-indigo-500/5 rounded-2xl border border-indigo-500/10">
-                                    <span className="block text-2xl sm:text-3xl font-black text-indigo-500">{startedTotal}</span>
-                                    <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Startade tot</span>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* BENTO 3: CLASS LEADERBOARDS (Topplistor efter divisioner) */}
-                    <div className={`p-6 rounded-3xl border ${cardBg} shadow-lg space-y-4`}>
-                        <div className="flex justify-between items-center pb-2 border-b border-indigo-500/10">
-                            <h3 className="font-extrabold text-sm uppercase tracking-wider text-indigo-500">Live-Topplistor per klass</h3>
-                            <span className={`text-xs ${textMuted}`}>Sorterat efter nettotid</span>
-                        </div>
-                        
-                        {divisionStandings.length === 0 ? (
-                            <p className="text-center text-xs text-slate-500 py-8">Registrera deltagare i administrationspanelen för att se topplistor.</p>
-                        ) : (
-                            <div className="space-y-6">
-                                {divisionStandings.map(({ division, stand }) => (
-                                    <div key={division} className="space-y-2">
-                                        <h4 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200 tracking-wider flex items-center gap-2">
-                                            <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
-                                            {division}
-                                        </h4>
-                                        <div className="space-y-1.5">
-                                            {stand.map((res, idx) => {
-                                                const placementBg = idx === 0 ? 'bg-yellow-500 text-black' : idx === 1 ? 'bg-slate-300 text-black' : 'bg-amber-700 text-white';
-                                                const isUnstarted = res.status === 'unstarted';
-                                                
-                                                return (
-                                                    <div 
-                                                        key={res.p.id}
-                                                        className={`flex justify-between items-center text-xs p-2.5 rounded-xl border ${borderTheme} bg-slate-500/5`}
-                                                    >
-                                                        <div className="flex items-center gap-2 max-w-[70%]">
-                                                            <span className={`w-5 h-5 rounded-full flex items-center justify-center font-black ${placementBg} text-[10px]`}>
-                                                                {idx + 1}
-                                                            </span>
-                                                            <span className="font-black truncate">
-                                                                {res.p.name} {res.p.partnerName && <span className="text-slate-400 font-normal">& {res.p.partnerName}</span>}
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex items-center gap-1.5 text-slate-900 dark:text-slate-100">
-                                                            {res.status === 'finished' && (
-                                                                <span className="text-[9px] font-bold text-green-500 border border-green-500/20 px-1 py-0.5 rounded uppercase">I Mål</span>
-                                                            )}
-                                                            {res.status === 'running' && (
-                                                                <span className="text-[9px] font-bold text-blue-500 border border-blue-500/20 px-1 py-0.5 rounded uppercase">Löper</span>
-                                                            )}
-                                                            <span className="font-mono font-black text-slate-800 dark:text-slate-100">
-                                                                {isUnstarted ? 'Ej startad' : `${Math.floor(res.time / 60)}:${String(res.time % 60).padStart(2, '0')}`}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                            <>
+                                {status === TimerStatus.Running ? (
+                                    <button 
+                                        onClick={() => handleRemoteAction('pause')}
+                                        className="bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl"
+                                    >
+                                        Pausa
+                                    </button>
+                                ) : (
+                                    <button 
+                                        onClick={() => handleRemoteAction('resume')}
+                                        className="bg-green-600 hover:bg-green-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl"
+                                    >
+                                        Fortsätt
+                                    </button>
+                                )}
+                                <button 
+                                    onClick={() => setShowResetConfirmation(true)}
+                                    className="bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold text-xs px-3 py-2 rounded-xl border border-red-500/20"
+                                >
+                                    Nollställ
+                                </button>
+                            </>
                         )}
                     </div>
                 </div>
 
-                {/* COLUMN 2: QR CODE & SENASTE MÅLGÅNGAR */}
-                <div className="space-y-6">
-                    {/* BENTO 4: LIVERESULTAT QR-KOD */}
-                    <div className={`p-6 rounded-3xl border ${cardBg} text-center flex flex-col items-center justify-center shadow-lg`}>
-                        <h3 className="font-extrabold text-sm uppercase tracking-wider text-indigo-500 mb-2">Mobil liveresultat</h3>
-                        <p className={`text-xs ${textMuted} mb-4 max-w-[200px] leading-tight`}>
-                            Skanna koden för att följa placeringar och tider live på din mobiltelefon!
-                        </p>
-                        
-                        <div className="bg-white p-4 rounded-2xl shadow-inner border border-slate-200/60 flex items-center justify-center mb-3">
-                            <svg width="120" height="120" viewBox="0 0 100 100" className="text-indigo-600 dark:text-slate-900 fill-current">
-                                <path d="M 5 5 L 25 5" stroke="currentColor" strokeWidth="4.5" fill="none" />
-                                <path d="M 5 5 L 5 25" stroke="currentColor" strokeWidth="4.5" fill="none" />
-                                <path d="M 95 5 L 75 5" stroke="currentColor" strokeWidth="4.5" fill="none" />
-                                <path d="M 95 5 L 95 25" stroke="currentColor" strokeWidth="4.5" fill="none" />
-                                <path d="M 5 95 L 25 95" stroke="currentColor" strokeWidth="4.5" fill="none" />
-                                <path d="M 5 95 L 5 75" stroke="currentColor" strokeWidth="4.5" fill="none" />
-                                <path d="M 95 95 L 75 95" stroke="currentColor" strokeWidth="4.5" fill="none" />
-                                <path d="M 95 95 L 95 75" stroke="currentColor" strokeWidth="4.5" fill="none" />
-                                
-                                <rect x="15" y="15" width="18" height="18" stroke="currentColor" strokeWidth="4.5" fill="none" />
-                                <rect x="21" y="21" width="6" height="6" fill="currentColor" />
-                                
-                                <rect x="67" y="15" width="18" height="18" stroke="currentColor" strokeWidth="4.5" fill="none" />
-                                <rect x="73" y="21" width="6" height="6" fill="currentColor" />
-                                
-                                <rect x="15" y="67" width="18" height="18" stroke="currentColor" strokeWidth="4.5" fill="none" />
-                                <rect x="21" y="73" width="6" height="6" fill="currentColor" />
-                                
-                                <path d="M 42 42 L 52 42 L 52 52 L 62 50 L 58 58" stroke="currentColor" strokeWidth="3" fill="none" />
-                                <rect x="73" y="73" width="7" height="7" fill="currentColor" />
-                                <rect x="42" y="73" width="10" height="10" fill="currentColor" />
-                                <rect x="73" y="42" width="10" height="10" fill="currentColor" />
-                                <rect x="52" y="60" width="8" height="8" fill="currentColor" />
-                            </svg>
-                        </div>
-                        <span className="text-[10px] font-mono tracking-widest text-slate-400">WWW.MINDMOTE.SE/LIVE</span>
-                    </div>
-
-                    {/* BENTO 5: SENASTE MÅLGÅNGAR */}
-                    <div className={`p-6 rounded-3xl border ${cardBg} shadow-lg space-y-4`}>
-                        <div className="pb-2 border-b border-indigo-500/10">
-                            <h3 className="font-extrabold text-sm uppercase tracking-wider text-indigo-500">Senaste Målgångar</h3>
-                        </div>
-
-                        {latestFinisherList.length === 0 ? (
-                            <p className="text-center text-xs text-slate-500 py-6 italic">Målgångar rapporteras här i realtid efter hand.</p>
-                        ) : (
-                            <div className="space-y-3">
-                                {latestFinisherList.map((f, index) => (
-                                    <div 
-                                        key={f.id + index}
-                                        className="flex flex-col p-3 rounded-2xl bg-slate-500/5 border border-green-500/20 relative overflow-hidden"
-                                    >
-                                        <div className="absolute top-0 right-0 h-full w-1 bg-green-500"></div>
-                                        <div className="flex justify-between items-start">
-                                            <span className="font-black text-xs text-slate-900 dark:text-slate-100">
-                                                {f.name} {f.partnerName && <span className="text-slate-400 font-normal">& {f.partnerName}</span>}
-                                            </span>
-                                            <span className="font-mono font-black text-sm text-green-500">
-                                                {Math.floor(f.time / 60)}:{String(f.time % 60).padStart(2, '0')}
-                                            </span>
-                                        </div>
-                                        <div className="flex justify-between items-center mt-1 text-[10px]">
-                                            <span className={`px-1.5 py-0.5 rounded border ${getDivisionColor(f.division)} uppercase text-[8px] font-extrabold`}>
-                                                {f.division}
-                                            </span>
-                                            <span className="text-slate-400">Plats {f.placement} totalt</span>
-                                        </div>
-                                    </div>
-                                ))}
+                {/* ROW 2: CONDITIONAL COUNTDOWNS & REMAINING START GROUPS */}
+                {remainingGroupsCount > 0 && (
+                    <div className="flex flex-col gap-6">
+                        {/* Countdown inside startgroups */}
+                        {groupForCountdownDisplay && timeForCountdownDisplay > 0 && (
+                            <div className="p-8 rounded-3xl border border-orange-500/30 bg-orange-500/5 shadow-md flex flex-col md:flex-row items-center justify-between gap-6 animate-pulse">
+                                <div>
+                                    <span className="inline-block px-3 py-1 rounded bg-orange-500 text-black text-[10px] uppercase font-black tracking-widest mb-2">NÄSTA STARTGRUPP PÅ GÅNG</span>
+                                    <h3 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{groupForCountdownDisplay.name}</h3>
+                                    <p className={`text-sm ${textMuted} mt-1`}>{remainingGroupsCount} av {startGroups.length} startgrupper kvar att starta.</p>
+                                </div>
+                                <div className="font-mono text-6xl sm:text-7xl font-black text-orange-550 dark:text-orange-400 bg-orange-500/10 px-8 py-5 rounded-2xl border border-orange-500/20">
+                                    {Math.floor(timeForCountdownDisplay / 60)}:{String(timeForCountdownDisplay % 60).padStart(2, '0')}
+                                </div>
                             </div>
                         )}
+
+                        {/* Remaining Upcoming groups list with members (som försvinner en efter en) */}
+                        <div className={`p-6 rounded-3xl border ${cardBg} shadow-lg`}>
+                            <h3 className="text-xs font-black tracking-widest text-indigo-500 uppercase mb-4 pl-1">Kommande startgrupper</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {startGroups.filter(g => g.startTime === undefined).map((group, groupIndex) => {
+                                    const expectedStartTime = groupIndex * startIntervalSeconds;
+                                    const participantNames = group.participantList && group.participantList.length > 0
+                                        ? group.participantList.map(p => p.partnerName ? `${p.name} & ${p.partnerName}` : p.name)
+                                        : group.participants.split('\n').map(p => p.trim()).filter(Boolean);
+                                    
+                                    return (
+                                        <div key={group.id} className="p-5 rounded-2xl border border-slate-500/10 bg-slate-500/5 flex flex-col justify-between h-full">
+                                            <div>
+                                                <div className="flex justify-between items-start mb-3">
+                                                    <h4 className="font-black text-base text-slate-900 dark:text-white uppercase">{group.name}</h4>
+                                                    <span className="text-[10px] font-mono font-bold text-indigo-500 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded-full">
+                                                        +{Math.floor(expectedStartTime / 60)}:{String(expectedStartTime % 60).padStart(2, '0')} s
+                                                    </span>
+                                                </div>
+                                                <div className="space-y-1.5 mt-3">
+                                                    {participantNames.map((name, idx2) => (
+                                                        <div key={name + idx2} className="flex items-center gap-2 text-xs py-1 border-b border-slate-500/5 last:border-b-0 text-slate-700 dark:text-gray-300">
+                                                            <span className="w-5 h-5 rounded-full bg-slate-500/10 flex items-center justify-center text-[10px] font-bold text-slate-500">
+                                                                {idx2 + 1}
+                                                            </span>
+                                                            <span className="font-semibold truncate">{name}</span>
+                                                        </div>
+                                                    ))}
+                                                    {participantNames.length === 0 && (
+                                                        <p className="text-[10px] text-slate-550 italic">Inga deltagare registrerade.</p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
-                    
-                    {/* Finish race early */}
+                )}
+
+                {/* ROW 3: EVENT ACTIVE VIEW (STATISTIK, LEADERBOARDS & QR CODE) */}
+                {(!isLobbyMode && remainingGroupsCount === 0) && (
+                    <div className="flex flex-col gap-6 w-full">
+                        {/* statistiken under klockan */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
+                            <div className="p-6 bg-blue-500/5 rounded-3xl border border-blue-500/10 hover:shadow-md transition-shadow">
+                                <span className="block text-4xl sm:text-5xl font-black text-blue-500 tracking-tight">{runningTotal}</span>
+                                <span className={`text-xs font-black uppercase tracking-widest ${textMuted} mt-1 block`}>Ute på banan</span>
+                            </div>
+                            <div className="p-6 bg-green-500/5 rounded-3xl border border-green-500/10 hover:shadow-md transition-shadow">
+                                <span className="block text-4xl sm:text-5xl font-black text-green-500 tracking-tight">{finishedTotal}</span>
+                                <span className={`text-xs font-black uppercase tracking-widest ${textMuted} mt-1 block`}>I Mål</span>
+                            </div>
+                            <div className="p-6 bg-indigo-500/5 rounded-3xl border border-indigo-500/10 hover:shadow-md transition-shadow">
+                                <span className="block text-4xl sm:text-5xl font-black text-indigo-500 tracking-tight">{startedTotal}</span>
+                                <span className={`text-xs font-black uppercase tracking-widest ${textMuted} mt-1 block`}>Startade tot</span>
+                            </div>
+                        </div>
+
+                        {/* leaderboards grouped horizontally to avoid dividing screen into side columns */}
+                        <div className="flex flex-col gap-6">
+                            
+                            {/* Singles division row */}
+                            {divisionStandings.filter(({ division }) => division.toLowerCase().includes('singel')).length > 0 && (
+                                <div className={`p-6 rounded-3xl border ${cardBg} shadow-lg space-y-4`}>
+                                    <div className="flex justify-between items-center pb-2 border-b border-indigo-500/10">
+                                        <h3 className="font-black text-sm uppercase tracking-wider text-indigo-500 flex items-center gap-2">
+                                            SINGELKLASSER (DAMER & HERRAR)
+                                        </h3>
+                                        <span className={`text-xs ${textMuted}`}>Sorterat efter nettotid</span>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {divisionStandings
+                                            .filter(({ division }) => division.toLowerCase().includes('singel'))
+                                            .map(({ division, stand }) => (
+                                                <div key={division} className="space-y-3 bg-slate-500/5 p-4 rounded-2xl border border-slate-500/5">
+                                                    <h4 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200 tracking-wider flex items-center gap-2">
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
+                                                        {division}
+                                                    </h4>
+                                                    <div className="space-y-2">
+                                                        {stand.map((res, idx) => {
+                                                            const placementBg = idx === 0 ? 'bg-yellow-500 text-black font-black' : idx === 1 ? 'bg-slate-300 text-black font-black' : 'bg-amber-700 text-white font-black';
+                                                            const isUnstarted = res.status === 'unstarted';
+                                                            return (
+                                                                <div key={res.p.id} className={`flex justify-between items-center text-xs p-3 rounded-xl border ${borderTheme} bg-white dark:bg-slate-900`}>
+                                                                    <div className="flex items-center gap-2 max-w-[70%]">
+                                                                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${placementBg}`}>
+                                                                            {idx + 1}
+                                                                        </span>
+                                                                        <span className="font-black truncate">
+                                                                            {res.p.name} {res.p.partnerName && <span className="text-slate-400 font-normal">& {res.p.partnerName}</span>}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        {res.status === 'finished' && <span className="text-[8px] font-bold text-green-500 border border-green-500/20 px-1 rounded uppercase">Klar</span>}
+                                                                        {res.status === 'running' && <span className="text-[8px] font-bold text-blue-500 border border-blue-500/20 px-1 rounded uppercase">Löp</span>}
+                                                                        <span className="font-mono font-black text-slate-900 dark:text-slate-100">
+                                                                            {isUnstarted ? 'Ej startad' : `${Math.floor(res.time / 60)}:${String(res.time % 60).padStart(2, '0')}`}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                        {stand.length === 0 && <p className="text-xs text-slate-500 italic py-2">Inga deltagare i denna division.</p>}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Team / Doubles division row */}
+                            {divisionStandings.filter(({ division }) => !division.toLowerCase().includes('singel')).length > 0 && (
+                                <div className={`p-6 rounded-3xl border ${cardBg} shadow-lg space-y-4`}>
+                                    <div className="flex justify-between items-center pb-2 border-b border-indigo-500/10">
+                                        <h3 className="font-black text-sm uppercase tracking-wider text-indigo-500 flex items-center gap-2">
+                                            DUBBEL- OCH LAGKLASSER
+                                        </h3>
+                                        <span className={`text-xs ${textMuted}`}>Sorterat efter nettotid</span>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        {divisionStandings
+                                            .filter(({ division }) => !division.toLowerCase().includes('singel'))
+                                            .map(({ division, stand }) => (
+                                                <div key={division} className="space-y-3 bg-slate-500/5 p-4 rounded-2xl border border-slate-500/5">
+                                                    <h4 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200 tracking-wider flex items-center gap-2">
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
+                                                        {division}
+                                                    </h4>
+                                                    <div className="space-y-2">
+                                                        {stand.map((res, idx) => {
+                                                            const placementBg = idx === 0 ? 'bg-yellow-500 text-black font-black' : idx === 1 ? 'bg-slate-300 text-black font-black' : 'bg-amber-700 text-white font-black';
+                                                            const isUnstarted = res.status === 'unstarted';
+                                                            return (
+                                                                <div key={res.p.id} className={`flex justify-between items-center text-xs p-3 rounded-xl border ${borderTheme} bg-white dark:bg-slate-900`}>
+                                                                    <div className="flex items-center gap-2 max-w-[70%]">
+                                                                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${placementBg}`}>
+                                                                            {idx + 1}
+                                                                        </span>
+                                                                        <span className="font-black truncate">
+                                                                            {res.p.name} {res.p.partnerName && <span className="text-slate-400 font-normal">& {res.p.partnerName}</span>}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        {res.status === 'finished' && <span className="text-[8px] font-bold text-green-500 border border-green-500/20 px-1 rounded uppercase">Klar</span>}
+                                                                        {res.status === 'running' && <span className="text-[8px] font-bold text-blue-500 border border-blue-500/20 px-1 rounded uppercase">Löp</span>}
+                                                                        <span className="font-mono font-black text-slate-900 dark:text-slate-100">
+                                                                            {isUnstarted ? 'Ej startad' : `${Math.floor(res.time / 60)}:${String(res.time % 60).padStart(2, '0')}`}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                        {stand.length === 0 && <p className="text-xs text-slate-500 italic py-2">Inga deltagare i denna division.</p>}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* ROW 4: LATEST FINISHERS (DE SENASTE SOM GICK I MÅL - UNDER DET DET SENASTE SOM GICK I MÅL) */}
+                <div className={`p-6 rounded-3xl border ${cardBg} shadow-lg space-y-4`}>
+                    <div className="pb-2 border-b border-indigo-500/10 flex justify-between items-center">
+                        <h3 className="font-extrabold text-sm uppercase tracking-wider text-indigo-500 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                            Senaste målgångar
+                        </h3>
+                        <span className="text-[10px] uppercase font-bold text-slate-400">Rapporteras live</span>
+                    </div>
+
+                    {latestFinisherList.length === 0 ? (
+                        <p className="text-center text-xs text-slate-500 py-6 italic">Målgångar rapporteras här i realtid efter hand.</p>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {latestFinisherList.map((f, index) => (
+                                <div 
+                                    key={f.id + index}
+                                    className="flex flex-col p-4 rounded-xl bg-slate-500/5 border border-green-500/15 relative overflow-hidden"
+                                >
+                                    <div className="absolute top-0 right-0 h-full w-1.5 bg-green-500"></div>
+                                    <div className="flex justify-between items-start">
+                                        <span className="font-black text-xs text-slate-900 dark:text-slate-100 truncate max-w-[70%]">
+                                            {f.name} {f.partnerName && <span className="text-slate-400 font-normal">& {f.partnerName}</span>}
+                                        </span>
+                                        <span className="font-mono font-black text-xs text-green-500">
+                                            {Math.floor(f.time / 60)}:{String(f.time % 60).padStart(2, '0')}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center mt-2 text-[10px]">
+                                        <span className={`px-1.5 py-0.5 rounded border ${getDivisionColor(f.division)} uppercase text-[8px] font-extrabold`}>
+                                            {f.division}
+                                        </span>
+                                        <span className="text-slate-400">totalplats {f.placement}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* FOOTER QR-CODE & SHUTDOWN PANEL */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
+                    {/* Compact layout QR-code */}
+                    <div className={`p-4 rounded-2xl border ${cardBg} shadow flex items-center gap-4 lg:col-span-2`}>
+                        <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex-shrink-0">
+                            <svg width="60" height="60" viewBox="0 0 100 100" className="text-slate-900 fill-current">
+                                <path d="M 5 5 L 25 5" stroke="currentColor" strokeWidth="5" fill="none" />
+                                <path d="M 5 5 L 5 25" stroke="currentColor" strokeWidth="5" fill="none" />
+                                <path d="M 95 5 L 75 5" stroke="currentColor" strokeWidth="5" fill="none" />
+                                <path d="M 95 5 L 95 25" stroke="currentColor" strokeWidth="5" fill="none" />
+                                <path d="M 5 95 L 25 95" stroke="currentColor" strokeWidth="5" fill="none" />
+                                <path d="M 5 95 L 5 75" stroke="currentColor" strokeWidth="5" fill="none" />
+                                <path d="M 95 95 L 75 95" stroke="currentColor" strokeWidth="5" fill="none" />
+                                <path d="M 95 95 L 95 75" stroke="currentColor" strokeWidth="5" fill="none" />
+                                <rect x="15" y="15" width="18" height="18" stroke="currentColor" strokeWidth="5" fill="none" />
+                                <rect x="21" y="21" width="6" height="6" fill="currentColor" />
+                                <rect x="67" y="15" width="18" height="18" stroke="currentColor" strokeWidth="5" fill="none" />
+                                <rect x="73" y="21" width="6" height="6" fill="currentColor" />
+                                <rect x="15" y="67" width="18" height="18" stroke="currentColor" strokeWidth="5" fill="none" />
+                                <rect x="21" y="73" width="6" height="6" fill="currentColor" />
+                                <path d="M 42 42 L 52 42 L 52 52 L 62 50 L 58 58" stroke="currentColor" strokeWidth="3.5" fill="none" />
+                                <rect x="73" y="73" width="7" height="7" fill="currentColor" />
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 className="font-extrabold text-xs uppercase text-indigo-500">Liveresultat i mobilen</h4>
+                            <p className="text-[11px] text-slate-500 leading-tight max-w-sm mt-0.5">
+                                Scanna QR-koden på skärmen för att följa placeringar och tider live på din mobiltelefon eller surfplatta.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Finish early button */}
                     {!isLobbyMode && (
-                        <div className="p-4 rounded-3xl border border-red-500/10 bg-red-500/5">
+                        <div className="p-3.5 rounded-2xl border border-red-500/10 bg-red-500/5">
                             <button 
                                 onClick={handleRaceComplete}
                                 disabled={isSavingRace}
-                                className="w-full bg-red-600 hover:bg-red-500 text-white font-extrabold py-4 rounded-2xl uppercase tracking-wider text-xs shadow-md"
+                                className="w-full bg-red-600 hover:bg-red-500 text-white font-extrabold py-3 rounded-xl uppercase tracking-wider text-xs shadow-md transition-colors"
                             >
                                 {isSavingRace ? 'Sparar...' : 'Stoppa & spara eventet'}
                             </button>
                         </div>
                     )}
                 </div>
+
             </div>
 
             {/* CONFIRMATION OVERLAYS ACCESSIBLE IN TV VIEW */}

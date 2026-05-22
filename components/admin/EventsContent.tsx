@@ -858,7 +858,27 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <UsersIcon className="w-4 h-4" />
-                                            {event.startGroups?.reduce((acc, g) => acc + (g.participantList?.length || 0), 0) || 0} deltagare
+                                            {(() => {
+                                                const sGroups = event.startGroups || [];
+                                                let singles = 0;
+                                                let teams = 0;
+                                                let totalPhysical = 0;
+                                                sGroups.forEach(g => {
+                                                    g.participantList?.forEach(p => {
+                                                        if (p.partnerName) {
+                                                            teams++;
+                                                            totalPhysical += 2;
+                                                        } else {
+                                                            singles++;
+                                                            totalPhysical += 1;
+                                                        }
+                                                    });
+                                                });
+                                                if (teams > 0) {
+                                                    return `${totalPhysical} deltagare (${teams} lag${singles > 0 ? `, ${singles} singel` : ''})`;
+                                                }
+                                                return `${totalPhysical} deltagare`;
+                                            })()}
                                         </div>
                                     </div>
                                     <div className="mt-6 flex gap-2">

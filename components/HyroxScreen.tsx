@@ -169,14 +169,14 @@ interface HyroxScreenProps {
 const StartGroupPrepModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
-    onStart: (groups: StartGroup[], interval: number) => void;
+    onStart: (groups: StartGroup[], interval: number, openAsOfficial?: boolean) => void;
     initialGroups?: StartGroup[];
     initialInterval?: number;
 }> = ({ isOpen, onClose, onStart, initialGroups, initialInterval }) => {
     const [groups, setGroups] = useState<StartGroup[]>(() => {
         if (initialGroups && initialGroups.length > 0) {
             return initialGroups.map(g => {
-                const legacyParticipantsText = g.participants || (g.participantList ? g.participantList.map(p => p.name).join('\n') : '');
+                const legacyParticipantsText = g.participants || (g.participantList ? g.participantList.map(p => p.partnerName ? `${p.name} & ${p.partnerName}` : p.name).join('\n') : '');
                 return {
                     ...g,
                     participants: legacyParticipantsText
@@ -185,7 +185,9 @@ const StartGroupPrepModal: React.FC<{
         }
         return [{ id: `group-${Date.now()}`, name: 'Startgrupp 1', participants: '' }];
     });
-    const [startInterval, setStartInterval] = useState(initialInterval || 2);
+    
+    const [intervalMins, setIntervalMins] = useState(() => Math.floor(initialInterval || 2));
+    const [intervalSecs, setIntervalSecs] = useState(() => Math.round(((initialInterval || 2) % 1) * 60));
 
     const handleAddGroup = () => {
         setGroups(prev => [...prev, { id: `group-${Date.now()}`, name: `Startgrupp ${prev.length + 1}`, participants: '' }]);
@@ -199,14 +201,30 @@ const StartGroupPrepModal: React.FC<{
         setGroups(prev => prev.map(g => g.id === id ? { ...g, [field]: value } : g));
     };
 
-    const handleStartRace = () => {
-        onStart(groups, startInterval);
+    const handleStartRace = (openAsOfficial: boolean = false) => {
+        const totalMinutes = intervalMins + (intervalSecs / 60);
+        onStart(groups, Math.max(0.01, totalMinutes), openAsOfficial);
     };
 
     const footerContent = (
-        <div className="flex flex-col sm:flex-row gap-4">
-            <button onClick={onClose} className="flex-1 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-white font-bold py-3 rounded-lg transition-colors">Avbryt</button>
-            <button onClick={handleStartRace} className="flex-1 bg-primary hover:brightness-95 text-white font-bold py-3 rounded-lg transition-colors">Gå till loppsidan</button>
+        <div className="flex flex-col sm:flex-row gap-3 w-full">
+            <button onClick={onClose} className="px-4 py-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold rounded-xl transition-colors text-sm">
+                Avbryt
+            </button>
+            <div className="flex-1 flex flex-col sm:flex-row gap-2">
+                <button 
+                    onClick={() => handleStartRace(false)} 
+                    className="flex-1 bg-primary hover:brightness-95 text-white font-black py-3 px-4 rounded-xl transition-all shadow-md text-sm flex items-center justify-center gap-1.5"
+                >
+                    🖥️ Starta TV-tavla
+                </button>
+                <button 
+                    onClick={() => handleStartRace(true)} 
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-black py-3 px-4 rounded-xl transition-all shadow-md text-sm flex items-center justify-center gap-1.5"
+                >
+                    📱 Starta som Funktionär
+                </button>
+            </div>
         </div>
     );
 
@@ -252,19 +270,33 @@ const StartGroupPrepModal: React.FC<{
                         + Lägg till startgrupp
                     </button>
                     <div className="my-4 text-center">
-                        <label htmlFor="start-interval" className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
                             Startintervall mellan grupper
                         </label>
-                        <div className="flex items-center justify-center gap-2">
-                             <input
-                                id="start-interval"
-                                type="number"
-                                value={startInterval}
-                                onChange={(e) => setStartInterval(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                                min="1"
-                                className="w-24 bg-white dark:bg-black/50 text-gray-900 dark:text-white text-center p-2 rounded-md border border-gray-300 dark:border-gray-600 focus:ring-1 focus:ring-primary focus:outline-none"
-                            />
-                            <span className="text-gray-500 dark:text-gray-400">minuter</span>
+                        <div className="flex items-center justify-center gap-3">
+                             <div className="flex items-center gap-1.5">
+                                 <input
+                                    id="start-interval-mins"
+                                    type="number"
+                                    value={intervalMins}
+                                    onChange={(e) => setIntervalMins(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                                    min="0"
+                                    className="w-16 bg-white dark:bg-black/50 text-gray-900 dark:text-white text-center p-2.5 rounded-xl border border-gray-300 dark:border-gray-650 focus:ring-1 focus:ring-primary focus:outline-none font-bold"
+                                />
+                                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">min</span>
+                             </div>
+                             <div className="flex items-center gap-1.5">
+                                 <input
+                                    id="start-interval-secs"
+                                    type="number"
+                                    value={intervalSecs}
+                                    onChange={(e) => setIntervalSecs(Math.max(0, Math.min(59, parseInt(e.target.value, 10) || 0)))}
+                                    min="0"
+                                    max="59"
+                                    className="w-16 bg-white dark:bg-black/50 text-gray-900 dark:text-white text-center p-2.5 rounded-xl border border-gray-300 dark:border-gray-650 focus:ring-1 focus:ring-primary focus:outline-none font-bold"
+                                />
+                                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">sek</span>
+                             </div>
                         </div>
                     </div>
                 </div>
@@ -306,11 +338,39 @@ const createCustomRaceWorkout = (
         const names = g.participants.split('\n').map(p => p.trim()).filter(Boolean);
         const oldParticipants = g.participantList || [];
         const newParticipantList = names.map((name, index) => {
-            const existing = oldParticipants.find(p => p.name.toLowerCase() === name.toLowerCase());
+            const existing = oldParticipants.find(p => {
+                const combinedName = p.partnerName ? `${p.name} & ${p.partnerName}` : p.name;
+                if (combinedName.toLowerCase() === name.toLowerCase()) return true;
+                if (p.name.toLowerCase() === name.toLowerCase()) return true;
+                const normalizedLine = name.toLowerCase().replace(/\s+/g, '');
+                const normalizedCombined = combinedName.toLowerCase().replace(/\s+/g, '');
+                if (normalizedLine === normalizedCombined) return true;
+                if (p.partnerName) {
+                    const hasMain = name.toLowerCase().includes(p.name.toLowerCase());
+                    const hasPartner = name.toLowerCase().includes(p.partnerName.toLowerCase());
+                    if (hasMain && hasPartner) return true;
+                }
+                return false;
+            });
+
             if (existing) return existing;
+
+            let parsedName = name;
+            let parsedPartnerName: string | undefined = undefined;
+            if (name.includes(' & ')) {
+                const parts = name.split(' & ');
+                parsedName = parts[0].trim();
+                parsedPartnerName = parts[1].trim();
+            } else if (name.includes(' och ')) {
+                const parts = name.split(' och ');
+                parsedName = parts[0].trim();
+                parsedPartnerName = parts[1].trim();
+            }
+
             return {
                 id: `p-new-${Date.now()}-${index}`,
-                name,
+                name: parsedName,
+                partnerName: parsedPartnerName,
                 startNumber: index + 1
             };
         });
@@ -321,7 +381,7 @@ const createCustomRaceWorkout = (
         };
     });
 
-    const allParticipants = processedGroups.flatMap(g => g.participantList || []).map(p => p.name);
+    const allParticipants = processedGroups.flatMap(g => g.participantList || []).map(p => p.partnerName ? `${p.name} & ${p.partnerName}` : p.name);
 
     const workout: Workout = {
         id: `custom-race-${now}`,
@@ -413,7 +473,7 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
         setView('prep');
     };
 
-    const startFullRace = (groups: StartGroup[], interval: number) => {
+    const startFullRace = (groups: StartGroup[], interval: number, openAsOfficial?: boolean) => {
         const configToUse = raceConfig || { name: 'HYROX Race', exercises: createDefaultExercises() };
         const orgId = selectedOrganization?.id || '';
         
@@ -421,17 +481,12 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
         const plannedRace = plannedRaces.find(r => r.raceName === configToUse.name);
         
         const raceWorkout = createCustomRaceWorkout(configToUse, groups, interval, orgId);
+        if (openAsOfficial) {
+            raceWorkout.openAsOfficial = true;
+        }
         
         // If it's a planned race, we should use its ID so we update it instead of creating a new one
         if (plannedRace) {
-            // We can embed the original race ID in the workout ID so TimerScreen can extract it
-            // Or we can just let TimerScreen create a new one and we delete the planned one?
-            // Actually, if we just set the workout ID to start with 'custom-race-' + plannedRace.id
-            // TimerScreen doesn't extract it currently.
-            // Let's just pass it as a custom property if possible, or let TimerScreen create a new one for now.
-            // To keep it simple and robust, we'll let it create a new one and the planned one will remain until deleted,
-            // OR we can modify TimerScreen to look for an existing race with the same name today.
-            // Let's just pass the plannedRace.id in the workout ID.
             raceWorkout.id = `custom-race-${plannedRace.id}`;
         }
 
@@ -443,6 +498,45 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
     const handleCloseModal = () => {
         setView('hub');
         onPrepComplete();
+    };
+
+    const getParticipantCountTextInput = (groupsList?: StartGroup[]) => {
+        if (!groupsList) return '0 deltagare';
+        let singles = 0;
+        let teams = 0;
+        let totalPhysical = 0;
+
+        groupsList.forEach(g => {
+            const list = g.participantList || [];
+            if (list.length > 0) {
+                list.forEach(p => {
+                    if (p.partnerName) {
+                        teams++;
+                        totalPhysical += 2;
+                    } else {
+                        singles++;
+                        totalPhysical += 1;
+                    }
+                });
+            } else {
+                // Parse legacy lines
+                const lines = g.participants ? g.participants.split('\n').filter(Boolean) : [];
+                lines.forEach(name => {
+                    if (name.includes('&') || name.includes('och')) {
+                        teams++;
+                        totalPhysical += 2;
+                    } else {
+                        singles++;
+                        totalPhysical += 1;
+                    }
+                });
+            }
+        });
+
+        if (teams > 0) {
+            return `${totalPhysical} deltagare (${teams} lag${singles > 0 ? `, ${singles} singel` : ''})`;
+        }
+        return `${totalPhysical} deltagare`;
     };
 
     if (view === 'editor') {
@@ -470,7 +564,7 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
                                         </div>
                                         <div className="flex items-center gap-1">
                                             <UsersIcon className="w-4 h-4" />
-                                            {race.startGroups?.reduce((acc, g) => acc + (g.participantList?.length || 0), 0) || 0} deltagare
+                                            {getParticipantCountTextInput(race.startGroups)}
                                         </div>
                                     </div>
                                 </div>
