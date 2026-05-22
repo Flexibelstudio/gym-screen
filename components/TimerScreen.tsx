@@ -4,7 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout, TimerSegment } from '../types';
 import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration, playTimerSound } from '../hooks/useWorkoutTimer';
 import { useWorkout } from '../context/WorkoutContext';
-import { saveRace, updateOrganizationActivity } from '../services/firebaseService';
+import { saveRace, updateOrganizationActivity, db, isOffline } from '../services/firebaseService';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import QRCode from 'react-qr-code';
 import { Confetti } from './WorkoutCompleteModal';
 import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmationModal, RaceFinishAnimation, PauseOverlay } from './timer/TimerModals';
 import { ParticipantFinishList } from './timer/ParticipantFinishList';
@@ -803,6 +805,34 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   };
 
   const [finishedParticipants, setFinishedParticipants] = useState<Record<string, FinishData>>({});
+
+  // --- REALTIME SYNC FOR MULTI-DEVICE SUPPORT ---
+  const raceId = useMemo(() => {
+    if (!activeWorkout) return null;
+    if (activeWorkout.id.startsWith('custom-race-') && activeWorkout.id !== 'custom-race') {
+      return activeWorkout.id.replace('custom-race-', '');
+    }
+    return activeWorkout.id;
+  }, [activeWorkout]);
+
+  const syncLiveStateToFirebase = useCallback(async (updatedFields: {
+    status?: any;
+    startTime?: number;
+    startGroups?: any[];
+    finishedParticipants?: Record<string, FinishData>;
+    isLobbyMode?: boolean;
+  }) => {
+    if (isOffline || !db || !raceId) return;
+    try {
+      const raceRef = doc(db, 'races', raceId);
+      await setDoc(raceRef, {
+        liveState: updatedFields
+      }, { merge: true });
+    } catch (e) {
+      console.error("Failed to sync liveState to Firebase:", e);
+    }
+  }, [raceId]);
+
   const [savingParticipant, setSavingParticipant] = useState<string | null>(null);
   const [showConfetti, setShowConfetti] = React.useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
@@ -933,16 +963,25 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     setFrozenTime(0);
     setIsTransitioning(false);
     setIsTransitionPaused(false);
+    
+    let initialGroups: StartGroup[] = [];
     if (activeWorkout?.startGroups && activeWorkout.startGroups.length > 0) {
-        setStartGroups(activeWorkout.startGroups.map(g => ({ ...g, startTime: undefined })));
+        initialGroups = activeWorkout.startGroups.map(g => ({ ...g, startTime: undefined }));
     } else if (activeWorkout) {
-        setStartGroups([{ id: `group-${Date.now()}`, name: 'Startgrupp 1', participants: (activeWorkout?.participants || []).join('\n'), startTime: undefined }]);
-    } else {
-        setStartGroups([]);
+        initialGroups = [{ id: `group-${Date.now()}`, name: 'Startgrupp 1', participants: (activeWorkout?.participants || []).join('\n'), startTime: undefined }];
     }
+    setStartGroups(initialGroups);
+
     // RESET LOBBY MODE
     setIsLobbyMode(true);
     reset(); // Reset will stop timer and set status to Idle
+
+    syncLiveStateToFirebase({
+      status: TimerStatus.Idle,
+      isLobbyMode: true,
+      startGroups: initialGroups,
+      finishedParticipants: {}
+    });
   };
 
   const handleRemoteAction = useCallback(async (action: 'start' | 'pause' | 'resume' | 'reset') => {
@@ -950,19 +989,34 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       if (action === 'start') {
           setIsLobbyMode(false);
           start(); 
+          syncLiveStateToFirebase({
+              status: TimerStatus.Running,
+              isLobbyMode: false,
+              startGroups: startGroups
+          });
       }
       else if (action === 'pause') {
           if (isTransitioning) setIsTransitionPaused(true);
-          else pause();
+          else {
+              pause();
+              syncLiveStateToFirebase({
+                  status: TimerStatus.Paused
+              });
+          }
       }
       else if (action === 'resume') {
           if (isTransitioning) setIsTransitionPaused(false);
-          else resume();
+          else {
+              resume();
+              syncLiveStateToFirebase({
+                  status: TimerStatus.Running
+              });
+          }
       }
       else if (action === 'reset') {
           handleConfirmReset();
       }
-  }, [selectedOrganization, selectedStudio, activeWorkout, block.id, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset]);
+  }, [selectedOrganization, selectedStudio, activeWorkout, block.id, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset, startGroups, syncLiveStateToFirebase]);
 
   useEffect(() => { return () => stopAllAudio(); }, [stopAllAudio]);
 
@@ -1026,10 +1080,14 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
     if (group?.startTime !== undefined) {
       const netTime = Math.max(0, totalTimeElapsed - group.startTime);
-      setFinishedParticipants(prev => ({
-        ...prev,
-        [participantId]: { time: netTime, placement: Object.keys(prev).length + 1 }
-      }));
+      setFinishedParticipants(prev => {
+        const next = {
+          ...prev,
+          [participantId]: { time: netTime, placement: Object.keys(prev).length + 1 }
+        };
+        syncLiveStateToFirebase({ finishedParticipants: next });
+        return next;
+      });
       
       // Try to find the actual name for the speech synthesis
       let participantName = participantId;
@@ -1057,20 +1115,28 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   const handleUpdateResult = (newTime: number) => {
     if (participantToEdit) {
-      setFinishedParticipants(prev => ({
-        ...prev,
-        [participantToEdit]: { ...prev[participantToEdit], time: newTime }
-      }));
+      setFinishedParticipants(prev => {
+        const next = {
+          ...prev,
+          [participantToEdit]: { ...prev[participantToEdit], time: newTime }
+        };
+        syncLiveStateToFirebase({ finishedParticipants: next });
+        return next;
+      });
       setParticipantToEdit(null);
     }
   };
 
   const handleAddPenalty = () => {
     if (participantToEdit) {
-      setFinishedParticipants(prev => ({
-        ...prev,
-        [participantToEdit]: { ...prev[participantToEdit], time: prev[participantToEdit].time + 60 }
-      }));
+      setFinishedParticipants(prev => {
+        const next = {
+          ...prev,
+          [participantToEdit]: { ...prev[participantToEdit], time: prev[participantToEdit].time + 60 }
+        };
+        syncLiveStateToFirebase({ finishedParticipants: next });
+        return next;
+      });
       setParticipantToEdit(null);
     }
   };
@@ -1080,16 +1146,65 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       setFinishedParticipants(prev => {
         const next = { ...prev };
         delete next[participantToEdit];
+        syncLiveStateToFirebase({ finishedParticipants: next });
         return next;
       });
       setParticipantToEdit(null);
     }
   };
 
+  useEffect(() => {
+    if (isOffline || !db || !raceId) return;
+
+    const unsub = onSnapshot(doc(db, 'races', raceId), (snap) => {
+      if (!snap.exists()) return;
+      const data = snap.data();
+      if (!data.liveState) return;
+      
+      const live = data.liveState;
+      
+      // Update finishedParticipants if different (avoid direct state feedback loops)
+      if (live.finishedParticipants) {
+          const liveJSON = JSON.stringify(live.finishedParticipants);
+          const localJSON = JSON.stringify(finishedParticipants);
+          if (liveJSON !== localJSON) {
+              setFinishedParticipants(live.finishedParticipants);
+          }
+      }
+      
+      // Update startGroups if different
+      if (live.startGroups) {
+          const liveJSON = JSON.stringify(live.startGroups);
+          const localJSON = JSON.stringify(startGroups);
+          if (liveJSON !== localJSON) {
+              setStartGroups(live.startGroups);
+          }
+      }
+
+      // Update lobby mode
+      if (live.isLobbyMode !== undefined && live.isLobbyMode !== isLobbyMode) {
+          setIsLobbyMode(live.isLobbyMode);
+      }
+
+      // Update timer status in sync if someone performs actions from another device
+      if (live.status !== undefined && live.status !== status) {
+          if (live.status === TimerStatus.Running && status !== TimerStatus.Running) {
+              start();
+          } else if (live.status === TimerStatus.Paused && status === TimerStatus.Running) {
+              pause();
+          } else if ((live.status === TimerStatus.Idle || live.status === 'reset' || live.status === TimerStatus.Preparing) && status !== TimerStatus.Idle) {
+              handleConfirmReset();
+          }
+      }
+    });
+
+    return () => unsub();
+  }, [raceId, finishedParticipants, startGroups, isLobbyMode, status, start, pause, handleConfirmReset]);
+
   const handleRaceComplete = useCallback(async () => {
-      if (!isHyroxRace || !activeWorkout || !organization) { 
-          if (!organization) console.error("Hyrox save failed: Missing organizationId");
-          return; 
+      if (!activeWorkout) {
+          alert("Kan inte avsluta loppet: Saknar aktivt pass.");
+          return;
       }
       
       setIsSavingRace(true);
@@ -1154,21 +1269,26 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               raceData.id = originalRaceId;
           }
           
-          const savedRace = await saveRace(raceData, organization.id);
-          if (savedRace && savedRace.id) {
-              setFinalRaceId(savedRace.id);
-              setShowFinishAnimation(true);
-              if (winnerDisplayName) speak(`Och vinnaren är ${winnerDisplayName}! Bra jobbat alla!`);
-          } else {
-              throw new Error("Missing raceId from server response");
+          if (organization?.id) {
+              const savedRace = await saveRace(raceData, organization.id);
+              if (savedRace && savedRace.id) {
+                  setFinalRaceId(savedRace.id);
+              }
           }
+          
+          setShowFinishAnimation(true);
+          if (winnerDisplayName) speak(`Och vinnaren är ${winnerDisplayName}! Bra jobbat alla!`);
+          
+          syncLiveStateToFirebase({ status: TimerStatus.Finished });
       } catch (error) {
           console.error("Failed to save race:", error);
-          alert("Kunde inte spara loppet. Kontrollera din anslutning.");
+          // Fallback - show finish animation anyway to provide a great user experience
+          setShowFinishAnimation(true);
+          if (winnerDisplayName) speak(`Och vinnaren är ${winnerDisplayName}! Bra jobbat alla!`);
       } finally {
           setIsSavingRace(false);
       }
-  }, [isHyroxRace, activeWorkout, finishedParticipants, block.exercises, startGroups, organization, speak, startedParticipants]);
+  }, [activeWorkout, finishedParticipants, block.exercises, startGroups, organization, speak, startedParticipants, syncLiveStateToFirebase]);
 
   const timerStyle = getTimerStyle(status, block.settings.mode, isHyroxRace, isTransitioning, currentSegment);
   
@@ -1670,21 +1790,28 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 {/* ROW 1: MASSIVE REAL-TIME CLOCK (KLOCKA SOM TAR HELA BREDDEN) */}
                 <div className={`p-8 rounded-3xl border ${cardBg} text-center flex flex-col justify-center items-center shadow-lg relative overflow-hidden`}>
                     <div className="absolute top-4 left-6 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></span>
-                        <span className={`text-[10px] font-black uppercase tracking-widest ${textMuted}`}>AKTUELL TID (KLOCKA)</span>
+                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                        <span className={`text-[11px] font-black uppercase tracking-widest ${textMuted}`}>AKTUELL TID (KLOCKA)</span>
                     </div>
 
-                    <div className="font-mono font-black text-7xl sm:text-8xl tracking-tight select-none tabular-nums text-slate-900 dark:text-amber-400 my-2">
+                    {/* Massive live wall clock display */}
+                    <div className="font-mono font-black text-8xl sm:text-9xl md:text-[11rem] tracking-tighter select-none tabular-nums text-slate-900 dark:text-amber-400 my-5 drop-shadow-sm leading-none flex items-baseline justify-center">
                         {currentTimeOfDay.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
-                        <span className="text-4xl font-light ml-1.5 text-slate-400 dark:text-slate-500">
-                            {currentTimeOfDay.toLocaleTimeString('sv-SE', { second: '2-digit' })}
+                        <span className="text-4xl sm:text-5xl md:text-6xl font-light ml-2 text-slate-400 dark:text-slate-500">
+                            :{currentTimeOfDay.toLocaleTimeString('sv-SE', { second: '2-digit' })}
                         </span>
                     </div>
                     
-                    <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
+                    <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
                         <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20">
                             <span className="text-[10px] uppercase font-bold text-indigo-500 tracking-wider">TÄVLINGSTID:</span>
-                            <span className="font-mono font-black text-xl text-slate-800 dark:text-slate-100">{raceElapsedMin}:{raceElapsedSec}</span>
+                            <span className="font-mono font-black text-lg text-slate-800 dark:text-slate-100">{raceElapsedMin}:{raceElapsedSec}</span>
+                        </div>
+                        <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-500/10 border border-slate-500/20">
+                            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">STATUS:</span>
+                            <span className="font-mono font-bold text-xs uppercase text-slate-800 dark:text-slate-100">
+                                {status === TimerStatus.Running ? '🔴 AKTIVT' : status === TimerStatus.Paused ? '🟡 PAUSAT' : '⚪ EJ STARTAT'}
+                            </span>
                         </div>
                         <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
                             <span className="text-[10px] uppercase font-bold text-emerald-500 tracking-wider">LIVERESULTAT:</span>
@@ -1956,30 +2083,20 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
                     {/* Compact layout QR-code */}
                     <div className={`p-4 rounded-2xl border ${cardBg} shadow flex items-center gap-4 lg:col-span-2`}>
-                        <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex-shrink-0">
-                            <svg width="60" height="60" viewBox="0 0 100 100" className="text-slate-900 fill-current">
-                                <path d="M 5 5 L 25 5" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <path d="M 5 5 L 5 25" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <path d="M 95 5 L 75 5" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <path d="M 95 5 L 95 25" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <path d="M 5 95 L 25 95" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <path d="M 5 95 L 5 75" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <path d="M 95 95 L 75 95" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <path d="M 95 95 L 95 75" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <rect x="15" y="15" width="18" height="18" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <rect x="21" y="21" width="6" height="6" fill="currentColor" />
-                                <rect x="67" y="15" width="18" height="18" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <rect x="73" y="21" width="6" height="6" fill="currentColor" />
-                                <rect x="15" y="67" width="18" height="18" stroke="currentColor" strokeWidth="5" fill="none" />
-                                <rect x="21" y="73" width="6" height="6" fill="currentColor" />
-                                <path d="M 42 42 L 52 42 L 52 52 L 62 50 L 58 58" stroke="currentColor" strokeWidth="3.5" fill="none" />
-                                <rect x="73" y="73" width="7" height="7" fill="currentColor" />
-                            </svg>
+                        <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex-shrink-0 flex items-center justify-center">
+                            <QRCode 
+                                value={typeof window !== 'undefined' ? `${window.location.origin}/live/${raceId || ''}` : 'https://mindmote.se/live'} 
+                                size={60}
+                                style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                            />
                         </div>
                         <div>
-                            <h4 className="font-extrabold text-xs uppercase text-indigo-500">Liveresultat i mobilen</h4>
+                            <h4 className="font-extrabold text-xs uppercase text-indigo-500 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                                Liveresultat i mobilen
+                            </h4>
                             <p className="text-[11px] text-slate-500 leading-tight max-w-sm mt-0.5">
-                                Scanna QR-koden på skärmen för att följa placeringar och tider live på din mobiltelefon eller surfplatta.
+                                Skanna QR-koden för att följa deltagares placeringar, tider och framsteg live på din mobil.
                             </p>
                         </div>
                     </div>

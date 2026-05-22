@@ -96,6 +96,7 @@ const EventEditor: React.FC<{
     const [manualName, setManualName] = useState('');
     const [manualEmail, setManualEmail] = useState('');
     const [manualDivision, setManualDivision] = useState('Singel Herr');
+    const [manualTeamName, setManualTeamName] = useState('');
     const [manualPartnerName, setManualPartnerName] = useState('');
     const [manualPartnerEmail, setManualPartnerEmail] = useState('');
     const [importDivision, setImportDivision] = useState('Singel Herr');
@@ -107,7 +108,9 @@ const EventEditor: React.FC<{
         'Dubbel Herr',
         'Dubbel Dam',
         'Dubbel Mix',
-        'Stafett/Lag'
+        'Lag Herr',
+        'Lag Dam',
+        'Lag Mix'
     ];
 
     const getDivisionColor = (div?: string) => {
@@ -117,6 +120,9 @@ const EventEditor: React.FC<{
         if (d === 'Dubbel Herr') return 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800';
         if (d === 'Dubbel Dam') return 'bg-purple-50 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800';
         if (d === 'Dubbel Mix') return 'bg-amber-50 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800';
+        if (d === 'Lag Herr') return 'bg-sky-50 dark:bg-sky-900/40 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800';
+        if (d === 'Lag Dam') return 'bg-rose-50 dark:bg-rose-900/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800';
+        if (d === 'Lag Mix') return 'bg-teal-50 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800';
         return 'bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800';
     };
 
@@ -126,9 +132,9 @@ const EventEditor: React.FC<{
             return;
         }
 
-        const isDouble = manualDivision.includes('Dubbel') || manualDivision.includes('Mix');
+        const isDouble = manualDivision.includes('Dubbel') || manualDivision.includes('Mix') || manualDivision.includes('Lag');
         if (isDouble && !manualPartnerName.trim()) {
-            alert('Fyll i partnerns namn.');
+            alert('Fyll i partnerns / lagmedlemmens namn.');
             return;
         }
 
@@ -139,12 +145,14 @@ const EventEditor: React.FC<{
             division: manualDivision,
             partnerName: isDouble ? manualPartnerName.trim() : undefined,
             partnerEmail: (isDouble && manualPartnerEmail.trim()) ? manualPartnerEmail.trim() : undefined,
+            teamName: (isDouble && manualTeamName.trim()) ? manualTeamName.trim() : undefined,
             startNumber: participants.length + 1
         };
 
         setParticipants([...participants, newP]);
         setManualName('');
         setManualEmail('');
+        setManualTeamName('');
         setManualPartnerName('');
         setManualPartnerEmail('');
     };
@@ -160,13 +168,14 @@ const EventEditor: React.FC<{
             return;
         }
 
-        const isDouble = editingParticipant.division?.includes('Dubbel') || editingParticipant.division?.includes('Mix');
+        const isDouble = editingParticipant.division?.includes('Dubbel') || editingParticipant.division?.includes('Mix') || editingParticipant.division?.includes('Lag');
         const updatedP: RaceParticipant = {
             ...editingParticipant,
             name: editingParticipant.name.trim(),
             email: editingParticipant.email?.trim() || undefined,
             partnerName: isDouble ? editingParticipant.partnerName?.trim() : undefined,
             partnerEmail: (isDouble && editingParticipant.partnerEmail?.trim()) ? editingParticipant.partnerEmail.trim() : undefined,
+            teamName: isDouble ? editingParticipant.teamName?.trim() : undefined,
         };
 
         setParticipants(prev => prev.map(p => p.id === updatedP.id ? updatedP : p));
@@ -358,9 +367,19 @@ const EventEditor: React.FC<{
 
                                 {(editingParticipant.division?.includes('Dubbel') || editingParticipant.division?.includes('Mix') || editingParticipant.division?.includes('Lag')) && (
                                     <div className="pt-2 border-t border-gray-150 dark:border-gray-800 space-y-3">
-                                        <p className="text-xs font-semibold text-gray-500">Partneruppgifter (Lagmedlem 2)</p>
+                                        <p className="text-xs font-semibold text-gray-500">Lag- & Partneruppgifter</p>
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Partnerns Namn</label>
+                                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Lagnamn (T.ex. Team Flexibel)</label>
+                                            <input 
+                                                type="text"
+                                                placeholder="Lämna tomt för att visa 'Namn & Partner'"
+                                                value={editingParticipant.teamName || ''}
+                                                onChange={e => setEditingParticipant({ ...editingParticipant, teamName: e.target.value || undefined })}
+                                                className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary outline-none"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Partnerns/Lagmedlem 2:s Namn</label>
                                             <input 
                                                 type="text"
                                                 value={editingParticipant.partnerName || ''}
@@ -450,9 +469,19 @@ const EventEditor: React.FC<{
 
                                         {(manualDivision.includes('Dubbel') || manualDivision.includes('Mix') || manualDivision.includes('Lag')) && (
                                             <div className="pt-2 border-t border-gray-150 dark:border-gray-800 space-y-3">
-                                                <p className="text-xs font-semibold text-gray-500">Partner (Lagmedlem 2)</p>
+                                                <p className="text-xs font-semibold text-gray-500">Lag- & Partneruppgifter</p>
                                                 <div>
-                                                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Namn *</label>
+                                                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Lagnamn (Frivilligt)</label>
+                                                    <input 
+                                                        type="text" 
+                                                        placeholder="T.ex. Team Flexibel"
+                                                        value={manualTeamName}
+                                                        onChange={e => setManualTeamName(e.target.value)}
+                                                        className="w-full text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary outline-none mb-3"
+                                                     />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Partnerns / Lagmedlem 2:s Namn *</label>
                                                     <input 
                                                         type="text" 
                                                         placeholder="T.ex. Maria Nilsson"
@@ -546,7 +575,14 @@ const EventEditor: React.FC<{
                                             <span className="bg-primary/10 text-primary font-bold text-xs px-2 py-1 rounded-md">#{p.startNumber}</span>
                                             <div>
                                                 <p className="text-sm font-bold text-gray-900 dark:text-white">
-                                                    {p.name} {p.partnerName && <span className="text-gray-500 font-normal">& {p.partnerName}</span>}
+                                                    {p.teamName ? (
+                                                        <>
+                                                            <span className="block text-sm font-black text-indigo-600 dark:text-indigo-400">{p.teamName}</span>
+                                                            <span className="text-xs font-normal text-gray-500 dark:text-gray-400">{p.name} & {p.partnerName}</span>
+                                                        </>
+                                                    ) : (
+                                                        <>{p.name} {p.partnerName && <span className="text-gray-500 font-normal">& {p.partnerName}</span>}</>
+                                                    )}
                                                 </p>
                                                 <div className="flex flex-wrap gap-2 mt-1 items-center">
                                                     <span className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded border ${getDivisionColor(p.division)}`}>
@@ -632,7 +668,7 @@ const EventEditor: React.FC<{
                                         >
                                             <span className="text-primary font-bold text-xs">#{p.startNumber}</span>
                                             <span className="font-medium text-gray-900 dark:text-white truncate">
-                                                {p.name} {p.partnerName && `& ${p.partnerName}`}
+                                                {p.teamName ? `${p.teamName} (${p.name} & ${p.partnerName})` : `${p.name}${p.partnerName ? ` & ${p.partnerName}` : ''}`}
                                             </span>
                                         </div>
                                     ))
