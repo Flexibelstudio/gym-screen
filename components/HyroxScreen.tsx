@@ -340,7 +340,12 @@ const createCustomRaceWorkout = (
     };
 
     const processedGroups = groups.map(g => {
-        const names = g.participants.split('\n').map(p => p.trim()).filter(Boolean);
+        // Om fritextfältet med deltagare är tomt men det redan finns en strukturerad deltagarlista (t.ex. skapat i admin), behåll den!
+        if ((!g.participants || !g.participants.trim()) && g.participantList && g.participantList.length > 0) {
+            return g;
+        }
+
+        const names = (g.participants || '').split('\n').map(p => p.trim()).filter(Boolean);
         const oldParticipants = g.participantList || [];
         const newParticipantList = names.map((name, index) => {
             const existing = oldParticipants.find(p => {
