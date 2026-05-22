@@ -20,6 +20,7 @@ const EventEditor: React.FC<{
         event?.scheduledDate ? new Date(event.scheduledDate).toISOString().split('T')[0] : ''
     );
     const [studioId, setStudioId] = useState(event?.studioId || '');
+    const [startIntervalMinutes, setStartIntervalMinutes] = useState<number>(event?.startIntervalMinutes || 2);
     const [participantsText, setParticipantsText] = useState('');
     const [participants, setParticipants] = useState<RaceParticipant[]>(
         event?.startGroups?.flatMap(g => g.participantList || []) || []
@@ -107,10 +108,7 @@ const EventEditor: React.FC<{
         'Singel Dam',
         'Dubbel Herr',
         'Dubbel Dam',
-        'Dubbel Mix',
-        'Lag Herr',
-        'Lag Dam',
-        'Lag Mix'
+        'Dubbel Mix'
     ];
 
     const getDivisionColor = (div?: string) => {
@@ -247,7 +245,8 @@ const EventEditor: React.FC<{
             status: event?.status || 'planned',
             exercises: event?.exercises || [], 
             startGroups: updatedGroups,
-            results: results
+            results: results,
+            startIntervalMinutes: startIntervalMinutes
         };
 
         onSave(newEvent);
@@ -290,7 +289,7 @@ const EventEditor: React.FC<{
                 )}
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div>
                     <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Eventnamn</label>
                     <input 
@@ -322,6 +321,17 @@ const EventEditor: React.FC<{
                             <option key={studio.id} value={studio.id}>{studio.name}</option>
                         ))}
                     </select>
+                </div>
+                <div>
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Tid mellan heat (min)</label>
+                    <input 
+                        type="number" 
+                        min="1"
+                        max="60"
+                        value={startIntervalMinutes}
+                        onChange={(e) => setStartIntervalMinutes(Math.max(1, parseInt(e.target.value, 10) || 2))}
+                        className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none font-bold"
+                    />
                 </div>
             </div>
 

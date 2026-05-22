@@ -468,12 +468,9 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
         const config = { name: race.raceName, exercises, raceId: race.id };
         setRaceConfig(config);
         
-        if (!isStudioMode) {
-            // Functionary! Start directly with saved groups and intervals
-            startFullRace(race.startGroups || [], (race as any).startIntervalMinutes || 2, true, config);
-        } else {
-            setView('prep');
-        }
+        // Gå direkt in i loppet med sparade startgrupper och startintervall från admin
+        const interval = race.startIntervalMinutes || 2;
+        startFullRace(race.startGroups || [], interval, !isStudioMode, config);
     };
 
     const startFullRace = (groups: StartGroup[], interval: number, openAsOfficial?: boolean, customConfig?: { name: string; exercises: Exercise[] }) => {

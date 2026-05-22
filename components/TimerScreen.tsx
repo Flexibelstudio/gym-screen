@@ -1803,7 +1803,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                         <div className="flex items-center gap-2">
                                             <span className="font-extrabold text-sm text-indigo-500">#{p.startNumber}</span>
                                             <span className="font-black text-sm text-slate-900 dark:text-slate-100 flex flex-col">
-                                                {p.teamName && !p.division?.toLowerCase().includes('singel') ? (
+                                                {p.teamName ? (
                                                     <>
                                                         <span className="text-sm font-black text-indigo-500 dark:text-indigo-400">{p.teamName}</span>
                                                         <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{p.name} {p.partnerName && <>& {p.partnerName}</>}</span>
@@ -1844,7 +1844,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                         <div className="flex items-center gap-1.5">
                                             <span className="font-black text-sm text-green-500">#{index+1}</span>
                                             <span className="font-black text-sm text-slate-900 dark:text-slate-100 flex flex-col">
-                                                {res.teamName && !res.division?.toLowerCase().includes('singel') ? (
+                                                {res.teamName ? (
                                                     <>
                                                         <span className="text-sm font-black text-indigo-500 dark:text-indigo-400">{res.teamName}</span>
                                                         <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{res.name} {res.partnerName && <>& {res.partnerName}</>}</span>
@@ -2147,8 +2147,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                                                             {idx2 + 1}
                                                                         </span>
                                                                         <div className="flex flex-col min-w-0">
-                                                                            {p.teamName && !p.division?.toLowerCase().includes('singel') && (
-                                                                                <span className="text-xs font-black text-indigo-500 dark:text-indigo-450 leading-tight">
+                                                                            {p.teamName && (
+                                                                                <span className="text-xs font-black text-indigo-500 dark:text-indigo-400 leading-tight">
                                                                                     {p.teamName}
                                                                                 </span>
                                                                             )}
@@ -2337,7 +2337,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                     <div className="absolute top-0 right-0 h-full w-1.5 bg-green-500"></div>
                                     <div className="flex justify-between items-start">
                                         <span className="font-black text-xs text-slate-900 dark:text-slate-100 truncate max-w-[70%] flex flex-col">
-                                            {f.teamName && !f.division?.toLowerCase().includes('singel') ? (
+                                            {f.teamName ? (
                                                 <>
                                                     <span className="text-xs font-black text-indigo-500 dark:text-indigo-400 truncate">{f.teamName}</span>
                                                     <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate">{f.name} {f.partnerName && <>& {f.partnerName}</>}</span>
@@ -2403,6 +2403,45 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
             {/* CONFIRMATION OVERLAYS ACCESSIBLE IN TV VIEW */}
             {showResetConfirmation && <RaceResetConfirmationModal onConfirm={handleConfirmReset} onCancel={() => setShowResetConfirmation(false)} onExit={() => onFinish({ isNatural: false })} />}
+            
+            {showConfetti && <Confetti />}
+            {showFinishAnimation && (
+                <RaceFinishAnimation 
+                  winnerName={winnerName} 
+                  onDismiss={() => {
+                      setShowFinishAnimation(false);
+                      if (finalRaceId) onFinish({ isNatural: true, raceId: finalRaceId });
+                  }} 
+                />
+            )}
+            
+            <AnimatePresence>
+              {isSavingRace && (
+                  <motion.div 
+                      initial={{ opacity: 0 }} 
+                      animate={{ opacity: 1 }} 
+                      exit={{ opacity: 0 }} 
+                      transition={{ duration: 0.1 }}
+                      className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center backdrop-blur-sm"
+                  >
+                      <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+                  </motion.div>
+              )}
+              {isActuallyPaused && !showFinishAnimation && !isLobbyMode && (
+                  <PauseOverlay onResume={() => handleRemoteAction('resume')} onRestart={() => handleRemoteAction('reset')} onFinish={handleExit} />
+              )}
+              {participantToEdit && (
+                  <EditResultModal 
+                      participantName={startedParticipants.find(p => p.id === participantToEdit)?.name || participantToEdit}
+                      currentTime={finishedParticipants[participantToEdit]?.time || 0}
+                      onSave={handleUpdateResult}
+                      onAddPenalty={handleAddPenalty}
+                      onUndo={handleRemoveResult}
+                      onCancel={() => setParticipantToEdit(null)}
+                  />
+              )}
+              {showBackToPrepConfirmation && <RaceBackToPrepConfirmationModal onConfirm={onBackToGroups} onCancel={() => setShowBackToPrepConfirmation(false)} />}
+            </AnimatePresence>
         </div>
     );
   };

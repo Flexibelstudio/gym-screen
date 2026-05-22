@@ -600,6 +600,7 @@ export interface HyroxRace {
     exercises: string[];
     startGroups: StartGroup[];
     results: HyroxRaceResult[];
+    startIntervalMinutes?: number; // NYTT: tidsintervall i minuter mellan heat/startgrupper
 }
 
 export type SmartObjectType = 'rect' | 'circle' | 'text' | 'arrow';
