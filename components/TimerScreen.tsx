@@ -1673,7 +1673,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
         const finishedList = Object.entries(finishedParticipants)
             .map(([id, data]) => {
                 const found = allRaceParticipants.find(p => p.id === id);
-                return { id, name: found?.name || 'Okänd', division: found?.division || 'Singel Herr', partnerName: found?.partnerName, ...data };
+                return { id, name: found?.name || 'Okänd', division: found?.division || 'Singel Herr', partnerName: found?.partnerName, teamName: found?.teamName, ...data };
             })
             .sort((a, b) => a.time - b.time);
 
@@ -1770,8 +1770,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                     <div>
                                         <div className="flex items-center gap-2">
                                             <span className="font-extrabold text-sm text-indigo-500">#{p.startNumber}</span>
-                                            <span className="font-black text-sm text-slate-900 dark:text-slate-100">
-                                                {p.name} {p.partnerName && <span className="font-normal text-slate-400">& {p.partnerName}</span>}
+                                            <span className="font-black text-sm text-slate-900 dark:text-slate-100 flex flex-col">
+                                                {p.teamName && !p.division?.toLowerCase().includes('singel') ? (
+                                                    <>
+                                                        <span className="text-sm font-black text-indigo-500 dark:text-indigo-400">{p.teamName}</span>
+                                                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{p.name} {p.partnerName && <>& {p.partnerName}</>}</span>
+                                                    </>
+                                                ) : (
+                                                    <span>{p.name} {p.partnerName && <span className="font-normal text-slate-400">& {p.partnerName}</span>}</span>
+                                                )}
                                             </span>
                                         </div>
                                         <div className="flex flex-wrap gap-2 mt-1.5 items-center">
@@ -1804,8 +1811,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                     <div>
                                         <div className="flex items-center gap-1.5">
                                             <span className="font-black text-sm text-green-500">#{index+1}</span>
-                                            <span className="font-black text-sm text-slate-900 dark:text-slate-100">
-                                                {res.name} {res.partnerName && <span className="font-normal text-slate-400">& {res.partnerName}</span>}
+                                            <span className="font-black text-sm text-slate-900 dark:text-slate-100 flex flex-col">
+                                                {res.teamName && !res.division?.toLowerCase().includes('singel') ? (
+                                                    <>
+                                                        <span className="text-sm font-black text-indigo-500 dark:text-indigo-400">{res.teamName}</span>
+                                                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{res.name} {res.partnerName && <>& {res.partnerName}</>}</span>
+                                                    </>
+                                                ) : (
+                                                    <span>{res.name} {res.partnerName && <span className="font-normal text-slate-400">& {res.partnerName}</span>}</span>
+                                                )}
                                             </span>
                                         </div>
                                         <div className="flex gap-2 mt-1 items-center">
@@ -1952,7 +1966,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     const latestFinisherList = Object.entries(finishedParticipants)
         .map(([id, data]) => {
             const found = allRaceParticipants.find(p => p.id === id);
-            return { id, name: found?.name || 'Okänd', division: found?.division || 'Singel Herr', partnerName: found?.partnerName, ...data };
+            return { id, name: found?.name || 'Okänd', division: found?.division || 'Singel Herr', partnerName: found?.partnerName, teamName: found?.teamName, ...data };
         })
         .sort((a, b) => (b.placement || 0) - (a.placement || 0))
         .slice(0, 4);
@@ -2168,7 +2182,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                                                             {idx + 1}
                                                                         </span>
                                                                         <span className="font-black truncate">
-                                                                            {res.p.name} {res.p.partnerName && <span className="text-slate-400 font-normal">& {res.p.partnerName}</span>}
+                                                                            {res.p.name}
                                                                         </span>
                                                                     </div>
                                                                     <div className="flex items-center gap-2">
@@ -2217,8 +2231,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                                                         <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${placementBg}`}>
                                                                             {idx + 1}
                                                                         </span>
-                                                                        <span className="font-black truncate">
-                                                                            {res.p.name} {res.p.partnerName && <span className="text-slate-400 font-normal">& {res.p.partnerName}</span>}
+                                                                        <span className="font-black truncate flex flex-col">
+                                                                            {res.p.teamName ? (
+                                                                                <>
+                                                                                    <span className="text-xs font-black text-indigo-500 dark:text-indigo-400 truncate">{res.p.teamName}</span>
+                                                                                    <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate">{res.p.name} {res.p.partnerName && <>& {res.p.partnerName}</>}</span>
+                                                                                </>
+                                                                            ) : (
+                                                                                <span className="truncate">{res.p.name} {res.p.partnerName && <span className="text-slate-400 font-normal">& {res.p.partnerName}</span>}</span>
+                                                                            )}
                                                                         </span>
                                                                     </div>
                                                                     <div className="flex items-center gap-2">
@@ -2263,8 +2284,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                 >
                                     <div className="absolute top-0 right-0 h-full w-1.5 bg-green-500"></div>
                                     <div className="flex justify-between items-start">
-                                        <span className="font-black text-xs text-slate-900 dark:text-slate-100 truncate max-w-[70%]">
-                                            {f.name} {f.partnerName && <span className="text-slate-400 font-normal">& {f.partnerName}</span>}
+                                        <span className="font-black text-xs text-slate-900 dark:text-slate-100 truncate max-w-[70%] flex flex-col">
+                                            {f.teamName && !f.division?.toLowerCase().includes('singel') ? (
+                                                <>
+                                                    <span className="text-xs font-black text-indigo-500 dark:text-indigo-400 truncate">{f.teamName}</span>
+                                                    <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate">{f.name} {f.partnerName && <>& {f.partnerName}</>}</span>
+                                                </>
+                                            ) : (
+                                                <span className="truncate">{f.name} {f.partnerName && <span className="text-slate-400 font-normal">& {f.partnerName}</span>}</span>
+                                            )}
                                         </span>
                                         <span className="font-mono font-black text-xs text-green-500">
                                             {Math.floor(f.time / 60)}:{String(f.time % 60).padStart(2, '0')}
