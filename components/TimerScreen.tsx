@@ -1458,7 +1458,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               groupId: group?.id || 'unknown',
               ...(partnerName ? { partnerName } : {}),
               email: found?.email || undefined,
-              partnerEmail: found?.partnerEmail || undefined
+              partnerEmail: found?.partnerEmail || undefined,
+              teamName: found?.teamName || undefined,
+              division: found?.division || undefined
           };
       });
 
@@ -1891,12 +1893,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 {confirmFinishId && (() => {
                     const runner = allRaceParticipants.find(p => p.id === confirmFinishId);
                     if (!runner) return null;
+                    const displayName = runner.teamName 
+                        ? `${runner.teamName} (${runner.name}${runner.partnerName ? ` & ${runner.partnerName}` : ''})`
+                        : `${runner.name}${runner.partnerName ? ` & ${runner.partnerName}` : ''}`;
                     return (
                         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
                             <div className={`w-full max-w-sm rounded-2xl p-6 border ${cardBg}`}>
                                 <h3 className="text-lg font-black text-slate-900 dark:text-white mb-2">Bekräfta målgång</h3>
                                 <p className="text-sm mb-4 leading-relaxed">
-                                    Vill du registrera målgång för <strong className="text-indigo-500">{runner.name}</strong> nu? <br />
+                                    Vill du registrera målgång för <strong className="text-indigo-500">{displayName}</strong> nu? <br />
                                     Tävlingstid: <span className="font-mono font-bold text-lg text-indigo-500">{raceElapsedMin}:{raceElapsedSec}</span>
                                 </p>
                                 <div className="flex gap-2.5">
@@ -1925,12 +1930,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 {confirmUndoId && (() => {
                     const runner = finishedList.find(r => r.id === confirmUndoId);
                     if (!runner) return null;
+                    const displayName = runner.teamName 
+                        ? `${runner.teamName} (${runner.name}${runner.partnerName ? ` & ${runner.partnerName}` : ''})`
+                        : `${runner.name}${runner.partnerName ? ` & ${runner.partnerName}` : ''}`;
                     return (
                         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
                             <div className={`w-full max-w-sm rounded-2xl p-6 border ${cardBg}`}>
                                 <h3 className="text-lg font-black text-red-500 mb-2">Ångra målgång?</h3>
                                 <p className="text-sm mb-4 leading-relaxed text-slate-700 dark:text-slate-300">
-                                    Vill du ta bort målgången för <strong>{runner.name}</strong> och placera dem ute på banan igen? Deras tidmätning kommer att återupptas.
+                                    Vill du ta bort målgången för <strong>{displayName}</strong> och placera dem ute på banan igen? Deras tidmätning kommer att återupptas.
                                 </p>
                                 <div className="flex gap-2.5">
                                     <button

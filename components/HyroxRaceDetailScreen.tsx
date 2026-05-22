@@ -90,6 +90,11 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
                                     <tbody>
                                         {sortedResults.map((result, index) => {
                                             const group = race.startGroups.find(g => g.id === result.groupId);
+                                            const matchedParticipant = group?.participantList?.find(p => 
+                                                p.name === result.participant || 
+                                                (p.partnerName && `${p.name} & ${p.partnerName}` === result.participant)
+                                            );
+                                            const finalTeamName = result.teamName || matchedParticipant?.teamName;
                                             
                                             let rowClass = "border-b border-gray-150 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700/50";
                                             let textClass = "text-gray-900 dark:text-white";
@@ -117,7 +122,16 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
                                                         {index === 2 && '🥉 '}
                                                         {index > 2 && `${index + 1}`}
                                                     </td>
-                                                    <td className={`p-4 text-sm font-bold ${textClass}`}>{result.participant}</td>
+                                                    <td className={`p-4 text-sm font-bold ${textClass}`}>
+                                                        {finalTeamName ? (
+                                                            <div className="flex flex-col">
+                                                                <span className={`text-sm font-black ${index <= 2 ? 'text-black' : 'text-indigo-650 dark:text-indigo-400'}`}>{finalTeamName}</span>
+                                                                <span className={`text-xs font-semibold ${index <= 2 ? 'text-black/75' : 'text-gray-500 dark:text-gray-450'}`}>{result.participant}</span>
+                                                            </div>
+                                                        ) : (
+                                                            <span>{result.participant}</span>
+                                                        )}
+                                                    </td>
                                                     <td className={`p-4 text-sm ${index > 2 ? 'text-gray-650 dark:text-gray-300 font-medium' : `${textClass}`}`}>{group?.name || 'Okänd'}</td>
                                                     <td className={`p-4 text-right font-mono text-sm ${textClass}`}>{formatResultTime(result.time)}</td>
                                                 </tr>
@@ -166,7 +180,7 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
                             onClick={onBack}
                             className="mt-8 bg-white/10 hover:bg-white/15 text-white border border-white/10 text-xs font-extrabold py-3.5 px-6 rounded-2xl tracking-wider uppercase transition-all w-full"
                         >
-                            Tillbaka till händelser
+                            Avsluta
                         </button>
                     </div>
                 </div>

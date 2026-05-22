@@ -697,13 +697,29 @@ const EventEditor: React.FC<{
                             const resultId = result.participantId || result.participant;
                             const isEditing = editingResultId === resultId;
                             
+                            const groupForParticipant = event?.startGroups?.find(g => g.id === result.groupId);
+                            const matchedParticipant = groupForParticipant?.participantList?.find(p => 
+                                p.name === result.participant || 
+                                (p.partnerName && `${p.name} & ${p.partnerName}` === result.participant)
+                            );
+                            const finalTeamName = result.teamName || matchedParticipant?.teamName;
+                            
                             return (
                                 <div key={index} className="flex justify-between items-center bg-white dark:bg-gray-900 p-3 rounded-lg border border-gray-100 dark:border-gray-800">
                                     <div className="flex items-center gap-3">
                                         <span className="font-bold text-gray-900 dark:text-white">{index + 1}.</span>
                                         <div>
-                                            <p className="font-bold text-gray-900 dark:text-white">{result.participant}</p>
-                                            {result.partnerName && <p className="text-xs text-gray-500">& {result.partnerName}</p>}
+                                            {finalTeamName ? (
+                                                <>
+                                                    <p className="font-bold text-indigo-600 dark:text-indigo-400">{finalTeamName}</p>
+                                                    <p className="text-xs text-slate-500 font-medium">{result.participant}</p>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <p className="font-bold text-gray-900 dark:text-white">{result.participant}</p>
+                                                    {result.partnerName && <p className="text-xs text-gray-500">& {result.partnerName}</p>}
+                                                </>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-4">

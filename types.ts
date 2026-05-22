@@ -584,6 +584,7 @@ export interface HyroxRaceResult {
     email?: string;
     partnerName?: string;
     partnerEmail?: string;
+    teamName?: string;
     time: number;
     groupId: string;
     division?: string; // NYTT: t.ex. 'Singel Herr', 'Singel Dam', 'Lag', 'Mix'
