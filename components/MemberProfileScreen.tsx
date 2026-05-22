@@ -759,12 +759,18 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                 pastRaces.forEach(race => {
                     if (!race.results) return;
                     
-                    const matchedResult = race.results.find(res => res.email?.toLowerCase() === userData.email.toLowerCase());
+                    const matchedResult = race.results.find(res => 
+                        res.email?.toLowerCase() === userData.email.toLowerCase() || 
+                        res.partnerEmail?.toLowerCase() === userData.email.toLowerCase()
+                    );
                     if (matchedResult) {
                         // Find division from startgroups
                         let division = 'Singel Herr';
                         race.startGroups?.forEach(g => {
-                            const p = g.participantList?.find(pl => pl.email?.toLowerCase() === userData.email.toLowerCase());
+                            const p = g.participantList?.find(pl => 
+                                pl.email?.toLowerCase() === userData.email.toLowerCase() ||
+                                pl.partnerEmail?.toLowerCase() === userData.email.toLowerCase()
+                            );
                             if (p && p.division) {
                                 division = p.division;
                             }
@@ -772,7 +778,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                         // Calculate live placement by sorting results
                         const sortedResults = [...race.results].sort((a, b) => a.time - b.time);
-                        const calculatedPlacement = sortedResults.findIndex(res => res.email?.toLowerCase() === userData.email.toLowerCase()) + 1;
+                        const calculatedPlacement = sortedResults.findIndex(res => 
+                            res.email?.toLowerCase() === userData.email.toLowerCase() ||
+                            res.partnerEmail?.toLowerCase() === userData.email.toLowerCase()
+                        ) + 1;
 
                         userResults.push({
                             id: race.id,

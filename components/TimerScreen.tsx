@@ -1456,7 +1456,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               participant: partnerName ? `${displayName} & ${partnerName}` : displayName, 
               time: (data as FinishData).time, 
               groupId: group?.id || 'unknown',
-              ...(partnerName ? { partnerName } : {})
+              ...(partnerName ? { partnerName } : {}),
+              email: found?.email || undefined,
+              partnerEmail: found?.partnerEmail || undefined
           };
       });
 
@@ -1861,13 +1863,19 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                             <span className="text-[10px] font-mono text-slate-400">Placering i klass</span>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-3">
-                                        <span className="font-mono font-black text-lg text-slate-900 dark:text-slate-100">
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-mono font-black text-lg text-slate-900 dark:text-slate-100 mr-1.5">
                                             {Math.floor(res.time / 60)}:{String(res.time % 60).padStart(2, '0')}
                                         </span>
                                         <button
+                                            onClick={() => setParticipantToEdit(res.id)}
+                                            className="bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 text-xs font-extrabold px-3 py-2 rounded-xl border border-indigo-500/20 uppercase"
+                                        >
+                                            Ändra
+                                        </button>
+                                        <button
                                             onClick={() => setConfirmUndoId(res.id)}
-                                            className="text-red-500 hover:bg-red-500/10 text-xs font-bold p-2 rounded-xl border border-red-500/20"
+                                            className="text-red-500 hover:bg-red-500/10 text-xs font-black p-2 rounded-xl border border-red-500/20 uppercase"
                                             title="Placera tillbaka i loppet"
                                         >
                                             Ångra
