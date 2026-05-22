@@ -164,6 +164,7 @@ interface HyroxScreenProps {
     racePrepState: { groups: StartGroup[]; interval: number } | null;
     onPrepComplete: () => void;
     remoteCommand?: { type: string, timestamp: number } | null;
+    isStudioMode?: boolean;
 }
 
 const StartGroupPrepModal: React.FC<{
@@ -172,7 +173,8 @@ const StartGroupPrepModal: React.FC<{
     onStart: (groups: StartGroup[], interval: number, openAsOfficial?: boolean) => void;
     initialGroups?: StartGroup[];
     initialInterval?: number;
-}> = ({ isOpen, onClose, onStart, initialGroups, initialInterval }) => {
+    isStudioMode?: boolean;
+}> = ({ isOpen, onClose, onStart, initialGroups, initialInterval, isStudioMode }) => {
     const [groups, setGroups] = useState<StartGroup[]>(() => {
         if (initialGroups && initialGroups.length > 0) {
             return initialGroups.map(g => {
@@ -212,18 +214,21 @@ const StartGroupPrepModal: React.FC<{
                 Avbryt
             </button>
             <div className="flex-1 flex flex-col sm:flex-row gap-2">
-                <button 
-                    onClick={() => handleStartRace(false)} 
-                    className="flex-1 bg-primary hover:brightness-95 text-white font-black py-3 px-4 rounded-xl transition-all shadow-md text-sm flex items-center justify-center gap-1.5"
-                >
-                    🖥️ Starta TV-tavla
-                </button>
-                <button 
-                    onClick={() => handleStartRace(true)} 
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-black py-3 px-4 rounded-xl transition-all shadow-md text-sm flex items-center justify-center gap-1.5"
-                >
-                    📱 Starta som Funktionär
-                </button>
+                {isStudioMode ? (
+                    <button 
+                        onClick={() => handleStartRace(false)} 
+                        className="flex-1 bg-primary hover:brightness-95 text-white font-black py-3 px-4 rounded-xl transition-all shadow-md text-sm flex items-center justify-center gap-1.5"
+                    >
+                        🖥️ Starta TV-tavla
+                    </button>
+                ) : (
+                    <button 
+                        onClick={() => handleStartRace(true)} 
+                        className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-black py-3 px-4 rounded-xl transition-all shadow-md text-sm flex items-center justify-center gap-1.5"
+                    >
+                        📱 Öppna som Funktionär
+                    </button>
+                )}
             </div>
         </div>
     );
@@ -401,7 +406,7 @@ const createCustomRaceWorkout = (
 };
 
 
-export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWorkout, studioConfig, racePrepState, onPrepComplete, remoteCommand }) => {
+export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWorkout, studioConfig, racePrepState, onPrepComplete, remoteCommand, isStudioMode }) => {
     const { selectedOrganization, selectedStudio } = useStudio();
     const [view, setView] = useState<'hub' | 'editor' | 'prep'>('hub');
     const [plannedRaces, setPlannedRaces] = useState<HyroxRace[]>([]);
@@ -572,7 +577,7 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
                                     onClick={() => handleStartPlannedRace(race)}
                                     className="w-full bg-primary text-white font-bold py-3 rounded-lg hover:brightness-110 transition-all"
                                 >
-                                    Starta Event
+                                    {isStudioMode ? 'Starta Event' : 'Öppna event som funktionär'}
                                 </button>
                             </div>
                         ))}
@@ -605,6 +610,7 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
                         onStart={startFullRace}
                         initialGroups={racePrepState?.groups || (plannedRaces.find(r => r.raceName === raceConfig?.name)?.startGroups)}
                         initialInterval={racePrepState?.interval}
+                        isStudioMode={isStudioMode}
                     />
                 )}
             </AnimatePresence>

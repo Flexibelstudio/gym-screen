@@ -11,6 +11,7 @@ import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmation
 import { ParticipantFinishList } from './timer/ParticipantFinishList';
 import { DumbbellIcon, InformationCircleIcon, LightningIcon, SparklesIcon, ChevronRightIcon, ClockIcon, PlayIcon, SettingsIcon, RefreshIcon } from './icons'; // Added SettingsIcon if available, else standard icons
 import { useStudio } from '../context/StudioContext';
+import { useAuth } from '../context/AuthContext';
 
 // --- Constants ---
 const HYROX_RIGHT_PANEL_WIDTH = '450px';
@@ -588,6 +589,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 }) => {
   const { activeWorkout } = useWorkout();
   const { studioConfig, selectedStudio, selectedOrganization } = useStudio(); 
+  const { isStudioMode } = useAuth();
   
   // Use the hook with the selected sound profile
   const { 
@@ -819,8 +821,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   // Hyrox premium states
   const [screenMode, setScreenMode] = useState<'tv' | 'official'>(() => {
-    if (activeWorkout?.openAsOfficial) return 'official';
-    return 'tv';
+    if (isStudioMode) return 'tv';
+    return 'official';
   });
   const [isDarkTheme] = useState(() => {
     if (typeof document !== 'undefined') {
@@ -1369,15 +1371,17 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                         <h2 className="text-sm font-black truncate max-w-[200px] sm:max-w-xs">{activeWorkout?.title || 'Hyrox-simulering'}</h2>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button 
-                            onClick={() => setScreenMode('tv')} 
-                            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5"
-                        >
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                            </svg>
-                            <span>TV-Skärm</span>
-                        </button>
+                        {isStudioMode && (
+                            <button 
+                                onClick={() => setScreenMode('tv')} 
+                                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                <span>TV-Skärm</span>
+                            </button>
+                        )}
                         <button 
                             onClick={handleExit}
                             className="bg-slate-500/10 hover:bg-slate-500/20 font-bold text-xs px-2.5 py-1.5 rounded-lg"

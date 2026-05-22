@@ -312,6 +312,7 @@ export const AppRouter: React.FC<AppRouterProps> = (props) => {
                 racePrepState={racePrepState}
                 onPrepComplete={() => {}}
                 remoteCommand={remoteCommand}
+                isStudioMode={isStudioMode}
             />;
 
         case Page.HyroxRaceList:
