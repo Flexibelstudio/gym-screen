@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout, TimerSegment } from '../types';
 import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration, playTimerSound } from '../hooks/useWorkoutTimer';
 import { useWorkout } from '../context/WorkoutContext';
-import { saveRace, updateOrganizationActivity } from '../services/firebaseService';
+import { saveRace, updateOrganizationActivity, updateStudioRemoteState } from '../services/firebaseService';
 import QRCode from 'react-qr-code';
 import { Confetti } from './WorkoutCompleteModal';
 import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmationModal, RaceFinishAnimation, PauseOverlay } from './timer/TimerModals';
@@ -853,6 +853,173 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const nextGroupToStart = useMemo(() => (nextGroupToStartIndex !== -1 ? startGroups[nextGroupToStartIndex] : null), [startGroups, nextGroupToStartIndex]);
   const remainingGroupsCount = useMemo(() => startGroups.filter(g => g.startTime === undefined).length, [startGroups]);
 
+  // Real-time synchronization state for official/functionary view
+  const [syncedElapsedSeconds, setSyncedElapsedSeconds] = useState(0);
+
+  // Helper to publish current race state to Firestore under selectedStudio's remoteState
+  const publishRaceState = useCallback(async (updates: any) => {
+    if (!selectedOrganization?.id || !selectedStudio?.id) return;
+    try {
+      const currentRemote = selectedStudio.remoteState || {};
+      const mergedState = {
+        ...currentRemote,
+        ...updates,
+        updatedAt: Date.now()
+      };
+      await updateStudioRemoteState(selectedOrganization.id, selectedStudio.id, mergedState);
+    } catch (err) {
+      console.error("Failed to publish race state:", err);
+    }
+  }, [selectedOrganization, selectedStudio]);
+
+  // TV Publisher: Automatically keep the Firestore remoteState updated when TV state changes
+  useEffect(() => {
+    if (!isHyroxRace || screenMode !== 'tv') return;
+
+    const remoteState = selectedStudio?.remoteState || {};
+    
+    // Check if we need to update
+    const statusMap: Record<TimerStatus, string> = {
+      [TimerStatus.Idle]: 'idle',
+      [TimerStatus.Preparing]: 'preparing',
+      [TimerStatus.Running]: 'running',
+      [TimerStatus.Resting]: 'resting',
+      [TimerStatus.Paused]: 'paused',
+      [TimerStatus.Finished]: 'completed'
+    };
+    
+    const currentMappedStatus = statusMap[status] || 'idle';
+    
+    // Prepare updates
+    const updates: any = {};
+    let hasChanges = false;
+
+    if (remoteState.status !== currentMappedStatus) {
+      updates.status = currentMappedStatus;
+      hasChanges = true;
+
+      if (status === TimerStatus.Running) {
+        updates.timerStartTime = Date.now();
+        updates.timerBase = totalTimeElapsed;
+      } else {
+        updates.timerStartTime = null;
+        updates.timerBase = totalTimeElapsed;
+        updates.lastElapsedSeconds = totalTimeElapsed;
+      }
+    }
+
+    if (JSON.stringify(remoteState.startGroups) !== JSON.stringify(startGroups)) {
+      updates.startGroups = startGroups;
+      hasChanges = true;
+    }
+
+    if (JSON.stringify(remoteState.finishedParticipants) !== JSON.stringify(finishedParticipants)) {
+      updates.finishedParticipants = finishedParticipants;
+      hasChanges = true;
+    }
+
+    // Always ensure activeWorkout/raceInfo is set so officials connect to the right race
+    if (remoteState.activeWorkoutId !== activeWorkout?.id || remoteState.raceName !== activeWorkout?.title) {
+      updates.activeWorkoutId = activeWorkout?.id;
+      updates.raceName = activeWorkout?.title;
+      hasChanges = true;
+    }
+
+    if (hasChanges) {
+      publishRaceState(updates);
+    }
+  }, [
+    status, 
+    startGroups, 
+    finishedParticipants, 
+    isHyroxRace, 
+    screenMode, 
+    activeWorkout, 
+    totalTimeElapsed, 
+    publishRaceState, 
+    selectedStudio?.remoteState
+  ]);
+
+  // Sync state from remoteState
+  useEffect(() => {
+    if (!isHyroxRace || !selectedStudio?.remoteState) return;
+    
+    const remoteState = selectedStudio.remoteState;
+    const isSameWorkout = remoteState.activeWorkoutId === activeWorkout?.id || remoteState.raceName === activeWorkout?.title;
+    if (!isSameWorkout) return;
+
+    // 1. Sync finishedParticipants (both TV and official panels!)
+    if (remoteState.finishedParticipants) {
+      if (JSON.stringify(remoteState.finishedParticipants) !== JSON.stringify(finishedParticipants)) {
+        setFinishedParticipants(remoteState.finishedParticipants);
+      }
+    }
+
+    // 2. Sync startGroups
+    if (remoteState.startGroups) {
+      if (JSON.stringify(remoteState.startGroups) !== JSON.stringify(startGroups)) {
+        setStartGroups(remoteState.startGroups);
+      }
+    }
+
+    // 3. Sync status / controls for official/viewer mode
+    if (screenMode === 'official') {
+      if (remoteState.status === 'running') {
+        setIsLobbyMode(false);
+        if (status !== TimerStatus.Running) {
+          start({ skipPrep: true });
+        }
+      } else if (remoteState.status === 'paused') {
+        if (status === TimerStatus.Running) {
+          pause();
+        }
+      } else if (remoteState.status === 'idle') {
+        setIsLobbyMode(true);
+        reset();
+      }
+    }
+  }, [
+    selectedStudio?.remoteState, 
+    isHyroxRace, 
+    activeWorkout, 
+    screenMode, 
+    finishedParticipants, 
+    startGroups, 
+    status, 
+    start, 
+    pause, 
+    reset
+  ]);
+
+  // Sync elapsed seconds for official/functionary view
+  useEffect(() => {
+    if (screenMode !== 'official') return;
+
+    const updateTime = () => {
+      const remoteState = selectedStudio?.remoteState;
+      if (!remoteState) {
+        setSyncedElapsedSeconds(0);
+        return;
+      }
+
+      if (remoteState.status === 'running' && remoteState.timerStartTime) {
+        const now = Date.now();
+        const elapsed = (remoteState.timerBase || 0) + Math.floor((now - remoteState.timerStartTime) / 1000);
+        setSyncedElapsedSeconds(Math.max(0, elapsed));
+      } else {
+        setSyncedElapsedSeconds(remoteState.lastElapsedSeconds || 0);
+      }
+    };
+
+    updateTime();
+
+    const remoteState = selectedStudio?.remoteState;
+    if (remoteState?.status === 'running') {
+      const intervalId = setInterval(updateTime, 250);
+      return () => clearInterval(intervalId);
+    }
+  }, [selectedStudio?.remoteState, screenMode]);
+
   const groupForCountdownDisplay = useMemo(() => {
     if (!isHyroxRace) return null;
     if (status === TimerStatus.Preparing) return startGroups.length > 0 ? startGroups[0] : null;
@@ -950,19 +1117,49 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       if (action === 'start') {
           setIsLobbyMode(false);
           start(); 
+          publishRaceState({
+              status: 'running',
+              timerStartTime: Date.now(),
+              timerBase: 0,
+              lastElapsedSeconds: 0,
+              startGroups: startGroups.map(g => ({ ...g, startTime: g.startTime })),
+              finishedParticipants: {},
+              activeWorkoutId: activeWorkout?.id,
+              raceName: activeWorkout?.title
+          });
       }
       else if (action === 'pause') {
           if (isTransitioning) setIsTransitionPaused(true);
           else pause();
+          publishRaceState({
+              status: 'paused',
+              lastElapsedSeconds: totalTimeElapsed
+          });
       }
       else if (action === 'resume') {
           if (isTransitioning) setIsTransitionPaused(false);
           else resume();
+          publishRaceState({
+              status: 'running',
+              timerStartTime: Date.now(),
+              timerBase: totalTimeElapsed,
+              lastElapsedSeconds: totalTimeElapsed
+          });
       }
       else if (action === 'reset') {
           handleConfirmReset();
+          publishRaceState({
+              status: 'idle',
+              timerStartTime: null,
+              timerBase: 0,
+              lastElapsedSeconds: 0,
+              startGroups: startGroups.map(g => ({ ...g, startTime: undefined })),
+              finishedParticipants: {},
+              activeWorkoutId: activeWorkout?.id,
+              raceName: activeWorkout?.title
+          });
       }
-  }, [selectedOrganization, selectedStudio, activeWorkout, block.id, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset]);
+  }, [selectedOrganization, selectedStudio, activeWorkout, block.id, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset, startGroups, totalTimeElapsed, publishRaceState]);
 
   useEffect(() => { return () => stopAllAudio(); }, [stopAllAudio]);
 
@@ -986,10 +1183,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                   const index = newGroups.findIndex(g => g.id === groupToStart.id);
                   if (index !== -1) { newGroups[index] = { ...newGroups[index], startTime: index * startIntervalSeconds }; }
               });
+              
+              if (screenMode === 'tv') {
+                  publishRaceState({ startGroups: newGroups });
+              }
+              
               return newGroups;
           });
       }
-  }, [isHyroxRace, totalTimeElapsed, startGroups, status, startIntervalSeconds]);
+  }, [isHyroxRace, totalTimeElapsed, startGroups, status, startIntervalSeconds, screenMode, publishRaceState]);
 
   useEffect(() => {
       if (status === TimerStatus.Preparing) return;
@@ -1025,11 +1227,16 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     });
 
     if (group?.startTime !== undefined) {
-      const netTime = Math.max(0, totalTimeElapsed - group.startTime);
-      setFinishedParticipants(prev => ({
-        ...prev,
-        [participantId]: { time: netTime, placement: Object.keys(prev).length + 1 }
-      }));
+      const currentElapsed = screenMode === 'official' ? syncedElapsedSeconds : totalTimeElapsed;
+      const netTime = Math.max(0, currentElapsed - group.startTime);
+      setFinishedParticipants(prev => {
+        const next = {
+          ...prev,
+          [participantId]: { time: netTime, placement: Object.keys(prev).length + 1 }
+        };
+        publishRaceState({ finishedParticipants: next });
+        return next;
+      });
       
       // Try to find the actual name for the speech synthesis
       let participantName = participantId;
@@ -1057,20 +1264,28 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   const handleUpdateResult = (newTime: number) => {
     if (participantToEdit) {
-      setFinishedParticipants(prev => ({
-        ...prev,
-        [participantToEdit]: { ...prev[participantToEdit], time: newTime }
-      }));
+      setFinishedParticipants(prev => {
+        const next = {
+          ...prev,
+          [participantToEdit]: { ...prev[participantToEdit], time: newTime }
+        };
+        publishRaceState({ finishedParticipants: next });
+        return next;
+      });
       setParticipantToEdit(null);
     }
   };
 
   const handleAddPenalty = () => {
     if (participantToEdit) {
-      setFinishedParticipants(prev => ({
-        ...prev,
-        [participantToEdit]: { ...prev[participantToEdit], time: prev[participantToEdit].time + 60 }
-      }));
+      setFinishedParticipants(prev => {
+        const next = {
+          ...prev,
+          [participantToEdit]: { ...prev[participantToEdit], time: prev[participantToEdit].time + 60 }
+        };
+        publishRaceState({ finishedParticipants: next });
+        return next;
+      });
       setParticipantToEdit(null);
     }
   };
@@ -1080,6 +1295,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       setFinishedParticipants(prev => {
         const next = { ...prev };
         delete next[participantToEdit];
+        publishRaceState({ finishedParticipants: next });
         return next;
       });
       setParticipantToEdit(null);
@@ -1314,15 +1530,24 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   // --- HYROX PRESTIGE VIEW RENDERING ---
   const renderHyroxPremiumView = () => {
     const raceId = activeWorkout ? (activeWorkout.id.startsWith('custom-race-') && activeWorkout.id !== 'custom-race' ? activeWorkout.id.replace('custom-race-', '') : activeWorkout.id) : '';
-    const allRaceParticipants = startGroups.flatMap(g => g.participantList || []);
+    const allRaceParticipants = startGroups.flatMap(g => {
+        if (g.participantList && g.participantList.length > 0) return g.participantList;
+        return (g.participants || '').split('\n').map(p => p.trim()).filter(Boolean).map((name, index) => ({
+            id: `legacy-${g.id}-${index}`,
+            name,
+            startNumber: index + 1,
+            division: 'Singel Herr'
+        }));
+    });
     const totalRegistered = allRaceParticipants.length;
     const startedTotal = startedParticipants.length;
     const finishedTotal = Object.keys(finishedParticipants).length;
     const runningTotal = Math.max(0, startedTotal - finishedTotal);
 
     const formattedTimeOfDay = currentTimeOfDay.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const raceElapsedMin = Math.floor(totalTimeElapsed / 60).toString().padStart(2, '0');
-    const raceElapsedSec = (totalTimeElapsed % 60).toString().padStart(2, '0');
+    const currentElapsed = screenMode === 'official' ? syncedElapsedSeconds : totalTimeElapsed;
+    const raceElapsedMin = Math.floor(currentElapsed / 60).toString().padStart(2, '0');
+    const raceElapsedSec = (currentElapsed % 60).toString().padStart(2, '0');
 
     // Theme values
     const themeBg = isDarkTheme ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900';
@@ -1566,6 +1791,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                             setFinishedParticipants(prev => {
                                                 const next = { ...prev };
                                                 delete next[confirmUndoId];
+                                                publishRaceState({ finishedParticipants: next });
                                                 return next;
                                             });
                                             setConfirmUndoId(null);

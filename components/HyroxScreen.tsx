@@ -461,29 +461,27 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
     };
 
     const handleStartPlannedRace = (race: HyroxRace) => {
-        // Map the string array to Exercise objects if needed, or just use default for now
-        // since we don't have a full exercise editor in the admin panel yet.
         const exercises = race.exercises && race.exercises.length > 0 
             ? race.exercises.map((e, i) => ({ id: `ex-${i}`, name: e, reps: '', description: '' }))
             : createDefaultExercises();
 
-        setRaceConfig({ name: race.raceName, exercises });
+        const config = { name: race.raceName, exercises, raceId: race.id };
+        setRaceConfig(config);
         
-        // Pass the planned race's groups to the prep modal
-        // We need to ensure the race ID is passed so we can update it later.
-        // For now, we'll just set the config and open the prep modal.
-        // To properly update the existing race, we'd need to pass the race ID to the workout.
-        // We can do this by setting a special ID format or adding a property to the workout.
-        // Let's modify startFullRace to accept a raceId.
-        setView('prep');
+        if (!isStudioMode) {
+            // Functionary! Start directly with saved groups and intervals
+            startFullRace(race.startGroups || [], (race as any).startIntervalMinutes || 2, true, config);
+        } else {
+            setView('prep');
+        }
     };
 
-    const startFullRace = (groups: StartGroup[], interval: number, openAsOfficial?: boolean) => {
-        const configToUse = raceConfig || { name: 'HYROX Race', exercises: createDefaultExercises() };
+    const startFullRace = (groups: StartGroup[], interval: number, openAsOfficial?: boolean, customConfig?: { name: string; exercises: Exercise[] }) => {
+        const configToUse = customConfig || raceConfig || { name: 'HYROX Race', exercises: createDefaultExercises() };
         const orgId = selectedOrganization?.id || '';
         
         // Check if this is a planned race by looking for it in plannedRaces
-        const plannedRace = plannedRaces.find(r => r.raceName === configToUse.name);
+        const plannedRace = plannedRaces.find(r => r.raceName === configToUse.name || (customConfig && r.id === (customConfig as any).raceId));
         
         const raceWorkout = createCustomRaceWorkout(configToUse, groups, interval, orgId);
         if (openAsOfficial) {

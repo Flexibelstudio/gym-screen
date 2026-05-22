@@ -1086,6 +1086,14 @@ export const updateStudioConfig = async (orgId: string, studioId: string, overri
     return studios.find(s => s.id === studioId) as Studio;
 };
 
+export const updateStudioRemoteState = async (orgId: string, studioId: string, remoteState: any) => {
+    if (isOffline || !db || !orgId || !studioId) return;
+    const org = await getOrganizationById(orgId);
+    if (!org) throw new Error("Organisationen hittades inte.");
+    const studios = org.studios.map(s => s.id === studioId ? { ...s, remoteState: sanitizeData(remoteState) } : s);
+    await updateDoc(doc(db, 'organizations', orgId), { studios });
+};
+
 export const getFreshCategoryWorkouts = async (orgId: string, category: string): Promise<Workout[]> => {
     if (isOffline || !db || !orgId) return [];
     try {
