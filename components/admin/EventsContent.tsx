@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Organization, HyroxRace, StartGroup, RaceParticipant, HyroxRaceResult } from '../../types';
 import { getPastRaces, saveRace, deleteRace } from '../../services/firebaseService';
-import { PlusIcon, CalendarIcon, UsersIcon, TrashIcon, PencilIcon, SaveIcon } from '../icons';
-import { motion } from 'framer-motion';
+import { PlusIcon, CalendarIcon, UsersIcon, TrashIcon, PencilIcon, SaveIcon, QrCodeIcon, LinkIcon, CopyIcon, CloseIcon, TrophyIcon, CheckIcon, PaperAirplaneIcon } from '../icons';
+import { motion, AnimatePresence } from 'framer-motion';
+import QRCode from 'react-qr-code';
 
 interface EventsContentProps {
     organization: Organization;
@@ -40,6 +41,27 @@ const EventEditor: React.FC<{
         event?.startGroups || [{ id: 'group-1', name: 'Heat 1', participants: '', participantList: [] }]
     );
     const [draggedParticipantId, setDraggedParticipantId] = useState<string | null>(null);
+    const [copied, setCopied] = useState(false);
+
+    const handleCopyLink = (url: string) => {
+        if (typeof window !== 'undefined') {
+            navigator.clipboard.writeText(url);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+        }
+    };
+
+    const handleShare = (url: string, title: string) => {
+        if (typeof window !== 'undefined' && navigator.share) {
+            navigator.share({
+                title: title,
+                text: `Följ loppet ${title} live!`,
+                url: url
+            }).catch(err => console.log(err));
+        } else {
+            handleCopyLink(url);
+        }
+    };
 
     const assignedIds = new Set(startGroups.flatMap(g => g.participantList?.map(p => p.id) || []));
     const unassignedParticipants = participants.filter(p => !assignedIds.has(p.id));
@@ -803,6 +825,75 @@ const EventEditor: React.FC<{
                 </div>
             )}
 
+            {event?.id && (
+                <div className="border-t border-gray-200 dark:border-gray-800 pt-8 mt-8">
+                    <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-2 mb-4">
+                        <QrCodeIcon className="w-5 h-5 text-indigo-500" />
+                        Dela Liveresultat & QR-kod
+                    </h3>
+                    <div className="bg-gradient-to-br from-indigo-50/50 via-white to-amber-55/30 dark:from-slate-900/40 dark:via-slate-900/60 dark:to-indigo-950/20 border border-indigo-100 dark:border-slate-850 p-6 rounded-2xl flex flex-col md:flex-row items-center gap-6">
+                        <div className="bg-white p-3 rounded-2xl border border-gray-200 dark:border-gray-750 flex-shrink-0 shadow-lg dark:shadow-none">
+                            <QRCode 
+                                value={`${window.location.origin}/live/${event.id}`} 
+                                size={120}
+                                level="M"
+                            />
+                        </div>
+                        <div className="flex-1 space-y-4 text-center md:text-left">
+                            <div>
+                                <h4 className="font-extrabold text-sm text-gray-900 dark:text-white mb-1">
+                                    Scanna eller gå till Live-länken
+                                </h4>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed max-w-lg">
+                                    Åskådare, ledare och deltagare kan scanna denna QR-kod eller använda länken för att följa tävlingen i realtid (tider, placeringar, heat) direkt på mobilen eller en extra skärm.
+                                </p>
+                            </div>
+                            
+                            <div className="flex flex-col sm:flex-row gap-2.5 max-w-md">
+                                <button
+                                    type="button"
+                                    onClick={() => handleCopyLink(`${window.location.origin}/live/${event.id}`)}
+                                    className="flex-1 bg-white dark:bg-gray-800 text-gray-800 dark:text-white font-bold px-4 py-2.5 rounded-xl border border-gray-250 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors flex items-center justify-center gap-2 text-sm shadow-sm"
+                                >
+                                    {copied ? (
+                                        <>
+                                            <CheckIcon className="w-4 h-4 text-emerald-500" />
+                                            <span>Kopierad!</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CopyIcon className="w-4 h-4 text-slate-500" />
+                                            <span>Kopiera länk</span>
+                                        </>
+                                    )}
+                                </button>
+                                
+                                {typeof navigator !== 'undefined' && navigator.share ? (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleShare(`${window.location.origin}/live/${event.id}`, raceName || 'Hyrox Race')}
+                                        className="flex-1 bg-primary text-white font-bold px-4 py-2.5 rounded-xl hover:brightness-110 transition-colors flex items-center justify-center gap-2 text-sm shadow-sm shadow-primary/20"
+                                    >
+                                        <PaperAirplaneIcon className="w-4 h-4" />
+                                        <span>Dela länk</span>
+                                    </button>
+                                ) : (
+                                    <a
+                                        href={`/live/${event.id}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="flex-1 bg-indigo-650 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm shadow-sm shadow-indigo-500/20 text-center"
+                                    >
+                                        <LinkIcon className="w-4 h-4" />
+                                        <span>Öppna live-vy</span>
+                                    </a>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <div className="flex justify-end gap-4 pt-8 border-t border-gray-200 dark:border-gray-800">
                 <button 
                     onClick={onCancel}
@@ -827,6 +918,8 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
     const [view, setView] = useState<'list' | 'create' | 'edit'>('list');
     const [selectedEvent, setSelectedEvent] = useState<HyroxRace | null>(null);
     const [activeTab, setActiveTab] = useState<'upcoming' | 'archive'>('upcoming');
+    const [shareEvent, setShareEvent] = useState<HyroxRace | null>(null);
+    const [copiedShare, setCopiedShare] = useState(false);
 
     const fetchEvents = async () => {
         setLoading(true);
@@ -981,8 +1074,15 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                             Hantera
                                         </button>
                                         <button 
+                                            onClick={() => setShareEvent(event)}
+                                            className="bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3.5 py-2 rounded-lg font-bold transition-colors flex items-center justify-center"
+                                            title="Visa QR & Dela"
+                                        >
+                                            <QrCodeIcon className="w-4 h-4" />
+                                        </button>
+                                        <button 
                                             onClick={() => handleDeleteEvent(event.id)}
-                                            className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-4 py-2 rounded-lg font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors flex items-center justify-center"
+                                            className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-3.5 py-2 rounded-lg font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors flex items-center justify-center"
                                             title="Radera event"
                                         >
                                             <TrashIcon className="w-4 h-4" />
@@ -1036,8 +1136,15 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                             Visa detaljer
                                         </button>
                                         <button 
+                                            onClick={() => setShareEvent(event)}
+                                            className="bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-3.5 py-2 rounded-lg font-bold transition-colors flex items-center justify-center animate-fade-in"
+                                            title="Visa QR & Dela"
+                                        >
+                                            <QrCodeIcon className="w-4 h-4" />
+                                        </button>
+                                        <button 
                                             onClick={() => handleDeleteEvent(event.id)}
-                                            className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-4 py-2 rounded-lg font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors flex items-center justify-center"
+                                            className="bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 px-3.5 py-2 rounded-lg font-bold hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors flex items-center justify-center"
                                             title="Radera event"
                                         >
                                             <TrashIcon className="w-4 h-4" />
@@ -1048,6 +1155,175 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                         </div>
                     )
                 )}
+                
+                {/* EVENT SHARE / QR POPUP MODAL */}
+                <AnimatePresence>
+                    {shareEvent && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                            {/* Backdrop */}
+                            <motion.div 
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => { setShareEvent(null); setCopiedShare(false); }}
+                                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                            />
+                            
+                            {/* Card */}
+                            <motion.div 
+                                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                                transition={{ type: "spring", duration: 0.35 }}
+                                className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-[2rem] shadow-2xl overflow-hidden w-full max-w-md relative z-10 p-6 text-gray-900 dark:text-white"
+                            >
+                                <button
+                                    onClick={() => { setShareEvent(null); setCopiedShare(false); }}
+                                    className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                                >
+                                    <CloseIcon className="w-5 h-5" />
+                                </button>
+                                
+                                <div className="flex items-center gap-3 mb-4 pr-6">
+                                    <div className="p-3 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-100/50 dark:border-indigo-900/30 text-indigo-600 dark:text-indigo-400">
+                                        <QrCodeIcon className="w-6 h-6" />
+                                    </div>
+                                    <div className="truncate">
+                                        <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                                            shareEvent.status === 'completed' 
+                                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400' 
+                                                : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-400'
+                                        }`}>
+                                            {shareEvent.status === 'completed' ? 'Genomfört' : 'Kommande Live-tavla'}
+                                        </span>
+                                        <h3 className="text-lg font-black text-gray-950 dark:text-white leading-tight mt-1 truncate">
+                                            {shareEvent.raceName}
+                                        </h3>
+                                    </div>
+                                </div>
+                                
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 leading-relaxed">
+                                    Deltagare och publik kan scanna koden eller öppna länken på mobilen för att se startlistor, heat, realtidsklockor och slutresultat live!
+                                </p>
+
+                                {/* RESULTS QUICK-VIEW IF COMPLETED */}
+                                {shareEvent.status === 'completed' && shareEvent.results && shareEvent.results.length > 0 && (
+                                    <div className="mb-4 p-4 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-950/50 rounded-2xl">
+                                        <h4 className="flex items-center gap-1.5 font-black text-xs uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-2.5 select-none">
+                                            <TrophyIcon className="w-4 h-4 text-amber-500" />
+                                            Resultatpallen (Topp 3)
+                                        </h4>
+                                        <div className="space-y-1.5">
+                                            {[...shareEvent.results]
+                                                .sort((a, b) => a.time - b.time)
+                                                .slice(0, 3)
+                                                .map((res, idx) => {
+                                                    const groupForParticipant = shareEvent.startGroups?.find(g => g.id === res.groupId);
+                                                    const matchedParticipant = groupForParticipant?.participantList?.find(p => 
+                                                        p.name === res.participant || 
+                                                        (p.partnerName && `${p.name} & ${p.partnerName}` === res.participant)
+                                                    );
+                                                    const finalName = res.teamName || matchedParticipant?.teamName || res.participant;
+                                                    
+                                                    return (
+                                                        <div key={idx} className="flex justify-between items-center text-xs">
+                                                            <div className="flex items-center gap-2 truncate mr-2">
+                                                                <span className="font-extrabold text-amber-600 dark:text-amber-400 w-4">#{idx + 1}</span>
+                                                                <span className="font-bold text-gray-800 dark:text-slate-150 truncate">{finalName}</span>
+                                                            </div>
+                                                            <span className="font-mono font-bold text-gray-900 dark:text-white bg-white/80 dark:bg-black/35 px-1.5 py-0.5 rounded border border-gray-150 dark:border-gray-800">
+                                                                {Math.floor(res.time / 60)}:{String(res.time % 60).padStart(2, '0')}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
+                                        </div>
+                                        {shareEvent.results.length > 3 && (
+                                            <div className="text-center mt-2.5 pt-2 border-t border-amber-100/50 dark:border-amber-950/50">
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedEvent(shareEvent);
+                                                        setView('edit');
+                                                        setShareEvent(null);
+                                                    }}
+                                                    className="text-[10px] uppercase font-extrabold text-indigo-650 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition-colors"
+                                                >
+                                                    Visa alla {shareEvent.results.length} resultat &rarr;
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                
+                                {/* QR CODE BOX */}
+                                <div className="flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-850 rounded-2xl mb-4 shadow-inner">
+                                    <div className="bg-white p-3 rounded-xl shadow-md border border-gray-250 flex items-center justify-center">
+                                        <QRCode 
+                                            value={`${window.location.origin}/live/${shareEvent.id}`} 
+                                            size={140}
+                                            level="M"
+                                        />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 mt-3.5 uppercase tracking-widest bg-gray-100 dark:bg-gray-900 px-3 py-1 rounded-full">
+                                        Skanna live-tavla
+                                    </span>
+                                </div>
+                                
+                                {/* ACTIONS */}
+                                <div className="space-y-2">
+                                    <button
+                                        onClick={() => {
+                                            if (typeof window !== 'undefined') {
+                                                navigator.clipboard.writeText(`${window.location.origin}/live/${shareEvent.id}`);
+                                                setCopiedShare(true);
+                                                setTimeout(() => setCopiedShare(false), 2000);
+                                            }
+                                        }}
+                                        className="w-full bg-white dark:bg-gray-800 text-gray-800 dark:text-white font-bold py-2.5 px-4 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors flex items-center justify-center gap-2 text-sm shadow-sm"
+                                    >
+                                        {copiedShare ? (
+                                            <>
+                                                <CheckIcon className="w-5 h-5 text-emerald-500" />
+                                                <span>Kopierat!</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CopyIcon className="w-4 h-4 text-slate-500" />
+                                                <span>Kopiera länk</span>
+                                            </>
+                                        )}
+                                    </button>
+                                    
+                                    {typeof navigator !== 'undefined' && navigator.share ? (
+                                        <button
+                                            onClick={() => {
+                                                navigator.share({
+                                                    title: shareEvent.raceName,
+                                                    text: `Följ loppet ${shareEvent.raceName} live!`,
+                                                    url: `${window.location.origin}/live/${shareEvent.id}`
+                                                }).catch(err => console.log(err));
+                                            }}
+                                            className="w-full bg-primary text-white font-bold py-2.5 px-4 rounded-xl hover:brightness-110 transition-colors flex items-center justify-center gap-2 text-sm"
+                                        >
+                                            <PaperAirplaneIcon className="w-4 h-4" />
+                                            <span>Dela länk</span>
+                                        </button>
+                                    ) : (
+                                        <a
+                                            href={`/live/${shareEvent.id}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="w-full bg-indigo-650 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm text-center block"
+                                        >
+                                            <LinkIcon className="w-4 h-4" />
+                                            <span>Öppna live-vy</span>
+                                        </a>
+                                    )}
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
             </div>
         );
     }
