@@ -1,9 +1,268 @@
 import React, { useState, useEffect } from 'react';
 import { Organization, HyroxRace, StartGroup, RaceParticipant, HyroxRaceResult } from '../../types';
 import { getPastRaces, saveRace, deleteRace } from '../../services/firebaseService';
-import { PlusIcon, CalendarIcon, UsersIcon, TrashIcon, PencilIcon, SaveIcon, QrCodeIcon, LinkIcon, CopyIcon, CloseIcon, TrophyIcon, CheckIcon, PaperAirplaneIcon } from '../icons';
+import { PlusIcon, CalendarIcon, UsersIcon, TrashIcon, PencilIcon, SaveIcon, QrCodeIcon, LinkIcon, CopyIcon, CloseIcon, TrophyIcon, CheckIcon, PaperAirplaneIcon, SparklesIcon } from '../icons';
 import { motion, AnimatePresence } from 'framer-motion';
 import QRCode from 'react-qr-code';
+
+export const generateShareImage = (event: HyroxRace, origin: string) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1080;
+    canvas.height = 1080;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Background Gradient (Dark premium style)
+    const grad = ctx.createLinearGradient(0, 0, 1080, 1080);
+    grad.addColorStop(0, '#0a0d14'); // Very rich black-blue
+    grad.addColorStop(0.5, '#111625'); // Deep midnight navy
+    grad.addColorStop(1, '#1b1437'); // Slate purple
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 1080, 1080);
+
+    // Decorative neon highlights
+    const glow1 = ctx.createRadialGradient(1080, 0, 50, 1080, 0, 500);
+    glow1.addColorStop(0, 'rgba(99, 102, 241, 0.22)');
+    glow1.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = glow1;
+    ctx.beginPath();
+    ctx.arc(1080, 0, 500, 0, Math.PI * 2);
+    ctx.fill();
+
+    const glow2 = ctx.createRadialGradient(0, 1080, 50, 0, 1080, 600);
+    glow2.addColorStop(0, 'rgba(245, 158, 11, 0.12)');
+    glow2.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = glow2;
+    ctx.beginPath();
+    ctx.arc(0, 1080, 600, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Border
+    ctx.strokeStyle = 'rgba(99, 102, 241, 0.15)';
+    ctx.lineWidth = 14;
+    ctx.strokeRect(30, 30, 1020, 1020);
+
+    // Header Branding
+    ctx.fillStyle = '#f59e0b';
+    ctx.font = '900 24px system-ui, -apple-system, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('⚡ FLEXIBEL FRISKVÅRD & HÄLSA ⚡', 540, 95);
+
+    // Divider Line
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(350, 135);
+    ctx.lineTo(730, 135);
+    ctx.stroke();
+
+    // Badge status
+    const isCompleted = event.status === 'completed';
+    ctx.fillStyle = isCompleted ? '#34d399' : '#818cf8';
+    ctx.font = '900 20px system-ui, -apple-system, sans-serif';
+    ctx.fillText(isCompleted ? 'OFFICIELLA SLUTRESULTAT' : 'KOMMANDE UTMANING & TIMING', 540, 180);
+
+    // Event title
+    ctx.fillStyle = '#ffffff';
+    const eventName = (event.raceName || 'HYROX UTMANING').toUpperCase();
+    if (eventName.length > 25) {
+        ctx.font = '900 46px system-ui, -apple-system, sans-serif';
+        ctx.fillText(eventName, 540, 245);
+    } else {
+        ctx.font = '900 60px system-ui, -apple-system, sans-serif';
+        ctx.fillText(eventName, 540, 255);
+    }
+
+    // Date
+    let dateStr = 'TÄVLINGSDAG';
+    if (event.scheduledDate) {
+        dateStr = new Date(event.scheduledDate).toLocaleDateString('sv-SE', { year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase();
+    }
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.font = '800 22px system-ui, -apple-system, sans-serif';
+    ctx.fillText(dateStr, 540, 315);
+
+    // Find the QR source vector element
+    const svgElement = document.querySelector('.share-qr-parent svg') || document.querySelector('svg');
+    if (svgElement) {
+        const svgString = new XMLSerializer().serializeToString(svgElement);
+        const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+        const URLObj = window.URL || window.webkitURL || window;
+        const blobURL = URLObj.createObjectURL(svgBlob);
+        const img = new Image();
+        img.onload = () => {
+            if (isCompleted && event.results && event.results.length > 0) {
+                // Layout 1: COMPLETED RESULTS (Results left + QR scan right)
+                ctx.textAlign = 'left';
+                ctx.fillStyle = '#fbbf24';
+                ctx.font = '900 28px system-ui, -apple-system, sans-serif';
+                ctx.fillText('➔ RESULTAT TOPP 5', 100, 410);
+
+                const sorted = [...event.results].sort((a, b) => a.time - b.time).slice(0, 5);
+                let startY = 475;
+
+                sorted.forEach((res, index) => {
+                    const groupForParticipant = event.startGroups?.find(g => g.id === res.groupId);
+                    const matchedParticipant = groupForParticipant?.participantList?.find(p => 
+                        p.name === res.participant || 
+                        (p.partnerName && `${p.name} & ${p.partnerName}` === res.participant)
+                    );
+                    const finalName = res.teamName || matchedParticipant?.teamName || res.participant;
+
+                    // Row backdrop for accessibility
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+                    if (ctx.roundRect) {
+                        ctx.beginPath();
+                        ctx.roundRect(85, startY - 32, 590, 60, 10);
+                        ctx.fill();
+                    } else {
+                        ctx.fillRect(85, startY - 32, 590, 60);
+                    }
+
+                    // Rank color
+                    ctx.fillStyle = index === 0 ? '#fbbf24' : index === 1 ? '#cbd5e1' : index === 2 ? '#b45309' : '#475569';
+                    ctx.beginPath();
+                    ctx.arc(120, startY - 2, 20, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    // Rank number text
+                    ctx.fillStyle = index <= 2 ? '#000000' : '#ffffff';
+                    ctx.font = '900 18px system-ui, -apple-system, sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`${index + 1}`, 120, startY);
+
+                    // Participant full name
+                    ctx.textAlign = 'left';
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = 'bold 24px system-ui, -apple-system, sans-serif';
+                    let displayName = finalName;
+                    if (displayName.length > 25) {
+                        displayName = displayName.substring(0, 23) + '...';
+                    }
+                    ctx.fillText(displayName, 160, startY);
+
+                    // End time
+                    ctx.textAlign = 'right';
+                    ctx.fillStyle = '#34d399';
+                    ctx.font = '900 24px Courier New, monospace';
+                    const formattedTime = `${Math.floor(res.time / 60)}:${String(res.time % 60).padStart(2, '0')}`;
+                    ctx.fillText(formattedTime, 655, startY);
+
+                    startY += 78;
+                });
+
+                // QR Code Panel on right side
+                ctx.fillStyle = '#111827';
+                ctx.strokeStyle = 'rgba(245, 158, 11, 0.2)';
+                ctx.lineWidth = 2;
+                if (ctx.roundRect) {
+                    ctx.beginPath();
+                    ctx.roundRect(722, 420, 260, 390, 24);
+                    ctx.fill();
+                    ctx.stroke();
+                } else {
+                    ctx.fillRect(722, 420, 260, 390);
+                }
+
+                // QR clean white background box
+                ctx.fillStyle = '#ffffff';
+                if (ctx.roundRect) {
+                    ctx.beginPath();
+                    ctx.roundRect(752, 452, 200, 200, 16);
+                    ctx.fill();
+                } else {
+                    ctx.fillRect(752, 452, 200, 200);
+                }
+
+                // QR draw
+                ctx.drawImage(img, 762, 462, 180, 180);
+
+                // Scanning prompt
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = '800 15px system-ui, -apple-system, sans-serif';
+                ctx.fillText('SCANNA FÖR ATT SE ALLA', 852, 695);
+                ctx.fillStyle = '#fbbf24';
+                ctx.font = 'extrabold 18px system-ui, -apple-system, sans-serif';
+                ctx.fillText('RESULTAT & TIDER', 852, 725);
+                ctx.fillStyle = '#6366f1';
+                ctx.font = 'bold 15px system-ui, -apple-system, sans-serif';
+                ctx.fillText('KOPPLA DIN PROFIL & SE', 852, 755);
+                ctx.fillText('DINA UTMANINGAR', 852, 778);
+
+            } else {
+                // Layout 2: FUTURE SCANNER (Big clean QR Card in center)
+                ctx.fillStyle = '#111827';
+                ctx.strokeStyle = 'rgba(99, 102, 241, 0.4)';
+                ctx.lineWidth = 4;
+                if (ctx.roundRect) {
+                    ctx.beginPath();
+                    ctx.roundRect(330, 370, 420, 540, 32);
+                    ctx.fill();
+                    ctx.stroke();
+                } else {
+                    ctx.fillRect(330, 370, 420, 540);
+                }
+
+                // White background
+                ctx.fillStyle = '#ffffff';
+                if (ctx.roundRect) {
+                    ctx.beginPath();
+                    ctx.roundRect(380, 420, 320, 320, 24);
+                    ctx.fill();
+                } else {
+                    ctx.fillRect(380, 420, 320, 320);
+                }
+
+                // Draw QR Image
+                ctx.drawImage(img, 400, 440, 280, 280);
+
+                // Scanning texts
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#94a3b8';
+                ctx.font = 'bold 22px system-ui, -apple-system, sans-serif';
+                ctx.fillText('SCANNA MED MOBILEN FÖR LÄNK', 540, 785);
+
+                const gradSub = ctx.createLinearGradient(300, 0, 780, 0);
+                gradSub.addColorStop(0, '#f59e0b');
+                gradSub.addColorStop(1, '#ffedd5');
+                ctx.fillStyle = gradSub;
+                ctx.font = '900 32px system-ui, -apple-system, sans-serif';
+                ctx.fillText('★ FÖLJ LOPPET LIVE ★', 540, 835);
+                
+                ctx.fillStyle = '#818cf8';
+                ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
+                ctx.fillText('SE HEATS, TIDER och MELLANTIDER I REALTID', 540, 875);
+            }
+
+            // High aesthetic branding footer
+            ctx.textAlign = 'center';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.font = 'bold 18px system-ui, -apple-system, sans-serif';
+            ctx.letterSpacing = '1px';
+            ctx.fillText('ARRANGERAS & TIDSTAGS AV', 540, 970);
+            
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'extrabold 28px system-ui, -apple-system, sans-serif';
+            ctx.letterSpacing = '3px';
+            ctx.fillText('FLEXIBEL FRISKVÅRD & HÄLSA', 540, 1010);
+
+            // Export Canvas as high-quality PNG
+            const dataUrl = canvas.toDataURL('image/png');
+            const link = document.createElement('a');
+            link.download = `${event.raceName.toLowerCase().replace(/\s+/g, '-')}-resultat.png`;
+            link.href = dataUrl;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URLObj.revokeObjectURL(blobURL);
+        };
+        img.src = blobURL;
+    } else {
+        alert('Det uppstod ett mindre problem att hämta QR-koden. Klicka ur eller ladda om sidan och försök igen.');
+    }
+};
 
 interface EventsContentProps {
     organization: Organization;
@@ -832,14 +1091,14 @@ const EventEditor: React.FC<{
                         Dela Liveresultat & QR-kod
                     </h3>
                     <div className="bg-gradient-to-br from-indigo-50/50 via-white to-amber-55/30 dark:from-slate-900/40 dark:via-slate-900/60 dark:to-indigo-950/20 border border-indigo-100 dark:border-slate-850 p-6 rounded-2xl flex flex-col md:flex-row items-center gap-6">
-                        <div className="bg-white p-3 rounded-2xl border border-gray-200 dark:border-gray-750 flex-shrink-0 shadow-lg dark:shadow-none">
+                        <div className="bg-white p-3 rounded-2xl border border-gray-200 dark:border-gray-750 flex-shrink-0 shadow-lg dark:shadow-none share-qr-parent">
                             <QRCode 
                                 value={`${window.location.origin}/live/${event.id}`} 
                                 size={120}
                                 level="M"
                             />
                         </div>
-                        <div className="flex-1 space-y-4 text-center md:text-left">
+                        <div className="flex-1 space-y-4 text-center md:text-left animate-fade-in">
                             <div>
                                 <h4 className="font-extrabold text-sm text-gray-900 dark:text-white mb-1">
                                     Scanna eller gå till Live-länken
@@ -849,45 +1108,56 @@ const EventEditor: React.FC<{
                                 </p>
                             </div>
                             
-                            <div className="flex flex-col sm:flex-row gap-2.5 max-w-md">
-                                <button
-                                    type="button"
-                                    onClick={() => handleCopyLink(`${window.location.origin}/live/${event.id}`)}
-                                    className="flex-1 bg-white dark:bg-gray-800 text-gray-800 dark:text-white font-bold px-4 py-2.5 rounded-xl border border-gray-250 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors flex items-center justify-center gap-2 text-sm shadow-sm"
-                                >
-                                    {copied ? (
-                                        <>
-                                            <CheckIcon className="w-4 h-4 text-emerald-500" />
-                                            <span>Kopierad!</span>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <CopyIcon className="w-4 h-4 text-slate-500" />
-                                            <span>Kopiera länk</span>
-                                        </>
-                                    )}
-                                </button>
-                                
-                                {typeof navigator !== 'undefined' && navigator.share ? (
+                            <div className="flex flex-col gap-2.5 max-w-md">
+                                <div className="flex flex-col sm:flex-row gap-2.5">
                                     <button
                                         type="button"
-                                        onClick={() => handleShare(`${window.location.origin}/live/${event.id}`, raceName || 'Hyrox Race')}
-                                        className="flex-1 bg-primary text-white font-bold px-4 py-2.5 rounded-xl hover:brightness-110 transition-colors flex items-center justify-center gap-2 text-sm shadow-sm shadow-primary/20"
+                                        onClick={() => handleCopyLink(`${window.location.origin}/live/${event.id}`)}
+                                        className="flex-1 bg-white dark:bg-gray-800 text-gray-800 dark:text-white font-bold px-4 py-2.5 rounded-xl border border-gray-250 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors flex items-center justify-center gap-2 text-sm shadow-sm"
                                     >
-                                        <PaperAirplaneIcon className="w-4 h-4" />
-                                        <span>Dela länk</span>
+                                        {copied ? (
+                                            <>
+                                                <CheckIcon className="w-4 h-4 text-emerald-500" />
+                                                <span>Kopierad!</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CopyIcon className="w-4 h-4 text-slate-500" />
+                                                <span>Kopiera länk</span>
+                                            </>
+                                        )}
                                     </button>
-                                ) : (
-                                    <a
-                                        href={`/live/${event.id}`}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        className="flex-1 bg-indigo-650 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm shadow-sm shadow-indigo-500/20 text-center"
-                                    >
-                                        <LinkIcon className="w-4 h-4" />
-                                        <span>Öppna live-vy</span>
-                                    </a>
-                                )}
+                                    
+                                    {typeof navigator !== 'undefined' && navigator.share ? (
+                                        <button
+                                            type="button"
+                                            onClick={() => handleShare(`${window.location.origin}/live/${event.id}`, raceName || 'Hyrox Race')}
+                                            className="flex-1 bg-primary text-white font-bold px-4 py-2.5 rounded-xl hover:brightness-110 transition-colors flex items-center justify-center gap-2 text-sm shadow-sm shadow-primary/20"
+                                        >
+                                            <PaperAirplaneIcon className="w-4 h-4" />
+                                            <span>Dela länk</span>
+                                        </button>
+                                    ) : (
+                                        <a
+                                            href={`/live/${event.id}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="flex-1 bg-indigo-650 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm shadow-sm shadow-indigo-500/20 text-center"
+                                        >
+                                            <LinkIcon className="w-4 h-4" />
+                                            <span>Öppna live-vy</span>
+                                        </a>
+                                    )}
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={() => generateShareImage(event, window.location.origin)}
+                                    className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 hover:brightness-110 text-black font-black uppercase tracking-wider py-3 px-4 rounded-xl transition-all shadow-md shadow-amber-500/10 active:scale-[0.99] flex items-center justify-center gap-2 text-xs"
+                                >
+                                    <SparklesIcon className="w-4 h-4 text-black animate-pulse" />
+                                    <span>Ladda ner delningsbild (Sociala Medier)</span>
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1256,7 +1526,7 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                 )}
                                 
                                 {/* QR CODE BOX */}
-                                <div className="flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-850 rounded-2xl mb-4 shadow-inner">
+                                <div className="flex flex-col items-center justify-center p-4 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-850 rounded-2xl mb-4 shadow-inner share-qr-parent">
                                     <div className="bg-white p-3 rounded-xl shadow-md border border-gray-250 flex items-center justify-center">
                                         <QRCode 
                                             value={`${window.location.origin}/live/${shareEvent.id}`} 
@@ -1271,6 +1541,14 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                 
                                 {/* ACTIONS */}
                                 <div className="space-y-2">
+                                    <button
+                                        onClick={() => generateShareImage(shareEvent, window.location.origin)}
+                                        className="w-full bg-gradient-to-r from-amber-500 via-orange-500 to-yellow-500 hover:brightness-110 text-black font-black uppercase tracking-wider py-2.5 px-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 text-xs"
+                                    >
+                                        <SparklesIcon className="w-4 h-4 text-black animate-pulse" />
+                                        <span>Ladda ner delningsbild</span>
+                                    </button>
+
                                     <button
                                         onClick={() => {
                                             if (typeof window !== 'undefined') {
