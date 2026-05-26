@@ -843,8 +843,9 @@ const EventEditor: React.FC<{
                                             </select>
                                         </div>
                                         <p className="text-xs text-gray-500">
-                                            Klistra in rader. Vi letar automatiskt upp namn och e-post (om det finns en @). <br />
-                                            Format standard: <code className="bg-gray-100 dark:bg-gray-900 p-0.5 rounded text-red-500">Namn - E-post</code>
+                                            Klistra in rader. Vi letar automatiskt upp namn och e-post. En rad blir en startande (Singel eller Par-lag). <br />
+                                            <span className="font-bold">Singel:</span> <code className="bg-gray-100 dark:bg-gray-900 p-0.5 rounded text-red-500">Karin Larsson - karin@exempel.se</code> <br />
+                                            <span className="font-bold">Par (Dubbel):</span> <code className="bg-gray-100 dark:bg-gray-900 p-0.5 rounded text-indigo-500">Karin Larsson - karin@exempel.se - Johan Larsson - johan@exempel.se</code>
                                         </p>
                                         <textarea 
                                             value={participantsText}
