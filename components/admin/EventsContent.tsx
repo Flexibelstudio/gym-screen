@@ -482,17 +482,40 @@ const EventEditor: React.FC<{
         const lines = participantsText.split('\n').map(l => l.trim()).filter(Boolean);
         
         const newParticipants: RaceParticipant[] = lines.map((line, index) => {
-            const parts = line.split(/[-;,]/).map(p => p.trim());
+            let teamName: string | undefined = undefined;
+            let restOfLine = line;
+
+            // 1. Kolla först om det finns lagnamn via ett kolon, t.ex. "Lagnamn: Karin - Johan"
+            const colonIndex = line.indexOf(':');
+            if (colonIndex !== -1) {
+                teamName = line.substring(0, colonIndex).trim();
+                restOfLine = line.substring(colonIndex + 1).trim();
+            }
+
+            const parts = restOfLine.split(/[-;,]/).map(p => p.trim());
             const emails = parts.filter(p => p.includes('@'));
             const nonEmails = parts.filter(p => !p.includes('@') && p !== '');
 
-            const name = nonEmails[0] || 'Deltagare';
+            let name = 'Deltagare';
+            let partnerName: string | undefined = undefined;
+
+            if (nonEmails.length >= 3 && !teamName) {
+                // Om inget lagnamn fanns via kolon, men det finns minst 3 icke-email delar (t.ex. "Team Blixten - Karin - Johan")
+                teamName = nonEmails[0];
+                name = nonEmails[1];
+                partnerName = nonEmails[2];
+            } else if (nonEmails.length >= 2) {
+                name = nonEmails[0];
+                partnerName = nonEmails[1];
+            } else {
+                name = nonEmails[0] || 'Deltagare';
+            }
+
             const email = emails[0] || undefined;
-            const partnerName = nonEmails[1] || undefined;
             const partnerEmail = emails[1] || undefined;
             
             let division = importDivision;
-            if (partnerName && division.startsWith('Singel')) {
+            if ((partnerName || teamName) && division.startsWith('Singel')) {
                 division = 'Dubbel Mix';
             }
 
@@ -502,6 +525,7 @@ const EventEditor: React.FC<{
                 email,
                 partnerName,
                 partnerEmail,
+                teamName,
                 division,
                 startNumber: participants.length + index + 1
             };
@@ -842,14 +866,16 @@ const EventEditor: React.FC<{
                                             </select>
                                         </div>
                                         <p className="text-xs text-gray-500">
-                                            Klistra in rader. Vi letar automatiskt upp namn och e-post. En rad blir en startande (Singel eller Par-lag). <br />
+                                            Klistra in rader. Vi letar automatiskt upp namn, lagnamn och e-post. En rad blir en startande (Singel, Par-lag eller Lag med Lagnamn). <br />
+                                            <span className="font-bold font-mono text-[10px] block mt-1 text-emerald-600 dark:text-emerald-400">Exempel med lagnamn: Team Blixten: Karin - karin@exempel.se - Johan - johan@exempel.se</span>
+                                            <span className="font-bold font-mono text-[10px] block text-emerald-600 dark:text-emerald-400">Exempel med lagnamn: Team Blixten - Karin - karin@exempel.se - Johan - johan@exempel.se</span>
                                             <span className="font-bold">Singel:</span> <code className="bg-gray-100 dark:bg-gray-900 p-0.5 rounded text-red-500">Karin Larsson - karin@exempel.se</code> <br />
                                             <span className="font-bold">Par (Dubbel):</span> <code className="bg-gray-100 dark:bg-gray-900 p-0.5 rounded text-indigo-500">Karin Larsson - karin@exempel.se - Johan Larsson - johan@exempel.se</code>
                                         </p>
                                         <textarea 
                                             value={participantsText}
                                             onChange={(e) => setParticipantsText(e.target.value)}
-                                            placeholder="Anna Andersson - anna@exempel.se&#10;Johan Karlsson - johan@exempel.se - Erik Svensson - erik@exempel.se"
+                                            placeholder="Anna Andersson - anna@exempel.se&#10;Team Blixten: Karin Larsson - karin@exempel.se - Johan Larsson - johan@exempel.se&#10;Team Norrland - Karin Larsson - karin@exempel.se - Johan Larsson - johan@exempel.se"
                                             className="w-full h-32 text-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none resize-none"
                                         />
                                         <button 
