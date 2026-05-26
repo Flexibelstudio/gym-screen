@@ -42,10 +42,23 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
         return () => unsubscribe();
     }, [raceId]);
 
-    const sortedResults = useMemo(() => {
+    const [selectedDivision, setSelectedDivision] = useState<string>('all');
+
+    const activeDivisions = useMemo(() => {
         if (!race) return [];
-        return [...race.results].sort((a, b) => a.time - b.time);
+        const divs = new Set<string>();
+        race.results.forEach(r => {
+            if (r.division) divs.add(r.division);
+        });
+        return Array.from(divs).sort();
     }, [race]);
+
+    const filteredResults = useMemo(() => {
+        if (!race) return [];
+        const list = [...race.results].sort((a, b) => a.time - b.time);
+        if (selectedDivision === 'all') return list;
+        return list.filter(r => r.division === selectedDivision);
+    }, [race, selectedDivision]);
     
     if (isLoading) {
         return <div className="text-center text-gray-900 dark:text-white">Laddar resultat...</div>;
@@ -74,8 +87,37 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                 {/* RESULTS TABLE */}
                 <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-[2rem] p-6 sm:p-8 shadow-xl border border-gray-200 dark:border-gray-700">
-                    <h2 className="text-2xl font-black tracking-tight text-gray-950 dark:text-gray-50 mb-4 uppercase">Placeringar</h2>
-                    {sortedResults.length > 0 ? (
+                    <h2 className="text-2xl font-black tracking-tight text-gray-950 dark:text-gray-50 mb-3 uppercase">Placeringar</h2>
+                    
+                    {activeDivisions.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-5">
+                            <button
+                                onClick={() => setSelectedDivision('all')}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all uppercase tracking-wider ${
+                                    selectedDivision === 'all'
+                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 font-black'
+                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-250 dark:hover:bg-gray-600/80'
+                                }`}
+                            >
+                                Alla klasser
+                            </button>
+                            {activeDivisions.map(div => (
+                                <button
+                                    key={div}
+                                    onClick={() => setSelectedDivision(div)}
+                                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all uppercase tracking-wider ${
+                                        selectedDivision === div
+                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 font-black'
+                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-650 dark:text-gray-300 hover:bg-gray-250 dark:hover:bg-gray-600/80'
+                                    }`}
+                                >
+                                    {div}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {filteredResults.length > 0 ? (
                         <>
                             <div className="overflow-x-auto rounded-xl border border-gray-150 dark:border-gray-700">
                                 <table className="w-full text-left border-collapse">
@@ -88,7 +130,7 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {sortedResults.map((result, index) => {
+                                        {filteredResults.map((result, index) => {
                                             const group = race.startGroups.find(g => g.id === result.groupId);
                                             const matchedParticipant = group?.participantList?.find(p => 
                                                 p.name === result.participant || 
@@ -126,13 +168,38 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
                                                         {finalTeamName ? (
                                                             <div className="flex flex-col">
                                                                 <span className={`text-sm font-black ${index <= 2 ? 'text-black' : 'text-indigo-650 dark:text-indigo-400'}`}>{finalTeamName}</span>
-                                                                <span className={`text-xs font-semibold ${index <= 2 ? 'text-black/75' : 'text-gray-500 dark:text-gray-450'}`}>{result.participant}</span>
+                                                                <span className={`text-xs font-semibold ${index <= 2 ? 'text-black/75' : 'text-gray-500 dark:text-gray-450'}`}>
+                                                                    {result.participant.includes(' & ') ? (
+                                                                        <span>
+                                                                            {result.participant.split(' & ')[0]} <span className="font-semibold text-gray-450 opacity-90">&</span> {result.participant.split(' & ')[1]}
+                                                                        </span>
+                                                                    ) : (
+                                                                        result.participant
+                                                                    )}
+                                                                </span>
                                                             </div>
                                                         ) : (
-                                                            <span>{result.participant}</span>
+                                                            <span>
+                                                                {result.participant.includes(' & ') ? (
+                                                                    <span>
+                                                                        {result.participant.split(' & ')[0]} <span className={`font-semibold opacity-90 ${index <= 2 ? 'text-black' : 'text-gray-400'}`}>&</span> {result.participant.split(' & ')[1]}
+                                                                    </span>
+                                                                ) : (
+                                                                    result.participant
+                                                                )}
+                                                            </span>
                                                         )}
                                                     </td>
-                                                    <td className={`p-4 text-sm ${index > 2 ? 'text-gray-650 dark:text-gray-300 font-medium' : `${textClass}`}`}>{group?.name || 'Okänd'}</td>
+                                                    <td className={`p-4 text-sm ${index > 2 ? 'text-gray-650 dark:text-gray-300 font-medium' : `${textClass}`}`}>
+                                                        <div className="flex flex-col">
+                                                            <span>{group?.name || 'Okänd'}</span>
+                                                            {selectedDivision === 'all' && result.division && (
+                                                                <span className={`text-[10px] font-bold uppercase tracking-wider ${index <= 2 ? 'text-black/60' : 'text-indigo-500 dark:text-indigo-400'}`}>
+                                                                    {result.division}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
                                                     <td className={`p-4 text-right font-mono text-sm ${textClass}`}>{formatResultTime(result.time)}</td>
                                                 </tr>
                                             );
@@ -141,7 +208,7 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
                                 </table>
                             </div>
                             <div className="text-center font-bold text-gray-400 dark:text-gray-500 mt-4 text-xs uppercase tracking-widest">
-                                Totalt {sortedResults.length} deltagare slutförde loppet
+                                Totalt {race.results.length} deltagare slutförde loppet
                             </div>
                         </>
                     ) : (

@@ -217,37 +217,108 @@ export const RaceBackToPrepConfirmationModal: React.FC<{
     </div>
 );
 
-export const RaceFinishAnimation: React.FC<{ winnerName: string | null; onDismiss: () => void }> = ({ winnerName, onDismiss }) => (
-    <div className="fixed inset-0 bg-white/90 dark:bg-black/80 backdrop-blur-xl flex items-center justify-center z-[100] animate-fade-in" onClick={onDismiss}>
-        <Confetti />
-        <div className="text-center p-8 max-w-2xl" onClick={e => e.stopPropagation()}>
-            <motion.h1 
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="text-8xl md:text-[10rem] font-black text-yellow-500 dark:text-yellow-400 drop-shadow-2xl mb-4 animate-bounce tracking-tighter"
-            >
-                MÅL!
-            </motion.h1>
-            <p className="text-2xl md:text-4xl font-black text-gray-900 dark:text-white mb-12 uppercase tracking-tight">Alla deltagare är hemma!</p>
-            
-            {winnerName && (
-                <motion.div 
-                    initial={{ y: 50, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                    className="bg-white dark:bg-white/10 backdrop-blur-md rounded-[3rem] p-10 border-4 border-yellow-400 shadow-[0_30px_60px_-15px_rgba(234,179,8,0.3)] dark:shadow-2xl transform transition-transform duration-300 mb-12"
+export const RaceFinishAnimation: React.FC<{ winnerName: string | null; onDismiss: () => void }> = ({ winnerName, onDismiss }) => {
+    // Helper to format time inside the modal
+    const formatTime = (timeInSeconds: number) => {
+        const mins = Math.floor(timeInSeconds / 60);
+        const secs = timeInSeconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    let fallbackWinner: string | null = winnerName;
+    let divisionWinners: { division: string; top3: { rank: number; name: string; time: number }[] }[] | null = null;
+
+    if (winnerName && (winnerName.trim().startsWith('{') || winnerName.trim().startsWith('['))) {
+        try {
+            const parsed = JSON.parse(winnerName);
+            if (parsed.divisions && Array.isArray(parsed.divisions)) {
+                fallbackWinner = parsed.fallback || null;
+                divisionWinners = parsed.divisions;
+            }
+        } catch (e) {
+            console.error("Failed to parse winner JSON:", e);
+        }
+    }
+
+    return (
+        <div className="fixed inset-0 bg-slate-950/95 backdrop-blur-xl flex items-center justify-center z-[110] animate-fade-in overflow-y-auto py-8 px-4" onClick={onDismiss}>
+            <Confetti />
+            <div className="text-center w-full max-w-5xl mx-auto my-auto" onClick={e => e.stopPropagation()}>
+                <motion.h1 
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="text-6xl md:text-8xl font-black text-yellow-400 drop-shadow-[0_10px_20px_rgba(234,179,8,0.3)] mb-2 tracking-tighter"
                 >
-                    <p className="text-xs font-black uppercase tracking-[0.4em] text-yellow-600 dark:text-yellow-300 mb-4">Dagens Vinnare</p>
-                    <p className="text-5xl md:text-7xl font-black text-gray-900 dark:text-white leading-none tracking-tighter">{winnerName}</p>
-                </motion.div>
-            )}
-            
-            <button 
-                onClick={onDismiss} 
-                className="bg-gray-900 dark:bg-white text-white dark:text-black font-black py-5 px-12 rounded-full text-xl shadow-2xl hover:scale-105 transition-transform uppercase tracking-widest active:scale-95"
-            >
-                Visa Resultattavla
-            </button>
+                    MÅL!
+                </motion.h1>
+                <p className="text-lg md:text-2xl font-black text-gray-300 mb-8 uppercase tracking-widest">Alla deltagare är hemma!</p>
+                
+                {divisionWinners && divisionWinners.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10 text-left">
+                        {divisionWinners.map((div, i) => (
+                            <motion.div 
+                                key={div.division}
+                                initial={{ y: 30, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.1 * i }}
+                                className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden flex flex-col justify-between backdrop-blur-sm"
+                            >
+                                <div className="absolute top-0 right-0 bg-gradient-to-l from-indigo-500/10 to-transparent w-24 h-24 rounded-full blur-2xl" />
+                                <div>
+                                    <h3 className="text-xs font-black uppercase tracking-widest text-[#CD7F32] bg-orange-500/5 px-3 py-1.5 rounded-full w-fit mb-4 border border-orange-500/15">
+                                        {div.division}
+                                    </h3>
+                                    
+                                    <div className="space-y-3.5">
+                                        {div.top3.map((winner) => (
+                                            <div 
+                                                key={winner.rank} 
+                                                className={`flex items-center justify-between p-3 rounded-2xl ${
+                                                    winner.rank === 1 
+                                                        ? 'bg-amber-500/10 border border-amber-500/20 text-amber-300' 
+                                                        : winner.rank === 2 
+                                                            ? 'bg-slate-300/10 border border-slate-300/15 text-slate-300' 
+                                                            : 'bg-[#CD7F32]/10 border border-[#CD7F32]/15 text-[#CD7F32]'
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-2.5 min-w-0">
+                                                    <span className="text-lg font-black shrink-0">
+                                                        {winner.rank === 1 ? '🥇' : winner.rank === 2 ? '🥈' : '🥉'}
+                                                    </span>
+                                                    <div className="min-w-0">
+                                                        <p className="font-extrabold text-sm truncate text-white">{winner.name}</p>
+                                                        <p className="text-[10px] opacity-75 uppercase tracking-wide">Plats {winner.rank}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="font-mono text-xs font-black shrink-0 ml-2 text-white">
+                                                    {formatTime(winner.time)}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                ) : fallbackWinner ? (
+                    <motion.div 
+                        initial={{ y: 50, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ delay: 0.5 }}
+                        className="bg-slate-900 border border-slate-800 rounded-[3rem] p-10 shadow-2xl max-w-xl mx-auto mb-10"
+                    >
+                        <p className="text-xs font-black uppercase tracking-[0.4em] text-yellow-500 mb-4">Dagens Vinnare</p>
+                        <p className="text-4xl md:text-6xl font-black text-white leading-none tracking-tighter">{fallbackWinner}</p>
+                    </motion.div>
+                ) : null}
+                
+                <button 
+                    onClick={onDismiss} 
+                    className="bg-yellow-400 hover:bg-yellow-300 text-black font-black py-4.5 px-12 rounded-full text-lg shadow-xl hover:scale-105 transition-all uppercase tracking-widest active:scale-95"
+                >
+                    Visa Resultattavla
+                </button>
+            </div>
         </div>
-    </div>
-);
+    );
+};

@@ -88,8 +88,7 @@ export const generateShareImage = (event: HyroxRace, origin: string) => {
     if (svgElement) {
         const svgString = new XMLSerializer().serializeToString(svgElement);
         const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
-        const URLObj = window.URL || window.webkitURL || window;
-        const blobURL = URLObj.createObjectURL(svgBlob);
+        const blobURL = window.URL.createObjectURL(svgBlob);
         const img = new Image();
         img.onload = () => {
             if (isCompleted && event.results && event.results.length > 0) {
@@ -256,7 +255,7 @@ export const generateShareImage = (event: HyroxRace, origin: string) => {
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
-            URLObj.revokeObjectURL(blobURL);
+            window.URL.revokeObjectURL(blobURL);
         };
         img.src = blobURL;
     } else {
@@ -900,7 +899,7 @@ const EventEditor: React.FC<{
                                                             <span className="text-xs font-normal text-gray-500 dark:text-gray-400">{p.name} & {p.partnerName}</span>
                                                         </>
                                                     ) : (
-                                                        <>{p.name} {p.partnerName && <span className="text-gray-500 font-normal">& {p.partnerName}</span>}</>
+                                                        <>{p.name} {p.partnerName && <> & {p.partnerName}</>}</>
                                                     )}
                                                 </p>
                                                 <div className="flex flex-wrap gap-2 mt-1 items-center">

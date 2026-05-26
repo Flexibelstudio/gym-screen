@@ -66,7 +66,7 @@ export const ParticipantFinishList: React.FC<ParticipantFinishListProps> = ({ pa
                                   <span className="text-gray-500 font-normal text-xs">{p.name} {p.partnerName && <>& {p.partnerName}</>}</span>
                                 </span>
                               ) : (
-                                <span>{p.name} {p.partnerName && <span className="text-gray-500 font-normal text-sm">& {p.partnerName}</span>}</span>
+                                <span>{p.name} {p.partnerName && <> & {p.partnerName}</>}</span>
                               )}
                             </span>
                             {isFinished ? (

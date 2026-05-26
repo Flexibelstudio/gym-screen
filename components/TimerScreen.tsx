@@ -1433,7 +1433,45 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               }
           }
       }
-      setWinnerName(winnerDisplayName);
+
+      // Calculate top 3 per division
+      const divisionWinners: { division: string; top3: { rank: number; name: string; time: number }[] }[] = [];
+      sortedFinishers.forEach(([participantId, data]) => {
+          const participant = startedParticipants.find(p => p.id === participantId);
+          const division = participant?.division || 'Standard';
+          
+          let displayName = participantId;
+          if (participant) {
+              if (participant.teamName) {
+                  displayName = participant.teamName;
+              } else if (participant.partnerName) {
+                  displayName = `${participant.name} & ${participant.partnerName}`;
+              } else {
+                  displayName = participant.name;
+              }
+          }
+          
+          let divObj = divisionWinners.find(d => d.division === division);
+          if (!divObj) {
+              divObj = { division, top3: [] };
+              divisionWinners.push(divObj);
+          }
+          
+          if (divObj.top3.length < 3) {
+              divObj.top3.push({
+                  rank: divObj.top3.length + 1,
+                  name: displayName,
+                  time: (data as FinishData).time
+              });
+          }
+      });
+
+      const serializedWinnersObj = JSON.stringify({
+          fallback: winnerDisplayName || '',
+          divisions: divisionWinners
+      });
+      
+      setWinnerName(serializedWinnersObj);
       
       const raceResults = sortedFinishers.map(([participantId, data]) => {
           const group = startGroups.find(g => {
@@ -1491,16 +1529,14 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           const savedRace = await saveRace(raceData, organization.id);
           if (savedRace && savedRace.id) {
               setFinalRaceId(savedRace.id);
-              if (winnerDisplayName) {
-                  setWinnerName(winnerDisplayName);
-              }
+              setWinnerName(serializedWinnersObj);
               setShowFinishAnimation(true);
               
               // Publish the completed state to firebase studio remote state so TV/viewer screens update
               publishRaceState({
                   status: 'completed',
                   finalRaceId: savedRace.id,
-                  winnerName: winnerDisplayName || ''
+                  winnerName: serializedWinnersObj
               });
 
               if (winnerDisplayName) speak(`Och vinnaren är ${winnerDisplayName}! Bra jobbat alla!`);
@@ -1813,7 +1849,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                                         <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{p.name} {p.partnerName && <>& {p.partnerName}</>}</span>
                                                     </>
                                                 ) : (
-                                                    <span>{p.name} {p.partnerName && <span className="font-normal text-slate-400">& {p.partnerName}</span>}</span>
+                                                    <span>{p.name} {p.partnerName && <> & {p.partnerName}</>}</span>
                                                 )}
                                             </span>
                                         </div>
@@ -1854,7 +1890,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                                         <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{res.name} {res.partnerName && <>& {res.partnerName}</>}</span>
                                                     </>
                                                 ) : (
-                                                    <span>{res.name} {res.partnerName && <span className="font-normal text-slate-400">& {res.partnerName}</span>}</span>
+                                                    <span>{res.name} {res.partnerName && <> & {res.partnerName}</>}</span>
                                                 )}
                                             </span>
                                         </div>
@@ -2317,7 +2353,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                                                                     <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate">{res.p.name} {res.p.partnerName && <>& {res.p.partnerName}</>}</span>
                                                                                 </>
                                                                             ) : (
-                                                                                <span className="truncate">{res.p.name} {res.p.partnerName && <span className="text-slate-400 font-normal">& {res.p.partnerName}</span>}</span>
+                                                                                <span className="truncate">{res.p.name} {res.p.partnerName && <> & {res.p.partnerName}</>}</span>
                                                                             )}
                                                                         </span>
                                                                     </div>
@@ -2370,7 +2406,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                                     <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate">{f.name} {f.partnerName && <>& {f.partnerName}</>}</span>
                                                 </>
                                             ) : (
-                                                <span className="truncate">{f.name} {f.partnerName && <span className="text-slate-400 font-normal">& {f.partnerName}</span>}</span>
+                                                <span className="truncate">{f.name} {f.partnerName && <> & {f.partnerName}</>}</span>
                                             )}
                                         </span>
                                         <span className="font-mono font-black text-xs text-green-500">
