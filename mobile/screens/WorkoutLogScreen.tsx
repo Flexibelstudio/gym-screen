@@ -978,7 +978,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       return exerciseResults.reduce((acc, ex) => acc + ex.setDetails.filter(s => !s.completed).length, 0);
   }, [isManualMode, exerciseResults]);
 
-  const [expandedBlocks, setExpandedBlocks] = useState<Record<string, boolean>>({});
+  const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
 
   const blockGroups = useMemo(() => {
       const groups: BlockGroup[] = [];
@@ -1950,7 +1950,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                         })
                     ) : (
                         blockGroups.map((group) => {
-                            const isExpanded = !!expandedBlocks[group.blockId];
+                            const isExpanded = expandedBlockId === group.blockId;
                             const { totalSets, completedSets } = getBlockCompletionInfo(group);
                             const isAllDone = totalSets > 0 && completedSets === totalSets;
                             const isStarted = totalSets > 0 && completedSets > 0 && completedSets < totalSets;
@@ -1981,10 +1981,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                     <button
                                         type="button"
                                         onClick={() => {
-                                            setExpandedBlocks(prev => ({
-                                                ...prev,
-                                                [group.blockId]: !prev[group.blockId]
-                                            }));
+                                            setExpandedBlockId(prev => prev === group.blockId ? null : group.blockId);
                                         }}
                                         className={`w-full text-left p-4 rounded-2xl border transition-all flex items-center justify-between select-none ${headerBgClass}`}
                                     >

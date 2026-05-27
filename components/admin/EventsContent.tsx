@@ -473,6 +473,32 @@ const EventEditor: React.FC<{
         }
 
         const isDouble = editingParticipant.division?.includes('Dubbel') || editingParticipant.division?.includes('Mix') || editingParticipant.division?.includes('Lag');
+        const originalP = participants.find(p => p.id === editingParticipant.id);
+        const hadPartner = originalP?.partnerName?.trim() || editingParticipant.partnerName?.trim();
+
+        // 1. Splitta lag till singlar om klassen ändras till singel
+        let splitPartner: RaceParticipant | null = null;
+        if (!isDouble && hadPartner) {
+            const partName = editingParticipant.partnerName?.trim() || originalP?.partnerName?.trim() || 'Partner';
+            const partEmail = editingParticipant.partnerEmail?.trim() || originalP?.partnerEmail?.trim() || undefined;
+            // Bestäm klass för partnern baserat på den första deltagarens valda division
+            const partnerDivision = editingParticipant.division?.includes('Herr') 
+                ? 'Singel Dam' 
+                : editingParticipant.division?.includes('Dam') 
+                    ? 'Singel Herr' 
+                    : editingParticipant.division || 'Singel Dam';
+
+            splitPartner = {
+                id: `p-split-${Date.now()}`,
+                name: partName,
+                email: partEmail,
+                division: partnerDivision,
+                startNumber: participants.length + 1
+            };
+        }
+
+        const mergedId = editingParticipant.mergedFromParticipantId;
+
         const updatedP: RaceParticipant = {
             ...editingParticipant,
             name: editingParticipant.name.trim(),
@@ -481,13 +507,30 @@ const EventEditor: React.FC<{
             partnerEmail: (isDouble && editingParticipant.partnerEmail?.trim()) ? editingParticipant.partnerEmail.trim() : undefined,
             teamName: isDouble ? editingParticipant.teamName?.trim() : undefined,
         };
+        // Ta bort mergedFromParticipantId så att det inte sparas
+        delete updatedP.mergedFromParticipantId;
 
-        setParticipants(prev => prev.map(p => p.id === updatedP.id ? updatedP : p));
+        setParticipants(prev => {
+            let next = prev.map(p => p.id === updatedP.id ? updatedP : p);
+            if (splitPartner) {
+                next.push(splitPartner);
+            }
+            if (mergedId) {
+                next = next.filter(p => p.id !== mergedId);
+            }
+            return next;
+        });
 
-        setStartGroups(prevGroups => prevGroups.map(g => ({
-            ...g,
-            participantList: (g.participantList || []).map(p => p.id === updatedP.id ? updatedP : p)
-        })));
+        setStartGroups(prevGroups => prevGroups.map(g => {
+            let newList = (g.participantList || []).map(p => p.id === updatedP.id ? updatedP : p);
+            if (mergedId) {
+                newList = newList.filter(p => p.id !== mergedId);
+            }
+            return {
+                ...g,
+                participantList: newList
+            };
+        }));
 
         setEditingParticipant(null);
     };

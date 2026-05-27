@@ -329,6 +329,7 @@ export interface RaceParticipant {
   partnerEmail?: string;
   division?: string; // NYTT: t.ex. 'Singel Herr', 'Singel Dam', 'Lag', 'Mix'
   teamName?: string; // NYTT: Lagnamn t.ex. "The Iron Giants"
+  mergedFromParticipantId?: string;
 }
 
 export interface StartGroup {
