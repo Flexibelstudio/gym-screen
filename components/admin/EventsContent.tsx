@@ -1425,6 +1425,7 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
     const [activeTab, setActiveTab] = useState<'upcoming' | 'archive'>('upcoming');
     const [shareEvent, setShareEvent] = useState<HyroxRace | null>(null);
     const [copiedShare, setCopiedShare] = useState(false);
+    const [showDemoSuccessModal, setShowDemoSuccessModal] = useState(false);
 
     const fetchEvents = async () => {
         setLoading(true);
@@ -1549,7 +1550,7 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
         try {
             await saveRace(testRace, organization.id);
             await fetchEvents();
-            alert("Ett fylligt test-event (Demo: Flexibel Sommarutmaning ☀️) med 5 heat och 25 deltagare/lag har skapats!");
+            setShowDemoSuccessModal(true);
         } catch (error) {
             console.error("Failed to create test event", error);
             alert("Kunde inte skapa test-event.");
@@ -1936,6 +1937,93 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                             <span>{shareEvent.status === 'completed' ? 'Öppna resultat' : 'Öppna live-vy'}</span>
                                         </a>
                                     )}
+                                </div>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>
+
+                {/* DEMO SUCCESS OVERLAY MODAL */}
+                <AnimatePresence>
+                    {showDemoSuccessModal && (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                            {/* Backdrop */}
+                            <motion.div 
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setShowDemoSuccessModal(false)}
+                                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                            />
+                            
+                            {/* Card */}
+                            <motion.div 
+                                initial={{ opacity: 0, scale: 0.95, y: 15 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: 15 }}
+                                transition={{ type: "spring", duration: 0.4 }}
+                                className="bg-white dark:bg-gray-900 border border-gray-150 dark:border-gray-800 rounded-[2rem] shadow-2xl overflow-hidden w-full max-w-lg relative z-10 p-8 text-gray-900 dark:text-white"
+                            >
+                                <button
+                                    onClick={() => setShowDemoSuccessModal(false)}
+                                    className="absolute top-5 right-5 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
+                                >
+                                    <CloseIcon className="w-5 h-5" />
+                                </button>
+                                
+                                <div className="flex flex-col items-center text-center mt-2">
+                                    {/* Brand highlight */}
+                                    <div className="relative mb-5">
+                                        <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full scale-125 animate-pulse" />
+                                        <div className="p-4 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 text-white relative z-10 shadow-lg border-2 border-white dark:border-gray-950">
+                                            <SparklesIcon className="w-8 h-8 animate-pulse text-white" />
+                                        </div>
+                                    </div>
+                                    
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-3.5 py-1 rounded-full border border-amber-200/50 dark:border-amber-900/40 mb-3 select-none animate-fade-in">
+                                        Test-event skapat! ☀️
+                                    </span>
+                                    
+                                    <h3 className="text-xl font-black text-gray-950 dark:text-white uppercase tracking-tight leading-tight">
+                                        Demo: Flexibel Sommarutmaning
+                                    </h3>
+                                    
+                                    <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm mt-2 leading-relaxed">
+                                        Ett fullständigt test-event har genererats för att enkelt utvärdera systemet och live-skärmarna.
+                                    </p>
+                                </div>
+
+                                {/* Event structure breakdown */}
+                                <div className="mt-6 p-5 bg-gray-50 dark:bg-gray-950 border border-gray-150 dark:border-gray-850 rounded-2xl space-y-3.5">
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className="font-bold text-gray-500 dark:text-gray-450 uppercase tracking-wider text-[10px]">Struktur</span>
+                                        <span className="font-extrabold text-indigo-600 dark:text-indigo-400">5 Heat (1 per division)</span>
+                                    </div>
+                                    <div className="border-t border-gray-200 dark:border-gray-850 my-2" />
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className="font-bold text-gray-500 dark:text-gray-450 uppercase tracking-wider text-[10px]">Deltagare</span>
+                                        <span className="font-extrabold text-gray-900 dark:text-white">25 st (5 per heat)</span>
+                                    </div>
+                                    <div className="border-t border-gray-200 dark:border-gray-850 my-2" />
+                                    <div className="flex justify-between items-start text-xs">
+                                        <span className="font-bold text-gray-500 dark:text-gray-450 uppercase tracking-wider text-[10px] mt-0.5">Dubbelklasserna</span>
+                                        <span className="font-semibold text-gray-700 dark:text-gray-300 text-right max-w-[200px]">
+                                            Tilldelade med <span className="font-black text-indigo-600 dark:text-indigo-400">Lagnamn</span>, partners och startnummer.
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <p className="text-[11px] text-gray-400 dark:text-gray-550 text-center mt-5 leading-normal max-w-xs mx-auto">
+                                    Du kan nu skriva ut startlistor, starta live-klockor eller lägga till tider för att se liveresultaten uppdateras i realtid!
+                                </p>
+
+                                <div className="mt-6">
+                                    <button
+                                        onClick={() => setShowDemoSuccessModal(false)}
+                                        className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-105 space-x-2 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md flex items-center justify-center text-sm text-center cursor-pointer"
+                                    >
+                                        <span>Grymt, visa loppet!</span>
+                                    </button>
                                 </div>
                             </motion.div>
                         </div>
