@@ -1953,6 +1953,27 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                             const isExpanded = !!expandedBlocks[group.blockId];
                             const { totalSets, completedSets } = getBlockCompletionInfo(group);
                             const isAllDone = totalSets > 0 && completedSets === totalSets;
+                            const isStarted = totalSets > 0 && completedSets > 0 && completedSets < totalSets;
+
+                            let headerBgClass = '';
+                            let lineClass = '';
+                            let statusTextClass = '';
+
+                            if (isAllDone) {
+                                headerBgClass = 'bg-green-50/60 hover:bg-green-100/70 dark:bg-green-950/10 dark:hover:bg-green-950/20 border-green-200/50 dark:border-green-800/20';
+                                lineClass = 'bg-green-500';
+                                statusTextClass = 'text-green-600 dark:text-green-400 font-bold';
+                            } else if (isStarted) {
+                                headerBgClass = 'bg-amber-50/30 hover:bg-amber-100/40 dark:bg-amber-950/5 dark:hover:bg-amber-950/10 border-amber-200/40 dark:border-amber-900/30 shadow-sm';
+                                lineClass = 'bg-amber-500';
+                                statusTextClass = 'text-amber-600 dark:text-amber-400 font-bold';
+                            } else {
+                                headerBgClass = isExpanded
+                                    ? 'bg-gray-100/75 hover:bg-gray-100 dark:bg-slate-900/90 dark:hover:bg-slate-900 border-gray-200/50 dark:border-gray-850/40 shadow-sm'
+                                    : 'bg-white hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-slate-900/60 border-gray-150 dark:border-gray-800/40 shadow-sm';
+                                lineClass = 'bg-gray-300 dark:bg-gray-750';
+                                statusTextClass = 'text-gray-500 dark:text-gray-450';
+                            }
 
                             return (
                                 <div key={group.blockId} className="mb-4 last:mb-6 animate-fade-in">
@@ -1965,16 +1986,10 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                 [group.blockId]: !prev[group.blockId]
                                             }));
                                         }}
-                                        className={`w-full text-left p-4 rounded-2xl border transition-all flex items-center justify-between select-none ${
-                                            isAllDone 
-                                                ? 'bg-green-50/60 hover:bg-green-100/70 dark:bg-green-950/10 dark:hover:bg-green-950/20 border-green-200/50 dark:border-green-800/20' 
-                                                : isExpanded
-                                                    ? 'bg-gray-100/75 hover:bg-gray-100 dark:bg-slate-900/90 dark:hover:bg-slate-900 border-gray-200/50 dark:border-gray-850/40 shadow-sm'
-                                                    : 'bg-white hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-slate-900/60 border-gray-150 dark:border-gray-800/40 shadow-sm'
-                                        }`}
+                                        className={`w-full text-left p-4 rounded-2xl border transition-all flex items-center justify-between select-none ${headerBgClass}`}
                                     >
                                         <div className="flex items-center gap-3">
-                                            <div className={`h-6 w-1 rounded-full transition-colors ${isAllDone ? 'bg-green-500' : 'bg-primary'}`}></div>
+                                            <div className={`h-6 w-1 rounded-full transition-colors ${lineClass}`}></div>
                                             <div>
                                                 <h4 className="text-sm font-black uppercase text-gray-800 dark:text-gray-100 tracking-wider">
                                                     {group.blockTitle}
@@ -1984,7 +1999,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                     {totalSets > 0 && (
                                                         <>
                                                             <span>•</span>
-                                                            <span className={isAllDone ? 'text-green-600 dark:text-green-400 font-bold' : ''}>
+                                                            <span className={statusTextClass}>
                                                                 {completedSets}/{totalSets} set klara
                                                             </span>
                                                         </>
@@ -1996,6 +2011,11 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                             {isAllDone && (
                                                 <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                                                     Klar 🏆
+                                                </span>
+                                            )}
+                                            {isStarted && (
+                                                <span className="text-[10px] bg-amber-100 dark:bg-amber-950/45 text-amber-700 dark:text-amber-400 font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                                                    Pågår ⚡
                                                 </span>
                                             )}
                                             <span className={`text-gray-400 dark:text-gray-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>

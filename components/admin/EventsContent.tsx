@@ -556,6 +556,11 @@ const EventEditor: React.FC<{
             return;
         }
 
+        if (!studioId) {
+            alert('Vänligen välj en skärm / studio för detta event.');
+            return;
+        }
+
         const updatedGroups = [...startGroups];
         if (updatedGroups.length > 0) {
             const assignedIds = new Set(updatedGroups.flatMap(g => g.participantList?.map(p => p.id) || []));
@@ -640,13 +645,13 @@ const EventEditor: React.FC<{
                     />
                 </div>
                 <div>
-                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Skärm / Studio</label>
+                    <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Skärm / Studio (Krav)</label>
                     <select 
                         value={studioId}
                         onChange={(e) => setStudioId(e.target.value)}
-                        className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
+                        className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none text-sm"
                     >
-                        <option value="">Alla skärmar</option>
+                        <option value="">Välj en skärm...</option>
                         {studios.map(studio => (
                             <option key={studio.id} value={studio.id}>{studio.name}</option>
                         ))}
@@ -1471,8 +1476,11 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
     };
 
     const handleDeleteEvent = async (eventId: string) => {
-        // Since we can't use window.confirm, we'll just delete it for now.
-        // Or we could add a custom confirm modal, but let's keep it simple.
+        const race = events.find(e => e.id === eventId);
+        const name = race ? `"${race.raceName}"` : 'detta event';
+        if (!window.confirm(`Är du säker på att du vill radera ${name}? Detta går inte att ångra och raderar även eventuella resultat.`)) {
+            return;
+        }
         try {
             await deleteRace(eventId);
             await fetchEvents();
