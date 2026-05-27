@@ -1053,10 +1053,8 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
     // 3. Sync status / controls for official/viewer mode
     if (remoteState.status === 'completed') {
-      if (!showFinishAnimation) {
-        setWinnerName(remoteState.winnerName || '');
-        setFinalRaceId(remoteState.finalRaceId || '');
-        setShowFinishAnimation(true);
+      if (remoteState.finalRaceId) {
+        onFinish({ isNatural: true, raceId: remoteState.finalRaceId });
       }
     } else if (screenMode === 'official') {
       if (remoteState.status === 'running') {

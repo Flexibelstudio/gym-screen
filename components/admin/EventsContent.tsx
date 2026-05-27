@@ -387,6 +387,18 @@ const EventEditor: React.FC<{
     const [results, setResults] = useState<HyroxRaceResult[]>(event?.results || []);
     const [showPrintModal, setShowPrintModal] = useState(false);
 
+    useEffect(() => {
+        if (showPrintModal) {
+            // Hitta utskriftsboxen och scrolla den i fokus i centrum, löser problem med iframes
+            setTimeout(() => {
+                const modalElement = document.querySelector('.printable-card-parent');
+                if (modalElement) {
+                    modalElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 80);
+        }
+    }, [showPrintModal]);
+
     const [addMethod, setAddMethod] = useState<'manual' | 'import'>('manual');
     const [manualName, setManualName] = useState('');
     const [manualEmail, setManualEmail] = useState('');

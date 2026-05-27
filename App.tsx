@@ -239,6 +239,12 @@ const App: React.FC = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
     pageEntryTimestampRef.current = Date.now();
+    
+    // Nollställ det aktiva loppet om man lämnar resultatskärmen,
+    // vilket förhindrar felaktig navigering till föregående lopps resultat.
+    if (page !== Page.HyroxRaceDetail) {
+      setActiveRaceId(null);
+    }
   }, [page]);
 
   const [activePasskategori, setActivePasskategori] = useState<string | null>(null);
