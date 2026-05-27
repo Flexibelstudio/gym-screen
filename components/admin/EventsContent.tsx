@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Organization, HyroxRace, StartGroup, RaceParticipant, HyroxRaceResult } from '../../types';
 import { getPastRaces, saveRace, deleteRace } from '../../services/firebaseService';
 import { PlusIcon, CalendarIcon, UsersIcon, TrashIcon, PencilIcon, SaveIcon, QrCodeIcon, LinkIcon, CopyIcon, CloseIcon, TrophyIcon, CheckIcon, PaperAirplaneIcon, SparklesIcon } from '../icons';
@@ -1221,8 +1222,8 @@ const EventEditor: React.FC<{
 
             {/* PRINT OVERLAY MODAL */}
             <AnimatePresence>
-                {showPrintModal && (
-                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm print-modal-parent">
+                {showPrintModal && typeof document !== 'undefined' && createPortal(
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/55 backdrop-blur-sm print-modal-parent">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
@@ -1410,7 +1411,8 @@ const EventEditor: React.FC<{
                                 </div>
                             </div>
                         </motion.div>
-                    </div>
+                    </div>,
+                    document.body
                 )}
             </AnimatePresence>
         </div>
@@ -1426,6 +1428,7 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
     const [shareEvent, setShareEvent] = useState<HyroxRace | null>(null);
     const [copiedShare, setCopiedShare] = useState(false);
     const [showDemoSuccessModal, setShowDemoSuccessModal] = useState(false);
+    const [createdTestEvent, setCreatedTestEvent] = useState<HyroxRace | null>(null);
 
     const fetchEvents = async () => {
         setLoading(true);
@@ -1550,6 +1553,7 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
         try {
             await saveRace(testRace, organization.id);
             await fetchEvents();
+            setCreatedTestEvent(testRace);
             setShowDemoSuccessModal(true);
         } catch (error) {
             console.error("Failed to create test event", error);
@@ -2019,7 +2023,13 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
 
                                 <div className="mt-6">
                                     <button
-                                        onClick={() => setShowDemoSuccessModal(false)}
+                                        onClick={() => {
+                                            setShowDemoSuccessModal(false);
+                                            if (createdTestEvent) {
+                                                setSelectedEvent(createdTestEvent);
+                                                setView('edit');
+                                            }
+                                        }}
                                         className="w-full bg-gradient-to-r from-amber-500 to-orange-500 hover:brightness-105 space-x-2 text-white font-bold py-3 px-4 rounded-xl transition-all shadow-md flex items-center justify-center text-sm text-center cursor-pointer"
                                     >
                                         <span>Grymt, visa loppet!</span>

@@ -1541,7 +1541,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           if (savedRace && savedRace.id) {
               setFinalRaceId(savedRace.id);
               setWinnerName(serializedWinnersObj);
-              setShowFinishAnimation(true);
               
               // Publish the completed state to firebase studio remote state so TV/viewer screens update
               publishRaceState({
@@ -1551,6 +1550,9 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               });
 
               if (winnerDisplayName) speak(`Och vinnaren är ${winnerDisplayName}! Bra jobbat alla!`);
+
+              // Navigera direkt till den detaljerade resultatsidan och hoppa över popup-mellansteget
+              onFinish({ isNatural: true, raceId: savedRace.id });
           } else {
               throw new Error("Missing raceId from server response");
           }
