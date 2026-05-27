@@ -7,6 +7,7 @@ import QRCode from 'react-qr-code';
 interface HyroxRaceDetailScreenProps {
     raceId: string;
     onBack: () => void;
+    isPublicView?: boolean;
 }
 
 const formatResultTime = (timeInSeconds: number) => {
@@ -22,7 +23,7 @@ const formatResultTime = (timeInSeconds: number) => {
     return parts.join(':');
 };
 
-export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ raceId, onBack }) => {
+export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ raceId, onBack, isPublicView = false }) => {
     const [race, setRace] = useState<HyroxRace | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -75,7 +76,7 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
     const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/live/${raceId}` : 'https://mindmote.se/live';
 
     return (
-        <div className="w-full max-w-5xl mx-auto animate-fade-in relative px-1 sm:px-4 py-4 sm:py-6">
+        <div className={`w-full ${isPublicView ? 'max-w-3xl' : 'max-w-5xl'} mx-auto animate-fade-in relative px-1 sm:px-4 py-4 sm:py-6`}>
             <div className="text-center mb-8">
                 <span className="px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-extrabold text-xs uppercase tracking-wider">Slutresultat sparat</span>
                 <h1 className="text-4xl lg:text-5xl font-black text-gray-900 dark:text-white mt-1.5 tracking-tight">{race.raceName}</h1>
@@ -84,9 +85,9 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
                 </p>
             </div>
             
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-8 items-start">
+            <div className={`grid grid-cols-1 ${isPublicView ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-4 sm:gap-8 items-start`}>
                 {/* RESULTS TABLE */}
-                <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl sm:rounded-[2rem] p-2.5 sm:p-8 shadow-xl border border-gray-150 dark:border-gray-700">
+                <div className={`${isPublicView ? 'lg:col-span-1' : 'lg:col-span-2'} bg-white dark:bg-gray-800 rounded-2xl sm:rounded-[2rem] p-2.5 sm:p-8 shadow-xl border border-gray-150 dark:border-gray-700`}>
                     <h2 className="text-xl sm:text-2xl font-black tracking-tight text-gray-950 dark:text-gray-50 mb-3 uppercase px-1 sm:px-0">Placeringar</h2>
                     
                     {activeDivisions.length > 0 && (
@@ -218,40 +219,42 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
                 </div>
 
                 {/* QR-CODE AND SAVE TO PHONE SIDE PANEL */}
-                <div className="bg-gradient-to-br from-indigo-950 via-slate-950 to-slate-900 border border-slate-800 text-white rounded-[2.5rem] p-8 shadow-xl flex flex-col items-center text-center relative overflow-hidden">
-                    <div className="absolute top-0 right-0 p-8 opacity-[0.02]">
-                        <svg className="w-48 h-48" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z" />
-                        </svg>
-                    </div>
-
-                    <div className="relative z-10 w-full flex flex-col items-center">
-                        <span className="px-2.5 py-1 rounded bg-indigo-500/25 text-indigo-300 font-extrabold text-[9px] uppercase tracking-widest mb-3">Visa i mobilen</span>
-                        <h3 className="text-xl font-black uppercase tracking-tight mb-2">Skanna resultat</h3>
-                        <p className="text-xs text-slate-300 mb-6 leading-relaxed">
-                            Håll upp mobilkameran mot QR-koden för att ladda ner slutresultatet och se din personliga tid och placering!
-                        </p>
-                        <div className="bg-white p-4 rounded-[2rem] shadow-inner border border-slate-700/50 mb-5 flex items-center justify-center">
-                            <QRCode 
-                                value={shareUrl} 
-                                size={180}
-                                style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                                level="M"
-                            />
+                {!isPublicView && (
+                    <div className="bg-gradient-to-br from-indigo-950 via-slate-950 to-slate-900 border border-slate-800 text-white rounded-[2.5rem] p-8 shadow-xl flex flex-col items-center text-center relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-8 opacity-[0.02]">
+                            <svg className="w-48 h-48" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z" />
+                            </svg>
                         </div>
-                        <span className="text-[10px] font-mono text-indigo-400 font-bold uppercase tracking-widest">Studios Liveresultat</span>
-                        <p className="text-[9px] text-slate-400 mt-2 font-mono break-all max-w-full px-2">
-                            {shareUrl}
-                        </p>
-                        
-                        <button 
-                            onClick={onBack}
-                            className="mt-8 bg-white/10 hover:bg-white/15 text-white border border-white/10 text-xs font-extrabold py-3.5 px-6 rounded-2xl tracking-wider uppercase transition-all w-full"
-                        >
-                            Avsluta
-                        </button>
+
+                        <div className="relative z-10 w-full flex flex-col items-center">
+                            <span className="px-2.5 py-1 rounded bg-indigo-500/25 text-indigo-300 font-extrabold text-[9px] uppercase tracking-widest mb-3">Visa i mobilen</span>
+                            <h3 className="text-xl font-black uppercase tracking-tight mb-2">Skanna resultat</h3>
+                            <p className="text-xs text-slate-300 mb-6 leading-relaxed">
+                                Håll upp mobilkameran mot QR-koden för att ladda ner slutresultatet och se din personliga tid och placering!
+                            </p>
+                            <div className="bg-white p-4 rounded-[2rem] shadow-inner border border-slate-700/50 mb-5 flex items-center justify-center">
+                                <QRCode 
+                                    value={shareUrl} 
+                                    size={180}
+                                    style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                                    level="M"
+                                />
+                            </div>
+                            <span className="text-[10px] font-mono text-indigo-400 font-bold uppercase tracking-widest">Studios Liveresultat</span>
+                            <p className="text-[9px] text-slate-400 mt-2 font-mono break-all max-w-full px-2">
+                                {shareUrl}
+                            </p>
+                            
+                            <button 
+                                onClick={onBack}
+                                className="mt-8 bg-white/10 hover:bg-white/15 text-white border border-white/10 text-xs font-extrabold py-3.5 px-6 rounded-2xl tracking-wider uppercase transition-all w-full"
+                            >
+                                Avsluta
+                            </button>
+                        </div>
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );

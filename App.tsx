@@ -1111,7 +1111,7 @@ const App: React.FC = () => {
                 {theme === 'dark' ? '☀️' : '🌙'}
             </button>
         </div>
-        <HyroxRaceDetailScreen raceId={publicLiveRaceId} onBack={() => {
+        <HyroxRaceDetailScreen raceId={publicLiveRaceId} isPublicView={true} onBack={() => {
            window.location.href = '/';
         }} />
       </div>
