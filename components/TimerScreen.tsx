@@ -1435,7 +1435,17 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       }
 
       // Calculate top 3 per division
-      const divisionWinners: { division: string; top3: { rank: number; name: string; time: number }[] }[] = [];
+      const divisionWinners: { 
+          division: string; 
+          top3: { 
+              rank: number; 
+              name: string; 
+              time: number;
+              startNumber?: number;
+              teamName?: string;
+              partnerName?: string;
+          }[] 
+      }[] = [];
       sortedFinishers.forEach(([participantId, data]) => {
           const participant = startedParticipants.find(p => p.id === participantId);
           const division = participant?.division || 'Standard';
@@ -1457,13 +1467,14 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               divisionWinners.push(divObj);
           }
           
-          if (divObj.top3.length < 3) {
-              divObj.top3.push({
-                  rank: divObj.top3.length + 1,
-                  name: displayName,
-                  time: (data as FinishData).time
-              });
-          }
+          divObj.top3.push({
+              rank: divObj.top3.length + 1,
+              name: displayName,
+              time: (data as FinishData).time,
+              startNumber: participant?.startNumber === null ? undefined : participant?.startNumber,
+              teamName: participant?.teamName || undefined,
+              partnerName: participant?.partnerName || undefined
+          });
       });
 
       const serializedWinnersObj = JSON.stringify({
@@ -2471,6 +2482,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
             {showFinishAnimation && (
                 <RaceFinishAnimation 
                   winnerName={winnerName} 
+                  finalRaceId={finalRaceId}
                   onDismiss={() => {
                       setShowFinishAnimation(false);
                       if (finalRaceId) onFinish({ isNatural: true, raceId: finalRaceId });
@@ -2543,6 +2555,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       {showFinishAnimation && (
           <RaceFinishAnimation 
             winnerName={winnerName} 
+            finalRaceId={finalRaceId}
             onDismiss={() => {
                 setShowFinishAnimation(false);
                 if (finalRaceId) onFinish({ isNatural: true, raceId: finalRaceId });
