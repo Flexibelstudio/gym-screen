@@ -241,7 +241,7 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
                                     level="M"
                                 />
                             </div>
-                            <span className="text-[10px] font-mono text-indigo-400 font-bold uppercase tracking-widest">Studios Liveresultat</span>
+                            <span className="text-[10px] font-mono text-indigo-400 font-bold uppercase tracking-widest">Studios Slutresultat</span>
                             <p className="text-[9px] text-slate-400 mt-2 font-mono break-all max-w-full px-2">
                                 {shareUrl}
                             </p>

@@ -309,11 +309,11 @@ const EventEditor: React.FC<{
         }
     };
 
-    const handleShare = (url: string, title: string) => {
+    const handleShare = (url: string, title: string, isCompleted: boolean = false) => {
         if (typeof window !== 'undefined' && navigator.share) {
             navigator.share({
                 title: title,
-                text: `Följ loppet ${title} live!`,
+                text: isCompleted ? `Se resultatet för loppet ${title}!` : `Följ loppet ${title} live!`,
                 url: url
             }).catch(err => console.log(err));
         } else {
@@ -1114,7 +1114,7 @@ const EventEditor: React.FC<{
                 <div className="border-t border-gray-200 dark:border-gray-800 pt-8 mt-8">
                     <h3 className="text-lg font-black text-gray-900 dark:text-white uppercase tracking-tight flex items-center gap-2 mb-4">
                         <QrCodeIcon className="w-5 h-5 text-indigo-500" />
-                        Dela Liveresultat & QR-kod
+                        {event?.status === 'completed' ? 'Dela Resultat & QR-kod' : 'Dela Liveresultat & QR-kod'}
                     </h3>
                     <div className="bg-gradient-to-br from-indigo-50/50 via-white to-amber-55/30 dark:from-slate-900/40 dark:via-slate-900/60 dark:to-indigo-950/20 border border-indigo-100 dark:border-slate-850 p-6 rounded-2xl flex flex-col md:flex-row items-center gap-6">
                         <div className="bg-white p-3 rounded-2xl border border-gray-200 dark:border-gray-750 flex-shrink-0 shadow-lg dark:shadow-none share-qr-parent">
@@ -1127,10 +1127,12 @@ const EventEditor: React.FC<{
                         <div className="flex-1 space-y-4 text-center md:text-left animate-fade-in">
                             <div>
                                 <h4 className="font-extrabold text-sm text-gray-900 dark:text-white mb-1">
-                                    Scanna eller gå till Live-länken
+                                    {event?.status === 'completed' ? 'Scanna eller gå till Resultatlänken' : 'Scanna eller gå till Live-länken'}
                                 </h4>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed max-w-lg">
-                                    Åskådare, ledare och deltagare kan scanna denna QR-kod eller använda länken för att följa tävlingen i realtid (tider, placeringar, heat) direkt på mobilen eller en extra skärm.
+                                    {event?.status === 'completed'
+                                        ? 'Deltagare och åskådare kan scanna denna QR-kod eller använda länken för att se det sparade slutresultatet med alla tider och placeringar.'
+                                        : 'Åskådare, ledare och deltagare kan scanna denna QR-kod eller använda länken för att följa tävlingen i realtid (tider, placeringar, heat) direkt på mobilen eller en extra skärm.'}
                                 </p>
                             </div>
                             
@@ -1157,7 +1159,7 @@ const EventEditor: React.FC<{
                                     {typeof navigator !== 'undefined' && navigator.share ? (
                                         <button
                                             type="button"
-                                            onClick={() => handleShare(`${window.location.origin}/live/${event.id}`, raceName || 'Hyrox Race')}
+                                            onClick={() => handleShare(`${window.location.origin}/live/${event.id}`, raceName || 'Hyrox Race', event?.status === 'completed')}
                                             className="flex-1 bg-primary text-white font-bold px-4 py-2.5 rounded-xl hover:brightness-110 transition-colors flex items-center justify-center gap-2 text-sm shadow-sm shadow-primary/20"
                                         >
                                             <PaperAirplaneIcon className="w-4 h-4" />
@@ -1171,7 +1173,7 @@ const EventEditor: React.FC<{
                                             className="flex-1 bg-indigo-650 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold px-4 py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm shadow-sm shadow-indigo-500/20 text-center"
                                         >
                                             <LinkIcon className="w-4 h-4" />
-                                            <span>Öppna live-vy</span>
+                                            <span>{event?.status === 'completed' ? 'Öppna resultat' : 'Öppna live-vy'}</span>
                                         </a>
                                     )}
                                 </div>
@@ -1499,7 +1501,9 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                 </div>
                                 
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-4 leading-relaxed">
-                                    Deltagare och publik kan scanna koden eller öppna länken på mobilen för att se startlistor, heat, realtidsklockor och slutresultat live!
+                                    {shareEvent.status === 'completed'
+                                        ? 'Deltagare och publik kan scanna koden eller öppna länken på mobilen för att se det sparade slutresultatet med alla tider och placeringar!'
+                                        : 'Deltagare och publik kan scanna koden eller öppna länken på mobilen för att se startlistor, heat, realtidsklockor och slutresultat live!'}
                                 </p>
 
                                 {/* RESULTS QUICK-VIEW IF COMPLETED */}
@@ -1561,7 +1565,7 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                         />
                                     </div>
                                     <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 mt-3.5 uppercase tracking-widest bg-gray-100 dark:bg-gray-900 px-3 py-1 rounded-full">
-                                        Skanna live-tavla
+                                        {shareEvent.status === 'completed' ? 'Skanna resultat' : 'Skanna live-tavla'}
                                     </span>
                                 </div>
                                 
@@ -1603,7 +1607,9 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                             onClick={() => {
                                                 navigator.share({
                                                     title: shareEvent.raceName,
-                                                    text: `Följ loppet ${shareEvent.raceName} live!`,
+                                                    text: shareEvent.status === 'completed'
+                                                         ? `Se resultatet för loppet ${shareEvent.raceName}!`
+                                                         : `Följ loppet ${shareEvent.raceName} live!`,
                                                     url: `${window.location.origin}/live/${shareEvent.id}`
                                                 }).catch(err => console.log(err));
                                             }}
@@ -1620,7 +1626,7 @@ export const EventsContent: React.FC<EventsContentProps> = ({ organization }) =>
                                             className="w-full bg-indigo-650 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-bold py-2.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 text-sm text-center block"
                                         >
                                             <LinkIcon className="w-4 h-4" />
-                                            <span>Öppna live-vy</span>
+                                            <span>{shareEvent.status === 'completed' ? 'Öppna resultat' : 'Öppna live-vy'}</span>
                                         </a>
                                     )}
                                 </div>
