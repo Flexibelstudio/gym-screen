@@ -793,6 +793,49 @@ const EventEditor: React.FC<{
                                             />
                                         </div>
                                         <div>
+                                            <label className="block text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-1 flex items-center gap-1">
+                                                <span>👥</span> Slå ihop med en annan deltagare (valfritt)
+                                            </label>
+                                            <select
+                                                value={editingParticipant.mergedFromParticipantId || ''}
+                                                onChange={e => {
+                                                    const selectedId = e.target.value;
+                                                    if (!selectedId) {
+                                                        setEditingParticipant({
+                                                            ...editingParticipant,
+                                                            partnerName: '',
+                                                            partnerEmail: '',
+                                                            mergedFromParticipantId: undefined
+                                                        });
+                                                    } else {
+                                                        const found = participants.find(p => p.id === selectedId);
+                                                        if (found) {
+                                                            setEditingParticipant({
+                                                                ...editingParticipant,
+                                                                partnerName: found.name,
+                                                                partnerEmail: found.email || '',
+                                                                mergedFromParticipantId: found.id
+                                                            });
+                                                        }
+                                                    }
+                                                }}
+                                                className="w-full text-sm bg-indigo-50 dark:bg-indigo-950/25 border border-indigo-200 dark:border-indigo-800 rounded-lg px-3 py-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-indigo-500 outline-none font-semibold transition"
+                                            >
+                                                <option value="">-- Välj person för att slå ihop till lag --</option>
+                                                {participants
+                                                    .filter(p => p.id !== editingParticipant.id && !p.partnerName)
+                                                    .map(p => (
+                                                        <option key={p.id} value={p.id}>
+                                                            {p.name} ({p.division || 'Singel'}) {p.email ? `- ${p.email}` : ''}
+                                                        </option>
+                                                    ))
+                                                }
+                                            </select>
+                                            <p className="text-[10px] text-gray-500 dark:text-gray-450 mt-1">
+                                                Välj en existerande deltagare för att automatiskt fylla i partneruppgifter. Den valda personen tas bort som enskild deltagare när du klickar på "Spara ändringar".
+                                            </p>
+                                        </div>
+                                        <div>
                                             <label className="block text-xs font-bold text-gray-700 dark:text-gray-300 mb-1">Partnerns/Lagmedlem 2:s Namn</label>
                                             <input 
                                                 type="text"

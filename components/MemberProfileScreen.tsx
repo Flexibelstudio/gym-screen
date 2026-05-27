@@ -1196,7 +1196,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
             )}
 
             {activeTab === 'overview' && (
-                <div className="space-y-6 animate-fade-in">
+                <div className="space-y-3 sm:space-y-5 animate-fade-in">
                     
                     {/* Weekly Goal Ring (Huge) */}
                     <WeeklyGoalRing current={stats.thisWeek} goal={userData.weeklyGoal || 3} />
@@ -1234,7 +1234,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     </div>
 
                     {/* Level Meter */}
-                    <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-800">
+                    <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100 dark:border-gray-800">
                         <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-black text-gray-900 dark:text-white uppercase tracking-widest">Nivå {level}</span>
                             <span className="text-xs font-bold text-gray-400">
@@ -1247,7 +1247,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                     </div>
 
                     {/* Archetype card */}
-                    <div className={`bg-gradient-to-br ${archetype.color} rounded-[2rem] p-5 sm:p-8 text-white shadow-2xl relative overflow-hidden`}>
+                    <div className={`bg-gradient-to-br ${archetype.color} rounded-2xl p-4 sm:p-6 text-white shadow-lg relative overflow-hidden`}>
                         <div className="relative z-10">
                             <div>
                                 <div className="flex items-center gap-2 mb-1">
@@ -1281,7 +1281,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
 
                     {/* --- MINA HYROX & EVENT-RESULTAT --- */}
                     {personalHyroxResults.length > 0 && (
-                        <div className="bg-gradient-to-br from-indigo-50/70 via-white to-amber-50/30 dark:from-slate-900 dark:via-slate-950 dark:to-indigo-950 border border-indigo-100 dark:border-slate-800 rounded-[2rem] p-6 shadow-xl relative overflow-hidden animate-fade-in text-gray-900 dark:text-white mt-6">
+                        <div className="bg-gradient-to-br from-indigo-50/70 via-white to-amber-50/30 dark:from-slate-900 dark:via-slate-950 dark:to-indigo-950 border border-indigo-100 dark:border-slate-800 rounded-2xl p-4 sm:p-5 shadow-lg relative overflow-hidden animate-fade-in text-gray-900 dark:text-white mt-3.5">
                             <div className="absolute top-0 right-0 p-8 opacity-[0.06] dark:opacity-[0.03] pointer-events-none">
                                 <TrophyIcon className="w-48 h-48 text-indigo-500 dark:text-yellow-500" />
                             </div>

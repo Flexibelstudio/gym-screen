@@ -2123,10 +2123,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                             <span className="text-[10px] uppercase font-bold text-indigo-500 tracking-wider">TÄVLINGSTID:</span>
                             <span className="font-mono font-black text-xl text-slate-800 dark:text-slate-100">{raceElapsedMin}:{raceElapsedSec}</span>
                         </div>
-                        <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                            <span className="text-[10px] uppercase font-bold text-emerald-500 tracking-wider">LIVERESULTAT:</span>
-                            <span className="font-mono text-xs font-black text-slate-700 dark:text-slate-300">MINDMOTE.SE/LIVE</span>
-                        </div>
                     </div>
 
                     {/* Controls on the top right */}
