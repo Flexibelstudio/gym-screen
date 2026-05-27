@@ -468,7 +468,7 @@ const ExerciseLogCard: React.FC<{
     };
 
     return (
-        <div className={`bg-white dark:bg-gray-900 rounded-2xl p-4 mb-3 border shadow-sm transition-all ${result.groupColor ? `border-l-4 ${borderColorClass} border-y-gray-100 border-r-gray-100 dark:border-y-gray-800 dark:border-r-gray-800` : 'border-gray-100 dark:border-gray-800'}`}>
+        <div className={`bg-white dark:bg-gray-900 rounded-2xl p-4 mb-1 border shadow-sm transition-all ${result.groupColor ? `border-l-4 ${borderColorClass} border-y-gray-100 border-r-gray-100 dark:border-y-gray-800 dark:border-r-gray-800` : 'border-gray-100 dark:border-gray-800'}`}>
             <div className="flex flex-col gap-2 mb-4">
                 <div className="flex justify-between items-start">
                     <div className="flex-1 min-w-0">
@@ -1844,7 +1844,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       </div>
 
       <div className="flex-1 overflow-y-auto bg-gray-5 dark:bg-black scrollbar-hide">
-          <div className="p-4 sm:p-8 max-w-2xl mx-auto w-full">
+          <div className="p-2 sm:p-4 max-w-2xl mx-auto w-full">
               
               <div className="mb-6">
                   <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Datum</label>
@@ -1976,7 +1976,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                             }
 
                             return (
-                                <div key={group.blockId} className="mb-4 last:mb-6 animate-fade-in">
+                                <div key={group.blockId} className="mb-2 last:mb-3 animate-fade-in">
                                     {/* Collapsible Block Header */}
                                     <button
                                         type="button"
@@ -2029,7 +2029,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                 animate={{ opacity: 1, height: 'auto' }}
                                                 exit={{ opacity: 0, height: 0 }}
                                                 transition={{ duration: 0.2, ease: "easeOut" }}
-                                                className="overflow-hidden space-y-3 mt-3 px-0.5"
+                                                className="overflow-hidden space-y-2 mt-2 px-0.5"
                                             >
                                                 {group.exercises.map(({ result, originalIndex }, idxInside) => {
                                                     const isLastInGroup = result.groupId && (

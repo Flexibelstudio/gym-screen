@@ -2436,7 +2436,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                     )}
                 </div>
 
-                {/* FOOTER QR-CODE & SHUTDOWN PANEL */}
+                {/* FOOTER & SHUTDOWN PANEL */}
                 <div className="flex flex-col md:flex-row justify-between items-center gap-6 mt-auto pt-4 border-t border-slate-500/10">
                     {/* Left Side: Finish Early button (Stoppa & spara eventet) */}
                     <div className="flex-grow flex items-center justify-start w-full md:w-auto">
@@ -2449,27 +2449,6 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                                 {isSavingRace ? 'Sparar...' : 'Stoppa & spara eventet'}
                             </button>
                         )}
-                    </div>
-
-                    {/* Right Side: Compact QR code Widget */}
-                    <div className={`p-4 rounded-3xl border ${cardBg} shadow-md flex items-center gap-4 max-w-sm w-full md:w-auto self-end`}>
-                        <div className="bg-white p-2 rounded-xl flex-shrink-0 flex items-center justify-center border border-slate-200 shadow-inner">
-                            <QRCode 
-                                value={typeof window !== 'undefined' ? `${window.location.origin}/live/${raceId || ''}` : 'https://mindmote.se/live'} 
-                                size={60}
-                                style={{ height: "auto", maxWidth: "100%", width: "100%" }}
-                                level="M"
-                            />
-                        </div>
-                        <div className="text-left">
-                            <h4 className="font-extrabold text-[11px] uppercase text-indigo-500 tracking-wider flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></span>
-                                Liveresultat i mobilen
-                            </h4>
-                            <p className="text-[10px] text-slate-550 leading-tight mt-0.5">
-                                Skanna koden för att följa placeringar och tider live.
-                            </p>
-                        </div>
                     </div>
                 </div>
 
