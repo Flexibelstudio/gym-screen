@@ -395,7 +395,7 @@ export const Header: React.FC<HeaderProps> = ({
       case Page.StudioSelection: return "Välj Studio";
       case Page.RepsOnly: return "Övningar";
       case Page.IdeaBoard: return "AI Whiteboard";
-      case Page.Hyrox: return "HYROX Träning";
+      case Page.Hyrox: return "Event & Tävlingar";
       case Page.HyroxRaceList: return "Tidigare Lopp";
       case Page.HyroxRaceDetail: return "Resultat";
       case Page.WorkoutGamesHub: return "Träningslekar";

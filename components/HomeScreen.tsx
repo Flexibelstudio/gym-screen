@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Page, Workout, MenuItem, StudioConfig, Passkategori, CustomCategoryWithPrompt } from '../types';
 import { welcomeMessages } from '../data/welcomeMessages';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DumbbellIcon, SparklesIcon, StarIcon, PencilIcon, getIconComponent, CloseIcon, LightningIcon, LockIcon, EyeIcon, EyeOffIcon } from './icons';
+import { DumbbellIcon, SparklesIcon, StarIcon, PencilIcon, getIconComponent, CloseIcon, LightningIcon, LockIcon, EyeIcon, EyeOffIcon, FlagIcon } from './icons';
 import { WeeklyPBList } from './WeeklyPBList'; 
 import { CommunityFeed } from './CommunityFeed';
 import { Modal } from './ui/Modal';
@@ -216,7 +216,9 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             isLocked: category.isLocked
         });
     });
-    if (studioConfig.enableHyrox) items.push({ title: 'HYROX', action: () => navigateTo(Page.Hyrox), icon: <HyroxIcon /> });
+    if (selectedOrganization?.globalConfig?.enableEventsModule && studioConfig.enableHyrox) {
+        items.push({ title: 'Event & Tävlingar', action: () => navigateTo(Page.Hyrox), icon: <FlagIcon className="w-8 h-8 text-amber-500 dark:text-amber-450" /> });
+    }
     if (studioConfig.enableWorkoutGames) items.push({ title: 'Träningslekar', action: () => navigateTo(Page.WorkoutGamesHub), icon: <SparklesIcon className="w-8 h-8" /> });
     if (studioConfig.enableNotes) items.push({ title: 'AI White-board', action: () => navigateTo(Page.IdeaBoard), icon: <PencilIcon className="w-8 h-8" /> });
     if (studioConfig.enableTimer !== false) items.push({ title: 'Timer', subTitle: 'Intervall', action: () => navigateTo(Page.FreestandingTimer), icon: <TimerIcon /> });

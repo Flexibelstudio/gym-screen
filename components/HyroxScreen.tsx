@@ -433,9 +433,11 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
     useEffect(() => {
         if (remoteCommand && remoteCommand.type === 'start_hyrox' && remoteCommand.timestamp > lastProcessedCommandRef.current) {
             lastProcessedCommandRef.current = remoteCommand.timestamp;
-            handleSimulateFullRaceClick();
+            if (plannedRaces.length > 0) {
+                handleStartPlannedRace(plannedRaces[0]);
+            }
         }
-    }, [remoteCommand]);
+    }, [remoteCommand, plannedRaces]);
     const [raceConfig, setRaceConfig] = useState<{ name: string; exercises: Exercise[] } | null>(() => {
         try {
             const savedConfig = localStorage.getItem(RACE_CONFIG_STORAGE_KEY);
@@ -451,19 +453,6 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
             setView('prep');
         }
     }, [racePrepState]);
-
-    const handleSimulateFullRaceClick = () => {
-        setView('editor');
-    };
-
-    const handleEditorSave = (config: { name: string; exercises: Exercise[] }) => {
-        setRaceConfig(config);
-        setView('prep');
-    };
-    
-    const handleEditorCancel = () => {
-        setView('hub');
-    };
 
     const handleStartPlannedRace = (race: HyroxRace) => {
         const exercises = race.exercises && race.exercises.length > 0 
@@ -544,19 +533,15 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
         return `${totalPhysical} deltagare`;
     };
 
-    if (view === 'editor') {
-        return <RaceEditor onSave={handleEditorSave} onCancel={handleEditorCancel} />;
-    }
-
     return (
         <div className="w-full max-w-5xl mx-auto text-center animate-fade-in pb-12">
             {isStudioMode && (
                 <p className="text-lg text-gray-500 dark:text-gray-400 mb-10 max-w-2xl mx-auto">
-                    Kör hela loppet, delar av ett HYROX-pass eller en annan tävling – från första löpningen till sista repetitionen.
+                    Kör planerade lopp och tävlingar i studion – från uppvärmning och gruppstart till målgång med full tidtagning.
                 </p>
             )}
             
-            {plannedRaces.length > 0 && (
+            {plannedRaces.length > 0 ? (
                 <div className="mb-12 text-left">
                     <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-6 uppercase tracking-tight">Planerade Event</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -577,7 +562,7 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
                                 </div>
                                 <button
                                     onClick={() => handleStartPlannedRace(race)}
-                                    className="w-full bg-primary text-white font-bold py-3 rounded-lg hover:brightness-110 transition-all"
+                                    className="w-full bg-primary text-white font-bold py-3 rounded-lg hover:brightness-110 transition-all cursor-pointer text-sm"
                                 >
                                     {isStudioMode ? 'Starta Event' : 'Öppna event som funktionär'}
                                 </button>
@@ -585,24 +570,16 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
                         ))}
                     </div>
                 </div>
-            )}
-
-            {isStudioMode && (
-                <div className="flex flex-col items-center gap-6">
-                    <button
-                        onClick={handleSimulateFullRaceClick}
-                        className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 p-6 rounded-xl transition-colors duration-200 flex flex-col items-center justify-center shadow-lg border border-gray-200 dark:border-gray-700 h-72 w-full max-w-lg"
-                    >
-                        <h3 className="text-4xl font-extrabold text-primary">🏁 Simulera Hela Loppet</h3>
-                        <p className="text-lg font-normal text-gray-500 dark:text-gray-400 mt-4">Kör hela loppet "For Time" i ett enda svep.</p>
-                    </button>
-
-                    <button
-                        onClick={() => navigateTo(Page.HyroxRaceList)}
-                        className="w-full max-w-lg bg-gray-100/50 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-white font-semibold py-4 px-6 rounded-xl transition-colors border border-gray-200 dark:border-gray-700"
-                    >
-                        Visa tidigare lopp
-                    </button>
+            ) : (
+                <div className="bg-white dark:bg-gray-900 p-8 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm max-w-lg mx-auto text-center my-8 animate-fade-in">
+                    <div className="w-16 h-16 bg-gray-100 dark:bg-slate-800/80 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                        🏆
+                    </div>
+                    <h4 className="text-lg font-black text-gray-900 dark:text-white mb-2 uppercase tracking-tight">Inga planerade event</h4>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                        Det finns inga planerade event eller tävlingar just nu för denna studio. <br />
+                        Planera och konfigurera nya event i admin-vyn under fliken <strong>Event & Tävlingar</strong>.
+                    </p>
                 </div>
             )}
 
