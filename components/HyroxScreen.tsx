@@ -534,16 +534,10 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
     };
 
     return (
-        <div className="w-full max-w-5xl mx-auto text-center animate-fade-in pb-12">
-            {isStudioMode && (
-                <p className="text-lg text-gray-500 dark:text-gray-400 mb-10 max-w-2xl mx-auto">
-                    Kör planerade lopp och tävlingar i studion – från uppvärmning och gruppstart till målgång med full tidtagning.
-                </p>
-            )}
-            
+        <div className="w-full max-w-5xl mx-auto text-center animate-fade-in pb-12 pt-2">
             {plannedRaces.length > 0 ? (
-                <div className="mb-12 text-left">
-                    <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-6 uppercase tracking-tight">Planerade Event</h3>
+                <div className="mb-12 text-left mt-2">
+                    <h3 className="text-xl font-black text-gray-900 dark:text-white mb-6 uppercase tracking-tight">Planerade Event</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {plannedRaces.map(race => (
                             <div key={race.id} className="bg-white dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-between">
