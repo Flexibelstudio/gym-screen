@@ -48,7 +48,7 @@ export const ActivityCalendar: React.FC<ActivityCalendarProps> = ({ logs, onDayC
     const monthNames = ['Januari', 'Februari', 'Mars', 'April', 'Maj', 'Juni', 'Juli', 'Augusti', 'September', 'Oktober', 'November', 'December'];
 
     return (
-        <div className="bg-white dark:bg-gray-900 rounded-2xl p-4 sm:p-5 shadow-sm border border-gray-100 dark:border-gray-800">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-800">
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-black text-gray-900 dark:text-white capitalize">
                     {monthNames[currentMonth]} {currentYear}

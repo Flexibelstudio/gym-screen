@@ -408,6 +408,7 @@ const EventEditor: React.FC<{
     const [manualPartnerEmail, setManualPartnerEmail] = useState('');
     const [importDivision, setImportDivision] = useState('Singel Herr');
     const [editingParticipant, setEditingParticipant] = useState<RaceParticipant | null>(null);
+    const [splitPartnerDivision, setSplitPartnerDivision] = useState('Singel Dam');
 
     const divisions = [
         'Singel Herr',
@@ -463,6 +464,8 @@ const EventEditor: React.FC<{
 
     const handleStartEditParticipant = (p: RaceParticipant) => {
         setEditingParticipant({ ...p });
+        const defaultPartnerDiv = p.division?.includes('Herr') ? 'Singel Dam' : 'Singel Herr';
+        setSplitPartnerDivision(defaultPartnerDiv);
     };
 
     const handleUpdateParticipant = () => {
@@ -481,18 +484,12 @@ const EventEditor: React.FC<{
         if (!isDouble && hadPartner) {
             const partName = editingParticipant.partnerName?.trim() || originalP?.partnerName?.trim() || 'Partner';
             const partEmail = editingParticipant.partnerEmail?.trim() || originalP?.partnerEmail?.trim() || undefined;
-            // Bestäm klass för partnern baserat på den första deltagarens valda division
-            const partnerDivision = editingParticipant.division?.includes('Herr') 
-                ? 'Singel Dam' 
-                : editingParticipant.division?.includes('Dam') 
-                    ? 'Singel Herr' 
-                    : editingParticipant.division || 'Singel Dam';
 
             splitPartner = {
                 id: `p-split-${Date.now()}`,
                 name: partName,
                 email: partEmail,
-                division: partnerDivision,
+                division: splitPartnerDivision,
                 startNumber: participants.length + 1
             };
         }
@@ -778,6 +775,49 @@ const EventEditor: React.FC<{
                                         ))}
                                     </select>
                                 </div>
+
+                                {(() => {
+                                    const originalP = participants.find(p => p.id === editingParticipant.id);
+                                    const hadPartner = !!(originalP?.partnerName?.trim() || editingParticipant.partnerName?.trim());
+                                    const isEditingDouble = editingParticipant.division?.includes('Dubbel') || editingParticipant.division?.includes('Mix') || editingParticipant.division?.includes('Lag');
+                                    const isSplitting = hadPartner && !isEditingDouble;
+
+                                    if (isSplitting) {
+                                        const partnerName = editingParticipant.partnerName?.trim() || originalP?.partnerName?.trim() || 'Partner';
+                                        return (
+                                            <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3.5 space-y-3 animate-fade-in my-2">
+                                                <p className="text-xs font-bold text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                                                    <span>⚠️</span> Du håller på att dela upp dubbeln till två singeldeltagare
+                                                </p>
+                                                <div className="space-y-3">
+                                                    <div>
+                                                        <label className="block text-[10px] uppercase font-black tracking-wider text-gray-500 dark:text-gray-400 mb-1">
+                                                            Klass för {editingParticipant.name || 'Deltagare 1'}:
+                                                        </label>
+                                                        <span className="inline-block bg-primary/10 text-primary px-2.5 py-1 rounded text-xs font-black">
+                                                            {editingParticipant.division}
+                                                        </span>
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-[10px] uppercase font-black tracking-wider text-gray-500 dark:text-gray-400 mb-1">
+                                                            Välj klass för {partnerName} (Partner):
+                                                        </label>
+                                                        <select
+                                                            value={splitPartnerDivision}
+                                                            onChange={e => setSplitPartnerDivision(e.target.value)}
+                                                            className="w-full text-xs bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-2 text-gray-900 dark:text-white focus:ring-1 focus:ring-primary outline-none font-semibold shadow-sm"
+                                                        >
+                                                            {divisions.map(d => (
+                                                                <option key={d} value={d}>{d}</option>
+                                                            ))}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })()}
 
                                 {(editingParticipant.division?.includes('Dubbel') || editingParticipant.division?.includes('Mix') || editingParticipant.division?.includes('Lag')) && (
                                     <div className="pt-2 border-t border-gray-150 dark:border-gray-800 space-y-3">

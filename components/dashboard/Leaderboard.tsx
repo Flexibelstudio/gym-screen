@@ -54,7 +54,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
 
     if (loading) {
         return (
-            <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-800 flex justify-center items-center h-48">
+            <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-800 flex justify-center items-center h-48">
                 <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
             </div>
         );
@@ -64,7 +64,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
     const displayData = (activeTab === 'pbs' ? sortedData.filter(u => u.pbs > 0) : sortedData).slice(0, 10);
 
     return (
-        <div className="bg-white dark:bg-gray-900 rounded-[2rem] p-5 sm:p-6 shadow-sm border border-gray-100 dark:border-gray-800">
+        <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-800">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center gap-2">
                     <TrophyIcon className="w-5 h-5 text-yellow-500" /> Veckans Topplista
