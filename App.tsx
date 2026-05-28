@@ -37,6 +37,7 @@ import { Screensaver } from './components/common/Screensaver';
 import { ImagePreviewModal } from './components/ui/ImagePreviewModal';
 import { Header } from './components/layout/Header';
 import { SeasonalOverlay } from './components/common/SeasonalOverlay';
+import { HyroxRaceDetailScreen } from './components/HyroxRaceDetailScreen';
 import { SpotlightOverlay } from './components/SpotlightOverlay';
 import { PBOverlay } from './components/PBOverlay'; 
 import { ScanButton } from './components/ScanButton';
@@ -187,6 +188,22 @@ const App: React.FC = () => {
   }, []);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
 
+  const publicLiveRaceId = useMemo(() => {
+    const path = window.location.pathname;
+    const searchParams = new URLSearchParams(window.location.search);
+    const qParam = searchParams.get('live');
+    if (qParam) return qParam;
+    if (path.startsWith('/live/')) {
+       return path.substring(6).replace(/\/$/, '');
+    }
+    const pathParts = path.split('/');
+    const liveIndex = pathParts.indexOf('live');
+    if (liveIndex !== -1 && pathParts[liveIndex + 1]) {
+       return pathParts[liveIndex + 1];
+    }
+    return null;
+  }, []);
+
   useEffect(() => {
       const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.get('connect') === 'success' && userData?.organizationId) {
@@ -222,6 +239,12 @@ const App: React.FC = () => {
   useEffect(() => {
     window.scrollTo(0, 0);
     pageEntryTimestampRef.current = Date.now();
+    
+    // Nollställ det aktiva loppet om man lämnar resultatskärmen,
+    // vilket förhindrar felaktig navigering till föregående lopps resultat.
+    if (page !== Page.HyroxRaceDetail) {
+      setActiveRaceId(null);
+    }
   }, [page]);
 
   const [activePasskategori, setActivePasskategori] = useState<string | null>(null);
@@ -637,7 +660,7 @@ const App: React.FC = () => {
     }
 
     setActiveWorkout(workout);
-    if ((workout.id.startsWith('hyrox-full-race') || workout.id.startsWith('custom-race')) && workout.blocks.length > 0) {
+    if ((workout.id.startsWith('hyrox-full-race') || workout.id.includes('custom-race')) && workout.blocks.length > 0) {
       handleStartBlock(workout.blocks[0], workout);
     } else {
       navigateTo(Page.WorkoutDetail);
@@ -712,7 +735,7 @@ const App: React.FC = () => {
   };
   
   const handleReturnToGroupPrep = useCallback(() => {
-    if (activeWorkout && (activeWorkout.id.startsWith('hyrox-full-race') || activeWorkout.id.startsWith('custom-race'))) {
+    if (activeWorkout && (activeWorkout.id.startsWith('hyrox-full-race') || activeWorkout.id.includes('custom-race'))) {
         setRacePrepState({
             groups: activeWorkout.startGroups || [],
             interval: activeWorkout.startIntervalMinutes || 2,
@@ -1079,6 +1102,28 @@ const App: React.FC = () => {
     );
   }
   
+  if (publicLiveRaceId) {
+    return (
+      <div id="public-live-results" className={`min-h-screen ${theme === 'dark' ? 'bg-black text-white' : 'bg-white text-gray-800'} p-4 sm:p-6 lg:p-8 flex flex-col`}>
+        <div className="flex justify-between items-center mb-6 max-w-4xl mx-auto w-full">
+            <div className="flex items-center gap-2">
+                <img src="/favicon.png" alt="Logo" className="w-8 h-8 rounded-lg" />
+                <span className="font-semibold tracking-tight text-sm text-indigo-500 uppercase dark:text-indigo-400">Flexibel Friskvård</span>
+            </div>
+            <button 
+                onClick={toggleTheme}
+                className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:scale-105 active:scale-95 transition-all shadow-sm border border-slate-200 dark:border-slate-800"
+            >
+                {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
+        </div>
+        <HyroxRaceDetailScreen raceId={publicLiveRaceId} isPublicView={true} onBack={() => {
+           window.location.href = '/';
+        }} />
+      </div>
+    );
+  }
+
   if (!authLoading && !currentUser && !isStudioMode) {
       if (showRegisterGym) {
           return <RegisterGymScreen onCancel={() => setShowRegisterGym(false)} />;

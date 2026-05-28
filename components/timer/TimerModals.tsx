@@ -1,7 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Confetti } from '../WorkoutCompleteModal';
+import QRCode from 'react-qr-code';
+import { Trophy, QrCode as QrIcon, Clipboard, Check, X, Award, ChevronRight, Share2, Sparkles } from 'lucide-react';
 
 export const PauseOverlay: React.FC<{
     onResume: () => void;
@@ -217,37 +219,276 @@ export const RaceBackToPrepConfirmationModal: React.FC<{
     </div>
 );
 
-export const RaceFinishAnimation: React.FC<{ winnerName: string | null; onDismiss: () => void }> = ({ winnerName, onDismiss }) => (
-    <div className="fixed inset-0 bg-white/90 dark:bg-black/80 backdrop-blur-xl flex items-center justify-center z-[100] animate-fade-in" onClick={onDismiss}>
-        <Confetti />
-        <div className="text-center p-8 max-w-2xl" onClick={e => e.stopPropagation()}>
-            <motion.h1 
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="text-8xl md:text-[10rem] font-black text-yellow-500 dark:text-yellow-400 drop-shadow-2xl mb-4 animate-bounce tracking-tighter"
-            >
-                MÅL!
-            </motion.h1>
-            <p className="text-2xl md:text-4xl font-black text-gray-900 dark:text-white mb-12 uppercase tracking-tight">Alla deltagare är hemma!</p>
-            
-            {winnerName && (
-                <motion.div 
-                    initial={{ y: 50, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                    className="bg-white dark:bg-white/10 backdrop-blur-md rounded-[3rem] p-10 border-4 border-yellow-400 shadow-[0_30px_60px_-15px_rgba(234,179,8,0.3)] dark:shadow-2xl transform transition-transform duration-300 mb-12"
-                >
-                    <p className="text-xs font-black uppercase tracking-[0.4em] text-yellow-600 dark:text-yellow-300 mb-4">Dagens Vinnare</p>
-                    <p className="text-5xl md:text-7xl font-black text-gray-900 dark:text-white leading-none tracking-tighter">{winnerName}</p>
-                </motion.div>
-            )}
-            
-            <button 
-                onClick={onDismiss} 
-                className="bg-gray-900 dark:bg-white text-white dark:text-black font-black py-5 px-12 rounded-full text-xl shadow-2xl hover:scale-105 transition-transform uppercase tracking-widest active:scale-95"
-            >
-                Visa Resultattavla
-            </button>
+export const RaceFinishAnimation: React.FC<{ 
+    winnerName: string | null; 
+    finalRaceId?: string | null;
+    onDismiss: () => void;
+}> = ({ winnerName, finalRaceId, onDismiss }) => {
+    // Helper to format time inside the modal
+    const formatTime = (timeInSeconds: number) => {
+        const mins = Math.floor(timeInSeconds / 60);
+        const secs = timeInSeconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    const [selectedDivision, setSelectedDivision] = useState<string>('all');
+    const [copied, setCopied] = useState(false);
+
+    let fallbackWinner: string | null = winnerName;
+    let divisionWinners: { 
+        division: string; 
+        top3: { 
+            rank: number; 
+            name: string; 
+            time: number;
+            startNumber?: number;
+            teamName?: string;
+            partnerName?: string;
+        }[] 
+    }[] | null = null;
+
+    if (winnerName && (winnerName.trim().startsWith('{') || winnerName.trim().startsWith('['))) {
+        try {
+            const parsed = JSON.parse(winnerName);
+            if (parsed.divisions && Array.isArray(parsed.divisions)) {
+                fallbackWinner = parsed.fallback || null;
+                divisionWinners = parsed.divisions;
+            }
+        } catch (e) {
+            console.error("Failed to parse winner JSON:", e);
+        }
+    }
+
+    const divisions = divisionWinners ? divisionWinners.map(d => d.division) : [];
+
+    // Compile active list based on selected tab
+    const getActiveResults = () => {
+        if (!divisionWinners) return [];
+
+        if (selectedDivision === 'all') {
+            // Merge all divisions and sort by time
+            const allItems: {
+                name: string;
+                time: number;
+                division: string;
+                startNumber?: number;
+                teamName?: string;
+                partnerName?: string;
+            }[] = [];
+
+            divisionWinners.forEach(div => {
+                div.top3.forEach(p => {
+                    allItems.push({
+                        ...p,
+                        division: div.division
+                    });
+                });
+            });
+
+            // Sort ascending by time
+            return allItems
+                .sort((a, b) => a.time - b.time)
+                .map((item, idx) => ({
+                    ...item,
+                    rank: idx + 1
+                }));
+        } else {
+            const divObj = divisionWinners.find(d => d.division === selectedDivision);
+            return divObj ? divObj.top3 : [];
+        }
+    };
+
+    const activeResults = getActiveResults();
+    const shareUrl = finalRaceId 
+        ? `${window.location.origin}/live/${finalRaceId}`
+        : `${window.location.origin}/live`;
+
+    const handleCopyLink = () => {
+        navigator.clipboard.writeText(shareUrl)
+            .then(() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            })
+            .catch(err => console.error("Kunde inte kopiera:", err));
+    };
+
+    return (
+        <div className="fixed inset-0 bg-slate-950/98 backdrop-blur-2xl flex items-center justify-center z-[110] animate-fade-in overflow-y-auto py-6 sm:py-10 px-4" onClick={onDismiss}>
+            <Confetti />
+            <div className="w-full max-w-6xl mx-auto my-auto bg-slate-900/60 dark:bg-slate-900/40 border border-slate-800 rounded-[2.5rem] p-6 sm:p-10 shadow-2xl relative overflow-hidden backdrop-blur-md" onClick={e => e.stopPropagation()}>
+                <div className="absolute top-0 right-0 bg-gradient-to-l from-indigo-500/10 to-transparent w-96 h-96 rounded-full blur-3xl -z-10" />
+                <div className="absolute bottom-0 left-0 bg-gradient-to-r from-emerald-500/5 to-transparent w-96 h-96 rounded-full blur-3xl -z-10" />
+
+                {/* HEADING ACCENT */}
+                <div className="flex flex-col items-center text-center mb-8">
+                    <motion.div 
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ type: "spring", duration: 0.5 }}
+                        className="p-3 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-full mb-3 shadow-lg shadow-indigo-500/5"
+                    >
+                        <Trophy className="w-7 h-7 text-yellow-400 animate-bounce" />
+                    </motion.div>
+                    <motion.h1 
+                        initial={{ y: -10, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        className="text-4xl sm:text-5xl font-black text-white uppercase tracking-tight leading-tight"
+                    >
+                        Kanonlopp! Loppet är avslutat 🎉
+                    </motion.h1>
+                    <p className="text-slate-400 text-sm mt-1 max-w-lg">
+                        Alla deltagare har gått i mål och tiderna är officiellt sparade. Se hela listan och dela resultaten!
+                    </p>
+                </div>
+
+                {/* MAIN GRID */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                    
+                    {/* LEFT PART: INTERACTIVE LEADERBOARD (2 COLS) */}
+                    <div className="lg:col-span-2 space-y-6">
+                        {/* FLIKAR / DIVISION SELECTOR */}
+                        <div className="flex flex-wrap gap-1.5 p-1 bg-slate-950/60 rounded-2xl border border-slate-800/80">
+                            <button
+                                type="button"
+                                onClick={() => setSelectedDivision('all')}
+                                className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                    selectedDivision === 'all'
+                                        ? 'bg-gradient-to-r from-indigo-600 to-indigo-550 text-white shadow-md'
+                                        : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                                }`}
+                            >
+                                Totalt (Alla)
+                            </button>
+                            {divisions.map((div) => (
+                                <button
+                                    key={div}
+                                    type="button"
+                                    onClick={() => setSelectedDivision(div)}
+                                    className={`px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                                        selectedDivision === div
+                                            ? 'bg-gradient-to-r from-indigo-600 to-indigo-550 text-white shadow-md'
+                                            : 'text-slate-400 hover:text-white hover:bg-slate-800/40'
+                                    }`}
+                                >
+                                    {div}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* RESULT LIST TABLE */}
+                        <div className="bg-slate-950/45 border border-slate-850 rounded-3xl overflow-hidden max-h-[50vh] overflow-y-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead>
+                                    <tr className="border-b border-slate-850 bg-slate-950/80 text-slate-400 font-bold text-[10px] uppercase tracking-wider">
+                                        <th className="py-3 px-4 w-16 text-center">Plats</th>
+                                        <th className="py-3 px-4 w-16 text-center">Startnr</th>
+                                        <th className="py-3 px-4">Deltagare / Lagnamn</th>
+                                        {selectedDivision === 'all' && <th className="py-3 px-4 w-32 hidden sm:table-cell">Klass</th>}
+                                        <th className="py-3 px-4 w-28 text-right">Tid</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {activeResults.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={selectedDivision === 'all' ? 5 : 4} className="py-8 text-center text-slate-500 italic bg-transparent">
+                                                Inga resultat tillgängliga för denna klass
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        activeResults.map((p, index) => {
+                                            const isTop3 = p.rank <= 3;
+                                            const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : null;
+                                            // Split team and partner names if provided
+                                            return (
+                                                <tr key={index} className="border-b border-slate-900 hover:bg-slate-900/40 transition-colors">
+                                                    <td className="py-3.5 px-4 text-center">
+                                                        {medal ? (
+                                                            <span className="text-xl inline-block drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]">{medal}</span>
+                                                        ) : (
+                                                            <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-slate-800 text-[10px] font-mono text-slate-400 font-black">
+                                                                #{p.rank}
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className="py-3.5 px-4 text-center font-mono font-bold text-xs text-indigo-400">
+                                                        {p.startNumber || '—'}
+                                                    </td>
+                                                    <td className="py-3.5 px-4">
+                                                        {p.teamName ? (
+                                                            <div>
+                                                                <div className="font-extrabold text-white text-sm tracking-tight">{p.teamName}</div>
+                                                                <div className="text-[10px] text-slate-400 font-semibold">{p.name} {p.partnerName ? `& ${p.partnerName}` : ''}</div>
+                                                            </div>
+                                                        ) : p.partnerName ? (
+                                                            <div>
+                                                                <div className="font-extrabold text-white text-sm tracking-tight">{p.name} & {p.partnerName}</div>
+                                                                <div className="text-[10px] text-slate-450 uppercase tracking-wider text-[9px] font-bold">Dubbel</div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="font-bold text-white text-sm tracking-tight">{p.name}</div>
+                                                        )}
+                                                    </td>
+                                                    {selectedDivision === 'all' && (
+                                                        <td className="py-3.5 px-4 text-xs font-bold text-slate-400 hidden sm:table-cell">
+                                                            {(p as any).division}
+                                                        </td>
+                                                    )}
+                                                    <td className="py-3.5 px-4 text-right">
+                                                        <span className="font-mono text-sm font-black text-rose-500 bg-rose-500/10 px-3 py-1.5 rounded-xl border border-rose-500/15">
+                                                            {formatTime(p.time)}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* RIGHT PART: PUBLIC SHARE & QR CODE CARD (1 COL) */}
+                    <div className="bg-slate-950/70 border border-slate-800/80 rounded-[2rem] p-6 text-center space-y-6 shadow-2xl relative overflow-hidden flex flex-col items-center justify-center">
+                        <div className="absolute top-0 right-0 bg-indigo-500/5 w-24 h-24 rounded-full blur-xl" />
+                        
+                        <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 w-fit">
+                            <QrIcon className="w-5 h-5 animate-pulse" />
+                        </div>
+                        
+                        <div>
+                            <h3 className="font-black text-sm text-white uppercase tracking-wider">Mobil Resultatlänk</h3>
+                            <p className="text-[11px] text-slate-400 mt-1 max-w-[200px] mx-auto leading-relaxed">
+                                Deltagare och publik kan enkelt scanna QR-koden med sina mobiler för att följa liveresultaten och se sina tider direkt!
+                            </p>
+                        </div>
+
+                        {/* QR CODE BOX */}
+                        <div className="bg-white p-4 rounded-[1.8rem] shadow-xl inline-block border-4 border-slate-800">
+                            <QRCode 
+                                value={shareUrl}
+                                size={155}
+                                level="M"
+                            />
+                        </div>
+                    </div>
+
+                </div>
+
+                {/* BOTTOM CLOSE BAR */}
+                <div className="mt-8 pt-6 border-t border-slate-850 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs font-medium text-slate-400">
+                    <span className="flex items-center gap-2 text-slate-500">
+                        <Sparkles className="w-4 h-4 text-[#CD7F32] animate-pulse" />
+                        Officiella tider sparade av Flexibel Friskvård & Hälsa
+                    </span>
+                    <button
+                        type="button"
+                        onClick={onDismiss}
+                        className="w-full sm:w-auto bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-black py-4 px-10 rounded-2xl text-xs shadow-xl active:scale-95 transition-all uppercase tracking-widest cursor-pointer hover:scale-[1.02]"
+                    >
+                        Spara & Gå Tillbaka
+                    </button>
+                </div>
+            </div>
         </div>
-    </div>
-);
+    );
+};

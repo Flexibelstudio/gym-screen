@@ -60,7 +60,14 @@ export const ParticipantFinishList: React.FC<ParticipantFinishListProps> = ({ pa
                         >
                             <span className={`font-bold truncate mr-2 ${isFinished ? 'text-green-800 dark:text-green-300' : 'text-gray-700 dark:text-gray-300'}`}>
                               {isFinished && <span className="mr-2">#{displayPlacement}</span>}
-                              <span>{p.name} {p.partnerName && <span className="text-gray-500 font-normal text-sm">& {p.partnerName}</span>}</span>
+                              {p.teamName && !p.division?.toLowerCase().includes('singel') ? (
+                                <span className="inline-flex flex-col text-left">
+                                  <span className="font-extrabold text-sm text-indigo-600 dark:text-indigo-400">{p.teamName}</span>
+                                  <span className="text-gray-500 font-normal text-xs">{p.name} {p.partnerName && <>& {p.partnerName}</>}</span>
+                                </span>
+                              ) : (
+                                <span>{p.name} {p.partnerName && <> & {p.partnerName}</>}</span>
+                              )}
                             </span>
                             {isFinished ? (
                                 <div className="flex items-center gap-3">

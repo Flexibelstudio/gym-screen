@@ -19,6 +19,21 @@ import { DailyFormInsightModal } from '../../components/DailyFormInsightModal';
 // --- Local Storage Key ---
 const ACTIVE_LOG_STORAGE_KEY = 'smart-skarm-active-log';
 
+interface BlockGroup {
+  blockId: string;
+  blockTitle: string;
+  exercises: {
+      result: LocalExerciseResult;
+      originalIndex: number;
+  }[];
+}
+
+const ChevronDownIcon = ({ className = "w-4 h-4" }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className={className}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+    </svg>
+);
+
 // --- Local Types for Form State ---
 
 interface LocalSetDetail {
@@ -453,7 +468,7 @@ const ExerciseLogCard: React.FC<{
     };
 
     return (
-        <div className={`bg-white dark:bg-gray-900 rounded-2xl p-4 mb-3 border shadow-sm transition-all ${result.groupColor ? `border-l-4 ${borderColorClass} border-y-gray-100 border-r-gray-100 dark:border-y-gray-800 dark:border-r-gray-800` : 'border-gray-100 dark:border-gray-800'}`}>
+        <div className={`bg-white dark:bg-gray-900 rounded-2xl p-4 mb-1 border shadow-sm transition-all ${result.groupColor ? `border-l-4 ${borderColorClass} border-y-gray-100 border-r-gray-100 dark:border-y-gray-800 dark:border-r-gray-800` : 'border-gray-100 dark:border-gray-800'}`}>
             <div className="flex flex-col gap-2 mb-4">
                 <div className="flex justify-between items-start">
                     <div className="flex-1 min-w-0">
@@ -962,6 +977,37 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       if (isManualMode) return 0;
       return exerciseResults.reduce((acc, ex) => acc + ex.setDetails.filter(s => !s.completed).length, 0);
   }, [isManualMode, exerciseResults]);
+
+  const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
+
+  const blockGroups = useMemo(() => {
+      const groups: BlockGroup[] = [];
+      exerciseResults.forEach((result, index) => {
+          const bId = result.blockId || 'default-manual';
+          const bTitle = result.blockTitle || 'Övningar';
+          let group = groups.find(g => g.blockId === bId);
+          if (!group) {
+              group = {
+                  blockId: bId,
+                  blockTitle: bTitle,
+                  exercises: []
+              };
+              groups.push(group);
+          }
+          group.exercises.push({ result, originalIndex: index });
+      });
+      return groups;
+  }, [exerciseResults]);
+
+  const getBlockCompletionInfo = (group: BlockGroup) => {
+      let totalSets = 0;
+      let completedSets = 0;
+      group.exercises.forEach(ex => {
+          totalSets += ex.result.setDetails.length;
+          completedSets += ex.result.setDetails.filter(s => s.completed).length;
+      });
+      return { totalSets, completedSets };
+  };
 
   // --- BENCHMARK LOGIC ---
   const benchmarkDefinition = useMemo(() => {
@@ -1798,7 +1844,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       </div>
 
       <div className="flex-1 overflow-y-auto bg-gray-5 dark:bg-black scrollbar-hide">
-          <div className="p-4 sm:p-8 max-w-2xl mx-auto w-full">
+          <div className="p-2 sm:p-4 max-w-2xl mx-auto w-full">
               
               <div className="mb-6">
                   <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Datum</label>
@@ -1858,25 +1904,17 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                         </div>
                     )}
                     
-                    {exerciseResults.map((result, index) => {
-                        const isNewBlock = index === 0 || result.blockId !== exerciseResults[index - 1].blockId;
-                        const isLastInGroup = result.groupId && (index === exerciseResults.length - 1 || exerciseResults[index + 1].groupId !== result.groupId);
+                    {isManualMode ? (
+                        exerciseResults.map((result, index) => {
+                            const isLastInGroup = result.groupId && (index === exerciseResults.length - 1 || exerciseResults[index + 1].groupId !== result.groupId);
 
-                        return (
-                            <React.Fragment key={result.exerciseId}>
-                                {isNewBlock && !isManualMode && (
-                                    <div className="mt-8 mb-4 flex items-center gap-3">
-                                        <div className="h-5 w-1.5 bg-primary rounded-full shadow-sm"></div>
-                                        <h3 className="text-base font-black uppercase tracking-widest text-gray-800 dark:text-gray-200">
-                                            {result.blockTitle}
-                                        </h3>
-                                    </div>
-                                )}
+                            return (
                                 <ExerciseLogCard
+                                    key={result.exerciseId}
                                     name={result.exerciseName}
                                     result={result}
                                     onUpdate={(updates) => handleUpdateResult(index, updates)}
-                                    onRemove={isManualMode ? () => setExerciseResults(prev => prev.filter((_, i) => i !== index)) : undefined}
+                                    onRemove={() => setExerciseResults(prev => prev.filter((_, i) => i !== index))}
                                     aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
                                     scaling={activeInsight?.scaling?.[result.exerciseName]} 
                                     lastPerformance={history[result.exerciseName]} 
@@ -1908,9 +1946,141 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                         setShowCalculator(true);
                                     }}
                                 />
-                            </React.Fragment>
-                        );
-                    })}
+                            );
+                        })
+                    ) : (
+                        blockGroups.map((group) => {
+                            const isExpanded = expandedBlockId === group.blockId;
+                            const { totalSets, completedSets } = getBlockCompletionInfo(group);
+                            const isAllDone = totalSets > 0 && completedSets === totalSets;
+                            const isStarted = totalSets > 0 && completedSets > 0 && completedSets < totalSets;
+
+                            let headerBgClass = '';
+                            let lineClass = '';
+                            let statusTextClass = '';
+
+                            if (isAllDone) {
+                                headerBgClass = 'bg-green-50/60 hover:bg-green-100/70 dark:bg-green-950/10 dark:hover:bg-green-950/20 border-green-200/50 dark:border-green-800/20';
+                                lineClass = 'bg-green-500';
+                                statusTextClass = 'text-green-600 dark:text-green-400 font-bold';
+                            } else if (isStarted) {
+                                headerBgClass = 'bg-amber-50/30 hover:bg-amber-100/40 dark:bg-amber-950/5 dark:hover:bg-amber-950/10 border-amber-200/40 dark:border-amber-900/30 shadow-sm';
+                                lineClass = 'bg-amber-500';
+                                statusTextClass = 'text-amber-600 dark:text-amber-400 font-bold';
+                            } else {
+                                headerBgClass = isExpanded
+                                    ? 'bg-gray-100/75 hover:bg-gray-100 dark:bg-slate-900/90 dark:hover:bg-slate-900 border-gray-200/50 dark:border-gray-850/40 shadow-sm'
+                                    : 'bg-white hover:bg-gray-50 dark:bg-gray-900 dark:hover:bg-slate-900/60 border-gray-150 dark:border-gray-800/40 shadow-sm';
+                                lineClass = 'bg-gray-300 dark:bg-gray-750';
+                                statusTextClass = 'text-gray-500 dark:text-gray-450';
+                            }
+
+                            return (
+                                <div key={group.blockId} className="mb-2 last:mb-3 animate-fade-in">
+                                    {/* Collapsible Block Header */}
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setExpandedBlockId(prev => prev === group.blockId ? null : group.blockId);
+                                        }}
+                                        className={`w-full text-left p-4 rounded-2xl border transition-all flex items-center justify-between select-none ${headerBgClass}`}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`h-6 w-1 rounded-full transition-colors ${lineClass}`}></div>
+                                            <div>
+                                                <h4 className="text-sm font-black uppercase text-gray-800 dark:text-gray-100 tracking-wider">
+                                                    {group.blockTitle}
+                                                </h4>
+                                                <div className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-2">
+                                                    <span>{group.exercises.length} {group.exercises.length === 1 ? 'övning' : 'övningar'}</span>
+                                                    {totalSets > 0 && (
+                                                        <>
+                                                            <span>•</span>
+                                                            <span className={statusTextClass}>
+                                                                {completedSets}/{totalSets} set klara
+                                                            </span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 pr-1">
+                                            {isAllDone && (
+                                                <span className="text-[10px] bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                                                    Klar 🏆
+                                                </span>
+                                            )}
+                                            {isStarted && (
+                                                <span className="text-[10px] bg-amber-100 dark:bg-amber-950/45 text-amber-700 dark:text-amber-400 font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                                                    Pågår ⚡
+                                                </span>
+                                            )}
+                                            <span className={`text-gray-400 dark:text-gray-500 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}>
+                                                <ChevronDownIcon className="w-5 h-5 stroke-[2.5]" />
+                                            </span>
+                                        </div>
+                                    </button>
+
+                                    {/* Collapsible Content */}
+                                    <AnimatePresence initial={false}>
+                                        {isExpanded && (
+                                            <motion.div
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: 'auto' }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                transition={{ duration: 0.2, ease: "easeOut" }}
+                                                className="overflow-hidden space-y-2 mt-2 px-0.5"
+                                            >
+                                                {group.exercises.map(({ result, originalIndex }, idxInside) => {
+                                                    const isLastInGroup = result.groupId && (
+                                                        idxInside === group.exercises.length - 1 || 
+                                                        group.exercises[idxInside + 1].result.groupId !== result.groupId
+                                                    );
+
+                                                    return (
+                                                        <ExerciseLogCard
+                                                            key={result.exerciseId}
+                                                            name={result.exerciseName}
+                                                            result={result}
+                                                            onUpdate={(updates) => handleUpdateResult(originalIndex, updates)}
+                                                            aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
+                                                            scaling={activeInsight?.scaling?.[result.exerciseName]} 
+                                                            lastPerformance={history[result.exerciseName]} 
+                                                            isLastInGroup={isLastInGroup}
+                                                            onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
+                                                            onOpenCalculator={(ctx) => {
+                                                                setCalculatorContext({
+                                                                    ...ctx,
+                                                                    onSelectWeight: (weight: number) => {
+                                                                        setExerciseResults(prev => {
+                                                                            const newResults = [...prev];
+                                                                            const res = {...newResults[originalIndex]};
+                                                                            res.setDetails = res.setDetails.map(s => ({...s}));
+                                                                            
+                                                                            let targetIdx = res.setDetails.findIndex(s => !s.completed);
+                                                                            if (targetIdx === -1) {
+                                                                                targetIdx = res.setDetails.length - 1;
+                                                                            }
+                                                                            if (targetIdx !== -1) {
+                                                                                res.setDetails[targetIdx].weight = weight.toString();
+                                                                            }
+                                                                            newResults[originalIndex] = res;
+                                                                            return newResults;
+                                                                        });
+                                                                    }
+                                                                });
+                                                                setShowCalculator(true);
+                                                            }}
+                                                        />
+                                                    );
+                                                })}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            );
+                        })
+                    )}
 
                     {!isManualMode && (
                         <div className="mt-8 mb-6 bg-white dark:bg-gray-900 p-5 rounded-[2rem] border border-gray-100 dark:border-gray-800 shadow-sm">

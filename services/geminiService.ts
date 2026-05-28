@@ -763,7 +763,16 @@ export async function generateWorkoutDiploma(logData: any): Promise<WorkoutDiplo
     if (logData.benchmarkValue !== undefined) {
         stats += `, Benchmark-resultat: ${logData.benchmarkValue}`;
     }
-    const pbText = logData.newPBs?.map((pb: any) => `${pb.exerciseName} (+${pb.diff}kg)`).join(', ') || 'Inga nya PB.';
+    const pbText = logData.newPBs?.map((pb: any) => {
+        if (pb.weight === 0 && pb.reps !== undefined) {
+            return `${pb.exerciseName} (+${pb.diff} reps)`;
+        } else if (pb.weight === 0 && pb.reps === undefined) {
+            const m = Math.floor(pb.diff / 60);
+            const s = Math.floor(pb.diff % 60);
+            return `${pb.exerciseName} (-${m > 0 ? `${m}m ` : ''}${s}s)`;
+        }
+        return `${pb.exerciseName} (+${pb.diff}kg)`;
+    }).join(', ') || 'Inga nya PB.';
     
     let exerciseSummary = "Inga specifika övningar hittades.";
     if (logData.exerciseResults && logData.exerciseResults.length > 0) {

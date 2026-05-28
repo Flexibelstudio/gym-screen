@@ -1086,6 +1086,14 @@ export const updateStudioConfig = async (orgId: string, studioId: string, overri
     return studios.find(s => s.id === studioId) as Studio;
 };
 
+export const updateStudioRemoteState = async (orgId: string, studioId: string, remoteState: any) => {
+    if (isOffline || !db || !orgId || !studioId) return;
+    const org = await getOrganizationById(orgId);
+    if (!org) throw new Error("Organisationen hittades inte.");
+    const studios = org.studios.map(s => s.id === studioId ? { ...s, remoteState: sanitizeData(remoteState) } : s);
+    await updateDoc(doc(db, 'organizations', orgId), { studios });
+};
+
 export const getFreshCategoryWorkouts = async (orgId: string, category: string): Promise<Workout[]> => {
     if (isOffline || !db || !orgId) return [];
     try {
@@ -1652,6 +1660,17 @@ export const getRace = async (id: string) => {
         const snap = await getDoc(doc(db, 'races', id));
         return snap.exists() ? snap.data() as HyroxRace : null;
     } catch (e) { return null; }
+};
+
+export const listenToRace = (id: string, onUpdate: (race: HyroxRace | null) => void) => {
+    if (isOffline || !db || !id) return () => {};
+    return onSnapshot(doc(db, 'races', id), (snap) => {
+        if (snap.exists()) {
+            onUpdate(snap.data() as HyroxRace);
+        } else {
+            onUpdate(null);
+        }
+    }, (err) => console.error("listenToRace failed", err));
 };
 
 export const saveWorkoutResult = async (result: WorkoutResult) => {

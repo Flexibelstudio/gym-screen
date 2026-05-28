@@ -4,12 +4,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { WorkoutBlock, TimerStatus, TimerMode, Exercise, StartGroup, Organization, HyroxRace, Workout, TimerSegment } from '../types';
 import { useWorkoutTimer, playShortBeep, getAudioContext, calculateBlockDuration, playTimerSound } from '../hooks/useWorkoutTimer';
 import { useWorkout } from '../context/WorkoutContext';
-import { saveRace, updateOrganizationActivity } from '../services/firebaseService';
+import { saveRace, updateOrganizationActivity, updateStudioRemoteState } from '../services/firebaseService';
+import QRCode from 'react-qr-code';
 import { Confetti } from './WorkoutCompleteModal';
 import { EditResultModal, RaceResetConfirmationModal, RaceBackToPrepConfirmationModal, RaceFinishAnimation, PauseOverlay } from './timer/TimerModals';
 import { ParticipantFinishList } from './timer/ParticipantFinishList';
 import { DumbbellIcon, InformationCircleIcon, LightningIcon, SparklesIcon, ChevronRightIcon, ClockIcon, PlayIcon, SettingsIcon, RefreshIcon } from './icons'; // Added SettingsIcon if available, else standard icons
 import { useStudio } from '../context/StudioContext';
+import { useAuth } from '../context/AuthContext';
 
 // --- Constants ---
 const HYROX_RIGHT_PANEL_WIDTH = '450px';
@@ -587,6 +589,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 }) => {
   const { activeWorkout } = useWorkout();
   const { studioConfig, selectedStudio, selectedOrganization } = useStudio(); 
+  const { isStudioMode } = useAuth();
   
   // Use the hook with the selected sound profile
   const { 
@@ -805,6 +808,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [finishedParticipants, setFinishedParticipants] = useState<Record<string, FinishData>>({});
   const [savingParticipant, setSavingParticipant] = useState<string | null>(null);
   const [showConfetti, setShowConfetti] = React.useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
   const [participantToEdit, setParticipantToEdit] = useState<string | null>(null);
   const [showResetConfirmation, setShowResetConfirmation] = useState(false);
   const [showBackToPrepConfirmation, setShowBackToPrepConfirmation] = useState(false);
@@ -815,8 +819,31 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const [isClockFrozen, setIsClockFrozen] = useState(false);
   const [frozenTime, setFrozenTime] = useState(0);
 
+  // Hyrox premium states
+  const [screenMode, setScreenMode] = useState<'tv' | 'official'>(() => {
+    if (activeWorkout?.openAsOfficial) return 'official';
+    if (isStudioMode) return 'tv';
+    return 'official';
+  });
+  const [isDarkTheme] = useState(() => {
+    if (typeof document !== 'undefined') {
+      return document.documentElement.classList.contains('dark');
+    }
+    return true;
+  });
+  const [currentTimeOfDay, setCurrentTimeOfDay] = useState(new Date());
+  const [officialSearchQuery, setOfficialSearchQuery] = useState('');
+  const [officialActiveTab, setOfficialActiveTab] = useState<'running' | 'finished'>('running');
+  const [confirmFinishId, setConfirmFinishId] = useState<string | null>(null);
+  const [confirmUndoId, setConfirmUndoId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTimeOfDay(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Hyrox and Mode setup
-  const isHyroxRace = useMemo(() => activeWorkout?.id.startsWith('hyrox-full-race') || activeWorkout?.id.startsWith('custom-race'), [activeWorkout]);
+  const isHyroxRace = useMemo(() => activeWorkout?.id.startsWith('hyrox-full-race') || activeWorkout?.id.includes('custom-race'), [activeWorkout]);
   const isFreestanding = block.tag === 'Fristående';
   const showFullScreenColor = isFreestanding;
 
@@ -826,6 +853,264 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
   const nextGroupToStartIndex = useMemo(() => startGroups.findIndex(g => g.startTime === undefined), [startGroups]);
   const nextGroupToStart = useMemo(() => (nextGroupToStartIndex !== -1 ? startGroups[nextGroupToStartIndex] : null), [startGroups, nextGroupToStartIndex]);
   const remainingGroupsCount = useMemo(() => startGroups.filter(g => g.startTime === undefined).length, [startGroups]);
+
+  // Real-time synchronization state for official/functionary view
+  const [syncedElapsedSeconds, setSyncedElapsedSeconds] = useState(0);
+
+  // Find the studio that is actually broadcasting or linked to this race
+  const activeRaceStudio = useMemo(() => {
+    if (!isHyroxRace) return selectedStudio;
+    
+    // Default fallback to manually selected studio
+    const fallback = selectedStudio;
+    if (!selectedOrganization?.studios || !activeWorkout?.id) return fallback;
+    
+    const cleanId = (id: string) => {
+      if (!id) return '';
+      return id.replace('block-custom-race-', '').replace('custom-race-', '').replace('workout-', '');
+    };
+    
+    const localIdClean = cleanId(activeWorkout.id);
+    
+    // First, check if selectedStudio is active with this workout
+    if (selectedStudio?.remoteState) {
+      const remoteIdClean = cleanId(selectedStudio.remoteState.activeWorkoutId || '');
+      const isSameInstance = (remoteIdClean && remoteIdClean === localIdClean) ||
+                            (selectedStudio.remoteState.raceName === activeWorkout.title);
+      if (isSameInstance) return selectedStudio;
+    }
+    
+    // Otherwise scan other studios in organization to find any actively broadcasting studio
+    for (const s of selectedOrganization.studios) {
+      if (!s.remoteState) continue;
+      const remoteIdClean = cleanId(s.remoteState.activeWorkoutId || '');
+      const isSameInstance = (remoteIdClean && remoteIdClean === localIdClean) ||
+                            (s.remoteState.raceName === activeWorkout.title);
+      if (isSameInstance) {
+        return s;
+      }
+    }
+    
+    return fallback;
+  }, [selectedOrganization?.studios, selectedStudio, activeWorkout, isHyroxRace]);
+
+  // Helper to publish current race state to Firestore under selectedStudio's remoteState
+  const publishRaceState = useCallback(async (updates: any) => {
+    // If we have an activeRaceStudio, target that one. This ensures functionary edits write to the TV's active studio.
+    const targetStudio = activeRaceStudio || selectedStudio;
+    if (!selectedOrganization?.id || !targetStudio?.id) return;
+    try {
+      const currentRemote = targetStudio.remoteState || {};
+      const mergedState = {
+        ...currentRemote,
+        ...updates,
+        updatedAt: Date.now()
+      };
+      await updateStudioRemoteState(selectedOrganization.id, targetStudio.id, mergedState);
+    } catch (err) {
+      console.error("Failed to publish race state:", err);
+    }
+  }, [selectedOrganization, selectedStudio, activeRaceStudio]);
+
+  // Refs to prevent recursive feedback loops during Firestore syncing
+  const lastProcessedRemoteStateRef = useRef<string>('');
+  const lastPublishedStateRef = useRef<string>('');
+
+  // TV Publisher: Automatically keep the Firestore remoteState updated when TV state changes
+  useEffect(() => {
+    if (!isHyroxRace || screenMode !== 'tv') return;
+
+    const remoteState = activeRaceStudio?.remoteState || {};
+    
+    // Check if we need to update
+    const statusMap: Record<TimerStatus, string> = {
+      [TimerStatus.Idle]: 'idle',
+      [TimerStatus.Preparing]: 'preparing',
+      [TimerStatus.Running]: 'running',
+      [TimerStatus.Resting]: 'resting',
+      [TimerStatus.Paused]: 'paused',
+      [TimerStatus.Finished]: 'completed'
+    };
+    
+    const currentMappedStatus = statusMap[status] || 'idle';
+    
+    const currentStateStr = JSON.stringify({
+      status: currentMappedStatus,
+      startGroups,
+      finishedParticipants,
+      activeWorkoutId: activeWorkout?.id
+    });
+
+    // If it matches what we last published, do not publish again to avoid spamming
+    if (lastPublishedStateRef.current === currentStateStr) {
+      return;
+    }
+
+    // Also compare against incoming remoteState to prevent duplicate writes
+    const remoteStateStr = JSON.stringify({
+      status: remoteState.status || 'idle',
+      startGroups: remoteState.startGroups || [],
+      finishedParticipants: remoteState.finishedParticipants || {},
+      activeWorkoutId: remoteState.activeWorkoutId
+    });
+
+    if (remoteStateStr === currentStateStr) {
+      lastPublishedStateRef.current = currentStateStr; // sync ref
+      return;
+    }
+
+    // Prepare updates
+    const updates: any = {};
+    let hasChanges = false;
+
+    if (remoteState.status !== currentMappedStatus) {
+      updates.status = currentMappedStatus;
+      hasChanges = true;
+
+      if (status === TimerStatus.Running) {
+        updates.timerStartTime = Date.now();
+        updates.timerBase = totalTimeElapsed;
+      } else {
+        updates.timerStartTime = null;
+        updates.timerBase = totalTimeElapsed;
+        updates.lastElapsedSeconds = totalTimeElapsed;
+      }
+    }
+
+    if (JSON.stringify(remoteState.startGroups) !== JSON.stringify(startGroups)) {
+      updates.startGroups = startGroups;
+      hasChanges = true;
+    }
+
+    if (JSON.stringify(remoteState.finishedParticipants) !== JSON.stringify(finishedParticipants)) {
+      updates.finishedParticipants = finishedParticipants;
+      hasChanges = true;
+    }
+
+    // Always ensure activeWorkout/raceInfo is set so officials connect to the right race
+    if (remoteState.activeWorkoutId !== activeWorkout?.id || remoteState.raceName !== activeWorkout?.title) {
+      updates.activeWorkoutId = activeWorkout?.id;
+      updates.raceName = activeWorkout?.title;
+      hasChanges = true;
+    }
+
+    if (hasChanges) {
+      lastPublishedStateRef.current = currentStateStr;
+      publishRaceState(updates);
+    }
+  }, [
+    status, 
+    startGroups, 
+    finishedParticipants, 
+    isHyroxRace, 
+    screenMode, 
+    activeWorkout, 
+    publishRaceState, 
+    activeRaceStudio?.remoteState
+  ]);
+
+  // Sync state from remoteState (Subscriber)
+  useEffect(() => {
+    if (!isHyroxRace || !activeRaceStudio?.remoteState) return;
+    
+    const remoteState = activeRaceStudio.remoteState;
+    
+    const cleanId = (id: string) => {
+      if (!id) return '';
+      return id.replace('block-custom-race-', '').replace('custom-race-', '').replace('workout-', '');
+    };
+    
+    const remoteIdClean = cleanId(remoteState.activeWorkoutId);
+    const localIdClean = cleanId(activeWorkout?.id);
+    
+    const isSameWorkout = (remoteIdClean && remoteIdClean === localIdClean) || 
+                          (remoteState.raceName && remoteState.raceName === activeWorkout?.title) ||
+                          (activeWorkout?.title && remoteState.raceName?.toLowerCase() === activeWorkout.title.toLowerCase());
+                          
+    if (!isSameWorkout) return;
+
+    // Fast check to see if we already applied this specific database snapshot
+    const remoteStateStr = JSON.stringify({
+      status: remoteState.status,
+      startGroups: remoteState.startGroups,
+      finishedParticipants: remoteState.finishedParticipants
+    });
+
+    if (lastProcessedRemoteStateRef.current === remoteStateStr) {
+      return;
+    }
+    lastProcessedRemoteStateRef.current = remoteStateStr;
+
+    // 1. Sync finishedParticipants (both TV and official panels!)
+    if (remoteState.finishedParticipants) {
+      setFinishedParticipants(remoteState.finishedParticipants);
+    }
+
+    // 2. Sync startGroups
+    if (remoteState.startGroups) {
+      setStartGroups(remoteState.startGroups);
+    }
+
+    // 3. Sync status / controls for official/viewer mode
+    if (remoteState.status === 'completed') {
+      if (remoteState.finalRaceId) {
+        onFinish({ isNatural: true, raceId: remoteState.finalRaceId });
+      }
+    } else if (screenMode === 'official') {
+      if (remoteState.status === 'running') {
+        setIsLobbyMode(false);
+        if (status !== TimerStatus.Running) {
+          start({ skipPrep: true });
+        }
+      } else if (remoteState.status === 'paused') {
+        if (status === TimerStatus.Running) {
+          pause();
+        }
+      } else if (remoteState.status === 'idle') {
+        setIsLobbyMode(true);
+        reset();
+      }
+    }
+  }, [
+    activeRaceStudio?.remoteState, 
+    isHyroxRace, 
+    activeWorkout, 
+    screenMode, 
+    status, 
+    start, 
+    pause, 
+    reset,
+    showFinishAnimation
+  ]);
+
+  // Sync elapsed seconds for official/functionary view
+  useEffect(() => {
+    if (screenMode !== 'official') return;
+
+    const updateTime = () => {
+      const remoteState = activeRaceStudio?.remoteState;
+      if (!remoteState) {
+        setSyncedElapsedSeconds(0);
+        return;
+      }
+
+      if (remoteState.status === 'running' && remoteState.timerStartTime) {
+        const now = Date.now();
+        const elapsed = (remoteState.timerBase || 0) + Math.floor((now - remoteState.timerStartTime) / 1000);
+        setSyncedElapsedSeconds(Math.max(0, elapsed));
+      } else {
+        setSyncedElapsedSeconds(remoteState.lastElapsedSeconds || 0);
+      }
+    };
+
+    updateTime();
+
+    const remoteState = activeRaceStudio?.remoteState;
+    if (remoteState?.status === 'running') {
+      const intervalId = setInterval(updateTime, 250);
+      return () => clearInterval(intervalId);
+    }
+  }, [activeRaceStudio?.remoteState, screenMode]);
 
   const groupForCountdownDisplay = useMemo(() => {
     if (!isHyroxRace) return null;
@@ -924,34 +1209,70 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       if (action === 'start') {
           setIsLobbyMode(false);
           start(); 
+          publishRaceState({
+              status: 'running',
+              timerStartTime: Date.now(),
+              timerBase: 0,
+              lastElapsedSeconds: 0,
+              startGroups: startGroups.map(g => ({ ...g, startTime: g.startTime })),
+              finishedParticipants: {},
+              activeWorkoutId: activeWorkout?.id,
+              raceName: activeWorkout?.title
+          });
       }
       else if (action === 'pause') {
           if (isTransitioning) setIsTransitionPaused(true);
           else pause();
+          publishRaceState({
+              status: 'paused',
+              lastElapsedSeconds: totalTimeElapsed
+          });
       }
       else if (action === 'resume') {
           if (isTransitioning) setIsTransitionPaused(false);
           else resume();
+          publishRaceState({
+              status: 'running',
+              timerStartTime: Date.now(),
+              timerBase: totalTimeElapsed,
+              lastElapsedSeconds: totalTimeElapsed
+          });
       }
       else if (action === 'reset') {
           handleConfirmReset();
+          publishRaceState({
+              status: 'idle',
+              timerStartTime: null,
+              timerBase: 0,
+              lastElapsedSeconds: 0,
+              startGroups: startGroups.map(g => ({ ...g, startTime: undefined })),
+              finishedParticipants: {},
+              activeWorkoutId: activeWorkout?.id,
+              raceName: activeWorkout?.title
+          });
       }
-  }, [selectedOrganization, selectedStudio, activeWorkout, block.id, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset]);
+  }, [selectedOrganization, selectedStudio, activeWorkout, block.id, start, pause, resume, isTransitioning, isLobbyMode, handleConfirmReset, startGroups, totalTimeElapsed, publishRaceState]);
 
   useEffect(() => { return () => stopAllAudio(); }, [stopAllAudio]);
 
   useEffect(() => {
+    // If the race is already running (locally or remotely), do not overwrite with unstarted groups!
+    const isRunningRemotely = activeRaceStudio?.remoteState?.status === 'running' || activeRaceStudio?.remoteState?.status === 'paused';
+    if (status === TimerStatus.Running || status === TimerStatus.Paused || isRunningRemotely) {
+        return;
+    }
+
     if (isHyroxRace) {
         if (activeWorkout?.startGroups && activeWorkout.startGroups.length > 0) {
-            setStartGroups(activeWorkout.startGroups.map((g, index) => ({ ...g, startTime: index === 0 ? 0 : undefined })));
+            setStartGroups(activeWorkout.startGroups.map(g => ({ ...g, startTime: undefined })));
         } else if (activeWorkout) { 
-            setStartGroups([{ id: `group-${Date.now()}`, name: 'Startgrupp 1', participants: (activeWorkout.participants || []).join('\n'), startTime: 0 }]);
+            setStartGroups([{ id: `group-${Date.now()}`, name: 'Startgrupp 1', participants: (activeWorkout.participants || []).join('\n'), startTime: undefined }]);
         } else { setStartGroups([]); }
     } else { setStartGroups([]); }
-  }, [isHyroxRace, activeWorkout]);
+  }, [isHyroxRace, activeWorkout, status, activeRaceStudio?.remoteState?.status]);
 
   useEffect(() => {
-      if (!isHyroxRace || (status !== TimerStatus.Running && status !== TimerStatus.Preparing)) return;
+      if (!isHyroxRace || status !== TimerStatus.Running || screenMode !== 'tv') return;
       const groupsToStart = startGroups.filter((group, index) => { const expectedStartTime = index * startIntervalSeconds; return group.startTime === undefined && totalTimeElapsed >= expectedStartTime; });
       if (groupsToStart.length > 0) {
           setStartGroups(prevGroups => {
@@ -960,10 +1281,15 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                   const index = newGroups.findIndex(g => g.id === groupToStart.id);
                   if (index !== -1) { newGroups[index] = { ...newGroups[index], startTime: index * startIntervalSeconds }; }
               });
+              
+              if (screenMode === 'tv') {
+                  publishRaceState({ startGroups: newGroups });
+              }
+              
               return newGroups;
           });
       }
-  }, [isHyroxRace, totalTimeElapsed, startGroups, status, startIntervalSeconds]);
+  }, [isHyroxRace, totalTimeElapsed, startGroups, status, startIntervalSeconds, screenMode, publishRaceState]);
 
   useEffect(() => {
       if (status === TimerStatus.Preparing) return;
@@ -999,17 +1325,30 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
     });
 
     if (group?.startTime !== undefined) {
-      const netTime = Math.max(0, totalTimeElapsed - group.startTime);
-      setFinishedParticipants(prev => ({
-        ...prev,
-        [participantId]: { time: netTime, placement: Object.keys(prev).length + 1 }
-      }));
+      const currentElapsed = screenMode === 'official' ? syncedElapsedSeconds : totalTimeElapsed;
+      const netTime = Math.max(0, currentElapsed - group.startTime);
+      setFinishedParticipants(prev => {
+        const next = {
+          ...prev,
+          [participantId]: { time: netTime, placement: Object.keys(prev).length + 1 }
+        };
+        publishRaceState({ finishedParticipants: next });
+        return next;
+      });
       
       // Try to find the actual name for the speech synthesis
       let participantName = participantId;
       if (group.participantList && group.participantList.length > 0) {
           const p = group.participantList.find(p => p.id === participantId);
-          if (p) participantName = p.name;
+          if (p) {
+              if (p.teamName) {
+                  participantName = p.teamName;
+              } else if (p.partnerName) {
+                  participantName = `${p.name} och ${p.partnerName}`;
+              } else {
+                  participantName = p.name;
+              }
+          }
       } else {
           // Extract name from legacy participants based on index
           const match = participantId.match(/legacy-.*-(\d+)/);
@@ -1031,20 +1370,28 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
 
   const handleUpdateResult = (newTime: number) => {
     if (participantToEdit) {
-      setFinishedParticipants(prev => ({
-        ...prev,
-        [participantToEdit]: { ...prev[participantToEdit], time: newTime }
-      }));
+      setFinishedParticipants(prev => {
+        const next = {
+          ...prev,
+          [participantToEdit]: { ...prev[participantToEdit], time: newTime }
+        };
+        publishRaceState({ finishedParticipants: next });
+        return next;
+      });
       setParticipantToEdit(null);
     }
   };
 
   const handleAddPenalty = () => {
     if (participantToEdit) {
-      setFinishedParticipants(prev => ({
-        ...prev,
-        [participantToEdit]: { ...prev[participantToEdit], time: prev[participantToEdit].time + 60 }
-      }));
+      setFinishedParticipants(prev => {
+        const next = {
+          ...prev,
+          [participantToEdit]: { ...prev[participantToEdit], time: prev[participantToEdit].time + 60 }
+        };
+        publishRaceState({ finishedParticipants: next });
+        return next;
+      });
       setParticipantToEdit(null);
     }
   };
@@ -1054,6 +1401,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       setFinishedParticipants(prev => {
         const next = { ...prev };
         delete next[participantToEdit];
+        publishRaceState({ finishedParticipants: next });
         return next;
       });
       setParticipantToEdit(null);
@@ -1074,10 +1422,65 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       if (winnerId) {
           const found = startedParticipants.find(p => p.id === winnerId);
           if (found) {
-              winnerDisplayName = found.name;
+              if (found.teamName) {
+                  winnerDisplayName = found.teamName;
+              } else if (found.partnerName) {
+                  winnerDisplayName = `${found.name} och ${found.partnerName}`;
+              } else {
+                  winnerDisplayName = found.name;
+              }
           }
       }
-      setWinnerName(winnerDisplayName);
+
+      // Calculate top 3 per division
+      const divisionWinners: { 
+          division: string; 
+          top3: { 
+              rank: number; 
+              name: string; 
+              time: number;
+              startNumber?: number;
+              teamName?: string;
+              partnerName?: string;
+          }[] 
+      }[] = [];
+      sortedFinishers.forEach(([participantId, data]) => {
+          const participant = startedParticipants.find(p => p.id === participantId);
+          const division = participant?.division || 'Standard';
+          
+          let displayName = participantId;
+          if (participant) {
+              if (participant.teamName) {
+                  displayName = participant.teamName;
+              } else if (participant.partnerName) {
+                  displayName = `${participant.name} & ${participant.partnerName}`;
+              } else {
+                  displayName = participant.name;
+              }
+          }
+          
+          let divObj = divisionWinners.find(d => d.division === division);
+          if (!divObj) {
+              divObj = { division, top3: [] };
+              divisionWinners.push(divObj);
+          }
+          
+          divObj.top3.push({
+              rank: divObj.top3.length + 1,
+              name: displayName,
+              time: (data as FinishData).time,
+              startNumber: participant?.startNumber === null ? undefined : participant?.startNumber,
+              teamName: participant?.teamName || undefined,
+              partnerName: participant?.partnerName || undefined
+          });
+      });
+
+      const serializedWinnersObj = JSON.stringify({
+          fallback: winnerDisplayName || '',
+          divisions: divisionWinners
+      });
+      
+      setWinnerName(serializedWinnersObj);
       
       const raceResults = sortedFinishers.map(([participantId, data]) => {
           const group = startGroups.find(g => {
@@ -1100,7 +1503,11 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
               participant: partnerName ? `${displayName} & ${partnerName}` : displayName, 
               time: (data as FinishData).time, 
               groupId: group?.id || 'unknown',
-              ...(partnerName ? { partnerName } : {})
+              ...(partnerName ? { partnerName } : {}),
+              email: found?.email || undefined,
+              partnerEmail: found?.partnerEmail || undefined,
+              teamName: found?.teamName || undefined,
+              division: found?.division || undefined
           };
       });
 
@@ -1114,7 +1521,12 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           const raceData: any = {
               raceName: activeWorkout.title,
               exercises: block.exercises?.map(e => `${e.reps || ''} ${e.name}`.trim()) || [],
-              startGroups: startGroups.map(g => ({ id: g.id, name: g.name, participants: g.participants.split('\n').map(p => p.trim()).filter(Boolean) })),
+              startGroups: startGroups.map(g => ({
+                  id: g.id,
+                  name: g.name,
+                  participants: g.participants,
+                  participantList: g.participantList || []
+              })),
               results: raceResults,
               status: 'completed'
           };
@@ -1126,8 +1538,19 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
           const savedRace = await saveRace(raceData, organization.id);
           if (savedRace && savedRace.id) {
               setFinalRaceId(savedRace.id);
-              setShowFinishAnimation(true);
+              setWinnerName(serializedWinnersObj);
+              
+              // Publish the completed state to firebase studio remote state so TV/viewer screens update
+              publishRaceState({
+                  status: 'completed',
+                  finalRaceId: savedRace.id,
+                  winnerName: serializedWinnersObj
+              });
+
               if (winnerDisplayName) speak(`Och vinnaren är ${winnerDisplayName}! Bra jobbat alla!`);
+
+              // Navigera direkt till den detaljerade resultatsidan och hoppa över popup-mellansteget
+              onFinish({ isNatural: true, raceId: savedRace.id });
           } else {
               throw new Error("Missing raceId from server response");
           }
@@ -1280,6 +1703,804 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       return null;
   }, [status, currentTime, block.settings, nextSegment, nextExercise, completedWorkIntervals, totalWorkIntervals]);
 
+  // --- HYROX PRESTIGE VIEW RENDERING ---
+  const renderHyroxPremiumView = () => {
+    const raceId = activeWorkout ? (activeWorkout.id.startsWith('custom-race-') && activeWorkout.id !== 'custom-race' ? activeWorkout.id.replace('custom-race-', '') : activeWorkout.id) : '';
+    const allRaceParticipants = startGroups.flatMap(g => {
+        if (g.participantList && g.participantList.length > 0) return g.participantList;
+        return (g.participants || '').split('\n').map(p => p.trim()).filter(Boolean).map((name, index) => ({
+            id: `legacy-${g.id}-${index}`,
+            name,
+            startNumber: index + 1,
+            division: 'Singel Herr'
+        }));
+    });
+    const totalRegistered = allRaceParticipants.length;
+    const startedTotal = startedParticipants.length;
+    const finishedTotal = Object.keys(finishedParticipants).length;
+    const runningTotal = Math.max(0, startedTotal - finishedTotal);
+
+    const formattedTimeOfDay = currentTimeOfDay.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const currentElapsed = screenMode === 'official' ? syncedElapsedSeconds : totalTimeElapsed;
+    const raceElapsedMin = Math.floor(currentElapsed / 60).toString().padStart(2, '0');
+    const raceElapsedSec = (currentElapsed % 60).toString().padStart(2, '0');
+
+    // Theme values
+    const themeBg = isDarkTheme ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900';
+    const cardBg = isDarkTheme ? 'bg-slate-900/60 border-slate-800/80' : 'bg-white border-slate-200/80 shadow-md';
+    const textMuted = isDarkTheme ? 'text-slate-400' : 'text-slate-500';
+    const borderTheme = isDarkTheme ? 'border-slate-800' : 'border-slate-200';
+
+    const getDivisionColor = (div?: string) => {
+        const d = div || 'Singel Herr';
+        if (d === 'Singel Herr') return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+        if (d === 'Singel Dam') return 'bg-pink-500/10 text-pink-500 border-pink-500/20';
+        if (d === 'Dubbel Herr') return 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20';
+        if (d === 'Dubbel Dam') return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
+        if (d === 'Dubbel Mix') return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
+        return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
+    };
+
+    if (screenMode === 'official') {
+        // --- FUNKTIONÄRSVY (MOBIL/IPAD) ---
+        const uncompletedStartedParticipants = startedParticipants.filter(p => !finishedParticipants[p.id]);
+        
+        const filteredRunning = uncompletedStartedParticipants.filter(p => {
+            const query = officialSearchQuery.toLowerCase().trim();
+            if (!query) return true;
+            return p.name.toLowerCase().includes(query) || 
+                   p.startNumber?.toString().includes(query) || 
+                   (p.partnerName && p.partnerName.toLowerCase().includes(query));
+        });
+
+        const finishedList = Object.entries(finishedParticipants)
+            .map(([id, data]) => {
+                const found = allRaceParticipants.find(p => p.id === id);
+                return { id, name: found?.name || 'Okänd', division: found?.division || 'Singel Herr', partnerName: found?.partnerName, teamName: found?.teamName, ...data };
+            })
+            .sort((a, b) => a.time - b.time);
+
+        return (
+            <div className={`fixed inset-0 w-full h-full flex flex-col ${themeBg} overflow-hidden z-[45]`}>
+                {/* Header */}
+                <header className={`px-4 py-3 flex justify-between items-center border-b ${borderTheme}`}>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse"></span>
+                            <span className="text-xs uppercase font-extrabold tracking-widest text-indigo-500">Funktionärspanel</span>
+                        </div>
+                        <h2 className="text-sm font-black truncate max-w-[200px] sm:max-w-xs">{activeWorkout?.title || 'Hyrox-simulering'}</h2>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {isStudioMode && (
+                            <button 
+                                onClick={() => setScreenMode('tv')} 
+                                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg flex items-center gap-1.5"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4.5 w-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                                <span>TV-Skärm</span>
+                            </button>
+                        )}
+                        <button 
+                            onClick={handleExit}
+                            className="bg-slate-500/10 hover:bg-slate-500/20 font-bold text-xs px-2.5 py-1.5 rounded-lg"
+                        >
+                            Avsluta
+                        </button>
+                    </div>
+                </header>
+
+                {/* Sub-header containing actual global clock & stopwatch */}
+                <div className={`px-4 py-2 border-b ${borderTheme} flex justify-between items-center text-xs bg-slate-500/5`}>
+                    <div className="flex items-center gap-3 text-slate-900 dark:text-slate-100">
+                        <span className="font-mono font-bold tracking-tight">Klockslag: {formattedTimeOfDay}</span>
+                        <span className="text-slate-300">|</span>
+                        <span className="font-mono font-bold text-indigo-500">Tävlingstid: {raceElapsedMin}:{raceElapsedSec}</span>
+                    </div>
+                </div>
+
+                {/* Tab selector */}
+                <div className="flex border-b border-indigo-500/10 text-sm font-bold">
+                    <button
+                        onClick={() => setOfficialActiveTab('running')}
+                        className={`flex-1 py-3 text-center border-b-2 transition-colors ${officialActiveTab === 'running' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-100'}`}
+                    >
+                        Ute på banan ({uncompletedStartedParticipants.length})
+                    </button>
+                    <button
+                        onClick={() => setOfficialActiveTab('finished')}
+                        className={`flex-1 py-3 text-center border-b-2 transition-colors ${officialActiveTab === 'finished' ? 'border-indigo-600 text-indigo-600 dark:text-indigo-400' : 'border-transparent text-slate-400 hover:text-slate-100'}`}
+                    >
+                        I Mål ({finishedList.length})
+                    </button>
+                </div>
+
+                {/* Search Bar */}
+                {officialActiveTab === 'running' && (
+                    <div className="p-3">
+                        <div className="relative">
+                            <input 
+                                type="text"
+                                placeholder="Sök efter deltagare eller startnummer..."
+                                value={officialSearchQuery}
+                                onChange={e => setOfficialSearchQuery(e.target.value)}
+                                className="w-full text-sm bg-slate-500/5 dark:bg-slate-900 border border-slate-700/60 rounded-xl px-4 py-3 pl-10 focus:ring-1 focus:ring-indigo-500 outline-none text-slate-900 dark:text-slate-100"
+                            />
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 absolute left-3.5 top-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                    </div>
+                )}
+
+                {/* Lists Content */}
+                <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                    {officialActiveTab === 'running' ? (
+                        filteredRunning.length === 0 ? (
+                            <div className="text-center py-12 text-sm text-slate-500 italic">
+                                {isLobbyMode 
+                                    ? "Eventet har inte startats ännu. Starta i TV-vyn först."
+                                    : "Inga aktiva löpare ute på banan för tillfället eller hittades ej."}
+                            </div>
+                        ) : (
+                            filteredRunning.map(p => (
+                                <div 
+                                    key={p.id}
+                                    className={`p-3.5 rounded-xl border flex justify-between items-center bg-white dark:bg-slate-900 ${borderTheme}`}
+                                >
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-extrabold text-sm text-indigo-500">#{p.startNumber}</span>
+                                            <span className="font-black text-sm text-slate-900 dark:text-slate-100 flex flex-col">
+                                                {p.teamName ? (
+                                                    <>
+                                                        <span className="text-sm font-black text-indigo-500 dark:text-indigo-400">{p.teamName}</span>
+                                                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{p.name} {p.partnerName && <>& {p.partnerName}</>}</span>
+                                                    </>
+                                                ) : (
+                                                    <span>{p.name} {p.partnerName && <> & {p.partnerName}</>}</span>
+                                                )}
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 mt-1.5 items-center">
+                                            <span className={`text-[9px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded border ${getDivisionColor(p.division)}`}>
+                                                {p.division || 'Singel Herr'}
+                                            </span>
+                                            {p.email && <span className="text-[10px] text-slate-400 truncate max-w-[120px]">{p.email}</span>}
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => setConfirmFinishId(p.id)}
+                                        className="bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl shadow-md uppercase tracking-wider"
+                                    >
+                                        MÅL
+                                    </button>
+                                </div>
+                            ))
+                        )
+                    ) : (
+                        finishedList.length === 0 ? (
+                            <div className="text-center py-12 text-sm text-slate-500 italic">
+                                Inga deltagare i mål ännu.
+                            </div>
+                        ) : (
+                            finishedList.map((res, index) => (
+                                <div 
+                                    key={res.id}
+                                    className={`p-3.5 rounded-xl border flex justify-between items-center bg-green-500/5 ${borderTheme}`}
+                                >
+                                    <div>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="font-black text-sm text-green-500">#{index+1}</span>
+                                            <span className="font-black text-sm text-slate-900 dark:text-slate-100 flex flex-col">
+                                                {res.teamName ? (
+                                                    <>
+                                                        <span className="text-sm font-black text-indigo-500 dark:text-indigo-400">{res.teamName}</span>
+                                                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{res.name} {res.partnerName && <>& {res.partnerName}</>}</span>
+                                                    </>
+                                                ) : (
+                                                    <span>{res.name} {res.partnerName && <> & {res.partnerName}</>}</span>
+                                                )}
+                                            </span>
+                                        </div>
+                                        <div className="flex gap-2 mt-1 items-center">
+                                            <span className={`text-[9px] uppercase font-bold px-1.5 py-0.5 rounded border ${getDivisionColor(res.division)}`}>
+                                                {res.division}
+                                            </span>
+                                            <span className="text-[10px] font-mono text-slate-400">Placering i klass</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-mono font-black text-lg text-slate-900 dark:text-slate-100 mr-1.5">
+                                            {Math.floor(res.time / 60)}:{String(res.time % 60).padStart(2, '0')}
+                                        </span>
+                                        <button
+                                            onClick={() => setParticipantToEdit(res.id)}
+                                            className="bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 text-xs font-extrabold px-3 py-2 rounded-xl border border-indigo-500/20 uppercase"
+                                        >
+                                            Ändra
+                                        </button>
+                                        <button
+                                            onClick={() => setConfirmUndoId(res.id)}
+                                            className="text-red-500 hover:bg-red-500/10 text-xs font-black p-2 rounded-xl border border-red-500/20 uppercase"
+                                            title="Placera tillbaka i loppet"
+                                        >
+                                            Ångra
+                                        </button>
+                                    </div>
+                                </div>
+                            ))
+                        )
+                    )}
+                </div>
+
+                {/* CONFIRM FINISH POPUP MODAL */}
+                {confirmFinishId && (() => {
+                    const runner = allRaceParticipants.find(p => p.id === confirmFinishId);
+                    if (!runner) return null;
+                    const displayName = runner.teamName 
+                        ? `${runner.teamName} (${runner.name}${runner.partnerName ? ` & ${runner.partnerName}` : ''})`
+                        : `${runner.name}${runner.partnerName ? ` & ${runner.partnerName}` : ''}`;
+                    return (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+                            <div className={`w-full max-w-sm rounded-2xl p-6 border ${cardBg}`}>
+                                <h3 className="text-lg font-black text-slate-900 dark:text-white mb-2">Bekräfta målgång</h3>
+                                <p className="text-sm mb-4 leading-relaxed">
+                                    Vill du registrera målgång för <strong className="text-indigo-500">{displayName}</strong> nu? <br />
+                                    Tävlingstid: <span className="font-mono font-bold text-lg text-indigo-500">{raceElapsedMin}:{raceElapsedSec}</span>
+                                </p>
+                                <div className="flex gap-2.5">
+                                    <button
+                                        onClick={() => {
+                                            handleParticipantFinish(confirmFinishId);
+                                            setConfirmFinishId(null);
+                                        }}
+                                        className="flex-1 bg-green-600 hover:bg-green-500 text-white font-extrabold text-sm py-3 rounded-xl uppercase tracking-wider shadow"
+                                    >
+                                        Ja, Registrera
+                                    </button>
+                                    <button
+                                        onClick={() => setConfirmFinishId(null)}
+                                        className="bg-slate-500/20 hover:bg-slate-500/30 font-bold text-sm px-4 py-3 rounded-xl dark:text-white"
+                                    >
+                                        Avbryt
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
+
+                {/* CONFIRM UNDO POPUP MODAL */}
+                {confirmUndoId && (() => {
+                    const runner = finishedList.find(r => r.id === confirmUndoId);
+                    if (!runner) return null;
+                    const displayName = runner.teamName 
+                        ? `${runner.teamName} (${runner.name}${runner.partnerName ? ` & ${runner.partnerName}` : ''})`
+                        : `${runner.name}${runner.partnerName ? ` & ${runner.partnerName}` : ''}`;
+                    return (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs">
+                            <div className={`w-full max-w-sm rounded-2xl p-6 border ${cardBg}`}>
+                                <h3 className="text-lg font-black text-red-500 mb-2">Ångra målgång?</h3>
+                                <p className="text-sm mb-4 leading-relaxed text-slate-700 dark:text-slate-300">
+                                    Vill du ta bort målgången för <strong>{displayName}</strong> och placera dem ute på banan igen? Deras tidmätning kommer att återupptas.
+                                </p>
+                                <div className="flex gap-2.5">
+                                    <button
+                                        onClick={() => {
+                                            setFinishedParticipants(prev => {
+                                                const next = { ...prev };
+                                                delete next[confirmUndoId];
+                                                publishRaceState({ finishedParticipants: next });
+                                                return next;
+                                            });
+                                            setConfirmUndoId(null);
+                                        }}
+                                        className="flex-1 bg-red-600 hover:bg-red-500 text-white font-extrabold text-sm py-3 rounded-xl uppercase tracking-wider shadow"
+                                    >
+                                        Ja, Återställ till lopp
+                                    </button>
+                                    <button
+                                        onClick={() => setConfirmUndoId(null)}
+                                        className="bg-slate-500/20 hover:bg-slate-500/30 font-bold text-sm px-4 py-3 rounded-xl dark:text-white"
+                                    >
+                                        Avbryt
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
+
+                {participantToEdit && (
+                    <EditResultModal 
+                        participantName={startedParticipants.find(p => p.id === participantToEdit)?.name || participantToEdit}
+                        currentTime={finishedParticipants[participantToEdit]?.time || 0}
+                        onSave={handleUpdateResult}
+                        onAddPenalty={handleAddPenalty}
+                        onUndo={handleRemoveResult}
+                        onCancel={() => setParticipantToEdit(null)}
+                    />
+                )}
+            </div>
+        );
+    }
+
+    // --- TV / STORSKÄRM (BENTO-GRID) ---
+    // Calculate live division standings
+    const activeDivisions = Array.from(new Set(allRaceParticipants.map(p => p.division || 'Singel Herr')));
+    
+    // Sort and rank participants within each division
+    const divisionStandings = activeDivisions.map(div => {
+        const runners = allRaceParticipants.filter(p => (p.division || 'Singel Herr') === div);
+        
+        const rankedRunners = runners.map(p => {
+            const isFinished = !!finishedParticipants[p.id];
+            let netTime = 999999;
+            let statusStr: 'unstarted' | 'running' | 'finished' = 'unstarted';
+
+            if (isFinished) {
+                netTime = finishedParticipants[p.id].time;
+                statusStr = 'finished';
+            } else {
+                const group = startGroups.find(g => g.participantList?.some(x => x.id === p.id));
+                if (group && group.startTime !== undefined) {
+                    netTime = Math.max(0, totalTimeElapsed - group.startTime);
+                    statusStr = 'running';
+                }
+            }
+
+            return { p, time: netTime, status: statusStr };
+        });
+
+        // Sort: finished (by time asc), then running (by time asc), then unstarted
+        rankedRunners.sort((a, b) => {
+            if (a.status === 'finished' && b.status === 'finished') return a.time - b.time;
+            if (a.status === 'finished') return -1;
+            if (b.status === 'finished') return 1;
+            if (a.status === 'running' && b.status === 'running') return a.time - b.time;
+            if (a.status === 'running') return -1;
+            if (b.status === 'running') return 1;
+            return 0;
+        });
+
+        return { division: div, stand: rankedRunners.slice(0, 3) };
+    });
+
+    const latestFinisherList = Object.entries(finishedParticipants)
+        .map(([id, data]) => {
+            const found = allRaceParticipants.find(p => p.id === id);
+            return { id, name: found?.name || 'Okänd', division: found?.division || 'Singel Herr', partnerName: found?.partnerName, teamName: found?.teamName, ...data };
+        })
+        .sort((a, b) => (b.placement || 0) - (a.placement || 0))
+        .slice(0, 4);
+
+    return (
+        <div className={`fixed inset-0 w-full h-full flex flex-col p-6 overflow-y-auto ${themeBg} transition-colors duration-500 z-[45]`}>
+            {/* Header Control Panel */}
+            <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+                <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-start">
+                    {/* Tillbaka-knapp i vänstra hörnet, men bara tills eventet startat (lobby mode) */}
+                    {isLobbyMode && (
+                        <button 
+                            onClick={handleExit}
+                            className="bg-slate-500/10 hover:bg-slate-500/20 text-slate-800 dark:text-slate-200 font-extrabold text-xs px-4 py-2.5 rounded-xl transition-all flex items-center gap-1.5"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                            </svg>
+                            Tillbaka
+                        </button>
+                    )}
+                    <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded bg-amber-500 text-black font-black text-[9px] uppercase tracking-widest">Live Event</span>
+                        <h1 className="text-xl font-black uppercase tracking-tight text-slate-900 dark:text-white">{activeWorkout?.title || 'HYROX Tävlingssimulering'}</h1>
+                    </div>
+                </div>
+            </div>
+
+            {/* STACKED FULL-WIDTH BENTO ROWS CONTAINER */}
+            <div className="flex flex-col gap-6 w-full flex-grow">
+                
+                {/* ROW 1: MASSIVE REAL-TIME CLOCK (KLOCKA SOM TAR HELA BREDDEN) */}
+                <div className={`p-8 rounded-3xl border ${cardBg} text-center flex flex-col justify-center items-center shadow-lg relative overflow-hidden`}>
+                    <div className="absolute top-4 left-6 flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></span>
+                        <span className={`text-[11px] font-black uppercase tracking-widest ${textMuted}`}>AKTUELL TID (KLOCKA)</span>
+                    </div>
+
+                    <div className="font-mono font-black text-8xl sm:text-9xl md:text-[11rem] tracking-tighter select-none tabular-nums text-slate-900 dark:text-amber-400 my-4 drop-shadow-sm leading-none flex items-baseline justify-center">
+                        {currentTimeOfDay.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' })}
+                        <span className="text-4xl sm:text-5xl md:text-7xl font-light ml-2 text-slate-400 dark:text-slate-500">
+                            :{currentTimeOfDay.toLocaleTimeString('sv-SE', { second: '2-digit' })}
+                        </span>
+                    </div>
+                    
+                    <div className="flex flex-wrap items-center justify-center gap-3 mt-4">
+                        <div className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20">
+                            <span className="text-[10px] uppercase font-bold text-indigo-500 tracking-wider">TÄVLINGSTID:</span>
+                            <span className="font-mono font-black text-xl text-slate-800 dark:text-slate-100">{raceElapsedMin}:{raceElapsedSec}</span>
+                        </div>
+                    </div>
+
+                    {/* Controls on the top right */}
+                    <div className="absolute bottom-4 right-6 flex gap-2">
+                        {isLobbyMode ? (
+                            <button 
+                                onClick={handleLobbyStart}
+                                className="bg-green-600 hover:bg-green-500 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl shadow-md uppercase tracking-wide"
+                            >
+                                Starta Event
+                            </button>
+                        ) : (
+                            <>
+                                {status === TimerStatus.Running ? (
+                                    <button 
+                                        onClick={() => handleRemoteAction('pause')}
+                                        className="bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl"
+                                    >
+                                        Pausa
+                                    </button>
+                                ) : (
+                                    <button 
+                                        onClick={() => handleRemoteAction('resume')}
+                                        className="bg-green-600 hover:bg-green-500 text-white font-extrabold text-xs px-4 py-2 rounded-xl"
+                                    >
+                                        Fortsätt
+                                    </button>
+                                )}
+                                <button 
+                                    onClick={() => setShowResetConfirmation(true)}
+                                    className="bg-red-500/10 hover:bg-red-500/20 text-red-500 font-bold text-xs px-3 py-2 rounded-xl border border-red-500/20"
+                                >
+                                    Nollställ
+                                </button>
+                            </>
+                        )}
+                    </div>
+                </div>
+
+                {/* ROW 2: CONDITIONAL COUNTDOWNS & REMAINING START GROUPS */}
+                {remainingGroupsCount > 0 && (
+                    <div className="flex flex-col gap-6">
+                        {/* Countdown inside startgroups */}
+                        {groupForCountdownDisplay && timeForCountdownDisplay > 0 && (
+                            <div className="p-8 rounded-3xl border border-orange-500/30 bg-orange-500/5 shadow-md flex flex-col md:flex-row items-center justify-between gap-6 animate-pulse">
+                                <div>
+                                    <span className="inline-block px-3 py-1 rounded bg-orange-500 text-black text-[10px] uppercase font-black tracking-widest mb-2">NÄSTA STARTGRUPP PÅ GÅNG</span>
+                                    <h3 className="text-3xl font-black text-slate-800 dark:text-white uppercase tracking-tight">{groupForCountdownDisplay.name}</h3>
+                                    <p className={`text-sm ${textMuted} mt-1`}>{remainingGroupsCount} av {startGroups.length} startgrupper kvar att starta.</p>
+                                </div>
+                                <div className="font-mono text-6xl sm:text-7xl font-black text-orange-550 dark:text-orange-400 bg-orange-500/10 px-8 py-5 rounded-2xl border border-orange-500/20">
+                                    {Math.floor(timeForCountdownDisplay / 60)}:{String(timeForCountdownDisplay % 60).padStart(2, '0')}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Remaining Upcoming groups list with members (som försvinner en efter en) */}
+                        <div className={`p-6 rounded-3xl border ${cardBg} shadow-lg`}>
+                            <h3 className="text-xs font-black tracking-widest text-indigo-500 uppercase mb-4 pl-1">Kommande startgrupper</h3>
+                            {(() => {
+                                const upcomingGroups = startGroups.filter(g => g.startTime === undefined);
+                                const gridCols = upcomingGroups.length === 1 
+                                    ? 'grid-cols-1 max-w-2xl mx-auto' 
+                                    : upcomingGroups.length === 2 
+                                        ? 'grid-cols-1 md:grid-cols-2 max-w-5xl mx-auto' 
+                                        : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3';
+                                
+                                return (
+                                    <div className={`grid gap-6 ${gridCols}`}>
+                                        {upcomingGroups.map((group, groupIndex) => {
+                                            const expectedStartTime = groupIndex * startIntervalSeconds;
+                                            const participantNames = group.participantList && group.participantList.length > 0
+                                                ? group.participantList.map(p => p.partnerName ? `${p.name} & ${p.partnerName}` : p.name)
+                                                : group.participants.split('\n').map(p => p.trim()).filter(Boolean);
+                                            
+                                            const isLargeCard = upcomingGroups.length <= 2;
+                                            
+                                            return (
+                                                <div key={group.id} className={`rounded-2xl border border-slate-500/10 bg-slate-500/5 flex flex-col justify-between h-full transition-all ${isLargeCard ? 'p-8 shadow-md' : 'p-5'}`}>
+                                                    <div>
+                                                        <div className="flex justify-between items-start mb-3">
+                                                            <h4 className={`font-black text-slate-900 dark:text-white uppercase ${isLargeCard ? 'text-2xl tracking-tight' : 'text-base'}`}>{group.name}</h4>
+                                                            <span className={`font-mono font-bold text-indigo-500 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded-full ${isLargeCard ? 'text-xs px-3 py-1.5' : 'text-[10px]'}`}>
+                                                                +{Math.floor(expectedStartTime / 60)}:{String(expectedStartTime % 60).padStart(2, '0')} s
+                                                            </span>
+                                                        </div>
+                                                        <div className={`space-y-2 mt-4`}>
+                                                            {group.participantList && group.participantList.length > 0 ? (
+                                                                group.participantList.map((p, idx2) => (
+                                                                    <div key={p.id || idx2} className={`flex items-center gap-2 border-b border-slate-500/5 last:border-b-0 text-slate-700 dark:text-gray-300 ${isLargeCard ? 'text-sm py-2 px-1' : 'text-xs py-1'}`}>
+                                                                        <span className={`rounded-full bg-slate-500/10 flex items-center justify-center font-bold text-slate-500 flex-shrink-0 ${isLargeCard ? 'w-6 h-6 text-xs' : 'w-5 h-5 text-[10px]'}`}>
+                                                                            {idx2 + 1}
+                                                                        </span>
+                                                                        <div className="flex flex-col min-w-0">
+                                                                            {p.teamName && (
+                                                                                <span className="text-xs font-black text-indigo-500 dark:text-indigo-400 leading-tight">
+                                                                                    {p.teamName}
+                                                                                </span>
+                                                                            )}
+                                                                            <span className="font-semibold truncate">
+                                                                                {p.partnerName ? `${p.name} & ${p.partnerName}` : p.name}
+                                                                            </span>
+                                                                        </div>
+                                                                    </div>
+                                                                ))
+                                                            ) : (
+                                                                participantNames.map((name, idx2) => (
+                                                                    <div key={name + idx2} className={`flex items-center gap-2 border-b border-slate-500/5 last:border-b-0 text-slate-700 dark:text-gray-300 ${isLargeCard ? 'text-sm py-2 px-1' : 'text-xs py-1'}`}>
+                                                                        <span className={`rounded-full bg-slate-500/10 flex items-center justify-center font-bold text-slate-500 flex-shrink-0 ${isLargeCard ? 'w-6 h-6 text-xs' : 'w-5 h-5 text-[10px]'}`}>
+                                                                            {idx2 + 1}
+                                                                        </span>
+                                                                        <span className="font-semibold truncate">{name}</span>
+                                                                    </div>
+                                                                ))
+                                                            )}
+                                                            {participantNames.length === 0 && (
+                                                                <p className="text-[10px] text-slate-550 italic">Inga deltagare registrerade.</p>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    </div>
+                )}
+
+                {/* ROW 3: EVENT ACTIVE VIEW (STATISTIK, LEADERBOARDS & QR CODE) */}
+                {(!isLobbyMode && remainingGroupsCount === 0) && (
+                    <div className="flex flex-col gap-6 w-full">
+                        {/* statistiken under klockan */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
+                            <div className="p-6 bg-blue-500/5 rounded-3xl border border-blue-500/10 hover:shadow-md transition-shadow">
+                                <span className="block text-4xl sm:text-5xl font-black text-blue-500 tracking-tight">{runningTotal}</span>
+                                <span className={`text-xs font-black uppercase tracking-widest ${textMuted} mt-1 block`}>Ute på banan</span>
+                            </div>
+                            <div className="p-6 bg-green-500/5 rounded-3xl border border-green-500/10 hover:shadow-md transition-shadow">
+                                <span className="block text-4xl sm:text-5xl font-black text-green-500 tracking-tight">{finishedTotal}</span>
+                                <span className={`text-xs font-black uppercase tracking-widest ${textMuted} mt-1 block`}>I Mål</span>
+                            </div>
+                            <div className="p-6 bg-indigo-500/5 rounded-3xl border border-indigo-500/10 hover:shadow-md transition-shadow">
+                                <span className="block text-4xl sm:text-5xl font-black text-indigo-500 tracking-tight">{startedTotal}</span>
+                                <span className={`text-xs font-black uppercase tracking-widest ${textMuted} mt-1 block`}>Startade tot</span>
+                            </div>
+                        </div>
+
+                        {/* leaderboards grouped horizontally to avoid dividing screen into side columns */}
+                        <div className="flex flex-col gap-6">
+                            
+                            {/* Singles division row */}
+                            {divisionStandings.filter(({ division }) => division.toLowerCase().includes('singel')).length > 0 && (
+                                <div className={`p-6 rounded-3xl border ${cardBg} shadow-lg space-y-4`}>
+                                    <div className="flex justify-between items-center pb-2 border-b border-indigo-500/10">
+                                        <h3 className="font-black text-sm uppercase tracking-wider text-indigo-500 flex items-center gap-2">
+                                            SINGELKLASSER (DAMER & HERRAR)
+                                        </h3>
+                                        <span className={`text-xs ${textMuted}`}>Sorterat efter nettotid</span>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        {divisionStandings
+                                            .filter(({ division }) => division.toLowerCase().includes('singel'))
+                                            .map(({ division, stand }) => (
+                                                <div key={division} className="space-y-3 bg-slate-500/5 p-4 rounded-2xl border border-slate-500/5">
+                                                    <h4 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200 tracking-wider flex items-center gap-2">
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
+                                                        {division}
+                                                    </h4>
+                                                    <div className="space-y-2">
+                                                        {stand.map((res, idx) => {
+                                                            const placementBg = idx === 0 ? 'bg-yellow-500 text-black font-black' : idx === 1 ? 'bg-slate-300 text-black font-black' : 'bg-amber-700 text-white font-black';
+                                                            const isUnstarted = res.status === 'unstarted';
+                                                            return (
+                                                                <div key={res.p.id} className={`flex justify-between items-center text-xs p-3 rounded-xl border ${borderTheme} bg-white dark:bg-slate-900`}>
+                                                                    <div className="flex items-center gap-2 max-w-[70%]">
+                                                                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${placementBg}`}>
+                                                                            {idx + 1}
+                                                                        </span>
+                                                                        <span className="font-black truncate">
+                                                                            {res.p.name}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        {res.status === 'finished' && <span className="text-[8px] font-bold text-green-500 border border-green-500/20 px-1 rounded uppercase">Klar</span>}
+                                                                        {res.status === 'running' && <span className="text-[8px] font-bold text-blue-500 border border-blue-500/20 px-1 rounded uppercase">Löp</span>}
+                                                                        <span className="font-mono font-black text-slate-900 dark:text-slate-100">
+                                                                            {isUnstarted ? 'Ej startad' : `${Math.floor(res.time / 60)}:${String(res.time % 60).padStart(2, '0')}`}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                        {stand.length === 0 && <p className="text-xs text-slate-500 italic py-2">Inga deltagare i denna division.</p>}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Team / Doubles division row */}
+                            {divisionStandings.filter(({ division }) => !division.toLowerCase().includes('singel')).length > 0 && (
+                                <div className={`p-6 rounded-3xl border ${cardBg} shadow-lg space-y-4`}>
+                                    <div className="flex justify-between items-center pb-2 border-b border-indigo-500/10">
+                                        <h3 className="font-black text-sm uppercase tracking-wider text-indigo-500 flex items-center gap-2">
+                                            DUBBEL- OCH LAGKLASSER
+                                        </h3>
+                                        <span className={`text-xs ${textMuted}`}>Sorterat efter nettotid</span>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        {divisionStandings
+                                            .filter(({ division }) => !division.toLowerCase().includes('singel'))
+                                            .map(({ division, stand }) => (
+                                                <div key={division} className="space-y-3 bg-slate-500/5 p-4 rounded-2xl border border-slate-500/5">
+                                                    <h4 className="text-xs font-black uppercase text-slate-800 dark:text-slate-200 tracking-wider flex items-center gap-2">
+                                                        <span className="h-1.5 w-1.5 rounded-full bg-indigo-500"></span>
+                                                        {division}
+                                                    </h4>
+                                                    <div className="space-y-2">
+                                                        {stand.map((res, idx) => {
+                                                            const placementBg = idx === 0 ? 'bg-yellow-500 text-black font-black' : idx === 1 ? 'bg-slate-300 text-black font-black' : 'bg-amber-700 text-white font-black';
+                                                            const isUnstarted = res.status === 'unstarted';
+                                                            return (
+                                                                <div key={res.p.id} className={`flex justify-between items-center text-xs p-3 rounded-xl border ${borderTheme} bg-white dark:bg-slate-900`}>
+                                                                    <div className="flex items-center gap-2 max-w-[70%]">
+                                                                        <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] ${placementBg}`}>
+                                                                            {idx + 1}
+                                                                        </span>
+                                                                        <span className="font-black truncate flex flex-col">
+                                                                            {res.p.teamName ? (
+                                                                                <>
+                                                                                    <span className="text-xs font-black text-indigo-500 dark:text-indigo-400 truncate">{res.p.teamName}</span>
+                                                                                    <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate">{res.p.name} {res.p.partnerName && <>& {res.p.partnerName}</>}</span>
+                                                                                </>
+                                                                            ) : (
+                                                                                <span className="truncate">{res.p.name} {res.p.partnerName && <> & {res.p.partnerName}</>}</span>
+                                                                            )}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        {res.status === 'finished' && <span className="text-[8px] font-bold text-green-500 border border-green-500/20 px-1 rounded uppercase">Klar</span>}
+                                                                        {res.status === 'running' && <span className="text-[8px] font-bold text-blue-500 border border-blue-500/20 px-1 rounded uppercase">Löp</span>}
+                                                                        <span className="font-mono font-black text-slate-900 dark:text-slate-100">
+                                                                            {isUnstarted ? 'Ej startad' : `${Math.floor(res.time / 60)}:${String(res.time % 60).padStart(2, '0')}`}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                        {stand.length === 0 && <p className="text-xs text-slate-500 italic py-2">Inga deltagare i denna division.</p>}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* ROW 4: LATEST FINISHERS (DE SENASTE SOM GICK I MÅL - UNDER DET DET SENASTE SOM GICK I MÅL) */}
+                <div className={`p-6 rounded-3xl border ${cardBg} shadow-lg space-y-4`}>
+                    <div className="pb-2 border-b border-indigo-500/10 flex justify-between items-center">
+                        <h3 className="font-extrabold text-sm uppercase tracking-wider text-indigo-500 flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                            Senaste målgångar
+                        </h3>
+                        <span className="text-[10px] uppercase font-bold text-slate-400">Rapporteras live</span>
+                    </div>
+
+                    {latestFinisherList.length === 0 ? (
+                        <p className="text-center text-xs text-slate-500 py-6 italic">Målgångar rapporteras här i realtid efter hand.</p>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {latestFinisherList.map((f, index) => (
+                                <div 
+                                    key={f.id + index}
+                                    className="flex flex-col p-4 rounded-xl bg-slate-500/5 border border-green-500/15 relative overflow-hidden"
+                                >
+                                    <div className="absolute top-0 right-0 h-full w-1.5 bg-green-500"></div>
+                                    <div className="flex justify-between items-start">
+                                        <span className="font-black text-xs text-slate-900 dark:text-slate-100 truncate max-w-[70%] flex flex-col">
+                                            {f.teamName ? (
+                                                <>
+                                                    <span className="text-xs font-black text-indigo-500 dark:text-indigo-400 truncate">{f.teamName}</span>
+                                                    <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 truncate">{f.name} {f.partnerName && <>& {f.partnerName}</>}</span>
+                                                </>
+                                            ) : (
+                                                <span className="truncate">{f.name} {f.partnerName && <> & {f.partnerName}</>}</span>
+                                            )}
+                                        </span>
+                                        <span className="font-mono font-black text-xs text-green-500">
+                                            {Math.floor(f.time / 60)}:{String(f.time % 60).padStart(2, '0')}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between items-center mt-2 text-[10px]">
+                                        <span className={`px-1.5 py-0.5 rounded border ${getDivisionColor(f.division)} uppercase text-[8px] font-extrabold`}>
+                                            {f.division}
+                                        </span>
+                                        <span className="text-slate-400">totalplats {f.placement}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* FOOTER & SHUTDOWN PANEL */}
+                <div className="flex flex-col md:flex-row justify-between items-center gap-6 mt-auto pt-4 border-t border-slate-500/10">
+                    {/* Left Side: Finish Early button (Stoppa & spara eventet) */}
+                    <div className="flex-grow flex items-center justify-start w-full md:w-auto">
+                        {!isLobbyMode && (
+                            <button 
+                                onClick={handleRaceComplete}
+                                disabled={isSavingRace}
+                                className="bg-red-650 hover:bg-red-600 text-white font-extrabold py-3.5 px-6 rounded-2xl uppercase tracking-wider text-xs shadow-lg shadow-red-500/10 hover:shadow-red-500/20 active:scale-[0.98] transition-all w-full md:w-auto"
+                            >
+                                {isSavingRace ? 'Sparar...' : 'Stoppa & spara eventet'}
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+            </div>
+
+            {/* CONFIRMATION OVERLAYS ACCESSIBLE IN TV VIEW */}
+            {showResetConfirmation && <RaceResetConfirmationModal onConfirm={handleConfirmReset} onCancel={() => setShowResetConfirmation(false)} onExit={() => onFinish({ isNatural: false })} />}
+            
+            {showConfetti && <Confetti />}
+            {showFinishAnimation && (
+                <RaceFinishAnimation 
+                  winnerName={winnerName} 
+                  finalRaceId={finalRaceId}
+                  onDismiss={() => {
+                      setShowFinishAnimation(false);
+                      if (finalRaceId) onFinish({ isNatural: true, raceId: finalRaceId });
+                  }} 
+                />
+            )}
+            
+            <AnimatePresence>
+              {isSavingRace && (
+                  <motion.div 
+                      initial={{ opacity: 0 }} 
+                      animate={{ opacity: 1 }} 
+                      exit={{ opacity: 0 }} 
+                      transition={{ duration: 0.1 }}
+                      className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center backdrop-blur-sm"
+                  >
+                      <div className="w-12 h-12 border-4 border-white/20 border-t-white rounded-full animate-spin"></div>
+                  </motion.div>
+              )}
+              {isActuallyPaused && !showFinishAnimation && !isLobbyMode && (
+                  <PauseOverlay onResume={() => handleRemoteAction('resume')} onRestart={() => handleRemoteAction('reset')} onFinish={handleExit} />
+              )}
+              {participantToEdit && (
+                  <EditResultModal 
+                      participantName={startedParticipants.find(p => p.id === participantToEdit)?.name || participantToEdit}
+                      currentTime={finishedParticipants[participantToEdit]?.time || 0}
+                      onSave={handleUpdateResult}
+                      onAddPenalty={handleAddPenalty}
+                      onUndo={handleRemoveResult}
+                      onCancel={() => setParticipantToEdit(null)}
+                  />
+              )}
+              {showBackToPrepConfirmation && <RaceBackToPrepConfirmationModal onConfirm={onBackToGroups} onCancel={() => setShowBackToPrepConfirmation(false)} />}
+            </AnimatePresence>
+        </div>
+    );
+  };
+
+  // --- HYROX PRESTIGE VIEW RENDERING ---
+  if (isHyroxRace) {
+      return renderHyroxPremiumView();
+  }
+
   return (
     <div 
         className={`fixed inset-0 w-full h-full overflow-hidden transition-colors duration-500 ${showFullScreenColor ? `${timerStyle.bg}` : 'bg-gray-100 dark:bg-black'}`}
@@ -1309,6 +2530,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
       {showFinishAnimation && (
           <RaceFinishAnimation 
             winnerName={winnerName} 
+            finalRaceId={finalRaceId}
             onDismiss={() => {
                 setShowFinishAnimation(false);
                 if (finalRaceId) onFinish({ isNatural: true, raceId: finalRaceId });

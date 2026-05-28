@@ -155,6 +155,7 @@ export interface Workout {
   showInApp?: boolean; // NYTT: Visa i medlemsapp
   usePreGame?: boolean; // Tända/Släcka pre-game vy i appen
   aiProgressionPrompt?: string; // NYTT: Prompt för AI-progression
+  openAsOfficial?: boolean; // NYTT: Öppna direkt i funktionärsläge
 }
 
 export type Passkategori = string;
@@ -326,6 +327,9 @@ export interface RaceParticipant {
   startNumber?: number;
   partnerName?: string;
   partnerEmail?: string;
+  division?: string; // NYTT: t.ex. 'Singel Herr', 'Singel Dam', 'Lag', 'Mix'
+  teamName?: string; // NYTT: Lagnamn t.ex. "The Iron Giants"
+  mergedFromParticipantId?: string;
 }
 
 export interface StartGroup {
@@ -581,8 +585,10 @@ export interface HyroxRaceResult {
     email?: string;
     partnerName?: string;
     partnerEmail?: string;
+    teamName?: string;
     time: number;
     groupId: string;
+    division?: string; // NYTT: t.ex. 'Singel Herr', 'Singel Dam', 'Lag', 'Mix'
 }
 
 export interface HyroxRace {
@@ -596,6 +602,7 @@ export interface HyroxRace {
     exercises: string[];
     startGroups: StartGroup[];
     results: HyroxRaceResult[];
+    startIntervalMinutes?: number; // NYTT: tidsintervall i minuter mellan heat/startgrupper
 }
 
 export type SmartObjectType = 'rect' | 'circle' | 'text' | 'arrow';

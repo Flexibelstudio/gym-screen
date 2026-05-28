@@ -164,21 +164,32 @@ interface HyroxScreenProps {
     racePrepState: { groups: StartGroup[]; interval: number } | null;
     onPrepComplete: () => void;
     remoteCommand?: { type: string, timestamp: number } | null;
+    isStudioMode?: boolean;
 }
 
 const StartGroupPrepModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
-    onStart: (groups: StartGroup[], interval: number) => void;
+    onStart: (groups: StartGroup[], interval: number, openAsOfficial?: boolean) => void;
     initialGroups?: StartGroup[];
     initialInterval?: number;
-}> = ({ isOpen, onClose, onStart, initialGroups, initialInterval }) => {
-    const [groups, setGroups] = useState<StartGroup[]>(() =>
-        initialGroups && initialGroups.length > 0
-            ? initialGroups
-            : [{ id: `group-${Date.now()}`, name: 'Startgrupp 1', participants: '' }]
-    );
-    const [startInterval, setStartInterval] = useState(initialInterval || 2);
+    isStudioMode?: boolean;
+}> = ({ isOpen, onClose, onStart, initialGroups, initialInterval, isStudioMode }) => {
+    const [groups, setGroups] = useState<StartGroup[]>(() => {
+        if (initialGroups && initialGroups.length > 0) {
+            return initialGroups.map(g => {
+                const legacyParticipantsText = g.participants || (g.participantList ? g.participantList.map(p => p.partnerName ? `${p.name} & ${p.partnerName}` : p.name).join('\n') : '');
+                return {
+                    ...g,
+                    participants: legacyParticipantsText
+                };
+            });
+        }
+        return [{ id: `group-${Date.now()}`, name: 'Startgrupp 1', participants: '' }];
+    });
+    
+    const [intervalMins, setIntervalMins] = useState(() => Math.floor(initialInterval || 2));
+    const [intervalSecs, setIntervalSecs] = useState(() => Math.round(((initialInterval || 2) % 1) * 60));
 
     const handleAddGroup = () => {
         setGroups(prev => [...prev, { id: `group-${Date.now()}`, name: `Startgrupp ${prev.length + 1}`, participants: '' }]);
@@ -192,14 +203,33 @@ const StartGroupPrepModal: React.FC<{
         setGroups(prev => prev.map(g => g.id === id ? { ...g, [field]: value } : g));
     };
 
-    const handleStartRace = () => {
-        onStart(groups, startInterval);
+    const handleStartRace = (openAsOfficial: boolean = false) => {
+        const totalMinutes = intervalMins + (intervalSecs / 60);
+        onStart(groups, Math.max(0.01, totalMinutes), openAsOfficial);
     };
 
     const footerContent = (
-        <div className="flex flex-col sm:flex-row gap-4">
-            <button onClick={onClose} className="flex-1 bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 text-gray-800 dark:text-white font-bold py-3 rounded-lg transition-colors">Avbryt</button>
-            <button onClick={handleStartRace} className="flex-1 bg-primary hover:brightness-95 text-white font-bold py-3 rounded-lg transition-colors">Gå till loppsidan</button>
+        <div className="flex flex-col sm:flex-row gap-3 w-full">
+            <button onClick={onClose} className="px-4 py-3 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white font-bold rounded-xl transition-colors text-sm">
+                Avbryt
+            </button>
+            <div className="flex-1 flex flex-col sm:flex-row gap-2">
+                {isStudioMode ? (
+                    <button 
+                        onClick={() => handleStartRace(false)} 
+                        className="flex-1 bg-primary hover:brightness-95 text-white font-black py-3 px-4 rounded-xl transition-all shadow-md text-sm flex items-center justify-center gap-1.5"
+                    >
+                        Till startsida
+                    </button>
+                ) : (
+                    <button 
+                        onClick={() => handleStartRace(true)} 
+                        className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-black py-3 px-4 rounded-xl transition-all shadow-md text-sm flex items-center justify-center gap-1.5"
+                    >
+                        Öppna som Funktionär
+                    </button>
+                )}
+            </div>
         </div>
     );
 
@@ -245,19 +275,33 @@ const StartGroupPrepModal: React.FC<{
                         + Lägg till startgrupp
                     </button>
                     <div className="my-4 text-center">
-                        <label htmlFor="start-interval" className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
+                        <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">
                             Startintervall mellan grupper
                         </label>
-                        <div className="flex items-center justify-center gap-2">
-                             <input
-                                id="start-interval"
-                                type="number"
-                                value={startInterval}
-                                onChange={(e) => setStartInterval(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                                min="1"
-                                className="w-24 bg-white dark:bg-black/50 text-gray-900 dark:text-white text-center p-2 rounded-md border border-gray-300 dark:border-gray-600 focus:ring-1 focus:ring-primary focus:outline-none"
-                            />
-                            <span className="text-gray-500 dark:text-gray-400">minuter</span>
+                        <div className="flex items-center justify-center gap-3">
+                             <div className="flex items-center gap-1.5">
+                                 <input
+                                    id="start-interval-mins"
+                                    type="number"
+                                    value={intervalMins}
+                                    onChange={(e) => setIntervalMins(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                                    min="0"
+                                    className="w-16 bg-white dark:bg-black/50 text-gray-900 dark:text-white text-center p-2.5 rounded-xl border border-gray-300 dark:border-gray-650 focus:ring-1 focus:ring-primary focus:outline-none font-bold"
+                                />
+                                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">min</span>
+                             </div>
+                             <div className="flex items-center gap-1.5">
+                                 <input
+                                    id="start-interval-secs"
+                                    type="number"
+                                    value={intervalSecs}
+                                    onChange={(e) => setIntervalSecs(Math.max(0, Math.min(59, parseInt(e.target.value, 10) || 0)))}
+                                    min="0"
+                                    max="59"
+                                    className="w-16 bg-white dark:bg-black/50 text-gray-900 dark:text-white text-center p-2.5 rounded-xl border border-gray-300 dark:border-gray-650 focus:ring-1 focus:ring-primary focus:outline-none font-bold"
+                                />
+                                <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">sek</span>
+                             </div>
                         </div>
                     </div>
                 </div>
@@ -295,7 +339,59 @@ const createCustomRaceWorkout = (
         exercises: processedExercises,
     };
 
-    const allParticipants = groups.flatMap(g => g.participants.split('\n').map(p => p.trim()).filter(Boolean));
+    const processedGroups = groups.map(g => {
+        // Om fritextfältet med deltagare är tomt men det redan finns en strukturerad deltagarlista (t.ex. skapat i admin), behåll den!
+        if ((!g.participants || !g.participants.trim()) && g.participantList && g.participantList.length > 0) {
+            return g;
+        }
+
+        const names = (g.participants || '').split('\n').map(p => p.trim()).filter(Boolean);
+        const oldParticipants = g.participantList || [];
+        const newParticipantList = names.map((name, index) => {
+            const existing = oldParticipants.find(p => {
+                const combinedName = p.partnerName ? `${p.name} & ${p.partnerName}` : p.name;
+                if (combinedName.toLowerCase() === name.toLowerCase()) return true;
+                if (p.name.toLowerCase() === name.toLowerCase()) return true;
+                const normalizedLine = name.toLowerCase().replace(/\s+/g, '');
+                const normalizedCombined = combinedName.toLowerCase().replace(/\s+/g, '');
+                if (normalizedLine === normalizedCombined) return true;
+                if (p.partnerName) {
+                    const hasMain = name.toLowerCase().includes(p.name.toLowerCase());
+                    const hasPartner = name.toLowerCase().includes(p.partnerName.toLowerCase());
+                    if (hasMain && hasPartner) return true;
+                }
+                return false;
+            });
+
+            if (existing) return existing;
+
+            let parsedName = name;
+            let parsedPartnerName: string | undefined = undefined;
+            if (name.includes(' & ')) {
+                const parts = name.split(' & ');
+                parsedName = parts[0].trim();
+                parsedPartnerName = parts[1].trim();
+            } else if (name.includes(' och ')) {
+                const parts = name.split(' och ');
+                parsedName = parts[0].trim();
+                parsedPartnerName = parts[1].trim();
+            }
+
+            return {
+                id: `p-new-${Date.now()}-${index}`,
+                name: parsedName,
+                partnerName: parsedPartnerName,
+                startNumber: index + 1
+            };
+        });
+
+        return {
+            ...g,
+            participantList: newParticipantList
+        };
+    });
+
+    const allParticipants = processedGroups.flatMap(g => g.participantList || []).map(p => p.partnerName ? `${p.name} & ${p.partnerName}` : p.name);
 
     const workout: Workout = {
         id: `custom-race-${now}`,
@@ -305,7 +401,7 @@ const createCustomRaceWorkout = (
         category: 'HYROX',
         isPublished: false,
         participants: allParticipants,
-        startGroups: groups.map(g => ({ ...g })),
+        startGroups: processedGroups,
         startIntervalMinutes: interval,
         createdAt: now,
         organizationId: organizationId 
@@ -315,7 +411,7 @@ const createCustomRaceWorkout = (
 };
 
 
-export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWorkout, studioConfig, racePrepState, onPrepComplete, remoteCommand }) => {
+export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWorkout, studioConfig, racePrepState, onPrepComplete, remoteCommand, isStudioMode }) => {
     const { selectedOrganization, selectedStudio } = useStudio();
     const [view, setView] = useState<'hub' | 'editor' | 'prep'>('hub');
     const [plannedRaces, setPlannedRaces] = useState<HyroxRace[]>([]);
@@ -337,9 +433,11 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
     useEffect(() => {
         if (remoteCommand && remoteCommand.type === 'start_hyrox' && remoteCommand.timestamp > lastProcessedCommandRef.current) {
             lastProcessedCommandRef.current = remoteCommand.timestamp;
-            handleSimulateFullRaceClick();
+            if (plannedRaces.length > 0) {
+                handleStartPlannedRace(plannedRaces[0]);
+            }
         }
-    }, [remoteCommand]);
+    }, [remoteCommand, plannedRaces]);
     const [raceConfig, setRaceConfig] = useState<{ name: string; exercises: Exercise[] } | null>(() => {
         try {
             const savedConfig = localStorage.getItem(RACE_CONFIG_STORAGE_KEY);
@@ -356,56 +454,33 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
         }
     }, [racePrepState]);
 
-    const handleSimulateFullRaceClick = () => {
-        setView('editor');
-    };
-
-    const handleEditorSave = (config: { name: string; exercises: Exercise[] }) => {
-        setRaceConfig(config);
-        setView('prep');
-    };
-    
-    const handleEditorCancel = () => {
-        setView('hub');
-    };
-
     const handleStartPlannedRace = (race: HyroxRace) => {
-        // Map the string array to Exercise objects if needed, or just use default for now
-        // since we don't have a full exercise editor in the admin panel yet.
         const exercises = race.exercises && race.exercises.length > 0 
             ? race.exercises.map((e, i) => ({ id: `ex-${i}`, name: e, reps: '', description: '' }))
             : createDefaultExercises();
 
-        setRaceConfig({ name: race.raceName, exercises });
+        const config = { name: race.raceName, exercises, raceId: race.id };
+        setRaceConfig(config);
         
-        // Pass the planned race's groups to the prep modal
-        // We need to ensure the race ID is passed so we can update it later.
-        // For now, we'll just set the config and open the prep modal.
-        // To properly update the existing race, we'd need to pass the race ID to the workout.
-        // We can do this by setting a special ID format or adding a property to the workout.
-        // Let's modify startFullRace to accept a raceId.
-        setView('prep');
+        // Gå direkt in i loppet med sparade startgrupper och startintervall från admin
+        const interval = race.startIntervalMinutes || 2;
+        startFullRace(race.startGroups || [], interval, !isStudioMode, config);
     };
 
-    const startFullRace = (groups: StartGroup[], interval: number) => {
-        const configToUse = raceConfig || { name: 'HYROX Race', exercises: createDefaultExercises() };
+    const startFullRace = (groups: StartGroup[], interval: number, openAsOfficial?: boolean, customConfig?: { name: string; exercises: Exercise[] }) => {
+        const configToUse = customConfig || raceConfig || { name: 'HYROX Race', exercises: createDefaultExercises() };
         const orgId = selectedOrganization?.id || '';
         
         // Check if this is a planned race by looking for it in plannedRaces
-        const plannedRace = plannedRaces.find(r => r.raceName === configToUse.name);
+        const plannedRace = plannedRaces.find(r => r.raceName === configToUse.name || (customConfig && r.id === (customConfig as any).raceId));
         
         const raceWorkout = createCustomRaceWorkout(configToUse, groups, interval, orgId);
+        if (openAsOfficial) {
+            raceWorkout.openAsOfficial = true;
+        }
         
         // If it's a planned race, we should use its ID so we update it instead of creating a new one
         if (plannedRace) {
-            // We can embed the original race ID in the workout ID so TimerScreen can extract it
-            // Or we can just let TimerScreen create a new one and we delete the planned one?
-            // Actually, if we just set the workout ID to start with 'custom-race-' + plannedRace.id
-            // TimerScreen doesn't extract it currently.
-            // Let's just pass it as a custom property if possible, or let TimerScreen create a new one for now.
-            // To keep it simple and robust, we'll let it create a new one and the planned one will remain until deleted,
-            // OR we can modify TimerScreen to look for an existing race with the same name today.
-            // Let's just pass the plannedRace.id in the workout ID.
             raceWorkout.id = `custom-race-${plannedRace.id}`;
         }
 
@@ -419,19 +494,50 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
         onPrepComplete();
     };
 
-    if (view === 'editor') {
-        return <RaceEditor onSave={handleEditorSave} onCancel={handleEditorCancel} />;
-    }
+    const getParticipantCountTextInput = (groupsList?: StartGroup[]) => {
+        if (!groupsList) return '0 deltagare';
+        let singles = 0;
+        let teams = 0;
+        let totalPhysical = 0;
+
+        groupsList.forEach(g => {
+            const list = g.participantList || [];
+            if (list.length > 0) {
+                list.forEach(p => {
+                    if (p.partnerName) {
+                        teams++;
+                        totalPhysical += 2;
+                    } else {
+                        singles++;
+                        totalPhysical += 1;
+                    }
+                });
+            } else {
+                // Parse legacy lines
+                const lines = g.participants ? g.participants.split('\n').filter(Boolean) : [];
+                lines.forEach(name => {
+                    if (name.includes('&') || name.includes('och')) {
+                        teams++;
+                        totalPhysical += 2;
+                    } else {
+                        singles++;
+                        totalPhysical += 1;
+                    }
+                });
+            }
+        });
+
+        if (teams > 0) {
+            return `${totalPhysical} deltagare (${teams} lag${singles > 0 ? `, ${singles} singel` : ''})`;
+        }
+        return `${totalPhysical} deltagare`;
+    };
 
     return (
-        <div className="w-full max-w-5xl mx-auto text-center animate-fade-in pb-12">
-            <p className="text-lg text-gray-500 dark:text-gray-400 mb-10 max-w-2xl mx-auto">
-                Kör hela loppet, delar av ett HYROX-pass eller en annan tävling – från första löpningen till sista repetitionen.
-            </p>
-            
-            {plannedRaces.length > 0 && (
-                <div className="mb-12 text-left">
-                    <h3 className="text-2xl font-black text-gray-900 dark:text-white mb-6 uppercase tracking-tight">Planerade Event</h3>
+        <div className="w-full max-w-5xl mx-auto text-center animate-fade-in pb-12 pt-2">
+            {plannedRaces.length > 0 ? (
+                <div className="mb-12 text-left mt-2">
+                    <h3 className="text-xl font-black text-gray-900 dark:text-white mb-6 uppercase tracking-tight">Planerade Event</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {plannedRaces.map(race => (
                             <div key={race.id} className="bg-white dark:bg-gray-900 p-6 rounded-xl border border-gray-200 dark:border-gray-800 shadow-sm flex flex-col justify-between">
@@ -444,38 +550,32 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
                                         </div>
                                         <div className="flex items-center gap-1">
                                             <UsersIcon className="w-4 h-4" />
-                                            {race.startGroups?.reduce((acc, g) => acc + (g.participantList?.length || 0), 0) || 0} deltagare
+                                            {getParticipantCountTextInput(race.startGroups)}
                                         </div>
                                     </div>
                                 </div>
                                 <button
                                     onClick={() => handleStartPlannedRace(race)}
-                                    className="w-full bg-primary text-white font-bold py-3 rounded-lg hover:brightness-110 transition-all"
+                                    className="w-full bg-primary text-white font-bold py-3 rounded-lg hover:brightness-110 transition-all cursor-pointer text-sm"
                                 >
-                                    Starta Event
+                                    {isStudioMode ? 'Starta Event' : 'Öppna event som funktionär'}
                                 </button>
                             </div>
                         ))}
                     </div>
                 </div>
+            ) : (
+                <div className="bg-white dark:bg-gray-900 p-8 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm max-w-lg mx-auto text-center my-8 animate-fade-in">
+                    <div className="w-16 h-16 bg-gray-100 dark:bg-slate-800/80 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                        🏆
+                    </div>
+                    <h4 className="text-lg font-black text-gray-900 dark:text-white mb-2 uppercase tracking-tight">Inga planerade event</h4>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
+                        Det finns inga planerade event eller tävlingar just nu för denna studio. <br />
+                        Planera och konfigurera nya event i admin-vyn under fliken <strong>Event & Tävlingar</strong>.
+                    </p>
+                </div>
             )}
-
-            <div className="flex flex-col items-center gap-6">
-                <button
-                    onClick={handleSimulateFullRaceClick}
-                    className="bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 p-6 rounded-xl transition-colors duration-200 flex flex-col items-center justify-center shadow-lg border border-gray-200 dark:border-gray-700 h-72 w-full max-w-lg"
-                >
-                    <h3 className="text-4xl font-extrabold text-primary">🏁 Simulera Hela Loppet</h3>
-                    <p className="text-lg font-normal text-gray-500 dark:text-gray-400 mt-4">Kör hela loppet "For Time" i ett enda svep.</p>
-                </button>
-
-                <button
-                    onClick={() => navigateTo(Page.HyroxRaceList)}
-                    className="w-full max-w-lg bg-gray-100/50 dark:bg-gray-800/50 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-800 dark:text-white font-semibold py-4 px-6 rounded-xl transition-colors border border-gray-200 dark:border-gray-700"
-                >
-                    Visa tidigare lopp
-                </button>
-            </div>
 
             <AnimatePresence>
                 {view === 'prep' && (
@@ -485,6 +585,7 @@ export const HyroxScreen: React.FC<HyroxScreenProps> = ({ navigateTo, onSelectWo
                         onStart={startFullRace}
                         initialGroups={racePrepState?.groups || (plannedRaces.find(r => r.raceName === raceConfig?.name)?.startGroups)}
                         initialInterval={racePrepState?.interval}
+                        isStudioMode={isStudioMode}
                     />
                 )}
             </AnimatePresence>

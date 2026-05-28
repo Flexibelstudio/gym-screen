@@ -1,11 +1,13 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { HyroxRace } from '../types';
-import { getRace } from '../services/firebaseService';
+import { getRace, listenToRace } from '../services/firebaseService';
+import QRCode from 'react-qr-code';
 
 interface HyroxRaceDetailScreenProps {
     raceId: string;
     onBack: () => void;
+    isPublicView?: boolean;
 }
 
 const formatResultTime = (timeInSeconds: number) => {
@@ -21,36 +23,43 @@ const formatResultTime = (timeInSeconds: number) => {
     return parts.join(':');
 };
 
-export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ raceId, onBack }) => {
+export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ raceId, onBack, isPublicView = false }) => {
     const [race, setRace] = useState<HyroxRace | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const fetchRace = async () => {
-            setIsLoading(true);
-            setError(null);
-            try {
-                const raceData = await getRace(raceId);
-                if (!raceData) {
-                    throw new Error("Loppet kunde inte hittas.");
-                }
+        setIsLoading(true);
+        setError(null);
+        const unsubscribe = listenToRace(raceId, (raceData) => {
+            setIsLoading(false);
+            if (!raceData) {
+                setError("Loppet kunde inte hittas.");
+            } else {
                 setRace(raceData);
-            } catch (e) {
-                setError(e instanceof Error ? e.message : "Ett okänt fel inträffade.");
-                console.error(e);
-            } finally {
-                setIsLoading(false);
+                setError(null);
             }
-        };
-
-        fetchRace();
+        });
+        return () => unsubscribe();
     }, [raceId]);
 
-    const sortedResults = useMemo(() => {
+    const [selectedDivision, setSelectedDivision] = useState<string>('all');
+
+    const activeDivisions = useMemo(() => {
         if (!race) return [];
-        return [...race.results].sort((a, b) => a.time - b.time);
+        const divs = new Set<string>();
+        race.results.forEach(r => {
+            if (r.division) divs.add(r.division);
+        });
+        return Array.from(divs).sort();
     }, [race]);
+
+    const filteredResults = useMemo(() => {
+        if (!race) return [];
+        const list = [...race.results].sort((a, b) => a.time - b.time);
+        if (selectedDivision === 'all') return list;
+        return list.filter(r => r.division === selectedDivision);
+    }, [race, selectedDivision]);
     
     if (isLoading) {
         return <div className="text-center text-gray-900 dark:text-white">Laddar resultat...</div>;
@@ -64,74 +73,187 @@ export const HyroxRaceDetailScreen: React.FC<HyroxRaceDetailScreenProps> = ({ ra
         return null;
     }
 
+    const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/live/${raceId}` : 'https://mindmote.se/live';
+
     return (
-        <div className="w-full max-w-4xl mx-auto animate-fade-in relative">
-            <div className="text-center mb-8 pt-8 sm:pt-0">
-                <h1 className="text-4xl lg:text-5xl font-extrabold text-gray-900 dark:text-white">Resultat – {race.raceName}</h1>
-                <p className="text-lg text-gray-500 dark:text-gray-400 mt-2">
+        <div className={`w-full ${isPublicView ? 'max-w-3xl' : 'max-w-5xl'} mx-auto animate-fade-in relative px-1 sm:px-4 py-4 sm:py-6`}>
+            <div className="text-center mb-8">
+                <span className="px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 font-extrabold text-xs uppercase tracking-wider">Slutresultat sparat</span>
+                <h1 className="text-4xl lg:text-5xl font-black text-gray-900 dark:text-white mt-1.5 tracking-tight">{race.raceName}</h1>
+                <p className="text-lg text-gray-500 dark:text-gray-400 mt-2 font-medium">
                     {new Date(race.createdAt).toLocaleDateString('sv-SE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
             </div>
             
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 sm:p-8 shadow-xl border border-gray-200 dark:border-gray-700">
-                <h2 className="text-2xl font-bold text-primary mb-4">Resultatöversikt</h2>
-                {sortedResults.length > 0 ? (
-                    <>
-                        <div className="overflow-x-auto rounded-md">
-                            <table className="w-full text-left">
-                                <thead className="border-b-2 border-gray-200 dark:border-gray-600 bg-gray-100 dark:bg-gray-900/50">
-                                    <tr>
-                                        <th className="p-3 w-16 text-sm font-semibold text-gray-500 dark:text-gray-400">#</th>
-                                        <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Namn</th>
-                                        <th className="p-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Startgrupp</th>
-                                        <th className="p-3 text-right text-sm font-semibold text-gray-500 dark:text-gray-400">Tid</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {sortedResults.map((result, index) => {
-                                        const group = race.startGroups.find(g => g.id === result.groupId);
-                                        
-                                        let rowClass = "border-b border-gray-200 dark:border-gray-700 last:border-b-0 hover:bg-gray-100 dark:hover:bg-gray-700/50";
-                                        let textClass = "text-gray-900 dark:text-white";
-                                        
-                                        switch(index) {
-                                            case 0: // Gold
-                                                rowClass = `bg-[#FFD700] hover:bg-yellow-400/80 border-b border-yellow-800/20 last:border-b-0`;
-                                                textClass = "text-black font-semibold";
-                                                break;
-                                            case 1: // Silver
-                                                rowClass = `bg-[#C0C0C0] hover:bg-gray-400/80 border-b border-gray-600/20 last:border-b-0`;
-                                                textClass = "text-black font-semibold";
-                                                break;
-                                            case 2: // Bronze
-                                                rowClass = `bg-[#CD7F32] hover:bg-orange-700/80 border-b border-orange-900/20 last:border-b-0`;
-                                                textClass = "text-white font-semibold";
-                                                break;
-                                        }
+            <div className={`grid grid-cols-1 ${isPublicView ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-4 sm:gap-8 items-start`}>
+                {/* RESULTS TABLE */}
+                <div className={`${isPublicView ? 'lg:col-span-1' : 'lg:col-span-2'} bg-white dark:bg-gray-800 rounded-2xl sm:rounded-[2rem] p-2.5 sm:p-8 shadow-xl border border-gray-150 dark:border-gray-700`}>
+                    <h2 className="text-xl sm:text-2xl font-black tracking-tight text-gray-950 dark:text-gray-50 mb-3 uppercase px-1 sm:px-0">Placeringar</h2>
+                    
+                    {activeDivisions.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-5 px-1 sm:px-0">
+                            <button
+                                onClick={() => setSelectedDivision('all')}
+                                className={`px-2.5 py-1.5 rounded-xl text-[10px] sm:text-xs font-bold transition-all uppercase tracking-wider ${
+                                    selectedDivision === 'all'
+                                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 font-black'
+                                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-250 dark:hover:bg-gray-600/80'
+                                }`}
+                            >
+                                Alla klasser
+                            </button>
+                            {activeDivisions.map(div => (
+                                <button
+                                    key={div}
+                                    onClick={() => setSelectedDivision(div)}
+                                    className={`px-2.5 py-1.5 rounded-xl text-[10px] sm:text-xs font-bold transition-all uppercase tracking-wider ${
+                                        selectedDivision === div
+                                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 font-black'
+                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-655 dark:text-gray-300 hover:bg-gray-250 dark:hover:bg-gray-600/80'
+                                    }`}
+                                >
+                                    {div}
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
-                                        return (
-                                            <tr key={result.participant} className={rowClass}>
-                                                <td className={`p-3 font-bold ${textClass}`}>
-                                                    {index === 0 && '🥇 '}
-                                                    {index === 1 && '🥈 '}
-                                                    {index === 2 && '🥉 '}
-                                                    {index + 1}
-                                                </td>
-                                                <td className={`p-3 ${textClass}`}>{result.participant}</td>
-                                                <td className={`p-3 ${index > 2 ? 'text-gray-600 dark:text-gray-300' : textClass}`}>{group?.name || 'Okänd'}</td>
-                                                <td className={`p-3 text-right font-mono ${textClass}`}>{formatResultTime(result.time)}</td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                    {filteredResults.length > 0 ? (
+                        <>
+                            <div className="overflow-x-auto rounded-xl border border-gray-150 dark:border-gray-700">
+                                <table className="w-full text-left border-collapse">
+                                    <thead className="border-b border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-900/50">
+                                        <tr>
+                                            <th className="py-2.5 px-1.5 sm:p-4 w-10 sm:w-16 text-center text-[10px] sm:text-xs font-black uppercase tracking-wider text-gray-400">#</th>
+                                            <th className="py-2.5 px-1.5 sm:p-4 text-[10px] sm:text-xs font-black uppercase tracking-wider text-gray-400">Namn</th>
+                                            <th className="py-2.5 px-1.5 sm:p-4 text-[10px] sm:text-xs font-black uppercase tracking-wider text-gray-400">Startgrupp</th>
+                                            <th className="py-2.5 px-1.5 sm:p-4 text-right text-[10px] sm:text-xs font-black uppercase tracking-wider text-gray-400">Tid</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {filteredResults.map((result, index) => {
+                                            const group = race.startGroups.find(g => g.id === result.groupId);
+                                            const matchedParticipant = group?.participantList?.find(p => 
+                                                p.name === result.participant || 
+                                                (p.partnerName && `${p.name} & ${p.partnerName}` === result.participant) ||
+                                                (p.teamName && p.teamName === result.participant)
+                                            );
+                                            const finalTeamName = result.teamName || matchedParticipant?.teamName;
+                                            
+                                            let rowClass = "border-b border-gray-150 dark:border-gray-700 last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-700/50";
+                                            let textClass = "text-gray-900 dark:text-white";
+                                            
+                                            switch(index) {
+                                                case 0: // Gold
+                                                    rowClass = `bg-amber-400 hover:bg-amber-300 border-b border-amber-500/20 last:border-b-0`;
+                                                    textClass = "text-black font-extrabold";
+                                                    break;
+                                                case 1: // Silver
+                                                    rowClass = `bg-slate-300 hover:bg-slate-200 border-b border-slate-400/20 last:border-b-0`;
+                                                    textClass = "text-black font-extrabold";
+                                                    break;
+                                                case 2: // Bronze
+                                                    rowClass = `bg-[#CD7F32]/80 hover:bg-[#CD7F32]/90 border-b border-orange-950/20 last:border-b-0`;
+                                                    textClass = "text-white font-extrabold";
+                                                    break;
+                                            }
+
+                                            return (
+                                                <tr key={result.participant} className={rowClass}>
+                                                    <td className={`py-2 px-1 sm:p-4 text-center text-xs sm:text-sm font-black ${textClass}`}>
+                                                        {index === 0 && '🥇'}
+                                                        {index === 1 && '🥈'}
+                                                        {index === 2 && '🥉'}
+                                                        {index > 2 && `${index + 1}`}
+                                                    </td>
+                                                    <td className={`py-2 px-1.5 sm:p-4 text-xs sm:text-sm font-bold ${textClass}`}>
+                                                        {finalTeamName ? (
+                                                            <div className="flex flex-col leading-tight">
+                                                                <span className={`text-xs sm:text-sm font-black ${index <= 2 ? 'text-black font-black' : 'text-indigo-650 dark:text-indigo-400'}`}>{finalTeamName}</span>
+                                                                <span className={`text-[10px] sm:text-xs font-semibold ${index <= 2 ? 'text-black/75 font-semibold' : 'text-gray-500 dark:text-gray-400'}`}>
+                                                                    {result.participant.includes(' & ') ? (
+                                                                        <span>
+                                                                            {result.participant.split(' & ')[0]} <span className="opacity-90 font-medium">&</span> {result.participant.split(' & ')[1]}
+                                                                        </span>
+                                                                    ) : (
+                                                                        result.participant
+                                                                    )}
+                                                                </span>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="leading-tight block">
+                                                                {result.participant.includes(' & ') ? (
+                                                                    <span>
+                                                                        {result.participant.split(' & ')[0]} <span className={`opacity-90 font-medium ${index <= 2 ? 'text-black/70' : 'text-gray-400'}`}>&</span> {result.participant.split(' & ')[1]}
+                                                                    </span>
+                                                                ) : (
+                                                                    result.participant
+                                                                )}
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className={`py-2 px-1.5 sm:p-4 text-xs sm:text-sm ${index > 2 ? 'text-gray-650 dark:text-gray-300 font-medium' : `${textClass}`}`}>
+                                                        <div className="flex flex-col leading-tight">
+                                                            <span>{group?.name || 'Okänd'}</span>
+                                                            {selectedDivision === 'all' && result.division && (
+                                                                <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${index <= 2 ? 'text-black/60' : 'text-indigo-500 dark:text-indigo-400'}`}>
+                                                                    {result.division}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </td>
+                                                    <td className={`py-2 px-1.5 sm:p-4 text-right font-mono text-xs sm:text-sm ${textClass}`}>{formatResultTime(result.time)}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div className="text-center font-bold text-gray-400 dark:text-gray-500 mt-4 text-xs uppercase tracking-widest">
+                                Totalt {race.results.length} deltagare slutförde loppet
+                            </div>
+                        </>
+                    ) : (
+                        <p className="text-gray-500 dark:text-gray-400 text-center py-8">Inga resultat har registrerats för detta lopp ännu.</p>
+                    )}
+                </div>
+
+                {/* QR-CODE AND SAVE TO PHONE SIDE PANEL */}
+                {!isPublicView && (
+                    <div className="bg-gradient-to-br from-indigo-950 via-slate-950 to-slate-900 border border-slate-800 text-white rounded-[2.5rem] p-8 shadow-xl flex flex-col items-center text-center relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-8 opacity-[0.02]">
+                            <svg className="w-48 h-48" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.75z" />
+                            </svg>
                         </div>
-                         <div className="text-center text-gray-500 dark:text-gray-400 mt-4 text-sm">
-                            Totalt {sortedResults.length} deltagare slutförde loppet.
+
+                        <div className="relative z-10 w-full flex flex-col items-center">
+                            <span className="px-2.5 py-1 rounded bg-indigo-500/25 text-indigo-300 font-extrabold text-[9px] uppercase tracking-widest mb-3">Visa i mobilen</span>
+                            <h3 className="text-xl font-black uppercase tracking-tight mb-2">Skanna resultat</h3>
+                            <p className="text-xs text-slate-300 mb-6 leading-relaxed">
+                                Håll upp mobilkameran mot QR-koden för att ladda ner slutresultatet och se din personliga tid och placering!
+                            </p>
+                            <div className="bg-white p-4 rounded-[2rem] shadow-inner border border-slate-700/50 mb-5 flex items-center justify-center">
+                                <QRCode 
+                                    value={shareUrl} 
+                                    size={180}
+                                    style={{ height: "auto", maxWidth: "100%", width: "100%" }}
+                                    level="M"
+                                />
+                            </div>
+                            <span className="text-[10px] font-mono text-indigo-400 font-bold uppercase tracking-widest">Studios Slutresultat</span>
+                            <p className="text-[9px] text-slate-400 mt-2 font-mono break-all max-w-full px-2">
+                                {shareUrl}
+                            </p>
+                            
+                            <button 
+                                onClick={onBack}
+                                className="mt-8 bg-white/10 hover:bg-white/15 text-white border border-white/10 text-xs font-extrabold py-3.5 px-6 rounded-2xl tracking-wider uppercase transition-all w-full"
+                            >
+                                Avsluta
+                            </button>
                         </div>
-                    </>
-                ) : (
-                    <p className="text-gray-500 dark:text-gray-400 text-center py-8">Inga resultat har registrerats för detta lopp ännu.</p>
+                    </div>
                 )}
             </div>
         </div>
