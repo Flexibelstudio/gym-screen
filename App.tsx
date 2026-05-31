@@ -104,9 +104,18 @@ const App: React.FC = () => {
       return sessionStorage.getItem('optimisticSubActive') === 'true';
   });
 
+  // Nollställ optimistisk prenumeration när ingen användare är inloggad (t.ex. vid utloggning)
+  useEffect(() => {
+      if (!currentUser) {
+          setOptimisticSubActive(false);
+          sessionStorage.removeItem('optimisticSubActive');
+      }
+  }, [currentUser]);
+
   const hasActiveSubscription = useMemo(() => {
       if (role === 'systemowner' || role === 'organizationadmin' || role === 'coach') return true;
-      if (userData?.subscriptionStatus === 'active' || userData?.status === 'active' || optimisticSubActive) return true;
+      if (userData?.status === 'inactive') return false;
+      if (userData?.subscriptionStatus === 'active' || optimisticSubActive) return true;
       return false;
   }, [role, userData?.subscriptionStatus, userData?.status, optimisticSubActive]);
 

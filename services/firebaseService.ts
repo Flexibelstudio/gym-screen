@@ -387,10 +387,10 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
         snap = await getDocs(q);
         if (!snap.empty) {
             const orgData = snap.docs[0].data() as Organization;
-            const loc = orgData.locations?.find(l => l.inviteCode === upperCode || l.coachCode === upperCode);
+            const loc = orgData.locations?.find(l => l.inviteCode?.toUpperCase() === upperCode || l.coachCode?.toUpperCase() === upperCode);
             if (loc) {
                 targetLocationId = loc.id;
-                if (loc.coachCode === upperCode) {
+                if (loc.coachCode?.toUpperCase() === upperCode) {
                     isCoach = true;
                 }
             } else {
@@ -414,7 +414,7 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
         role: isCoach ? 'coach' : 'member',
         status: isCoach ? 'pending_coach' : 'active',
         organizationId: organizationId,
-        locationId: targetLocationId || additionalData?.locationId || undefined,
+        locationId: targetLocationId || additionalData?.locationId || null,
         firstName: additionalData?.firstName || '',
         lastName: additionalData?.lastName || '',
         age: additionalData?.age || null,
@@ -1001,8 +1001,8 @@ export const updateOrganizationLocations = async (id: string, locations: any[]) 
     
     const inviteCodes: string[] = [];
     locations.forEach(loc => {
-        if (loc.inviteCode) inviteCodes.push(loc.inviteCode);
-        if (loc.coachCode) inviteCodes.push(loc.coachCode);
+        if (loc.inviteCode) inviteCodes.push(loc.inviteCode.toUpperCase());
+        if (loc.coachCode) inviteCodes.push(loc.coachCode.toUpperCase());
     });
 
     await updateDoc(doc(db, 'organizations', id), { 
