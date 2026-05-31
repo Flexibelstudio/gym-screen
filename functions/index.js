@@ -856,6 +856,7 @@ app.post("/create-member-checkout", async (req, res) => {
       customer: customerId,
       payment_method_types: ['card'],
       mode: 'subscription',
+      allow_promotion_codes: true,
       automatic_tax: { enabled: true },
       customer_update: { address: 'auto' },
       line_items: [{
