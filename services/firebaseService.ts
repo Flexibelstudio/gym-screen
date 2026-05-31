@@ -425,7 +425,17 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
         termsAcceptedAt: Date.now() 
     };
     
-    await setDoc(doc(db, 'users', user.uid), userData);
+    try {
+        await setDoc(doc(db, 'users', user.uid), userData);
+    } catch (dbError) {
+        console.error("Firestore setDoc misslyckades vid registrering. Rensar skapat Auth-konto...", dbError);
+        try {
+            await user.delete();
+        } catch (cleanupError) {
+            console.error("Kunde inte rensa Firebase Auth-användare efter databasfel:", cleanupError);
+        }
+        throw dbError;
+    }
     return user;
 };
 
