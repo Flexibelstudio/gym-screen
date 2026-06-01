@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect, useMemo, useCallback } from 'react';
-import { onAuthChange, signOut as firebaseSignOut, signIn, signInAsStudio, isOffline, sendPasswordResetEmail, updateUserTermsAccepted, db } from '../services/firebaseService';
+import { onAuthChange, signOut as firebaseSignOut, signIn, signInAsStudio, isOffline, sendPasswordResetEmail, updateUserTermsAccepted, updateUserProfile, db } from '../services/firebaseService';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { UserData, UserRole } from '../types';
 import { MOCK_SYSTEM_OWNER } from '../data/mockData';
@@ -77,9 +77,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     unsubscribeDoc = onSnapshot(doc(db, 'users', user.uid), (snap) => {
                         clearTimeout(timeoutId);
                         if (snap.exists()) {
-                            const data = { uid: user.uid, ...snap.data() } as UserData;
+                            const docData = snap.data();
+                            const data = { uid: user.uid, ...docData } as UserData;
                             setUserData(data);
                             setShowTerms((data.role === 'organizationadmin' || data.role === 'systemowner') && !data.termsAcceptedAt);
+
+                            // Automatiskt laga/normalisera äldre konton (som Mikaelas) så att de överensstämmer med nya konton (som Lindas)
+                            const updates: Partial<UserData> = {};
+                            if (docData.uid === undefined) {
+                                updates.uid = user.uid;
+                            }
+                            if (docData.status === undefined) {
+                                updates.status = 'active';
+                            }
+                            if (docData.isTrainingMember === undefined) {
+                                updates.isTrainingMember = docData.role !== 'coach' && docData.role !== 'organizationadmin' && docData.role !== 'systemowner';
+                            }
+                            if (docData.createdAt === undefined) {
+                                // Sätt skapad tid till nu om den saknas
+                                updates.createdAt = new Date() as any;
+                            }
+                            if (docData.locationId === undefined) {
+                                updates.locationId = null;
+                            }
+
+                            if (Object.keys(updates).length > 0) {
+                                console.log("Normaliserar äldre användarprofil med saknade fält:", updates);
+                                updateUserProfile(user.uid, updates).catch(err => {
+                                    console.error("Kunde inte normalisera profil för äldre konto:", err);
+                                });
+                            }
                         } else {
                             setUserData(null);
                         }
