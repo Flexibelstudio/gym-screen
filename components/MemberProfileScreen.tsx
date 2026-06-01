@@ -1017,15 +1017,22 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                 </div>
                                 <button 
                                     onClick={async () => {
-                                        if(window.confirm('Vill du ta bort bakgrundsbilden?')) {
+                                        const isConfirmed = await confirm({
+                                            title: "Ta bort bakgrundsbild?",
+                                            message: "Är du säker på att du vill ta bort bakgrundsbilden? Detta går inte att ångra.",
+                                            confirmText: "Ta bort",
+                                            confirmColor: "red"
+                                        });
+                                        if (isConfirmed) {
                                             setIsSaving(true);
                                             setBackgroundImageUrl('');
                                             await updateUserProfile(userData.uid, { backgroundImageUrl: '' });
                                             setIsSaving(false);
                                         }
                                     }}
-                                    className="text-xs text-red-500 hover:text-red-700 font-bold uppercase tracking-widest transition-colors"
+                                    className="flex items-center justify-center px-4 py-2 border border-red-500/30 hover:border-red-500 hover:bg-red-50/50 dark:hover:bg-red-950/20 text-red-500 dark:text-red-400 hover:text-red-600 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all duration-200 shadow-sm"
                                 >
+                                    <TrashIcon className="w-4 h-4 mr-1.5" />
                                     Ta bort bakgrundsbild
                                 </button>
                             </div>
