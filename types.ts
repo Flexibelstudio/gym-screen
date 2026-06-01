@@ -409,6 +409,8 @@ export interface UserData {
   weeklyGoal?: number;
   showOnLeaderboard?: boolean;
   usePreGameForCustomWorkouts?: boolean;
+  isTrainingMember?: boolean;
+  createdAt?: any;
 
   migratedStats?: {
     totalWorkouts: number;
