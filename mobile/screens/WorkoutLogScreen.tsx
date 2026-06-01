@@ -979,6 +979,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
   }, [isManualMode, exerciseResults]);
 
   const [expandedBlockId, setExpandedBlockId] = useState<string | null>(null);
+  const [expandedSubGroups, setExpandedSubGroups] = useState<Record<string, boolean>>({});
 
   const blockGroups = useMemo(() => {
       const groups: BlockGroup[] = [];
@@ -2031,49 +2032,188 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                 transition={{ duration: 0.2, ease: "easeOut" }}
                                                 className="overflow-hidden space-y-2 mt-2 px-0.5"
                                             >
-                                                {group.exercises.map(({ result, originalIndex }, idxInside) => {
-                                                    const isLastInGroup = result.groupId && (
-                                                        idxInside === group.exercises.length - 1 || 
-                                                        group.exercises[idxInside + 1].result.groupId !== result.groupId
-                                                    );
+                                                {(() => {
+                                                    // Gruppera övningar inom detta block efter deras groupId (superset)
+                                                    const subGroups: {
+                                                        groupId?: string;
+                                                        groupColor?: string;
+                                                        exercises: typeof group.exercises;
+                                                    }[] = [];
 
-                                                    return (
-                                                        <ExerciseLogCard
-                                                            key={result.exerciseId}
-                                                            name={result.exerciseName}
-                                                            result={result}
-                                                            onUpdate={(updates) => handleUpdateResult(originalIndex, updates)}
-                                                            aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
-                                                            scaling={activeInsight?.scaling?.[result.exerciseName]} 
-                                                            lastPerformance={history[result.exerciseName]} 
-                                                            isLastInGroup={isLastInGroup}
-                                                            onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
-                                                            onOpenCalculator={(ctx) => {
-                                                                setCalculatorContext({
-                                                                    ...ctx,
-                                                                    onSelectWeight: (weight: number) => {
-                                                                        setExerciseResults(prev => {
-                                                                            const newResults = [...prev];
-                                                                            const res = {...newResults[originalIndex]};
-                                                                            res.setDetails = res.setDetails.map(s => ({...s}));
-                                                                            
-                                                                            let targetIdx = res.setDetails.findIndex(s => !s.completed);
-                                                                            if (targetIdx === -1) {
-                                                                                targetIdx = res.setDetails.length - 1;
+                                                    group.exercises.forEach(ex => {
+                                                        const gId = ex.result.groupId;
+                                                        if (!gId) {
+                                                            // Ingen grupp = fristående övning
+                                                            subGroups.push({
+                                                                exercises: [ex]
+                                                            });
+                                                        } else {
+                                                            // Sök om det redan finns en undergrupp med detta groupId
+                                                            let subG = subGroups.find(sg => sg.groupId === gId);
+                                                            if (!subG) {
+                                                                subG = {
+                                                                    groupId: gId,
+                                                                    groupColor: ex.result.groupColor,
+                                                                    exercises: []
+                                                                };
+                                                                subGroups.push(subG);
+                                                            }
+                                                            subG.exercises.push(ex);
+                                                        }
+                                                    });
+
+                                                    const getGroupColorStyles = (colorName?: string) => {
+                                                        if (!colorName) return null;
+                                                        return GROUP_COLORS.find(c => c.bg === colorName) || null;
+                                                    };
+
+                                                    return subGroups.map((subGroup) => {
+                                                        if (subGroup.groupId) {
+                                                            // Det här är ett superset (undergrupp)
+                                                            const isSubExpanded = expandedSubGroups[subGroup.groupId] === true; // Standard-ihopfälld (false)
+                                                            const subGroupColorObj = getGroupColorStyles(subGroup.groupColor);
+                                                            
+                                                            const borderLeftClass = subGroupColorObj ? `border-l-4 ${subGroupColorObj.border}` : '';
+                                                            const headerBg = subGroupColorObj ? subGroupColorObj.lightBg : 'bg-gray-50 dark:bg-gray-800/40';
+                                                            const textColor = subGroupColorObj ? subGroupColorObj.text : 'text-gray-700 dark:text-gray-300';
+                                                            const textHover = subGroupColorObj ? 'hover:bg-opacity-80' : 'hover:bg-gray-100 dark:hover:bg-gray-800/60';
+                                                            
+                                                            // Beräkna antal färdiga set inom detta superset för en liten badge (t.ex. "3/6 klara")
+                                                            let subTotalSets = 0;
+                                                            let subCompletedSets = 0;
+                                                            subGroup.exercises.forEach(ex => {
+                                                                subTotalSets += ex.result.setDetails.length;
+                                                                subCompletedSets += ex.result.setDetails.filter(s => s.completed).length;
+                                                            });
+
+                                                            return (
+                                                                <div key={subGroup.groupId} className="border border-gray-100 dark:border-gray-800 rounded-2xl overflow-hidden mb-2 shadow-sm">
+                                                                    {/* Superset Header */}
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setExpandedSubGroups(prev => ({
+                                                                                ...prev,
+                                                                                [subGroup.groupId!]: !isSubExpanded
+                                                                            }));
+                                                                        }}
+                                                                        className={`w-full text-left p-3 flex items-center justify-between select-none transition-colors ${headerBg} ${borderLeftClass} ${textHover}`}
+                                                                    >
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className={`text-xs font-black uppercase tracking-widest ${textColor} flex items-center gap-1.5`}>
+                                                                                <span className="flex h-1.5 w-1.5 relative">
+                                                                                   <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${subGroupColorObj ? subGroupColorObj.bg : 'bg-gray-400'} opacity-75`}></span>
+                                                                                   <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${subGroupColorObj ? subGroupColorObj.bg : 'bg-gray-400'}`}></span>
+                                                                                </span>
+                                                                                Superset ({subGroup.exercises.length} övningar)
+                                                                            </div>
+                                                                            {subTotalSets > 0 && (
+                                                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/85 dark:bg-black/20 text-gray-600 dark:text-gray-300">
+                                                                                    {subCompletedSets}/{subTotalSets} set
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        <span className={`text-gray-400 dark:text-gray-500 transition-transform duration-200 ${isSubExpanded ? 'rotate-180' : ''}`}>
+                                                                            <ChevronDownIcon className="w-4 h-4 stroke-[2.5]" />
+                                                                        </span>
+                                                                    </button>
+                                                                    
+                                                                    {/* Superset Content */}
+                                                                    <AnimatePresence initial={false}>
+                                                                        {isSubExpanded && (
+                                                                            <motion.div
+                                                                                initial={{ opacity: 0, height: 0 }}
+                                                                                animate={{ opacity: 1, height: 'auto' }}
+                                                                                exit={{ opacity: 0, height: 0 }}
+                                                                                transition={{ duration: 0.2, ease: "easeOut" }}
+                                                                                className="p-1 space-y-1 bg-gray-50/25 dark:bg-gray-950/5"
+                                                                            >
+                                                                                {subGroup.exercises.map(({ result, originalIndex }, idxInsideSub) => {
+                                                                                    const isLastInGroup = idxInsideSub === subGroup.exercises.length - 1;
+                                                                                    
+                                                                                    return (
+                                                                                        <ExerciseLogCard
+                                                                                            key={result.exerciseId}
+                                                                                            name={result.exerciseName}
+                                                                                            result={result}
+                                                                                            onUpdate={(updates) => handleUpdateResult(originalIndex, updates)}
+                                                                                            aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
+                                                                                            scaling={activeInsight?.scaling?.[result.exerciseName]} 
+                                                                                            lastPerformance={history[result.exerciseName]} 
+                                                                                            isLastInGroup={isLastInGroup}
+                                                                                            onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
+                                                                                            onOpenCalculator={(ctx) => {
+                                                                                                setCalculatorContext({
+                                                                                                    ...ctx,
+                                                                                                    onSelectWeight: (weight: number) => {
+                                                                                                        setExerciseResults(prev => {
+                                                                                                            const newResults = [...prev];
+                                                                                                            const res = {...newResults[originalIndex]};
+                                                                                                            res.setDetails = res.setDetails.map(s => ({...s}));
+                                                                                                            
+                                                                                                            let targetIdx = res.setDetails.findIndex(s => !s.completed);
+                                                                                                            if (targetIdx === -1) {
+                                                                                                                targetIdx = res.setDetails.length - 1;
+                                                                                                            }
+                                                                                                            if (targetIdx !== -1) {
+                                                                                                                res.setDetails[targetIdx].weight = weight.toString();
+                                                                                                            }
+                                                                                                            newResults[originalIndex] = res;
+                                                                                                            return newResults;
+                                                                                                        });
+                                                                                                    }
+                                                                                                });
+                                                                                                setShowCalculator(true);
+                                                                                            }}
+                                                                                        />
+                                                                                    );
+                                                                                })}
+                                                                            </motion.div>
+                                                                        )}
+                                                                    </AnimatePresence>
+                                                                </div>
+                                                            );
+                                                        } else {
+                                                            // Det här är en helt vanlig, fristående övning (subGroup har inget groupId)
+                                                            const { result, originalIndex } = subGroup.exercises[0];
+                                                            return (
+                                                                <ExerciseLogCard
+                                                                    key={result.exerciseId}
+                                                                    name={result.exerciseName}
+                                                                    result={result}
+                                                                    onUpdate={(updates) => handleUpdateResult(originalIndex, updates)}
+                                                                    aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
+                                                                    scaling={activeInsight?.scaling?.[result.exerciseName]} 
+                                                                    lastPerformance={history[result.exerciseName]} 
+                                                                    isLastInGroup={false}
+                                                                    onOpenCalculator={(ctx) => {
+                                                                        setCalculatorContext({
+                                                                            ...ctx,
+                                                                            onSelectWeight: (weight: number) => {
+                                                                                setExerciseResults(prev => {
+                                                                                    const newResults = [...prev];
+                                                                                    const res = {...newResults[originalIndex]};
+                                                                                    res.setDetails = res.setDetails.map(s => ({...s}));
+                                                                                    
+                                                                                    let targetIdx = res.setDetails.findIndex(s => !s.completed);
+                                                                                    if (targetIdx === -1) {
+                                                                                        targetIdx = res.setDetails.length - 1;
+                                                                                    }
+                                                                                    if (targetIdx !== -1) {
+                                                                                        res.setDetails[targetIdx].weight = weight.toString();
+                                                                                    }
+                                                                                    newResults[originalIndex] = res;
+                                                                                    return newResults;
+                                                                                });
                                                                             }
-                                                                            if (targetIdx !== -1) {
-                                                                                res.setDetails[targetIdx].weight = weight.toString();
-                                                                            }
-                                                                            newResults[originalIndex] = res;
-                                                                            return newResults;
                                                                         });
-                                                                    }
-                                                                });
-                                                                setShowCalculator(true);
-                                                            }}
-                                                        />
-                                                    );
-                                                })}
+                                                                        setShowCalculator(true);
+                                                                    }}
+                                                                />
+                                                            );
+                                                        }
+                                                    });
+                                                })()}
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
