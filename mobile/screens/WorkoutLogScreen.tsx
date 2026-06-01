@@ -2070,7 +2070,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                                                     return subGroups.map((subGroup) => {
                                                         if (subGroup.groupId) {
                                                             // Det här är ett superset (undergrupp)
-                                                            const isSubExpanded = expandedSubGroups[subGroup.groupId] !== false; // Standard-expandera (true)
+                                                            const isSubExpanded = expandedSubGroups[subGroup.groupId] === true; // Standard-ihopfälld (false)
                                                             const subGroupColorObj = getGroupColorStyles(subGroup.groupColor);
                                                             
                                                             const borderLeftClass = subGroupColorObj ? `border-l-4 ${subGroupColorObj.border}` : '';
