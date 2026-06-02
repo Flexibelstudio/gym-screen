@@ -1240,6 +1240,40 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         </div>
                     </div>
 
+                    {/* Goal Progress Bar Card */}
+                    {userData.goals?.hasSpecificGoals && daysLeft !== null && (
+                        <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-800">
+                            <div className="flex items-center justify-between mb-3 text-xs font-black text-gray-500 uppercase tracking-widest">
+                                <span className="flex items-center gap-1">🎯 Mitt Mål: {userData.goals.selectedGoals?.join(', ')}</span>
+                                <span>Framsteg</span>
+                            </div>
+                            
+                            {daysLeft <= 0 ? (
+                                <div className="text-center p-3 bg-emerald-500/10 dark:bg-emerald-500/5 rounded-xl border border-emerald-500/20 dark:border-emerald-500/10">
+                                    <h4 className="font-extrabold text-gray-900 dark:text-white uppercase tracking-tight text-xs">Måldatum nått! ({userData.goals.targetDate})</h4>
+                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Dags att utvärdera och sätta ett nytt mål under Mål-fliken!</p>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-4">
+                                    <div className="flex-grow">
+                                        <div className="h-4 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden p-0.5 border border-gray-50 dark:border-gray-950">
+                                            <div 
+                                                className="h-full bg-primary rounded-full transition-all duration-1000 relative shadow-[0_0_10px_rgba(20,184,166,0.5)]" 
+                                                style={{ width: `${Math.max(1.5, progressPercentage)}%` }}
+                                            >
+                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right min-w-[70px]">
+                                        <span className="block text-lg font-black text-gray-900 dark:text-white leading-none">{daysLeft}</span>
+                                        <span className="text-[9px] uppercase font-bold text-gray-400">Dagar kvar</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Level Meter */}
                     <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-800">
                         <div className="flex items-center justify-between mb-2">
