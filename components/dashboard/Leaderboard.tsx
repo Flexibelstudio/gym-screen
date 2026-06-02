@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { listenToLeaderboardData, getMembers } from '../../services/firebaseService';
+import { listenToLeaderboardData, getMembers, getOrganizationLogs } from '../../services/firebaseService';
 import { TrophyIcon, FireIcon, ChartBarIcon } from '@heroicons/react/24/solid';
 import { useStudio } from '../../context/StudioContext';
 import { useAuth } from '../../context/AuthContext';
@@ -32,10 +32,72 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                     members.filter(m => m.showOnLeaderboard === false).map(m => m.uid)
                 );
 
-                unsubscribeLeaderboard = listenToLeaderboardData(organizationId, selectedLocationId, members, (data) => {
+                unsubscribeLeaderboard = listenToLeaderboardData(organizationId, selectedLocationId, members, async (data) => {
                     const filteredData = data.filter(d => !optedOutMemberIds.has(d.memberId));
-                    setLeaderboard(filteredData);
-                    setLoading(false);
+                    
+                    if (filteredData.length > 0) {
+                        setLeaderboard(filteredData);
+                        setLoading(false);
+                    } else {
+                        // FALLBACK: Om dokumentet inte finns i databasen än (t.ex. under uppstart eller nyss upplagda gamla pass) - beräkna på klientsidan!
+                        try {
+                            const logs = await getOrganizationLogs(organizationId, 150);
+                            
+                            // Räkna ut veckans start och slut (måndag till söndag)
+                            const now = new Date();
+                            const currentDay = now.getDay() || 7; // 1 = måndag, ..., 7 = söndag
+                            const monday = new Date(now);
+                            monday.setDate(now.getDate() - (currentDay - 1));
+                            monday.setHours(0, 0, 0, 0);
+                            
+                            const sunday = new Date(monday);
+                            sunday.setDate(monday.getDate() + 6);
+                            sunday.setHours(23, 59, 59, 999);
+                            
+                            const startMs = monday.getTime();
+                            const endMs = sunday.getTime();
+                            
+                            // Filtrera loggar för den här veckan, rätt studio-krav, samt rätt ort om valt
+                            const weeklyLogs = logs.filter(log => {
+                                const logTime = log.date;
+                                const isThisWeek = logTime >= startMs && logTime <= endMs;
+                                const isStudio = log.inStudio !== false;
+                                const isShown = log.showOnLeaderboard !== false;
+                                const matchesLocation = selectedLocationId === 'all' || log.locationId === selectedLocationId;
+                                return isThisWeek && isStudio && isShown && matchesLocation && !optedOutMemberIds.has(log.memberId);
+                            });
+                            
+                            // Gruppera per medlem
+                            const counts: Record<string, { count: number, pbs: number }> = {};
+                            weeklyLogs.forEach(log => {
+                                const mId = log.memberId;
+                                if (!counts[mId]) {
+                                    counts[mId] = { count: 0, pbs: 0 };
+                                }
+                                counts[mId].count += 1;
+                                counts[mId].pbs += (log.newPBs || []).length;
+                            });
+                            
+                            const fallbackData = Object.entries(counts).map(([mId, stats]) => {
+                                const memberInfo = members.find(m => m.uid === mId);
+                                return {
+                                    memberId: mId,
+                                    name: memberInfo 
+                                        ? `${memberInfo.firstName || 'Medlem'} ${memberInfo.lastName ? memberInfo.lastName[0] + '.' : ''}`.trim()
+                                        : (weeklyLogs.find(l => l.memberId === mId)?.memberName || 'Okänd Medlem'),
+                                    photoUrl: memberInfo?.photoUrl || weeklyLogs.find(l => l.memberId === mId)?.memberPhotoUrl || '',
+                                    count: stats.count,
+                                    pbs: stats.pbs
+                                };
+                            });
+                            
+                            setLeaderboard(fallbackData);
+                        } catch (err) {
+                            console.error("Fallback leaderboard calculation failed", err);
+                        } finally {
+                            setLoading(false);
+                        }
+                    }
                 });
             } catch (error) {
                 console.error("Failed to setup leaderboard", error);
