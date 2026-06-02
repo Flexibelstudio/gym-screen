@@ -69,6 +69,7 @@ interface LogData {
 interface WorkoutData {
   id: string;
   title: string;
+  coachTips?: string;
   benchmarkId?: string;
   aiProgressionPrompt?: string;
   usePreGame?: boolean;
@@ -1848,6 +1849,18 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
       <div className="flex-1 overflow-y-auto bg-gray-5 dark:bg-black scrollbar-hide">
           <div className="p-2 sm:p-4 max-w-2xl mx-auto w-full">
               
+              {!isManualMode && workout?.coachTips && (
+                  <div className="mb-6 p-5 rounded-[2rem] bg-gray-50/75 dark:bg-gray-800/40 border border-gray-100 dark:border-gray-800 shadow-sm">
+                      <div className="flex items-center gap-2 mb-2">
+                          <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-pulse" />
+                          <label className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest leading-none">Coachens passbeskrivning</label>
+                      </div>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed font-semibold whitespace-pre-line">
+                          {workout.coachTips}
+                      </p>
+                  </div>
+              )}
+
               <div className="mb-6">
                   <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2 ml-1">Datum</label>
                   <div className="relative">
