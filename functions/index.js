@@ -1369,24 +1369,33 @@ exports.aggregateLeaderboard = onDocumentWritten({
   for (const lId of leaderboardDocs) {
      const ref = db.collection("leaderboards").doc(lId);
 
+     const memberObj = {};
+     if (afterData) {
+       memberObj.memberId = memberId;
+       memberObj.name = afterData.memberName || 'Okänd';
+       memberObj.photoUrl = afterData.memberPhotoUrl || null;
+     } else {
+       memberObj.memberId = memberId;
+       memberObj.name = beforeData ? (beforeData.memberName || 'Okänd') : 'Okänd';
+       memberObj.photoUrl = beforeData ? (beforeData.memberPhotoUrl || null) : null;
+     }
+
+     if (countDiff !== 0) {
+       memberObj.count = admin.firestore.FieldValue.increment(countDiff);
+     }
+     if (pbsDiff !== 0) {
+       memberObj.pbs = admin.firestore.FieldValue.increment(pbsDiff);
+     }
+
      const updateObj = {
         orgId,
         year,
         week,
         locationId: lId.includes('_all_') ? 'all' : locationId,
+        members: {
+          [memberId]: memberObj
+        }
      };
-     
-     if (countDiff !== 0) {
-       updateObj[`members.${memberId}.count`] = admin.firestore.FieldValue.increment(countDiff);
-     }
-     if (pbsDiff !== 0) {
-       updateObj[`members.${memberId}.pbs`] = admin.firestore.FieldValue.increment(pbsDiff);
-     }
-     if (afterData) {
-       updateObj[`members.${memberId}.name`] = afterData.memberName || 'Okänd';
-       updateObj[`members.${memberId}.photoUrl`] = afterData.memberPhotoUrl || null;
-       updateObj[`members.${memberId}.memberId`] = memberId;
-     }
 
      batch.set(ref, updateObj, { merge: true });
   }

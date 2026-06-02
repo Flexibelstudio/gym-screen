@@ -165,7 +165,7 @@ export const SINGLE_MEMBER_INSIGHT_PROMPT = (title: string, exercises: string[],
         Tonläge: Stabilt och professionellt. "Keep building the base."`;
     } else {
         scenario = `🤕 SLITEN/SKADAD (REHAB MODE)
-        Strategi: Fokus på rörlighet, teknik och att genomföra passet lugnt. Föreslå lättare vikter eller skalade övningar (ignorera höjningskrav i coachregeln här).
+        Strategi: Fokus på rörlighet, teknik och att genomföra passet lugnt. Föreslå lättare vikter eller anpassning av befintliga övningar (t.ex. köra utan vikt/lägre tempo). Prata med den riktiga coachen vid funderingar.
         Tonläge: Omtänksamt och lugnande. "Kvalitet före kvantitet."`;
     }
 
@@ -178,7 +178,12 @@ export const SINGLE_MEMBER_INSIGHT_PROMPT = (title: string, exercises: string[],
 
     Medlemmen har angett hur de känner sig idag: ${scenario}
 
-    Ditt uppdrag är att generera EN strategi utifrån hur medlemmen känner sig idag.
+    STRIKTA REGLER FÖR FÖRSLAG ('suggestions') OCH SKALNING ('scaling'):
+    1. Du får absolut INTE under några omständigheter föreslå andra eller alternativa övningar som inte redan finns med i passet. Alla tips måste gälla exakt de övningar som ligger i passet: ${exercises.join(', ')}.
+    2. Ge istället råd om hur man anpassar belastningen: till exempel att hålla nere vikten, köra med enbart kroppsvikt, ta längre vila, sänka tempot, korta ned rörelseomfånget eller fokusera extra mycket på form och teknik för de befintliga övningarna.
+    3. Hänvisa eller uppmana gärna medlemmen till att prata med sin riktiga personliga coach för personlig hjälp och anpassade instruktioner.
+
+    Ditt uppdrag är att generera EN strategi utifrån hur medlemmen känner sig idag under dessa stränga regler.
     Returnera ett JSON-objekt med nycklarna: 'readiness' (objekt med 'status' (high/moderate/low) och 'message' (string)), 'strategy' (string), 'suggestions' (array av objekt med 'exerciseName' och 'advice'), och 'scaling' (array av objekt med 'exerciseName' och 'advice').
     `;
 };
@@ -193,6 +198,11 @@ export const MEMBER_INSIGHTS_PROMPT = (title: string, exercises: string[], logs:
 
     Ditt uppdrag är att generera TRE OLIKA strategier baserat på hur medlemmen känner sig idag.
 
+    STRIKTA REGLER FÖR FÖRSLAG ('suggestions') OCH SKALNING ('scaling') I ALLA TRE SCENARIER:
+    1. Du får absolut INTE under några omständigheter föreslå andra eller alternativa övningar som inte redan finns med i passet. Alla tips måste gälla exakt de övningar som ligger i passet: ${exercises.join(', ')}.
+    2. Ge istället råd om hur man anpassar belastningen: till exempel att hålla nere vikten, köra med enbart kroppsvikt, ta längre vila, sänka tempot, korta ned rörelseomfånget eller fokusera extra mycket på form och teknik för de befintliga övningarna.
+    3. Hänvisa eller uppmana gärna medlemmen till att prata med sin riktiga personliga coach för personlig hjälp och anpassade instruktioner.
+
     SCENARIO 1: 🔥 PIGG & STARK (ATTACK MODE)
     Strategi: Uppmuntra till att slå PB eller öka volymen. Föreslå tyngre vikter utifrån historik och coachregel.
     Tonläge: Utmanande och aggressivt peppande. "Idag är dagen!"
@@ -202,7 +212,7 @@ export const MEMBER_INSIGHTS_PROMPT = (title: string, exercises: string[], logs:
     Tonläge: Stabilt och professionellt. "Keep building the base."
 
     SCENARIO 3: 🤕 SLITEN/SKADAD (REHAB MODE)
-    Strategi: Fokus på rörlighet, teknik och att genomföra passet lugnt. Föreslå lättare vikter eller skalade övningar (ignorera höjningskrav i coachregeln här).
+    Strategi: Fokus på rörlighet, teknik och att genomföra passet lugnt. Föreslå lättare vikter eller anpassning av befintliga övningar (t.ex. reducera vikten/tempot, rörlighetsträning) istället för att byta ut dem. Rådgör med riktig coach vid skador.
     Tonläge: Omtänksamt och lugnande. "Kvalitet före kvantitet."
 
     VIKTIGT: Returnera ett JSON-objekt med nycklarna "good", "neutral", och "bad", där varje nyckel innehåller 'readiness', 'strategy', 'suggestions' (array) och 'scaling' (array).

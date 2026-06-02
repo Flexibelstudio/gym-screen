@@ -538,7 +538,21 @@ const GoalsEditModal: React.FC<{ currentGoals?: MemberGoals, onSave: (goals: Mem
         setSmart({ specific: '', measurable: '', achievable: '', relevant: '', timeBound: '' });
     };
 
-    const handleSave = () => onSave({ hasSpecificGoals: selectedGoals.length > 0 || (isSmartEnabled && !!smart.specific), selectedGoals, targetDate, startDate: currentGoals?.startDate || new Date().toISOString().split('T')[0], smartCriteria: isSmartEnabled ? smart : undefined });
+    const handleSave = () => {
+        const isNewGoalText = currentGoals?.smartCriteria?.specific !== (isSmartEnabled ? smart.specific : undefined);
+        const isNewTargetDate = currentGoals?.targetDate !== targetDate;
+        const startDate = (isNewGoalText || isNewTargetDate || !currentGoals?.startDate)
+            ? new Date().toISOString().split('T')[0]
+            : currentGoals.startDate;
+
+        onSave({
+            hasSpecificGoals: selectedGoals.length > 0 || (isSmartEnabled && !!smart.specific),
+            selectedGoals,
+            targetDate,
+            startDate,
+            smartCriteria: isSmartEnabled ? smart : undefined
+        });
+    };
     
     const inputClasses = "w-full bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none transition-all font-medium";
     const labelClasses = "block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-1.5 ml-1";
@@ -1240,6 +1254,42 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         </div>
                     </div>
 
+                    {/* Goal Progress Bar Card */}
+                    {userData.goals?.smartCriteria?.specific && userData.goals?.targetDate && daysLeft !== null && (
+                        <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-800">
+                            <div className="flex items-center justify-between mb-3 text-xs font-black text-gray-500 uppercase tracking-widest">
+                                <span className="flex-1 text-left truncate mr-2" title={userData.goals.smartCriteria.specific}>
+                                    🎯 SMART-mål: {userData.goals.smartCriteria.specific}
+                                </span>
+                                <span className="text-right min-w-[50px]">Framsteg</span>
+                            </div>
+                            
+                            {daysLeft <= 0 ? (
+                                <div className="text-center p-3 bg-emerald-500/10 dark:bg-emerald-500/5 rounded-xl border border-emerald-500/20 dark:border-emerald-500/10">
+                                    <h4 className="font-extrabold text-gray-900 dark:text-white uppercase tracking-tight text-xs">Måldatum nått! ({userData.goals.targetDate})</h4>
+                                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">Dags att utvärdera och sätta ett nytt mål under Mål-fliken!</p>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-4">
+                                    <div className="flex-grow">
+                                        <div className="h-4 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden p-0.5 border border-gray-50 dark:border-gray-950">
+                                            <div 
+                                                className="h-full bg-primary rounded-full transition-all duration-1000 relative shadow-[0_0_10px_rgba(20,184,166,0.5)]" 
+                                                style={{ width: `${Math.max(1.5, progressPercentage)}%` }}
+                                            >
+                                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right min-w-[70px]">
+                                        <span className="block text-lg font-black text-gray-900 dark:text-white leading-none">{daysLeft}</span>
+                                        <span className="text-[9px] uppercase font-bold text-gray-400">Dagar kvar</span>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
                     {/* Level Meter */}
                     <div className="bg-white dark:bg-gray-900 rounded-2xl p-3 sm:p-4 shadow-sm border border-gray-100 dark:border-gray-800">
                         <div className="flex items-center justify-between mb-2">
@@ -1398,10 +1448,51 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                         </div>
                         
                         <div>
-                            {userData.goals?.hasSpecificGoals ? (
+                            {!userData.goals?.hasSpecificGoals ? (
+                                <div className="text-center py-6 px-4 bg-gray-50 dark:bg-gray-800/30 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700 space-y-4">
+                                    <p className="text-gray-500 text-sm font-medium italic">Du har inte valt några konkreta mål för din träning ännu.</p>
+                                    <div className="bg-gradient-to-r from-primary/10 to-indigo-500/10 p-5 rounded-2xl border border-primary/20 text-left space-y-3 max-w-md mx-auto">
+                                        <h4 className="font-extrabold text-sm text-gray-900 dark:text-white flex items-center gap-1.5 leading-none">
+                                            🚀 Maximera dina resultat med SMART-metoden!
+                                        </h4>
+                                        <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-semibold">
+                                            Genom att sätta ett <strong>SMART-mål</strong> (Specifikt, Mätbart, Accepterat, Relevant och Tidsbestämt) sätter du en tydlig kompass för din hälsoresa. Då får du dessutom en interaktiv progressbar på din översikt och personligt stöttande analyser från din AI-coach här i appen!
+                                        </p>
+                                    </div>
+                                    <button 
+                                        onClick={() => setIsCreatingNewGoal(true)} 
+                                        className="px-6 py-3 bg-primary text-white font-black rounded-xl hover:brightness-110 transition-all text-xs uppercase tracking-wider shadow-lg shadow-primary/15"
+                                    >
+                                        Skapa mitt första mål nu
+                                    </button>
+                                </div>
+                            ) : !userData.goals?.smartCriteria?.specific ? (
                                 <div className="space-y-6">
                                     <div className="flex flex-wrap gap-2">
-                                        {userData.goals.selectedGoals.map(g => (
+                                        {userData.goals.selectedGoals?.map(g => (
+                                            <span key={g} className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide border border-gray-200 dark:border-gray-700">{g}</span>
+                                        ))}
+                                    </div>
+
+                                    <div className="bg-gradient-to-r from-primary/10 to-indigo-500/10 p-5 rounded-2xl border border-primary/20 text-left space-y-3">
+                                        <h4 className="font-extrabold text-sm text-gray-900 dark:text-white flex items-center gap-1.5 leading-none">
+                                            🎯 Gör dina val till ett SMART mål!
+                                        </h4>
+                                        <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-semibold">
+                                            Du har valt dina kategorier! Gör dem ännu mer kraftfulla genom att formulera ett specifikt och tidsbestämt <strong>SMART-mål</strong>. När du gör det kan vi rita upp en interaktiv progressbar på din översikt, och din AI-coach kommer att ge dig anpassade framstegstips löpande!
+                                        </p>
+                                        <button 
+                                            onClick={() => setIsEditingGoals(true)} 
+                                            className="px-4 py-2.5 bg-primary text-white font-black rounded-xl hover:brightness-110 transition-all text-xs uppercase tracking-wider"
+                                        >
+                                            Formulera ett SMART-mål nu ⭐️
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    <div className="flex flex-wrap gap-2">
+                                        {userData.goals.selectedGoals?.map(g => (
                                             <span key={g} className="bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg text-xs font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wide border border-gray-200 dark:border-gray-700">{g}</span>
                                         ))}
                                     </div>
@@ -1413,14 +1504,10 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                         
                                         <div className="space-y-6">
                                             <div className="space-y-4">
-                                                {userData.goals.smartCriteria && (
-                                                    <>
-                                                        <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={userData.goals.smartCriteria.specific} />
-                                                        <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={userData.goals.smartCriteria.measurable} />
-                                                        <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={userData.goals.smartCriteria.achievable} />
-                                                        <SmartItem letter="R" color="bg-rose-500" title="Relevant" text={userData.goals.smartCriteria.relevant} />
-                                                    </>
-                                                )}
+                                                <SmartItem letter="S" color="bg-blue-500" title="Specifikt" text={userData.goals.smartCriteria.specific} />
+                                                <SmartItem letter="M" color="bg-emerald-500" title="Mätbart" text={userData.goals.smartCriteria.measurable || '-'} />
+                                                <SmartItem letter="A" color="bg-orange-500" title="Accepterat" text={userData.goals.smartCriteria.achievable || '-'} />
+                                                <SmartItem letter="R" color="bg-rose-500" title="Relevant" text={userData.goals.smartCriteria.relevant || '-'} />
                                                 <SmartItem letter="T" color="bg-indigo-500" title="Tid" text={userData.goals.targetDate || 'Ingen deadline.'} />
                                             </div>
 
@@ -1441,11 +1528,11 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                                                 </p>
                                                                 <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed font-semibold">
                                                                     Snyggt jobbat att du kämpat på mot ditt mål! Nu när måldatumet är nått är det ett perfekt tillfälle att stanna upp, utvärdera och fira dina framsteg tillsammans med din personliga PT i fickformat. Fråga PT-coachen i chatten vad nästa steg bör bli för att hålla kontinuiteten uppe!
-                                                                 </p>
+                                                                </p>
                                                             </div>
                                                             <div className="flex gap-2">
                                                                 <button
-                                                                    onClick={() => setIsEditingGoals(true)}
+                                                                    onClick={() => setIsCreatingNewGoal(true)}
                                                                     className="flex-grow px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-emerald-500/10 uppercase tracking-wider"
                                                                 >
                                                                     Sätt ett nytt spännande mål!
@@ -1513,11 +1600,6 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
                                             })()}
                                         </div>
                                     </div>
-                                </div>
-                            ) : (
-                                <div className="text-center py-4 bg-gray-50 dark:bg-gray-800/30 rounded-xl border border-dashed border-gray-200 dark:border-gray-700">
-                                    <p className="text-gray-500 text-sm italic">Inga specifika mål satta.</p>
-                                    <button onClick={() => setIsEditingGoals(true)} className="text-primary text-xs font-bold mt-2 hover:underline">Sätt mål nu</button>
                                 </div>
                             )}
                         </div>
