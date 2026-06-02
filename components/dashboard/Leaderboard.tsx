@@ -19,14 +19,12 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
     const [hasInitialized, setHasInitialized] = useState(false);
 
     useEffect(() => {
-        if (!hasInitialized && selectedOrganization) {
-            if (userData?.locationId) {
-                setSelectedLocationId(userData.locationId);
-                setHasInitialized(true);
-            } else if (selectedOrganization?.locations && selectedOrganization.locations.length > 0) {
-                setSelectedLocationId('all');
-                setHasInitialized(true);
-            }
+        if (userData?.locationId) {
+            setSelectedLocationId(userData.locationId);
+            setHasInitialized(true);
+        } else if (!hasInitialized && selectedOrganization?.locations && selectedOrganization.locations.length > 0) {
+            setSelectedLocationId('all');
+            setHasInitialized(true);
         }
     }, [userData?.locationId, selectedOrganization, hasInitialized]);
 
@@ -142,8 +140,8 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                 </h3>
             </div>
 
-            {/* Platsväljare som snygga pills/capsules */}
-            {selectedOrganization?.locations && selectedOrganization.locations.length > 1 && (
+            {/* Platsväljare som snygga pills/capsules - visas endast om användaren inte har en tilldelad studio */}
+            {!userData?.locationId && selectedOrganization?.locations && selectedOrganization.locations.length > 1 && (
                 <div className="flex flex-wrap gap-1.5 mb-4 p-1 bg-gray-50 dark:bg-gray-850 rounded-xl border border-gray-150 dark:border-gray-800">
                     <button
                         onClick={() => setSelectedLocationId('all')}
