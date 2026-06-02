@@ -1397,7 +1397,7 @@ exports.aggregateLeaderboard = onDocumentWritten({
         }
      };
 
-     batch.set(ref, updateObj, { merge: true });
+     batch.set(ref, updateObj, { mergeFields: ["orgId", "year", "week", "locationId", `members.${memberId}`] });
   }
 
   try {
