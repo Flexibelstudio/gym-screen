@@ -397,6 +397,16 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
                 throw new Error("Ogiltig inbjudningskod.");
             }
         }
+    } else {
+        // If matched organization's general code, resolve a default locationId
+        const orgData = snap.docs[0].data() as Organization;
+        if (orgData.locations && orgData.locations.length > 0) {
+            const matchedLoc = orgData.locations.find(l => l.inviteCode?.toUpperCase() === upperCode || l.coachCode?.toUpperCase() === upperCode) 
+                || orgData.locations[0];
+            if (matchedLoc) {
+                targetLocationId = matchedLoc.id;
+            }
+        }
     }
 
     if (snap.empty) {
@@ -408,6 +418,15 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
     const userCredential = await createUserWithEmailAndPassword(auth, email, pass);
     const user = userCredential.user;
 
+    let photoUrl = null;
+    if (additionalData?.photoBase64) {
+        try {
+            photoUrl = await uploadImage(`users/${user.uid}/profile.jpg`, additionalData.photoBase64);
+        } catch (uploadErr) {
+            console.error("Kunde inte ladda upp profilbild vid registrering:", uploadErr);
+        }
+    }
+
     const userData = {
         uid: user.uid,
         email: email,
@@ -417,6 +436,7 @@ export const registerMemberWithCode = async (email: string, pass: string, code: 
         locationId: targetLocationId || additionalData?.locationId || null,
         firstName: additionalData?.firstName || '',
         lastName: additionalData?.lastName || '',
+        photoUrl: photoUrl,
         age: additionalData?.age || null,
         birthDate: additionalData?.birthDate || null,
         gender: additionalData?.gender || 'prefer_not_to_say',
@@ -694,6 +714,17 @@ export const listenToCommunityLogs = (orgId: string, onUpdate: (logs: WorkoutLog
         const logs = snap.docs.map(d => d.data() as WorkoutLog).filter(log => log.showOnLeaderboard !== false && log.inStudio !== false);
         onUpdate(logs);
     }, (err) => console.error("listenToCommunityLogs failed", err));
+};
+
+export const listenToLeaderboardLogs = (orgId: string, limitCount: number, onUpdate: (logs: WorkoutLog[]) => void) => {
+    if (isOffline || !db || !orgId) {
+        onUpdate([]);
+        return () => {};
+    }
+    const q = query(collection(db, 'workoutLogs'), where("organizationId", "==", orgId), orderBy("date", "desc"), limit(limitCount));
+    return onSnapshot(q, (snap) => {
+        onUpdate(snap.docs.map(d => d.data() as WorkoutLog));
+    }, (err) => console.error("listenToLeaderboardLogs failed", err));
 };
 
 export const getMemberLogs = async (memberId: string): Promise<WorkoutLog[]> => {
