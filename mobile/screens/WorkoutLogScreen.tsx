@@ -1111,7 +1111,7 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
         // Reset state for new workout
         setAiInsight(null);
         setIsGeneratingInsight(false);
-        setViewMode('pre-game');
+        setViewMode(isManualMode ? 'logging' : 'pre-game');
         setDailyFeeling(null);
         
         try {
@@ -1243,8 +1243,9 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                 if (!skipInsights) {
                     const isCustomWorkout = foundWorkout.id?.startsWith('custom-') || false;
                     const preGameDisabledByGlobalSetting = isCustomWorkout && userData?.usePreGameForCustomWorkouts === false;
+                    const hasPreviousLogsForWorkout = logs.some(log => log.workoutId === wId);
                     
-                    if (foundWorkout.usePreGame === false || preGameDisabledByGlobalSetting) {
+                    if (foundWorkout.usePreGame === false || preGameDisabledByGlobalSetting || !hasPreviousLogsForWorkout) {
                         setViewMode('logging');
                     } else {
                         const exerciseNames = exercises.map(e => e.exerciseName);
