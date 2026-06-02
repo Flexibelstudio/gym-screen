@@ -15,17 +15,20 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'workouts' | 'pbs'>('workouts');
     
-    const [selectedLocationId, setSelectedLocationId] = useState<string | 'all'>(
-        userData?.locationId || selectedOrganization?.locations?.[0]?.id || 'all'
-    );
+    const [selectedLocationId, setSelectedLocationId] = useState<string | 'all'>('all');
+    const [hasInitialized, setHasInitialized] = useState(false);
 
     useEffect(() => {
-        if (userData?.locationId) {
-            setSelectedLocationId(userData.locationId);
-        } else if (selectedOrganization?.locations?.[0]?.id) {
-            setSelectedLocationId(selectedOrganization.locations[0].id);
+        if (!hasInitialized && selectedOrganization) {
+            if (userData?.locationId) {
+                setSelectedLocationId(userData.locationId);
+                setHasInitialized(true);
+            } else if (selectedOrganization?.locations && selectedOrganization.locations.length > 0) {
+                setSelectedLocationId('all');
+                setHasInitialized(true);
+            }
         }
-    }, [userData?.locationId, selectedOrganization?.locations]);
+    }, [userData?.locationId, selectedOrganization, hasInitialized]);
 
     useEffect(() => {
         if (!organizationId) return;
@@ -142,6 +145,38 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                     <TrophyIcon className="w-5 h-5 text-yellow-500" /> Veckans Topplista
                 </h3>
             </div>
+
+            {/* Platsväljare som snygga pills/capsules */}
+            {selectedOrganization?.locations && selectedOrganization.locations.length > 1 && (
+                <div className="flex flex-wrap gap-1.5 mb-4 p-1 bg-gray-50 dark:bg-gray-850 rounded-xl border border-gray-150 dark:border-gray-800">
+                    <button
+                        onClick={() => setSelectedLocationId('all')}
+                        className={`flex-1 py-1.5 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${
+                            selectedLocationId === 'all'
+                                ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                        }`}
+                    >
+                        Alla
+                    </button>
+                    {selectedOrganization.locations.map(loc => {
+                        const isSelected = selectedLocationId === loc.id;
+                        return (
+                            <button
+                                key={loc.id}
+                                onClick={() => setSelectedLocationId(loc.id)}
+                                className={`flex-1 py-1.5 px-3 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all truncate ${
+                                    isSelected
+                                        ? 'bg-white dark:bg-gray-700 text-primary shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                                }`}
+                            >
+                                {loc.name}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
             
             <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mb-4">
                 <button
