@@ -504,26 +504,37 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                         
                         {/* FOOTER ACTIONS */}
                         <div className="p-4 bg-gray-900 border-t border-gray-800 flex gap-3 flex-shrink-0">
-                            <button 
-                                onClick={() => {
-                                    const w = selectedWorkoutHistory;
-                                    setSelectedWorkoutHistory(null);
-                                    onSelectWorkout(w, 'view');
-                                }}
-                                className="flex-1 py-4 px-2 rounded-2xl bg-gray-800 text-white font-black text-xs uppercase tracking-widest border border-gray-700 hover:bg-gray-700 transition active:scale-95 text-center"
-                            >
-                                Visa Pass
-                            </button>
-                            <button 
-                                onClick={() => {
-                                    const w = selectedWorkoutHistory;
-                                    setSelectedWorkoutHistory(null);
-                                    onSelectWorkout(w, 'log');
-                                }}
-                                className="flex-[2] py-4 px-2 rounded-2xl bg-green-500 text-gray-900 font-black text-xs uppercase tracking-widest shadow-lg shadow-green-500/20 hover:bg-green-400 transition active:scale-95 text-center"
-                            >
-                                Logga Pass
-                            </button>
+                            {(() => {
+                                const w = selectedWorkoutHistory;
+                                const isLoggable = (w.blocks || []).some(b => 
+                                    (b.exercises || []).some(e => e.loggingEnabled === true)
+                                );
+                                
+                                return (
+                                    <>
+                                        <button 
+                                            onClick={() => {
+                                                setSelectedWorkoutHistory(null);
+                                                onSelectWorkout(w, 'view');
+                                            }}
+                                            className={`${isLoggable ? 'flex-1' : 'w-full'} py-4 px-2 rounded-2xl bg-gray-800 text-white font-black text-xs uppercase tracking-widest border border-gray-700 hover:bg-gray-700 transition active:scale-95 text-center`}
+                                        >
+                                            Visa Pass
+                                        </button>
+                                        {isLoggable && (
+                                            <button 
+                                                onClick={() => {
+                                                    setSelectedWorkoutHistory(null);
+                                                    onSelectWorkout(w, 'log');
+                                                }}
+                                                className="flex-[2] py-4 px-2 rounded-2xl bg-green-500 text-gray-900 font-black text-xs uppercase tracking-widest shadow-lg shadow-green-500/20 hover:bg-green-400 transition active:scale-95 text-center"
+                                            >
+                                                Logga Pass
+                                            </button>
+                                        )}
+                                    </>
+                                );
+                            })()}
                         </div>
                     </div>
                 </Modal>
