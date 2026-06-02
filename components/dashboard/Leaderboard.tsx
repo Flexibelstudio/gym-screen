@@ -15,7 +15,17 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'workouts' | 'pbs'>('workouts');
     
-    const [selectedLocationId, setSelectedLocationId] = useState<string | 'all'>(userData?.locationId || 'all');
+    const [selectedLocationId, setSelectedLocationId] = useState<string | 'all'>(
+        userData?.locationId || selectedOrganization?.locations?.[0]?.id || 'all'
+    );
+
+    useEffect(() => {
+        if (userData?.locationId) {
+            setSelectedLocationId(userData.locationId);
+        } else if (selectedOrganization?.locations?.[0]?.id) {
+            setSelectedLocationId(selectedOrganization.locations[0].id);
+        }
+    }, [userData?.locationId, selectedOrganization?.locations]);
 
     useEffect(() => {
         if (!organizationId) return;
@@ -133,43 +143,6 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ organizationId }) => {
                 </h3>
             </div>
             
-            {/* Nytt: Platsväljare om det finns flera orter */}
-            {selectedOrganization?.locations && selectedOrganization.locations.length > 1 && (
-                <div className="mb-4">
-                    {userData?.locationId && selectedOrganization.locations.find(l => l.id === userData.locationId) ? (
-                        <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl">
-                            <button
-                                onClick={() => setSelectedLocationId(userData.locationId!)}
-                                className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${
-                                    selectedLocationId === userData.locationId ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                                }`}
-                            >
-                                Min studio
-                            </button>
-                            <button
-                                onClick={() => setSelectedLocationId('all')}
-                                className={`flex-1 py-2 text-xs font-black uppercase tracking-widest rounded-lg transition-all ${
-                                    selectedLocationId === 'all' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                                }`}
-                            >
-                                Alla studios
-                            </button>
-                        </div>
-                    ) : (
-                        <select
-                            value={selectedLocationId}
-                            onChange={(e) => setSelectedLocationId(e.target.value)}
-                            className="w-full text-sm font-bold bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white rounded-xl px-3 py-2 outline-none focus:ring-2 focus:ring-primary/50"
-                        >
-                            <option value="all">Alla studios</option>
-                            {selectedOrganization.locations.map(loc => (
-                                <option key={loc.id} value={loc.id}>{loc.name}</option>
-                            ))}
-                        </select>
-                    )}
-                </div>
-            )}
-
             <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-xl mb-4">
                 <button
                     onClick={() => setActiveTab('workouts')}

@@ -51,8 +51,10 @@ import { WorkoutDiplomaView } from './components/WorkoutDiplomaView';
 
 // --- Modals ---
 import { BirthDatePromptModal } from './components/modals/BirthDatePromptModal';
+import { LocationPromptModal } from './components/modals/LocationPromptModal';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { CoachWorkoutPreviewModal } from './components/CoachWorkoutPreviewModal';
+import { updateUserProfile } from './services/firebaseService';
 
 const THEME_STORAGE_KEY = 'flexibel-screen-theme';
 
@@ -284,6 +286,7 @@ const App: React.FC = () => {
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [activeDiploma, setActiveDiploma] = useState<WorkoutDiploma | null>(null);
   const [showBirthDatePrompt, setShowBirthDatePrompt] = useState(false);
+  const [showLocationPrompt, setShowLocationPrompt] = useState(false);
 
   useEffect(() => {
       if (userData && !userData.birthDate && !isStudioMode) {
@@ -292,6 +295,22 @@ const App: React.FC = () => {
           setShowBirthDatePrompt(false);
       }
   }, [userData, isStudioMode]);
+
+  useEffect(() => {
+      const locations = selectedOrganization?.locations || [];
+      if (userData && !userData.locationId && !isStudioMode && locations.length > 0) {
+          if (locations.length === 1) {
+              updateUserProfile(userData.uid, { locationId: locations[0].id }).catch(err => {
+                  console.error("Auto-assign location failed", err);
+              });
+              setShowLocationPrompt(false);
+          } else {
+              setShowLocationPrompt(true);
+          }
+      } else {
+          setShowLocationPrompt(false);
+      }
+  }, [userData, isStudioMode, selectedOrganization?.locations]);
 
   useEffect(() => {
       if (mobileLogData || mobileViewData || isSearchWorkoutOpen || isCoachPreviewOpen || isScannerOpen || activeDiploma) {
@@ -1560,6 +1579,15 @@ const App: React.FC = () => {
                isOpen={showBirthDatePrompt} 
                onClose={() => setShowBirthDatePrompt(false)} 
                userData={userData} 
+           />
+       )}
+
+       {userData && showLocationPrompt && selectedOrganization?.locations && (
+           <LocationPromptModal 
+               isOpen={showLocationPrompt} 
+               userData={userData} 
+               locations={selectedOrganization.locations}
+               onClose={() => setShowLocationPrompt(false)} 
            />
        )}
 
