@@ -1152,7 +1152,7 @@ export const MemberProfileScreen: React.FC<MemberProfileScreenProps> = ({ userDa
     }
 
     return (
-        <div className="w-full max-w-4xl mx-auto px-0.5 sm:px-3 pt-2 pb-24 animate-fade-in relative z-0">
+        <div className="w-full max-w-4xl mx-auto px-0.5 sm:px-3 pt-2 pb-24 animate-fade-in relative z-0 overflow-x-hidden">
             
             {/* 1. Resume Workout Banner */}
             {activeSession && (
