@@ -457,6 +457,7 @@ const ExerciseLogCard: React.FC<{
     const [showTip, setShowTip] = useState(true);
     const [showScaling, setShowScaling] = useState(false);
     const [isEditingFields, setIsEditingFields] = useState(false);
+    const [isNoteActive, setIsNoteActive] = useState(!!result.note);
     const [isNoteExpanded, setIsNoteExpanded] = useState(!!result.note);
 
     const toggleField = (field: 'reps' | 'weight' | 'time' | 'distance' | 'kcal') => {
@@ -501,9 +502,16 @@ const ExerciseLogCard: React.FC<{
                             </button>
                         )}
                         <button 
-                            onClick={() => setIsNoteExpanded(!isNoteExpanded)}
+                            onClick={() => {
+                                if (!isNoteActive) {
+                                    setIsNoteActive(true);
+                                    setIsNoteExpanded(true);
+                                } else {
+                                    setIsNoteExpanded(!isNoteExpanded);
+                                }
+                            }}
                             className={`p-3 rounded-2xl transition-all active:scale-90 shadow-sm relative ${
-                                isNoteExpanded 
+                                isNoteActive 
                                     ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30' 
                                     : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-650 dark:hover:text-gray-200 border border-transparent'
                             }`}
@@ -721,64 +729,65 @@ const ExerciseLogCard: React.FC<{
                 </div>
                 
                 {/* Anteckningar för övningen */}
-                <AnimatePresence initial={false}>
-                    {isNoteExpanded ? (
-                        <motion.div 
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: "auto", opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="pt-3 border-t border-gray-100 dark:border-gray-800 overflow-hidden"
-                        >
-                            {lastPerformance?.note && (
-                                <div className="mb-3 bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100/50 dark:border-blue-800/30 shadow-sm">
-                                    <span className="block text-xs font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400 mb-1">Anteckning från förra passet:</span>
-                                    <p className="text-sm text-blue-900/80 dark:text-blue-200/80 italic leading-relaxed">
-                                        "{lastPerformance.note}"
-                                    </p>
-                                </div>
-                            )}
-                            <div className="flex justify-between items-center pl-1 mb-2">
-                                <label className="block text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-widest">Din anteckning</label>
-                                <button 
-                                    onClick={() => setIsNoteExpanded(false)}
-                                    className="text-gray-400 hover:text-gray-650 dark:hover:text-gray-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-850 transition-all flex items-center justify-center active:scale-95"
-                                    title="Fäll ihop"
-                                >
-                                    <span className="transform rotate-180 block text-gray-400 dark:text-gray-500">
-                                        <ChevronDownIcon className="w-5 h-5 stroke-[2.5]" />
-                                    </span>
-                                </button>
-                            </div>
-                            <textarea 
-                                value={result.note || ''} 
-                                onChange={(e) => onUpdate({ note: e.target.value })}
-                                placeholder="Lägg till en kommentar..."
-                                className="w-full bg-gray-50/50 dark:bg-gray-800/50 text-sm text-gray-900 dark:text-gray-100 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 focus:outline-none focus:border-primary/55 focus:ring-1 focus:ring-primary/55 transition-all resize-none min-h-[85px] shadow-sm font-medium"
-                            />
-                        </motion.div>
-                    ) : (
-                        <motion.div 
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="pt-3 border-t border-dashed border-gray-100 dark:border-gray-800 flex justify-center"
-                        >
-                            <button 
-                                onClick={() => setIsNoteExpanded(true)}
-                                className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary font-bold uppercase tracking-widest py-1.5 px-4 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/40 active:scale-95 transition-all"
+                {isNoteActive && (
+                    <AnimatePresence initial={false} mode="wait">
+                        {isNoteExpanded ? (
+                            <motion.div 
+                                key="expanded"
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                className="pt-3 border-t border-gray-100 dark:border-gray-800 overflow-hidden"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                </svg>
-                                {result.note ? "Visa / editera anteckning" : "Skriv anteckning"}
-                                <span className="text-gray-400 dark:text-gray-500 ml-0.5">
-                                    <ChevronDownIcon className="w-4 h-4 stroke-[2.5]" />
-                                </span>
-                                {result.note && <span className="w-2 h-2 bg-amber-500 rounded-full" />}
-                            </button>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                                {lastPerformance?.note && (
+                                    <div className="mb-3 bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100/50 dark:border-blue-800/30 shadow-sm">
+                                        <span className="block text-xs font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400 mb-1">Anteckning från förra passet:</span>
+                                        <p className="text-sm text-blue-900/80 dark:text-blue-200/80 italic leading-relaxed">
+                                            "{lastPerformance.note}"
+                                        </p>
+                                    </div>
+                                )}
+                                <div className="flex justify-between items-center pl-1 mb-2">
+                                    <label className="block text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-widest">Din anteckning</label>
+                                    <button 
+                                        onClick={() => setIsNoteExpanded(false)}
+                                        className="text-gray-400 hover:text-gray-650 dark:hover:text-gray-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-850 transition-all flex items-center justify-center active:scale-95"
+                                        title="Fäll ihop"
+                                    >
+                                        <span className="transform rotate-180 block text-gray-400 dark:text-gray-500">
+                                            <ChevronDownIcon className="w-5 h-5 stroke-[2.5]" />
+                                        </span>
+                                    </button>
+                                </div>
+                                <textarea 
+                                    value={result.note || ''} 
+                                    onChange={(e) => onUpdate({ note: e.target.value })}
+                                    placeholder="Lägg till en kommentar..."
+                                    className="w-full bg-gray-50/50 dark:bg-gray-800/50 text-sm text-gray-900 dark:text-gray-100 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 focus:outline-none focus:border-primary/55 focus:ring-1 focus:ring-primary/55 transition-all resize-none min-h-[85px] shadow-sm font-medium"
+                                />
+                            </motion.div>
+                        ) : (
+                            <motion.div 
+                                key="collapsed"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="pt-3 border-t border-dashed border-gray-100 dark:border-gray-800 flex justify-center"
+                            >
+                                <button 
+                                    onClick={() => setIsNoteExpanded(true)}
+                                    className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary font-black uppercase tracking-widest py-1.5 px-4 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/40 active:scale-95 transition-all"
+                                >
+                                    Anteckning
+                                    <span className="text-gray-400 dark:text-gray-500 ml-0.5">
+                                        <ChevronDownIcon className="w-3.5 h-3.5 stroke-[2.5]" />
+                                    </span>
+                                    {result.note && <span className="w-2 h-2 bg-amber-500 rounded-full" />}
+                                </button>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                )}
             </div>
         </div>
     );
