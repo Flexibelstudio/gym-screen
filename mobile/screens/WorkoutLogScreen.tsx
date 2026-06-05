@@ -418,7 +418,7 @@ const ExerciseLogCard: React.FC<{
     const showKcal = trackingFields.includes('kcal');
 
     const dynamicColsCount = [showReps, showWeight, showTime, showDistance, showKcal].filter(Boolean).length;
-    const gridColsClass = `grid-cols-[30px_repeat(${dynamicColsCount},_1fr)_40px_40px]`;
+    const gridColsClass = `grid-cols-[36px_repeat(${dynamicColsCount},_1fr)_40px_48px]`;
 
     // Extract tailwind color classes from groupColor (e.g. "bg-pink-500")
     const groupColorObj = result.groupColor ? GROUP_COLORS.find(c => c.bg === result.groupColor) : null;
@@ -471,17 +471,17 @@ const ExerciseLogCard: React.FC<{
     return (
         <div className={`bg-white dark:bg-gray-900 rounded-2xl p-4 mb-1 border shadow-sm transition-all ${result.groupColor ? `border-l-4 ${borderColorClass} border-y-gray-100 border-r-gray-100 dark:border-y-gray-800 dark:border-r-gray-800` : 'border-gray-100 dark:border-gray-800'}`}>
             <div className="flex flex-col gap-2 mb-4">
-                <div className="flex justify-between items-start">
+                <div className="flex justify-between items-center">
                     <div className="flex-1 min-w-0">
-                        <h4 className="font-bold text-gray-900 dark:text-white text-base truncate">{name}</h4>
+                        <h4 className="font-black text-gray-900 dark:text-white text-xl truncate">{name}</h4>
                         {lastPerformance ? (
-                            <p className="text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-0.5">
-                                Senast: <span className="text-gray-600 dark:text-gray-300">
+                            <p className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest mt-1">
+                                Senast: <span className="text-gray-600 dark:text-gray-300 font-extrabold">
                                     {lastPerformance.weight > 0 ? `${lastPerformance.reps} x ${lastPerformance.weight}kg` : `${lastPerformance.reps} reps`}
                                 </span>
                             </p>
                         ) : (
-                            <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mt-0.5">
+                            <p className="text-xs text-gray-400 uppercase font-extrabold tracking-wider mt-1">
                                Ingen historik
                             </p>
                         )}
@@ -494,26 +494,26 @@ const ExerciseLogCard: React.FC<{
                                     const estimatedOneRM = lastPerformance ? calculate1RM(lastPerformance.weight, lastPerformance.reps) : undefined;
                                     onOpenCalculator({ exerciseName: name, current1RM: estimatedOneRM || undefined });
                                 }}
-                                className="p-2 rounded-xl transition-colors bg-gray-50 dark:bg-gray-800 text-primary hover:bg-primary/20 dark:hover:bg-primary/20"
+                                className="p-3 rounded-2xl transition-all active:scale-90 bg-gray-50 dark:bg-gray-800 text-primary hover:bg-primary/20 dark:hover:bg-primary/20 shadow-sm"
                             >
                                 <CalculatorIcon className="w-5 h-5" />
                             </button>
                         )}
                         <button 
                             onClick={() => setIsEditingFields(!isEditingFields)}
-                            className={`p-2 rounded-xl transition-colors ${isEditingFields ? 'bg-primary/10 text-primary' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
+                            className={`p-3 rounded-2xl transition-all active:scale-90 shadow-sm ${isEditingFields ? 'bg-primary/10 text-primary' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                             </svg>
                         </button>
                         {onRemove && (
                             <button 
                                 onClick={onRemove}
-                                className="p-2 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+                                className="p-3 rounded-2xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 transition-all active:scale-90 shadow-sm"
                             >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                             </button>
                         )}
                     </div>
@@ -607,7 +607,7 @@ const ExerciseLogCard: React.FC<{
 
             <div className="space-y-4">
                 <div className="space-y-2">
-                    <div className={`grid ${gridColsClass} gap-2 px-1 text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-wider`}>
+                    <div className={`grid ${gridColsClass} gap-2 px-1 text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider`}>
                         <div className="text-center">Set</div>
                         {showReps && <div className="text-center">Reps</div>}
                         {showWeight && <div className="text-center">Vikt</div>}
@@ -623,19 +623,19 @@ const ExerciseLogCard: React.FC<{
                         return (
                             <div key={index} className={`grid ${gridColsClass} gap-2 items-center transition-all ${set.completed ? 'opacity-50' : 'opacity-100'}`}>
                                 <div className="flex justify-center items-center">
-                                    <span className={`text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center transition-colors ${set.completed ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>{index + 1}</span>
+                                    <span className={`text-sm font-black rounded-full w-8 h-8 flex items-center justify-center transition-colors shadow-sm ${set.completed ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>{index + 1}</span>
                                 </div>
                                 
                                 {showReps && (
-                                    <div className="bg-gray-5 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                        <input type="text" inputMode="numeric" value={set.reps} onChange={(e) => handleSetChange(index, 'reps', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" disabled={set.completed} />
+                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
+                                        <input type="text" inputMode="numeric" value={set.reps} onChange={(e) => handleSetChange(index, 'reps', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
                                     </div>
                                 )}
                                 
                                 {showWeight && (
                                     <div className="relative">
-                                        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                            <input type="number" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" disabled={set.completed} />
+                                        <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
+                                            <input type="number" value={set.weight} onChange={(e) => handleSetChange(index, 'weight', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
                                         </div>
                                         {oneRm && !set.completed && (
                                             <motion.div 
@@ -651,68 +651,74 @@ const ExerciseLogCard: React.FC<{
                                 )}
 
                                 {showTime && (
-                                    <div className="bg-gray-5 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                        <input type="number" value={set.time || ''} onChange={(e) => handleSetChange(index, 'time', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" disabled={set.completed} />
+                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
+                                        <input type="number" value={set.time || ''} onChange={(e) => handleSetChange(index, 'time', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
                                     </div>
                                 )}
 
                                 {showDistance && (
-                                    <div className="bg-gray-5 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                        <input type="number" value={set.distance || ''} onChange={(e) => handleSetChange(index, 'distance', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" disabled={set.completed} />
+                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
+                                        <input type="number" value={set.distance || ''} onChange={(e) => handleSetChange(index, 'distance', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
                                     </div>
                                 )}
 
                                 {showKcal && (
-                                    <div className="bg-gray-5 dark:bg-gray-800 rounded-xl p-2 border border-gray-100 dark:border-gray-700">
-                                        <input type="number" value={set.kcal || ''} onChange={(e) => handleSetChange(index, 'kcal', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-lg focus:outline-none text-center" disabled={set.completed} />
+                                    <div className="bg-gray-50 dark:bg-gray-800 rounded-xl p-3.5 border border-gray-100 dark:border-gray-700 shadow-inner">
+                                        <input type="number" value={set.kcal || ''} onChange={(e) => handleSetChange(index, 'kcal', e.target.value)} placeholder="0" className="w-full bg-transparent text-gray-900 dark:text-white font-black text-xl focus:outline-none text-center" disabled={set.completed} />
                                     </div>
                                 )}
 
                                 <div className="flex justify-center">
                                     {result.setDetails.length > 1 && (
-                                        <button onClick={() => handleRemoveSet(index)} className="text-gray-300 hover:text-red-500 transition-colors p-2" disabled={set.completed}><CloseIcon className="w-5 h-5" /></button>
+                                        <button 
+                                            onClick={() => handleRemoveSet(index)} 
+                                            className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 flex items-center justify-center p-2 active:scale-95 transition-all shadow-sm" 
+                                            disabled={set.completed}
+                                        >
+                                            <CloseIcon className="w-5 h-5" />
+                                        </button>
                                     )}
                                 </div>
                                 <div className="flex justify-center">
                                     <button 
                                         onClick={() => handleToggleComplete(index)} 
-                                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all shadow-sm transform active:scale-90 ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                                        className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all shadow-md transform active:scale-90 ${set.completed ? 'bg-green-600 text-white' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
                                     >
-                                        {set.completed ? <CheckIcon className="w-5 h-5" /> : <div className="w-2 h-2 rounded-full border border-current opacity-30" />}
+                                        {set.completed ? <CheckIcon className="w-6 h-6" /> : <div className="w-3.5 h-3.5 rounded-full border-2 border-current opacity-45" />}
                                     </button>
                                 </div>
                             </div>
                         );
                     })}
                     {(!result.groupId) && (
-                        <button onClick={handleAddSet} className="w-full mt-2 py-2 flex items-center justify-center gap-1 text-xs font-bold text-primary bg-primary/5 hover:bg-primary/10 rounded-lg transition-colors border border-primary/20 border-dashed"><PlusIcon className="w-3 h-3" /> Lägg till set</button>
+                        <button onClick={handleAddSet} className="w-full mt-3 py-3.5 flex items-center justify-center gap-2 text-sm font-black text-primary bg-primary/10 hover:bg-primary/15 rounded-xl transition-all border border-primary/30 border-dashed shadow-sm"><PlusIcon className="w-4 h-4" /> Lägg till set</button>
                     )}
                     {(result.groupId && isLastInGroup && onAddGroupSet) && (
                         <button 
                             onClick={onAddGroupSet} 
-                            className={`w-full mt-2 py-2 flex items-center justify-center gap-1 text-xs font-bold rounded-lg transition-colors border border-dashed ${textColorClass} ${lightBorderClass} ${lightBgClass}`}
+                            className={`w-full mt-3 py-3.5 flex items-center justify-center gap-2 text-sm font-black rounded-xl transition-all border border-dashed shadow-sm ${textColorClass} ${lightBorderClass} ${lightBgClass}`}
                         >
-                            <PlusIcon className="w-3 h-3" /> Lägg till set för gruppen
+                            <PlusIcon className="w-4 h-4" /> Lägg till set för gruppen
                         </button>
                     )}
                 </div>
                 
                 {/* Anteckningar för övningen */}
-                <div className="pt-2 border-t border-gray-100 dark:border-gray-800">
+                <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
                     {lastPerformance?.note && (
-                        <div className="mb-3 bg-blue-50/50 dark:bg-blue-900/10 p-3 rounded-xl border border-blue-100/50 dark:border-blue-800/30">
-                            <span className="block text-[9px] font-black uppercase tracking-widest text-blue-500/70 dark:text-blue-400/70 mb-1">Anteckning från förra passet:</span>
-                            <p className="text-xs text-blue-900/80 dark:text-blue-200/80 italic leading-relaxed">
+                        <div className="mb-3 bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100/50 dark:border-blue-800/30 shadow-sm">
+                            <span className="block text-xs font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400 mb-1">Anteckning från förra passet:</span>
+                            <p className="text-sm text-blue-900/80 dark:text-blue-200/80 italic leading-relaxed">
                                 "{lastPerformance.note}"
                             </p>
                         </div>
                     )}
-                    <label className="block text-[10px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-1 mb-2">Din anteckning</label>
+                    <label className="block text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-widest pl-1 mb-2">Din anteckning</label>
                     <textarea 
                         value={result.note || ''} 
                         onChange={(e) => onUpdate({ note: e.target.value })}
                         placeholder="Lägg till en kommentar..."
-                        className="w-full bg-gray-50/50 dark:bg-gray-800/50 text-xs text-gray-900 dark:text-gray-100 p-3 rounded-xl border border-gray-100 dark:border-gray-800 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all resize-none min-h-[60px]"
+                        className="w-full bg-gray-50/50 dark:bg-gray-800/50 text-sm text-gray-900 dark:text-gray-100 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 focus:outline-none focus:border-primary/55 focus:ring-1 focus:ring-primary/55 transition-all resize-none min-h-[85px] shadow-sm font-medium"
                     />
                 </div>
             </div>
@@ -769,26 +775,32 @@ const CustomActivityForm: React.FC<{
                 
                 {!isQuickMode && (
                     <>
-                        <h3 className="text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-4">Vanliga aktiviteter</h3>
-                        <div className="flex flex-wrap gap-2">
+                        <h3 className="text-xs font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-4">Vanliga aktiviteter</h3>
+                        <div className="flex flex-wrap gap-2.5">
                             {commonActivities.map((act: string) => (
-                                <button key={act} onClick={() => onUpdate('name', act)} className={`px-4 py-2.5 rounded-xl text-xs font-bold border-2 transition-all active:scale-95 ${activityName === act ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20' : 'bg-gray-5 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'}`}>{act}</button>
+                                <button key={act} onClick={() => onUpdate('name', act)} className={`px-4.5 py-3 rounded-2xl text-sm font-extrabold border-2 transition-all active:scale-95 ${activityName === act ? 'bg-primary border-primary text-white shadow-lg shadow-primary/20 scale-102 font-black' : 'bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700'}`}>{act}</button>
                             ))}
                         </div>
                     </>
                 )}
                 <div className={`mt-4 space-y-5 ${isQuickMode ? 'mt-0' : 'mt-8'}`}>
                     <div>
-                        <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Aktivitet {!hasExercises && '*'}</label>
-                        <input value={activityName} onChange={(e) => onUpdate('name', e.target.value)} placeholder={hasExercises ? "T.ex. Funktionellt (Frivilligt)" : "T.ex. Powerwalk"} disabled={isQuickMode} className={`w-full text-xl font-black text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 ${isQuickMode ? 'opacity-70' : ''}`} />
+                        <label className="block text-xs font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-1 mb-2">Aktivitet {!hasExercises && '*'}</label>
+                        <input value={activityName} onChange={(e) => onUpdate('name', e.target.value)} placeholder={hasExercises ? "T.ex. Funktionellt (Frivilligt)" : "T.ex. Powerwalk"} disabled={isQuickMode} className={`w-full text-xl font-black text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm ${isQuickMode ? 'opacity-70' : ''}`} />
                     </div>
                     <div>
-                        <label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Tid (min:sek) {!hasExercises && '*'}</label>
+                        <label className="block text-xs font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-1 mb-2">Tid (min:sek) {!hasExercises && '*'}</label>
                         <TimeInput value={duration} onChange={(val) => onUpdate('duration', val)} placeholder="60" className="w-full" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                        <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Kcal</label><input type="number" value={calories} onChange={(e) => onUpdate('calories', e.target.value)} placeholder="T.ex. 350" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
-                        <div><label className="block text-[11px] font-black text-gray-400 dark:text-gray-500 uppercase tracking-[0.15em] mb-2">Distans (km)</label><input type="number" value={distance} onChange={(e) => onUpdate('distance', e.target.value)} placeholder="T.ex. 5.3" className="w-full font-black text-lg text-gray-900 dark:text-white focus:outline-none bg-gray-5 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700" /></div>
+                        <div>
+                            <label className="block text-xs font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-1 mb-2">Kcal</label>
+                            <input type="number" value={calories} onChange={(e) => onUpdate('calories', e.target.value)} placeholder="T.ex. 350" className="w-full font-black text-xl text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-extrabold text-gray-400 dark:text-gray-500 uppercase tracking-widest pl-1 mb-2">Distans (km)</label>
+                            <input type="number" value={distance} onChange={(e) => onUpdate('distance', e.target.value)} placeholder="T.ex. 5.3" className="w-full font-black text-xl text-gray-900 dark:text-white focus:outline-none bg-gray-50 dark:bg-gray-800/50 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm" />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1900,13 +1912,15 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                           <h3 className="text-base font-black uppercase tracking-widest text-gray-800 dark:text-gray-200">
                               {exerciseResults.length > 0 ? 'Dina övningar' : 'Valfria övningar'}
                           </h3>
-                          <button 
-                              onClick={() => setShowExerciseSearch(true)}
-                              className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-primary rounded-full text-xs font-bold flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition uppercase tracking-wider"
-                          >
-                              <PlusIcon className="w-4 h-4" />
-                              Lägg till övning
-                          </button>
+                          {exerciseResults.length === 0 && (
+                              <button 
+                                  onClick={() => setShowExerciseSearch(true)}
+                                  className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-primary rounded-full text-xs font-bold flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition uppercase tracking-wider"
+                              >
+                                  <PlusIcon className="w-4 h-4" />
+                                  Lägg till övning
+                              </button>
+                          )}
                       </div>
                   </div>
               )}
@@ -1920,49 +1934,61 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                     )}
                     
                     {isManualMode ? (
-                        exerciseResults.map((result, index) => {
-                            const isLastInGroup = result.groupId && (index === exerciseResults.length - 1 || exerciseResults[index + 1].groupId !== result.groupId);
+                        <div className="flex flex-col gap-4">
+                            {exerciseResults.map((result, index) => {
+                                const isLastInGroup = result.groupId && (index === exerciseResults.length - 1 || exerciseResults[index + 1].groupId !== result.groupId);
 
-                            return (
-                                <ExerciseLogCard
-                                    key={result.exerciseId}
-                                    name={result.exerciseName}
-                                    result={result}
-                                    onUpdate={(updates) => handleUpdateResult(index, updates)}
-                                    onRemove={() => setExerciseResults(prev => prev.filter((_, i) => i !== index))}
-                                    aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
-                                    scaling={activeInsight?.scaling?.[result.exerciseName]} 
-                                    lastPerformance={history[result.exerciseName]} 
-                                    isLastInGroup={isLastInGroup}
-                                    onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
-                                    onOpenCalculator={(ctx) => {
-                                        setCalculatorContext({
-                                            ...ctx,
-                                            onSelectWeight: (weight: number) => {
-                                                setExerciseResults(prev => {
-                                                    const newResults = [...prev];
-                                                    const res = {...newResults[index]};
-                                                    res.setDetails = res.setDetails.map(s => ({...s}));
-                                                    
-                                                    // Find first uncompleted set
-                                                    let targetIdx = res.setDetails.findIndex(s => !s.completed);
-                                                    if (targetIdx === -1) {
-                                                        // if all completed, just use the last one
-                                                        targetIdx = res.setDetails.length - 1;
-                                                    }
-                                                    if (targetIdx !== -1) {
-                                                        res.setDetails[targetIdx].weight = weight.toString();
-                                                    }
-                                                    newResults[index] = res;
-                                                    return newResults;
-                                                });
-                                            }
-                                        });
-                                        setShowCalculator(true);
-                                    }}
-                                />
-                            );
-                        })
+                                return (
+                                    <ExerciseLogCard
+                                        key={result.exerciseId}
+                                        name={result.exerciseName}
+                                        result={result}
+                                        onUpdate={(updates) => handleUpdateResult(index, updates)}
+                                        onRemove={() => setExerciseResults(prev => prev.filter((_, i) => i !== index))}
+                                        aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
+                                        scaling={activeInsight?.scaling?.[result.exerciseName]} 
+                                        lastPerformance={history[result.exerciseName]} 
+                                        isLastInGroup={isLastInGroup}
+                                        onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
+                                        onOpenCalculator={(ctx) => {
+                                            setCalculatorContext({
+                                                ...ctx,
+                                                onSelectWeight: (weight: number) => {
+                                                    setExerciseResults(prev => {
+                                                        const newResults = [...prev];
+                                                        const res = {...newResults[index]};
+                                                        res.setDetails = res.setDetails.map(s => ({...s}));
+                                                        
+                                                        // Find first uncompleted set
+                                                        let targetIdx = res.setDetails.findIndex(s => !s.completed);
+                                                        if (targetIdx === -1) {
+                                                            // if all completed, just use the last one
+                                                            targetIdx = res.setDetails.length - 1;
+                                                        }
+                                                        if (targetIdx !== -1) {
+                                                            res.setDetails[targetIdx].weight = weight.toString();
+                                                        }
+                                                        newResults[index] = res;
+                                                        return newResults;
+                                                    });
+                                                }
+                                            });
+                                            setShowCalculator(true);
+                                        }}
+                                    />
+                                );
+                            })}
+                            
+                            <div className="flex justify-center pt-2">
+                                <button 
+                                    onClick={() => setShowExerciseSearch(true)}
+                                    className="w-full py-4 bg-gray-50 dark:bg-gray-900 border-2 border-dashed border-primary/20 hover:border-primary/50 text-primary dark:text-primary-light hover:bg-primary/5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all uppercase tracking-wider shadow-sm"
+                                >
+                                    <PlusIcon className="w-5 h-5" />
+                                    Lägg till övning
+                                </button>
+                            </div>
+                        </div>
                     ) : (
                         blockGroups.map((group) => {
                             const isExpanded = expandedBlockId === group.blockId;
