@@ -2254,7 +2254,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                 )}
 
                 {/* ROW 3: EVENT ACTIVE VIEW (STATISTIK, LEADERBOARDS & QR CODE) */}
-                {(!isLobbyMode && remainingGroupsCount === 0) && (
+                {!isLobbyMode && (
                     <div className="flex flex-col gap-6 w-full">
                         {/* statistiken under klockan */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
