@@ -741,9 +741,12 @@ const ExerciseLogCard: React.FC<{
                                 <label className="block text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-widest">Din anteckning</label>
                                 <button 
                                     onClick={() => setIsNoteExpanded(false)}
-                                    className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 font-bold uppercase tracking-wider flex items-center gap-0.5 active:scale-95 transition-all"
+                                    className="text-gray-400 hover:text-gray-650 dark:hover:text-gray-200 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-850 transition-all flex items-center justify-center active:scale-95"
+                                    title="Fäll ihop"
                                 >
-                                    Fäll ihop
+                                    <span className="transform rotate-180 block text-gray-400 dark:text-gray-500">
+                                        <ChevronDownIcon className="w-5 h-5 stroke-[2.5]" />
+                                    </span>
                                 </button>
                             </div>
                             <textarea 
@@ -768,6 +771,9 @@ const ExerciseLogCard: React.FC<{
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                 </svg>
                                 {result.note ? "Visa / editera anteckning" : "Skriv anteckning"}
+                                <span className="text-gray-400 dark:text-gray-500 ml-0.5">
+                                    <ChevronDownIcon className="w-4 h-4 stroke-[2.5]" />
+                                </span>
                                 {result.note && <span className="w-2 h-2 bg-amber-500 rounded-full" />}
                             </button>
                         </motion.div>
