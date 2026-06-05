@@ -256,6 +256,12 @@ const App: React.FC = () => {
     if (page !== Page.HyroxRaceDetail) {
       setActiveRaceId(null);
     }
+
+    // Återställ header-synlighet och back-knapp när man lämnar Timer-sidan
+    if (page !== Page.Timer) {
+      setIsTimerHeaderVisible(true);
+      setIsBackButtonHidden(false);
+    }
   }, [page]);
 
   const [activePasskategori, setActivePasskategori] = useState<string | null>(null);

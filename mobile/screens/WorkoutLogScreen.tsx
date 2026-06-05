@@ -457,6 +457,7 @@ const ExerciseLogCard: React.FC<{
     const [showTip, setShowTip] = useState(true);
     const [showScaling, setShowScaling] = useState(false);
     const [isEditingFields, setIsEditingFields] = useState(false);
+    const [isNoteExpanded, setIsNoteExpanded] = useState(!!result.note);
 
     const toggleField = (field: 'reps' | 'weight' | 'time' | 'distance' | 'kcal') => {
         const current = [...trackingFields];
@@ -499,6 +500,22 @@ const ExerciseLogCard: React.FC<{
                                 <CalculatorIcon className="w-5 h-5" />
                             </button>
                         )}
+                        <button 
+                            onClick={() => setIsNoteExpanded(!isNoteExpanded)}
+                            className={`p-3 rounded-2xl transition-all active:scale-90 shadow-sm relative ${
+                                isNoteExpanded 
+                                    ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30' 
+                                    : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-650 dark:hover:text-gray-200 border border-transparent'
+                            }`}
+                            title="Anteckning"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            {result.note && !isNoteExpanded && (
+                                <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-amber-550 rounded-full ring-2 ring-white dark:ring-gray-900 animate-pulse" />
+                            )}
+                        </button>
                         <button 
                             onClick={() => setIsEditingFields(!isEditingFields)}
                             className={`p-3 rounded-2xl transition-all active:scale-90 shadow-sm ${isEditingFields ? 'bg-primary/10 text-primary' : 'bg-gray-50 dark:bg-gray-800 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
@@ -704,23 +721,58 @@ const ExerciseLogCard: React.FC<{
                 </div>
                 
                 {/* Anteckningar för övningen */}
-                <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
-                    {lastPerformance?.note && (
-                        <div className="mb-3 bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100/50 dark:border-blue-800/30 shadow-sm">
-                            <span className="block text-xs font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400 mb-1">Anteckning från förra passet:</span>
-                            <p className="text-sm text-blue-900/80 dark:text-blue-200/80 italic leading-relaxed">
-                                "{lastPerformance.note}"
-                            </p>
-                        </div>
+                <AnimatePresence initial={false}>
+                    {isNoteExpanded ? (
+                        <motion.div 
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="pt-3 border-t border-gray-100 dark:border-gray-800 overflow-hidden"
+                        >
+                            {lastPerformance?.note && (
+                                <div className="mb-3 bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100/50 dark:border-blue-800/30 shadow-sm">
+                                    <span className="block text-xs font-bold uppercase tracking-wider text-blue-500 dark:text-blue-400 mb-1">Anteckning från förra passet:</span>
+                                    <p className="text-sm text-blue-900/80 dark:text-blue-200/80 italic leading-relaxed">
+                                        "{lastPerformance.note}"
+                                    </p>
+                                </div>
+                            )}
+                            <div className="flex justify-between items-center pl-1 mb-2">
+                                <label className="block text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-widest">Din anteckning</label>
+                                <button 
+                                    onClick={() => setIsNoteExpanded(false)}
+                                    className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 font-bold uppercase tracking-wider flex items-center gap-0.5 active:scale-95 transition-all"
+                                >
+                                    Fäll ihop
+                                </button>
+                            </div>
+                            <textarea 
+                                value={result.note || ''} 
+                                onChange={(e) => onUpdate({ note: e.target.value })}
+                                placeholder="Lägg till en kommentar..."
+                                className="w-full bg-gray-50/50 dark:bg-gray-800/50 text-sm text-gray-900 dark:text-gray-100 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 focus:outline-none focus:border-primary/55 focus:ring-1 focus:ring-primary/55 transition-all resize-none min-h-[85px] shadow-sm font-medium"
+                            />
+                        </motion.div>
+                    ) : (
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="pt-3 border-t border-dashed border-gray-100 dark:border-gray-800 flex justify-center"
+                        >
+                            <button 
+                                onClick={() => setIsNoteExpanded(true)}
+                                className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary font-bold uppercase tracking-widest py-1.5 px-4 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/40 active:scale-95 transition-all"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                                {result.note ? "Visa / editera anteckning" : "Skriv anteckning"}
+                                {result.note && <span className="w-2 h-2 bg-amber-500 rounded-full" />}
+                            </button>
+                        </motion.div>
                     )}
-                    <label className="block text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-widest pl-1 mb-2">Din anteckning</label>
-                    <textarea 
-                        value={result.note || ''} 
-                        onChange={(e) => onUpdate({ note: e.target.value })}
-                        placeholder="Lägg till en kommentar..."
-                        className="w-full bg-gray-50/50 dark:bg-gray-800/50 text-sm text-gray-900 dark:text-gray-100 p-4 rounded-2xl border border-gray-100 dark:border-gray-800 focus:outline-none focus:border-primary/55 focus:ring-1 focus:ring-primary/55 transition-all resize-none min-h-[85px] shadow-sm font-medium"
-                    />
-                </div>
+                </AnimatePresence>
             </div>
         </div>
     );
