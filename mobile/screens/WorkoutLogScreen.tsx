@@ -772,17 +772,19 @@ const ExerciseLogCard: React.FC<{
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
-                                className="pt-3 border-t border-dashed border-gray-100 dark:border-gray-800 flex justify-center"
+                                className="pt-3 border-t border-dashed border-gray-100 dark:border-gray-800"
                             >
                                 <button 
                                     onClick={() => setIsNoteExpanded(true)}
-                                    className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary font-black uppercase tracking-widest py-1.5 px-4 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/40 active:scale-95 transition-all"
+                                    className="w-full flex justify-between items-center pl-1 group focus:outline-none"
                                 >
-                                    Anteckning
-                                    <span className="text-gray-400 dark:text-gray-500 ml-0.5">
-                                        <ChevronDownIcon className="w-3.5 h-3.5 stroke-[2.5]" />
+                                    <span className="text-xs font-bold text-gray-550 dark:text-gray-400 uppercase tracking-widest group-hover:text-primary transition-colors flex items-center gap-1.5">
+                                        Anteckning
+                                        {result.note && <span className="w-2 h-2 bg-amber-500 rounded-full" />}
                                     </span>
-                                    {result.note && <span className="w-2 h-2 bg-amber-500 rounded-full" />}
+                                    <span className="text-gray-400 dark:text-gray-500 group-hover:text-primary transition-colors p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-850 flex items-center justify-center active:scale-95 transition-all">
+                                        <ChevronDownIcon className="w-5 h-5 stroke-[2.5]" />
+                                    </span>
                                 </button>
                             </motion.div>
                         )}
