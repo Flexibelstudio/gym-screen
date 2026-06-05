@@ -2440,7 +2440,7 @@ export const TimerScreen: React.FC<TimerScreenProps> = ({
                             <button 
                                 onClick={handleRaceComplete}
                                 disabled={isSavingRace}
-                                className="bg-red-650 hover:bg-red-600 text-white font-extrabold py-3.5 px-6 rounded-2xl uppercase tracking-wider text-xs shadow-lg shadow-red-500/10 hover:shadow-red-500/20 active:scale-[0.98] transition-all w-full md:w-auto"
+                                className="bg-red-600 hover:bg-red-700 text-white font-extrabold py-3.5 px-6 rounded-2xl uppercase tracking-wider text-xs shadow-lg shadow-red-500/10 hover:shadow-red-500/20 active:scale-[0.98] transition-all w-full md:w-auto"
                             >
                                 {isSavingRace ? 'Sparar...' : 'Stoppa & spara eventet'}
                             </button>
