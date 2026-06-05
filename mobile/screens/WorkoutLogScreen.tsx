@@ -1900,13 +1900,15 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                           <h3 className="text-base font-black uppercase tracking-widest text-gray-800 dark:text-gray-200">
                               {exerciseResults.length > 0 ? 'Dina övningar' : 'Valfria övningar'}
                           </h3>
-                          <button 
-                              onClick={() => setShowExerciseSearch(true)}
-                              className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-primary rounded-full text-xs font-bold flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition uppercase tracking-wider"
-                          >
-                              <PlusIcon className="w-4 h-4" />
-                              Lägg till övning
-                          </button>
+                          {exerciseResults.length === 0 && (
+                              <button 
+                                  onClick={() => setShowExerciseSearch(true)}
+                                  className="px-4 py-2 bg-gray-100 dark:bg-gray-800 text-primary rounded-full text-xs font-bold flex items-center gap-2 hover:bg-gray-200 dark:hover:bg-gray-700 transition uppercase tracking-wider"
+                              >
+                                  <PlusIcon className="w-4 h-4" />
+                                  Lägg till övning
+                              </button>
+                          )}
                       </div>
                   </div>
               )}
@@ -1920,49 +1922,61 @@ export const WorkoutLogScreen = ({ workoutId, organizationId, source, onClose, n
                     )}
                     
                     {isManualMode ? (
-                        exerciseResults.map((result, index) => {
-                            const isLastInGroup = result.groupId && (index === exerciseResults.length - 1 || exerciseResults[index + 1].groupId !== result.groupId);
+                        <div className="flex flex-col gap-4">
+                            {exerciseResults.map((result, index) => {
+                                const isLastInGroup = result.groupId && (index === exerciseResults.length - 1 || exerciseResults[index + 1].groupId !== result.groupId);
 
-                            return (
-                                <ExerciseLogCard
-                                    key={result.exerciseId}
-                                    name={result.exerciseName}
-                                    result={result}
-                                    onUpdate={(updates) => handleUpdateResult(index, updates)}
-                                    onRemove={() => setExerciseResults(prev => prev.filter((_, i) => i !== index))}
-                                    aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
-                                    scaling={activeInsight?.scaling?.[result.exerciseName]} 
-                                    lastPerformance={history[result.exerciseName]} 
-                                    isLastInGroup={isLastInGroup}
-                                    onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
-                                    onOpenCalculator={(ctx) => {
-                                        setCalculatorContext({
-                                            ...ctx,
-                                            onSelectWeight: (weight: number) => {
-                                                setExerciseResults(prev => {
-                                                    const newResults = [...prev];
-                                                    const res = {...newResults[index]};
-                                                    res.setDetails = res.setDetails.map(s => ({...s}));
-                                                    
-                                                    // Find first uncompleted set
-                                                    let targetIdx = res.setDetails.findIndex(s => !s.completed);
-                                                    if (targetIdx === -1) {
-                                                        // if all completed, just use the last one
-                                                        targetIdx = res.setDetails.length - 1;
-                                                    }
-                                                    if (targetIdx !== -1) {
-                                                        res.setDetails[targetIdx].weight = weight.toString();
-                                                    }
-                                                    newResults[index] = res;
-                                                    return newResults;
-                                                });
-                                            }
-                                        });
-                                        setShowCalculator(true);
-                                    }}
-                                />
-                            );
-                        })
+                                return (
+                                    <ExerciseLogCard
+                                        key={result.exerciseId}
+                                        name={result.exerciseName}
+                                        result={result}
+                                        onUpdate={(updates) => handleUpdateResult(index, updates)}
+                                        onRemove={() => setExerciseResults(prev => prev.filter((_, i) => i !== index))}
+                                        aiSuggestion={activeInsight?.suggestions?.[result.exerciseName]} 
+                                        scaling={activeInsight?.scaling?.[result.exerciseName]} 
+                                        lastPerformance={history[result.exerciseName]} 
+                                        isLastInGroup={isLastInGroup}
+                                        onAddGroupSet={() => handleAddGroupSet(result.groupId!)}
+                                        onOpenCalculator={(ctx) => {
+                                            setCalculatorContext({
+                                                ...ctx,
+                                                onSelectWeight: (weight: number) => {
+                                                    setExerciseResults(prev => {
+                                                        const newResults = [...prev];
+                                                        const res = {...newResults[index]};
+                                                        res.setDetails = res.setDetails.map(s => ({...s}));
+                                                        
+                                                        // Find first uncompleted set
+                                                        let targetIdx = res.setDetails.findIndex(s => !s.completed);
+                                                        if (targetIdx === -1) {
+                                                            // if all completed, just use the last one
+                                                            targetIdx = res.setDetails.length - 1;
+                                                        }
+                                                        if (targetIdx !== -1) {
+                                                            res.setDetails[targetIdx].weight = weight.toString();
+                                                        }
+                                                        newResults[index] = res;
+                                                        return newResults;
+                                                    });
+                                                }
+                                            });
+                                            setShowCalculator(true);
+                                        }}
+                                    />
+                                );
+                            })}
+                            
+                            <div className="flex justify-center pt-2">
+                                <button 
+                                    onClick={() => setShowExerciseSearch(true)}
+                                    className="w-full py-4 bg-gray-50 dark:bg-gray-900 border-2 border-dashed border-primary/20 hover:border-primary/50 text-primary dark:text-primary-light hover:bg-primary/5 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all uppercase tracking-wider shadow-sm"
+                                >
+                                    <PlusIcon className="w-5 h-5" />
+                                    Lägg till övning
+                                </button>
+                            </div>
+                        </div>
                     ) : (
                         blockGroups.map((group) => {
                             const isExpanded = expandedBlockId === group.blockId;
