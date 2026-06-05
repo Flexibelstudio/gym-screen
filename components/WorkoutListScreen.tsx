@@ -183,7 +183,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                  <p className="text-2xl sm:text-3xl leading-none font-black text-gray-300 dark:text-gray-700 tracking-tight">
                                      -
                                  </p>
-                                 <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-1 uppercase tracking-widest font-black">
+                                 <p className="text-[10px] text-gray-400 dark:text-gray-650 mt-1 uppercase tracking-widest font-black">
                                      INGA FÖRSÖK ÄN
                                  </p>
                             </div>
@@ -195,7 +195,7 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                      e.stopPropagation();
                                      onSelectWorkout(workout, 'view');
                                  }}
-                                 className="flex-1 py-1.5 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-800 dark:text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-colors shadow-sm"
+                                 className="flex-1 py-3 bg-gray-200 dark:bg-gray-800 hover:bg-gray-300 dark:hover:bg-gray-700 text-gray-900 dark:text-white rounded-xl text-sm font-extrabold uppercase tracking-wider transition-all active:scale-95 shadow-sm border border-gray-300/30 dark:border-gray-700/50"
                              >
                                  Visa
                              </button>
@@ -205,12 +205,12 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                          e.stopPropagation();
                                          onSelectWorkout(workout, 'log');
                                      }}
-                                     className="flex-1 py-1.5 bg-primary text-white hover:bg-primary/90 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors shadow-sm"
+                                     className="flex-[1.2] py-3 bg-primary text-white hover:bg-primary/95 rounded-xl text-sm font-black uppercase tracking-wider transition-all active:scale-95 shadow-md shadow-primary/20"
                                  >
                                      Logga
                                  </button>
                              )}
-                         </div>
+                        </div>
                     </>
                 </div>
                 
@@ -231,20 +231,20 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                     <div className="flex items-center gap-2 mb-4 w-full">
                         <button
                             onClick={() => setActiveTab('alla')}
-                            className={`flex-1 py-2 px-2 rounded-full font-bold uppercase tracking-wide text-xs transition-all ${
+                            className={`flex-1 py-3 px-3 rounded-full font-black uppercase tracking-wide text-sm transition-all shadow-sm ${
                                 activeTab === 'alla'
                                     ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 shadow-md'
-                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-250 dark:hover:bg-gray-700'
                             }`}
                         >
                             Alla Pass
                         </button>
                         <button
                             onClick={() => setActiveTab('mina')}
-                            className={`flex-1 py-2 px-2 rounded-full font-bold uppercase tracking-wide text-xs transition-all ${
+                            className={`flex-1 py-3 px-3 rounded-full font-black uppercase tracking-wide text-sm transition-all shadow-sm ${
                                 activeTab === 'mina'
                                     ? 'bg-primary text-white shadow-md'
-                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 hover:bg-gray-250 dark:hover:bg-gray-700'
                             }`}
                         >
                             Mina ({customPrograms.length})
@@ -269,12 +269,12 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                 </div>
                 
                 {activeTab === 'alla' && !isStudioMode && studioConfig?.customCategories && studioConfig.customCategories.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 pb-1 pt-1 px-1">
+                    <div className="flex flex-wrap gap-2 pb-1 pt-1 px-1">
                         <button
                             onClick={() => setSelectedCategory(null)}
-                            className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1 border
+                            className={`px-4.5 py-3 rounded-2xl font-extrabold text-sm transition-all flex items-center gap-1.5 border active:scale-95 shadow-sm
                                 ${!selectedCategory 
-                                    ? 'bg-primary text-white border-primary shadow-sm' 
+                                    ? 'bg-primary text-white border-primary shadow-sm font-black' 
                                     : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                         >
                             Alla
@@ -290,13 +290,13 @@ export const WorkoutListScreen: React.FC<WorkoutListScreenProps> = ({ passkatego
                                         setSelectedCategory(cat.name);
                                     }
                                 }}
-                                className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1 border
+                                className={`px-4.5 py-3 rounded-2xl font-extrabold text-sm transition-all flex items-center gap-1.5 border active:scale-95 shadow-sm
                                     ${selectedCategory === cat.name 
-                                        ? 'bg-primary text-white border-primary shadow-sm' 
+                                        ? 'bg-primary text-white border-primary shadow-sm font-black' 
                                         : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
                             >
                                 {cat.name}
-                                {cat.isLocked && <LockIcon className="w-3 h-3 opacity-70" />}
+                                {cat.isLocked && <LockIcon className="w-3.5 h-3.5 opacity-80" />}
                             </button>
                         ))}
                     </div>
